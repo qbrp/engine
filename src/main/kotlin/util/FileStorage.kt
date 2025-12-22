@@ -1,0 +1,55 @@
+package org.lain.engine.util
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import org.lain.engine.player.MovementStatus
+import org.lain.engine.player.Player
+import org.lain.engine.player.PlayerId
+import org.lain.engine.player.VoiceApparatus
+import org.lain.engine.player.VoiceLoose
+import org.lain.engine.player.customName
+
+private val PLAYERS_DATA_DIR = ENGINE_DIR.resolve("players")
+private val PLAYERS_JSON = Json {
+    prettyPrint = true
+}
+
+@Serializable
+data class PersistentPlayerData(
+    @SerialName("custom_name") val customName: String?,
+    @SerialName("speed_intention") val speedIntention: Float,
+    val stamina: Float,
+    val voiceApparatus: VoiceApparatus,
+    val voiceLoose: VoiceLoose?
+)
+
+fun savePersistentPlayerData(player: Player) {
+    val id = player.id.value.toString()
+    val file = PLAYERS_DATA_DIR.resolve("$id.json")
+
+    val customName = player.customName
+    val movementStatus = player.require<MovementStatus>()
+    val speedIntention = movementStatus.intention
+    val stamina = movementStatus.stamina
+
+    file.ensureExists()
+    file.writeText(
+        PLAYERS_JSON.encodeToString(
+            PersistentPlayerData(
+                customName,
+                speedIntention,
+                stamina,
+                player.require(),
+                player.get()
+            )
+        )
+    )
+}
+
+fun parsePersistentPlayerData(playerId: PlayerId): PersistentPlayerData? {
+    val file = PLAYERS_DATA_DIR.resolve(playerId.value.toString())
+    if (!file.exists()) return null
+    return PLAYERS_JSON.decodeFromString<PersistentPlayerData>(file.readText())
+}

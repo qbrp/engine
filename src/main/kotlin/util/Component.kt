@@ -1,0 +1,180 @@
+package org.lain.engine.util
+
+import kotlinx.serialization.Serializable
+import java.util.Spliterator
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.reflect.KClass
+import kotlin.reflect.KProperty
+
+/**
+ * Вспомогательный интерфейс для определения компонентов
+ */
+interface Component
+
+
+//// Exception
+
+
+class ComponentNotFoundException(message: String) : RuntimeException(message)
+
+class ComponentCollisionException(message: String) : RuntimeException(message)
+
+
+//// Manager
+
+
+interface ComponentManager : Iterable<Component> {
+    // Iterators
+
+    fun getComponents(): List<Component>
+
+    override fun iterator(): Iterator<Component> = getComponents().iterator()
+
+    override fun spliterator(): Spliterator<Component> = getComponents().spliterator()
+
+    // Operations
+
+    /**
+    * @throws ComponentCollisionException
+     */
+    fun <T : Component> setComponent(type: KClass<T>, component: T): T
+
+    fun <T : Component> replaceComponent(type: KClass<T>, factory: () -> T): T? {
+        val old = removeComponent(type)
+        return if (old != null) {
+            setComponent(type, factory())
+        } else null
+    }
+
+    fun <T : Component> getComponentOrSet(type: KClass<T>, factory: () -> T, ): T {
+        getComponent(type)?.let { return it }
+        return setComponent(type, factory())
+    }
+
+    fun <T : Component> removeComponent(component: T): T?
+
+    fun <T : Component> removeComponent(type: KClass<T>): T?
+
+    fun removeAll() = forEach { removeComponent(it) }
+
+    // Getters
+
+    fun <T : Component> getComponent(clazz: KClass<T>): T?
+
+    fun <T : Component> getComponentsOfClass(clazz: KClass<T>): List<T>
+}
+
+class ComponentState : ComponentManager {
+    private val components = ConcurrentHashMap<KClass<out Component>, Component>()
+
+    override fun getComponents(): List<Component> {
+        return components.values.toList()
+    }
+
+    override fun <T : Component> setComponent(type: KClass<T>, component: T): T {
+        val old = components.putIfAbsent(type, component)
+        if (old != null) {
+            throw ComponentCollisionException("Component $type already added")
+        }
+        return component
+    }
+
+    override fun <T : Component> removeComponent(component: T): T? {
+        return components.entries
+            .firstOrNull { it.value === component }
+            ?.let { (cls, _) -> components.remove(cls) as? T? }
+    }
+
+    override fun <T : Component> removeComponent(type: KClass<T>): T? {
+        return components.remove(type) as? T?
+    }
+
+    override fun <T : Component> getComponent(clazz: KClass<T>): T? {
+        return components[clazz] as? T
+    }
+
+    override fun <T : Component> getComponentsOfClass(clazz: KClass<T>): List<T> {
+        val comp = components[clazz] as? T
+        return if (comp != null) listOf(comp) else emptyList()
+    }
+}
+
+
+//// Extensions
+
+inline fun <reified T : Component> ComponentManager.setNullable(
+    component: T?,
+): T? {
+    return component?.let { setComponent(T::class, it) }
+}
+
+inline fun <reified T : Component> ComponentManager.set(
+    component: T,
+): T {
+    return setComponent(T::class, component)
+}
+
+inline fun <reified T : Component> ComponentManager.getOrSet(
+    noinline factory: () -> T
+): T {
+    return getComponentOrSet(T::class, factory)
+}
+
+inline fun <reified T : Component> ComponentManager.replaceOrSet(
+    noinline factory: () -> T,
+): T {
+    return replaceComponent(T::class, factory) ?: setComponent(T::class, factory())
+}
+
+inline fun <reified T : Component> ComponentManager.remove(): T? {
+    return removeComponent(T::class)
+}
+
+inline fun <reified T : Component> ComponentManager.get(): T? {
+    return getComponent(T::class)
+}
+
+inline fun <reified T : Component> ComponentManager.require(): T {
+    return get<T>() ?: throw ComponentNotFoundException("Компонент ${T::class.simpleName} не найден")
+}
+
+inline fun <reified T : Component> ComponentManager.apply(todo: T.() -> Unit): T {
+    return require<T>().apply(todo)
+}
+
+inline fun <reified T : Component> ComponentManager.has(): Boolean {
+    return get<T>() != null
+}
+
+inline fun <reified T : Component> ComponentManager.replace(
+    noinline factory: () -> T
+): T? {
+    return replaceComponent(T::class, factory)
+}
+
+// Dirty State
+
+class State<T>(
+    current: T
+) {
+    var current: T = current
+        private set
+    var previous: T = current
+        private set
+
+    val isDirty: Boolean
+        get() = current != previous
+
+    fun set(value: T) {
+        if (value != current) {
+            previous = current
+            current = value
+        }
+    }
+
+    fun sync() {
+        previous = current
+    }
+}

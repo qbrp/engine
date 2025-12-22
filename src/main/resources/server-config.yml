@@ -1,0 +1,103 @@
+server: "put your minecraftServer name"
+
+chat:
+  channels:
+    default:
+      format: "{author_username}: {text}"
+      acoustic:
+        min-volume: 0.05
+        distort: true
+        colorize: true
+      speech: true
+
+    spy:
+      format: "<gold>[Spy]</gold> {original}"
+
+  commands:
+    me:
+      format: "{author_name} {yellow_star} {text}"
+      distance: 12
+      regex: '^\*\*.*\*\*$'
+    roll:
+      format: "{author_name} {blue_star} {text} {blue_dash} {roll}"
+      distance: 12
+    do:
+      format: "{author_name} {do}"
+      distance: 12
+    doo:
+      format: "{author_name} {do}"
+      distance: 32
+    dooo:
+      format: "{author_name} {do}"
+      distance: 64
+    gdo:
+      format: "{purple_bold_star} {author_name} {do}"
+      global: true
+
+  default-channel: "default"
+  spy-channel: "spy"
+
+  acoustic:
+    passability:
+      solid: 0.0
+      air: 0.95
+      blocks:
+        "minecraft:sand":0.5
+    formatting:
+      - volume: 1.0
+        color: "#FFFFFF"
+        placeholders:
+          separator_color: "<yellow>"
+    distortion:
+      threshold: 0.3
+      artifacts: [ '-', '#', '~' ]
+#      - inputVolume: 0.2
+#        color: "<dark_gray>"
+#        formatSep: "<yellow>"
+#      - value: 5
+#        formatText: "<gray>"
+#        formatSep: "<yellow>"
+#      - value: 10
+#        formatText: "<white>"
+#        formatSep: "<gray>"
+#      - value: 21
+#        formatText: "<red>"
+#        formatSep: "<red>"
+#      - value: 40
+#        formatText: "<red><bold>"
+#        formatSep: "<red>"
+#      - value: 80
+#        formatText: "<dark_red><bold>"
+#        formatSep: "<red>"
+
+  pm: "{brown_br_open} {pm} {playerName} {brown_arrow} {recipient_name}{brown_dots} {text} {brown_br_close}"
+
+  join: ""
+  leave: ""
+
+  placeholders:
+    roll: "<light_green>{random-100}%</light_green>"
+    purple_bold_star: "<bold><light_purple>*</light_purple></bold>"
+    yellow_star: "<yellow>*</yellow>"
+    blue_star: "<blue>*</blue>"
+    blue_dash: "<blue>—</blue>"
+    do: "{purple_br_open} {text} {purple_br_close}"
+    purple_br_open: "<light_purple>(</light_purple>"
+    purple_br_close: "<light_purple>)</light_purple>"
+    brown_br_open: "<#554436>((</#554436>"
+    brown_br_close: "<#554436>))</#554436>"
+    pm: "<#F4A460><bold>ᴘᴍ</bold></#F4A460>"
+    brown_arrow: "<#F4A460>▸</#F4A460>"
+    brown_dots: "<#F4A460>:</#F4A460>"
+
+attributes:
+  default:
+    speed: 0.1
+    jump-strength: 0.4
+  gm:
+    speed: 0.24
+    jump-strength: 0.45
+  spectating:
+    speed: 0.15
+
+damage: false

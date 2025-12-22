@@ -1,0 +1,118 @@
+package org.lain.engine.transport.packet
+
+import kotlinx.serialization.Serializable
+import net.minecraft.network.PacketByteBuf
+import org.lain.engine.player.DefaultPlayerAttributes
+import org.lain.engine.player.MovementDefaultAttributes
+import org.lain.engine.transport.Endpoint
+import org.lain.engine.transport.Packet
+import org.lain.engine.transport.PacketCodec
+import org.lain.engine.player.PlayerId
+import org.lain.engine.player.playerBaseInputVolume
+import org.lain.engine.server.AttributeUpdate
+import org.lain.engine.server.Notification
+import org.lain.engine.util.readPlayerId
+import org.lain.engine.util.writePlayerId
+
+///// Movement
+
+// Speed Intention
+
+@Serializable
+data class PlayerSpeedIntentionPacket(
+    val id: PlayerId,
+    val speedIntention: Float
+) : Packet
+
+val CLIENTBOUND_SPEED_INTENTION_PACKET =
+    Endpoint<PlayerSpeedIntentionPacket>()
+
+///// Other
+
+// Custom Name
+
+@Serializable
+data class PlayerNotificationPacket(
+    val type: Notification,
+    val once: Boolean
+) : Packet
+
+val CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT = Endpoint<PlayerNotificationPacket>()
+
+@Serializable
+data class PlayerCustomNamePacket(
+    val id: PlayerId,
+    val name: String
+) : Packet
+
+val CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT =
+    Endpoint<PlayerCustomNamePacket>()
+
+// Default Attributes
+
+@Serializable
+data class DefaultAttributesPacket(
+    val configuration: ClientDefaultAttributes
+) : Packet
+
+@Serializable
+data class ClientDefaultAttributes(
+    val movement: MovementDefaultAttributes,
+    val maxVolume: Float,
+    val baseVolume: Float
+) {
+    companion object {
+        fun of(defaults: DefaultPlayerAttributes): ClientDefaultAttributes {
+            return ClientDefaultAttributes(
+                defaults.movement,
+                defaults.maxVolume,
+                defaults.playerBaseInputVolume
+            )
+        }
+    }
+}
+
+val CLIENTBOUND_DEFAULT_ATTRIBUTES_ENDPOINT = Endpoint<DefaultAttributesPacket>()
+
+// Attribute Update
+
+data class PlayerAttributeUpdatePacket(
+    val id: PlayerId,
+    val speed: AttributeUpdate? = null,
+    val jumpStrength: AttributeUpdate? = null
+) : Packet
+
+val CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT = Endpoint<PlayerAttributeUpdatePacket>(
+    codec = PacketCodec.Binary(
+        {
+            PlayerAttributeUpdatePacket(
+                readPlayerId(),
+                readNullable { buf -> buf.readAttributeUpdate() },
+                readNullable { buf -> buf.readAttributeUpdate() }
+            )
+        },
+        {
+            writePlayerId(it.id)
+            writeNullable(it.speed) { buf, value -> buf.writeAttributeUpdate(value) }
+            writeNullable(it.jumpStrength) { buf, value -> buf.writeAttributeUpdate(value) }
+        }
+    )
+)
+
+fun PacketByteBuf.writeAttributeUpdate(update: AttributeUpdate) {
+    when(update) {
+        AttributeUpdate.Reset -> writeString("RESET")
+        is AttributeUpdate.Value -> {
+            writeString("VALUE")
+            writeFloat(update.value)
+        }
+    }
+}
+
+fun PacketByteBuf.readAttributeUpdate(): AttributeUpdate {
+    return when(val str = readString()) {
+        "RESET" -> AttributeUpdate.Reset
+        "VALUE" -> AttributeUpdate.Value(readFloat())
+        else -> throw IllegalStateException("Invalid attribute update value: $str")
+    }
+}

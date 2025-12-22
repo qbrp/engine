@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "engine",
+  "version": "${version}",
+  "name": "engine",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/engine/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "org.lain.engine.client.MinecraftEngineClient"
+    ],
+    "server": [
+      "org.lain.engine.DedicatedServerEngineMod"
+    ],
+    "main": [
+      "org.lain.engine.CommonEngineServerMod"
+    ]
+  },
+  "mixins": [
+    "engine.mixins.json",
+    {
+      "config": "engine.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-language-kotlin": ">=${kotlin_loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}",
+    "yet_another_config_lib_v3": ">=3.6.1+1.21-fabric"
+  }
+}

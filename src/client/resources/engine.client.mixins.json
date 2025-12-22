@@ -1,0 +1,34 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.lain.engine.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "DrawContextAccessor",
+    "KeyboardMixin",
+    "MouseMixin",
+    "PlayerListEntryAccessor",
+    "ToastManagerMixin",
+    "resource.AtlasLoaderAccessor",
+    "resource.AtlasLoaderMixin",
+    "resource.BakedModelManagerMixin",
+    "resource.JsonUnbakedModelAccessor",
+    "resource.ModelTexturesMixin",
+    "resource.SpriteAtlasManagerMixin",
+    "ui.ChatHudAccessor",
+    "ui.ChatHudLineMixin",
+    "ui.ChatHudLineVisibleMixin",
+    "ui.ChatHudMixin",
+    "ui.ChatScreenMixin",
+    "ui.DownloadingTerrainScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  },
+  "mixins": [
+    "ItemStackMixin"
+  ]
+}
