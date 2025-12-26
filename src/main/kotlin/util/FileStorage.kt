@@ -49,7 +49,7 @@ fun savePersistentPlayerData(player: Player) {
 }
 
 fun parsePersistentPlayerData(playerId: PlayerId): PersistentPlayerData? {
-    val file = PLAYERS_DATA_DIR.resolve(playerId.value.toString())
+    val file = PLAYERS_DATA_DIR.resolve(playerId.value.toString() + ".json")
     if (!file.exists()) return null
     return PLAYERS_JSON.decodeFromString<PersistentPlayerData>(file.readText())
 }

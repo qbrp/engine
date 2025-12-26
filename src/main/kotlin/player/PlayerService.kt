@@ -21,13 +21,12 @@ class PlayerService(
 
     fun instantiate(player: Player) {
         val world = player.world
+        eventListener.onPlayerInstantiated(player)
 
         player.startSpectating()
         playerStorage.add(player.id, player)
         world.require<ScenePlayers>().add(player)
         handler.onPlayerInstantiation(player)
-
-        eventListener.onPlayerInstantiated(player)
 
         chat.trySendJoinMessage(player)
     }

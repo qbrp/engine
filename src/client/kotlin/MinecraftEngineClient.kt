@@ -64,9 +64,12 @@ class MinecraftEngineClient : ClientModInitializer {
         camera,
         MinecraftChat,
         audioManager,
-        onPlayerInstantiate =  {
-            val entity = client.world!!.players.first { entity -> entity.uuid == it.id.value }
-            playerTable.setPlayer(entity, it)
+        onFullPlayerData =  { client, id, data ->
+            val player = client.gameSession?.getPlayer(id) ?: error("Игрока $id для синхронизации состояния не существует")
+            val entity = this.client.world?.players?.firstOrNull {
+                it.uuid == id.value
+            } ?: error("Сущность игрока $id для синхронизации состояния не существует")
+            playerTable.setPlayer(entity, player)
         },
         onPlayerDestroy = {
             playerTable.removePlayer(it)

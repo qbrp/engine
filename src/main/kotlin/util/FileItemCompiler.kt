@@ -13,7 +13,12 @@ import java.lang.Exception
 
 private val ITEMS_DIR = ENGINE_DIR.resolve("items")
 private val INVENTORY_TABS = ITEMS_DIR.resolve(INVENTORY_TABS_FILENAME)
+private val NAMESPACES = ITEMS_DIR.resolve(NAMESPACES_FILENAME)
 private const val INVENTORY_TABS_FILENAME = "tabs.yml"
+private const val NAMESPACES_FILENAME = "namespaces.yml"
+
+@Serializable
+data class NamespaceConfig(val stackable: Boolean? = null)
 
 @Serializable
 data class ItemNamespaceConfig(
@@ -27,7 +32,9 @@ data class ItemConfig(
     val material: String = "stick",
     val model: String? = null,
     val texture: String? = null,
-    @SerialName("asset") val assetType: AssetType = AssetType.FILE
+    @SerialName("asset") val assetType: AssetType = AssetType.FILE,
+    val stackable: Boolean = true,
+    @SerialName("stack_size") val maxStackSize: Int = 16
 ) {
     enum class AssetType {
         GENERATED, FILE
@@ -52,7 +59,7 @@ fun deserializeCompilingItems(): CompileItems {
     val namespaceConfigs = mutableMapOf<String, ItemNamespaceConfig>()
     ITEMS_DIR.ensureExists()
     ITEMS_DIR.walk().forEach { dir ->
-        if (dir.isFile && dir.extension == "yml" && dir.name != INVENTORY_TABS_FILENAME) {
+        if (dir.isFile && dir.extension == "yml" && dir.name != INVENTORY_TABS_FILENAME && dir.name != NAMESPACES_FILENAME) {
             val namespace = Yaml.default.decodeFromStream<ItemNamespaceConfig>(dir.inputStream())
             val id = namespace.id
             val toPut = namespaceConfigs[id]?.let { it.copy(items = it.items + namespace.items) } ?: namespace
@@ -88,12 +95,21 @@ fun compileInventoryTabsConfig(namespaces: Map<String, List<EngineItem>>, items:
 
 fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompilingItems()) {
     val itemsToAdd = mutableListOf<EngineItem>()
+    val namespaces = if (NAMESPACES.exists()) {
+        Yaml.default.decodeFromStream<Map<String, NamespaceConfig>>(NAMESPACES.inputStream())
+    } else {
+        mapOf()
+    }
     val namespaceToItemMap = mutableMapOf<String, MutableList<EngineItem>>()
 
     for (namespace in compile.namespaces.values) {
         for ((idString, config) in namespace.items) {
             val id = NamespaceItemId(namespace.id, idString)
             val material = Identifier.ofVanilla(config.material.lowercase())
+            val namespaceConfig = namespaces[namespace.id]
+            val cfgMaxStackSize = config.maxStackSize
+            val cfgStackable = namespaceConfig?.stackable ?: config.stackable
+            val stackSize = if (cfgStackable) cfgMaxStackSize else 1
             val asset = when(config.assetType) {
                 ItemConfig.AssetType.FILE -> config.model?.replaceFirst("~", namespace.id) ?: (id.value + "/$idString")
                 ItemConfig.AssetType.GENERATED -> config.texture ?: id.value
@@ -103,7 +119,8 @@ fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompil
                 id,
                 config.displayName.parseMiniMessage(),
                 material,
-                assetId
+                assetId,
+                stackSize
             ).also {
                 namespaceToItemMap.getOrPut(namespace.id) { mutableListOf() }.add(it)
             }

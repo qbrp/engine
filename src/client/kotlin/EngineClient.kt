@@ -20,6 +20,7 @@ import org.lain.engine.client.util.loadAndCreateEngineOptions
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.developerMode
+import org.lain.engine.transport.packet.FullPlayerData
 import org.lwjgl.glfw.GLFW
 
 class EngineClient(
@@ -29,7 +30,7 @@ class EngineClient(
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
     val options: EngineOptions = loadAndCreateEngineOptions(),
-    val onPlayerInstantiate: (Player) -> Unit,
+    val onFullPlayerData: (EngineClient, PlayerId, FullPlayerData) -> Unit,
     val onPlayerDestroy: (PlayerId) -> Unit
 ) {
     val handler = ClientHandler(this)

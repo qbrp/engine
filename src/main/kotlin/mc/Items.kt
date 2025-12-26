@@ -22,7 +22,8 @@ data class EngineItem(
     val id: ItemId,
     val name: Text,
     val material: Identifier,
-    val asset: Identifier
+    val asset: Identifier,
+    val maxStackSize: Int
 )
 
 fun getItemStack(item: EngineItem): ItemStack {
@@ -38,6 +39,10 @@ fun getItemStack(item: EngineItem): ItemStack {
     materialStack.set(
         DataComponentTypes.UNBREAKABLE,
         UnbreakableComponent(true)
+    )
+    materialStack.set(
+        DataComponentTypes.MAX_STACK_SIZE,
+        item.maxStackSize
     )
     materialStack.set(
         EngineItemReferenceComponent.TYPE,

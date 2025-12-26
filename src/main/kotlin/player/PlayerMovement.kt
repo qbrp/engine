@@ -45,7 +45,8 @@ data class MovementSettings(
     val minSpeedFactor: Float = 0.05f,
     val slowdownStaminaThreshold: Float = 0.3f,
     val staminaConsumption: Float = 0.0033f,
-    val staminaRegen: Float = 0.0030f,
+    val staminaRegen: Float = 0.003f,
+    val sprintMinIntentionEffect: Float = 0.5f,
     val intentionEffect: Float = 0.7f
 )
 
@@ -63,10 +64,14 @@ fun speedMul(
     isSprint: Boolean,
     settings: MovementSettings,
 ): Float = with(settings) {
-    val sprintMul = if (isSprint) sprintMultiplier else 1f
+    val (sprintMul, minSpeedAddition) = if (isSprint) {
+        sprintMultiplier to sprintMinIntentionEffect
+    } else {
+        1f to 0f
+    }
     val staminaMul = if (stamina < slowdownStaminaThreshold) smoothstep(stamina / slowdownStaminaThreshold) else 1f
 
-    val minSpeedIntentionMul = (1f - intentionEffect)
+    val minSpeedIntentionMul = (1f - intentionEffect + minSpeedAddition)
     val maxSpeedIntentionMul = (intentionEffect * 2 - 1f)
 
     val intentionMul = minSpeedIntentionMul + maxSpeedIntentionMul * smootherstep(intention)

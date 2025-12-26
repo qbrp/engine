@@ -107,6 +107,9 @@ data class ImmutableVec3(
     override val y: Float,
     override val z: Float
 ) : Vec3 {
+    override fun toString(): String {
+        return "$x, $y, $z"
+    }
     constructor(pos: Pos) : this(pos.x, pos.y, pos.z)
 }
 

@@ -20,6 +20,7 @@ import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageSource
+import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
 import org.lain.engine.player.customName
 import org.lain.engine.player.taskCommand
@@ -30,6 +31,7 @@ import org.lain.engine.player.setCustomJumpStrength
 import org.lain.engine.player.speak
 import org.lain.engine.player.stopSpectating
 import org.lain.engine.player.volume
+import org.lain.engine.util.apply
 import org.lain.engine.util.applyConfig
 import org.lain.engine.util.compileItems
 import org.lain.engine.util.get
@@ -294,6 +296,9 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                                 val entity = EntityArgumentType.getPlayer(ctx, "player")
                                 val player = playerTable.requirePlayer(entity)
 
+                                player.apply<VoiceApparatus> {
+                                    tiredness = 0f
+                                }
                                 player.remove<VoiceLoose>()?.let {
                                     ctx.source.sendFeedback({ Text.of("Голос игрока ${entity.name.string} восстановлен") }, true)
                                 }

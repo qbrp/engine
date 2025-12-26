@@ -198,6 +198,7 @@ class ClientHandler(
         replaceOrSet(data.movementStatus)
         replaceOrSet(data.attributes)
         isLowDetailed = false
+        client.onFullPlayerData(client, id, data)
     }
 
     private fun onPlayerJoined(data: GeneralPlayerData) = gameSessionTask {

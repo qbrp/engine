@@ -44,7 +44,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
     val chat = config.chat
     val commandChannels = chat.commands
 
-    val channels: Map<String, ChatChannel> = (chat.channels + commandChannels).mapValues { (id, it) ->
+    val channels: Map<String, ChatChannel> = (commandChannels + chat.channels).mapValues { (id, it) ->
         val format = it.format
         val acoustic = it.distance
             ?.let { value ->
@@ -166,6 +166,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
             movement.slowdownStaminaThreshold,
             movement.staminaConsumeMinutes / 60 / 20,
             movement.staminaRegenMinutes / 60 / 20,
+            movement.minSpeedSprintFactor,
             movement.intentionEffect
         )
         it.chatSettings.set(chatSettings)

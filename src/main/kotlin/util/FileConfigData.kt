@@ -124,6 +124,7 @@ data class VoiceApparatusConfig(
 data class MovementConfig(
     @SerialName("sprint_multiplier") val sprintMultiplier: Float,
     @SerialName("min_speed_factor") val minSpeedFactor: Float,
+    @SerialName("min_speed_multiplier_sprint_factor") val minSpeedSprintFactor: Float,
     @SerialName("slowdown_stamina_threshold") val slowdownStaminaThreshold: Float,
     @SerialName("stamina_consumption") val staminaConsumeMinutes: Float,
     @SerialName("stamina_regen") val staminaRegenMinutes: Float,

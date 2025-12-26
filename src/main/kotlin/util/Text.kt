@@ -9,10 +9,15 @@ import net.minecraft.text.Style
 import net.minecraft.text.Text
 import kotlin.collections.plus
 
+fun String.escapeSlashes(): String {
+    return replace("\\", "\\\\")
+}
+
 fun String.parseMiniMessage(
     wrapperLookup: RegistryWrapper.WrapperLookup = DynamicRegistryManager.EMPTY
 ): Text {
     val text = this
+        .escapeSlashes()
         .replace("§", "&")
         .replace("&0", "<black>")
         .replace("&1", "<dark_blue>")
