@@ -72,7 +72,7 @@ fun parseObjJsonModelOptions(modelJson: JsonObject): ObjModelOptions {
     var transform = ModelTransformation.NONE
 
     if (modelJson.has("display")) {
-        val jo = JsonHelper.asObject(modelJson, "display")
+        val jo = modelJson.getAsJsonObject("display")
         transform = JsonUnbakedModelAccessor.`engine$getGson`().fromJson(jo, ModelTransformation::class.java)
     }
 
@@ -85,7 +85,8 @@ fun parseObjJsonModelOptions(modelJson: JsonObject): ObjModelOptions {
     val flipV = JsonHelper.getBoolean(modelJson, "flip_v", false)
     val mtlOverride = JsonHelper.getString(modelJson, "mtl_override", null)
 
-    val useAmbientOcclusion = JsonHelper.getBoolean(modelJson, "ambientocclusion", true)
+    val useAmbientOcclusion = JsonHelper.getBoolean(modelJson, "ambient_occlusion", true)
+    val disableCulling = JsonHelper.getBoolean(modelJson, "disable_culling", false)
 
     return ObjModelOptions(
         useAmbientOcclusion,
@@ -94,5 +95,6 @@ fun parseObjJsonModelOptions(modelJson: JsonObject): ObjModelOptions {
         transform!!,
         flipV,
         mtlOverride,
+        disableCulling
     )
 }

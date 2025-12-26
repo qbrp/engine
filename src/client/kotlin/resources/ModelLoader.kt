@@ -8,6 +8,9 @@ import net.minecraft.client.util.SpriteIdentifier
 import net.minecraft.util.Identifier
 import net.minecraft.util.JsonHelper
 import org.lain.engine.client.mixin.resource.JsonUnbakedModelAccessor
+import org.slf4j.LoggerFactory
+
+var MC_LOGGER = LoggerFactory.getLogger("Hacked Minecraft Model Loader")
 
 // Открыть модели для ассетов предметов
 fun parseEngineModels(

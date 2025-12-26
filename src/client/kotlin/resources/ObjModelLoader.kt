@@ -5,7 +5,6 @@ import de.javagl.obj.Obj
 import de.javagl.obj.ObjFace
 import de.javagl.obj.ObjSplitting
 import dev.felnull.specialmodelloader.SpecialModelLoader
-import dev.felnull.specialmodelloader.model.SpecialBaseUnbakedModel
 import net.fabricmc.fabric.api.renderer.v1.Renderer
 import net.fabricmc.fabric.api.renderer.v1.mesh.Mesh
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView
@@ -31,12 +30,13 @@ import org.lain.engine.util.EngineId
 import java.util.function.Predicate
 import java.util.function.Supplier
 
-class SimpleMeshModel(
+class MeshModel(
     private val useAmbientOcclusion: Boolean,
     private val isSideLit: Boolean,
     private val particleSprite: Sprite?,
     private val transforms: ModelTransformation?,
-    private val mesh: Mesh
+    private val mesh: Mesh,
+    val disableCulling: Boolean
 ) : BakedModel, FabricBakedModel {
     private val quadCache: Array<MutableList<BakedQuad>> by lazy { ModelHelper.toQuadLists(mesh) }
 
@@ -117,12 +117,13 @@ class ObjUnbakedModel(
             }
         }
 
-        return SimpleMeshModel(
+        return MeshModel(
             options.useAmbientOcclusion,
             guiLight?.isSide ?: true,
             particleLocation.let { spriteGetter.get(it) },
             options.transforms,
-            builder.immutableCopy()
+            builder.immutableCopy(),
+            options.disableCulling
         )
     }
 
@@ -191,4 +192,5 @@ data class ObjModelOptions(
     val transforms: ModelTransformation,
     val flipV: Boolean,
     val mtlOverride: String?,
+    val disableCulling: Boolean
 )
