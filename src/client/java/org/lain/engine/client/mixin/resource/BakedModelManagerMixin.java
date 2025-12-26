@@ -8,8 +8,9 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.ResourceReloader;
 import net.minecraft.util.Identifier;
 import org.lain.engine.client.mc.ClientMixinAccess;
-import org.lain.engine.client.mc.ModelLodaerKt;
-import org.lain.engine.client.mc.ResourceList;
+import org.lain.engine.client.resources.ItemAssetLoaderKt;
+import org.lain.engine.client.resources.ModelLoaderKt;
+import org.lain.engine.client.resources.ResourceList;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -46,8 +47,8 @@ public class BakedModelManagerMixin {
         cir.setReturnValue(
             returnValue.thenApply((res) -> {
                 Map<Identifier, UnbakedModel> models = new HashMap<>();
-                models.putAll(ModelLodaerKt.autogenerateModels(resources.getGeneratedItemAssets()));
-                models.putAll(ModelLodaerKt.parseEngineModels(resources.getItemModels()));
+                models.putAll(ModelLoaderKt.autogenerateModels(resources.getGeneratedItemAssets()));
+                models.putAll(ModelLoaderKt.parseEngineModels(resources.getItemModels(), resources.getObjModels()));
                 models.putAll(res);
                 return models;
             })
@@ -64,7 +65,7 @@ public class BakedModelManagerMixin {
     private static CompletableFuture<ItemAssetsLoader.Result> engine$loadItemAssets(ResourceManager resourceManager, Executor executor) {
         return ItemAssetsLoader.load(resourceManager, executor).thenApply((r) -> {
             Map<Identifier, ItemAsset> contents = r.contents();
-            contents.putAll(ModelLodaerKt.parseEngineItemAssets(resources.getAllItemAssets()));
+            contents.putAll(ItemAssetLoaderKt.parseEngineItemAssets(resources.getAllItemAssets()));
             new ItemAssetsLoader.Result(contents);
             return r;
         });

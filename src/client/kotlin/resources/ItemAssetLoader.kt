@@ -1,0 +1,274 @@
+package org.lain.engine.client.resources
+
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.mojang.serialization.JsonOps
+import com.mojang.serialization.MapCodec
+import de.javagl.obj.Mtl
+import de.javagl.obj.Obj
+import net.minecraft.client.item.ItemAsset
+import net.minecraft.client.render.item.model.BasicItemModel
+import net.minecraft.client.texture.*
+import net.minecraft.client.texture.atlas.AtlasSource
+import net.minecraft.client.texture.atlas.AtlasSourceType
+import net.minecraft.client.util.SpriteIdentifier
+import net.minecraft.resource.ResourceManager
+import net.minecraft.resource.metadata.ResourceMetadata
+import net.minecraft.util.Identifier
+import net.minecraft.util.JsonHelper
+import org.lain.engine.client.EngineClient
+import org.lain.engine.client.mc.ClientMixinAccess
+import org.lain.engine.util.EngineId
+import org.lain.engine.util.injectValue
+import org.slf4j.LoggerFactory
+import java.io.File
+import kotlin.io.extension
+import kotlin.text.replace
+
+/**
+ * Возвращает идентификатор файлового ассета относительно `engine/assets` без расширения
+ */
+fun Asset.prepareIdentifier(): String {
+    val ext = this.relative.extension
+    return this.relative.normalize().toString()
+        .normalizeSlashes()
+        .let {
+            if (!ext.isEmpty()) it.dropLast(ext.count() + 1) else it
+        }
+}
+
+fun String.normalizeSlashes() = replace('\\', '/')
+
+fun String.toEngineIdentifier(): Identifier = EngineId(this)
+
+sealed class EngineItemAsset {
+    data class Generated(val texture: EngineTexture, val type: String) : EngineItemAsset() {
+        val registrationId = texture.asset
+            .prepareIdentifier()
+            .replaceFirst("tex", "autogen")
+            .toEngineIdentifier()
+    }
+
+    data class FileDefinition(val asset: Asset, val json: JsonObject) : EngineItemAsset() {
+        val registrationId = asset
+            .prepareIdentifier()
+            .replace(".asset", "")
+            .toEngineIdentifier()
+    }
+}
+
+/**
+ * Гарантируется, что текстура из ассета загружена и существует по `textureId`
+ * */
+data class EngineTexture(val asset: Asset) {
+    val registrationId = asset
+        .prepareIdentifier()
+        .toEngineIdentifier()
+}
+
+data class EngineItemJsonModel(
+    val asset: Asset,
+    val type: ModelType,
+    val json: JsonObject
+) {
+    val registrationId by lazy {
+        asset
+            .prepareIdentifier()
+            .toEngineIdentifier()
+    }
+}
+
+data class EngineObjModel(
+    val asset: Asset,
+    val obj: Obj,
+    val mtl: Map<String, Mtl>
+)
+
+enum class ModelType {
+    JSON, OBJ;
+}
+
+internal val LOGGER = LoggerFactory.getLogger("Engine Model Loader")
+internal val MISSING_SPRITE = SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, MissingSprite.getMissingSpriteId())
+
+data class ResourceList(
+    val textureAssets: List<EngineTexture>,
+    val itemModels: List<EngineItemJsonModel>,
+    val itemAssets: List<EngineItemAsset.FileDefinition>,
+    val generatedItemAssets: List<EngineItemAsset.Generated>,
+    val objModels: Map<String, EngineObjModel>
+) {
+    val allItemAssets = itemAssets + generatedItemAssets
+}
+
+fun findAssets(): ResourceList {
+    val resources = injectValue<EngineClient>().resources
+    val assets = resources.assets
+
+    val itemsAssets = mutableListOf<EngineItemAsset.FileDefinition>()
+    val itemModels = mutableListOf<EngineItemJsonModel>()
+    val textures = mutableMapOf<String, EngineTexture>()
+    val objModels = mutableMapOf<String, EngineObjModel>()
+
+    assets.browseAssets { relative, file, packer ->
+        val ext = file.extension
+        val isJson = ext == "json"
+        if (isJson) {
+            val asset = packer()
+            val reader = file.reader()
+            val json = JsonHelper.deserialize(reader)
+            if (file.nameWithoutExtension.endsWith(".asset")) {
+                json.substituteEngineRelativePathItemAsset(asset)
+                itemsAssets += EngineItemAsset.FileDefinition(packer(), json)
+            } else {
+                val isObj = json.has("obj") && json.getAsJsonPrimitive("obj").asBoolean
+                var modelType: ModelType
+                when(isObj) {
+                    true -> {
+                        json.substituteEngineRelativePathObj(asset)
+                        modelType = ModelType.OBJ
+                    }
+                    false -> {
+                        json.substituteEngineRelativePathJson(asset)
+                        modelType = ModelType.JSON
+                    }
+                }
+                itemModels += EngineItemJsonModel(asset, modelType, json)
+            }
+            reader.close()
+        } else if (ext == "obj") {
+            val asset = packer()
+            val obj = parseObjModel(asset)
+            obj.mtl.forEach { (key, mtl) ->
+                if (mtl.mapKd == null) return@forEach
+                mtl.mapKd = mtl.mapKd.substituteEngineRelativePath(asset).replace(".png", "")
+            }
+            objModels[relative] = obj
+
+        } else if (ext == "png") {
+            textures[relative] = EngineTexture(packer())
+        }
+    }
+
+    val autogenerated = resources.autogenerationItemAssets.autogen.mapNotNull {
+        EngineItemAsset.Generated(
+            textures[it.assetPath] ?: return@mapNotNull null,
+            it.type
+        )
+    }
+
+    return ResourceList(
+        textures.values.toList(),
+        itemModels,
+        itemsAssets,
+        autogenerated,
+        objModels
+    )
+}
+
+class EngineAtlasSource(val resources: ResourceList) : AtlasSource {
+    override fun load(
+        resourceManager: ResourceManager,
+        regions: AtlasSource.SpriteRegions
+    ) {
+        resources.textureAssets.forEach { texture ->
+            val id = texture.registrationId
+            regions.add(id) { openSprite(id, texture.asset) }
+        }
+    }
+
+    override fun getType(): AtlasSourceType = TYPE
+
+    companion object {
+        val ID = EngineId("engine")
+        val TYPE = AtlasSourceType(MapCodec.unit { EngineAtlasSource(ClientMixinAccess.getResourceList()) })
+
+        fun openSprite(id: Identifier, path: Asset): SpriteContents? {
+            val file = path.source.file
+            if (!file.exists()) return null
+            val input = file.inputStream()
+            val nativeImage = NativeImage.read(input)
+            val width = nativeImage.width
+            val height = nativeImage.height
+            val spriteDimensions = SpriteDimensions(width, height)
+            return SpriteContents(id, spriteDimensions, nativeImage, ResourceMetadata.NONE)
+        }
+    }
+}
+
+fun handleFileExists(assetPath: Asset): Boolean {
+    val file = assetPath.source.file
+    val exists = file.exists()
+    if (!exists) {
+        LOGGER.error("Файл ассета предмета ${file.path} не существует и пропущен")
+    }
+    return exists
+}
+
+fun String.substituteEngineRelativePath(relative: String) = replaceFirst("~/", "$relative/")
+
+fun String.substituteEngineRelativePath(asset: Asset) = replace("~/", "${asset.relativeParent.path.normalizeSlashes()}/")
+
+fun JsonObject.substituteEngineRelativePathItemAsset(asset: Asset) {
+    val model = getAsJsonObject("model")
+    model.addProperty(
+        "model",
+        model.getAsJsonPrimitive("model").asString.substituteEngineRelativePath(asset)
+    )
+}
+
+fun JsonObject.substituteEngineRelativePathObj(asset: Asset) {
+    addProperty(
+        "model",
+        getAsJsonPrimitive("model").asString.substituteEngineRelativePath(asset)
+    )
+}
+
+fun JsonObject.substituteEngineRelativePathJson(asset: Asset) {
+    val textures = getAsJsonObject("textures")
+    textures.entrySet().forEach { (key, path) ->
+        val pathString = path.asString
+        textures.addProperty(key, pathString.substituteEngineRelativePath(asset))
+    }
+}
+
+fun parseEngineItemAssets(
+    assets: List<EngineItemAsset>,
+): Map<Identifier, ItemAsset> {
+    val contents = mutableMapOf<Identifier, ItemAsset>()
+    for (item in assets) {
+        when(item) {
+            is EngineItemAsset.FileDefinition -> {
+                val asset = item.asset
+
+                try {
+                    val itemAsset: ItemAsset? = ItemAsset.CODEC.parse(
+                        JsonOps.INSTANCE,
+                        item.json
+                    )
+                        .ifError { error ->
+                            LOGGER.error("Couldn't parse item item: {}", error.message())
+                        }
+                        .result()
+                        .orElse(null)
+
+                    if (itemAsset == null) continue
+
+                    contents[item.registrationId] = itemAsset
+                } catch (e: Throwable) {
+                    LOGGER.error("При загрузке ассета предмета ${asset.relativeString} возникла ошибка", e)
+                }
+            }
+            is EngineItemAsset.Generated -> {
+                contents[item.registrationId] = ItemAsset(
+                    BasicItemModel.Unbaked(
+                        item.registrationId,
+                        listOf()
+                    ),
+                    ItemAsset.Properties(false)
+                )
+            }
+        }
+    }
+    return contents
+}

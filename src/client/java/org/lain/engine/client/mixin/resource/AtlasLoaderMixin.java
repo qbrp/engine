@@ -12,18 +12,15 @@ import net.minecraft.resource.ResourceFinder;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import org.lain.engine.client.mc.ClientMixinAccess;
-import org.lain.engine.client.mc.EngineAtlasSource;
+import org.lain.engine.client.resources.EngineAtlasSource;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Objects;
 
 @Mixin(AtlasLoader.class)
@@ -40,7 +37,7 @@ public class AtlasLoaderMixin {
     public static AtlasLoader of(ResourceManager resourceManager, Identifier id) {
         Identifier identifier = FINDER.toResourcePath(id);
         ArrayList<AtlasSource> list = new ArrayList<AtlasSource>();
-        if (Objects.equals(identifier, Identifier.of("engine", "engine"))) {
+        if (Objects.equals(identifier.getPath(), "atlases/blocks.json")) {
             list.add(new EngineAtlasSource(ClientMixinAccess.INSTANCE.getResourceList()));
         }
         for (Resource resource : resourceManager.getAllResources(identifier)) {

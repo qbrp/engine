@@ -1,10 +1,11 @@
-package org.lain.engine.client.util
+package org.lain.engine.client.resources
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
@@ -13,10 +14,10 @@ import org.lain.engine.client.chat.ChatFormatSettings
 import org.lain.engine.client.mc.ClientEngineItemGroups
 import org.lain.engine.server.ServerId
 import org.lain.engine.util.ENGINE_DIR
-import org.lain.engine.util.replaceLazy
+import org.lain.engine.util.getBuiltinResource
 import java.io.File
-import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.io.writeText
 
 fun getServerFile(serverId: ServerId) = ENGINE_DIR
     .resolve(serverId.value)
@@ -45,17 +46,27 @@ fun File.toSourceFile() = SourceFile(this)
 fun SourceFile?.getOrThrow() = this ?: error("Файл не найден")
 
 data class OverridableResource(
-    val path: String
+    val path: String,
+    val isFile: Boolean = false
 ) {
     fun fetch(server: ServerId? = null): SourceFile? {
-        val default = SourceFile.nullable(ENGINE_DIR.resolve(path))
+        val defaultPath = ENGINE_DIR.resolve(path)
+        val default = SourceFile.nullable(defaultPath)
 
         val server = server?.let {
             val file = getServerFile(it).resolve(path)
             SourceFile.nullable(file)
         }
 
-        return server ?: default
+        return server ?: default ?: run {
+            if (isFile) {
+                defaultPath.mkdirs()
+            } else {
+                val builtin = getBuiltinResource(path) ?: return null
+                defaultPath.writeText(builtin.readText())
+            }
+            defaultPath.toSourceFile()
+        }
     }
 }
 
@@ -77,7 +88,7 @@ class Assets(val source: SourceFile) {
         directory.walk().forEach { file ->
             if (!file.isFile) return@forEach
             val relative = file.relativeTo(directory)
-            val relativePath = relative.path
+            val relativePath = relative.path.normalizeSlashes()
             val packer: AssetPacker = { Asset(relative, SourceFile(file)) }
             block(relativePath, file, packer)
         }
@@ -91,14 +102,8 @@ data class Asset(
     val relativeString: String = relative.path
     val relativeParent: File
         get() = File(relative.parent)
-}
 
-val File.identifier get() = this.normalize()
-    .toString()
-    .replace('\\', '/')
-    .let {
-        if (!extension.isEmpty()) it.dropLast(extension.count() + 1) else it
-    }
+}
 
 data class ResourceContext(
     val assets: Assets,
@@ -109,7 +114,15 @@ data class ResourceContext(
 )
 
 @Serializable
-data class AutoGenerationList(val textures: List<String> = listOf())
+data class AutoGenerationList(
+    val autogen: List<Entry> = emptyList()
+) {
+    @Serializable
+    data class Entry(
+        @SerialName("texture") val assetPath: String,
+        val type: String
+    )
+}
 
 private fun bakeResourceContext(gameSession: GameSession?): ResourceContext {
     val serverId = gameSession?.server
@@ -126,7 +139,7 @@ private fun bakeResourceContext(gameSession: GameSession?): ResourceContext {
 private val CHAT_BAR_CONFIG = OverridableResource("chat-bar.yml")
 private val FORMAT_CONFIG = OverridableResource("format.yml")
 private val ITEM_GROUPS = OverridableResource("item-groups.yml")
-private val ASSETS = OverridableResource("assets")
+private val ASSETS = OverridableResource("assets", true)
 
 class ResourceManager(
     private val client: EngineClient

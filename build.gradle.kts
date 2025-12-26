@@ -37,6 +37,12 @@ repositories {
     maven("https://maven.isxander.dev/releases") {
         name = "Xander Maven"
     }
+    maven("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/") {
+        name = "GeckoLib"
+        content {
+            includeGroup("software.bernie.geckolib")
+        }
+    }
 }
 
 val transitive by configurations.creating
@@ -47,8 +53,10 @@ dependencies {
         transitive(dep)
     }
 
+    val minecraft_version = project.property("minecraft_version")
+
     // To change the versions see the gradle.properties file
-    minecraft("com.mojang:minecraft:${project.property("minecraft_version")}")
+    minecraft("com.mojang:minecraft:$minecraft_version")
     mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
     modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
@@ -66,6 +74,7 @@ dependencies {
 
     // Kaml
     shaded("com.charleskorn.kaml:kaml:0.104.0")
+    shaded("de.javagl:obj:0.4.0")
 
     // Config
     modImplementation("dev.isxander:yet-another-config-lib:${project.property("yacl_version")}")

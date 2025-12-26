@@ -13,14 +13,15 @@
     "resource.AtlasLoaderMixin",
     "resource.BakedModelManagerMixin",
     "resource.JsonUnbakedModelAccessor",
-    "resource.ModelTexturesMixin",
-    "resource.SpriteAtlasManagerMixin",
+    "resource.ModelElementDeserializerMixin",
     "ui.ChatHudAccessor",
     "ui.ChatHudLineMixin",
     "ui.ChatHudLineVisibleMixin",
     "ui.ChatHudMixin",
     "ui.ChatScreenMixin",
-    "ui.DownloadingTerrainScreenMixin"
+    "ui.DownloadingTerrainScreenMixin",
+    "ui.InGameHudAcessor",
+    "ui.InGameHudMixin"
   ],
   "injectors": {
     "defaultRequire": 1
