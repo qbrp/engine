@@ -1,5 +1,7 @@
 package org.lain.engine.client.mc
 
+import org.lain.engine.client.resources.ResourceList
+import org.lain.engine.client.resources.findAssets
 import org.lain.engine.util.Injector
 
 object ClientMixinAccess {
@@ -15,6 +17,8 @@ object ClientMixinAccess {
     }
 
     fun isScrollAllowed() = client.gameSession?.movementManager?.locked ?: true
+
+    fun isCrosshairAttackIndicatorVisible() = client.options.crosshairIndicatorVisible.get()
 
     fun onKey(key: Int) {
         client.onKey(key)

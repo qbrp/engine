@@ -2,6 +2,7 @@ package org.lain.engine.client.util
 
 import dev.isxander.yacl3.api.Binding
 import dev.isxander.yacl3.api.YetAnotherConfigLib
+import dev.isxander.yacl3.api.controller.BooleanControllerBuilder
 import dev.isxander.yacl3.api.controller.FloatSliderControllerBuilder
 import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder
 import dev.isxander.yacl3.dsl.YetAnotherConfigLib
@@ -14,7 +15,6 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.Properties
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.full.memberProperties
 
 private const val CONFIG_FILENAME = "client.properties"
@@ -31,18 +31,19 @@ data class EngineOptions(
     val arcOffsetX: EngineOption<Float> = EngineOption(0f),
     val arcOffsetY: EngineOption<Float> = EngineOption(0f),
     val chatInputShakingForce: EngineOption<Float> = EngineOption(3f),
-    val chatInputShakingThreshold: EngineOption<Float> = EngineOption(0.5f)
+    val chatInputShakingThreshold: EngineOption<Float> = EngineOption(0.5f),
+    val crosshairIndicatorVisible: EngineOption<Boolean> = EngineOption(false)
 )
 
 fun loadAndCreateEngineOptions() = EngineOptions().also { it.load() }
 
 class EngineOption<T : Any>(initial: T) {
-    private val ref = AtomicReference(initial)
+    private var ref = initial
 
-    fun get(): T = ref.get()
+    fun get(): T = ref
 
     fun set(value: T) {
-        ref.set(value)
+        ref = value
     }
 
     fun save(key: String, props: Properties) {
@@ -219,45 +220,58 @@ fun setupOptionsConfig(): YetAnotherConfigLib {
                 }
             }
         }
-        categories.register("arc") {
-            name(Text.of("Колесо скорости"))
-            rootOptions.register<Float>("arcRadius") {
-                name(Text.of("Радиус"))
+        categories.register("cursor") {
+            name(Text.of("Курсор"))
+            rootOptions.register<Boolean>("crosshair") {
+                name(Text.of("Показывать ванильный индникатор атаки"))
                 binding(
                     EngineBinding(
-                        5f,
-                        { it.arcRadius },
-                        { value -> arcRadius.set(value) },
+                        false,
+                        { it.crosshairIndicatorVisible },
+                        { value -> crosshairIndicatorVisible.set(value) },
                     )
                 )
                 controller {
-                    FloatSliderControllerBuilder
-                        .create(it)
-                        .range(0.05f, 10f)
-                        .formatValue { value -> Text.of("%.2f".format(value)) }
-                        .step(0.05f)
+                    BooleanControllerBuilder.create(it)
                 }
             }
-            rootOptions.register<Float>("arcThickness") {
-                name(Text.of("Толщина"))
-                binding(
-                    EngineBinding<Float>(
-                        1.5f,
-                        { it.arcThickness },
-                        { value -> arcThickness.set(value) },
+            groups.register("arc") {
+                name(Text.of("Колесо скорости"))
+                options.register<Float>("arcRadius") {
+                    name(Text.of("Радиус"))
+                    binding(
+                        EngineBinding(
+                            5f,
+                            { it.arcRadius },
+                            { value -> arcRadius.set(value) },
+                        )
                     )
-                )
-                controller {
-                    FloatSliderControllerBuilder
-                        .create(it)
-                        .range(0.05f, 10f)
-                        .step(0.05f)
+                    controller {
+                        FloatSliderControllerBuilder
+                            .create(it)
+                            .range(0.05f, 10f)
+                            .formatValue { value -> Text.of("%.2f".format(value)) }
+                            .step(0.05f)
+                    }
                 }
-            }
-            groups.register("offset") {
-                name(Text.of("Смещение"))
+                options.register<Float>("arcThickness") {
+                    name(Text.of("Толщина"))
+                    binding(
+                        EngineBinding<Float>(
+                            1.5f,
+                            { it.arcThickness },
+                            { value -> arcThickness.set(value) },
+                        )
+                    )
+                    controller {
+                        FloatSliderControllerBuilder
+                            .create(it)
+                            .range(0.05f, 10f)
+                            .step(0.05f)
+                    }
+                }
                 options.register("arcOffsetX") {
-                    name(Text.of("X"))
+                    name(Text.of("Смещение по X"))
                     binding(
                         EngineBinding<Float>(
                             0f,
@@ -273,7 +287,7 @@ fun setupOptionsConfig(): YetAnotherConfigLib {
                     }
                 }
                 options.register("arcOffsetY") {
-                    name(Text.of("X"))
+                    name(Text.of("Смещение по Y"))
                     binding(
                         EngineBinding<Float>(
                             0f,
