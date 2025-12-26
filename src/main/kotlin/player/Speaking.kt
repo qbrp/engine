@@ -10,7 +10,6 @@ import org.lain.engine.util.flush
 import org.lain.engine.util.get
 import org.lain.engine.util.require
 import java.util.concurrent.ConcurrentLinkedQueue
-import kotlin.math.min
 
 data class Speak(
     val content: String,

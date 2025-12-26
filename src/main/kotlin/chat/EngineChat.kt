@@ -6,41 +6,26 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.mc.InvalidMessageSourcePositionException
-import org.lain.engine.player.INTENTION_MOD
 import org.lain.engine.player.Player
-import org.lain.engine.player.PlayerStorage
-import org.lain.engine.player.VoiceApparatus
-import org.lain.engine.player.VoiceLoose
-import org.lain.engine.player.canSpeakUnlimited
 import org.lain.engine.player.displayName
 import org.lain.engine.player.isSpectating
-import org.lain.engine.player.isVoiceLoosed
-import org.lain.engine.player.updateVoiceApparatus
 import org.lain.engine.player.username
-import org.lain.engine.player.voiceBrokenContent
-import org.lain.engine.player.voiceLoosenContent
+import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
-import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.Pos
 import org.lain.engine.util.filterNearestPlayers
-import org.lain.engine.util.get
-import org.lain.engine.util.has
-import org.lain.engine.util.require
 import org.lain.engine.world.World
 import org.lain.engine.world.players
 import org.lain.engine.world.pos
 import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.min
 import kotlin.random.Random
 import kotlin.text.StringBuilder
 
 class EngineChat(
-    private val transport: ServerHandler,
     private val acousticSimulation: AcousticSimulator,
-    private val playerStorage: PlayerStorage
+    private val server: EngineServer
 ) {
     private val logger = LoggerFactory.getLogger("Engine Chat")
     private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()) { r ->
@@ -48,17 +33,14 @@ class EngineChat(
     }
     private val coroutineScope = CoroutineScope(executor.asCoroutineDispatcher() + SupervisorJob())
     private val players
-        get() = playerStorage.getAll()
+        get() = server.playerStorage
 
     private val incomingMessageHistory = mutableListOf<IncomingMessage>()
-    private val _settings = AtomicReference(EngineChatSettings())
     private var channelsMap = mapOf<ChannelId, ChatChannel>()
     val settings: EngineChatSettings
-        get() = _settings.get()
+        get() = server.globals.chatSettings.get()
 
-    fun updateSettings(settings: EngineChatSettings) {
-        _settings.set(settings)
-        transport.onChatSettingsUpdate(settings)
+    fun onSettingsUpdated(settings: EngineChatSettings) {
         channelsMap = settings.channels.associateBy { it.id }
     }
 
@@ -152,7 +134,7 @@ class EngineChat(
                         }.keys
                     } catch (e: InvalidMessageSourcePositionException) {
                         if (writtenByPlayer) {
-                            transport.onServerNotification(author, Notification.INVALID_SOURCE_POS, once = true)
+                            server.handler.onServerNotification(author, Notification.INVALID_SOURCE_POS, once = true)
                         }
                         filterNearestPlayers(sourceWorld, sourcePos, 16)
                     }
@@ -239,7 +221,11 @@ class EngineChat(
         recipient: Player
     ) {
         sendMessageInternal(
-            recipient, content, source, originalChannel.id, isSpy = true
+            recipient,
+            content,
+            source,
+            originalChannel.id,
+            isSpy = true
         )
     }
 
@@ -254,7 +240,7 @@ class EngineChat(
         isSpy: Boolean = false,
         placeholders: Map<String, String> = getDefaultPlaceholders(text, recipient, source, volume),
     ) {
-        transport.onOutcomingMessage(
+        server.handler.onOutcomingMessage(
             recipient,
             OutcomingMessage(
                 text,
@@ -322,11 +308,12 @@ class EngineChat(
     private suspend fun runAcousticSpreadSimulation(
         world: World,
         pos: Pos,
-        volume: Float,
+        volume: Float
     ): Map<Player, Float> {
         val players = world.players
+        val acousticLevel = settings.realisticAcousticFormatting.getLevel(volume)
 
-        val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume)
+        val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, acousticLevel.multiplier)
 
         val recipients = players
             .mapNotNull {

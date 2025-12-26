@@ -9,7 +9,8 @@ data class ServerConfig(
     val server: ServerId,
     val chat: ChatConfig,
     val player: PlayerConfig,
-    val vocal: VoiceApparatusConfig
+    val vocal: VoiceApparatusConfig,
+    val movement: MovementConfig
 )
 
 
@@ -74,19 +75,8 @@ data class RealisticAcousticConfig(
 @Serializable
 data class AcousticLevelConfig(
     val volume: Float,
+    val multiplier: Float = 1f,
     val placeholders: Map<String, String> = mapOf()
-)
-
-
-@Serializable
-data class VoiceApparatusConfig(
-    @SerialName("break_threshold") val breakThreshold: Float,
-    @SerialName("break_chance") val breakChance: Float,
-    @SerialName("regeneration_time") val regenerationTimeSeconds: Int,
-    @SerialName("regeneration_random") val regenerationTimeRandom: Float,
-    @SerialName("tiredness_threshold") val tirednessThreshold: Float,
-    @SerialName("tiredness_gain") val tirednessGain: Float,
-    @SerialName("tiredness_decrease_rate") val tirednessDecreaseRateSeconds: Float
 )
 
 @Serializable
@@ -117,6 +107,28 @@ data class DistortionConfig(
     val artifacts: List<Char>
 )
 
+//// GAME MECHANICS
+
+@Serializable
+data class VoiceApparatusConfig(
+    @SerialName("break_threshold") val breakThreshold: Float,
+    @SerialName("break_chance") val breakChance: Float,
+    @SerialName("regeneration_time") val regenerationTimeSeconds: Int,
+    @SerialName("regeneration_random") val regenerationTimeRandom: Float,
+    @SerialName("tiredness_threshold") val tirednessThreshold: Float,
+    @SerialName("tiredness_gain") val tirednessGain: Float,
+    @SerialName("tiredness_decrease_rate") val tirednessDecreaseRateSeconds: Float
+)
+
+@Serializable
+data class MovementConfig(
+    @SerialName("sprint_multiplier") val sprintMultiplier: Float,
+    @SerialName("min_speed_factor") val minSpeedFactor: Float,
+    @SerialName("slowdown_stamina_threshold") val slowdownStaminaThreshold: Float,
+    @SerialName("stamina_consumption") val staminaConsumeMinutes: Float,
+    @SerialName("stamina_regen") val staminaRegenMinutes: Float,
+    @SerialName("intention_effect") val intentionEffect: Float
+)
 
 //// PLAYER CONFIG
 

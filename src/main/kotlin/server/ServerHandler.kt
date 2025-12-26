@@ -19,7 +19,6 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.packet.GlobalAcknowledgeListener
-import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_SETTINGS_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_JOIN_GAME_ENDPOINT
@@ -28,11 +27,9 @@ import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_DESTROY_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_JOIN_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_DEFAULT_ATTRIBUTES_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_SPEED_INTENTION_PACKET
-import org.lain.engine.transport.packet.ChatSettingsPacket
-import org.lain.engine.transport.packet.ClientChatSettings
-import org.lain.engine.transport.packet.ClientDefaultAttributes
+import org.lain.engine.transport.packet.ClientboundServerSettings
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.ClientboundWorldData
 import org.lain.engine.transport.packet.FullPlayerData
@@ -46,12 +43,12 @@ import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.PlayerDestroyPacket
 import org.lain.engine.transport.packet.PlayerJoinServerPacket
 import org.lain.engine.transport.packet.PlayerSpeedIntentionPacket
-import org.lain.engine.transport.packet.DefaultAttributesPacket
 import org.lain.engine.transport.packet.SERVERBOUND_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_DEVELOPER_MODE_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_VOLUME_PACKET
 import org.lain.engine.transport.packet.ServerPlayerData
+import org.lain.engine.transport.packet.ServerSettingsUpdatePacket
 import org.lain.engine.util.ImmutableVec3
 import org.lain.engine.util.Pos
 import org.lain.engine.util.filterNearestPlayers
@@ -195,14 +192,6 @@ class ServerHandler(
         )
     }
 
-    fun onDefaultAttributesUpdate(defaults: DefaultPlayerAttributes) {
-        CLIENTBOUND_DEFAULT_ATTRIBUTES_ENDPOINT.broadcast(
-            DefaultAttributesPacket(
-                ClientDefaultAttributes.of(defaults)
-            )
-        )
-    }
-
     fun onPlayerSpeedIntention(player: Player, intention: Float) {
         CLIENTBOUND_SPEED_INTENTION_PACKET.broadcastInRadius(
             player,
@@ -220,12 +209,6 @@ class ServerHandler(
                 name
             )
         )
-    }
-
-    fun onChatSettingsUpdate(settings: EngineChatSettings) {
-        CLIENTBOUND_CHAT_SETTINGS_ENDPOINT.broadcast { player ->
-            ChatSettingsPacket(ClientChatSettings.of(settings, player))
-        }
     }
 
     fun onOutcomingMessage(player: Player, message: OutcomingMessage) {
@@ -293,6 +276,14 @@ class ServerHandler(
         CLIENTBOUND_PLAYER_DESTROY_ENDPOINT.broadcast(
             PlayerDestroyPacket(player.id)
         )
+    }
+
+    fun onServerSettingsUpdate() {
+        CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT.broadcast {
+            ServerSettingsUpdatePacket(
+                ClientboundServerSettings.of(server, it)
+            )
+        }
     }
 
     private fun <P : Packet> Endpoint<P>.broadcastInRadius(

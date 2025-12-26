@@ -40,11 +40,6 @@ data class IncomingChatMessagePacket(
 val SERVERBOUND_CHAT_MESSAGE_ENDPOINT = Endpoint<IncomingChatMessagePacket>()
 
 @Serializable
-data class ChatSettingsPacket(
-    val settings: ClientChatSettings
-) : Packet
-
-@Serializable
 data class ClientChatSettings(
     val channels: Map<ChannelId, ClientChatChannel>,
     val default: ChannelId,
@@ -94,5 +89,3 @@ data class ClientChatChannel(
         }
     }
 }
-
-val CLIENTBOUND_CHAT_SETTINGS_ENDPOINT = Endpoint<ChatSettingsPacket>()

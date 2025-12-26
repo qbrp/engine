@@ -30,7 +30,8 @@ val Player.volume: Float
             voiceApparatus.tiredness,
             voiceApparatus.minVolume ?: defaults.minVolume,
             voiceApparatus.maxVolume ?: defaults.maxVolume,
-            voiceApparatus.inputVolume
+            voiceApparatus.inputVolume,
+            has<VoiceLoose>()
         )
     }
 
@@ -39,9 +40,16 @@ fun getRealVolume(
     tiredness: Float,
     minVolume: Float,
     maxVolume: Float,
-    inputVolume: Float
+    inputVolume: Float,
+    loosen: Boolean
 ): Float {
-    val max = ((1 - tiredness) * maxVolume)
+    val tirednessMultiplier = if (!loosen) {
+        0.8f
+    } else {
+        1f
+    }
+
+    val max = ((1 - tiredness * tirednessMultiplier) * maxVolume)
     val outputVolume = (maxVolume - minVolume) * inputVolume + minVolume
     return outputVolume.coerceIn(0f, max)
 }

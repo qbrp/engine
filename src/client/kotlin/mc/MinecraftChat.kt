@@ -27,7 +27,7 @@ object MinecraftChat : ChatEventBus {
     private val messageCache = mutableMapOf<EngineChatMessage, MessageData>()
     private val chatHudLines = mutableMapOf<ChatHudLine.Visible, ChatHudLineData>()
 
-    private val spyMessages = mutableMapOf<ChatHudLine.Visible, ChatHudLineData>()
+    private val spyMessages = mutableMapOf<ChatHudLine.Visible, StoredMessage>()
 
     private data class StoredMessage(
         val line: ChatHudLine.Visible,
@@ -38,7 +38,7 @@ object MinecraftChat : ChatEventBus {
     private val messageByLine = mutableMapOf<ChatHudLine.Visible, StoredMessage>()
     private val hiddenMessages = mutableMapOf<ChatHudLine.Visible, StoredMessage>()
     private val hiddenChannelMessages = mutableMapOf<ChannelId, MutableList<ChatHudLine.Visible>>()
-    private var spy = false
+    private val spy get() = chatManager?.spy ?: false
 
     private val chatManager get() = client.gameSession?.chatManager
     private val chatHud get() =  MinecraftClient.inGameHud.chatHud
@@ -67,7 +67,7 @@ object MinecraftChat : ChatEventBus {
         val brokenChatBubbleLines: List<OrderedText>,
         val engineMessage: EngineChatMessage
     ) {
-        val debugText = Text.of("[inputVolume ${engineMessage.volume}]")
+        val debugText = Text.of("[volume ${engineMessage.volume}]")
     }
 
     data class ChatHudLineData(val line: ChatHudLine.Visible, val isFirst: Boolean, val isLast: Boolean, val message: MessageData) {
@@ -120,7 +120,7 @@ object MinecraftChat : ChatEventBus {
         val visible = channel.isAvailable && !chatBar.isHidden(channel.id) && (isSpy && spy || !isSpy)
 
         if (engineMessage.isSpy) {
-            spyMessages[chatHudLine] = data
+            spyMessages[chatHudLine] = storedMessage
         }
 
         chatHudLines[chatHudLine] = data
@@ -169,7 +169,12 @@ object MinecraftChat : ChatEventBus {
     }
 
     override fun onChannelEnable(channel: ClientChatChannel) {
-        val hiddenMessages = hiddenChannelMessages[channel.id] ?: return
+        val hiddenMessages = hiddenChannelMessages[channel.id]
+            ?.filter {
+                val isSpy = getChatHudLineData(it)?.message?.engineMessage?.isSpy ?: false
+                (isSpy && spy) || !isSpy
+            }
+        ?: return
         restoreHiddenMessages(hiddenMessages)
         hiddenMessages.forEach { message ->
             hiddenChannelMessages.remove(channel.id)
@@ -187,12 +192,10 @@ object MinecraftChat : ChatEventBus {
 
     override fun onSpyEnable() {
         restoreHiddenMessages(spyMessages.keys.toList())
-        spy = true
     }
 
     override fun onSpyDisable() {
         hideVisibleMessagesIf { line, data -> spyMessages.contains(line) }
-        spy = false
     }
 
     private fun hideVisibleMessagesIf(predicate: (line: ChatHudLine.Visible, data: ChatHudLineData) -> Boolean): List<ChatHudLineData> {

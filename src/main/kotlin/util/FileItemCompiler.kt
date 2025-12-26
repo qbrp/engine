@@ -26,8 +26,13 @@ data class ItemConfig(
     @SerialName("display_name") val displayName: String,
     val material: String = "stick",
     val model: String? = null,
-    val texture: String? = null
-)
+    val texture: String? = null,
+    @SerialName("asset") val assetType: AssetType = AssetType.FILE
+) {
+    enum class AssetType {
+        GENERATED, FILE
+    }
+}
 
 data class CompileItems(val namespaces: Map<String, ItemNamespaceConfig>)
 
@@ -88,8 +93,11 @@ fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompil
     for (namespace in compile.namespaces.values) {
         for ((idString, config) in namespace.items) {
             val id = NamespaceItemId(namespace.id, idString)
-            val material = Identifier.ofVanilla(config.material)
-            val asset = config.model ?: config.texture ?: (id.value + "/$idString")
+            val material = Identifier.ofVanilla(config.material.lowercase())
+            val asset = when(config.assetType) {
+                ItemConfig.AssetType.FILE -> config.model?.replaceFirst("~", namespace.id) ?: (id.value + "/$idString")
+                ItemConfig.AssetType.GENERATED -> config.texture ?: id.value
+            }
             val assetId = EngineId(asset)
             itemsToAdd += EngineItem(
                 id,

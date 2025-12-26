@@ -17,7 +17,9 @@ import org.lain.engine.chat.Selector
 import org.lain.engine.mc.AcousticBlockData
 import org.lain.engine.mc.ServerMixinAccess
 import org.lain.engine.mc.registerServerChatCommand
+import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.MovementDefaultAttributes
+import org.lain.engine.player.MovementSettings
 import org.lain.engine.player.PlayerStatus
 import org.lain.engine.player.PrimaryAttribute
 import org.lain.engine.player.VocalSettings
@@ -30,16 +32,9 @@ private val CONFIG_FILE = ENGINE_DIR.resolve(CONFIG_FILENAME)
 private const val CONFIG_FILENAME = "server-config.yml"
 internal val CONFIG_LOGGER = LoggerFactory.getLogger("Engine Config")
 
-fun loadOrCreateServerConfig(
-    file: File = CONFIG_FILE,
-    defaultResourceConfig: String = CONFIG_FILENAME
-): ServerConfig {
+fun loadOrCreateServerConfig(file: File = CONFIG_FILE): ServerConfig {
     if (!file.exists()) {
-        val classLoader = Thread.currentThread().contextClassLoader
-        val resource = classLoader.getResource(defaultResourceConfig)
-            ?: error("Не найден ресурс стандартного конфига: $defaultResourceConfig")
-        val text = resource.readText()
-        file.writeText(text)
+        file.writeText(getBuiltinResource(CONFIG_FILENAME)!!.readText())
     }
     return Yaml.default.decodeFromStream(file.inputStream())
 }
@@ -76,29 +71,28 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         ChatChannel(ChannelId(id), it.name ?: id, format, acoustic, modifiers, selectors, speech, it.notify, it.permission)
     }
 
-    this.engine.chat.updateSettings(
-        EngineChatSettings(
-            chat.placeholders,
-            channels.values.toList(),
-            chat.acoustic.distortion.threshold,
-            chat.acoustic.distortion.artifacts,
-            AcousticFormatting(
-                config.chat.acoustic.formatting.map {
-                    AcousticLevel(
-                        it.volume,
-                        it.placeholders
-                    )
-                }
-            ),
-            chat.acoustic.volume.hearingThreshold,
-            chat.acoustic.volume.max,
-            channels[chat.defaultChannel] ?: error("Указанный стандартный канал ${chat.defaultChannel} не существует"),
-            chat.join.message,
-            chat.join.enabled,
-            chat.leave.message,
-            chat.leave.enabled,
-            chat.pm,
-        )
+    val chatSettings = EngineChatSettings(
+        chat.placeholders,
+        channels.values.toList(),
+        chat.acoustic.distortion.threshold,
+        chat.acoustic.distortion.artifacts,
+        AcousticFormatting(
+            config.chat.acoustic.formatting.map {
+                AcousticLevel(
+                    it.volume,
+                    it.multiplier,
+                    it.placeholders
+                )
+            }
+        ),
+        chat.acoustic.volume.hearingThreshold,
+        chat.acoustic.volume.max,
+        channels[chat.defaultChannel] ?: error("Указанный стандартный канал ${chat.defaultChannel} не существует"),
+        chat.join.message,
+        chat.join.enabled,
+        chat.leave.message,
+        chat.leave.enabled,
+        chat.pm,
     )
 
     val dispatcher = minecraftServer.commandManager.dispatcher
@@ -146,24 +140,37 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
 
         statuses[playerStatus] = attributes
     }
-    val volume = config.player.volume
-    engine.updateDefaultPlayerAttributes {
-        it.minVolume = volume.min
-        it.maxVolume = volume.max
-        it.baseVolume = volume.base
-        it.movement = MovementDefaultAttributes(statuses)
-    }
 
-    val vocal = config.vocal
-    engine.globals.vocalSettings = VocalSettings(
-        vocal.breakThreshold,
-        vocal.breakChance,
-        vocal.regenerationTimeSeconds * 20,
-        vocal.regenerationTimeRandom,
-        vocal.tirednessThreshold,
-        vocal.tirednessGain,
-        vocal.tirednessDecreaseRateSeconds / 20
-    )
+    engine.updateGlobals {
+        val volume = config.player.volume
+        it.defaultPlayerAttributes.apply {
+            movement = MovementDefaultAttributes(statuses)
+            minVolume = volume.min
+            maxVolume = volume.max
+            baseVolume = volume.base
+        }
+        val vocal = config.vocal
+        it.vocalSettings = VocalSettings(
+            vocal.breakThreshold,
+            vocal.breakChance,
+            vocal.regenerationTimeSeconds * 20,
+            vocal.regenerationTimeRandom,
+            vocal.tirednessThreshold,
+            vocal.tirednessGain,
+            vocal.tirednessDecreaseRateSeconds / 20
+        )
+        val movement = config.movement
+        it.movementSettings = MovementSettings(
+            movement.sprintMultiplier,
+            movement.minSpeedFactor,
+            movement.slowdownStaminaThreshold,
+            movement.staminaConsumeMinutes / 60 / 20,
+            movement.staminaRegenMinutes / 60 / 20,
+            movement.intentionEffect
+        )
+        it.chatSettings.set(chatSettings)
+
+    }
 
     ServerMixinAccess.isDamageEnabled = config.player.damage
 }

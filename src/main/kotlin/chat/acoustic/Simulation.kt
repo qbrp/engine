@@ -1,30 +1,26 @@
 package org.lain.engine.chat.acoustic
 
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import org.lain.engine.mc.ChunkedAcousticView
 import org.lain.engine.util.Pos
 import org.lain.engine.util.PrimitiveArrayPool
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.flush
 import org.lain.engine.world.WorldId
 import org.slf4j.Logger
-import java.util.ArrayList
 import java.util.Collections
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.LongAdder
-import kotlin.collections.plusAssign
-import kotlin.math.max
 import kotlin.math.min
 
 interface AcousticSimulator {
-    suspend fun simulateSingleSource(world: WorldId, pos: Pos, volume: Float, maxVolume: Float): AcousticSimulationResult
+    suspend fun simulateSingleSource(
+        world: WorldId,
+        pos: Pos,
+        volume: Float,
+        maxVolume: Float,
+        multiplier: Float
+    ): AcousticSimulationResult
 }
 
 interface AcousticSimulationResult {
@@ -45,6 +41,7 @@ fun simulateAsync(
     logger: Logger,
     performanceDebug: Boolean,
     maxVolume: Float,
+    multiplier: Float = 1f,
     chunkSize: Int = 16,
 ) {
     fun debug(str: String) {
@@ -110,7 +107,7 @@ fun simulateAsync(
                             if (volumeGrid[x, y, z] != 0f) return@forEachCell
 
                             val volume = collectVolume(volumeGrid, x, y, z)
-                            val delta = volume * passability
+                            val delta = volume * passability * multiplier
 
                             deltaGrid[x, y, z] = min(delta, maxVolume)
 

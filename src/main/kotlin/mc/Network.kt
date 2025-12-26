@@ -102,6 +102,5 @@ fun disconnectInternal(playerId: PlayerId, reason: String) {
     val entityTable by injectEntityTable()
     val entity = entityTable.getEntity(playerId) as? ServerPlayerEntity ?: error("Player entity $playerId not found")
     val networkHandler = entity.networkHandler
-    if (!networkHandler.isConnectionOpen) return
     entity.server?.execute { networkHandler.disconnect(reason.parseMiniMessage()) }
 }

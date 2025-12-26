@@ -204,9 +204,9 @@ class ChunkedAcousticView(
     val minY = scenes.minOf { it.y }
     val minZ = scenes.minOf { it.z }
 
-    private val maxX = scenes.maxOf { it.x + it.size.width }
-    private val maxY = scenes.maxOf { it.y + it.size.height }
-    private val maxZ = scenes.maxOf { it.z + it.size.depth }
+    val maxX = scenes.maxOf { it.x + it.size.width }
+    val maxY = scenes.maxOf { it.y + it.size.height }
+    val maxZ = scenes.maxOf { it.z + it.size.depth }
 
     val viewW = maxX - minX
     val viewH = maxY - minY
@@ -427,7 +427,8 @@ class MinecraftAcousticManager(
         world: WorldId,
         pos: Pos,
         volume: Float,
-        maxVolume: Float
+        maxVolume: Float,
+        multiplier: Float
     ): AcousticSimulationResult {
         val timestamp = Timestamp()
         val mcWorld = entityTable.getMcWorld(world) ?: throw IllegalArgumentException("World $world")
@@ -475,6 +476,7 @@ class MinecraftAcousticManager(
                 logger,
                 performanceDebug,
                 maxVolume,
+                multiplier,
                 chunkSize,
             )
             if (performanceDebug) logger.info(
@@ -490,15 +492,14 @@ class MinecraftAcousticManager(
 
         return object : AcousticSimulationResult {
             override fun getVolume(pos: Pos): Float? {
-                val (lX, lY, lZ) = scene.worldToLocal(
-                    pos.x.toInt(),
-                    pos.y.toInt(),
-                    pos.z.toInt()
-                )
-                if (lX !in 0..scene.viewW || lY !in 0..scene.viewH || lZ !in 0..scene.viewD) {
+                val x = pos.x.toInt()
+                val y = pos.y.toInt()
+                val z = pos.z.toInt()
+                if (x !in scene.minX..scene.maxX || y !in scene.minY..scene.maxY || z !in scene.minZ..scene.maxZ) {
                     return null
                 }
-                return generation.volume[lX, lY, lZ]
+                val (lx, ly, lz) = scene.worldToLocal(x, y, z)
+                return generation.volume[lx, ly, lz]
             }
 
             override fun finish() {

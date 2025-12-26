@@ -48,31 +48,14 @@ data class PlayerCustomNamePacket(
 val CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT =
     Endpoint<PlayerCustomNamePacket>()
 
-// Default Attributes
+// Server Settings
 
 @Serializable
-data class DefaultAttributesPacket(
-    val configuration: ClientDefaultAttributes
+data class ServerSettingsUpdatePacket(
+    val settings: ClientboundServerSettings
 ) : Packet
 
-@Serializable
-data class ClientDefaultAttributes(
-    val movement: MovementDefaultAttributes,
-    val maxVolume: Float,
-    val baseVolume: Float
-) {
-    companion object {
-        fun of(defaults: DefaultPlayerAttributes): ClientDefaultAttributes {
-            return ClientDefaultAttributes(
-                defaults.movement,
-                defaults.maxVolume,
-                defaults.playerBaseInputVolume
-            )
-        }
-    }
-}
-
-val CLIENTBOUND_DEFAULT_ATTRIBUTES_ENDPOINT = Endpoint<DefaultAttributesPacket>()
+val CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT = Endpoint<ServerSettingsUpdatePacket>()
 
 // Attribute Update
 

@@ -48,7 +48,7 @@ data class AcousticFormatting(val levels: List<AcousticLevel> = listOf()) {
         var level = levels.first()
         for (lvl in levels) {
             val vol = lvl.volume
-            if (volume > vol) {
+            if (volume >= vol) {
                 level = lvl
             }
         }
@@ -56,4 +56,8 @@ data class AcousticFormatting(val levels: List<AcousticLevel> = listOf()) {
     }
 }
 
-data class AcousticLevel(val volume: Float, val placeholders: Map<String, String>)
+data class AcousticLevel(
+    val volume: Float,
+    val multiplier: Float = 1f,
+    val placeholders: Map<String, String>
+)

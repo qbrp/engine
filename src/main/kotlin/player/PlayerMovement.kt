@@ -31,13 +31,23 @@ data class MovementStatus(
     }
 }
 
-const val SPRINT_MODIFIER = 1.5f
-const val MIN_SPEED = 0.05f
-const val LOW_STAMINA = 0.3f
-const val TICK_STAMINA_CONSUME = 0.0033f // стамина на предельной скорости потратится за 15 секунд
-// полной скоростью считается 81% от максимальной (0.0027 / 0.0033 = 81%)
-const val TICK_STAMINA_REGEN = 0.0030f
-const val INTENTION_MOD = 0.7f
+/**
+ * @param sprintMultiplier Множитель скорости в режиме бега
+ * @param minSpeedFactor Множитель к показателю аттрибута скорости, определяющий самую низкую возможную скорость (от 0 до 1)
+ * @param slowdownStaminaThreshold Порог стамины, при котором персонаж начинает замедляться
+ * @param staminaConsumption Уменьшение стамины за 1 тик при максимальной скорости
+ * @param staminaRegen **Постоянное** восстановление стамины за 1 тик. Стамина тратиться, когда `staminaConsumption` становится больше `staminaRegen`
+ * @param intentionEffect Как сильно `intention` игрока влияет на скорость. Ограничивает множитель скорости.
+ */
+@Serializable
+data class MovementSettings(
+    val sprintMultiplier: Float = 1.5f,
+    val minSpeedFactor: Float = 0.05f,
+    val slowdownStaminaThreshold: Float = 0.3f,
+    val staminaConsumption: Float = 0.0033f,
+    val staminaRegen: Float = 0.0030f,
+    val intentionEffect: Float = 0.7f
+)
 
 fun Player.intentSpeed(value: Float) {
     require<MovementStatus>().intention = value
@@ -50,43 +60,52 @@ val Player.stamina
 fun speedMul(
     intention: Float,
     stamina: Float,
-    isSprint: Boolean
-): Float {
-    val sprintMul = if (isSprint) SPRINT_MODIFIER else 1f
-    val staminaMul = if (stamina < LOW_STAMINA) smoothstep(stamina / LOW_STAMINA) else 1f
+    isSprint: Boolean,
+    settings: MovementSettings,
+): Float = with(settings) {
+    val sprintMul = if (isSprint) sprintMultiplier else 1f
+    val staminaMul = if (stamina < slowdownStaminaThreshold) smoothstep(stamina / slowdownStaminaThreshold) else 1f
 
-    val minSpeedIntentionMul = (1f - INTENTION_MOD)
-    val maxSpeedIntentionMul = (INTENTION_MOD * 2 - 1f)
+    val minSpeedIntentionMul = (1f - intentionEffect)
+    val maxSpeedIntentionMul = (intentionEffect * 2 - 1f)
 
     val intentionMul = minSpeedIntentionMul + maxSpeedIntentionMul * smootherstep(intention)
-    return intentionMul * staminaMul * sprintMul
+    intentionMul * staminaMul * sprintMul
 }
 
-fun maxSpeedMul() = speedMul(1f, 1f, true)
+fun maxSpeedMul(settings: MovementSettings) = speedMul(1f, 1f, true, settings)
 
-fun updatePlayerMovement(player: Player, primaryAttributes: MovementDefaultAttributes) {
-    val primarySpeed = primaryAttributes.getPrimarySeed(player) ?: 0.055f
+fun updatePlayerMovement(
+    player: Player,
+    primaryAttributes: MovementDefaultAttributes,
+    settings: MovementSettings
+) {
+    val defaultSpeed = primaryAttributes.getPrimarySeed(player) ?: 0.055f
     val attributes = player.require<PlayerAttributes>()
-    val baseSpeed = attributes.speed.default
-    val speed = player.velocity.horizontal().length()
+    val speedAttribute = attributes.speed.default
+    val velocityHorizontal = player.velocity.horizontal().length()
+
+    val minSpeed = settings.minSpeedFactor
+    val staminaRegen = settings.staminaRegen
+    val staminaConsume = settings.staminaConsumption
 
     player.apply<MovementStatus> {
         val isSpectating = player.isSpectating
 
-        val minSpeed = primarySpeed * MIN_SPEED
-        val maxSpeed = primarySpeed * maxSpeedMul()
+        val minSpeed = defaultSpeed * minSpeed
+        val maxSpeed = defaultSpeed * maxSpeedMul(settings)
 
         attributes.speed.default = if (isSpectating) {
-            primarySpeed
+            defaultSpeed
         } else {
             if (!player.isInGameMasterMode && !player.isSpectating) {
-                stamina = (stamina + (TICK_STAMINA_REGEN - abs(speed) / maxSpeed * TICK_STAMINA_CONSUME)).coerceIn(0f, 1f)
+                stamina = (stamina + (staminaRegen - abs(velocityHorizontal) / maxSpeed * staminaConsume)).coerceIn(0f, 1f)
             } else {
                 stamina = 1f
             }
 
-            val target = max(minSpeed, primarySpeed * speedMul(intention, stamina, isSprinting))
-            lerp(baseSpeed, target, 0.2f)
+            val target = max(minSpeed, defaultSpeed * speedMul(intention, stamina, isSprinting, settings))
+            lerp(speedAttribute, target, 0.2f)
         }
     }
 }

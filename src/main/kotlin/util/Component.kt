@@ -128,6 +128,12 @@ inline fun <reified T : Component> ComponentManager.replaceOrSet(
     return replaceComponent(T::class, factory) ?: setComponent(T::class, factory())
 }
 
+inline fun <reified T : Component> ComponentManager.replaceOrSet(
+    component: T
+): T {
+    return replace(component) ?: setComponent(T::class, component)
+}
+
 inline fun <reified T : Component> ComponentManager.remove(): T? {
     return removeComponent(T::class)
 }
@@ -152,6 +158,12 @@ inline fun <reified T : Component> ComponentManager.replace(
     noinline factory: () -> T
 ): T? {
     return replaceComponent(T::class, factory)
+}
+
+inline fun <reified T : Component> ComponentManager.replace(
+    component: T
+): T? {
+    return replaceComponent(T::class) { component }
 }
 
 // Dirty State

@@ -12,10 +12,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.item.ItemStack
-import net.minecraft.item.Items
 import net.minecraft.network.DisconnectionInfo
-import net.minecraft.text.Text
 import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
@@ -24,18 +21,14 @@ import org.lain.engine.client.mc.MinecraftAudioManager
 import org.lain.engine.client.mc.MinecraftCamera
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.ClientMinecraftNetwork
-import org.lain.engine.client.mc.CompiledItemGroup
-import org.lain.engine.client.mc.EngineAtlasSource.Companion.ID
-import org.lain.engine.client.mc.EngineAtlasSource.Companion.TYPE
-import org.lain.engine.client.mc.ItemList
-import org.lain.engine.client.mc.ItemListSlot
+import org.lain.engine.client.resources.EngineAtlasSource.Companion.ID
+import org.lain.engine.client.resources.EngineAtlasSource.Companion.TYPE
 import org.lain.engine.client.mc.KeybindManager
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.mc.MinecraftFontRenderer
 import org.lain.engine.client.mc.MinecraftPainter
 import org.lain.engine.client.mc.getClientEntity
 import org.lain.engine.client.mc.renderChatBubbles
-import org.lain.engine.client.mc.renderItemList
 import org.lain.engine.client.mixin.DrawContextAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.server.ClientSingleplayerTransport
@@ -81,6 +74,7 @@ class MinecraftEngineClient : ClientModInitializer {
     override fun onInitializeClient() {
         KeybindManager
         AtlasSourceTypeRegistry.register(ID, TYPE)
+
         ClientPlayConnectionEvents.JOIN.register { handler, _, _ ->
             val entity = client.player!!
 

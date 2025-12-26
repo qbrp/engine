@@ -33,7 +33,7 @@ class EngineServer(
     private val dispatcher = Dispatchers.IO.limitedParallelism(Runtime.getRuntime().availableProcessors())
     private val updateScore = CoroutineScope(dispatcher)
 
-    val chat: EngineChat = EngineChat(handler, acousticSimulator, playerStorage)
+    val chat: EngineChat = EngineChat(acousticSimulator, this)
     val playerService = PlayerService(playerStorage, this)
     val defaultWorld
         get() = worlds.toList().first().second
@@ -50,7 +50,7 @@ class EngineServer(
         val players = playerStorage.getAll()
         val vocalSettings = globals.vocalSettings
         for (player in players) {
-            updatePlayerMovement(player, globals.defaultPlayerAttributes.movement)
+            updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
             flushPlayerCommands(player)
             flushPlayerMessages(player, chat, vocalSettings)
             updatePlayerVoice(player, chat, globals.vocalSettings)
@@ -62,10 +62,10 @@ class EngineServer(
         taskQueue.flush { it.run() }
     }
 
-    fun updateDefaultPlayerAttributes(update: (DefaultPlayerAttributes) -> Unit) = execute {
-        val attrs = this.globals.defaultPlayerAttributes
-        update(attrs)
-        handler.onDefaultAttributesUpdate(attrs)
+    fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {
+        update(globals)
+        chat.onSettingsUpdated(globals.chatSettings.get())
+        handler.onServerSettingsUpdate()
     }
 
     fun execute(r: Runnable) {

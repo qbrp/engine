@@ -20,7 +20,6 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.player.customName
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
-import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_SETTINGS_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_JOIN_GAME_ENDPOINT
@@ -29,10 +28,11 @@ import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_DESTROY_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_JOIN_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_DEFAULT_ATTRIBUTES_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.transport.packet.ClientDefaultAttributes
+import org.lain.engine.transport.packet.ClientboundServerSettings
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.ClientboundWorldData
 import org.lain.engine.transport.packet.DeveloperModePacket
@@ -48,6 +48,8 @@ import org.lain.engine.transport.packet.SetSpeedIntentionPacket
 import org.lain.engine.transport.packet.VolumePacket
 import org.lain.engine.util.flush
 import org.lain.engine.util.injectValue
+import org.lain.engine.util.replace
+import org.lain.engine.util.replaceOrSet
 import org.lain.engine.util.require
 import org.lain.engine.util.set
 import org.slf4j.LoggerFactory
@@ -80,8 +82,8 @@ class ClientHandler(
             onPlayerAttributeUpdate(id, speed, jumpStrength)
         }
 
-        CLIENTBOUND_DEFAULT_ATTRIBUTES_ENDPOINT.registerClientReceiver { ctx ->
-            onDefaultAttributesUpdate(configuration)
+        CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT.registerClientReceiver { ctx ->
+            onServerSettingsUpdate(settings)
         }
 
         CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT.registerClientReceiver { ctx ->
@@ -131,10 +133,6 @@ class ClientHandler(
                     isSpy
                 )
             )
-        }
-
-        CLIENTBOUND_CHAT_SETTINGS_ENDPOINT.registerClientReceiver { ctx ->
-            onChatSettings(settings)
         }
 
         CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT.registerClientReceiver { ctx ->
@@ -197,8 +195,8 @@ class ClientHandler(
     }
 
     private fun onFullPlayerData(id: PlayerId, data: FullPlayerData) = updatePlayer(id) {
-        set(data.movementStatus)
-        set(data.attributes)
+        replaceOrSet(data.movementStatus)
+        replaceOrSet(data.attributes)
         isLowDetailed = false
     }
 
@@ -230,15 +228,19 @@ class ClientHandler(
         )
 
         client.joinGameSession(gameSession)
-        gameSession.chatManager.updateSettings(data.chatSettings)
+        gameSession.chatManager.updateSettings(data.settings.chat)
     }
 
-    private fun onDefaultAttributesUpdate(data: ClientDefaultAttributes) = gameSessionTask {
+    private fun onServerSettingsUpdate(settings: ClientboundServerSettings) = gameSessionTask {
+        val defaultAttributes = settings.defaultAttributes
         vocalRegulator.volume.apply {
-            max = data.maxVolume
-            base = data.baseVolume
+            max = defaultAttributes.maxVolume
+            base = defaultAttributes.baseVolume
         }
-        movementDefaultAttributes = data.movement
+        movementDefaultAttributes = defaultAttributes.movement
+        movementSettings = settings.movement
+        playerSynchronizationRadius = settings.playerSynchronizationRadius
+        chatManager.updateSettings(settings.chat)
     }
 
     private fun onChatMessage(message: OutcomingMessage) = gameSessionTask {
@@ -277,10 +279,6 @@ class ClientHandler(
                 message.isSpy
             )
         )
-    }
-
-    private fun onChatSettings(settings: ClientChatSettings) = gameSessionTask {
-        chatManager.updateSettings(settings)
     }
 
     private fun onNotification(type: Notification, once: Boolean) {

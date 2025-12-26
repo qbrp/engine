@@ -74,17 +74,3 @@ fun collectVolume(vol: Grid3f, x: Int, y: Int, z: Int): Float {
 
     return if (weightTotal > 0f) weightedSum / weightTotal else 0f
 }
-
-fun spreadVolume(
-    chunk: Grid3Range,
-    volumeGrid: Grid3f,
-    passabilityGrid: Grid3f,
-    delta: FloatArray,
-    rate: Float = 1f,
-) {
-    require(volumeGrid.size == passabilityGrid.size)
-    volumeGrid.forEach(chunk) { idx, x, y, z ->
-        val volume = collectVolume(volumeGrid, x, y, z)
-        delta[idx] = volume * rate * passabilityGrid[idx]
-    }
-}

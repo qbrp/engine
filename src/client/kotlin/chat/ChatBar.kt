@@ -31,7 +31,7 @@ class ChatBar(
         val channelState = statesBySection[section] ?: return
         channelState.hide = !channelState.hide
         val isHidden = channelState.hide
-        if (!isHidden) {
+        if (isHidden) {
             markRead(section)
             section.channels.forEach { chat.disableChannel(it) }
         } else {
@@ -56,10 +56,6 @@ class ChatBar(
             it.unread = false
             it.mentioned = false
         }
-    }
-
-    fun markRead(channel: ChannelId) {
-        states[channel]?.let { markRead(it.section) }
     }
 
     fun markMentioned(channel: ChannelId) {

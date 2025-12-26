@@ -3,6 +3,7 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.DisplayName
+import org.lain.engine.player.MovementSettings
 import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerAttributes
@@ -30,22 +31,16 @@ data class ClientboundWorldData(
 
 @Serializable
 data class ClientboundSetupData(
-    val playerSynchronizationRadius: Int,
-    val defaultAttributesData: ClientDefaultAttributes,
     val serverId: ServerId,
     val playerList: ClientboundPlayerList,
-    val chatSettings: ClientChatSettings
+    val settings: ClientboundServerSettings
 ) {
     companion object {
         fun create(server: EngineServer, player: Player): ClientboundSetupData {
             return ClientboundSetupData(
-                server.globals.playerSynchronizationRadius,
-                ClientDefaultAttributes.of(server.globals.defaultPlayerAttributes),
                 server.globals.serverId,
                 ClientboundPlayerList.of(server),
-                server.chat.settings.let {
-                    ClientChatSettings.of(server.chat.settings, player)
-                }
+                ClientboundServerSettings.of(server, player)
             )
         }
     }

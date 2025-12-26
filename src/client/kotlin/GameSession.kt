@@ -29,7 +29,7 @@ class GameSession(
     val client: EngineClient,
 ) {
     val chatEventBus = client.chatEventBus
-    var playerSynchronizationRadius: Int = setup.playerSynchronizationRadius
+    var playerSynchronizationRadius: Int = setup.settings.playerSynchronizationRadius
 
     val playerStorage = ClientPlayerStorage()
     val movementManager = MovementManager(handler)
@@ -38,10 +38,11 @@ class GameSession(
         chatEventBus,
         client,
         this,
-        setup.chatSettings,
+        setup.settings.chat,
     )
 
-    var movementDefaultAttributes = setup.defaultAttributesData.movement
+    var movementDefaultAttributes = setup.settings.defaultAttributes.movement
+    var movementSettings = setup.settings.movement
     val vocalRegulator = PlayerVocalRegulator(
         PlayerVolume(player.volume, player.maxVolume, player.baseVolume),
         this
@@ -63,7 +64,7 @@ class GameSession(
         for (player in players) {
             if (player.isLowDetailed) continue
 
-            updatePlayerMovement(player, movementDefaultAttributes)
+            updatePlayerMovement(player, movementDefaultAttributes, movementSettings)
 
             if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
                 player.isLowDetailed = true

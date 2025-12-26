@@ -14,7 +14,7 @@ import org.lain.engine.client.render.Window
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.client.util.ResourceManager
+import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.loadAndCreateEngineOptions
 import org.lain.engine.player.developerMode

@@ -107,8 +107,13 @@ class ClientEngineChatManager(
         val channel = message.channel
         val isSpy = message.isSpy
         val isMentioned = message.isMentioned
-        val visible = channel.isAvailable && !chatBar.isHidden(channel.id) && (isSpy && spy || !isSpy)
-        chatBar.markUnread(channel.id)
+        val visibleAsSpy = (isSpy && spy || !isSpy)
+        val visible = channel.isAvailable && !chatBar.isHidden(channel.id) && visibleAsSpy
+        val markRead = visible || !visibleAsSpy
+
+        if (!markRead) {
+            chatBar.markUnread(channel.id)
+        }
 
         if (isMentioned) {
             chatBar.markMentioned(channel.id)
@@ -122,7 +127,6 @@ class ClientEngineChatManager(
             if (isMentioned) {
                 client.audioManager.playUiNotificationSound()
             }
-            chatBar.markRead(channel.id)
         }
     }
 
