@@ -17,6 +17,8 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.loadAndCreateEngineOptions
+import org.lain.engine.player.Player
+import org.lain.engine.player.PlayerId
 import org.lain.engine.player.developerMode
 import org.lwjgl.glfw.GLFW
 
@@ -26,7 +28,9 @@ class EngineClient(
     private val camera: Camera,
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
-    val options: EngineOptions = loadAndCreateEngineOptions()
+    val options: EngineOptions = loadAndCreateEngineOptions(),
+    val onPlayerInstantiate: (Player) -> Unit,
+    val onPlayerDestroy: (PlayerId) -> Unit
 ) {
     val handler = ClientHandler(this)
     val renderer = ScreenRenderer(window, fontRenderer, camera, this)

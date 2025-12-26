@@ -4,8 +4,6 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.world.World as McWorld
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
-import org.lain.engine.util.injectMinecraftPlayerEntityFlow
-import org.lain.engine.util.injectPlayersFlow
 import org.lain.engine.world.WorldId
 import java.util.concurrent.ConcurrentHashMap
 
@@ -22,9 +20,6 @@ import java.util.concurrent.ConcurrentHashMap
  * @see org.lain.engine.CommonEngineServerMod
  */
 class EntityTable {
-    private val enginePlayers by injectPlayersFlow()
-    private val minecraftPlayers by injectMinecraftPlayerEntityFlow()
-
     private val playerToEntityMap: ConcurrentHashMap<PlayerId, PlayerEntity> = ConcurrentHashMap()
     private val entityToPlayerMap: ConcurrentHashMap<PlayerEntity, Player> = ConcurrentHashMap()
     private val worldMap: ConcurrentHashMap<WorldId, McWorld> = ConcurrentHashMap()
@@ -43,11 +38,19 @@ class EntityTable {
         }
     }
 
+    fun removePlayer(playerId: PlayerId) {
+        playerToEntityMap.remove(playerId)?.let {
+            entityToPlayerMap.remove(it)
+        }
+    }
+
     fun getPlayer(entity: PlayerEntity): Player? {
         return entityToPlayerMap[entity]
-            ?: enginePlayers.get().find { it.id.value == entity.uuid }?.also {
-                entityToPlayerMap[entity] = it
-            }
+    }
+
+    fun setPlayer(entity: PlayerEntity, player: Player) {
+        entityToPlayerMap[entity] = player
+        playerToEntityMap[player.id] = entity
     }
 
     fun requirePlayer(entity: PlayerEntity): Player {
@@ -56,9 +59,6 @@ class EntityTable {
 
     fun getEntity(playerId: PlayerId): PlayerEntity? {
         return playerToEntityMap[playerId]
-            ?: minecraftPlayers.get().find { it.uuid == playerId.value }?.also {
-                playerToEntityMap[playerId] = it
-            }
     }
 
     fun getEntity(player: Player): PlayerEntity? {

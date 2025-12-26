@@ -210,6 +210,7 @@ class ClientHandler(
 
     private fun onPlayerDestroyed(player: PlayerId) = gameSessionTask {
         playerStorage.remove(player)
+        client.onPlayerDestroy(player)
     }
 
     private fun onJoinGame(

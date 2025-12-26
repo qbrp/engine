@@ -246,13 +246,12 @@ class ServerHandler(
     fun onPlayerInstantiation(player: Player) {
         val playerId = player.id
         val world = player.world
+        val packet = PlayerJoinServerPacket(GeneralPlayerData.of(player))
 
         playerStorage.forEach {
             if (it == player) return@forEach
             CLIENTBOUND_PLAYER_JOIN_ENDPOINT.sendS2C(
-                PlayerJoinServerPacket(
-                    GeneralPlayerData.of(player)
-                ),
+                packet,
                 it.id
             )
         }

@@ -43,7 +43,6 @@ class DedicatedEngineMinecraftServer(
     val authorizationListener = ServerAuthorizationListener(
         connectionManager,
         this,
-        entityTable
     )
 
     override fun run() {
@@ -80,7 +79,6 @@ val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
 class ServerAuthorizationListener(
     private val connectionManager: ServerConnectionManager,
     private val server: DedicatedEngineMinecraftServer,
-    private val entityTable: EntityTable
 ) {
     fun run() {
         SERVERBOUND_AUTH_ENDPOINT.registerReceiver { ctx -> onAuth(this, ctx.sender) }
@@ -108,7 +106,7 @@ class ServerAuthorizationListener(
             )
         }
 
-        val player = newAuthorizedPlayerInstance(connection)
+        val player = newAuthorizedPlayerInstance(connection, server.minecraftServer.playerManager.getPlayer(id.value)!!)
         server.engine.playerService.instantiate(player)
     }
 
@@ -122,13 +120,12 @@ class ServerAuthorizationListener(
 
     private fun newAuthorizedPlayerInstance(
         connectionSession: ConnectionSession,
+        entity: ServerPlayerEntity,
     ): Player {
-        val playerId = connectionSession.playerId
-        val entity = entityTable.getEntity(playerId)!!
         return serverMinecraftPlayerInstance(
             server.engine,
             entity,
-            playerId
+            connectionSession.playerId
         )
     }
 

@@ -41,7 +41,7 @@ class ChatBubbleManager(private val options: EngineOptions) {
             playerPos.x,
             playerPos.y + chatBubbleHeight.get(),
             playerPos.z,
-            0.2f
+            alpha
         )
         val opacity = bubble.opacity
         val lifetime = bubble.lifetime

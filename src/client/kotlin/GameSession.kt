@@ -74,6 +74,7 @@ class GameSession(
 
     fun instantiatePlayer(player: Player) {
         playerStorage.add(player.id, player)
+        client.onPlayerInstantiate(player)
     }
 
     fun destroy() {

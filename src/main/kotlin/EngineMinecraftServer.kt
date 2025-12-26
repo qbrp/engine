@@ -35,9 +35,7 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerEventListener
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
-import org.lain.engine.util.MinecraftPlayerEntityFlow
 import org.lain.engine.util.MinecraftRaycastProvider
-import org.lain.engine.util.PlayersFlow
 import org.lain.engine.util.applyConfigCatching
 import org.lain.engine.util.compileInventoryTabsConfig
 import org.lain.engine.util.compileItems
@@ -77,8 +75,6 @@ open class EngineMinecraftServer(
     }
 
     open fun run() {
-        Injector.register(PlayersFlow { engine.playerStorage.getAll() })
-        Injector.register(MinecraftPlayerEntityFlow { minecraftServer.playerManager.playerList })
         Injector.register(MinecraftRaycastProvider(minecraftServer, entityTable))
         Injector.register<PlayerPermissionsProvider>(MinecraftPermissionProvider(entityTable))
         Injector.register<ServerTransportContext>(transportContext)
@@ -105,7 +101,10 @@ open class EngineMinecraftServer(
         entityTable.removePlayer(entity)
     }
 
-    override fun onPlayerInstantiated(player: Player) {}
+    override fun onPlayerInstantiated(player: Player) {
+        val entity = minecraftServer.playerManager.getPlayer(player.id.value) ?: return
+        entityTable.setPlayer(entity, player)
+    }
 
     override fun onChatMessage(message: IncomingMessage) {}
 

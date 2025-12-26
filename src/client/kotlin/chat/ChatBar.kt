@@ -32,9 +32,9 @@ class ChatBar(
         channelState.hide = !channelState.hide
         val isHidden = channelState.hide
         if (isHidden) {
-            markRead(section)
             section.channels.forEach { chat.disableChannel(it) }
         } else {
+            markRead(section)
             section.channels.forEach { chat.enableChannel(it) }
         }
     }

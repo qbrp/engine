@@ -55,22 +55,6 @@ fun injectEntityTable() = inject<EntityTable>()
 
 fun injectItemContext() = inject<EngineItemContext>()
 
-/**
- * Поставляет наиболее полный список игроков, выбирая между клиентом и сервером.
- * Универсален для любого окружения.
- * */
-fun interface PlayersFlow {
-    fun get(): List<Player>
-}
-
-fun injectPlayersFlow() = inject<PlayersFlow>()
-
-fun interface MinecraftPlayerEntityFlow {
-    fun get(): List<PlayerEntity>
-}
-
-fun injectMinecraftPlayerEntityFlow() = inject<MinecraftPlayerEntityFlow>()
-
 fun registerMinecraftServer(
     server: EngineMinecraftServer
 ) {

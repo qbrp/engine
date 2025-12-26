@@ -41,9 +41,7 @@ import org.lain.engine.transport.network.DisconnectText
 import org.lain.engine.serverMinecraftPlayerInstance
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.Injector
-import org.lain.engine.util.MinecraftPlayerEntityFlow
 import org.lain.engine.util.MinecraftUsername
-import org.lain.engine.util.PlayersFlow
 import org.lain.engine.util.engineId
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.parseMiniMessage
@@ -60,7 +58,20 @@ class MinecraftEngineClient : ClientModInitializer {
     private val audioManager = MinecraftAudioManager(client)
     private val camera = MinecraftCamera(client)
 
-    private val engineClient = EngineClient(window, fontRenderer, camera, MinecraftChat, audioManager)
+    private val engineClient = EngineClient(
+        window,
+        fontRenderer,
+        camera,
+        MinecraftChat,
+        audioManager,
+        onPlayerInstantiate =  {
+            val entity = client.world!!.players.first { entity -> entity.uuid == it.id.value }
+            playerTable.setPlayer(entity, it)
+        },
+        onPlayerDestroy = {
+            playerTable.removePlayer(it)
+        }
+    )
         .also { Injector.register(it) }
 
     private var server: IntegratedEngineMinecraftServer? = null
@@ -90,8 +101,6 @@ class MinecraftEngineClient : ClientModInitializer {
                 )
             } else {
                 Injector.register<ClientTransportContext>(ClientMinecraftNetwork())
-                Injector.register(PlayersFlow { engineClient.gameSession?.playerStorage?.getAll() ?: emptyList() })
-                Injector.register(MinecraftPlayerEntityFlow { MinecraftClient.world?.players ?: emptyList() })
                 authorize(entity)
             }
 
