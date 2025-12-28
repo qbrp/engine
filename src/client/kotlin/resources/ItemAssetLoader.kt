@@ -20,6 +20,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.mc.EngineItem
 import org.lain.engine.util.EngineId
+import org.lain.engine.util.Timestamp
 import org.lain.engine.util.injectValue
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -103,6 +104,7 @@ data class ResourceList(
 }
 
 fun findAssets(): ResourceList {
+    val start = Timestamp()
     val resources = injectValue<EngineClient>().resources
     val assets = resources.assets
 
@@ -164,6 +166,8 @@ fun findAssets(): ResourceList {
         LOGGER.error("Не удалось загрузить ресурсы engine", e)
     }
 
+    LOGGER.info("Ресурсы обработаны составлен за {} мл.", start.timeElapsed())
+
     return ResourceList(
         textures.values.toList(),
         itemModels,
@@ -178,10 +182,12 @@ class EngineAtlasSource(val resources: ResourceList) : AtlasSource {
         resourceManager: ResourceManager,
         regions: AtlasSource.SpriteRegions
     ) {
+        val start = Timestamp()
         resources.textureAssets.forEach { texture ->
             val id = texture.registrationId
             regions.add(id) { openSprite(id, texture.asset) }
         }
+        LOGGER.info("Ассеты загружены за {} мл.", start.timeElapsed())
     }
 
     override fun getType(): AtlasSourceType = TYPE
@@ -201,15 +207,6 @@ class EngineAtlasSource(val resources: ResourceList) : AtlasSource {
             return SpriteContents(id, spriteDimensions, nativeImage, ResourceMetadata.NONE)
         }
     }
-}
-
-fun handleFileExists(assetPath: Asset): Boolean {
-    val file = assetPath.source.file
-    val exists = file.exists()
-    if (!exists) {
-        LOGGER.error("Файл ассета предмета ${file.path} не существует и пропущен")
-    }
-    return exists
 }
 
 fun String.substituteEngineRelativePath(relative: String) = replaceFirst("~/", "$relative/")
@@ -243,6 +240,7 @@ fun parseEngineItemAssets(
     assets: List<EngineItemAsset>,
 ): Map<Identifier, ItemAsset> {
     val contents = mutableMapOf<Identifier, ItemAsset>()
+    val start = Timestamp()
     for (item in assets) {
         when(item) {
             is EngineItemAsset.FileDefinition -> {
@@ -277,5 +275,6 @@ fun parseEngineItemAssets(
             }
         }
     }
+    LOGGER.info("Ассеты предметов сгенерированы за {} мл.", start.timeElapsed())
     return contents
 }

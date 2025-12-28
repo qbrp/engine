@@ -15,7 +15,3 @@ import org.lain.engine.world.World
 val MinecraftClient = net.minecraft.client.MinecraftClient.getInstance()!!
 
 fun injectClient() = inject<EngineClient>()
-
-fun EntityTable.getClientEntity(player: Player): AbstractClientPlayerEntity? {
-    return MinecraftClient.world?.getPlayerByUuid(player.id.value) as? AbstractClientPlayerEntity?
-}

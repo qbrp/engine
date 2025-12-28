@@ -8,6 +8,7 @@ import net.minecraft.client.util.SpriteIdentifier
 import net.minecraft.util.Identifier
 import net.minecraft.util.JsonHelper
 import org.lain.engine.client.mixin.resource.JsonUnbakedModelAccessor
+import org.lain.engine.util.Timestamp
 import org.slf4j.LoggerFactory
 
 var MC_LOGGER = LoggerFactory.getLogger("Hacked Minecraft Model Loader")
@@ -17,6 +18,7 @@ fun parseEngineModels(
     models: List<EngineItemJsonModel>,
     objFiles: Map<String, EngineObjModel>
 ): Map<Identifier, UnbakedModel> {
+    val start = Timestamp()
     val map = mutableMapOf<Identifier, UnbakedModel>()
     val gson = JsonUnbakedModelAccessor.`engine$getGson`()
     for (model in models) {
@@ -42,6 +44,7 @@ fun parseEngineModels(
             LOGGER.error("При загрузке модели $id возникла ошибка", e)
         }
     }
+    LOGGER.info("Модели предметов загружены за {} мл.", start.timeElapsed())
     return map
 }
 
@@ -49,6 +52,7 @@ fun parseEngineModels(
 fun autogenerateModels(
     models: List<EngineItemAsset.Generated>,
 ): Map<Identifier, UnbakedModel> {
+    val start = Timestamp()
     return models.associate { model ->
         val id = model.registrationId
         val textureId = model.texture.registrationId
@@ -63,5 +67,7 @@ fun autogenerateModels(
             null,
             null
         )
+    }.also {
+        LOGGER.info("Генерируемые модели предметов созданы за {} мл.", start.timeElapsed())
     }
 }
