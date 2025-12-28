@@ -15,6 +15,7 @@ import org.lain.engine.player.stamina
 import org.lain.engine.player.updatePlayerMovement
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.ClientboundSetupData
+import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.has
 import org.lain.engine.world.World
@@ -51,6 +52,8 @@ class GameSession(
 
     init {
         instantiatePlayer(mainPlayer)
+        client.onMainPlayerInstantiated(mainPlayer)
+        setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
     }
 
     fun tick() {
@@ -70,6 +73,12 @@ class GameSession(
                 player.isLowDetailed = true
             }
         }
+    }
+
+    fun instantiateLowDetailedPlayer(data: GeneralPlayerData): Player {
+        val player = lowDetailedClientPlayerInstance(data.playerId, world, data)
+        instantiatePlayer(player)
+        return player
     }
 
     fun instantiatePlayer(player: Player) {

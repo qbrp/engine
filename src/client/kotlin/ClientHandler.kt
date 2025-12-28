@@ -17,6 +17,7 @@ import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.PlayerStatus
 import org.lain.engine.player.customName
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
@@ -186,7 +187,7 @@ class ClientHandler(
         }
     }
 
-    private fun onPlayerCustomName(player: PlayerId, customName: String) = updatePlayer(player) {
+    private fun onPlayerCustomName(player: PlayerId, customName: String?) = updatePlayer(player) {
         this.customName = customName
     }
 
@@ -202,8 +203,7 @@ class ClientHandler(
     }
 
     private fun onPlayerJoined(data: GeneralPlayerData) = gameSessionTask {
-        val player = lowDetailedClientPlayerInstance(data.playerId, world, data)
-        instantiatePlayer(player)
+        val player = instantiateLowDetailedPlayer(data)
         pendingPlayerUpdates[player.id]
             ?.forEach { player.it() }
             ?.also { pendingPlayerUpdates.remove(player.id) }

@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.IdentifiedLayer
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.client.network.AbstractClientPlayerEntity
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.network.DisconnectionInfo
 import org.lain.engine.AuthPacket
@@ -27,7 +28,6 @@ import org.lain.engine.client.mc.KeybindManager
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.mc.MinecraftFontRenderer
 import org.lain.engine.client.mc.MinecraftPainter
-import org.lain.engine.client.mc.getClientEntity
 import org.lain.engine.client.mc.renderChatBubbles
 import org.lain.engine.client.mixin.DrawContextAccessor
 import org.lain.engine.client.render.Window
@@ -51,7 +51,8 @@ import java.util.Optional
 class MinecraftEngineClient : ClientModInitializer {
     private val client = MinecraftClient
     private val fabricLoader = FabricLoader.getInstance()
-    private val playerTable by injectEntityTable()
+    private val entityTable by injectEntityTable()
+    private val clientPlayerTable by lazy { entityTable.client }
 
     private val window = Window()
     private val fontRenderer = MinecraftFontRenderer()
@@ -69,10 +70,13 @@ class MinecraftEngineClient : ClientModInitializer {
             val entity = this.client.world?.players?.firstOrNull {
                 it.uuid == id.value
             } ?: error("Сущность игрока $id для синхронизации состояния не существует")
-            playerTable.setPlayer(entity, player)
+            clientPlayerTable.setPlayer(entity, player)
         },
         onPlayerDestroy = {
-            playerTable.removePlayer(it)
+            clientPlayerTable.removePlayer(it)
+        },
+        onMainPlayerInstantiated = {
+            clientPlayerTable.setPlayer(this.client.player!!, it)
         }
     )
         .also { Injector.register(it) }
@@ -136,7 +140,7 @@ class MinecraftEngineClient : ClientModInitializer {
             }
             engineClient.gameSession?.let { session ->
                 session.playerStorage.forEach { player ->
-                    val entity = playerTable.getEntity(player) ?: return@forEach
+                    val entity = clientPlayerTable.getEntity(player) ?: return@forEach
                     val world = session.world
                     updatePlayerMinecraftSystems(player, entity, world)
                 }
@@ -175,7 +179,7 @@ class MinecraftEngineClient : ClientModInitializer {
             matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
             val chatBubbleManager = gameSession.chatBubbleManager
             gameSession.playerStorage.forEach {
-                val entity = playerTable.getClientEntity(it) ?: return@forEach
+                val entity = (clientPlayerTable.getEntity(it) as? AbstractClientPlayerEntity) ?: return@forEach
                 val chatBubble = chatBubbleManager.getChatBubble(it) ?: return@forEach
                 chatBubbleManager.update(chatBubble, it, tickDelta)
                 renderChatBubbles(entity, tickDelta, chatBubble, engineClient.options.chatBubbleScale.get(), matrices, vertexConsumers)
@@ -212,7 +216,7 @@ class MinecraftEngineClient : ClientModInitializer {
         MinecraftChat.clearChatData()
 
         val entity = client.player ?: return
-        playerTable.removePlayer(entity)
+        clientPlayerTable.removePlayer(entity)
     }
 
     private fun authorize(player: ClientPlayerEntity) {

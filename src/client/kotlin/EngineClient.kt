@@ -31,7 +31,8 @@ class EngineClient(
     val audioManager: EngineAudioManager,
     val options: EngineOptions = loadAndCreateEngineOptions(),
     val onFullPlayerData: (EngineClient, PlayerId, FullPlayerData) -> Unit,
-    val onPlayerDestroy: (PlayerId) -> Unit
+    val onPlayerDestroy: (PlayerId) -> Unit,
+    val onMainPlayerInstantiated: (Player) -> Unit
 ) {
     val handler = ClientHandler(this)
     val renderer = ScreenRenderer(window, fontRenderer, camera, this)
