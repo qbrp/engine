@@ -202,7 +202,7 @@ class ServerHandler(
         )
     }
 
-    fun onPlayerCustomName(player: Player, name: String) {
+    fun onPlayerCustomName(player: Player, name: String?) {
         CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT.broadcast(
             PlayerCustomNamePacket(
                 player.id,

@@ -42,7 +42,7 @@ val CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT = Endpoint<PlayerNotificationPacket
 @Serializable
 data class PlayerCustomNamePacket(
     val id: PlayerId,
-    val name: String
+    val name: String?
 ) : Packet
 
 val CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT =

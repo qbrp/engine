@@ -8,7 +8,6 @@
     "MeCommandMixin",
     "PlayerEntityMixin",
     "PlayerManagerMixin",
-    "ServerPlayerEntityMixin",
     "ServerPlayNetworkHandlerMixin",
     "WhisperCommandMixin",
     "WorldMixin"

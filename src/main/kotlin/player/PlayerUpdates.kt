@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 sealed class PlayerUpdate {
     data class CustomSpeedAttribute(val value: AttributeUpdate) : PlayerUpdate()
     data class CustomJumpStrengthAttribute(val value: AttributeUpdate) : PlayerUpdate()
-    data class CustomName(val value: String) : PlayerUpdate()
+    data class CustomName(val value: String?) : PlayerUpdate()
     data class SpeedIntention(val value: Float) : PlayerUpdate()
 }
 

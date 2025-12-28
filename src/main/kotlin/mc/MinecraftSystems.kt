@@ -11,16 +11,12 @@ import org.lain.engine.player.PlayerModel
 import org.lain.engine.player.SpawnMark
 import org.lain.engine.player.StartSpectatingMark
 import org.lain.engine.player.Username
-import org.lain.engine.player.flushMessages
 import org.lain.engine.player.isInGameMasterMode
 import org.lain.engine.player.isSpectating
-import org.lain.engine.player.startSpectating
-import org.lain.engine.player.stopSpectating
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.Vec3
 import org.lain.engine.util.apply
 import org.lain.engine.util.has
-import org.lain.engine.util.parseMiniMessage
 import org.lain.engine.util.remove
 import net.minecraft.world.World as McWorld
 import org.lain.engine.world.Location
@@ -47,9 +43,9 @@ fun EngineServer.getPlayerWorld(player: PlayerEntity): World {
 
 fun Username(text: Text) = Username(text.string)
 
-fun updateMinecraftSystems(
+fun updateServerMinecraftSystems(
     engine: EngineServer,
-    table: EntityTable,
+    table: ServerPlayerTable,
     players: List<Player>
 ) {
     for (player in players) {

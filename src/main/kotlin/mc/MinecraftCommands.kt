@@ -23,6 +23,8 @@ import org.lain.engine.chat.MessageSource
 import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
 import org.lain.engine.player.customName
+import org.lain.engine.player.developerMode
+import org.lain.engine.player.displayName
 import org.lain.engine.player.taskCommand
 import org.lain.engine.player.resetCustomSpeed
 import org.lain.engine.player.resetCustomJumpStrength
@@ -30,6 +32,7 @@ import org.lain.engine.player.setCustomSpeed
 import org.lain.engine.player.setCustomJumpStrength
 import org.lain.engine.player.speak
 import org.lain.engine.player.stopSpectating
+import org.lain.engine.player.username
 import org.lain.engine.player.volume
 import org.lain.engine.util.apply
 import org.lain.engine.util.applyConfig
@@ -39,6 +42,7 @@ import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectItemContext
+import org.lain.engine.util.injectValue
 import org.lain.engine.util.loadOrCreateServerConfig
 import org.lain.engine.util.parseMiniMessage
 import org.lain.engine.util.remove
@@ -90,7 +94,7 @@ fun ServerCommandSource.hasPermission(text: String): Boolean {
 fun List<ServerPlayerEntity>.formatPlayerList() = joinToString(separator = ", ") { it.name.string }
 
 fun ServerCommandDispatcher.registerEngineCommands() {
-    val playerTable by injectEntityTable()
+    val playerTable = injectValue<EntityTable>().server
     val server by injectMinecraftEngineServer()
 
     register(
@@ -99,7 +103,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             .then(
                 CommandManager.argument("players", EntityArgumentType.players())
                     .then(
-                        CommandManager.literal("resetcustom")
+                        CommandManager.literal("reset")
                     ).executeCatching { ctx ->
                         val source = ctx.source
                         val players = ctx.getPlayers("players")
@@ -116,23 +120,26 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                         }
                     }
                     .then(
-                        CommandManager.argument("value", FloatArgumentType.floatArg())
-                            .executeCatching { ctx ->
-                                val source = ctx.source
-                                val players = ctx.getPlayers("players")
-                                val playerNameList = players.formatPlayerList()
-                                players.forEach { player ->
-                                    val enginePlayer = playerTable.requirePlayer(player)
-                                    val speed = ctx.getFloat("value")
-                                    enginePlayer.taskCommand {
-                                        enginePlayer.setCustomSpeed(speed)
-                                        source.sendFeedback(
-                                            { Text.of("Установлена скорость $speed для игроков $playerNameList") },
-                                            true
-                                        )
+                        CommandManager.literal("set")
+                            .then(
+                                CommandManager.argument("value", FloatArgumentType.floatArg())
+                                    .executeCatching { ctx ->
+                                        val source = ctx.source
+                                        val players = ctx.getPlayers("players")
+                                        val playerNameList = players.formatPlayerList()
+                                        players.forEach { player ->
+                                            val enginePlayer = playerTable.requirePlayer(player)
+                                            val speed = ctx.getFloat("value")
+                                            enginePlayer.taskCommand {
+                                                enginePlayer.setCustomSpeed(speed)
+                                                source.sendFeedback(
+                                                    { Text.of("Установлена скорость $speed для игроков $playerNameList") },
+                                                    true
+                                                )
+                                            }
+                                        }
                                     }
-                                }
-                            }
+                            )
                     )
             )
     )
@@ -143,24 +150,29 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             .then(
                 CommandManager.argument("players", EntityArgumentType.players())
                     .then(
-                        CommandManager.literal("resetcustom")
-                    ).executeCatching { ctx ->
-                        val source = ctx.source
-                        val players = ctx.getPlayers("players")
-                        val playerNameList = players.formatPlayerList()
-                        players.forEach { player ->
-                            val enginePlayer = playerTable.requirePlayer(player)
-                            enginePlayer.taskCommand {
-                                enginePlayer.resetCustomJumpStrength()
-                                source.sendFeedback(
-                                    { Text.of("Сброшена сила прыжка для игроков $playerNameList") },
-                                    true
-                                )
-                            }
-                        }
-                    }
+                        CommandManager.literal("set")
+                            .then(
+                                CommandManager.argument("value", FloatArgumentType.floatArg())
+                                    .executeCatching { ctx ->
+                                        val source = ctx.source
+                                        val players = ctx.getPlayers("players")
+                                        val playerNameList = players.formatPlayerList()
+                                        players.forEach { player ->
+                                            val enginePlayer = playerTable.requirePlayer(player)
+                                            val speed = ctx.getFloat("value")
+                                            enginePlayer.taskCommand {
+                                                enginePlayer.setCustomJumpStrength(speed)
+                                                source.sendFeedback(
+                                                    { Text.of("Установлена сила прыжка $speed для игроков $playerNameList") },
+                                                    true
+                                                )
+                                            }
+                                        }
+                                    }
+                            )
+                    )
                     .then(
-                        CommandManager.argument("value", FloatArgumentType.floatArg())
+                        CommandManager.literal("reset")
                             .executeCatching { ctx ->
                                 val source = ctx.source
                                 val players = ctx.getPlayers("players")
@@ -168,10 +180,9 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                                 players.forEach { player ->
                                     val enginePlayer = playerTable.requirePlayer(player)
                                     enginePlayer.taskCommand {
-                                        val speed = ctx.getFloat("value")
-                                        enginePlayer.setCustomJumpStrength(speed)
+                                        enginePlayer.resetCustomJumpStrength()
                                         source.sendFeedback(
-                                            { Text.of("Установлена сила прыжка $speed для игроков $playerNameList") },
+                                            { Text.of("Сброшена сила прыжка для игроков $playerNameList") },
                                             true
                                         )
                                     }
@@ -291,20 +302,6 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             .then(
                 CommandManager.argument("player", EntityArgumentType.player())
                     .then(
-                        CommandManager.literal("remove")
-                            .executeCatching { ctx ->
-                                val entity = EntityArgumentType.getPlayer(ctx, "player")
-                                val player = playerTable.requirePlayer(entity)
-
-                                player.apply<VoiceApparatus> {
-                                    tiredness = 0f
-                                }
-                                player.remove<VoiceLoose>()?.let {
-                                    ctx.source.sendFeedback({ Text.of("Голос игрока ${entity.name.string} восстановлен") }, true)
-                                }
-                            }
-                    )
-                    .then(
                         CommandManager.literal("status")
                             .executeCatching { ctx ->
                                 val entity = EntityArgumentType.getPlayer(ctx, "player")
@@ -328,6 +325,20 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                                 }
                             }
                     )
+                    .then(
+                        CommandManager.literal("remove")
+                            .executeCatching { ctx ->
+                                val entity = EntityArgumentType.getPlayer(ctx, "player")
+                                val player = playerTable.requirePlayer(entity)
+
+                                player.apply<VoiceApparatus> {
+                                    tiredness = 0f
+                                }
+                                player.remove<VoiceLoose>()?.let {
+                                    ctx.source.sendFeedback({ Text.of("Голос игрока ${entity.name.string} восстановлен") }, true)
+                                }
+                            }
+                    )
         )
     )
 
@@ -335,15 +346,37 @@ fun ServerCommandDispatcher.registerEngineCommands() {
         CommandManager.literal("engineitem")
             .requires { it.hasPermission("engineitem") }
             .then(
-                CommandManager.argument("item", StringArgumentType.string())
+                CommandManager.argument("id", StringArgumentType.string())
                     .suggests(EngineItemsSuggestionProvider)
                     .executeCatching { ctx ->
                         val itemContext by injectItemContext()
-                        val itemId = ItemId(ctx.getString("item"))
+                        val argument = ctx.getString("id")
+                        val id = ItemId(argument)
                         val player = ctx.source.player ?: error("Команда доступна только игроку")
-                        val itemStack = itemContext.itemRegistry.stacks[itemId] ?: error("Предмет $itemId не существует")
-                        player.giveItemStack(itemStack.copy())
-                        ctx.source.sendFeedback({ Text.of("Выдан предмет $itemId игроку ${player.displayName?.string}") }, true)
+
+                        val itemRegistry = itemContext.itemRegistry
+                        val items = mutableListOf<ItemId>()
+
+                        val namespace = itemRegistry.namespaces[ItemNamespaceId(argument)]
+                        if (namespace != null) {
+                            items += namespace.items
+                        } else {
+                            items += id
+                        }
+                        val stacks = items.mapNotNull { itemRegistry.stacks[it] }
+                        if (stacks.isEmpty()) {
+                            error("Предметы по идентификатору $id не найдены")
+                        }
+
+                        stacks.forEach { player.giveItemStack(it.copy()) }
+                        val format = if (stacks.count() == 1) {
+                            "Выдан предмет %s игроку %s"
+                        } else {
+                            "Выданы предметы %s игроку %s"
+                        }
+
+                        val text = String.format(format, argument, player.displayName?.string)
+                        ctx.source.sendFeedback({ Text.of(text) }, true)
                     }
             )
     )
@@ -366,9 +399,12 @@ object EngineItemsSuggestionProvider : SuggestionProvider<ServerCommandSource> {
         context: CommandContext<ServerCommandSource>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
-        itemContext.itemRegistry.stacks.keys.forEach {
-            builder.suggest('"' + it.value + '"')
-        }
+        val itemRegistry = itemContext.itemRegistry
+        val identifiers = itemRegistry.identifiers
+        val input = builder.remainingLowerCase.replace(""""""", "")
+        identifiers
+            .filter { it.startsWith(input) }
+            .forEach { builder.suggest('"' + it + '"') }
         return builder.buildFuture()
     }
 }
@@ -389,7 +425,7 @@ fun ServerCommandDispatcher.registerServerChatCommand(name: String, channel: Cha
                     .executeCatching { ctx ->
                         val text = ctx.getString(argument)
                         val entity = ctx.source.player ?: throw IllegalArgumentException("Команда предназначена для игроков")
-                        val player = table.requirePlayer(entity)
+                        val player = table.server.requirePlayer(entity)
                         engine.chat.processMessage(channel, MessageSource.getPlayer(player), text)
                     }
             )
@@ -410,22 +446,23 @@ fun ServerCommandDispatcher.registerServerPmCommand() {
                                 val text = ctx.getString("text")
                                 val recipient = ctx.getPlayer("player")
                                 val authorEntity = ctx.source.player ?: throw IllegalArgumentException("Команда предназначена для игроков")
-                                val authorPlayer = table.requirePlayer(authorEntity)
-                                val recipientPlayer = table.requirePlayer(recipient)
+                                val authorPlayer = table.server.requirePlayer(authorEntity)
+                                val recipientPlayer = table.server.requirePlayer(recipient)
 
-                                val pmChannel = ChatChannel(
-                                    ChannelId("pm"),
-                                    "Личные сообщения",
-                                    engine.chat.settings.pmFormat,
-                                    notify = true
-                                )
+                                if (recipientPlayer == authorPlayer && !authorPlayer.developerMode) {
+                                    ctx.source.sendError(Text.of("Вы не можете написать самому себе"))
+                                }
 
                                 engine.chat.sendMessage(
                                     text,
                                     MessageSource.getPlayer(authorPlayer),
-                                    pmChannel,
+                                    engine.chat.settings.pmChannel,
                                     recipientPlayer,
-                                    boomerang = true
+                                    boomerang = true,
+                                    placeholders = mapOf(
+                                        "pm_receiver_username" to recipientPlayer.username,
+                                        "pm_receiver_name" to recipientPlayer.displayName
+                                    )
                                 )
                             }
                     )

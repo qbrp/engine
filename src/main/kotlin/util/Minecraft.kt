@@ -5,6 +5,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.ServerPlayerTable
 import org.lain.engine.mc.Username
 import org.lain.engine.mc.engine
 import org.lain.engine.player.*
@@ -31,7 +32,7 @@ fun minecraftChunkSectionCoord(value: Int): Int {
 
 class MinecraftRaycastProvider(
     private val server: MinecraftServer,
-    private val entityTable: EntityTable
+    private val entityTable: ServerPlayerTable
 ) : RaycastProvider {
     override fun isPlayerSeeOther(player: Player, seen: Player): Boolean {
         val entity1 = entityTable.getEntity(player) ?: return false

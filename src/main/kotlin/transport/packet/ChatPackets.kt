@@ -48,7 +48,7 @@ data class ClientChatSettings(
     companion object {
         fun of(settings: EngineChatSettings, player: Player): ClientChatSettings {
             return ClientChatSettings(
-                settings.channels.associate {
+                (settings.channels + settings.pmChannel).associate {
                     it.id to ClientChatChannel.of(it, player)
                 },
                 settings.defaultChannel.id,

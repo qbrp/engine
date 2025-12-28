@@ -9,6 +9,7 @@ import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.VoiceApparatus
+import org.lain.engine.player.customName
 import org.lain.engine.player.playerBaseInputVolume
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
@@ -39,18 +40,26 @@ data class ClientboundSetupData(
         fun create(server: EngineServer, player: Player): ClientboundSetupData {
             return ClientboundSetupData(
                 server.globals.serverId,
-                ClientboundPlayerList.of(server),
+                ClientboundPlayerList.of(server, player),
                 ClientboundServerSettings.of(server, player)
             )
         }
     }
 }
 
+@ConsistentCopyVisibility
 @Serializable
-data class ClientboundPlayerList(val players: List<GeneralPlayerData>) {
+/**
+ * Список игроков без адресата
+ */
+data class ClientboundPlayerList private constructor(val players: List<GeneralPlayerData>) {
     companion object {
-        fun of(server: EngineServer): ClientboundPlayerList {
-            return ClientboundPlayerList(server.playerStorage.map { GeneralPlayerData.of(it) })
+        fun of(server: EngineServer, player: Player): ClientboundPlayerList {
+            return ClientboundPlayerList(
+                server.playerStorage
+                    .filter { it != player }
+                    .map { GeneralPlayerData.of(it) }
+            )
         }
     }
 }
@@ -112,7 +121,7 @@ data class FullPlayerData(
     companion object {
         fun of(player: Player) = FullPlayerData(
             player.require(),
-            player.require()
+            player.require(),
         )
     }
 }

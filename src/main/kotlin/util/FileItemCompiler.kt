@@ -9,6 +9,8 @@ import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.mc.EngineItem
 import org.lain.engine.mc.ItemId
 import org.lain.engine.mc.ItemListTab
+import org.lain.engine.mc.ItemNamespace
+import org.lain.engine.mc.ItemNamespaceId
 import java.lang.Exception
 
 private val ITEMS_DIR = ENGINE_DIR.resolve("items")
@@ -18,7 +20,10 @@ private const val INVENTORY_TABS_FILENAME = "tabs.yml"
 private const val NAMESPACES_FILENAME = "namespaces.yml"
 
 @Serializable
-data class NamespaceConfig(val stackable: Boolean? = null)
+data class NamespaceConfig(
+    val stackable: Boolean? = null,
+    val model: String = "~/{id}"
+)
 
 @Serializable
 data class ItemNamespaceConfig(
@@ -96,22 +101,29 @@ fun compileInventoryTabsConfig(namespaces: Map<String, List<EngineItem>>, items:
 fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompilingItems()) {
     val itemsToAdd = mutableListOf<EngineItem>()
     val namespaces = if (NAMESPACES.exists()) {
-        Yaml.default.decodeFromStream<Map<String, NamespaceConfig>>(NAMESPACES.inputStream())
+        Yaml.default.decodeFromStream<MutableMap<String, NamespaceConfig>>(NAMESPACES.inputStream())
     } else {
-        mapOf()
+        mutableMapOf()
     }
+    val defaultNamespace = namespaces["default"] ?: NamespaceConfig()
     val namespaceToItemMap = mutableMapOf<String, MutableList<EngineItem>>()
 
     for (namespace in compile.namespaces.values) {
+        fun String.replaceToRelative(): String {
+            return replaceFirst("~", namespace.id)
+        }
+
         for ((idString, config) in namespace.items) {
             val id = NamespaceItemId(namespace.id, idString)
             val material = Identifier.ofVanilla(config.material.lowercase())
-            val namespaceConfig = namespaces[namespace.id]
+            val namespaceConfig = namespaces.getOrPut(namespace.id) { defaultNamespace }
             val cfgMaxStackSize = config.maxStackSize
-            val cfgStackable = namespaceConfig?.stackable ?: config.stackable
+            val cfgStackable = namespaceConfig.stackable ?: config.stackable
             val stackSize = if (cfgStackable) cfgMaxStackSize else 1
             val asset = when(config.assetType) {
-                ItemConfig.AssetType.FILE -> config.model?.replaceFirst("~", namespace.id) ?: (id.value + "/$idString")
+                ItemConfig.AssetType.FILE -> config.model?.replaceToRelative() ?: namespaceConfig.model
+                    .replaceToRelative()
+                    .replace("{id}", idString)
                 ItemConfig.AssetType.GENERATED -> config.texture ?: id.value
             }
             val assetId = EngineId(asset)
@@ -127,7 +139,15 @@ fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompil
         }
     }
 
-    itemContext.itemRegistry.uploadItems(itemsToAdd)
+    itemContext.itemRegistry.upload(
+        itemsToAdd,
+        namespaces.map {
+            ItemNamespace(
+                ItemNamespaceId(it.key),
+                namespaceToItemMap[it.key]?.map { item -> item.id } ?: listOf()
+            )
+        }
+    )
     itemContext.tabs = compileInventoryTabsConfig(namespaceToItemMap, itemsToAdd.map { it.id })
     CONFIG_LOGGER.info(
         "Скомпилировано {} предметов в пространствах имён {}",

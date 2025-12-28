@@ -23,7 +23,7 @@ object ServerMixinAccess {
     var isDamageEnabled = false
 
     fun getDisplayName(player: PlayerEntity): Text? {
-        return player.engine?.displayName?.parseMiniMessage() ?: Text.literal("Загрузка имени...")
+        return player.engine?.displayName?.parseMiniMessage() ?: player.name
     }
 
     fun getSpeed(player: PlayerEntity): Double {
@@ -41,6 +41,7 @@ object ServerMixinAccess {
     }
 
     fun onBlockRemoved(world: World, blockState: BlockState, pos: BlockPos) {
+        if (world.isClient) return
         server.onBlockBreak(blockState, pos, world)
     }
 
@@ -51,5 +52,5 @@ object ServerMixinAccess {
     fun shouldCancelDamage() = !isDamageEnabled
 
     private val PlayerEntity.engine: Player?
-        get() = table.getPlayer(this)
+        get() = table.getGeneralPlayer(this)
 }

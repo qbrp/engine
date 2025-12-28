@@ -6,7 +6,7 @@ import net.minecraft.server.network.ServerPlayerEntity
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerPermissionsProvider
 
-class MinecraftPermissionProvider(private val entityTable: EntityTable) : PlayerPermissionsProvider {
+class MinecraftPermissionProvider(private val entityTable: ServerPlayerTable) : PlayerPermissionsProvider {
     override fun hasPermission(player: Player, permission: String): Boolean {
         val entity = entityTable.getEntity(player) as? ServerPlayerEntity ?: return false
         return entity.hasPermission(permission)

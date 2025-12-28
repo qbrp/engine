@@ -44,14 +44,15 @@ fun unregisterServerReceiverInternal(channel: Endpoint<*>) {
     ServerPlayNetworking.unregisterGlobalReceiver(channel.minecraftIdentifier)
 }
 
+private val ENTITY_TABLE by injectEntityTable()
+
 fun <P : Packet> sendClientboundPacketInternal(endpoint: Endpoint<P>, player: PlayerId, packet: P, id: Long) {
-    val entityTable by injectEntityTable()
     val payload = EnginePayload(
         id,
         packet,
         PayloadRegistry.payloadOf(endpoint),
     )
-    val player = entityTable.getEntity(player) as? ServerPlayerEntity ?: error("Entity for player $player not found")
+    val player = ENTITY_TABLE.server.getEntity(player) as? ServerPlayerEntity ?: error("Entity for player $player not found")
     ServerPlayNetworking.send(player, payload)
 }
 
@@ -70,7 +71,11 @@ object PayloadRegistry {
     fun <P : Packet> payloadOf(endpoint: Endpoint<P>): CustomPayload.Id<EnginePayload<P>> {
         map[endpoint.identifier]?.let { return it as CustomPayload.Id<EnginePayload<P>> }
         val s2c = PayloadTypeRegistry.playS2C().registerPayload(endpoint)
-        val c2s = PayloadTypeRegistry.playC2S().registerPayload(endpoint)
+        try {
+            PayloadTypeRegistry.playC2S().registerPayload(endpoint)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
         map[endpoint.identifier] = s2c
         return s2c
     }
@@ -99,8 +104,7 @@ fun <P : Packet> PayloadTypeRegistry<RegistryByteBuf>.registerPayload(endpoint: 
 }
 
 fun disconnectInternal(playerId: PlayerId, reason: String) {
-    val entityTable by injectEntityTable()
-    val entity = entityTable.getEntity(playerId) as? ServerPlayerEntity ?: error("Player entity $playerId not found")
+    val entity = ENTITY_TABLE.server.getEntity(playerId) as? ServerPlayerEntity ?: error("Player entity $playerId not found")
     val networkHandler = entity.networkHandler
     entity.server?.execute { networkHandler.disconnect(reason.parseMiniMessage()) }
 }

@@ -15,6 +15,13 @@ data class EngineChatSettings(
     val leaveMessageEnabled: Boolean = true,
     val pmFormat: String = BUILTIN_FORMAT_PM,
 ) {
+    val pmChannel = ChatChannel(
+        ChannelId("pm"),
+        "Личные сообщения",
+        pmFormat,
+        notify = true
+    )
+
     companion object {
         val BUILTIN_DEFAULT_CHANNEL = ChatChannel(
             ChannelId("default"),

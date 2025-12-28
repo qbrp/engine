@@ -30,6 +30,7 @@ fun Player.removeCustomName() {
 var Player.customName
     get() = get<DisplayName>()?.custom
     set(value) {
+        markUpdate(PlayerUpdate.CustomName(value))
         get<DisplayName>()?.custom = value
     }
 

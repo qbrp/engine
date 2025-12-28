@@ -151,7 +151,7 @@ class EngineChat(
         // Рассылаем сообщение получателям и следящим игрокам, до которых сообщение не дошло
         recipients
             .distinct()
-            .filter { it.isChannelAvailableToRead(this) }
+            .filter { it == source.player || hasMention(it, content) || it.isChannelAvailableToRead(this) }
             .forEach {
                 if (dontSendMessageToAuthor && it == source.player) return@forEach
                 val volume = volumes[it]
@@ -179,6 +179,7 @@ class EngineChat(
         recipient: Player,
         boomerang: Boolean = false,
         volume: Float? = null,
+        placeholders: Map<String, String> = mapOf()
     ) {
         var content = content
         val mustBeSpectator = channel.modifiers.contains(Modifier.Spectator)
@@ -210,6 +211,7 @@ class EngineChat(
                mention = hasMention,
                speech = isSpeech,
                volume = volume,
+               placeholders = getDefaultPlaceholders(content, recipient, source) + placeholders
            )
         }
     }
@@ -290,10 +292,6 @@ class EngineChat(
             "recipient_username" to recipient.username,
             "recipient_name" to recipient.displayName,
         )
-
-        if (text.contains("{random-100}")) {
-            placeholders["{random-100}"] = Random.nextInt(0, 100).toString()
-        }
 
         volume?.let {
             val level = settings.realisticAcousticFormatting.getLevel(it)

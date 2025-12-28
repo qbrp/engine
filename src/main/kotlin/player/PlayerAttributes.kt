@@ -1,6 +1,8 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.player.isInGameMasterMode
+import org.lain.engine.player.isSpectating
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.util.Component
 import org.lain.engine.util.require
@@ -25,13 +27,19 @@ data class MovementDefaultAttributes(
     val attributes: Map<PlayerStatus, Map<PrimaryAttribute, Float>> = mapOf()
 ) {
     fun getPrimarySeed(player: Player): Float? {
-        val status = when {
-            player.isInGameMasterMode -> PlayerStatus.GM
-            player.isSpectating -> PlayerStatus.SPECTATING
+        return attributes[player.status]?.get(PrimaryAttribute.SPEED)
+    }
+
+    fun getPrimaryJumpStrength(player: Player): Float? {
+        return attributes[player.status]?.get(PrimaryAttribute.JUMP_STRENGTH)
+    }
+
+    private val Player.status: PlayerStatus
+        get() = when {
+            isInGameMasterMode -> PlayerStatus.GM
+            isSpectating -> PlayerStatus.SPECTATING
             else -> PlayerStatus.DEFAULT
         }
-        return attributes[status]?.get(PrimaryAttribute.SPEED)
-    }
 
     companion object {
         val BUILTIN = MovementDefaultAttributes(

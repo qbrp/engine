@@ -406,7 +406,7 @@ class MinecraftAcousticManager(
     }
 
     fun removeBlock(pos: BlockPos, world: World) {
-        setPassabilityAt(world, pos, 0f)
+        setPassabilityAt(world, pos, acousticBlockData.get().air)
     }
 
     fun setPassabilityAt(world: World, pos: BlockPos, value: Float) = coroutineScope.launch {

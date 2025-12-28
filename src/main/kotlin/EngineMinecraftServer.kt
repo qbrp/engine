@@ -17,7 +17,7 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.MinecraftAcousticManager
 import org.lain.engine.mc.MinecraftPermissionProvider
 import org.lain.engine.mc.Username
-import org.lain.engine.mc.updateMinecraftSystems
+import org.lain.engine.mc.updateServerMinecraftSystems
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.GameMaster
 import org.lain.engine.player.MovementStatus
@@ -28,8 +28,6 @@ import org.lain.engine.player.PlayerInstantiateSettings
 import org.lain.engine.player.PlayerPermissionsProvider
 import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.Spectating
-import org.lain.engine.player.VoiceApparatus
-import org.lain.engine.player.playerBaseInputVolume
 import org.lain.engine.player.serverPlayerInstance
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerEventListener
@@ -37,8 +35,6 @@ import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
 import org.lain.engine.util.MinecraftRaycastProvider
 import org.lain.engine.util.applyConfigCatching
-import org.lain.engine.util.compileInventoryTabsConfig
-import org.lain.engine.util.compileItems
 import org.lain.engine.util.compileItemsCatching
 import org.lain.engine.util.loadOrCreateServerConfig
 import org.lain.engine.util.parsePersistentPlayerData
@@ -57,7 +53,7 @@ open class EngineMinecraftServer(
     protected val dependencies: EngineMinecraftServerDependencies,
     protected open val transportContext: ServerTransportContext
 ) : ServerEventListener {
-    protected val entityTable = dependencies.entityTable
+    protected val entityTable = dependencies.entityTable.server
     protected val playerStorage = dependencies.playerStorage
     protected val acousticSceneBank = dependencies.acousticSceneBank
     protected val config = loadOrCreateServerConfig()
@@ -70,7 +66,7 @@ open class EngineMinecraftServer(
     val engine = EngineServer(config.server, playerStorage, acousticSimulator, this, transportContext)
 
     open fun tick() {
-        updateMinecraftSystems(engine, entityTable, engine.playerStorage.getAll())
+        updateServerMinecraftSystems(engine, entityTable, engine.playerStorage.getAll())
         engine.update()
     }
 
@@ -84,7 +80,7 @@ open class EngineMinecraftServer(
         minecraftServer.worlds.forEach {
             val id = it.engine
             engine.addWorld(world(id))
-            entityTable.setWorld(id, it)
+            dependencies.entityTable.setWorld(id, it)
         }
         engine.run()
     }

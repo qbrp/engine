@@ -94,6 +94,8 @@ fun updatePlayerMovement(
     val staminaRegen = settings.staminaRegen
     val staminaConsume = settings.staminaConsumption
 
+    attributes.jumpStrength.default = primaryAttributes.getPrimaryJumpStrength(player) ?: 0.55f
+
     player.apply<MovementStatus> {
         val isSpectating = player.isSpectating
 

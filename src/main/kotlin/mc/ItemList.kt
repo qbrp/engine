@@ -17,21 +17,49 @@ import org.lain.engine.util.injectItemContext
 
 @JvmInline
 value class ItemId(val value: String) {
-    init {
-        require(!value.contains(" ")) { "Идентификатор предмета содержит пробелы" }
-    }
+    init { require(!value.contains(" ")) { "Идентификатор содержит пробелы" } }
 
     override fun toString(): String {
         return value
     }
 }
 
+@JvmInline
+value class ItemNamespaceId(val value: String) {
+    init { require(!value.contains(" ")) { "Идентификатор содержит пробелы" } }
+
+    override fun toString(): String {
+        return value
+    }
+}
+
+data class ItemNamespace(
+    val id: ItemNamespaceId,
+    val items: List<ItemId>
+)
+
 class EngineItemRegistry {
+    var identifiers: List<String> = listOf()
+        private set
     var stacks: Map<ItemId, ItemStack> = mapOf()
         private set
+    var namespaces: Map<ItemNamespaceId, ItemNamespace> = mapOf()
+        private set
 
-    fun uploadItems(items: List<EngineItem>) {
-        stacks = items.associate { it.id to getItemStack(it) }
+    fun upload(
+        items: List<EngineItem>,
+        namespaces: List<ItemNamespace>
+    ) {
+        val ids = mutableListOf<String>()
+        stacks = items.associate {
+            ids += it.id.value
+            it.id to getItemStack(it)
+        }
+        this.namespaces = namespaces.associateBy {
+            ids += it.id.value
+            it.id
+        }
+        identifiers = ids
     }
 }
 
