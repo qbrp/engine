@@ -15,7 +15,6 @@ import java.io.IOException
 fun parseObjUnbakedModel(
     objModels: Map<String, EngineObjModel>,
     directory: File,
-    identifier: Identifier,
     modelJson: JsonObject
 ): ObjUnbakedModel {
     val model = modelJson.getAsJsonPrimitive("model").asString
@@ -23,7 +22,7 @@ fun parseObjUnbakedModel(
     val objModelPath = model.substituteEngineRelativePath(directory.path) + ".obj"
     val objModel = objModels[objModelPath] ?: error("Модель $objModelPath не найдена")
 
-    return ObjUnbakedModel(identifier, objModel.obj, objModel.mtl, parseObjJsonModelOptions(modelJson))
+    return ObjUnbakedModel(objModel.obj, objModel.mtl, parseObjJsonModelOptions(modelJson))
 }
 
 fun parseObjModel(asset: Asset): EngineObjModel {

@@ -17,13 +17,13 @@ class MovementStatusRenderer(
     private val activeArcs
         get() = arcs.filter { it.value > 0.01f && it.opacity > 0.01f }
     private val arcRadius
-        get() = client.options.arcRadius.get()
+        get() = client.options.arcRadius
     private val arcThickness
-        get() = client.options.arcThickness.get()
+        get() = client.options.arcThickness
     private val offsetX
-        get() = client.options.arcOffsetX.get()
+        get() = client.options.arcOffsetX
     private val offsetY
-        get() = client.options.arcOffsetY.get()
+        get() = client.options.arcOffsetY
 
     data class ArcStatus(
         val index: Int,

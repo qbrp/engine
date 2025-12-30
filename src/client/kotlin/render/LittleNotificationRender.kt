@@ -1,8 +1,22 @@
 package org.lain.engine.client.render
 
-import com.mojang.blaze3d.systems.RenderSystem
+import org.lain.engine.client.render.ui.Background
+import org.lain.engine.client.render.ui.Color
+import org.lain.engine.client.render.ui.ConstraintsSize
+import org.lain.engine.client.render.ui.EngineUi
+import org.lain.engine.client.render.ui.Fragment
+import org.lain.engine.client.render.ui.Image
+import org.lain.engine.client.render.ui.Layout
+import org.lain.engine.client.render.ui.Size
+import org.lain.engine.client.render.ui.Sizing
+import org.lain.engine.client.render.ui.SpriteSizing
+import org.lain.engine.client.render.ui.TextArea
+import org.lain.engine.client.render.ui.UiContext
+import org.lain.engine.client.render.ui.UiElementState
+import org.lain.engine.client.render.ui.fragmentsToUiElements
+import org.lain.engine.client.render.ui.layout
+import org.lain.engine.client.render.ui.measure
 import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.util.applyForEach
 import org.lain.engine.util.clampDelta
 import org.lain.engine.util.easeInStep
 
@@ -11,7 +25,8 @@ class LittleNotificationState(
     val width: Float,
     val height: Float,
     var x: Float,
-    var y: Float
+    var y: Float,
+    val uiElement: UiElementState
 ) {
     var endY: Float = y
 
@@ -60,26 +75,46 @@ class LittleNotificationState(
         y = easeInStep(y, endY, deltaTick)
 
         offscreen = x >= windowWidth - 2f
+        uiElement.position.x = x
+        uiElement.position.y = y
     }
 }
 
 private const val WIDTH = 175f
 private const val ICON_SIZE = 16f
-private val RENDER_SETTINGS = TextRenderSettings(wrap = WIDTH - ICON_SIZE)
-
-fun FontRenderer.getLittleNotificationTextHeight(notification: LittleNotification): Float {
-    var y = 0f
-    y += getTextHeight(notification.titleTextNode, RENDER_SETTINGS)
-    val description = notification.descriptionTextNode
-    if (description != null) {
-        y += getTextHeight(description, RENDER_SETTINGS)
-    }
-    return y
+private fun createFragment(notification: LittleNotification): Fragment {
+    return Fragment(
+        layout = Layout.Horizontal(4f),
+        sizing = Sizing(
+            ConstraintsSize.Fixed(WIDTH),
+            ConstraintsSize.Wrap
+        ),
+        children = listOf(
+            Fragment(
+                sizing = Sizing(ConstraintsSize.Fixed(ICON_SIZE)),
+                image = Image(
+                    notification.sprite,
+                    SpriteSizing.Stretch
+                )
+            ),
+            Fragment(
+                layout = Layout.Vertical(2f),
+                children = listOfNotNull(
+                    Fragment(text = TextArea(notification.titleTextNode)),
+                    notification.descriptionTextNode?.let {
+                        Fragment(text = TextArea(it, 0.7f))
+                    }
+                )
+            )
+        ),
+        background = Background(Color.BLACK_TRANSPARENT)
+    )
 }
 
 class LittleNotificationsRenderManager(
     private val fontRenderer: FontRenderer,
-    private val window: Window
+    private val window: Window,
+    private val ui: EngineUi
 ) {
     private val slots = LinkedHashMap<String, LittleNotificationState>()
     private val littleNotifications
@@ -104,7 +139,14 @@ class LittleNotificationsRenderManager(
             }
         }
 
-        toRemove.forEach { slots.remove(it) }
+        toRemove.forEach {
+            val state = slots.remove(it)
+            state?.let { ui.removeRootElement(it.uiElement) }
+        }
+    }
+
+    fun update(dt: Float) {
+        slots.values.forEach { it.update(window, dt) }
     }
 
     fun removeNotification(slot: String) {
@@ -112,23 +154,30 @@ class LittleNotificationsRenderManager(
     }
 
     fun create(notification: LittleNotification, slot: String? = null) {
-        val height = notification.getHeight()
+        val ctx = UiContext(fontRenderer)
+        val fragment = createFragment(notification)
+        val layout = measure(ctx, fragment, Size(WIDTH, window.heightDp))
+        val element = fragmentsToUiElements(
+            ctx,
+            layout(layout)
+        )
+
+        val height = element.size.height
+        element.position.y = window.heightDp - height
+
         slots[slot ?: generateIndex()] = LittleNotificationState(
             notification,
             WIDTH,
-            notification.getHeight(),
+            height,
             window.widthDp,
-            getLittleNotificationsEndY() - height
+            getLittleNotificationsEndY() - height,
+            element
         ).also {
             if (slot != null) {
                 slots[slot] = it
             }
         }
-    }
-
-    private fun LittleNotification.getHeight(): Float {
-        val textHeight = fontRenderer.getLittleNotificationTextHeight(this)
-        return (PADDING * 2 + textHeight).coerceAtLeast(15f)
+        ui.addRootElement(element)
     }
 
     private fun getLittleNotificationsEndY(): Float {
@@ -139,89 +188,9 @@ class LittleNotificationsRenderManager(
         return endY - (window.heightDp * 0.05f)
     }
 
-    private fun renderIcon(painter: Painter, rn: LittleNotificationState, sprite: EngineSprite, x: Float, y: Float) {
-        painter.push()
-        painter.translate(x, y)
-
-        RenderSystem.enableDepthTest()
-        painter.fill(
-            0f,
-            0f,
-            16f + PADDING,
-            rn.height,
-            color = BLACK_TRANSPARENT
-        )
-
-        painter.drawSprite(
-            sprite,
-            0f,
-            0f,
-            16f,
-            16f,
-            z = 100f
-        )
-        RenderSystem.disableDepthTest()
-
-        painter.pop()
-    }
-
-    private fun renderNotificationText(painter: Painter, rn: LittleNotificationState, x: Float, y: Float) {
-        painter.push()
-        painter.translate(x, y)
-
-        painter.fill(
-            0f,
-            0f,
-            rn.width,
-            rn.height,
-            color = BLACK_TRANSPARENT
-        )
-
-        val pos = painter.drawText(
-            rn.info.titleTextNode,
-            PADDING,
-            PADDING,
-            settings = RENDER_SETTINGS
-        )
-
-        val description: EngineText? = rn.info.descriptionTextNode
-        if (description != null) {
-            painter.drawText(
-                description,
-                PADDING,
-                pos.y + (PADDING / 2f),
-                settings = RENDER_SETTINGS
-            )
-        }
-
-        painter.pop()
-    }
-
-    fun render(painter: Painter) {
-        if (window.isMinimized()) return
-        ticks++
-        littleNotifications.applyForEach {
-            update(window, painter.tickDelta)
-            val icon = info.sprite
-
-            val startX = if (icon != null) {
-                renderIcon(painter, this, icon, x, y)
-                x + ICON_SIZE + PADDING
-            } else {
-                x
-            }
-
-            renderNotificationText(painter, this, startX, y)
-        }
-    }
-
     fun invalidate() {
         littleNotifications.clear()
     }
 
     private fun generateIndex() = lastIndex++.toString()
-
-    companion object {
-        private const val PADDING = 2f
-    }
 }

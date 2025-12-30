@@ -4,7 +4,6 @@ import net.minecraft.client.gui.DrawContext
 import net.minecraft.text.Text
 import org.lain.engine.client.chat.ChatBarSection
 import org.lain.engine.client.chat.ClientEngineChatManager
-import org.lain.engine.client.mixin.DrawContextAccessor
 import org.lain.engine.client.render.DARK_RED
 import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.GRAY
@@ -102,23 +101,18 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
                     color
                 )
 
-                val vertexConsumers = (context as DrawContextAccessor).`engine$getVertexConsumerProvider`()
-
                 if (chatBar.hasUnreadMessages(button.section)) {
                     val iconSize = 8f
 
                     val mentioned = chatBar.wasMentioned(button.section)
                     val sprite = if (mentioned) MENTION else EXCLAMATION_RED
 
-                    drawSprite(
-                        context.matrices,
-                        vertexConsumers,
+                    context.drawEngineSprite(
                         sprite,
                         x1 + rectWidth - iconSize,
                         y1 - iconSize / 2f,
                         iconSize,
-                        iconSize,
-                        0f
+                        iconSize
                     )
                 }
             }

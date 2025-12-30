@@ -40,6 +40,7 @@ class EngineServer(
 
     fun run() {
         handler.run()
+        update()
     }
 
     fun stop() {
@@ -64,7 +65,7 @@ class EngineServer(
 
     fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {
         update(globals)
-        chat.onSettingsUpdated(globals.chatSettings.get())
+        chat.onSettingsUpdated(globals.chatSettings)
         handler.onServerSettingsUpdate()
     }
 

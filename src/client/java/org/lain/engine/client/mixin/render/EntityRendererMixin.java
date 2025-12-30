@@ -5,20 +5,19 @@ import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.ItemFrameEntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.ItemFrameEntityRenderState;
-import net.minecraft.client.render.item.ItemRenderState;
-import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.entity.Entity;
-import org.lain.engine.client.resources.MeshModel;
-import org.spongepowered.asm.mixin.Final;
+import org.lain.engine.client.resources.PropertiesKt;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(EntityRenderer.class)
-public class EntityRendererMixin {
-    @Shadow @Final private EntityRenderState state;
+public abstract class EntityRendererMixin {
+    @Unique
+    private EntityRenderState state = null;
 
     @Inject(
             method = "shouldRender",
@@ -30,12 +29,23 @@ public class EntityRendererMixin {
     public void engine$disableCulling(Entity entity, Frustum frustum, double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
         if ((((Object)this) instanceof ItemFrameEntityRenderer<?>)) {
             ItemFrameEntityRenderState renderState = (ItemFrameEntityRenderState)state;
-            ItemRenderState.LayerRenderState layer = ((ItemRenderStateAccessor)renderState.itemRenderState).engine$getFirstLayer();
-            BakedModel model = ((ItemLayerRenderStateAccessor) layer).engine$getBakedModel();
-            if (model instanceof MeshModel && ((MeshModel)model).getDisableCulling()) {
+            boolean culling = PropertiesKt.getCulling(renderState);
+            if (!culling) {
                 cir.setReturnValue(true);
                 cir.cancel();
             }
         }
+    }
+
+    @Redirect(
+            method = "getAndUpdateRenderState",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/render/entity/EntityRenderer;updateRenderState(Lnet/minecraft/entity/Entity;Lnet/minecraft/client/render/entity/state/EntityRenderState;F)V"
+            )
+    )
+    public void engine$storeRenderModel(EntityRenderer instance, Entity entity, EntityRenderState state, float tickProgress) {
+        instance.updateRenderState(entity, state, tickProgress);
+        this.state = state;
     }
 }

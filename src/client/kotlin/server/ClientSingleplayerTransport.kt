@@ -45,6 +45,7 @@ private object CommonSingleplayerEndpointRegistry {
 class ClientSingleplayerTransport(
     private val client: EngineClient
 ) : ClientTransportContext {
+    private val context = ClientContext(client)
     override val packetHistory: FixedSizeList<Long> = FixedSizeList(3000)
 
     override fun unregisterAll() {
@@ -56,9 +57,10 @@ class ClientSingleplayerTransport(
         handler: ClientPacketHandler<P>
     ) {
         CommonSingleplayerEndpointRegistry.register(endpoint, Side.CLIENT) { packet, id ->
-            packetHistory.add(id)
-            val context = ClientContext(client)
-            handler.invoke(packet, context)
+            client.execute {
+                packetHistory.add(id)
+                handler.invoke(packet, context)
+            }
         }
     }
 

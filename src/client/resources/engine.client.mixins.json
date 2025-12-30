@@ -4,14 +4,11 @@
   "package": "org.lain.engine.client.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "DrawContextAccessor",
     "KeyboardMixin",
     "MouseMixin",
     "PlayerListEntryAccessor",
     "ToastManagerMixin",
     "render.EntityRendererMixin",
-    "render.ItemLayerRenderStateAccessor",
-    "render.ItemRenderStateAccessor",
     "resource.AtlasLoaderAccessor",
     "resource.AtlasLoaderMixin",
     "resource.BakedModelManagerMixin",
@@ -34,6 +31,8 @@
     "requireAnnotations": true
   },
   "mixins": [
-    "ItemStackMixin"
+    "ConfigMixin",
+    "ItemStackMixin",
+    "resource.SimpleResourceReloadMixin"
   ]
 }

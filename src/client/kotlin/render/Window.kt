@@ -1,10 +1,11 @@
 package org.lain.engine.client.render
 
+import org.lain.engine.client.MinecraftEngineClient
 import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.MinecraftClient
 import org.lwjgl.glfw.GLFW
 
-class Window {
+class Window(val mod: MinecraftEngineClient) {
     private val client = MinecraftClient
     private val window
         get() = client.window
@@ -38,5 +39,6 @@ class Window {
 
     fun onResize() {
         MinecraftChat.channelsBar.measure()
+        mod.uiRenderPipeline.resizeRoot()
     }
 }

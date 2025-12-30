@@ -169,7 +169,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
             movement.minSpeedSprintFactor,
             movement.intentionEffect
         )
-        it.chatSettings.set(chatSettings)
+        it.chatSettings = chatSettings
 
     }
 

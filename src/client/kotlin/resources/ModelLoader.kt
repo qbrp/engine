@@ -1,5 +1,6 @@
 package org.lain.engine.client.resources
 
+import net.minecraft.client.render.model.Geometry
 import net.minecraft.client.render.model.ModelTextures
 import net.minecraft.client.render.model.UnbakedModel
 import net.minecraft.client.render.model.json.JsonUnbakedModel
@@ -14,7 +15,7 @@ import org.slf4j.LoggerFactory
 var MC_LOGGER = LoggerFactory.getLogger("Hacked Minecraft Model Loader")
 
 // Открыть модели для ассетов предметов
-fun parseEngineModels(
+fun parseEngineItemModels(
     models: List<EngineItemJsonModel>,
     objFiles: Map<String, EngineObjModel>
 ): Map<Identifier, UnbakedModel> {
@@ -35,7 +36,6 @@ fun parseEngineModels(
                 ModelType.OBJ -> parseObjUnbakedModel(
                     objFiles,
                     asset.source.file.parentFile,
-                    id,
                     model.json,
                 )
             }
@@ -58,14 +58,14 @@ fun autogenerateModels(
         val textureId = model.texture.registrationId
         val sprite = SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, textureId)
         id to JsonUnbakedModel(
-            Identifier.ofVanilla(model.type),
-            listOf(),
+            Geometry.EMPTY,
+            UnbakedModel.GuiLight.ITEM,
+            false,
+            null,
             ModelTextures.Textures.Builder()
                 .addSprite("layer0", sprite)
                 .build(),
-            null,
-            null,
-            null
+            Identifier.ofVanilla(model.type)
         )
     }.also {
         LOGGER.info("Генерируемые модели предметов созданы за {} мл.", start.timeElapsed())

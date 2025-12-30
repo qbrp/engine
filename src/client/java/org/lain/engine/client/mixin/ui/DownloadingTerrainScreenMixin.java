@@ -1,6 +1,7 @@
 package org.lain.engine.client.mixin.ui;
 
-import net.minecraft.client.gui.screen.DownloadingTerrainScreen;
+import net.minecraft.client.gui.screen.world.LevelLoadingScreen;
+import net.minecraft.client.world.ClientChunkLoadProgress;
 import net.minecraft.text.Text;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.spongepowered.asm.mixin.Final;
@@ -11,13 +12,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.function.BooleanSupplier;
-
-@Mixin(DownloadingTerrainScreen.class)
+@Mixin(LevelLoadingScreen.class)
 public abstract class DownloadingTerrainScreenMixin {
-    @Shadow @Final private BooleanSupplier shouldClose;
-
     @Shadow public abstract void close();
+
+    @Shadow private ClientChunkLoadProgress chunkLoadProgress;
 
     @ModifyArg(
             method = "render",
@@ -28,14 +27,21 @@ public abstract class DownloadingTerrainScreenMixin {
             index = 1
     )
     private Text engine$modifyDisplayedText(net.minecraft.text.Text text) {
-        if (!shouldClose.getAsBoolean()) {
+        if (!chunkLoadProgress.isDone()) {
             return text;
         } else {
             return Text.of("Подготовка Engine...");
         }
     }
 
-    @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
+    @Inject(
+            method = "tick",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/world/ClientChunkLoadProgress;isDone()Z"
+            ),
+            cancellable = true
+    )
     private void engine$tick(CallbackInfo ci) {
          if (ClientMixinAccess.INSTANCE.isEngineLoaded()) {
              close();

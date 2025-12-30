@@ -1,6 +1,8 @@
 package org.lain.engine.client.mixin.ui;
 
 import com.llamalad7.mixinextras.sugar.Local;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -11,7 +13,10 @@ import net.minecraft.client.gui.hud.MessageIndicator;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Colors;
+import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
+import org.lain.engine.client.mc.ChatHudRenderKt;
 import org.lain.engine.client.mc.MinecraftChat;
 import org.lain.engine.client.render.ColorsKt;
 import org.spongepowered.asm.mixin.Final;
@@ -20,6 +25,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -33,6 +39,14 @@ public abstract class ChatHudMixin {
     @Shadow @Final private MinecraftClient client;
 
     @Shadow public abstract double getChatScale();
+
+    @Shadow public abstract int getVisibleLineCount();
+
+    @Shadow @Final private List<ChatHudLine.Visible> visibleMessages;
+
+    @Shadow private int scrolledLines;
+
+    @Shadow public abstract int getWidth();
 
     // Нам не нужны индикаторы, показывающие, что сообщение изменено, оно небезопасно и т.д.
     @Inject(
@@ -53,52 +67,63 @@ public abstract class ChatHudMixin {
         cir.setReturnValue(false);
     }
 
+    @ModifyArg(
+            method = "forEachVisibleLine",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/hud/ChatHud$LineConsumer;accept(IIILnet/minecraft/client/gui/hud/ChatHudLine$Visible;IF)V"
+            ),
+            index = 0
+    )
+    private int replaceX(int original) {
+        return ChatHudRenderKt.LINE_INDENT;
+    }
     @Inject(
             method = "render",
             at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/util/math/MatrixStack;translate(FFF)V",
-                    shift = At.Shift.AFTER,
-                    ordinal = 1
+                    value = "TAIL"
             )
     )
-    private void engine$drawChatHeadsAfterTranslate(
-            DrawContext context, int currentTick, int mouseX, int mouseY, boolean focused, CallbackInfo ci, @Local ChatHudLine.Visible visible, @Local(ordinal = 18) int y
-    ) {
-        MinecraftChat.ChatHudLineData data = MinecraftChat.INSTANCE.getChatHudLineData(visible);
-        if (data == null || !data.isFirst()) return;
+    private void engine$render(DrawContext context, int currentTick, int mouseX, int mouseY, boolean focused, CallbackInfo ci) {
+        ChatHudRenderKt.forEachVisibleLine(
+                getVisibleLineCount(),
+                currentTick,
+                focused,
+                MathHelper.floor((float)((float)(context.getScaledWindowHeight() - 40) / getChatScale())),
+                getLineHeight(),
+                visibleMessages,
+                scrolledLines,
+                (age -> (float)getMessageOpacityMultiplier(age)),
+                (indentedX1, y1, y2, visible, messageIndex, backgroundOpacity) -> {
+                    //float f = (float)this.getChatScale();
+                    //int k = MathHelper.ceil(((float)this.getWidth() / f));
+                    double d = this.client.options.getChatLineSpacing().getValue();
+                    float h = this.client.options.getTextBackgroundOpacity().getValue().floatValue();
+                    float g = this.client.options.getChatOpacity().getValue().floatValue() * 0.9f + 0.1f;
+                    float bgAlpha = backgroundOpacity * h;
+                    float contentAlpha = backgroundOpacity * g;
+                    int o = (int)Math.round(-8.0 * (d + 1.0) + 4.0 * d);
+                    int j = y2 + o;
 
-        PlayerListEntry playerListEntry = data.getMessage().getAuthor();
-        if (playerListEntry != null) {
-            int opacity = (int)(255.0
-                    * (focused ? 1.0 : getMessageOpacityMultiplier(currentTick - visible.addedTime()))
-                    * (this.client.options.getChatOpacity().getValue() * 0.9 + 0.1));
+                    int x1 = 4;
+                    MinecraftChat chat = MinecraftChat.INSTANCE;
+                    context.fill(0, y1, x1 + ChatHudRenderKt.LINE_INDENT - 4, y2, ColorHelper.withAlpha(bgAlpha, Colors.BLACK));
+                    if (visible != null) {
+                        MinecraftChat.ChatHudLineData data = MinecraftChat.INSTANCE.getChatHudLineData(visible);
+                        if (data != null && data.isFirst()) {
+                            PlayerListEntry playerListEntry = data.getMessage().getAuthor();
+                            if (playerListEntry != null) {
+                                PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), x1, y1, 8, ColorHelper.withAlpha(contentAlpha, Colors.WHITE));
+                            }
+                        }
 
-            int skinY0 = y - this.getLineHeight();
-            PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), 0, skinY0, 8, ColorsKt.whiteWithAlpha(opacity));
-            context.getMatrices().translate(11f, 0f, 0f);
-        }
-    }
-
-    @Redirect(
-            method = "render",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/DrawContext;drawTextWithShadow(Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/text/OrderedText;III)I"
-            )
-    )
-    private int engine$drawMessageDebugInfoRedirect(DrawContext context, TextRenderer textRenderer, OrderedText text, int x, int y, int color, @Local ChatHudLine.Visible visible) {
-        int result = context.drawTextWithShadow(textRenderer, text, x, y, color);
-
-        MinecraftChat chat = MinecraftChat.INSTANCE;
-        MinecraftChat.ChatHudLineData data = chat.getChatHudLineData(visible);
-        if (data != null && data.isLast() && chat.shouldRenderDebugInfo()) {
-            Text debugText = data.getMessage().getDebugText();
-            context.drawTextWithShadow(textRenderer, debugText, result + 2, y, 0xAAAAAA);
-        }
-
-        // вернуть результат дальше
-        return result;
+                        if (data != null && data.isLast() && chat.shouldRenderDebugInfo()) {
+                            Text debugText = data.getMessage().getDebugText();
+                            context.drawTextWithShadow(this.client.textRenderer, debugText, indentedX1 + client.textRenderer.getWidth(visible.content()) + 4, j, ColorHelper.withAlpha(contentAlpha, Colors.GRAY));
+                        }
+                    }
+                }
+        );
     }
 
     @Redirect(

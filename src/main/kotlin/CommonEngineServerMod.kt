@@ -24,6 +24,7 @@ import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
 import org.lain.engine.util.parseMiniMessage
 import org.lain.engine.world.world
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -47,7 +48,6 @@ class CommonEngineServerMod : ModInitializer {
 
         ServerLifecycleEvents.SERVER_STARTED.register {
             engineServer.run()
-            Injector.register(engineServer.engine)
         }
 
         ServerLifecycleEvents.SERVER_STOPPED.register { server ->

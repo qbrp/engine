@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.Keyboard;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ChatScreen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -36,11 +37,11 @@ public class KeyboardMixin {
             method = "onKey",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/util/InputUtil;fromKeyCode(II)Lnet/minecraft/client/util/InputUtil$Key;"
+                    target = "Lnet/minecraft/client/util/InputUtil;fromKeyCode(Lnet/minecraft/client/input/KeyInput;)Lnet/minecraft/client/util/InputUtil$Key;"
             )
     )
-    public InputUtil.Key engine$invokeChatScreenKeybindings(int keyCode, int scanCode) {
-        InputUtil.Key key = InputUtil.fromKeyCode(keyCode, scanCode);
+    public InputUtil.Key engine$invokeChatScreenKeybindings(KeyInput input) {
+        InputUtil.Key key = InputUtil.fromKeyCode(input);
         if (client.currentScreen instanceof ChatScreen) {
             KeybindManager keybindManager = KeybindManager.INSTANCE;
             KeyBinding[] keybindings = new KeyBinding[] {
@@ -62,7 +63,7 @@ public class KeyboardMixin {
                     value = "HEAD"
             )
     )
-    public void engine$onKey(long window, int key, int scancode, int action, int modifiers, CallbackInfo ci) {
-        ClientMixinAccess.INSTANCE.onKey(key);
+    public void engine$onKey(long window, int action, KeyInput input, CallbackInfo ci) {
+        ClientMixinAccess.INSTANCE.onKey(input.key());
     }
 }

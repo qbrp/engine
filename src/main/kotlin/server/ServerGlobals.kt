@@ -12,5 +12,5 @@ data class ServerGlobals(
     val defaultPlayerAttributes: DefaultPlayerAttributes = DefaultPlayerAttributes(),
     var vocalSettings: VocalSettings = VocalSettings(),
     var movementSettings: MovementSettings = MovementSettings(),
-    val chatSettings: AtomicReference<EngineChatSettings> = AtomicReference(EngineChatSettings())
+    var chatSettings: EngineChatSettings = EngineChatSettings()
 )

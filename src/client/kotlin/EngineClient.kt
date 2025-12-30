@@ -1,6 +1,7 @@
 package org.lain.engine.client
 
 import org.lain.engine.client.chat.ChatEventBus
+import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.Camera
@@ -11,12 +12,12 @@ import org.lain.engine.client.render.QUESTION
 import org.lain.engine.client.render.ScreenRenderer
 import org.lain.engine.client.render.SPECTATOR_MODE_TEXT_COLOR
 import org.lain.engine.client.render.Window
+import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.client.util.loadAndCreateEngineOptions
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.developerMode
@@ -29,11 +30,12 @@ class EngineClient(
     private val camera: Camera,
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
-    val options: EngineOptions = loadAndCreateEngineOptions(),
+    val ui: EngineUi,
     val onFullPlayerData: (EngineClient, PlayerId, FullPlayerData) -> Unit,
     val onPlayerDestroy: (PlayerId) -> Unit,
     val onMainPlayerInstantiated: (Player) -> Unit
 ) {
+    lateinit var options: EngineOptions
     val handler = ClientHandler(this)
     val renderer = ScreenRenderer(window, fontRenderer, camera, this)
     val resourceManager = ResourceManager(this)
@@ -54,7 +56,11 @@ class EngineClient(
 
     fun tick() {
         gameSession?.tick()
-        handler.flushTasks()
+        handler.tick()
+    }
+
+    fun execute(r: () -> Unit) {
+        handler.taskExecutor.add("Unnamed task", r)
     }
 
     fun toggleHudHiding() {

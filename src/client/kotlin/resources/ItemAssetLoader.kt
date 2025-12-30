@@ -1,29 +1,21 @@
 package org.lain.engine.client.resources
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.mojang.serialization.JsonOps
-import com.mojang.serialization.MapCodec
 import de.javagl.obj.Mtl
 import de.javagl.obj.Obj
 import net.minecraft.client.item.ItemAsset
 import net.minecraft.client.render.item.model.BasicItemModel
 import net.minecraft.client.texture.*
-import net.minecraft.client.texture.atlas.AtlasSource
-import net.minecraft.client.texture.atlas.AtlasSourceType
 import net.minecraft.client.util.SpriteIdentifier
-import net.minecraft.resource.ResourceManager
-import net.minecraft.resource.metadata.ResourceMetadata
 import net.minecraft.util.Identifier
 import net.minecraft.util.JsonHelper
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.mc.EngineItem
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.injectValue
 import org.slf4j.LoggerFactory
-import java.io.File
 import kotlin.io.extension
 import kotlin.text.replace
 
@@ -57,15 +49,6 @@ sealed class EngineItemAsset {
             .replace(".asset", "")
             .toEngineIdentifier()
     }
-}
-
-/**
- * Гарантируется, что текстура из ассета загружена и существует по `textureId`
- * */
-data class EngineTexture(val asset: Asset) {
-    val registrationId = asset
-        .prepareIdentifier()
-        .toEngineIdentifier()
 }
 
 data class EngineItemJsonModel(
@@ -177,38 +160,6 @@ fun findAssets(): ResourceList {
     )
 }
 
-class EngineAtlasSource(val resources: ResourceList) : AtlasSource {
-    override fun load(
-        resourceManager: ResourceManager,
-        regions: AtlasSource.SpriteRegions
-    ) {
-        val start = Timestamp()
-        resources.textureAssets.forEach { texture ->
-            val id = texture.registrationId
-            regions.add(id) { openSprite(id, texture.asset) }
-        }
-        LOGGER.info("Ассеты загружены за {} мл.", start.timeElapsed())
-    }
-
-    override fun getType(): AtlasSourceType = TYPE
-
-    companion object {
-        val ID = EngineId("engine")
-        val TYPE = AtlasSourceType(MapCodec.unit { EngineAtlasSource(ClientMixinAccess.getResourceList()) })
-
-        fun openSprite(id: Identifier, path: Asset): SpriteContents? {
-            val file = path.source.file
-            if (!file.exists()) return null
-            val input = file.inputStream()
-            val nativeImage = NativeImage.read(input)
-            val width = nativeImage.width
-            val height = nativeImage.height
-            val spriteDimensions = SpriteDimensions(width, height)
-            return SpriteContents(id, spriteDimensions, nativeImage, ResourceMetadata.NONE)
-        }
-    }
-}
-
 fun String.substituteEngineRelativePath(relative: String) = replaceFirst("~/", "$relative/")
 
 fun String.substituteEngineRelativePath(asset: Asset) = replace("~/", "${asset.relativeParent.path.normalizeSlashes()}/")
@@ -259,7 +210,12 @@ fun parseEngineItemAssets(
 
                     if (itemAsset == null) continue
 
-                    contents[item.registrationId] = itemAsset
+                    val disableCulling = JsonHelper.getBoolean(item.json, "disable_culling", false)
+                    contents[item.registrationId] = ItemAsset(
+                        EngineItemModel.Unbaked(itemAsset.model, disableCulling),
+                        itemAsset.properties,
+                        itemAsset.registrySwapper
+                    )
                 } catch (e: Throwable) {
                     LOGGER.error("При загрузке ассета предмета ${asset.relativeString} возникла ошибка", e)
                 }
@@ -270,7 +226,7 @@ fun parseEngineItemAssets(
                         item.registrationId,
                         listOf()
                     ),
-                    ItemAsset.Properties(false)
+                    ItemAsset.Properties(false, false)
                 )
             }
         }

@@ -11,7 +11,9 @@ import org.lain.engine.util.injectValue
 
 typealias ClientPacketHandler<P> = PacketHandler<ClientContext, P>
 
-data class ClientContext(val client: EngineClient) : PacketContext
+data class ClientContext(
+    val client: EngineClient,
+) : PacketContext
 
 interface ClientTransportContext {
     val packetHistory: FixedSizeList<Long>

@@ -1,11 +1,15 @@
-package org.lain.engine.client
+package org.lain.engine.client.handler
 
 import kotlinx.coroutines.runBlocking
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
+import org.lain.engine.client.EngineClient
+import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.EngineChatMessage
+import org.lain.engine.client.clientWorld
+import org.lain.engine.client.isLowDetailed
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
@@ -17,7 +21,6 @@ import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerId
-import org.lain.engine.player.PlayerStatus
 import org.lain.engine.player.customName
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
@@ -31,8 +34,6 @@ import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_JOIN_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_SPEED_INTENTION_PACKET
-import org.lain.engine.transport.packet.ClientChatSettings
-import org.lain.engine.transport.packet.ClientDefaultAttributes
 import org.lain.engine.transport.packet.ClientboundServerSettings
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.ClientboundWorldData
@@ -49,100 +50,37 @@ import org.lain.engine.transport.packet.SetSpeedIntentionPacket
 import org.lain.engine.transport.packet.VolumePacket
 import org.lain.engine.util.flush
 import org.lain.engine.util.injectValue
-import org.lain.engine.util.replace
 import org.lain.engine.util.replaceOrSet
 import org.lain.engine.util.require
-import org.lain.engine.util.set
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.collections.forEach
+import kotlin.collections.plus
 
 typealias Update = Player.() -> Unit
 
 typealias PendingUpdates = MutableList<Update>
 
 class ClientHandler(
-    private val client: EngineClient
+    val client: EngineClient
 ) {
-    private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
-    private val logger = LoggerFactory.getLogger("Engine Client Handler")
-    private val tasks = ConcurrentLinkedQueue<() -> Unit>()
-    private val handledNotifications = mutableSetOf<Notification>()
-    private val pendingPlayerUpdates = ConcurrentHashMap<PlayerId, PendingUpdates>()
     private val gameSession get() = client.gameSession
 
+    private val handledNotifications = mutableSetOf<Notification>()
+    private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
+    val taskExecutor = TaskExecutor()
+
     fun run() {
-        clientAcknowledgeHandler.run()
-
-        CLIENTBOUND_JOIN_GAME_ENDPOINT.registerClientReceiver { ctx ->
-            onJoinGame(playerData, worldData, setupData)
-        }
-
-        CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT.registerClientReceiver { ctx ->
-            onPlayerAttributeUpdate(id, speed, jumpStrength)
-        }
-
-        CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT.registerClientReceiver { ctx ->
-            onServerSettingsUpdate(settings)
-        }
-
-        CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT.registerClientReceiver { ctx ->
-            onPlayerCustomName(id, name)
-        }
-
-        CLIENTBOUND_SPEED_INTENTION_PACKET.registerClientReceiver { ctx ->
-            onPlayerSpeedIntention(id, speedIntention)
-        }
-
-        CLIENTBOUND_PLAYER_JOIN_ENDPOINT.registerClientReceiver { ctx ->
-            onPlayerJoined(player)
-        }
-
-        CLIENTBOUND_PLAYER_DESTROY_ENDPOINT.registerClientReceiver { ctx ->
-            onPlayerDestroyed(playerId)
-        }
-
-        CLIENTBOUND_FULL_PLAYER_ENDPOINT.registerClientReceiver { ctx ->
-            onFullPlayerData(id, data)
-        }
-
-        CLIENTBOUND_CHAT_MESSAGE_ENDPOINT.registerClientReceiver { ctx ->
-            val gameSession = client.gameSession ?: return@registerClientReceiver
-            val world = gameSession.world
-            if (world.id != sourceWorld) {
-                logger.error("Пропущено сообщение из-за отсутствия мира источника сообщения $sourceWorld")
-                return@registerClientReceiver
-            }
-            val player = sourcePlayer?.let { gameSession.getPlayer(it) }
-            onChatMessage(
-                OutcomingMessage(
-                    text,
-                    MessageSource(
-                        world,
-                        MessageAuthor(
-                            sourceAuthorName,
-                            player
-                        ),
-                        sourcePosition,
-                    ),
-                    channel,
-                    mentioned,
-                    speech,
-                    volume,
-                    placeholders,
-                    isSpy
-                )
-            )
-        }
-
-        CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT.registerClientReceiver { ctx ->
-            onNotification(type, once)
-        }
+        runEndpoints(clientAcknowledgeHandler)
     }
 
     fun disable() {
         injectValue<ClientTransportContext>().unregisterAll()
+    }
+
+    fun tick() {
+        taskExecutor.flush(client)
     }
 
     fun onChatMessageSend(content: String, channelId: ChannelId) {
@@ -161,22 +99,18 @@ class ClientHandler(
         SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(DeveloperModePacket(boolean))
     }
 
-    fun flushTasks() {
-        tasks.flush { it() }
-    }
-
-    private fun onPlayerAttributeUpdate(
-        player: PlayerId,
+    fun applyPlayerAttributeUpdate(
+        player: Player,
         speed: AttributeUpdate? = null,
         jumpStrength: AttributeUpdate? = null
-    ) = updatePlayer(player) {
+    ) = with(player) {
         val attributes = require<PlayerAttributes>()
 
         applyAttribute(speed) { attributes.speed.custom = it }
         applyAttribute(jumpStrength) { attributes.jumpStrength.custom = it }
     }
 
-    private fun applyAttribute(
+    fun applyAttribute(
         update: AttributeUpdate?,
         setter: (Float?) -> Unit
     ) {
@@ -187,38 +121,38 @@ class ClientHandler(
         }
     }
 
-    private fun onPlayerCustomName(player: PlayerId, customName: String?) = updatePlayer(player) {
+    fun applyPlayerCustomName(player: Player, customName: String?) = with(player) {
         this.customName = customName
     }
 
-    private fun onPlayerSpeedIntention(player: PlayerId, intention: Float) = updatePlayer(player) {
+    fun applyPlayerSpeedIntention(player: Player, intention: Float) = with(player) {
         this.require<MovementStatus>().intention = intention
     }
 
-    private fun onFullPlayerData(id: PlayerId, data: FullPlayerData) = updatePlayer(id) {
+    fun applyFullPlayerData(player: Player, data: FullPlayerData) = with(player) {
         replaceOrSet(data.movementStatus)
         replaceOrSet(data.attributes)
         isLowDetailed = false
         client.onFullPlayerData(client, id, data)
     }
 
-    private fun onPlayerJoined(data: GeneralPlayerData) = gameSessionTask {
-        val player = instantiateLowDetailedPlayer(data)
-        pendingPlayerUpdates[player.id]
-            ?.forEach { player.it() }
-            ?.also { pendingPlayerUpdates.remove(player.id) }
+    fun applyPlayerJoined(data: GeneralPlayerData) {
+        gameSession!!.instantiateLowDetailedPlayer(data)
     }
 
-    private fun onPlayerDestroyed(player: PlayerId) = gameSessionTask {
-        playerStorage.remove(player)
-        client.onPlayerDestroy(player)
+    fun applyPlayerDestroyed(player: Player) {
+        gameSession!!.playerStorage.remove(player.id)
+        client.onPlayerDestroy(player.id)
     }
 
-    private fun onJoinGame(
+    fun applyJoinGame(
         playerData: ServerPlayerData,
         worldData: ClientboundWorldData,
         data: ClientboundSetupData,
     ) = runBlocking {
+        if (client.gameSession != null) {
+            error("Игровая сессия уже запущена!")
+        }
         val world = clientWorld(worldData)
         val gameSession = GameSession(
             data.serverId,
@@ -233,7 +167,7 @@ class ClientHandler(
         gameSession.chatManager.updateSettings(data.settings.chat)
     }
 
-    private fun onServerSettingsUpdate(settings: ClientboundServerSettings) = gameSessionTask {
+    fun applyServerSettingsUpdate(settings: ClientboundServerSettings) = with(gameSession!!) {
         val defaultAttributes = settings.defaultAttributes
         vocalRegulator.volume.apply {
             max = defaultAttributes.maxVolume
@@ -245,7 +179,7 @@ class ClientHandler(
         chatManager.updateSettings(settings.chat)
     }
 
-    private fun onChatMessage(message: OutcomingMessage) = gameSessionTask {
+    fun applyChatMessage(message: OutcomingMessage) = with(gameSession!!) {
         val channelId = message.channel
         val channel = chatManager.getChannel(channelId)
         val text = message.text
@@ -283,7 +217,7 @@ class ClientHandler(
         )
     }
 
-    private fun onNotification(type: Notification, once: Boolean) {
+    fun applyNotification(type: Notification, once: Boolean) {
         if (!handledNotifications.add(type) && once) return
         val notification = when(type) {
             Notification.INVALID_SOURCE_POS ->
@@ -298,18 +232,7 @@ class ClientHandler(
         client.applyLittleNotification(notification)
     }
 
-    private fun updatePlayer(id: PlayerId, update: Update) {
-        getPlayer(id)?.update() ?: pendingPlayerUpdates.computeIfAbsent(id) { mutableListOf() }.add(update)
-    }
-
-    private fun getPlayer(id: PlayerId): Player? {
-        return client.gameSession?.getPlayer(id)
-    }
-
-    private fun gameSessionTask(todo: GameSession.() -> Unit) {
-        val session = gameSession
-        if (session != null) {
-            tasks += { session.todo() }
-        }
+    companion object {
+        val LOGGER: Logger = LoggerFactory.getLogger("Engine Client Handler")
     }
 }

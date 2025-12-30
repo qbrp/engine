@@ -20,6 +20,7 @@ import org.lain.engine.world.pos
 import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 import kotlin.text.StringBuilder
 
@@ -36,11 +37,14 @@ class EngineChat(
         get() = server.playerStorage
 
     private val incomingMessageHistory = mutableListOf<IncomingMessage>()
+
     private var channelsMap = mapOf<ChannelId, ChatChannel>()
-    val settings: EngineChatSettings
-        get() = server.globals.chatSettings.get()
+    private val settingsAtomicRef = AtomicReference(server.globals.chatSettings)
+    val settings
+        get() = settingsAtomicRef.get()
 
     fun onSettingsUpdated(settings: EngineChatSettings) {
+        settingsAtomicRef.set(settings)
         channelsMap = settings.channels.associateBy { it.id }
     }
 

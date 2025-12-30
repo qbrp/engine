@@ -9,7 +9,6 @@ import com.mojang.serialization.Encoder
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.minecraft.component.ComponentType
 import net.minecraft.component.DataComponentTypes
-import net.minecraft.component.type.UnbreakableComponent
 import net.minecraft.item.ItemStack
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
@@ -38,7 +37,7 @@ fun getItemStack(item: EngineItem): ItemStack {
     )
     materialStack.set(
         DataComponentTypes.UNBREAKABLE,
-        UnbreakableComponent(true)
+        Unit.INSTANCE
     )
     materialStack.set(
         DataComponentTypes.MAX_STACK_SIZE,

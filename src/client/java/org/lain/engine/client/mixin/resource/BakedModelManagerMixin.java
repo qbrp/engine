@@ -26,14 +26,8 @@ import java.util.concurrent.Executor;
 @Mixin(BakedModelManager.class)
 public class BakedModelManagerMixin {
     @Unique
-    private static ResourceList resources;
-
-    @Inject(
-            method = "reload",
-            at = @At(value = "HEAD")
-    )
-    private static void engine$reload(ResourceReloader.Synchronizer synchronizer, ResourceManager manager, Executor prepareExecutor, Executor applyExecutor, CallbackInfoReturnable<CompletableFuture<Void>> cir) {
-        resources = ClientMixinAccess.INSTANCE.createResourceList();
+    private static ResourceList resources() {
+        return ClientMixinAccess.INSTANCE.getResourceList();
     }
 
     @Inject(
@@ -47,8 +41,8 @@ public class BakedModelManagerMixin {
         cir.setReturnValue(
             returnValue.thenApply((res) -> {
                 Map<Identifier, UnbakedModel> models = new HashMap<>();
-                models.putAll(ModelLoaderKt.autogenerateModels(resources.getGeneratedItemAssets()));
-                models.putAll(ModelLoaderKt.parseEngineModels(resources.getItemModels(), resources.getObjModels()));
+                models.putAll(ModelLoaderKt.autogenerateModels(resources().getGeneratedItemAssets()));
+                models.putAll(ModelLoaderKt.parseEngineItemModels(resources().getItemModels(), resources().getObjModels()));
                 models.putAll(res);
                 return models;
             })
@@ -65,7 +59,7 @@ public class BakedModelManagerMixin {
     private static CompletableFuture<ItemAssetsLoader.Result> engine$loadItemAssets(ResourceManager resourceManager, Executor executor) {
         return ItemAssetsLoader.load(resourceManager, executor).thenApply((r) -> {
             Map<Identifier, ItemAsset> contents = r.contents();
-            contents.putAll(ItemAssetLoaderKt.parseEngineItemAssets(resources.getAllItemAssets()));
+            contents.putAll(ItemAssetLoaderKt.parseEngineItemAssets(resources().getAllItemAssets()));
             new ItemAssetsLoader.Result(contents);
             return r;
         });

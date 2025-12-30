@@ -11,15 +11,15 @@ class ScreenRenderer(
     private var ticks = 0
 
     var hudHidden = false
-    val littleNotificationsRenderer = LittleNotificationsRenderManager(fontRenderer, window)
+    val littleNotificationsRenderer = LittleNotificationsRenderManager(fontRenderer, window, client.ui)
     val movementStatusRenderer = MovementStatusRenderer(window, client)
-    val chatBubbleRenderer = ChatBubbleManager(client.options)
+    val chatBubbleRenderer = ChatBubbleManager(client)
 
     fun renderScreen(painter: Painter, isFirstPerson: Boolean) {
         val gameSession = client.gameSession
         if (!hudHidden && gameSession != null) {
             val movementManager = gameSession.movementManager
-            littleNotificationsRenderer.render(painter)
+            littleNotificationsRenderer.update(painter.tickDelta)
             if (isFirstPerson) {
                 movementStatusRenderer.render(
                     painter,

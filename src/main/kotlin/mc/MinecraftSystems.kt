@@ -38,7 +38,7 @@ fun EngineServer.getWorld(world: McWorld): World {
 }
 
 fun EngineServer.getPlayerWorld(player: PlayerEntity): World {
-    return getWorld(player.world)
+    return getWorld(player.entityWorld)
 }
 
 fun Username(text: Text) = Username(text.string)
@@ -50,7 +50,7 @@ fun updateServerMinecraftSystems(
 ) {
     for (player in players) {
         val entity = table.getEntity(player) ?: return
-        val world = engine.getWorld(entity.world)
+        val world = engine.getWorld(entity.entityWorld)
 
         updatePlayerMinecraftSystems(player, entity, world)
     }
@@ -61,8 +61,10 @@ fun updatePlayerMinecraftSystems(
     entity: PlayerEntity,
     world: World
 ) {
+    val pos = entity.entityPos
     player.apply<Location> {
-        position = entity.pos.engine()
+        position.x = pos.x.toFloat()
+        position.y = pos.y.toFloat()
         this.world = world
     }
 

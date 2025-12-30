@@ -53,7 +53,7 @@ object MinecraftChat : ChatEventBus {
         return if (isWritingCommand) {
             0f
         } else {
-            val minVolume = baseVolume + (maxVolume - baseVolume) * client.options.chatInputShakingThreshold.get()
+            val minVolume = baseVolume + (maxVolume - baseVolume) * client.options.chatInputShakingThreshold
             val shakePower = currentVolume - minVolume
 
             shakePower.coerceAtLeast(0f) / minVolume + textShakingBoost
@@ -67,7 +67,7 @@ object MinecraftChat : ChatEventBus {
         val brokenChatBubbleLines: List<OrderedText>,
         val engineMessage: EngineChatMessage
     ) {
-        val debugText = Text.of("[volume ${engineMessage.volume}]")
+        val debugText = Text.of(" [volume ${engineMessage.volume}]")
     }
 
     data class ChatHudLineData(val line: ChatHudLine.Visible, val isFirst: Boolean, val isLast: Boolean, val message: MessageData) {
@@ -109,7 +109,7 @@ object MinecraftChat : ChatEventBus {
             authorEntity,
             ChatMessages.breakRenderedChatMessageLines(
                 engineMessage.text.parseMiniMessage(),
-                client.options.chatBubbleLineWidth.get(),
+                client.options.chatBubbleLineWidth,
                 MinecraftClient.textRenderer
             ),
             engineMessage
@@ -250,7 +250,7 @@ object MinecraftChat : ChatEventBus {
     }
 
     fun getRandomShakeTranslation(): Float {
-        return Random.nextFloat() * chatInputTextShaking * client.options.chatInputShakingForce.get()
+        return Random.nextFloat() * chatInputTextShaking * client.options.chatInputShakingForce
     }
 
     fun getChatFieldColor(color: Int): Int {

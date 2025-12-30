@@ -4,10 +4,9 @@ import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
+import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.render.ChatBubbleManager
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.player.DefaultPlayerAttributes
-import org.lain.engine.player.MovementDefaultAttributes
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.SpawnMark
@@ -34,7 +33,7 @@ class GameSession(
 
     val playerStorage = ClientPlayerStorage()
     val movementManager = MovementManager(handler)
-    val chatBubbleManager = ChatBubbleManager(client.options)
+    val chatBubbleManager = ChatBubbleManager(client)
     val chatManager = ClientEngineChatManager(
         chatEventBus,
         client,

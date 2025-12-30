@@ -1,17 +1,14 @@
 package org.lain.engine.client
 
+import me.fzzyhmstrs.fzzy_config.api.ConfigApi
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
-import net.fabricmc.fabric.api.client.rendering.v1.AtlasSourceTypeRegistry
-import net.fabricmc.fabric.api.client.rendering.v1.HudLayerRegistrationCallback
-import net.fabricmc.fabric.api.client.rendering.v1.IdentifiedLayer
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.client.network.AbstractClientPlayerEntity
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.network.DisconnectionInfo
 import org.lain.engine.AuthPacket
@@ -22,30 +19,42 @@ import org.lain.engine.client.mc.MinecraftAudioManager
 import org.lain.engine.client.mc.MinecraftCamera
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.ClientMinecraftNetwork
-import org.lain.engine.client.resources.EngineAtlasSource.Companion.ID
-import org.lain.engine.client.resources.EngineAtlasSource.Companion.TYPE
+import org.lain.engine.client.mc.EngineFzzyConfig
+import org.lain.engine.client.mc.EngineUiRenderPipeline
+import org.lain.engine.client.mc.FzzyConfigs
 import org.lain.engine.client.mc.KeybindManager
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.mc.MinecraftFontRenderer
 import org.lain.engine.client.mc.MinecraftPainter
-import org.lain.engine.client.mc.renderChatBubbles
-import org.lain.engine.client.mixin.DrawContextAccessor
+import org.lain.engine.client.render.WHITE
 import org.lain.engine.client.render.Window
+import org.lain.engine.client.render.ui.Background
+import org.lain.engine.client.render.ui.Color
+import org.lain.engine.client.render.ui.ConstraintsSize
+import org.lain.engine.client.render.ui.Fragment
+import org.lain.engine.client.render.ui.Size
+import org.lain.engine.client.render.ui.Sizing
+import org.lain.engine.client.render.ui.UiContext
+import org.lain.engine.client.render.ui.fragmentsToUiElements
+import org.lain.engine.client.render.ui.layout
+import org.lain.engine.client.render.ui.measure
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.server.ServerSingleplayerTransport
 import org.lain.engine.client.transport.ClientTransportContext
-import org.lain.engine.client.util.setupOptionsConfig
+import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.updatePlayerMinecraftSystems
-import org.lain.engine.transport.network.DisconnectText
 import org.lain.engine.serverMinecraftPlayerInstance
 import org.lain.engine.util.EngineId
+import org.lain.engine.util.EngineOrderedTextSequence
 import org.lain.engine.util.Injector
 import org.lain.engine.util.MinecraftUsername
+import org.lain.engine.util.MutableEngineOrderedText
 import org.lain.engine.util.engineId
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.parseMiniMessage
 import org.lain.engine.util.registerMinecraftServer
+import org.lain.engine.util.toMinecraft
 import java.util.Optional
 
 class MinecraftEngineClient : ClientModInitializer {
@@ -54,10 +63,11 @@ class MinecraftEngineClient : ClientModInitializer {
     private val entityTable by injectEntityTable()
     private val clientPlayerTable by lazy { entityTable.client }
 
-    private val window = Window()
+    private val window = Window(this)
     private val fontRenderer = MinecraftFontRenderer()
     private val audioManager = MinecraftAudioManager(client)
     private val camera = MinecraftCamera(client)
+    val uiRenderPipeline = EngineUiRenderPipeline(client, fontRenderer)
 
     private val engineClient = EngineClient(
         window,
@@ -65,6 +75,7 @@ class MinecraftEngineClient : ClientModInitializer {
         camera,
         MinecraftChat,
         audioManager,
+        uiRenderPipeline,
         onFullPlayerData =  { client, id, data ->
             val player = client.gameSession?.getPlayer(id) ?: error("Игрока $id для синхронизации состояния не существует")
             val entity = this.client.world?.players?.firstOrNull {
@@ -85,14 +96,13 @@ class MinecraftEngineClient : ClientModInitializer {
     private val renderer
         get() = engineClient.renderer
 
-    private val config = setupOptionsConfig()
-    private val configScreen = config.generateScreen(null)
-        ?.also { Injector.register(it) }
+    private lateinit var config: EngineFzzyConfig
 
     override fun onInitializeClient() {
-        KeybindManager
-        AtlasSourceTypeRegistry.register(ID, TYPE)
-
+        config = FzzyConfigs.CLIENT
+        engineClient.options = config
+        ConfigApi.openScreen("engine.config")
+        KeybindManager.init()
         ClientPlayConnectionEvents.JOIN.register { handler, _, _ ->
             val entity = client.player!!
 
@@ -130,7 +140,7 @@ class MinecraftEngineClient : ClientModInitializer {
                 client.networkHandler?.let {
                     it.onDisconnected(
                         DisconnectionInfo(
-                            DisconnectText(e.message ?: "Unknown error").parseMiniMessage(),
+                            DisconnectText(e.message ?: "Unknown error"),
                             Optional.empty(),
                             Optional.empty()
                         )
@@ -148,44 +158,38 @@ class MinecraftEngineClient : ClientModInitializer {
             }
         }
 
-        HudLayerRegistrationCallback.EVENT.register { wrapper ->
-            wrapper.attachLayerAfter(
-                IdentifiedLayer.SUBTITLES,
-                IdentifiedLayer.of(
-                    EngineId("ui")
-                ) { context, counter ->
-                    val deltaTick = counter.getTickDelta(true)
-                    val vertexConsumers = (context as DrawContextAccessor).`engine$getVertexConsumerProvider`()
-                    val painter = MinecraftPainter(
-                        deltaTick,
-                        context.matrices,
-                        vertexConsumers,
-                        fontRenderer
-                    )
-                    context.matrices.push()
-                    renderer.renderScreen(painter, !client.gameRenderer.camera.isThirdPerson)
-                    context.matrices.pop()
-                }
+        HudElementRegistry.addLast(
+            EngineId("ui")
+        ) { context, tickCounter ->
+            val deltaTick = tickCounter.dynamicDeltaTicks
+            val painter = MinecraftPainter(
+                deltaTick,
+                context,
+                fontRenderer
             )
+            context.matrices.pushMatrix()
+            renderer.renderScreen(painter, !client.gameRenderer.camera.isThirdPerson)
+            uiRenderPipeline.render(context, deltaTick)
+            context.matrices.popMatrix()
         }
 
-        WorldRenderEvents.AFTER_ENTITIES.register { context ->
-            val gameSession = engineClient.gameSession ?: return@register
-            val tickDelta = context.tickCounter().getTickDelta(true)
-            val matrices = context.matrixStack()!!
-            val vertexConsumers = context.consumers()!!
-            val cameraPos = context.camera().pos
-            matrices.push()
-            matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-            val chatBubbleManager = gameSession.chatBubbleManager
-            gameSession.playerStorage.forEach {
-                val entity = (clientPlayerTable.getEntity(it) as? AbstractClientPlayerEntity) ?: return@forEach
-                val chatBubble = chatBubbleManager.getChatBubble(it) ?: return@forEach
-                chatBubbleManager.update(chatBubble, it, tickDelta)
-                renderChatBubbles(entity, tickDelta, chatBubble, engineClient.options.chatBubbleScale.get(), matrices, vertexConsumers)
-            }
-            matrices.pop()
-        }
+//        WorldRenderEvents.AFTER_ENTITIES.register { context ->
+//            val gameSession = engineClient.gameSession ?: return@register
+//            val tickDelta = MinecraftClient.renderTickCounter.dynamicDeltaTicks
+//            val matrices = context.matrices()
+//            val vertexConsumers = context.consumers()
+//            val cameraPos = context.gameRenderer().camera.pos
+//            matrices.push()
+//            matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+//            val chatBubbleManager = gameSession.chatBubbleManager
+//            gameSession.playerStorage.forEach {
+//                val entity = (clientPlayerTable.getEntity(it) as? AbstractClientPlayerEntity) ?: return@forEach
+//                val chatBubble = chatBubbleManager.getChatBubble(it) ?: return@forEach
+//                chatBubbleManager.update(chatBubble, it, tickDelta)
+//                renderChatBubbles(entity, tickDelta, chatBubble, engineClient.options.chatBubbleScale.get(), matrices, vertexConsumers)
+//            }
+//            matrices.pop()
+//        }
 
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
             val transport = ServerSingleplayerTransport(engineClient)

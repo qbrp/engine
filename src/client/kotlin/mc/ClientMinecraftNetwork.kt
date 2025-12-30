@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen
 import org.lain.engine.client.transport.ClientContext
 import org.lain.engine.client.transport.ClientPacketHandler
 import org.lain.engine.client.transport.ClientTransportContext
+import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.EnginePayload
 import org.lain.engine.mc.PayloadRegistry
 import org.lain.engine.mc.minecraftIdentifier
@@ -43,8 +44,7 @@ class ClientMinecraftNetwork : ClientTransportContext {
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    val titleScreen = TitleScreen()
-                    client.disconnect((MultiplayerScreen(titleScreen)))
+                    client.disconnect(DisconnectText(e.message ?: "Unknown error"))
                 }
             }
         }

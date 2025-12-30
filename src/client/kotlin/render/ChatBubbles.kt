@@ -1,5 +1,6 @@
 package org.lain.engine.client.render
 
+import org.lain.engine.client.EngineClient
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.chat.EngineChatMessage
 import org.lain.engine.player.Player
@@ -17,10 +18,10 @@ data class ChatBubble(
     var lifetime: Float
 )
 
-class ChatBubbleManager(private val options: EngineOptions) {
+class ChatBubbleManager(private val client: EngineClient) {
     private val bubbles = mutableMapOf<PlayerId, ChatBubble>()
-    private val chatBubbleHeight
-        get() = options.chatBubbleHeight
+    private val options
+        get() = client.options
 
     fun getChatBubble(player: Player) = bubbles[player.id]
 
@@ -29,7 +30,7 @@ class ChatBubbleManager(private val options: EngineOptions) {
             message,
             MutableVec3(player.pos),
             0,
-            options.chatBubbleLifeTime.get(),
+            options.chatBubbleLifeTime,
             0f
         )
     }
@@ -39,7 +40,7 @@ class ChatBubbleManager(private val options: EngineOptions) {
         val alpha = 1f - 0.8f.pow(dt)
         bubble.pos.mutateLerp(
             playerPos.x,
-            playerPos.y + chatBubbleHeight.get(),
+            playerPos.y + options.chatBubbleHeight,
             playerPos.z,
             alpha
         )

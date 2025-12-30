@@ -13,5 +13,5 @@ class MinecraftCamera(
     override val rotation: Quaternionf
         get() = client.gameRenderer.camera.rotation
     override val pos: Vec3
-        get() = client.cameraEntity?.pos?.engine() ?: VEC3_ZERO
+        get() = client.cameraEntity?.entityPos?.engine() ?: VEC3_ZERO
 }

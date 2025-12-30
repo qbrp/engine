@@ -2,6 +2,7 @@ package org.lain.engine.world
 
 import org.lain.engine.util.Component
 import org.lain.engine.util.ComponentManager
+import org.lain.engine.util.MutableVec3
 import org.lain.engine.util.Pos
 import org.lain.engine.util.Vec3
 import org.lain.engine.util.asVec3
@@ -9,9 +10,9 @@ import org.lain.engine.util.require
 
 data class Location(
     var world: World,
-    var position: Vec3
+    val position: MutableVec3
 ) : Component {
-    constructor(world: World, pos: Pos) : this(world, pos.asVec3())
+    constructor(world: World, pos: Pos) : this(world, MutableVec3(pos))
 
     val x get() = position.x
     val y get() = position.y

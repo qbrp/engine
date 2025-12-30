@@ -8,8 +8,6 @@ import org.lain.engine.util.engineId
 import org.lain.engine.util.parseMiniMessage
 import java.util.UUID
 
-fun DisconnectText(reason: String) = "<red>[ENGINE] ${reason}</red>"
-
 @JvmInline
 value class SessionId(val id: UUID)
 
@@ -38,7 +36,7 @@ class ServerConnectionManager {
     fun disconnect(connectionSession: ConnectionSession, reason: String)  {
         disconnectInternal(
             connectionSession.playerId,
-            DisconnectText(reason)
+            reason
         )
     }
 }

@@ -1,21 +1,21 @@
 package org.lain.engine.util
 
 import com.google.gson.JsonParser
+import com.mojang.serialization.JsonOps
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
-import net.minecraft.registry.DynamicRegistryManager
-import net.minecraft.registry.RegistryWrapper
+import net.minecraft.text.OrderedText
 import net.minecraft.text.Style
 import net.minecraft.text.Text
-import kotlin.collections.plus
+import net.minecraft.text.TextCodecs
+import net.minecraft.util.Colors
+import net.minecraft.util.Formatting
 
 fun String.escapeSlashes(): String {
     return replace("\\", "\\\\")
 }
 
-fun String.parseMiniMessage(
-    wrapperLookup: RegistryWrapper.WrapperLookup = DynamicRegistryManager.EMPTY
-): Text {
+fun String.parseMiniMessage(): Text {
     val text = this
         .escapeSlashes()
         .replace("§", "&")
@@ -40,9 +40,11 @@ fun String.parseMiniMessage(
         .replace("&o", "<italic>")
 
     val component = MiniMessage.miniMessage().deserialize(text)
-    val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component)).deepCopy()
+    val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))
 
-    return Text.Serialization.fromJsonTree(jsonObject, wrapperLookup)!!
+    return TextCodecs.CODEC
+        .parse(JsonOps.INSTANCE, jsonObject)
+        .getOrThrow()
 }
 
 fun main() {
@@ -210,7 +212,6 @@ fun EngineText.toMinecraft(): Text {
         this.style.italic?.let { style = style.withItalic(it) }
         this.style.strike?.let { style = style.withStrikethrough(it) }
         this.style.obfuscated?.let { style = style.withObfuscated(it) }
-        this.style.shadow?.let { style = style.withShadowColor(it) }
         style
     }
     for (sibling in siblings) {
@@ -221,17 +222,179 @@ fun EngineText.toMinecraft(): Text {
 
 data class EngineTextStyle(
     val color: Int? = null,
-    val scale: Float? = null,
     val bold: Boolean? = null,
     val underline: Boolean? = null,
     val italic: Boolean? = null,
     val strike: Boolean? = null,
     val obfuscated: Boolean? = null,
-    val shadow: Int? = null,
+    val shadow: EngineTextShadow? = null,
 )
+
+data class EngineTextShadow(val color: Int?, val enabled: Boolean)
 
 data class EngineText(
     val content: String,
-    val style: EngineTextStyle,
-    val siblings: List<EngineText>
+    val style: EngineTextStyle = EngineTextStyle(),
+    val siblings: List<EngineText> = listOf()
 )
+
+fun splitEngineText(node: EngineText, by: String): List<EngineText> {
+    val newChildren = node.siblings.flatMap { splitEngineText(it, by) }
+
+    if (newChildren.isNotEmpty()) {
+        return listOf(node.copy(siblings = newChildren))
+    }
+
+    return node.content
+        .split(by)
+        .filter { it.isNotEmpty() }
+        .map { part ->
+            node.copy(
+                content = part,
+                siblings = emptyList()
+            )
+        }
+}
+
+fun splitEngineTextLinear(node: EngineText, by: String): List<EngineOrderedText> {
+    val output = mutableListOf<EngineOrderedText>()
+    visitEngineText(node) { text ->
+        val split = text.content.split(by)
+        output.addAll(split.map { text.deepCopy(content = it + by) })
+    }
+    return output
+}
+
+fun resolveText(ordered: MutableEngineOrderedText, text: EngineText) {
+    val style = text.style
+    ordered.content = text.content
+    style.color?.let { ordered.color = it }
+    style.strike?.let { ordered.strike = it }
+    style.underline?.let { ordered.underline = it }
+    style.italic?.let { ordered.italic = it }
+    style.obfuscated?.let { ordered.obfuscated = it }
+    style.bold?.let { ordered.bold = it }
+    style.shadow?.let { ordered.shadow = if (it.enabled) it.color else null }
+}
+
+class EngineOrderedTextSequence(val parts: List<EngineOrderedText>) : List<EngineOrderedText> by parts
+
+interface EngineOrderedText {
+    val content: String
+    val color: Int
+    val bold: Boolean
+    val underline: Boolean
+    val italic: Boolean
+    val strike: Boolean
+    val obfuscated: Boolean
+    val shadow: Int?
+
+    fun toText() = EngineText(
+        content,
+        EngineTextStyle(
+            color,
+            bold,
+            underline,
+            italic,
+            strike,
+            obfuscated,
+            if (shadow != null) {
+                EngineTextShadow(shadow, true)
+            } else {
+                EngineTextShadow(null, enabled = false)
+            }
+        )
+    )
+
+    fun deepCopy(content: String = this.content): EngineOrderedText
+}
+
+fun EngineOrderedText.toMinecraft(): OrderedText {
+    var style = Style.EMPTY
+    var i = 0
+    this.color.let { style = style.withColor(it) }
+    this.bold.let { style = style.withBold(it) }
+    this.underline.let { style = style.withUnderline(it) }
+    this.italic.let { style = style.withItalic(it) }
+    this.strike.let { style = style.withStrikethrough(it) }
+    this.obfuscated.let { style = style.withObfuscated(it) }
+    this.shadow?.let { style = style.withShadowColor(it) }
+
+    return OrderedText { visitor ->
+        while (i < content.length) {
+            visitor.accept(i, style, content[i].code)
+            i++
+        }
+        false
+    }
+}
+
+fun EngineOrderedTextSequence.toMinecraft(): OrderedText {
+    return OrderedText { visitor ->
+        var globalIndex = 0
+
+        for (node in this@toMinecraft) {
+            var style = Style.EMPTY
+            node.color.let { style = style.withColor(it) }
+            style = style.withBold(node.bold)
+            style = style.withUnderline(node.underline)
+            style = style.withItalic(node.italic)
+            style = style.withStrikethrough(node.strike)
+            style = style.withObfuscated(node.obfuscated)
+            node.shadow?.let { style = style.withShadowColor(it) }
+
+            var i = 0
+            val text = node.content
+
+            while (i < text.length) {
+                val ch = text[i]
+                if (!visitor.accept(globalIndex, style, ch.code)) {
+                    return@OrderedText false
+                }
+                i++
+                globalIndex++
+            }
+        }
+
+        true
+    }
+}
+
+data class MutableEngineOrderedText(
+    override var content: String = "",
+    override var color: Int = Colors.WHITE,
+    override var bold: Boolean = false,
+    override var underline: Boolean = false,
+    override var italic: Boolean = false,
+    override var strike: Boolean = false,
+    override var obfuscated: Boolean = false,
+    override var shadow: Int? = null
+) : EngineOrderedText {
+    override fun deepCopy(content: String): EngineOrderedText {
+        return copy(content = content)
+    }
+}
+
+fun visitEngineText(
+    node: EngineText,
+    ordered: MutableEngineOrderedText = MutableEngineOrderedText(),
+    visitor: (EngineOrderedText) -> Unit
+) {
+    val snapshot = ordered.copy()
+
+    resolveText(ordered, node)
+    visitor(ordered)
+
+    node.siblings.forEach { child ->
+        visitEngineText(child, ordered, visitor)
+    }
+
+    ordered.content = snapshot.content
+    ordered.color = snapshot.color
+    ordered.bold = snapshot.bold
+    ordered.underline = snapshot.underline
+    ordered.italic = snapshot.italic
+    ordered.strike = snapshot.strike
+    ordered.obfuscated = snapshot.obfuscated
+    ordered.shadow = snapshot.shadow
+}

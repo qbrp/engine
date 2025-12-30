@@ -19,9 +19,7 @@ data class ClientboundServerSettings(
         fun of (server: EngineServer, player: Player): ClientboundServerSettings {
             return ClientboundServerSettings(
                 server.globals.playerSynchronizationRadius,
-                server.chat.settings.let {
-                    ClientChatSettings.of(server.chat.settings, player)
-                },
+                ClientChatSettings.of(server.globals.chatSettings, player),
                 server.globals.movementSettings,
                 ClientDefaultAttributes.of(server.globals.defaultPlayerAttributes),
             )

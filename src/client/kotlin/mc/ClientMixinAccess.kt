@@ -6,6 +6,7 @@ import org.lain.engine.util.Injector
 
 object ClientMixinAccess {
     private val client by injectClient()
+    private var resources: ResourceList? = null
 
     fun isEngineLoaded(): Boolean {
         val isPlayerInstantiated = client.gameSession?.mainPlayer != null
@@ -18,7 +19,7 @@ object ClientMixinAccess {
 
     fun isScrollAllowed() = client.gameSession?.movementManager?.locked ?: true
 
-    fun isCrosshairAttackIndicatorVisible() = client.options.crosshairIndicatorVisible.get()
+    fun isCrosshairAttackIndicatorVisible() = client.options.crosshairIndicatorVisible
 
     fun onKey(key: Int) {
         client.onKey(key)
@@ -30,10 +31,11 @@ object ClientMixinAccess {
     }
 
     fun getResourceList(): ResourceList {
-        return Injector.resolve(ResourceList::class)
+        return resources ?: findAssets().also { resources = it }
     }
 
     fun createResourceList(): ResourceList {
-        return findAssets().also { Injector.register(it) }
+        resources = findAssets()
+        return resources!!
     }
 }

@@ -1,5 +1,6 @@
 package org.lain.engine.client.mc
 
+import me.fzzyhmstrs.fzzy_config.api.ConfigApi
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.minecraft.client.gui.screen.Screen
@@ -7,6 +8,8 @@ import net.minecraft.client.option.KeyBinding
 import net.minecraft.client.util.InputUtil
 import org.lain.engine.CommonEngineServerMod
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.resources.toEngineIdentifier
+import org.lain.engine.util.EngineId
 import org.lain.engine.util.inject
 import org.lwjgl.glfw.GLFW
 
@@ -61,7 +64,6 @@ object KeybindManager {
             options.hudHidden = !options.hudHidden
             client.toggleHudHiding()
         },
-        category = KeyBinding.UI_CATEGORY
     ).register()
 
     val ALLOW_SPEED_INTENTION_CHANGE = KeybindSettings(
@@ -78,8 +80,7 @@ object KeybindManager {
         id = KeybindId("open-settings"),
         key = GLFW.GLFW_KEY_O,
         onPress = {
-            val configScreen by inject<Screen>()
-            MinecraftClient.setScreen(configScreen)
+            ConfigApi.openScreen("engine.config")
         }
     ).register()
 
@@ -102,7 +103,7 @@ object KeybindManager {
                 keybinding.name,
                 type,
                 keybinding.key,
-                keybinding.category
+                CATEGORY,
             )
         )
         return EngineKeybind(keybinding, fabricKeybinding)
@@ -116,10 +117,11 @@ object KeybindManager {
             val modifiers = settings.modifiers
             val dev = settings.dev
             val requireWorld = settings.requireWorld
+            val isControlDown = !InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
 
             if (dev && !engineClient.developerMode) continue
             if (MinecraftClient.world == null && requireWorld) continue
-            if (modifiers.contains(KeyBindModifier.Control) && !Screen.hasControlDown()) continue
+            if (modifiers.contains(KeyBindModifier.Control) && isControlDown) continue
 
             val isPressed = keybind.isPressed
             val wasPressed = keybind.wasPressed
@@ -138,7 +140,10 @@ object KeybindManager {
         }
     }
 
+    fun init() {}
+
     private fun KeybindSettings.register(): EngineKeybind = registerKeybinding(this)
+    private val CATEGORY = KeyBinding.Category.create(EngineId("category"))
 }
 
 @JvmInline
@@ -161,7 +166,6 @@ data class KeybindSettings(
     val onHold: KeyBindHandler = {},
     val onRelease: KeyBindHandler = {},
     val requireWorld: Boolean = false,
-    val category: String = CommonEngineServerMod.MOD_ID,
 )
 
 data class EngineKeybind(

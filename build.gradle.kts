@@ -34,14 +34,9 @@ loom {
 }
 
 repositories {
-    maven("https://maven.isxander.dev/releases") {
-        name = "Xander Maven"
-    }
-    maven("https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/") {
-        name = "GeckoLib"
-        content {
-            includeGroup("software.bernie.geckolib")
-        }
+    maven {
+        name = "FzzyMaven"
+        url = uri("https://maven.fzzyhmstrs.me/")
     }
 }
 
@@ -60,24 +55,22 @@ dependencies {
     mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
     modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
+    modImplementation("me.fzzyhmstrs:fzzy_config:0.7.2+1.21.9")
 
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")!!)
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
 
     // Kyori Adventure
     val adventure = project.property("adventure_lib_version")
+    val adventurePlatform = project.property("adventure_platform_version")
     include(implementation("net.kyori:adventure-text-minimessage:$adventure")!!)
     include(implementation("net.kyori:adventure-text-serializer-gson:$adventure")!!)
-    include(implementation("net.kyori:adventure-text-serializer-json:$adventure")!!)
     include(implementation("net.kyori:adventure-api:$adventure")!!)
-    modImplementation(include("net.kyori:adventure-platform-fabric:6.3.0")!!)
+    modImplementation(include("net.kyori:adventure-platform-fabric:$adventurePlatform")!!)
 
     // Kaml
     shaded("com.charleskorn.kaml:kaml:0.104.0")
     shaded("de.javagl:obj:0.4.0")
-
-    // Config
-    modImplementation("dev.isxander:yet-another-config-lib:${project.property("yacl_version")}")
 
     // Permission API
     modImplementation("me.lucko:fabric-permissions-api:${project.property("fabric_permissions_version")}")

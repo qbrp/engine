@@ -1,6 +1,6 @@
 package org.lain.engine.client.control
 
-import org.lain.engine.client.ClientHandler
+import org.lain.engine.client.handler.ClientHandler
 
 class MovementManager(
     private val handler: ClientHandler

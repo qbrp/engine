@@ -1,26 +1,7 @@
 package org.lain.engine.client.render
 
-import net.minecraft.client.render.RenderLayer
-import org.joml.Quaternionf
-import org.lain.engine.client.chat.EngineChatMessage
-import org.lain.engine.player.Player
-import org.lain.engine.util.Pos
-
-data class EngineText(
-    val content: String,
-    val color: Int? = null,
-    val scale: Float = 1f,
-    val bold: Boolean = false,
-    val underline: Boolean = false,
-    val italic: Boolean = false,
-    val strike: Boolean = false
-)
-
-data class TextRenderSettings(val wrap: Float? = null) {
-    companion object {
-        val DEFAULT = TextRenderSettings()
-    }
-}
+import org.lain.engine.util.EngineOrderedTextSequence
+import org.lain.engine.util.EngineText
 
 data class EngineSprite(
     val path: String,
@@ -32,10 +13,9 @@ data class EngineSprite(
 )
 
 interface FontRenderer {
-    fun getTextHeight(
-        text: EngineText,
-        settings: TextRenderSettings = TextRenderSettings.DEFAULT
-    ): Float
+    val fontHeight: Float
+    fun getTextWidth(text: EngineText): Float
+    fun breakTextByLines(text: EngineText, width: Float): List<EngineOrderedTextSequence>
 }
 
 interface Painter : FontRenderer {
@@ -46,9 +26,7 @@ interface Painter : FontRenderer {
     fun disableScissor()
 
     // Примитивы
-    fun fill(x1: Float, y1: Float, x2: Float, y2: Float, color: Int, z: Float = 0f, layer: RenderLayer = RenderLayer.getGui())
-    fun fillGradientVertical(x1: Float, y1: Float, x2: Float, y2: Float, z: Float = 0f, startColor: Int, endColor: Int)
-    fun fillGradientHorizontal(x1: Float, y1: Float, x2: Float, y2: Float, z: Float = 0f, startColor: Int, endColor: Int)
+    fun fill(x1: Float, y1: Float, x2: Float, y2: Float, color: Int, color2: Int = color)
     fun drawBorder(x: Float, y: Float, width: Float, height: Float, z: Float = 0f, color: Int)
 
     // Фигуры
@@ -65,7 +43,7 @@ interface Painter : FontRenderer {
         fill: Float = 1f,
         startAngle: Float = 0f,
         endAngle: Float = 360f,
-        segments: Int = 80,
+        segments: Int = 150,
     )
 
     // Текстуры
@@ -75,23 +53,10 @@ interface Painter : FontRenderer {
         y: Float,
         width: Float,
         height: Float,
-        z: Float = 0f,
     )
 
-    // Текст
-    fun drawText(
-        text: EngineText,
-        x: Float,
-        y: Float,
-        settings: TextRenderSettings = TextRenderSettings.DEFAULT,
-        z: Float = 0f,
-        backgroundOpacity: Int = 0,
-        light: Int = 0xF000F0
-    ): Vec2
-
     fun push()
-    fun translate(x: Float, y: Float, z: Float = 0f)
-    fun multiply(rotation: Quaternionf)
-    fun scale(x: Float, y: Float, z: Float)
+    fun translate(x: Float, y: Float)
+    fun scale(x: Float, y: Float)
     fun pop()
 }

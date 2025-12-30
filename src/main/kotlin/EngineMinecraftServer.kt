@@ -131,8 +131,8 @@ fun serverMinecraftPlayerInstance(
 
     return serverPlayerInstance(
         PlayerInstantiateSettings(
-            engineServer.getWorld(entity.world.engine),
-            entity.pos.engine(),
+            engineServer.getWorld(entity.entityWorld.engine),
+            entity.entityPos.engine(),
             DisplayName(
                 Username(entity.name),
                 persistentPlayerData?.customName
