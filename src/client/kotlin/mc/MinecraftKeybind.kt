@@ -1,6 +1,5 @@
 package org.lain.engine.client.mc
 
-import me.fzzyhmstrs.fzzy_config.api.ConfigApi
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.minecraft.client.gui.screen.Screen
@@ -8,90 +7,32 @@ import net.minecraft.client.option.KeyBinding
 import net.minecraft.client.util.InputUtil
 import org.lain.engine.CommonEngineServerMod
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.control.ADJUST_CHAT_VOLUME
+import org.lain.engine.client.control.ALLOW_SPEED_INTENTION_CHANGE
+import org.lain.engine.client.control.DECREASE_CHAT_VOLUME
+import org.lain.engine.client.control.DEVELOPER_MODE
+import org.lain.engine.client.control.HIDE_INTERFACE
+import org.lain.engine.client.control.RESET_CHAT_VOLUME
+import org.lain.engine.client.control.TOGGLE_CHAT_SPY
 import org.lain.engine.client.resources.toEngineIdentifier
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.inject
 import org.lwjgl.glfw.GLFW
 
-object KeybindManager {
+class KeybindManager(
+    private val category: KeyBinding.Category = KeyBinding.Category.create(EngineId("category"))
+) {
     private val keybinds = mutableMapOf<KeybindId, EngineKeybind>()
+    val adjustChatVolume = ADJUST_CHAT_VOLUME.register()
+    val decreaseChatVolume = DECREASE_CHAT_VOLUME.register()
+    val resetChatVolume = RESET_CHAT_VOLUME.register()
 
-    val ADJUST_CHAT_VOLUME = KeybindSettings(
-        name = "Увеличить громкость сообщения",
-        id = KeybindId("adjust-inputVolume"),
-        modifiers = listOf(KeyBindModifier.Control),
-        key = GLFW.GLFW_KEY_2,
-        onHold = { client ->
-            client.gameSession?.vocalRegulator?.increase(0.05f)
-        },
-    ).register()
-
-    val DECREASE_CHAT_VOLUME = KeybindSettings(
-        name = "Уменьшить громкость сообщения",
-        id = KeybindId("decrease-inputVolume"),
-        modifiers = listOf(KeyBindModifier.Control),
-        key = GLFW.GLFW_KEY_3,
-        onHold = { client ->
-            client.gameSession?.vocalRegulator?.decrease(0.05f)
-        }
-    ).register()
-
-    val RESET_CHAT_VOLUME = KeybindSettings(
-        name = "Сбросить громкость сообщения",
-        id = KeybindId("reset-inputVolume"),
-        modifiers = listOf(KeyBindModifier.Control),
-        key = GLFW.GLFW_KEY_0,
-        onPress = { client ->
-            client.gameSession?.vocalRegulator?.reset()
-        }
-    ).register()
-
-    val DEVELOPER_MODE = KeybindSettings(
-        name = "Режим разработчика",
-        id = KeybindId("dev"),
-        GLFW.GLFW_KEY_F12,
-        onPress = { client ->
-            client.toggleDeveloperMode()
-        }
-    ).register()
-
-    val HIDE_INTERFACE = KeybindSettings(
-        name = "Скрыть интерфейс",
-        id = KeybindId("hide_hud"),
-        GLFW.GLFW_KEY_F1,
-        onPress = { client ->
-            val options = MinecraftClient.options
-            options.hudHidden = !options.hudHidden
-            client.toggleHudHiding()
-        },
-    ).register()
-
-    val ALLOW_SPEED_INTENTION_CHANGE = KeybindSettings(
-        name = "Смена скорости ходьбы",
-        id = KeybindId("speed"),
-        GLFW.GLFW_MOUSE_BUTTON_MIDDLE,
-        onHold = { client -> client.gameSession?.movementManager?.locked = false },
-        onRelease = { client -> client.gameSession?.movementManager?.locked = true },
-        isMouse = true
-    ).register()
-
-    val OPEN_OPTIONS = KeybindSettings(
-        name = "Настройки",
-        id = KeybindId("open-settings"),
-        key = GLFW.GLFW_KEY_O,
-        onPress = {
-            ConfigApi.openScreen("engine.config")
-        }
-    ).register()
-
-    val TOGGLE_CHAT_SPY = KeybindSettings(
-        name = "Переключить слежку",
-        id = KeybindId("toggle-spy"),
-        key = GLFW.GLFW_KEY_N,
-        onPress = { client ->
-            client.gameSession?.chatManager?.toggleSpy()
-        }
-    ).register()
+    init {
+        DEVELOPER_MODE.register()
+        HIDE_INTERFACE.register()
+        ALLOW_SPEED_INTENTION_CHANGE.register()
+        TOGGLE_CHAT_SPY.register()
+    }
 
     fun registerKeybinding(keybinding: KeybindSettings): EngineKeybind {
         val type = when(keybinding.isMouse) {
@@ -103,7 +44,7 @@ object KeybindManager {
                 keybinding.name,
                 type,
                 keybinding.key,
-                CATEGORY,
+                category,
             )
         )
         return EngineKeybind(keybinding, fabricKeybinding)
@@ -117,11 +58,11 @@ object KeybindManager {
             val modifiers = settings.modifiers
             val dev = settings.dev
             val requireWorld = settings.requireWorld
-            val isControlDown = !InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
+            val isControlDown = InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
 
             if (dev && !engineClient.developerMode) continue
             if (MinecraftClient.world == null && requireWorld) continue
-            if (modifiers.contains(KeyBindModifier.Control) && isControlDown) continue
+            if (modifiers.contains(KeyBindModifier.Control) && !isControlDown) continue
 
             val isPressed = keybind.isPressed
             val wasPressed = keybind.wasPressed
@@ -140,10 +81,7 @@ object KeybindManager {
         }
     }
 
-    fun init() {}
-
     private fun KeybindSettings.register(): EngineKeybind = registerKeybinding(this)
-    private val CATEGORY = KeyBinding.Category.create(EngineId("category"))
 }
 
 @JvmInline

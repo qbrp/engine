@@ -43,11 +43,11 @@ public class KeyboardMixin {
     public InputUtil.Key engine$invokeChatScreenKeybindings(KeyInput input) {
         InputUtil.Key key = InputUtil.fromKeyCode(input);
         if (client.currentScreen instanceof ChatScreen) {
-            KeybindManager keybindManager = KeybindManager.INSTANCE;
+            KeybindManager keybindManager = ClientMixinAccess.INSTANCE.getKeybindManager();
             KeyBinding[] keybindings = new KeyBinding[] {
-                    keybindManager.getADJUST_CHAT_VOLUME().getMinecraft(),
-                    keybindManager.getDECREASE_CHAT_VOLUME().getMinecraft(),
-                    keybindManager.getRESET_CHAT_VOLUME().getMinecraft()
+                    keybindManager.getAdjustChatVolume().getMinecraft(),
+                    keybindManager.getDecreaseChatVolume().getMinecraft(),
+                    keybindManager.getResetChatVolume().getMinecraft()
             };
 
             for (KeyBinding keybinding : keybindings) {

@@ -1,65 +1,59 @@
 package org.lain.engine.client.mc
 
-import me.fzzyhmstrs.fzzy_config.api.ConfigApi
-import me.fzzyhmstrs.fzzy_config.api.FileType
-import me.fzzyhmstrs.fzzy_config.api.RegisterType
-import me.fzzyhmstrs.fzzy_config.config.Config
-import me.fzzyhmstrs.fzzy_config.config.ConfigSection
-import me.fzzyhmstrs.fzzy_config.validation.misc.ValidatedBoolean
-import me.fzzyhmstrs.fzzy_config.validation.number.ValidatedFloat
-import me.fzzyhmstrs.fzzy_config.validation.number.ValidatedInt
-import net.minecraft.network.message.SentMessage
+import com.daqem.yamlconfig.api.config.ConfigExtension
+import com.daqem.yamlconfig.api.config.ConfigType
+import com.daqem.yamlconfig.api.config.IConfig
+import com.daqem.yamlconfig.api.config.entry.IConfigEntry
+import com.daqem.yamlconfig.impl.config.ConfigBuilder
+import org.lain.engine.CommonEngineServerMod
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.util.EngineId
 
-class EngineFzzyConfig : Config(ID), EngineOptions {
-    val chat = ChatSection()
-    class ChatSection : ConfigSection() {
-        val chatBubbleScaleProperty = ValidatedFloat(1f, 3f, 0.5f)
-        val chatBubbleHeightProperty = ValidatedFloat(2.3f, 10f, 1f)
-        val chatBubbleLineWidthProperty = ValidatedInt(200, 1000, 50)
-        val chatBubbleLifeTimeProperty = ValidatedInt(200, 2400, 2)
-        val chatInputShakingForceProperty = ValidatedFloat(3f, 5f, 0f)
-        val chatInputShakingThresholdProperty = ValidatedFloat(0.5f, 1f, 0f)
-    }
+class EngineYamlConfig(
+    builder: ConfigBuilder = ConfigBuilder(
+        CommonEngineServerMod.MOD_ID,
+        "engine-config",
+        ConfigExtension.YAML,
+        ConfigType.CLIENT
+    )
+) : EngineOptions {
 
-    val crosshair = CrosshairSection()
-    class CrosshairSection : ConfigSection() {
-        val arcRadiusProperty = ValidatedFloat(5f, 10f, 0.05f)
-        val arcThicknessProperty = ValidatedFloat(5f, 10f, 0.05f)
-        val arcOffsetXProperty = ValidatedFloat(0f, 10f, -10f)
-        val arcOffsetYProperty = ValidatedFloat(0f, 10f, -10f)
-        val crosshairIndicatorVisible = ValidatedBoolean(false)
-    }
+    private val chatBubbleScaleProperty = builder.defineFloat("chat.chat-bubble-scale", 1f, 0.5f, 3f)
+    private val chatBubbleHeightProperty = builder.defineFloat("chat.chat-bubble-height", 2.3f, 1f, 10f)
+    private val chatBubbleLineWidthProperty = builder.defineInteger("chat.chat-bubble-line-width", 200, 50, 1000)
+    private val chatBubbleLifeTimeProperty = builder.defineInteger("chat.chat-bubble-life-time", 200, 2, 2400)
+    private val chatInputShakingForceProperty = builder.defineFloat("chat.chat-input-shaking-force", 3f, 0f, 5f)
+    private val chatInputShakingThresholdProperty = builder.defineFloat("chat.chat-input-shaking-threshold", 0.5f, 0f, 1f)
+
+    private val arcRadiusProperty = builder.defineFloat("crosshair.arc-radius", 5f, 0.05f, 10f)
+    private val arcThicknessProperty = builder.defineFloat("crosshair.arc-thickness", 5f, 0.05f, 10f)
+    private val arcOffsetXProperty = builder.defineFloat("crosshair.arc-offset-x", 0f, -10f, 10f)
+    private val arcOffsetYProperty = builder.defineFloat("crosshair.arc-offset-y", 0f, -10f, 10f)
+    private val crosshairIndicatorVisibleProperty = builder.defineBoolean("crosshair.indicator-visible", false)
 
     override val chatBubbleScale: Float
-        get() = chat.chatBubbleScaleProperty.get()
+        get() = chatBubbleScaleProperty.get()
     override val chatBubbleHeight: Float
-        get() = chat.chatBubbleHeightProperty.get()
+        get() = chatBubbleHeightProperty.get()
     override val chatBubbleLineWidth: Int
-        get() = chat.chatBubbleLineWidthProperty.get()
+        get() = chatBubbleLineWidthProperty.get()
     override val chatBubbleLifeTime: Int
-        get() = chat.chatBubbleLifeTimeProperty.get()
+        get() = chatBubbleLifeTimeProperty.get()
     override val chatInputShakingForce: Float
-        get() = chat.chatInputShakingForceProperty.get()
+        get() = chatInputShakingForceProperty.get()
     override val chatInputShakingThreshold: Float
-        get() = chat.chatInputShakingThresholdProperty.get()
+        get() = chatInputShakingThresholdProperty.get()
+
     override val arcRadius: Float
-        get() = crosshair.arcRadiusProperty.get()
+        get() = arcRadiusProperty.get()
     override val arcThickness: Float
-        get() = crosshair.arcThicknessProperty.get()
+        get() = arcThicknessProperty.get()
     override val arcOffsetX: Float
-        get() = crosshair.arcOffsetXProperty.get()
+        get() = arcOffsetXProperty.get()
     override val arcOffsetY: Float
-        get() = crosshair.arcOffsetYProperty.get()
+        get() = arcOffsetYProperty.get()
     override val crosshairIndicatorVisible: Boolean
-        get() = crosshair.crosshairIndicatorVisible.get()
+        get() = crosshairIndicatorVisibleProperty.get()
 
-    companion object {
-        val ID = EngineId("config")
-    }
-}
-
-object FzzyConfigs {
-    var CLIENT = ConfigApi.registerAndLoadConfig(::EngineFzzyConfig, RegisterType.CLIENT)
+    val config: IConfig = builder.build()
 }

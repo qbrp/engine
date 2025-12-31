@@ -31,7 +31,7 @@
     "requireAnnotations": true
   },
   "mixins": [
-    "ConfigMixin",
+    "AbstractDecorationEntityMixin",
     "ItemStackMixin",
     "resource.SimpleResourceReloadMixin"
   ]

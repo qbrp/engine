@@ -3,6 +3,7 @@ package org.lain.engine.client.mc
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.util.Injector
+import org.lain.engine.util.injectValue
 
 object ClientMixinAccess {
     private val client by injectClient()
@@ -38,4 +39,6 @@ object ClientMixinAccess {
         resources = findAssets()
         return resources!!
     }
+
+    fun getKeybindManager(): KeybindManager = injectValue()
 }

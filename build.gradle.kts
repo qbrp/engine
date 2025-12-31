@@ -34,9 +34,20 @@ loom {
 }
 
 repositories {
-    maven {
-        name = "FzzyMaven"
-        url = uri("https://maven.fzzyhmstrs.me/")
+    exclusiveContent {
+        forRepository {
+            maven("https://api.modrinth.com/maven") {
+                name = "Modrinth"
+            }
+        }
+        filter {
+            includeGroup("maven.modrinth")
+        }
+    }
+    maven("https://cursemaven.com") {
+        content {
+            includeGroup("curse.maven")
+        }
     }
 }
 
@@ -55,7 +66,9 @@ dependencies {
     mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
     modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
-    modImplementation("me.fzzyhmstrs:fzzy_config:0.7.2+1.21.9")
+    modImplementation("maven.modrinth:yaml-config:1.3.2-1.21.9-fabric")
+    modApi("maven.modrinth:architectury-api:18.0.5+fabric")
+    modApi("curse.maven:ui-933200:7061587")
 
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")!!)
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")

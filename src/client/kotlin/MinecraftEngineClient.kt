@@ -1,6 +1,5 @@
 package org.lain.engine.client
 
-import me.fzzyhmstrs.fzzy_config.api.ConfigApi
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -19,9 +18,8 @@ import org.lain.engine.client.mc.MinecraftAudioManager
 import org.lain.engine.client.mc.MinecraftCamera
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.ClientMinecraftNetwork
-import org.lain.engine.client.mc.EngineFzzyConfig
 import org.lain.engine.client.mc.EngineUiRenderPipeline
-import org.lain.engine.client.mc.FzzyConfigs
+import org.lain.engine.client.mc.EngineYamlConfig
 import org.lain.engine.client.mc.KeybindManager
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.mc.MinecraftFontRenderer
@@ -69,6 +67,7 @@ class MinecraftEngineClient : ClientModInitializer {
     private val camera = MinecraftCamera(client)
     val uiRenderPipeline = EngineUiRenderPipeline(client, fontRenderer)
 
+    private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
         window,
         fontRenderer,
@@ -92,17 +91,15 @@ class MinecraftEngineClient : ClientModInitializer {
     )
         .also { Injector.register(it) }
 
+    private lateinit var keybindManager: KeybindManager
     private var server: IntegratedEngineMinecraftServer? = null
     private val renderer
         get() = engineClient.renderer
 
-    private lateinit var config: EngineFzzyConfig
-
     override fun onInitializeClient() {
-        config = FzzyConfigs.CLIENT
         engineClient.options = config
-        ConfigApi.openScreen("engine.config")
-        KeybindManager.init()
+        keybindManager = KeybindManager()
+        Injector.register(keybindManager)
         ClientPlayConnectionEvents.JOIN.register { handler, _, _ ->
             val entity = client.player!!
 
@@ -134,7 +131,7 @@ class MinecraftEngineClient : ClientModInitializer {
             try {
                 window.handleResize()
                 engineClient.tick()
-                KeybindManager.tick(engineClient)
+                keybindManager.tick(engineClient)
             } catch (e: Throwable) {
                 e.printStackTrace()
                 client.networkHandler?.let {
