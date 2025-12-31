@@ -4,8 +4,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.lain.engine.chat.CHAT_LOGGER
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.EngineChatSettings
+import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.Player
@@ -20,6 +22,7 @@ import org.lain.engine.transport.Packet
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.packet.GlobalAcknowledgeListener
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_JOIN_GAME_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT
@@ -32,6 +35,7 @@ import org.lain.engine.transport.packet.CLIENTBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.transport.packet.ClientboundServerSettings
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.ClientboundWorldData
+import org.lain.engine.transport.packet.DeleteChatMessagePacket
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.transport.packet.JoinGamePacket
 import org.lain.engine.transport.packet.OutcomingChatMessagePacket
@@ -44,6 +48,7 @@ import org.lain.engine.transport.packet.PlayerDestroyPacket
 import org.lain.engine.transport.packet.PlayerJoinServerPacket
 import org.lain.engine.transport.packet.PlayerSpeedIntentionPacket
 import org.lain.engine.transport.packet.SERVERBOUND_CHAT_MESSAGE_ENDPOINT
+import org.lain.engine.transport.packet.SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_DEVELOPER_MODE_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_VOLUME_PACKET
@@ -120,6 +125,7 @@ class ServerHandler(
         SERVERBOUND_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessage(ctx.sender, text, channel) }
         SERVERBOUND_DEVELOPER_MODE_PACKET.registerReceiver { ctx -> onDeveloperModeEnabled(ctx.sender, enabled) }
         SERVERBOUND_VOLUME_PACKET.registerReceiver { ctx -> onPlayerVolume(ctx.sender, volume) }
+        SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessageDelete(ctx.sender, message) }
     }
 
     fun invalidate() {
@@ -143,6 +149,17 @@ class ServerHandler(
 
     private fun onDeveloperModeEnabled(playerId: PlayerId, enabled: Boolean) = updatePlayer(playerId) {
         developerMode = enabled
+    }
+
+    private fun onChatMessageDelete(by: PlayerId, messageId: MessageId) {
+        val player = playerStorage.get(by) ?: return
+        val chat = server.chat
+        val outcomingMessage = chat.outcomingMessageHistory[messageId] ?: return
+        if (outcomingMessage.source.author.player?.id != player.id) return
+        CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.broadcast(
+            DeleteChatMessagePacket(messageId)
+        )
+        CHAT_LOGGER.info("Удалено сообщение игроком $by: $outcomingMessage")
     }
 
     fun synchronizePlayers() {
@@ -226,7 +243,9 @@ class ServerHandler(
                     message.speech,
                     message.volume,
                     message.isSpy,
-                    message.placeholders
+                    message.placeholders,
+                    message.head,
+                    message.id
                 ),
                 player.id
             )

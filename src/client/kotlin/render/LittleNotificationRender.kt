@@ -12,7 +12,7 @@ import org.lain.engine.client.render.ui.Sizing
 import org.lain.engine.client.render.ui.SpriteSizing
 import org.lain.engine.client.render.ui.TextArea
 import org.lain.engine.client.render.ui.UiContext
-import org.lain.engine.client.render.ui.UiElementState
+import org.lain.engine.client.render.ui.UiState
 import org.lain.engine.client.render.ui.fragmentsToUiElements
 import org.lain.engine.client.render.ui.layout
 import org.lain.engine.client.render.ui.measure
@@ -26,7 +26,7 @@ class LittleNotificationState(
     val height: Float,
     var x: Float,
     var y: Float,
-    val uiElement: UiElementState
+    val uiElement: UiState
 ) {
     var endY: Float = y
 

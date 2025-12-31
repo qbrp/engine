@@ -57,10 +57,8 @@ class ClientSingleplayerTransport(
         handler: ClientPacketHandler<P>
     ) {
         CommonSingleplayerEndpointRegistry.register(endpoint, Side.CLIENT) { packet, id ->
-            client.execute {
-                packetHistory.add(id)
-                handler.invoke(packet, context)
-            }
+            packetHistory.add(id)
+            handler.invoke(packet, context)
         }
     }
 

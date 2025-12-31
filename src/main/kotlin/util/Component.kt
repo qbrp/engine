@@ -165,28 +165,3 @@ inline fun <reified T : Component> ComponentManager.replace(
 ): T? {
     return replaceComponent(T::class) { component }
 }
-
-// Dirty State
-
-class State<T>(
-    current: T
-) {
-    var current: T = current
-        private set
-    var previous: T = current
-        private set
-
-    val isDirty: Boolean
-        get() = current != previous
-
-    fun set(value: T) {
-        if (value != current) {
-            previous = current
-            current = value
-        }
-    }
-
-    fun sync() {
-        previous = current
-    }
-}

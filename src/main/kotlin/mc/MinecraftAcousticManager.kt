@@ -16,6 +16,7 @@ import org.lain.engine.chat.acoustic.AcousticSimulationResult
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.acoustic.Grid3Range
 import org.lain.engine.chat.acoustic.Grid3f
+import org.lain.engine.chat.acoustic.NEIGHBOURS_VON_NEUMANN
 import org.lain.engine.chat.acoustic.SceneSize
 import org.lain.engine.chat.acoustic.freeGrid3f
 import org.lain.engine.chat.acoustic.getGrid3f
@@ -37,6 +38,7 @@ import kotlin.collections.set
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.max
 import kotlin.math.min
 
 class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Message source is too high or low")
@@ -50,28 +52,37 @@ val World.segmentCount get() = ceil(height / SEGMENT_SIZE).toInt()
 data class AcousticBlockData(
     val solid: Float,
     val air: Float,
+    val partial: Float,
     val blocks: Map<Identifier, Float>,
     val tags: Map<TagKey<Block>, Float>,
 ) {
-    fun getPassability(blockstate: BlockState): Float {
+    fun getPassability(pos: BlockPos, world: World, blockstate: BlockState): Float {
         val blockRegistryKey = blockstate.registryEntry.key.getOrNull()
 
-        val tag = tags.maxOfOrNull { (tag, volume) ->
+        val tag = tags.maxOf { (tag, volume) ->
             if (blockstate.isIn(tag)) volume else 0f
         }
 
-        val default = when(blockstate.isSolid) {
-            true -> solid
-            false -> air
+        val isFullCube = blockstate.isFullCube(world, pos)
+        val isSolid = blockstate.isSolid
+
+        val default = if (isSolid) {
+            if (isFullCube) {
+                solid
+            } else {
+                partial
+            }
+        } else {
+            air
         }
 
         val blockId = blockRegistryKey?.value
 
-        return blocks[blockId] ?: tag ?: default
+        return blocks[blockId] ?: max(tag, default)
     }
 
     companion object {
-        val BUILTIN = AcousticBlockData(0.0f, 0.95f, mapOf(), mapOf())
+        val BUILTIN = AcousticBlockData(0.0f, 0.95f, 0.9f, mapOf(), mapOf())
     }
 }
 
@@ -134,6 +145,7 @@ class MinecraftChunkAcousticScene private constructor(
 
     companion object {
         fun create(
+            world: World,
             chunk: Chunk,
             acousticBlockData: AcousticBlockData,
             x0: Int = 0, x1: Int = 16,
@@ -162,7 +174,7 @@ class MinecraftChunkAcousticScene private constructor(
                 pos.x = startX + lx
                 pos.y = startY + ly
                 pos.z = startZ + lz
-                acousticBlockData.getPassability(chunk.getBlockState(pos))
+                acousticBlockData.getPassability(pos, world, chunk.getBlockState(pos))
             }
 
             val offsetX = startX + x0
@@ -304,7 +316,7 @@ class ConcurrentAcousticSceneBank {
                 break
             }
 
-            scenes.add(MinecraftChunkAcousticScene.create(chunk, acousticBlockData, y0 = y0, y1 = y1))
+            scenes.add(MinecraftChunkAcousticScene.create(world, chunk, acousticBlockData, y0 = y0, y1 = y1))
         }
 
         val worldId = world.engine
@@ -402,7 +414,7 @@ class MinecraftAcousticManager(
     var performanceDebug = AtomicBoolean(false)
 
     fun updateBlock(block: BlockState, pos: BlockPos, world: World) {
-        setPassabilityAt(world, pos, acousticBlockData.get().getPassability(block))
+        setPassabilityAt(world, pos, acousticBlockData.get().getPassability(pos, world, block))
     }
 
     fun removeBlock(pos: BlockPos, world: World) {
@@ -432,6 +444,7 @@ class MinecraftAcousticManager(
     ): AcousticSimulationResult {
         val timestamp = Timestamp()
         val mcWorld = entityTable.getMcWorld(world) ?: throw IllegalArgumentException("World $world")
+        val acousticBlockData = acousticBlockData.get()
 
         val y = pos.y.toInt()
         if (y > mcWorld.height || y < mcWorld.bottomY) {
@@ -445,7 +458,7 @@ class MinecraftAcousticManager(
         val z0 = z - range
         val x1 = x + range
         val z1 = z + range
-        val scene = acousticSceneBank.getChunkedView(mcWorld, acousticBlockData.get(), x0, z0, x1, z1, y)
+        val scene = acousticSceneBank.getChunkedView(mcWorld, acousticBlockData, x0, z0, x1, z1, y)
         val size = scene.totalSize
         val generation = AcousticGeneration(
             PrimitiveArrayPool.getGrid3f(
@@ -465,8 +478,12 @@ class MinecraftAcousticManager(
         val chunkSize = chunkSize.get()
 
         try {
-            val (lX, lY, lZ) = scene.worldToLocal(x, y, z)
-            generation.volume[lX, lY, lZ] = volume
+            for (offset in NEIGHBOURS_VON_NEUMANN + intArrayOf(0, 0, 0)) {
+                val blockPos = BlockPos(x, y, z)
+                val passability = acousticBlockData.getPassability(blockPos, mcWorld, mcWorld.getBlockState(blockPos))
+                val (lX, lY, lZ) = scene.worldToLocal(x + offset[0], y + offset[1], z + offset[2])
+                generation.volume[lX, lY, lZ] = volume * passability
+            }
             simulateAsync(
                 scene,
                 generation,

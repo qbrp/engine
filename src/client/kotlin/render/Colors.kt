@@ -7,7 +7,7 @@ const val BLUE = 0xFF5FC8FF.toInt()
 const val BLACK = 0x00000000
 const val ORANGE = 16743232
 const val AQUA = 4259767
-const val GRAY = 0xAAAAAA
+const val GRAY = 0xFFAAAAAA.toInt()
 const val DARK_RED = 0xAA0000
 const val YELLOW = 0xFFFF55
 

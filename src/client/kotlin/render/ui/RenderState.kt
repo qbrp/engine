@@ -1,27 +1,10 @@
 package org.lain.engine.client.render.ui
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gl.RenderPipelines
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.util.Window
-import net.minecraft.text.OrderedText
-import org.joml.Matrix3f
-import org.joml.Matrix3x2f
-import org.joml.Matrix3x2fc
-import org.lain.engine.client.mc.drawEngineSprite
-import org.lain.engine.client.mc.fill
 import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.MutableVec2
 import org.lain.engine.client.render.Vec2
-import org.lain.engine.client.render.blend
 import org.lain.engine.util.EngineOrderedTextSequence
-import org.lain.engine.util.EngineText
-import org.lain.engine.util.MutableVec3
-import org.lain.engine.util.Vec3
-import org.lain.engine.util.toMinecraft
-import kotlin.math.ceil
 import kotlin.math.max
-import kotlin.math.sin
 
 interface Size {
     val width: Float
@@ -107,6 +90,9 @@ value class Color(val integer: Int) {
     }
 }
 
+typealias HoverListener = (UiState, Int, Int) -> Unit
+typealias ClickListener = (UiState, Int, Int) -> Boolean
+
 data class TextState(
     val lines: List<EngineOrderedTextSequence>,
     val color: Color = Color.WHITE,
@@ -145,13 +131,19 @@ data class UiFeatures(
     var text: TextState? = null
 )
 
-data class UiElementState(
+data class UiListeners(
+    val clickListener: ClickListener? = null,
+    val hoverListener: ClickListener? = null
+)
+
+data class UiState(
     val position: MutableVec2,
     val origin: MutableVec2,
     val size: MutableSize,
     val scale: MutableVec2 = DEFAULT_SCALE,
-    val children: MutableList<UiElementState> = mutableListOf(),
+    val children: MutableList<UiState> = mutableListOf(),
     val features: UiFeatures,
+    val listeners: UiListeners = UiListeners()
 ) {
     val scaledSize = MutableSize(size.width, size.height)
     fun update() {
@@ -166,7 +158,7 @@ data class UiElementState(
 }
 
 interface EngineUi {
-    fun addRootFragment(fragment: Fragment): UiElementState
-    fun addRootElement(state: UiElementState)
-    fun removeRootElement(state: UiElementState)
+    fun addRootFragment(fragment: Fragment): UiState
+    fun addRootElement(state: UiState)
+    fun removeRootElement(state: UiState)
 }

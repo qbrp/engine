@@ -4,6 +4,7 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -12,9 +13,13 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.ChatBarConfiguration
 import org.lain.engine.client.chat.ChatFormatSettings
 import org.lain.engine.client.mc.ClientEngineItemGroups
+import org.lain.engine.client.render.WARNING
+import org.lain.engine.client.render.WARNING_COLOR
+import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.server.ServerId
 import org.lain.engine.util.ENGINE_DIR
 import org.lain.engine.util.getBuiltinResource
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.writeText
@@ -144,12 +149,28 @@ private val ASSETS = OverridableResource("assets", true)
 class ResourceManager(
     private val client: EngineClient
 ) {
-    private val ioCoroutineScope = CoroutineScope(Dispatchers.IO)
+    private val logger = LoggerFactory.getLogger("Engine Resources")
+    private val ioCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val _context = AtomicReference(bakeResourceContext(client.gameSession))
     val context: ResourceContext
         get() = _context.get()
 
     fun reload(gameSession: GameSession) = ioCoroutineScope.async {
-        _context.set(bakeResourceContext(gameSession))
+        try {
+            _context.set(bakeResourceContext(gameSession))
+        } catch (e: Throwable) {
+            client.execute {
+                client.applyLittleNotification(
+                    LittleNotification(
+                        "Ошибка загрузки ресурсов",
+                        "Проверьте консоль для подробного отчёта. Сообщение: ${e.message ?: "Неизвестная ошибка"}",
+                        sprite = WARNING,
+                        color = WARNING_COLOR,
+                        lifeTime = 200
+                    )
+                )
+            }
+            logger.error("Ошибка загрузки ресурсов", e)
+        }
     }
 }

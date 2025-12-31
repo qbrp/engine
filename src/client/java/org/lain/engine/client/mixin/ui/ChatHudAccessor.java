@@ -13,7 +13,19 @@ public interface ChatHudAccessor {
     @Accessor("visibleMessages")
     List<ChatHudLine.Visible> engine$getVisibleMessages();
 
+    @Accessor("messages")
+    List<ChatHudLine> engine$getMessages();
+
     @Invoker("getLineHeight")
     int engine$getLineHeight();
+
+    @Invoker("getMessageLineIndex")
+    int engine$getMessageLineIndex(double chatLineX, double chatLineY);
+
+    @Invoker("toChatLineX")
+    double engine$toChatLineX(double x);
+
+    @Invoker("toChatLineY")
+    double engine$toChatLineY(double y);
 }
 

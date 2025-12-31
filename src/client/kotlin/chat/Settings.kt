@@ -25,5 +25,18 @@ data class ChatBarSectionState(
 
 @Serializable
 data class ChatFormatSettings(
-    val spy: String
+    val spy: String,
+    val regex: ChatRegexSettings = ChatRegexSettings()
 )
+
+@Serializable
+data class ChatRegexSettings(
+    val replace: List<Replace> = listOf()
+) {
+    @Serializable
+    data class Replace(
+        val exp: String,
+        val remove: String? = null,
+        val value: String
+    )
+}

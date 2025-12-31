@@ -3,21 +3,18 @@ package org.lain.engine.client.mc
 import com.mojang.blaze3d.pipeline.BlendFunction
 import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.platform.DepthTestFunction
-import com.mojang.blaze3d.platform.PolygonMode
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.gl.RenderPipelines
 import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.render.*
+import net.minecraft.client.render.VertexFormats
 import net.minecraft.client.texture.TextureSetup
 import net.minecraft.util.Identifier
 import org.joml.Matrix3x2f
-import org.lain.engine.client.render.*
-import org.lain.engine.util.EngineId
-import org.lain.engine.util.EngineOrderedText
-import org.lain.engine.util.EngineOrderedTextSequence
-import org.lain.engine.util.EngineText
-import org.lain.engine.util.splitEngineTextLinear
-import org.lain.engine.util.toMinecraft
+import org.lain.engine.client.render.EngineSprite
+import org.lain.engine.client.render.FontRenderer
+import org.lain.engine.client.render.Painter
+import org.lain.engine.client.render.WHITE
+import org.lain.engine.util.*
 
 // А почему бы и нет?
 private val ENGINE_SPRITE_CACHE = mutableMapOf<String, Identifier>()
@@ -116,19 +113,21 @@ class MinecraftFontRenderer : FontRenderer {
 
         var x = 0
         val parts = mutableListOf<EngineOrderedText>()
+
         for (word in split) {
-            x += minecraftTextRenderer.getWidth(word.toMinecraft())
-            if (x >= width) {
+            val wordWidth = minecraftTextRenderer.getWidth(word.toMinecraft())
+            if (x > 0 && x + wordWidth > width) {
                 lines += EngineOrderedTextSequence(parts.toList())
-                x = 0
                 parts.clear()
-            } else {
-                parts += word
+                x = 0
             }
+            parts += word
+            x += wordWidth
         }
         if (parts.isNotEmpty()) {
-            lines += EngineOrderedTextSequence(parts)
+            lines += EngineOrderedTextSequence(parts.toList())
         }
+
         return lines
     }
 }
@@ -177,7 +176,7 @@ class MinecraftPainter(
     ) {
         context.state.addSimpleElement(
             EngineGuiArc(
-                GUI_TRIANGLE_STRIP,
+                RenderPipelines.DEBUG_FILLED_BOX,
                 TextureSetup.empty(),
                 centerX,
                 centerY,
@@ -224,6 +223,7 @@ class MinecraftPainter(
         val GUI_TRIANGLE_STRIP = RenderPipeline.builder(GUI_SNIPPET)
             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLE_STRIP)
             .withEngineLocation("pipeline/gui")
+            .withCull(false)
             .build()
 
         fun RenderPipeline.Builder.withEngineLocation(id: String) = withLocation(EngineId(id))

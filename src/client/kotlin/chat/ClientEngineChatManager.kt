@@ -1,6 +1,7 @@
 package org.lain.engine.client.chat
 
 import org.lain.engine.chat.ChannelId
+import org.lain.engine.chat.MessageId
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.util.LittleNotification
@@ -23,11 +24,7 @@ class ClientEngineChatManager(
         private set
     private var channels = mapOf<ChannelId, ClientChatChannel>()
     private var availableChannels = mapOf<ChannelId, ClientChatChannel>()
-    private val systemChannel = ClientChatChannel(
-        ChannelId("system"),
-        "Система",
-        format = "{text}"
-    )
+    private val systemChannel = SYSTEM_CHANNEL
 
     var chatBar: ChatBar? = null
         private set
@@ -107,7 +104,7 @@ class ClientEngineChatManager(
         val channel = message.channel
         val isSpy = message.isSpy
         val isMentioned = message.isMentioned
-        val visibleAsSpy = (isSpy && spy || !isSpy)
+        val visibleAsSpy = (isSpy && spy || !isSpy) && channel.spy
         val visible = channel.isAvailable && !chatBar.isHidden(channel.id) && visibleAsSpy
         val markRead = visible || !visibleAsSpy
 
@@ -130,9 +127,15 @@ class ClientEngineChatManager(
         }
     }
 
+    fun deleteMessage(id: MessageId) {
+        val toDelete = messages.find { it.id == id } ?: return
+        eventBus.onMessageDelete(toDelete)
+    }
+
     fun updateSettings(new: ClientChatSettings) {
-        val channelsMap = new.channels
-        val channels = new.channels.values
+        val channelsMap = new.channels.toMutableMap()
+        channelsMap[SYSTEM_CHANNEL.id] = SYSTEM_CHANNEL
+        val channels = channelsMap.values
 
         this.channels = channelsMap
         this.availableChannels = channels.filter { it.isAvailable }.associateBy { it.id }

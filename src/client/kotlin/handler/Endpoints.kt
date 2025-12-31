@@ -8,6 +8,7 @@ import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_JOIN_GAME_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT
@@ -60,6 +61,12 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyServerSettingsUpdate(settings)
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT) {
+        applyNotification(type, once)
+    }
+
+    // Chat
+
     registerGameSessionReceiver(CLIENTBOUND_CHAT_MESSAGE_ENDPOINT) { gameSession ->
         val world = gameSession.world
         if (world.id != sourceWorld) {
@@ -83,12 +90,14 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
                 speech,
                 volume,
                 placeholders,
-                isSpy
+                isSpy,
+                heads,
+                id
             )
         )
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT) {
-        applyNotification(type, once)
+    registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) { gameSession ->
+        applyDeleteChatMessage(message)
     }
 }

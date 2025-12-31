@@ -109,10 +109,6 @@ fun simulateAsync(
                             val volume = collectVolume(volumeGrid, x, y, z)
                             val delta = volume * passability * multiplier
 
-                            if (volume != 0f) {
-                                //println("$x, $y, $z : $volume, $passability")
-                            }
-
                             deltaGrid[x, y, z] = min(delta, maxVolume)
 
                             if (delta < 0.01f) return@forEachCell

@@ -1,8 +1,10 @@
 package org.lain.engine.client.mixin.ui;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -62,7 +64,7 @@ public class ChatScreenMixin {
         float offsetY = height - 16f - chatChannelsBar.getHeight();
         float offsetX = 2f;
         context.getMatrices().translate(offsetX, offsetY);
-        //chatChannelsBar.renderChatChannelsBar(context, mouseX - offsetX, mouseY - offsetY);
+        chatChannelsBar.renderChatChannelsBar(context, mouseX - offsetX, mouseY - offsetY);
         context.getMatrices().popMatrix();
     }
 
@@ -80,7 +82,13 @@ public class ChatScreenMixin {
         chatChannelsBar.onClick((float)click.x() - offsetX, (float)click.y() - offsetY);
     }
 
-    @Inject(method = "render", at = @At("HEAD"))
+    @Inject(
+            method = "render",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/screen/Screen;render(Lnet/minecraft/client/gui/DrawContext;IIF)V"
+            )
+    )
     private void engine$pushShake(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         MinecraftChat chat = MinecraftChat.INSTANCE;
         context.getMatrices().pushMatrix();
@@ -88,10 +96,6 @@ public class ChatScreenMixin {
                 chat.getRandomShakeTranslation(),
                 chat.getRandomShakeTranslation()
         );
-    }
-
-    @Inject(method = "render", at = @At("TAIL"))
-    private void engine$popShake(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         context.getMatrices().popMatrix();
     }
 
@@ -115,6 +119,11 @@ public class ChatScreenMixin {
             )
     )
     public void engine$onKeyPress(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
-        MinecraftChat.INSTANCE.updateChatInput(chatField.getText());
+        MinecraftChat chat = MinecraftChat.INSTANCE;
+        chat.updateChatInput(chatField.getText());
+        MinecraftChat.ChatHudLineData selectedMessage = chat.getSelectedMessage();
+        if (selectedMessage != null && input.key() == GLFW.GLFW_KEY_DELETE) {
+            chat.deleteMessage(selectedMessage.getMessage().getEngineMessage());
+        }
     }
 }

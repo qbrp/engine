@@ -65,6 +65,7 @@ fun updatePlayerMinecraftSystems(
     player.apply<Location> {
         position.x = pos.x.toFloat()
         position.y = pos.y.toFloat()
+        position.z = pos.z.toFloat()
         this.world = world
     }
 

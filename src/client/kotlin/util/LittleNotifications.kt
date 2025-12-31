@@ -10,7 +10,7 @@ data class LittleNotification(
     val description: String? = null,
     val color: Int = DEFAULT_TEXT_COLOR,
     val sprite: EngineSprite,
-    val lifeTime: Long = 82,
+    val lifeTime: Long = 120,
     val transitionTime: Long = 12,
 ) {
     val titleTextNode = EngineText(

@@ -3,6 +3,7 @@ package org.lain.engine.client.handler
 import kotlinx.coroutines.runBlocking
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageAuthor
+import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.EngineClient
@@ -182,9 +183,25 @@ class ClientHandler(
     fun applyChatMessage(message: OutcomingMessage) = with(gameSession!!) {
         val channelId = message.channel
         val channel = chatManager.getChannel(channelId)
-        val text = message.text
+        val chatFormat = client.resources.formatConfiguration
+        var text = message.text
+
+        chatFormat.regex.replace.forEach { rule ->
+            val regex = Regex(rule.exp)
+
+            text = regex.replace(text) { match ->
+                val value = match.value
+                val cleaned = rule.remove?.let {
+                    value.replace(it, "")
+                } ?: value
+
+                rule.value.replace("{match}", cleaned)
+            }
+        }
+
         var display = channel.format
-        val placeholders = chatManager.settings.placeholders + message.placeholders
+        val placeholders = (chatManager.settings.placeholders + message.placeholders).toMutableMap()
+        placeholders["text"] = text
         placeholders.forEach { old, new ->
             display = display
                 .replace("{$old}", new)
@@ -199,8 +216,7 @@ class ClientHandler(
         }
 
         if (message.isSpy) {
-            val spyDisplay = client.resources.formatConfiguration.spy
-            display = spyDisplay.replace("{original}", display)
+            display = chatFormat.spy.replace("{original}", display)
         }
 
         chatManager.addMessage(
@@ -212,9 +228,15 @@ class ClientHandler(
                 message.mentioned,
                 message.speech,
                 message.volume,
-                message.isSpy
+                message.isSpy,
+                message.head,
+                message.id
             )
         )
+    }
+
+    fun applyDeleteChatMessage(id: MessageId) = with(gameSession!!) {
+        chatManager.deleteMessage(id)
     }
 
     fun applyNotification(type: Notification, once: Boolean) {

@@ -21,8 +21,10 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
     private val padding = 1f
     private val chatManager: ClientEngineChatManager? get() = client.gameSession?.chatManager
     private var sections = listOf<ChatBarSection>()
+    private val chatHud
+        get() = MinecraftClient.inGameHud.chatHud
     val height get() = MinecraftClient.textRenderer.fontHeight + (padding * 2)
-    val width get() = MinecraftClient.inGameHud.chatHud?.width?.toFloat() ?: 0f
+    val width get() = ((chatHud?.width?.toFloat() ?: 0f) / chatHud.chatScale.toFloat()) + 4 + 4 + LINE_INDENT
 
     fun updateButtons(sections: List<ChatBarSection>) {
         this.sections = sections

@@ -49,7 +49,8 @@ data class ChannelConfig(
     val spectator: Boolean = false,
     val speech: Boolean = false,
     val notify: Boolean = false,
-    val permission: Boolean = false
+    val permission: Boolean = false,
+    val heads: Boolean = false
 )
 
 @Serializable
@@ -89,6 +90,7 @@ data class AcousticVolumeConfig(
 data class AcousticBlockConfig(
     val solid: Float,
     val air: Float,
+    val partial: Float,
     val blocks: Map<String, Float> = mapOf(),
     val tags: Map<String, Float> = mapOf(),
 )

@@ -5,6 +5,7 @@ import org.lain.engine.transport.packet.ClientChatSettings
 
 interface ChatEventBus {
     fun onMessageAdd(message: EngineChatMessage)
+    fun onMessageDelete(message: EngineChatMessage)
     fun onChannelEnable(channel: ClientChatChannel)
     fun onChannelDisable(channel: ClientChatChannel)
     fun onSettingsUpdate(settings: ClientChatSettings, chatBar: ChatBar)

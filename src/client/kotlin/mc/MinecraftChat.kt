@@ -6,9 +6,12 @@ import net.minecraft.client.util.ChatMessages
 import net.minecraft.text.OrderedText
 import net.minecraft.text.Text
 import org.lain.engine.chat.ChannelId
+import org.lain.engine.chat.MessageId
+import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.ChatBar
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.chat.EngineChatMessage
+import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.mixin.ui.ChatHudAccessor
 import org.lain.engine.client.render.HIGH_VOLUME_COLOR
 import org.lain.engine.client.render.LOW_VOLUME_COLOR
@@ -42,6 +45,7 @@ object MinecraftChat : ChatEventBus {
 
     private val chatManager get() = client.gameSession?.chatManager
     private val chatHud get() =  MinecraftClient.inGameHud.chatHud
+    var selectedMessage: ChatHudLineData? = null
     val channelsBar = ChatChannelsBar()
 
     private var textShakingBoost = 0f
@@ -74,6 +78,15 @@ object MinecraftChat : ChatEventBus {
         val channelId get() = message.engineMessage.channel.id
     }
 
+    fun updateSelectedMessage(chatHudLine: ChatHudLine.Visible?) {
+        val toSet = chatHudLine?.let { getChatHudLineData(it) }
+        selectedMessage = if (selectedMessage == toSet) {
+            null
+        } else {
+            toSet
+        }
+    }
+
     fun isEngineMessage(chatHudLine: ChatHudLine) = messageByContentCache.contains(chatHudLine.content.string)
 
     fun getMessageData(engineChatMessage: EngineChatMessage): MessageData? {
@@ -94,13 +107,27 @@ object MinecraftChat : ChatEventBus {
         isLast: Boolean,
         index: Int
     ): Boolean {
+        val content = node.content.string
+        val engineMessage = getEngineMessage(content) ?: run {
+            EngineChatMessage(
+                content,
+                content,
+                SYSTEM_CHANNEL,
+                MessageSource.getSystem(client.gameSession?.world!!),
+                id = MessageId.next()
+            ).also {
+                messageByContentCache[content] = it
+                chatManager?.addMessage(it)
+                return true
+            }
+        }
+
         val storedMessage = StoredMessage(chatHudLine, false)
         allMessages.add(0, storedMessage)
         messageByLine[chatHudLine] = storedMessage
 
         val chatManager = chatManager ?: return false
         val chatBar = chatManager.chatBar ?: return false
-        val engineMessage = getEngineMessage(node.content.string) ?: return false
         val channel = engineMessage.channel
         val author = engineMessage.source.player
         val authorEntity = author?.let { MinecraftClient.networkHandler?.getPlayerListEntry(it.id.value) }
@@ -144,6 +171,15 @@ object MinecraftChat : ChatEventBus {
         messageByLine.remove(line)?.let { allMessages.remove(it) }
     }
 
+    fun deleteMessage(chatMessage: EngineChatMessage) {
+        val message = chatHudLines.values.find { it.message.engineMessage.id == chatMessage.id } ?: return
+        val accessor = chatHud as ChatHudAccessor
+        val line = message.line
+        accessor.`engine$getVisibleMessages`().remove(line)
+        accessor.`engine$getMessages`().remove(message.message.node)
+        deleteChatHudLine(line)
+    }
+
     fun storeMessageContent(content: String, message: EngineChatMessage) {
         messageByContentCache[content] = message
     }
@@ -160,12 +196,17 @@ object MinecraftChat : ChatEventBus {
         hiddenChannelMessages.clear()
         hiddenMessages.clear()
         spyMessages.clear()
+        selectedMessage = null
     }
 
     override fun onMessageAdd(message: EngineChatMessage) {
         val displayText = message.display.parseMiniMessage()
         storeMessageContent(displayText.string, message)
         chatHud.addMessage(displayText)
+    }
+
+    override fun onMessageDelete(message: EngineChatMessage) {
+        deleteMessage(message)
     }
 
     override fun onChannelEnable(channel: ClientChatChannel) {

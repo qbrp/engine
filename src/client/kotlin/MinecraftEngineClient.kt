@@ -213,6 +213,7 @@ class MinecraftEngineClient : ClientModInitializer {
     }
 
     private fun onDisconnect() {
+        uiRenderPipeline.invalidate()
         engineClient.leaveGameSession()
         MinecraftChat.clearChatData()
 

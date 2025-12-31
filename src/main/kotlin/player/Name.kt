@@ -3,6 +3,7 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.Component
 import org.lain.engine.util.get
+import org.lain.engine.util.require
 
 @JvmInline
 @Serializable
@@ -30,12 +31,13 @@ fun Player.removeCustomName() {
 var Player.customName
     get() = get<DisplayName>()?.custom
     set(value) {
-        markUpdate(PlayerUpdate.CustomName(value))
-        get<DisplayName>()?.custom = value
+        val name = "$value<reset>"
+        markUpdate(PlayerUpdate.CustomName(name))
+        get<DisplayName>()?.custom = name
     }
 
 val Player.displayName
-    get() = get<DisplayName>()?.name ?: "Unknown name"
+    get() = this.require<DisplayName>().name
 
 val Player.username
-    get() = get<DisplayName>()?.username?.value ?: "Unknown name"
+    get() = this.require<DisplayName>().username.value ?: "Unknown name"

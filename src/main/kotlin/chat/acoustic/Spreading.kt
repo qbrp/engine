@@ -44,7 +44,7 @@ fun transformVolumeParallel(
     jobs.forEach { it.get() }
 }
 
-private val neighbors = arrayOf(
+val NEIGHBOURS_VON_NEUMANN = arrayOf(
     intArrayOf(1, 0, 0),
     intArrayOf(-1, 0, 0),
     intArrayOf(0, 1, 0),
@@ -57,7 +57,7 @@ fun collectVolume(vol: Grid3f, x: Int, y: Int, z: Int): Float {
     var weightedSum = 0f
     var weightTotal = 0f
 
-    for ((i, offset) in neighbors.withIndex()) {
+    for ((i, offset) in NEIGHBOURS_VON_NEUMANN.withIndex()) {
         val nx = x + offset[0]
         val ny = y + offset[1]
         val nz = z + offset[2]

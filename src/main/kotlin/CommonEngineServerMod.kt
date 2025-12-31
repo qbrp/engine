@@ -79,7 +79,7 @@ class CommonEngineServerMod : ModInitializer {
         }
 
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
-            if (!world.isClient) return@register ActionResult.PASS
+            if (world.isClient) return@register ActionResult.PASS
             val hitPlayer = hitResult?.entity ?: return@register ActionResult.PASS
             player.sendMessage(
                 Text.empty()

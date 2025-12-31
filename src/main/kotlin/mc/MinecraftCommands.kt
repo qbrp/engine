@@ -403,7 +403,9 @@ object EngineItemsSuggestionProvider : SuggestionProvider<ServerCommandSource> {
         val identifiers = itemRegistry.identifiers
         val input = builder.remainingLowerCase.replace(""""""", "")
         identifiers
-            .filter { it.startsWith(input) }
+            .filter {
+                it.startsWith(input) || it.split("/").any { it.startsWith(input) }
+            }
             .forEach { builder.suggest('"' + it + '"') }
         return builder.buildFuture()
     }

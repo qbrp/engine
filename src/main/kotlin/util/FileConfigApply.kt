@@ -2,6 +2,8 @@ package org.lain.engine.util
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
+import net.fabricmc.fabric.api.tag.FabricTagKey
+import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.tag.TagKey
 import net.minecraft.util.Identifier
@@ -27,6 +29,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.collections.forEach
 import kotlin.collections.get
+import kotlin.jvm.optionals.getOrNull
 
 private val CONFIG_FILE = ENGINE_DIR.resolve(CONFIG_FILENAME)
 private const val CONFIG_FILENAME = "server-config.yml"
@@ -68,7 +71,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         it.regex?.let { regex -> selectors += Selector.Regex(regex.exp, regex.remove) }
         val speech = it.speech
 
-        ChatChannel(ChannelId(id), it.name ?: id, format, acoustic, modifiers, selectors, speech, it.notify, it.permission)
+        ChatChannel(ChannelId(id), it.name ?: id, format, acoustic, modifiers, selectors, speech, it.notify, it.permission, it.heads)
     }
 
     val chatSettings = EngineChatSettings(
@@ -106,10 +109,23 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
     val blockAcousticConfig = chat.acoustic.passability
     val blocks = blockAcousticConfig.blocks.map { (id, value) -> Identifier.of(id) to value }.toMap()
     val tags = blockAcousticConfig.tags.map { (id, value) -> TagKey.of(RegistryKeys.BLOCK, Identifier.of(id)) to value }.toMap()
+
+    // Проверка
+    val unidentifiedBlocks = mutableListOf<Identifier>()
+    blocks.forEach { (blockId, value) ->
+        if (Registries.BLOCK.getOptionalValue(blockId).getOrNull() == null) {
+            unidentifiedBlocks += blockId
+        }
+    }
+    if (unidentifiedBlocks.isNotEmpty()) {
+        error("Указана акустика для несуществующих блоков: ${unidentifiedBlocks.joinToString(", ")}")
+    }
+
     acousticSimulator.acousticBlockData.set(
         AcousticBlockData(
             blockAcousticConfig.solid,
             blockAcousticConfig.air,
+            blockAcousticConfig.partial,
             blocks,
             tags
         )

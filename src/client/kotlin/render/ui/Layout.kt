@@ -4,7 +4,7 @@ import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.render.MutableVec2
 import org.lain.engine.client.render.Vec2
-import org.lain.engine.client.render.ui.UiElementState.Companion.DEFAULT_SCALE
+import org.lain.engine.client.render.ui.UiState.Companion.DEFAULT_SCALE
 import org.lain.engine.util.EngineText
 import kotlin.math.max
 import kotlin.math.min
@@ -46,7 +46,8 @@ data class Fragment(
     val children: List<Fragment> = mutableListOf(),
     val text: TextArea? = null,
     val image: Image? = null,
-    val background: Background? = null
+    val background: Background? = null,
+    val onClick: ClickListener? = null
 )
 
 data class TextArea(
@@ -235,9 +236,9 @@ fun layout(
 }
 
 
-fun fragmentsToUiElements(context: UiContext, node: PositionedFragment): UiElementState {
+fun fragmentsToUiElements(context: UiContext, node: PositionedFragment): UiState {
     val fragment = node.fragment
-    return UiElementState(
+    return UiState(
         MutableVec2(node.position),
         MutableVec2(node.origin),
         MutableSize(node.size.width, node.size.height),

@@ -11,8 +11,9 @@ import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.render.ui.Fragment
 import org.lain.engine.client.render.ui.MutableSize
 import org.lain.engine.client.render.ui.UiContext
-import org.lain.engine.client.render.ui.UiElementState
+import org.lain.engine.client.render.ui.UiState
 import org.lain.engine.client.render.ui.UiFeatures
+import org.lain.engine.client.render.ui.UiListeners
 import org.lain.engine.client.render.ui.blend
 import org.lain.engine.client.render.ui.fragmentsToUiElements
 import org.lain.engine.client.render.ui.layout
@@ -25,12 +26,12 @@ class EngineUiRenderPipeline(
     private val client: MinecraftClient,
     private val fontRenderer: FontRenderer
 ) : EngineUi {
-    private val elements = mutableListOf<UiElementState>()
+    private val elements = mutableListOf<UiState>()
     private val textCache = TextCache()
     private val context = UiContext(fontRenderer)
     private val root by lazy { client.window.asUiElement() }
 
-    override fun addRootFragment(fragment: Fragment): UiElementState {
+    override fun addRootFragment(fragment: Fragment): UiState {
         val measured = measure(context, fragment, root.size)
         val layout = layout(measured)
         val element = fragmentsToUiElements(
@@ -41,19 +42,24 @@ class EngineUiRenderPipeline(
         return element
     }
 
-    override fun addRootElement(state: UiElementState) {
+    override fun addRootElement(state: UiState) {
         elements += state
     }
 
-    override fun removeRootElement(state: UiElementState) {
+    override fun removeRootElement(state: UiState) {
         elements -= state
+    }
+
+    fun invalidate() {
+        elements.clear()
+        textCache.clear()
     }
 
     fun render(context: DrawContext, dt: Float) {
         collectVertexes(root, context, dt)
     }
 
-    fun collectVertexes(state: UiElementState, context: DrawContext, dt: Float) {
+    fun collectVertexes(state: UiState, context: DrawContext, dt: Float) {
         state.update() //перенести
         val matrices = context.matrices
         val position = state.position
@@ -63,7 +69,7 @@ class EngineUiRenderPipeline(
         matrices.pushMatrix()
         matrices.translate(position.x - origin.x, position.y - origin.y)
 
-        if (scale != UiElementState.DEFAULT_SCALE) {
+        if (scale != UiState.DEFAULT_SCALE) {
             matrices
                 .translate(-origin.x, -origin.y)
                 .mul(Matrix3x2f().scaling(scale.x, scale.y))
@@ -73,9 +79,9 @@ class EngineUiRenderPipeline(
         val ceilWidth = ceil(size.width).toInt()
         val ceilHeight = ceil(size.height).toInt()
         context.enableScissor(
-            -1, -1,
-            ceilWidth,
-            ceilHeight
+            -2, -2,
+            ceilWidth + 2,
+            ceilHeight + 2
         )
 
         renderFeatures(
@@ -94,6 +100,14 @@ class EngineUiRenderPipeline(
         context.disableScissor()
 
         matrices.popMatrix()
+    }
+
+    fun renderListeners(
+        listeners: UiListeners,
+        mouseX: Int, mouseY: Int,
+        context: DrawContext
+    ) {
+        listeners
     }
 
     fun renderFeatures(
@@ -140,10 +154,10 @@ class EngineUiRenderPipeline(
         height = client.window.scaledHeight.toFloat()
     }
 
-    private fun Window.asUiElement(): UiElementState {
+    private fun Window.asUiElement(): UiState {
         val size = MutableSize(this.scaledWidth.toFloat(), this.scaledHeight.toFloat())
         val center = MutableVec2(size.centerX, size.centerY)
-        return UiElementState(
+        return UiState(
             center,
             center,
             size,
@@ -155,6 +169,10 @@ class EngineUiRenderPipeline(
 
 class TextCache {
     private val map = mutableMapOf<EngineOrderedTextSequence, OrderedText>()
+
+    internal fun clear() {
+        map.clear()
+    }
 
     fun get(text: EngineOrderedTextSequence): OrderedText {
         return map.getOrPut(text) { text.toMinecraft() }

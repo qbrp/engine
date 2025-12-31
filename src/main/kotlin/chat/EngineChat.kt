@@ -28,7 +28,6 @@ class EngineChat(
     private val acousticSimulation: AcousticSimulator,
     private val server: EngineServer
 ) {
-    private val logger = LoggerFactory.getLogger("Engine Chat")
     private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()) { r ->
         Thread(r, "Engine Chat Worker").apply { isDaemon = true }
     }
@@ -37,6 +36,7 @@ class EngineChat(
         get() = server.playerStorage
 
     private val incomingMessageHistory = mutableListOf<IncomingMessage>()
+    val outcomingMessageHistory = mutableMapOf<MessageId, OutcomingMessage>()
 
     private var channelsMap = mapOf<ChannelId, ChatChannel>()
     private val settingsAtomicRef = AtomicReference(server.globals.chatSettings)
@@ -215,7 +215,8 @@ class EngineChat(
                mention = hasMention,
                speech = isSpeech,
                volume = volume,
-               placeholders = getDefaultPlaceholders(content, recipient, source) + placeholders
+               placeholders = getDefaultPlaceholders(content, recipient, source) + placeholders,
+               head = channel.heads
            )
         }
     }
@@ -231,7 +232,8 @@ class EngineChat(
             content,
             source,
             originalChannel.id,
-            isSpy = true
+            isSpy = true,
+            head = originalChannel.heads
         )
     }
 
@@ -244,6 +246,7 @@ class EngineChat(
         speech: Boolean = false,
         volume: Float? = null,
         isSpy: Boolean = false,
+        head: Boolean = false,
         placeholders: Map<String, String> = getDefaultPlaceholders(text, recipient, source, volume),
     ) {
         server.handler.onOutcomingMessage(
@@ -256,8 +259,12 @@ class EngineChat(
                 speech,
                 volume,
                 placeholders,
-                isSpy
-            )
+                isSpy,
+                head,
+                MessageId.next()
+            ).also {
+                outcomingMessageHistory[it.id] = it
+            }
         )
     }
 
@@ -290,7 +297,6 @@ class EngineChat(
         val player = source.player
         val author = source.author
         val placeholders = mutableMapOf(
-            "text" to text,
             "author_username" to (player?.username ?: ""),
             "author_name" to author.name,
             "recipient_username" to recipient.username,
@@ -353,6 +359,6 @@ class EngineChat(
                 builder.toString()
             }
         val time = time?.let { " ($it мл.)" } ?: ""
-        logger.info("[$author] $content$time")
+        CHAT_LOGGER.info("[$author] $content$time")
     }
 }

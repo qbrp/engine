@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.EngineChatSettings
+import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.Selector
 import org.lain.engine.chat.isChannelAvailable
 import org.lain.engine.player.Player
@@ -26,7 +27,9 @@ data class OutcomingChatMessagePacket(
     val speech: Boolean,
     val volume: Float?,
     val isSpy: Boolean,
-    val placeholders: Map<String, String>
+    val placeholders: Map<String, String>,
+    val heads: Boolean,
+    val id: MessageId
 ) : Packet
 
 val CLIENTBOUND_CHAT_MESSAGE_ENDPOINT = Endpoint<OutcomingChatMessagePacket>()
@@ -38,6 +41,13 @@ data class IncomingChatMessagePacket(
 ) : Packet
 
 val SERVERBOUND_CHAT_MESSAGE_ENDPOINT = Endpoint<IncomingChatMessagePacket>()
+
+@Serializable
+data class DeleteChatMessagePacket(val message: MessageId) : Packet
+
+val SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT = Endpoint<DeleteChatMessagePacket>()
+
+val CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT = Endpoint<DeleteChatMessagePacket>()
 
 @Serializable
 data class ClientChatSettings(
@@ -64,7 +74,8 @@ data class ClientChatChannel(
     val name: String,
     val isAvailable: Boolean = true,
     val format: String,
-    val selectors: Selectors = Selectors()
+    val selectors: Selectors = Selectors(),
+    val spy: Boolean = true
 ) {
     @Serializable
     data class Selectors(

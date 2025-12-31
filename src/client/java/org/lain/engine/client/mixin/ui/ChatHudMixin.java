@@ -48,6 +48,18 @@ public abstract class ChatHudMixin {
 
     @Shadow public abstract int getWidth();
 
+    @Shadow protected abstract int getMessageIndex(double chatLineX, double chatLineY);
+
+    @Shadow protected abstract double toChatLineX(double x);
+
+    @Shadow protected abstract double toChatLineY(double y);
+
+    @Shadow public abstract boolean isChatFocused();
+
+    @Shadow protected abstract boolean isChatHidden();
+
+    @Shadow @Final private List<ChatHudLine> messages;
+
     // Нам не нужны индикаторы, показывающие, что сообщение изменено, оно небезопасно и т.д.
     @Inject(
             method = "getIndicatorAt",
@@ -95,8 +107,8 @@ public abstract class ChatHudMixin {
                 scrolledLines,
                 (age -> (float)getMessageOpacityMultiplier(age)),
                 (indentedX1, y1, y2, visible, messageIndex, backgroundOpacity) -> {
-                    //float f = (float)this.getChatScale();
-                    //int k = MathHelper.ceil(((float)this.getWidth() / f));
+                    float f = (float)this.getChatScale();
+                    int scaledWidth = MathHelper.ceil(((float)this.getWidth() / f));
                     double d = this.client.options.getChatLineSpacing().getValue();
                     float h = this.client.options.getTextBackgroundOpacity().getValue().floatValue();
                     float g = this.client.options.getChatOpacity().getValue().floatValue() * 0.9f + 0.1f;
@@ -108,11 +120,13 @@ public abstract class ChatHudMixin {
                     int x1 = 4;
                     MinecraftChat chat = MinecraftChat.INSTANCE;
                     context.fill(0, y1, x1 + ChatHudRenderKt.LINE_INDENT - 4, y2, ColorHelper.withAlpha(bgAlpha, Colors.BLACK));
+
                     if (visible != null) {
                         MinecraftChat.ChatHudLineData data = MinecraftChat.INSTANCE.getChatHudLineData(visible);
                         if (data != null && data.isFirst()) {
-                            PlayerListEntry playerListEntry = data.getMessage().getAuthor();
-                            if (playerListEntry != null) {
+                            MinecraftChat.MessageData message = data.getMessage();
+                            PlayerListEntry playerListEntry = message.getAuthor();
+                            if (playerListEntry != null && message.getEngineMessage().getShowHead()) {
                                 PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), x1, y1, 8, ColorHelper.withAlpha(contentAlpha, Colors.WHITE));
                             }
                         }
@@ -120,6 +134,22 @@ public abstract class ChatHudMixin {
                         if (data != null && data.isLast() && chat.shouldRenderDebugInfo()) {
                             Text debugText = data.getMessage().getDebugText();
                             context.drawTextWithShadow(this.client.textRenderer, debugText, indentedX1 + client.textRenderer.getWidth(visible.content()) + 4, j, ColorHelper.withAlpha(contentAlpha, Colors.GRAY));
+                        }
+
+                        int i = this.getMessageIndex(toChatLineX(mouseX), this.toChatLineY(mouseY));
+
+                        int alpha = 0;
+
+                        if (i == messageIndex) {
+                            alpha += 30;
+                        }
+
+                        if (data != null && data == MinecraftChat.INSTANCE.getSelectedMessage()) {
+                            alpha += 30;
+                        }
+
+                        if (alpha > 0) {
+                            context.fill(0, y1, indentedX1 + scaledWidth + 4 + 4, y2, ColorHelper.withAlpha(alpha, Colors.WHITE));
                         }
                     }
                 }
@@ -146,12 +176,9 @@ public abstract class ChatHudMixin {
             return;
         }
 
-        ChatHudLine.Visible visibleLine =
-                new ChatHudLine.Visible(message.creationTick(), text, message.indicator(), isEnd);
-
         boolean cancel = MinecraftChat.INSTANCE.storeChatHudLine(
                 message,
-                visibleLine,
+                (ChatHudLine.Visible)element,
                 line == 0,
                 isEnd,
                 index
@@ -189,6 +216,24 @@ public abstract class ChatHudMixin {
         if (isEngineMessage) {
             ci.cancel();
         }
+    }
+
+    @Inject(
+            method = "mouseClicked",
+            at = @At(
+                    value = "HEAD"
+            )
+    )
+    public void engine$mouseClicked(double mouseX, double mouseY, CallbackInfoReturnable<Boolean> cir) {
+        int n = this.getMessageIndex(this.toChatLineX((double)mouseX), this.toChatLineY((double)mouseY));
+        ChatHudLine.Visible toSet = null;
+        if (n >= 0 && n <= messages.size()) {
+            ChatHudLine.Visible message = visibleMessages.get(n);
+            if (message != null && isChatFocused() && !client.options.hudHidden && !isChatHidden()) {
+                toSet = message;
+            }
+        }
+        MinecraftChat.INSTANCE.updateSelectedMessage(toSet);
     }
 
     @Unique

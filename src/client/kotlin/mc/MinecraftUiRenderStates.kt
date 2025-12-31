@@ -85,22 +85,42 @@ data class EngineGuiArc(
 
         val startRad = toRadians(startAngle)
         val endRad = toRadians(endAngle)
-        val segmentAngle = (endRad - startRad) * fill / filledSegments
+        val totalAngle = (endRad - startRad) * fill
+        val segmentAngle = totalAngle / filledSegments
 
         val innerRadius = radius - thickness
 
         for (i in 0 until filledSegments) {
-            val angle = startRad + i * segmentAngle
+            val a0 = startRad + i * segmentAngle
+            val a1 = a0 + segmentAngle
 
-            val x1 = cos(angle) * radius + x
-            val y1 = sin(angle) * radius + y
-            val x2 = cos(angle) * innerRadius + x
-            val y2 = sin(angle) * innerRadius + y
+            val cos0 = cos(a0)
+            val sin0 = sin(a0)
+            val cos1 = cos(a1)
+            val sin1 = sin(a1)
 
-            vertices.vertex(pose, x1, y1).color(color)
-            vertices.vertex(pose, x2, y2).color(color)
+            val ox0 = cos0 * radius + x
+            val oy0 = sin0 * radius + y
+            val ix0 = cos0 * innerRadius + x
+            val iy0 = sin0 * innerRadius + y
+
+            val ox1 = cos1 * radius + x
+            val oy1 = sin1 * radius + y
+            val ix1 = cos1 * innerRadius + x
+            val iy1 = sin1 * innerRadius + y
+
+            // треугольник 1
+            vertices.vertex(pose, ox0, oy0).color(color)
+            vertices.vertex(pose, ix0, iy0).color(color)
+            vertices.vertex(pose, ix1, iy1).color(color)
+
+            // треугольник 2
+            vertices.vertex(pose, ox0, oy0).color(color)
+            vertices.vertex(pose, ix1, iy1).color(color)
+            vertices.vertex(pose, ox1, oy1).color(color)
         }
     }
+
 
     override fun pipeline(): RenderPipeline = pipeline
 
