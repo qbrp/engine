@@ -150,6 +150,10 @@ inline fun <reified T : Component> ComponentManager.apply(todo: T.() -> Unit): T
     return require<T>().apply(todo)
 }
 
+inline fun <reified T : Component, R> ComponentManager.let(todo: T.() -> R): R {
+    return require<T>().let(todo)
+}
+
 inline fun <reified T : Component> ComponentManager.has(): Boolean {
     return get<T>() != null
 }

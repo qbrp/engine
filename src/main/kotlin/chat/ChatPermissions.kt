@@ -9,6 +9,8 @@ import org.lain.engine.util.set
 
 const val CHAT_OPERATOR_PERMISSION = "chat.operator"
 
+const val CHAT_HEADS_PERMISSION = "chat.heads"
+
 val Player.isChatOperator
     get() = this.hasPermission(CHAT_OPERATOR_PERMISSION)
 

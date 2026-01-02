@@ -1,5 +1,6 @@
 package org.lain.engine.player
 
+import org.lain.engine.chat.Acoustic
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.EngineChat
@@ -46,10 +47,11 @@ fun flushPlayerMessages(
                 content = voiceLoosenContent()
             }
 
-            val breakVoice = player.updateVoiceApparatus(chat, volume, vocalSettings)
-
-            if (breakVoice) {
-                content = voiceBrokenContent(content, 0.5f)
+            if (channel.acoustic is Acoustic.Realistic) {
+                val breakVoice = player.updateVoiceApparatus(chat, volume, vocalSettings)
+                if (breakVoice) {
+                    content = voiceBrokenContent(content, 0.5f)
+                }
             }
         }
 

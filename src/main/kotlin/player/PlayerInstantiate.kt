@@ -60,5 +60,6 @@ fun serverPlayerInstance(
         setNullable(persistent?.voiceLoose)
         set(PlayerUpdatesComponent())
         set(defaults)
+        set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
     }
 }

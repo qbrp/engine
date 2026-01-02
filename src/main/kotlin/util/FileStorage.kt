@@ -9,6 +9,7 @@ import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
+import org.lain.engine.player.chatHeadsEnabled
 import org.lain.engine.player.customName
 
 private val PLAYERS_DATA_DIR = ENGINE_DIR.resolve("players")
@@ -22,7 +23,8 @@ data class PersistentPlayerData(
     @SerialName("speed_intention") val speedIntention: Float,
     val stamina: Float,
     val voiceApparatus: VoiceApparatus,
-    val voiceLoose: VoiceLoose?
+    val voiceLoose: VoiceLoose?,
+    @SerialName("chat_heads") val chatHeads: Boolean
 )
 
 fun savePersistentPlayerData(player: Player) {
@@ -42,7 +44,8 @@ fun savePersistentPlayerData(player: Player) {
                 speedIntention,
                 stamina,
                 player.require(),
-                player.get()
+                player.get(),
+                player.chatHeadsEnabled
             )
         )
     )

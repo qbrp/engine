@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.mc.InvalidMessageSourcePositionException
 import org.lain.engine.player.Player
+import org.lain.engine.player.chatHeadsEnabled
 import org.lain.engine.player.displayName
 import org.lain.engine.player.isSpectating
 import org.lain.engine.player.username
@@ -15,6 +16,7 @@ import org.lain.engine.server.Notification
 import org.lain.engine.util.Pos
 import org.lain.engine.util.filterNearestPlayers
 import org.lain.engine.world.World
+import org.lain.engine.world.WorldId
 import org.lain.engine.world.players
 import org.lain.engine.world.pos
 import org.lain.engine.world.world
@@ -40,7 +42,7 @@ class EngineChat(
 
     private var channelsMap = mapOf<ChannelId, ChatChannel>()
     private val settingsAtomicRef = AtomicReference(server.globals.chatSettings)
-    val settings
+    val settings: EngineChatSettings
         get() = settingsAtomicRef.get()
 
     fun onSettingsUpdated(settings: EngineChatSettings) {
@@ -211,12 +213,11 @@ class EngineChat(
                receiver,
                content,
                source,
-               channel.id,
+               channel,
                mention = hasMention,
                speech = isSpeech,
                volume = volume,
                placeholders = getDefaultPlaceholders(content, recipient, source) + placeholders,
-               head = channel.heads
            )
         }
     }
@@ -231,9 +232,8 @@ class EngineChat(
             recipient,
             content,
             source,
-            originalChannel.id,
+            originalChannel,
             isSpy = true,
-            head = originalChannel.heads
         )
     }
 
@@ -241,12 +241,12 @@ class EngineChat(
         recipient: Player,
         text: String,
         source: MessageSource,
-        channel: ChannelId,
+        channel: ChatChannel,
         mention: Boolean = hasMention(recipient, text),
         speech: Boolean = false,
         volume: Float? = null,
         isSpy: Boolean = false,
-        head: Boolean = false,
+        head: Boolean = showHeads(source.player, channel),
         placeholders: Map<String, String> = getDefaultPlaceholders(text, recipient, source, volume),
     ) {
         server.handler.onOutcomingMessage(
@@ -254,7 +254,7 @@ class EngineChat(
             OutcomingMessage(
                 text,
                 source,
-                channel,
+                channel.id,
                 mention,
                 speech,
                 volume,
@@ -270,6 +270,10 @@ class EngineChat(
 
     private fun hasMention(ofPlayer: Player, text: String): Boolean {
         return text.contains("@${ofPlayer.username}")
+    }
+
+    private fun showHeads(player: Player?, channel: ChatChannel): Boolean {
+        return (player?.chatHeadsEnabled ?: true) && channel.heads
     }
 
     private fun formatTextAcoustic(

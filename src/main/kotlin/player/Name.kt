@@ -40,4 +40,4 @@ val Player.displayName
     get() = this.require<DisplayName>().name
 
 val Player.username
-    get() = this.require<DisplayName>().username.value ?: "Unknown name"
+    get() = this.require<DisplayName>().username.value
