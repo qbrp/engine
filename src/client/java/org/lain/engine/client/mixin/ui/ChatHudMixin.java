@@ -1,10 +1,7 @@
 package org.lain.engine.client.mixin.ui;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.hud.ChatHud;
@@ -16,9 +13,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
-import org.lain.engine.client.mc.ChatHudRenderKt;
+import org.lain.engine.client.chat.EngineChatMessage;
 import org.lain.engine.client.mc.MinecraftChat;
-import org.lain.engine.client.render.ColorsKt;
+import org.lain.engine.client.mc.render.ChatHudRenderKt;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -71,6 +68,15 @@ public abstract class ChatHudMixin {
     }
 
     @Inject(
+            method = "getWidth()I",
+            at = @At("RETURN"),
+            cancellable = true
+    )
+    public void engine$indentWidth(CallbackInfoReturnable<Integer> cir) {
+        cir.setReturnValue(cir.getReturnValue() + ChatHudRenderKt.LINE_INDENT);
+    }
+
+    @Inject(
             method = "isXInsideIndicatorIcon",
             at=@At(value = "RETURN"),
             cancellable = true
@@ -90,6 +96,21 @@ public abstract class ChatHudMixin {
     private int replaceX(int original) {
         return ChatHudRenderKt.LINE_INDENT;
     }
+
+    @Redirect(
+            method = "render",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/DrawContext;fill(IIIII)V"
+            )
+    )
+    private void redirectScrollbarFill(
+            DrawContext context,
+            int x1, int y1, int x2, int y2, int color
+    ) {
+        context.fill(x1 + ChatHudRenderKt.LINE_INDENT, y1, x2 + ChatHudRenderKt.LINE_INDENT, y2, color);
+    }
+
     @Inject(
             method = "render",
             at = @At(
@@ -97,6 +118,16 @@ public abstract class ChatHudMixin {
             )
     )
     private void engine$render(DrawContext context, int currentTick, int mouseX, int mouseY, boolean focused, CallbackInfo ci) {
+        MinecraftChat chat = MinecraftChat.INSTANCE;
+        int i = this.getMessageIndex(toChatLineX(mouseX), this.toChatLineY(mouseY));
+
+        MinecraftChat.ChatHudLineData selectedMessage;
+        if (i >= 0 && i <= this.visibleMessages.size()) {
+            selectedMessage = chat.getChatHudLineData(this.visibleMessages.get(i));
+        } else {
+            selectedMessage = null;
+        }
+
         ChatHudRenderKt.forEachVisibleLine(
                 getVisibleLineCount(),
                 currentTick,
@@ -118,11 +149,10 @@ public abstract class ChatHudMixin {
                     int j = y2 + o;
 
                     int x1 = 4;
-                    MinecraftChat chat = MinecraftChat.INSTANCE;
                     context.fill(0, y1, x1 + ChatHudRenderKt.LINE_INDENT - 4, y2, ColorHelper.withAlpha(bgAlpha, Colors.BLACK));
 
                     if (visible != null) {
-                        MinecraftChat.ChatHudLineData data = MinecraftChat.INSTANCE.getChatHudLineData(visible);
+                        MinecraftChat.ChatHudLineData data = chat.getChatHudLineData(visible);
                         if (data != null && data.isFirst()) {
                             MinecraftChat.MessageData message = data.getMessage();
                             PlayerListEntry playerListEntry = message.getAuthor();
@@ -136,20 +166,20 @@ public abstract class ChatHudMixin {
                             context.drawTextWithShadow(this.client.textRenderer, debugText, indentedX1 + client.textRenderer.getWidth(visible.content()) + 4, j, ColorHelper.withAlpha(contentAlpha, Colors.GRAY));
                         }
 
-                        int i = this.getMessageIndex(toChatLineX(mouseX), this.toChatLineY(mouseY));
-
                         int alpha = 0;
+                        if (data != null) {
+                            if (selectedMessage != null && data.getMessageId().equals(selectedMessage.getMessageId())) {
+                                alpha += 30;
+                            }
 
-                        if (i == messageIndex) {
-                            alpha += 30;
-                        }
-
-                        if (data != null && data == MinecraftChat.INSTANCE.getSelectedMessage()) {
-                            alpha += 30;
+                            MinecraftChat.MessageData msg = chat.getSelectedMessage();
+                            if (msg != null && data.getMessageId().equals(chat.messageIdOf(msg.getEngineMessage()))) {
+                                alpha += 30;
+                            }
                         }
 
                         if (alpha > 0) {
-                            context.fill(0, y1, indentedX1 + scaledWidth + 4 + 4, y2, ColorHelper.withAlpha(alpha, Colors.WHITE));
+                            context.fill(0, y1, indentedX1 + scaledWidth + ChatHudRenderKt.LINE_INDENT + 4 + 4, y2, ColorHelper.withAlpha(alpha, Colors.WHITE));
                         }
                     }
                 }
@@ -227,7 +257,7 @@ public abstract class ChatHudMixin {
     public void engine$mouseClicked(double mouseX, double mouseY, CallbackInfoReturnable<Boolean> cir) {
         int n = this.getMessageIndex(this.toChatLineX((double)mouseX), this.toChatLineY((double)mouseY));
         ChatHudLine.Visible toSet = null;
-        if (n >= 0 && n <= messages.size()) {
+        if (n >= 0 && n <= visibleMessages.size()) {
             ChatHudLine.Visible message = visibleMessages.get(n);
             if (message != null && isChatFocused() && !client.options.hudHidden && !isChatHidden()) {
                 toSet = message;

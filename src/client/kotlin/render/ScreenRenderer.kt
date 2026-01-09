@@ -1,34 +1,25 @@
 package org.lain.engine.client.render
 
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.GameSession
 
-class ScreenRenderer(
-    private val window: Window,
-    private val fontRenderer: FontRenderer,
-    private val camera: Camera,
-    private val client: EngineClient
-) {
+class ScreenRenderer(private val client: EngineClient) {
+    private val window = client.window
     private var ticks = 0
 
     var hudHidden = false
-    val littleNotificationsRenderer = LittleNotificationsRenderManager(fontRenderer, window, client.ui)
-    val movementStatusRenderer = MovementStatusRenderer(window, client)
-    val chatBubbleRenderer = ChatBubbleManager(client)
+    var isFirstPerson = false
+    val littleNotificationsRenderer = LittleNotificationsRenderManager(window, client.ui)
 
-    fun renderScreen(painter: Painter, isFirstPerson: Boolean) {
+    fun renderScreen(painter: Painter) {
         val gameSession = client.gameSession
         if (!hudHidden && gameSession != null) {
-            val movementManager = gameSession.movementManager
             littleNotificationsRenderer.update(painter.tickDelta)
-            if (isFirstPerson) {
-                movementStatusRenderer.render(
-                    painter,
-                    movementManager.intention,
-                    movementManager.stamina,
-                    painter.tickDelta
-                )
-             }
         }
+    }
+
+    fun setupGameSession(gameSession: GameSession) {
+//        client.ui.addFragment { MovementBar(gameSession) }
     }
 
     fun invalidate() {

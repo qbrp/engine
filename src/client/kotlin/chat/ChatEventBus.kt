@@ -12,4 +12,5 @@ interface ChatEventBus {
     fun onSpyEnable()
     fun onSpyDisable()
     fun onMessageVolumeUpdate(old: Float, new: Float)
+    fun getChatBubbleText(content: String): String
 }

@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc
+package org.lain.engine.client.mc.render
 
 import com.mojang.blaze3d.pipeline.BlendFunction
 import com.mojang.blaze3d.pipeline.RenderPipeline
@@ -10,11 +10,16 @@ import net.minecraft.client.render.VertexFormats
 import net.minecraft.client.texture.TextureSetup
 import net.minecraft.util.Identifier
 import org.joml.Matrix3x2f
+import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.render.Painter
-import org.lain.engine.client.render.WHITE
 import org.lain.engine.util.*
+import org.lain.engine.util.text.EngineOrderedText
+import org.lain.engine.util.text.EngineOrderedTextSequence
+import org.lain.engine.util.text.EngineText
+import org.lain.engine.util.text.splitEngineTextLinear
+import org.lain.engine.util.text.toMinecraft
 
 // А почему бы и нет?
 private val ENGINE_SPRITE_CACHE = mutableMapOf<String, Identifier>()
@@ -25,7 +30,7 @@ fun DrawContext.drawEngineSprite(
     y: Float,
     width: Float,
     height: Float,
-    color: Int = WHITE
+    color: Color = Color.WHITE
 ) {
     drawTexturedQuad(
         ENGINE_SPRITE_CACHE.getOrPut(sprite.path) { EngineId(sprite.path) },
@@ -47,7 +52,7 @@ fun DrawContext.drawTexturedQuad(
     u2: Float,
     v1: Float,
     v2: Float,
-    color: Int = WHITE
+    color: Color = Color.WHITE
 ) {
     val gpuTextureView = MinecraftClient.textureManager.getTexture(texture).getGlTextureView()
     state.addSimpleElement(
@@ -59,7 +64,7 @@ fun DrawContext.drawTexturedQuad(
             x2, y2,
             u1, u2,
             v1, v2,
-            color,
+            color.integer,
             scissorStack.peekLast()
         )
     )
@@ -100,10 +105,6 @@ class MinecraftFontRenderer : FontRenderer {
     override val fontHeight: Float
         get() = minecraftTextRenderer.fontHeight.toFloat()
 
-    override fun getTextWidth(text: EngineText): Float {
-        return minecraftTextRenderer.getWidth(text.toMinecraft()).toFloat()
-    }
-
     override fun breakTextByLines(
         text: EngineText,
         width: Float
@@ -140,27 +141,8 @@ class MinecraftPainter(
     private val matrices get() = context.matrices
     private val camera get() = MinecraftClient.gameRenderer.camera
 
-    override fun enableScissor(x1: Float, y1: Float, x2: Float, y2: Float) {
-        TODO("Not yet implemented")
-    }
-
-    override fun disableScissor() {
-        TODO("Not yet implemented")
-    }
-
-    override fun fill(x1: Float, y1: Float, x2: Float, y2: Float, color: Int, color2: Int) {
-        context.fill(x1, y1, x2, y2, color, color2)
-    }
-
-    override fun drawBorder(
-        x: Float,
-        y: Float,
-        width: Float,
-        height: Float,
-        z: Float,
-        color: Int
-    ) {
-        TODO("Not yet implemented")
+    override fun fill(x1: Float, y1: Float, x2: Float, y2: Float, color: Color, color2: Color) {
+        context.fill(x1, y1, x2, y2, color.integer, color2.integer)
     }
 
     override fun drawArc(
@@ -168,7 +150,7 @@ class MinecraftPainter(
         centerY: Float,
         radius: Float,
         thickness: Float,
-        color: Int,
+        color: Color,
         fill: Float,
         startAngle: Float,
         endAngle: Float,
@@ -181,7 +163,7 @@ class MinecraftPainter(
                 centerX,
                 centerY,
                 matrices,
-                color,
+                color.integer,
                 startAngle,
                 endAngle,
                 radius,

@@ -1,16 +1,10 @@
-package org.lain.engine.client.mc
+package org.lain.engine.client.mc.render
 
 import com.mojang.blaze3d.pipeline.RenderPipeline
-import net.fabricmc.api.EnvType
-import net.fabricmc.api.Environment
-import net.minecraft.client.font.TextRenderer
-import net.minecraft.client.font.TextRenderer.GlyphDrawable
 import net.minecraft.client.gui.ScreenRect
-import net.minecraft.client.gui.render.state.GuiElementRenderState
 import net.minecraft.client.gui.render.state.SimpleGuiElementRenderState
 import net.minecraft.client.render.VertexConsumer
 import net.minecraft.client.texture.TextureSetup
-import net.minecraft.text.OrderedText
 import org.joml.Matrix3x2f
 import org.lain.engine.util.toRadians
 import kotlin.math.ceil

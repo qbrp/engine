@@ -12,14 +12,15 @@ import org.lain.engine.client.chat.ChatBar
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.chat.EngineChatMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
+import org.lain.engine.client.mc.render.ChatChannelsBar
 import org.lain.engine.client.mixin.ui.ChatHudAccessor
-import org.lain.engine.client.render.HIGH_VOLUME_COLOR
-import org.lain.engine.client.render.LOW_VOLUME_COLOR
-import org.lain.engine.client.render.withAlpha
+import org.lain.engine.util.HIGH_VOLUME_COLOR
+import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
+import org.lain.engine.util.Color
 import org.lain.engine.util.lerp
-import org.lain.engine.util.parseMiniMessage
+import org.lain.engine.util.text.parseMiniMessage
 import kotlin.collections.set
 import kotlin.math.pow
 import kotlin.random.Random
@@ -45,7 +46,7 @@ object MinecraftChat : ChatEventBus {
 
     private val chatManager get() = client.gameSession?.chatManager
     private val chatHud get() =  MinecraftClient.inGameHud.chatHud
-    var selectedMessage: ChatHudLineData? = null
+    var selectedMessage: MessageData? = null
     val channelsBar = ChatChannelsBar()
 
     private var textShakingBoost = 0f
@@ -76,10 +77,13 @@ object MinecraftChat : ChatEventBus {
 
     data class ChatHudLineData(val line: ChatHudLine.Visible, val isFirst: Boolean, val isLast: Boolean, val message: MessageData) {
         val channelId get() = message.engineMessage.channel.id
+        val messageId get() = message.engineMessage.id.value
     }
 
+    fun messageIdOf(message: EngineChatMessage) = message.id.value
+
     fun updateSelectedMessage(chatHudLine: ChatHudLine.Visible?) {
-        val toSet = chatHudLine?.let { getChatHudLineData(it) }
+        val toSet = chatHudLine?.let { getChatHudLineData(it) }?.message
         selectedMessage = if (selectedMessage == toSet) {
             null
         } else {
@@ -113,7 +117,7 @@ object MinecraftChat : ChatEventBus {
                 content,
                 content,
                 SYSTEM_CHANNEL,
-                MessageSource.getSystem(client.gameSession?.world!!),
+                MessageSource.getSystem(client.gameSession?.world ?: return false),
                 id = MessageId.next()
             ).also {
                 messageByContentCache[content] = it
@@ -172,12 +176,14 @@ object MinecraftChat : ChatEventBus {
     }
 
     fun deleteMessage(chatMessage: EngineChatMessage) {
-        val message = chatHudLines.values.find { it.message.engineMessage.id == chatMessage.id } ?: return
+        val messages = chatHudLines.values.filter { it.message.engineMessage.id == chatMessage.id }
         val accessor = chatHud as ChatHudAccessor
-        val line = message.line
-        accessor.`engine$getVisibleMessages`().remove(line)
-        accessor.`engine$getMessages`().remove(message.message.node)
-        deleteChatHudLine(line)
+        messages.forEach { message ->
+            val line = message.line
+            accessor.`engine$getVisibleMessages`().remove(line)
+            accessor.`engine$getMessages`().remove(message.message.node)
+            deleteChatHudLine(line)
+        }
     }
 
     fun storeMessageContent(content: String, message: EngineChatMessage) {
@@ -303,12 +309,12 @@ object MinecraftChat : ChatEventBus {
         return if (currentVolume > baseVolume) {
             val a = currentVolume / maxVolume
             val a1 = a.coerceAtLeast(0f)
-            HIGH_VOLUME_COLOR.withAlpha(a1 * 0.4f)
+            HIGH_VOLUME_COLOR.withAlpha((a1 * 0.4f * 255).toInt())
         } else {
             val a = (baseVolume - currentVolume) / baseVolume
             val a1 = a.coerceAtLeast(0f)
-            LOW_VOLUME_COLOR.withAlpha(a1 * 0.3f)
-        }
+            LOW_VOLUME_COLOR.withAlpha((a1 * 0.3f * 255).toInt())
+        }.integer
     }
 
     override fun onMessageVolumeUpdate(old: Float, new: Float) {
@@ -316,5 +322,9 @@ object MinecraftChat : ChatEventBus {
         if (delta > 0) {
             textShakingBoost = (delta * chatInputTextShaking * 70).coerceAtMost(2f)
         }
+    }
+
+    override fun getChatBubbleText(content: String): String {
+        return content.parseMiniMessage().string
     }
 }

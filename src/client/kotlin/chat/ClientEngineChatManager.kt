@@ -6,7 +6,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.render.EXCLAMATION
-import org.lain.engine.client.render.SPY_COLOR
+import org.lain.engine.util.SPY_COLOR
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.slf4j.LoggerFactory
@@ -119,7 +119,7 @@ class ClientEngineChatManager(
         if (visible) {
             val author = message.source.player
             if (author != null && message.isSpeech && author != gameSession.mainPlayer) {
-                gameSession.chatBubbleManager.setChatBubble(author, message)
+                gameSession.chatBubbleList.setChatBubble(author, eventBus.getChatBubbleText(message.text))
             }
             if (isMentioned) {
                 client.audioManager.playUiNotificationSound()
@@ -129,7 +129,14 @@ class ClientEngineChatManager(
 
     fun deleteMessage(id: MessageId) {
         val toDelete = messages.find { it.id == id } ?: return
+        if (toDelete.source.player?.id == gameSession.mainPlayer.id) {
+            deleteSelfMessage(toDelete)
+        }
         eventBus.onMessageDelete(toDelete)
+    }
+
+    private fun deleteSelfMessage(message: EngineChatMessage) {
+        client.handler.onChatMessageDelete(message)
     }
 
     fun updateSettings(new: ClientChatSettings) {

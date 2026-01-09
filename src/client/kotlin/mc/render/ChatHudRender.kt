@@ -1,7 +1,5 @@
-package org.lain.engine.client.mc
+package org.lain.engine.client.mc.render
 
-import net.minecraft.client.gui.hud.ChatHud
-import net.minecraft.client.gui.hud.ChatHudLine
 import net.minecraft.client.gui.hud.ChatHudLine.Visible
 
 // Зачем нужна вся эта хуйня? А потому-что инкапсуляция, сученька, всё скрываем, ООП нахуй
@@ -39,7 +37,7 @@ fun forEachVisibleLine(
         ++j
         val n = windowHeight - k * lineHeight
         val o = n - lineHeight
-        consumer.accept(LINE_INDENT, o, n, visible, k, f)
+        consumer.accept(0, o, n, visible, k, f)
     }
     return j
 }

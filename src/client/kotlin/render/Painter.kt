@@ -1,7 +1,8 @@
 package org.lain.engine.client.render
 
-import org.lain.engine.util.EngineOrderedTextSequence
-import org.lain.engine.util.EngineText
+import org.lain.engine.util.Color
+import org.lain.engine.util.text.EngineOrderedTextSequence
+import org.lain.engine.util.text.EngineText
 
 data class EngineSprite(
     val path: String,
@@ -14,20 +15,14 @@ data class EngineSprite(
 
 interface FontRenderer {
     val fontHeight: Float
-    fun getTextWidth(text: EngineText): Float
     fun breakTextByLines(text: EngineText, width: Float): List<EngineOrderedTextSequence>
 }
 
 interface Painter : FontRenderer {
     val tickDelta: Float
 
-    // Scissor
-    fun enableScissor(x1: Float, y1: Float, x2: Float, y2: Float)
-    fun disableScissor()
-
     // Примитивы
-    fun fill(x1: Float, y1: Float, x2: Float, y2: Float, color: Int, color2: Int = color)
-    fun drawBorder(x: Float, y: Float, width: Float, height: Float, z: Float = 0f, color: Int)
+    fun fill(x1: Float, y1: Float, x2: Float, y2: Float, color: Color, color2: Color = color)
 
     // Фигуры
 
@@ -39,7 +34,7 @@ interface Painter : FontRenderer {
         centerY: Float,
         radius: Float,
         thickness: Float,
-        color: Int,
+        color: Color,
         fill: Float = 1f,
         startAngle: Float = 0f,
         endAngle: Float = 360f,

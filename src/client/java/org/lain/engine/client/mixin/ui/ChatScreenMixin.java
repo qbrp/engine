@@ -1,16 +1,12 @@
 package org.lain.engine.client.mixin.ui;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.render.RenderLayer;
-import org.lain.engine.client.mc.ChatChannelsBar;
+import org.lain.engine.client.mc.render.ChatChannelsBar;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftChat;
 import org.lwjgl.glfw.GLFW;
@@ -121,9 +117,17 @@ public class ChatScreenMixin {
     public void engine$onKeyPress(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
         MinecraftChat chat = MinecraftChat.INSTANCE;
         chat.updateChatInput(chatField.getText());
-        MinecraftChat.ChatHudLineData selectedMessage = chat.getSelectedMessage();
+        MinecraftChat.MessageData selectedMessage = chat.getSelectedMessage();
         if (selectedMessage != null && input.key() == GLFW.GLFW_KEY_DELETE) {
-            chat.deleteMessage(selectedMessage.getMessage().getEngineMessage());
+            ClientMixinAccess.INSTANCE.deleteChatMessage(selectedMessage.getEngineMessage());
         }
+    }
+
+    @Inject(
+            method = "close",
+            at = @At("TAIL")
+    )
+    public void engine$close(CallbackInfo ci) {
+        MinecraftChat.INSTANCE.setSelectedMessage(null);
     }
 }

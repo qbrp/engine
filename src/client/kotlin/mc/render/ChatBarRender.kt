@@ -1,18 +1,17 @@
-package org.lain.engine.client.mc
+package org.lain.engine.client.mc.render
 
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.text.Text
 import org.lain.engine.client.chat.ChatBarSection
 import org.lain.engine.client.chat.ClientEngineChatManager
-import org.lain.engine.client.render.DARK_RED
+import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.render.EXCLAMATION_RED
-import org.lain.engine.client.render.GRAY
 import org.lain.engine.client.render.MENTION
 import org.lain.engine.client.render.Rect2
 import org.lain.engine.client.render.Size
-import org.lain.engine.client.render.WHITE
-import org.lain.engine.client.render.blend
 import org.lain.engine.client.render.fitSquaresHorizontally
+import org.lain.engine.util.Color
 
 data class ChatChannelButton(val textWidth: Int, val rect: Rect2, val text: Text, val section: ChatBarSection)
 
@@ -83,12 +82,12 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
                 val y2 = rect.y2.toInt()
 
                 var color = if (mouseX in rect.x1..rect.x2 && mouseY in rect.y1..rect.y2) {
-                    WHITE
+                    Color.WHITE
                 } else {
-                    GRAY
+                    Color.GRAY
                 }
                 if (chatManager?.chatBar?.isHidden(button.section) == true) {
-                    color = color.blend(DARK_RED, 0.5f)
+                    color = color.blend(Color.DARK_RED, 0.5f)
                 }
 
                 val textWidth = button.textWidth
@@ -100,7 +99,7 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
                     button.text,
                     x1 + (rectWidth - textWidth) / 2,
                     y1 + padding.toInt(),
-                    color
+                    color.integer
                 )
 
                 if (chatBar.hasUnreadMessages(button.section)) {
