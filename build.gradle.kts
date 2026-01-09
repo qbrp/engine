@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.testImplementation
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -87,6 +88,13 @@ dependencies {
 
     // Permission API
     modImplementation("me.lucko:fabric-permissions-api:${project.property("fabric_permissions_version")}")
+
+    // Game tests
+    testImplementation("net.fabricmc:fabric-loader-junit:${project.property("loader_version")}")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.processResources {

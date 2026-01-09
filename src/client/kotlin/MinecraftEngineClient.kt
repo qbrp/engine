@@ -18,24 +18,13 @@ import org.lain.engine.client.mc.MinecraftAudioManager
 import org.lain.engine.client.mc.MinecraftCamera
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.ClientMinecraftNetwork
-import org.lain.engine.client.mc.EngineUiRenderPipeline
+import org.lain.engine.client.mc.render.EngineUiRenderPipeline
 import org.lain.engine.client.mc.EngineYamlConfig
 import org.lain.engine.client.mc.KeybindManager
 import org.lain.engine.client.transport.sendC2SPacket
-import org.lain.engine.client.mc.MinecraftFontRenderer
-import org.lain.engine.client.mc.MinecraftPainter
-import org.lain.engine.client.render.WHITE
+import org.lain.engine.client.mc.render.MinecraftFontRenderer
+import org.lain.engine.client.mc.render.MinecraftPainter
 import org.lain.engine.client.render.Window
-import org.lain.engine.client.render.ui.Background
-import org.lain.engine.client.render.ui.Color
-import org.lain.engine.client.render.ui.ConstraintsSize
-import org.lain.engine.client.render.ui.Fragment
-import org.lain.engine.client.render.ui.Size
-import org.lain.engine.client.render.ui.Sizing
-import org.lain.engine.client.render.ui.UiContext
-import org.lain.engine.client.render.ui.fragmentsToUiElements
-import org.lain.engine.client.render.ui.layout
-import org.lain.engine.client.render.ui.measure
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.server.ServerSingleplayerTransport
@@ -44,15 +33,11 @@ import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.updatePlayerMinecraftSystems
 import org.lain.engine.serverMinecraftPlayerInstance
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.EngineOrderedTextSequence
 import org.lain.engine.util.Injector
 import org.lain.engine.util.MinecraftUsername
-import org.lain.engine.util.MutableEngineOrderedText
 import org.lain.engine.util.engineId
 import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.parseMiniMessage
 import org.lain.engine.util.registerMinecraftServer
-import org.lain.engine.util.toMinecraft
 import java.util.Optional
 
 class MinecraftEngineClient : ClientModInitializer {
@@ -67,6 +52,7 @@ class MinecraftEngineClient : ClientModInitializer {
     private val camera = MinecraftCamera(client)
     val uiRenderPipeline = EngineUiRenderPipeline(client, fontRenderer)
 
+    private val eventBus = MinecraftEngineClientEventBus(client, clientPlayerTable)
     private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
         window,
@@ -75,19 +61,7 @@ class MinecraftEngineClient : ClientModInitializer {
         MinecraftChat,
         audioManager,
         uiRenderPipeline,
-        onFullPlayerData =  { client, id, data ->
-            val player = client.gameSession?.getPlayer(id) ?: error("Игрока $id для синхронизации состояния не существует")
-            val entity = this.client.world?.players?.firstOrNull {
-                it.uuid == id.value
-            } ?: error("Сущность игрока $id для синхронизации состояния не существует")
-            clientPlayerTable.setPlayer(entity, player)
-        },
-        onPlayerDestroy = {
-            clientPlayerTable.removePlayer(it)
-        },
-        onMainPlayerInstantiated = {
-            clientPlayerTable.setPlayer(this.client.player!!, it)
-        }
+        eventBus
     )
         .also { Injector.register(it) }
 
@@ -158,35 +132,25 @@ class MinecraftEngineClient : ClientModInitializer {
         HudElementRegistry.addLast(
             EngineId("ui")
         ) { context, tickCounter ->
-            val deltaTick = tickCounter.dynamicDeltaTicks
+            val deltaTick = tickCounter.fixedDeltaTicks
             val painter = MinecraftPainter(
                 deltaTick,
                 context,
                 fontRenderer
             )
             context.matrices.pushMatrix()
-            renderer.renderScreen(painter, !client.gameRenderer.camera.isThirdPerson)
-            uiRenderPipeline.render(context, deltaTick)
+            renderer.isFirstPerson = !client.gameRenderer.camera.isThirdPerson
+            renderer.renderScreen(painter)
+            val window = MinecraftClient.window
+            val mouse = MinecraftClient.mouse
+            uiRenderPipeline.render(
+                context,
+                deltaTick,
+                mouse.getScaledX(window).toFloat(),
+                mouse.getScaledY(window).toFloat()
+            )
             context.matrices.popMatrix()
         }
-
-//        WorldRenderEvents.AFTER_ENTITIES.register { context ->
-//            val gameSession = engineClient.gameSession ?: return@register
-//            val tickDelta = MinecraftClient.renderTickCounter.dynamicDeltaTicks
-//            val matrices = context.matrices()
-//            val vertexConsumers = context.consumers()
-//            val cameraPos = context.gameRenderer().camera.pos
-//            matrices.push()
-//            matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
-//            val chatBubbleManager = gameSession.chatBubbleManager
-//            gameSession.playerStorage.forEach {
-//                val entity = (clientPlayerTable.getEntity(it) as? AbstractClientPlayerEntity) ?: return@forEach
-//                val chatBubble = chatBubbleManager.getChatBubble(it) ?: return@forEach
-//                chatBubbleManager.update(chatBubble, it, tickDelta)
-//                renderChatBubbles(entity, tickDelta, chatBubble, engineClient.options.chatBubbleScale.get(), matrices, vertexConsumers)
-//            }
-//            matrices.pop()
-//        }
 
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
             val transport = ServerSingleplayerTransport(engineClient)
@@ -216,9 +180,7 @@ class MinecraftEngineClient : ClientModInitializer {
         uiRenderPipeline.invalidate()
         engineClient.leaveGameSession()
         MinecraftChat.clearChatData()
-
-        val entity = client.player ?: return
-        clientPlayerTable.removePlayer(entity)
+        entityTable.client.invalidate()
     }
 
     private fun authorize(player: ClientPlayerEntity) {

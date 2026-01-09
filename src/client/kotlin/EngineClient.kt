@@ -5,12 +5,10 @@ import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.Camera
-import org.lain.engine.client.render.DEV_MODE_TEXT_COLOR
 import org.lain.engine.client.render.EXCLAMATION
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.render.QUESTION
 import org.lain.engine.client.render.ScreenRenderer
-import org.lain.engine.client.render.SPECTATOR_MODE_TEXT_COLOR
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.util.EngineAudioManager
@@ -22,22 +20,22 @@ import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.developerMode
 import org.lain.engine.transport.packet.FullPlayerData
+import org.lain.engine.util.DEV_MODE_COLOR
+import org.lain.engine.util.SPECTATOR_MODE_COLOR
 import org.lwjgl.glfw.GLFW
 
 class EngineClient(
-    private val window: Window,
-    private val fontRenderer: FontRenderer,
+    val window: Window,
+    val fontRenderer: FontRenderer,
     private val camera: Camera,
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
-    val onFullPlayerData: (EngineClient, PlayerId, FullPlayerData) -> Unit,
-    val onPlayerDestroy: (PlayerId) -> Unit,
-    val onMainPlayerInstantiated: (Player) -> Unit
+    val eventBus: ClientEventBus
 ) {
     lateinit var options: EngineOptions
-    val handler = ClientHandler(this)
-    val renderer = ScreenRenderer(window, fontRenderer, camera, this)
+    val handler = ClientHandler(this, eventBus)
+    val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
 
     val resources
@@ -57,6 +55,7 @@ class EngineClient(
     fun tick() {
         gameSession?.tick()
         handler.tick()
+        eventBus.tick()
     }
 
     fun execute(r: () -> Unit) {
@@ -77,7 +76,7 @@ class EngineClient(
                 } else {
                     "Выключен."
                 },
-                DEV_MODE_TEXT_COLOR,
+                DEV_MODE_COLOR,
                 sprite = if (developerMode) QUESTION else EXCLAMATION,
                 lifeTime = 100
             )
@@ -109,7 +108,7 @@ class EngineClient(
             LittleNotification(
                 "Наблюдение",
                 "Введите команду /spawn для появления",
-                SPECTATOR_MODE_TEXT_COLOR,
+                SPECTATOR_MODE_COLOR,
                 sprite = QUESTION,
                 lifeTime = 200
             ),

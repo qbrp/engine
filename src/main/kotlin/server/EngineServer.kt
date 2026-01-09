@@ -1,11 +1,8 @@
 package org.lain.engine.server
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
-import org.lain.engine.player.DefaultPlayerAttributes
-import org.lain.engine.player.flushPlayerCommands
 import org.lain.engine.player.PlayerService
 import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.flushPlayerMessages
@@ -13,6 +10,8 @@ import org.lain.engine.player.flushPlayerUpdates
 import org.lain.engine.player.updatePlayerMovement
 import org.lain.engine.player.updatePlayerVoice
 import org.lain.engine.transport.ServerTransportContext
+import org.lain.engine.util.FixedSizeList
+import org.lain.engine.util.Timestamp
 import org.lain.engine.util.flush
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -30,9 +29,8 @@ class EngineServer(
 
     private val taskQueue = ConcurrentLinkedQueue<Runnable>()
     private val worlds: MutableMap<WorldId, World> = mutableMapOf()
-    private val dispatcher = Dispatchers.IO.limitedParallelism(Runtime.getRuntime().availableProcessors())
-    private val updateScore = CoroutineScope(dispatcher)
 
+    val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val playerService = PlayerService(playerStorage, this)
     val defaultWorld
@@ -48,11 +46,11 @@ class EngineServer(
     }
 
     fun update() {
+        val start = Timestamp()
         val players = playerStorage.getAll()
         val vocalSettings = globals.vocalSettings
         for (player in players) {
             updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
-            flushPlayerCommands(player)
             flushPlayerMessages(player, chat, vocalSettings)
             updatePlayerVoice(player, chat, globals.vocalSettings)
         }
@@ -61,6 +59,8 @@ class EngineServer(
 
         handler.synchronizePlayers()
         taskQueue.flush { it.run() }
+
+        tickTimes.add(start.timeElapsed().toInt())
     }
 
     fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {

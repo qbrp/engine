@@ -1,3 +1,12 @@
 {
-  "key.category.engine.category": "Engine"
+  "yamlconfig.engine": "Engine",
+  "yamlconfig.engine.engine-config.crosshair": "Курсор",
+  "yamlconfig.engine.engine-config.crosshair.indicator-visible": "Показывать ванильный индикатор атаки",
+  "yamlconfig.engine.engine-config.chat.chat-bubble-scale": "Масштаб",
+  "yamlconfig.engine.engine-config.chat.chat-bubble-height": "Высота",
+  "yamlconfig.engine.engine-config.chat.chat-bubble-line-width": "Ширина текста",
+  "yamlconfig.engine.engine-config.chat.chat-bubble-life-time": "Время жизни",
+  "yamlconfig.engine.engine-config.chat.chat-input": "Поле ввода",
+  "yamlconfig.engine.engine-config.chat.chat-input.shaking-force": "Сила тряски",
+  "yamlconfig.engine.engine-config.chat.chat-input.shaking-threshold": "Порог тряски"
 }

@@ -2,60 +2,47 @@ package org.lain.engine.client.handler
 
 import kotlinx.coroutines.runBlocking
 import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageId
-import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
+import org.lain.engine.client.ClientEventBus
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.EngineChatMessage
-import org.lain.engine.client.clientWorld
-import org.lain.engine.client.isLowDetailed
+import org.lain.engine.client.transport.clientWorld
+import org.lain.engine.client.transport.isLowDetailed
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
-import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.render.WARNING
-import org.lain.engine.client.render.WARNING_COLOR
+import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerAttributes
-import org.lain.engine.player.PlayerId
 import org.lain.engine.player.customName
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
-import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_JOIN_GAME_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_DESTROY_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_JOIN_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.transport.packet.ClientboundServerSettings
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.ClientboundWorldData
+import org.lain.engine.transport.packet.DeleteChatMessagePacket
 import org.lain.engine.transport.packet.DeveloperModePacket
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.IncomingChatMessagePacket
 import org.lain.engine.transport.packet.SERVERBOUND_CHAT_MESSAGE_ENDPOINT
+import org.lain.engine.transport.packet.SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_DEVELOPER_MODE_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_VOLUME_PACKET
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.transport.packet.SetSpeedIntentionPacket
 import org.lain.engine.transport.packet.VolumePacket
-import org.lain.engine.util.flush
 import org.lain.engine.util.injectValue
 import org.lain.engine.util.replaceOrSet
 import org.lain.engine.util.require
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.forEach
 import kotlin.collections.plus
 
@@ -63,11 +50,8 @@ typealias Update = Player.() -> Unit
 
 typealias PendingUpdates = MutableList<Update>
 
-class ClientHandler(
-    val client: EngineClient
-) {
+class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val gameSession get() = client.gameSession
-
     private val handledNotifications = mutableSetOf<Notification>()
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
     val taskExecutor = TaskExecutor()
@@ -86,6 +70,10 @@ class ClientHandler(
 
     fun onChatMessageSend(content: String, channelId: ChannelId) {
         SERVERBOUND_CHAT_MESSAGE_ENDPOINT.sendC2SPacket(IncomingChatMessagePacket(content, channelId))
+    }
+
+    fun onChatMessageDelete(message: EngineChatMessage) {
+        SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.sendC2SPacket(DeleteChatMessagePacket(message.id))
     }
 
     fun onVolumeUpdate(volume: Float) {
@@ -134,7 +122,7 @@ class ClientHandler(
         replaceOrSet(data.movementStatus)
         replaceOrSet(data.attributes)
         isLowDetailed = false
-        client.onFullPlayerData(client, id, data)
+        client.eventBus.onFullPlayerData(client, id, data)
     }
 
     fun applyPlayerJoined(data: GeneralPlayerData) {
@@ -143,7 +131,7 @@ class ClientHandler(
 
     fun applyPlayerDestroyed(player: Player) {
         gameSession!!.playerStorage.remove(player.id)
-        client.onPlayerDestroy(player.id)
+        eventBus.onPlayerDestroy(client, player.id)
     }
 
     fun applyJoinGame(

@@ -3,7 +3,9 @@ package org.lain.engine.client.render.ui
 import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.MutableVec2
 import org.lain.engine.client.render.Vec2
-import org.lain.engine.util.EngineOrderedTextSequence
+import org.lain.engine.client.render.ZeroMutableVec2
+import org.lain.engine.util.Color
+import org.lain.engine.util.text.EngineOrderedTextSequence
 import kotlin.math.max
 
 interface Size {
@@ -50,48 +52,10 @@ data class MutableSize(override var width: Float, override var height: Float) : 
     }
 }
 
-@JvmInline
-value class Color(val integer: Int) {
-    constructor(long: Long) : this(long.toInt())
-
-    fun blend(
-        other: Color?,
-        colorA: Float?,
-        alphaA: Float = 0f
-    ): Color {
-        if (other == null || colorA == null) return this
-        val cA = colorA.coerceIn(0f, 1f)
-        val aA = alphaA.coerceIn(0f, 1f)
-
-        val a1 = (integer ushr 24) and 0xFF
-        val r1 = (integer ushr 16) and 0xFF
-        val g1 = (integer ushr 8) and 0xFF
-        val b1 = integer and 0xFF
-
-        val other = other.integer
-        val a2 = (other ushr 24) and 0xFF
-        val r2 = (other ushr 16) and 0xFF
-        val g2 = (other ushr 8) and 0xFF
-        val b2 = other and 0xFF
-
-        val outR = (r1 * (1f - cA) + r2 * cA).toInt().coerceIn(0, 255)
-        val outG = (g1 * (1f - cA) + g2 * cA).toInt().coerceIn(0, 255)
-        val outB = (b1 * (1f - cA) + b2 * cA).toInt().coerceIn(0, 255)
-
-        val outA = (a1 * (1f - aA) + a2 * aA).toInt().coerceIn(0, 255)
-
-        return Color((outA shl 24) or (outR shl 16) or (outG shl 8) or outB)
-    }
-
-    companion object {
-        val WHITE_TRANSPARENT = Color(0x00FFFFFF)
-        val WHITE = Color(0xFFFFFFFF)
-        val BLACK_TRANSPARENT = Color(org.lain.engine.client.render.BLACK_TRANSPARENT)
-    }
-}
-
-typealias HoverListener = (UiState, Int, Int) -> Unit
-typealias ClickListener = (UiState, Int, Int) -> Boolean
+typealias RenderListener = (UiState) -> Unit
+typealias MeasureListener = (Composition) -> Unit
+typealias HoverListener = (UiState, Float, Float) -> Unit
+typealias ClickListener = (UiState, Float, Float) -> Boolean
 
 data class TextState(
     val lines: List<EngineOrderedTextSequence>,
@@ -100,7 +64,7 @@ data class TextState(
 )
 
 data class Background(
-    val color1: Color = Color.WHITE_TRANSPARENT,
+    val color1: Color = Color.WHITE.withAlpha(0),
     val color2: Color = color1
 )
 
@@ -132,18 +96,19 @@ data class UiFeatures(
 )
 
 data class UiListeners(
-    val clickListener: ClickListener? = null,
-    val hoverListener: ClickListener? = null
+    var click: ClickListener? = null,
+    var hover: HoverListener? = null,
+    var render: RenderListener? = null
 )
 
 data class UiState(
-    val position: MutableVec2,
-    val origin: MutableVec2,
-    val size: MutableSize,
+    val position: MutableVec2 = ZeroMutableVec2(),
+    val origin: MutableVec2 = ZeroMutableVec2(),
+    val size: MutableSize = MutableSize(0f, 0f),
     val scale: MutableVec2 = DEFAULT_SCALE,
-    val children: MutableList<UiState> = mutableListOf(),
-    val features: UiFeatures,
-    val listeners: UiListeners = UiListeners()
+    val features: UiFeatures = UiFeatures(),
+    val listeners: UiListeners = UiListeners(),
+    var visible: Boolean = true
 ) {
     val scaledSize = MutableSize(size.width, size.height)
     fun update() {
@@ -158,7 +123,6 @@ data class UiState(
 }
 
 interface EngineUi {
-    fun addRootFragment(fragment: Fragment): UiState
-    fun addRootElement(state: UiState)
-    fun removeRootElement(state: UiState)
+    fun addFragment(constraints: Size? = null, clear: Boolean = true, fragment: () -> Fragment): Composition
+    fun removeComposition(composition: Composition)
 }

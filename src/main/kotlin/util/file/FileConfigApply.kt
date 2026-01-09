@@ -1,8 +1,7 @@
-package org.lain.engine.util
+package org.lain.engine.util.file
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
-import net.fabricmc.fabric.api.tag.FabricTagKey
 import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.tag.TagKey
@@ -19,7 +18,6 @@ import org.lain.engine.chat.Selector
 import org.lain.engine.mc.AcousticBlockData
 import org.lain.engine.mc.ServerMixinAccess
 import org.lain.engine.mc.registerServerChatCommand
-import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.MovementDefaultAttributes
 import org.lain.engine.player.MovementSettings
 import org.lain.engine.player.PlayerStatus

@@ -4,7 +4,6 @@ import kotlinx.serialization.Serializable
 import net.fabricmc.api.DedicatedServerModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.minecraft.server.network.ServerPlayerEntity
-import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.isOp
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
@@ -17,8 +16,7 @@ import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.network.ServerNetworkTransport
 import org.lain.engine.transport.network.SessionId
 import org.lain.engine.util.engineId
-import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.parseMiniMessage
+import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.util.registerMinecraftServer
 import java.util.UUID
 
@@ -90,12 +88,12 @@ class ServerAuthorizationListener(
         val mods = packet.mods
 
         val warnings = mutableListOf<String>()
-        if (mods.contains("xaeroworldmap") || mods.contains("xaerominimap") || mods.contains("voxelmap")) {
-            connectionManager.disconnect(
-                connection,
-                "<bold>Вы были исключены с сервера из-за мода на мини-карту</bold><newline>$MINIMAP_WARNING"
-            )
-        }
+//        if (mods.contains("xaeroworldmap") || mods.contains("xaerominimap") || mods.contains("voxelmap")) {
+//            connectionManager.disconnect(
+//                connection,
+//                "<bold>Вы были исключены с сервера из-за мода на мини-карту</bold><newline>$MINIMAP_WARNING"
+//            )
+//        }
         if (mods.contains("freecam")) {
             notifyOperators("Freecam", username)
             warnings.add(

@@ -104,6 +104,8 @@ class EngineChat(
         val sourceWorld = source.world
         val sourcePos = source.position
 
+        val id = MessageId.next()
+
         // Распространяем сообщение
         // Акустики нет - сообщение нельзя обработать
         val acoustic = acoustic ?: return
@@ -129,7 +131,7 @@ class EngineChat(
 
                     // Посылаем перед симуляцией сообщение автору, чтобы показать иллюзию быстрой обработки
                     dontSendMessageToAuthor = true
-                    if (writtenByPlayer) sendMessage(content, source, this, author, volume = volume)
+                    if (writtenByPlayer) sendMessage(content, source, this, author, volume = volume, id = id)
                     try {
                         runAcousticSpreadSimulation(
                             sourceWorld,
@@ -161,12 +163,12 @@ class EngineChat(
             .forEach {
                 if (dontSendMessageToAuthor && it == source.player) return@forEach
                 val volume = volumes[it]
-                sendMessage(content, source, this, it, volume = volume)
+                sendMessage(content, source, this, it, volume = volume, id = id)
             }
 
         players
             .filter { it !in recipients && it.isChatOperator && it != source.player }
-            .forEach { sendSpyMessage(content, source, this, it) }
+            .forEach { sendSpyMessage(content, source, this, it, id = id) }
     }
 
     fun sendSystemMessage(content: String, recipient: Player) {
@@ -174,7 +176,8 @@ class EngineChat(
             content,
             source = MessageSource.getSystem(recipient.world),
             channel = ChatChannel.SYSTEM,
-            recipient = recipient
+            recipient = recipient,
+            id = MessageId.next()
         )
     }
 
@@ -185,7 +188,8 @@ class EngineChat(
         recipient: Player,
         boomerang: Boolean = false,
         volume: Float? = null,
-        placeholders: Map<String, String> = mapOf()
+        placeholders: Map<String, String> = mapOf(),
+        id: MessageId = MessageId.next()
     ) {
         var content = content
         val mustBeSpectator = channel.modifiers.contains(Modifier.Spectator)
@@ -217,7 +221,8 @@ class EngineChat(
                mention = hasMention,
                speech = isSpeech,
                volume = volume,
-               placeholders = getDefaultPlaceholders(content, recipient, source) + placeholders,
+               placeholders = getDefaultPlaceholders(recipient, source) + placeholders,
+               id = id
            )
         }
     }
@@ -226,7 +231,8 @@ class EngineChat(
         content: String,
         source: MessageSource,
         originalChannel: ChatChannel,
-        recipient: Player
+        recipient: Player,
+        id: MessageId
     ) {
         sendMessageInternal(
             recipient,
@@ -234,6 +240,7 @@ class EngineChat(
             source,
             originalChannel,
             isSpy = true,
+            id = id
         )
     }
 
@@ -247,7 +254,8 @@ class EngineChat(
         volume: Float? = null,
         isSpy: Boolean = false,
         head: Boolean = showHeads(source.player, channel),
-        placeholders: Map<String, String> = getDefaultPlaceholders(text, recipient, source, volume),
+        placeholders: Map<String, String> = getDefaultPlaceholders(recipient, source, volume),
+        id: MessageId
     ) {
         server.handler.onOutcomingMessage(
             recipient,
@@ -261,7 +269,7 @@ class EngineChat(
                 placeholders,
                 isSpy,
                 head,
-                MessageId.next()
+                id
             ).also {
                 outcomingMessageHistory[it.id] = it
             }
@@ -293,7 +301,6 @@ class EngineChat(
     }
 
     private fun getDefaultPlaceholders(
-        text: String,
         recipient: Player,
         source: MessageSource,
         volume: Float? = null

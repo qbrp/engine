@@ -1,17 +1,22 @@
-package org.lain.engine.util
+package org.lain.engine.util.file
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import net.minecraft.entity.EquipmentSlot
+import net.minecraft.item.Item
 import net.minecraft.util.Identifier
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.mc.EngineItem
+import org.lain.engine.mc.ItemEquipment
 import org.lain.engine.mc.ItemId
 import org.lain.engine.mc.ItemListTab
 import org.lain.engine.mc.ItemNamespace
 import org.lain.engine.mc.ItemNamespaceId
-import java.lang.Exception
+import org.lain.engine.util.EngineId
+import org.lain.engine.util.text.parseMiniMessage
+import kotlin.collections.iterator
 
 private val ITEMS_DIR = ENGINE_DIR.resolve("items")
 private val INVENTORY_TABS = ITEMS_DIR.resolve(INVENTORY_TABS_FILENAME)
@@ -39,7 +44,9 @@ data class ItemConfig(
     val texture: String? = null,
     @SerialName("asset") val assetType: AssetType = AssetType.FILE,
     val stackable: Boolean = true,
-    @SerialName("stack_size") val maxStackSize: Int = 16
+    @SerialName("stack_size") val maxStackSize: Int = 16,
+    val equip: ItemEquipment? = null,
+    val hat: Boolean? = null
 ) {
     enum class AssetType {
         GENERATED, FILE
@@ -127,12 +134,16 @@ fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompil
                 ItemConfig.AssetType.GENERATED -> config.texture ?: id.value
             }
             val assetId = EngineId(asset)
+
+            val equip = config.equip ?: config.hat?.let { if (it) ItemEquipment(EquipmentSlot.HEAD) else null }
+
             itemsToAdd += EngineItem(
                 id,
                 config.displayName.parseMiniMessage(),
                 material,
                 assetId,
-                stackSize
+                stackSize,
+                equip
             ).also {
                 namespaceToItemMap.getOrPut(namespace.id) { mutableListOf() }.add(it)
             }

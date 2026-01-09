@@ -19,7 +19,7 @@ import org.lain.engine.transport.serializePacket
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.engineId
 import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.parseMiniMessage
+import org.lain.engine.util.text.parseMiniMessage
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 

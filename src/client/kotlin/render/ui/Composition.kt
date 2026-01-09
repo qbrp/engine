@@ -8,8 +8,12 @@ package org.lain.engine.client.render.ui
  * Его используют объекты `State`, чтобы понимать, кому конкретно передаётся состояние, чтобы записать его в подписчики
  */
 object CompositionRenderContext {
-    val composition: Composition? = null
+    var composition: Composition? = null
+    var uiContext: UiContext? = null
+
+    fun getUiContextOrThrow() = uiContext ?: error("Контекст UI не инициализирован")
 }
+
 
 interface State<T> {
     fun get(): T
@@ -26,7 +30,7 @@ class MutableState<T>(initial: T): State<T> {
 
     fun set(value: T) {
         this.value = value
-        listeners.forEach { recompose(it) }
+        recompose(listeners, CompositionRenderContext.getUiContextOrThrow())
     }
 }
 
@@ -35,7 +39,10 @@ class MutableListState<T>(initial: List<T>): State<MutableList<T>>, Iterable<T> 
     private val listeners = mutableSetOf<Composition>()
 
     override fun get(): MutableList<T> {
-        CompositionRenderContext.composition?.let { listeners += it }
+        CompositionRenderContext.composition?.let {
+            it.slots.add(this)
+            listeners += it
+        }
         return list
     }
 
@@ -55,7 +62,7 @@ class MutableListState<T>(initial: List<T>): State<MutableList<T>>, Iterable<T> 
     }
 
     private fun update() {
-        listeners.forEach { recompose(it) }
+        recompose(listeners, CompositionRenderContext.getUiContextOrThrow())
     }
 
     override fun iterator(): Iterator<T> = list.iterator()
@@ -67,15 +74,52 @@ inline fun <reified T> mutableListStateOf(vararg initial: T) = MutableListState(
 
 // Composition
 
+@JvmInline
+value class CompositionId(val long: ULong) {
+    companion object {
+        private var last = ULong.MIN_VALUE
+
+        fun next() = CompositionId(last++)
+    }
+}
+
 data class Composition(
     val render: UiState,
-    var fragment: Fragment,
-    val slots: MutableSet<State<*>>,
-    var recompose: Boolean = false,
-    val children: MutableList<Composition>
+    val fragmentBuilder: () -> Fragment,
+    val slots: LinkedHashSet<State<*>> = LinkedHashSet(),
+    val children: MutableList<Composition> = mutableListOf(),
+    var lastFragment: Fragment = fragmentBuilder(),
+    var id: CompositionId = CompositionId.next(),
+    var clear: Boolean = false,
+    val constraintsSize: Size
 )
 
-fun recompose(composition: Composition) {
-    composition.recompose = true
-    composition.children.forEach { recompose(it) }
+fun recompose(compositions: Set<Composition>, context: UiContext) {
+    val rebuilt = mutableSetOf<CompositionId>()
+    fun rebuild(composition2: Composition) {
+        composition2.slots.clear()
+        composition2.lastFragment = composition2.fragmentBuilder()
+        composition2.children.forEach { rebuild(it) }
+        rebuilt.add(composition2.id)
+    }
+
+    fun apply(parent: Composition?, fragment: PreparedFragment) {
+        fragment.composition.apply {
+            render.applyFragment(fragment, context)
+            if (parent != null && fragment.fragment !in parent.children.map { it.lastFragment }) {
+                parent.children.add(this)
+            }
+        }
+        fragment.children.forEach { apply(fragment.composition, it) }
+        fragment.composition.lastFragment.onMeasure?.let { it(fragment.composition) }
+    }
+
+    compositions.forEach { composition ->
+        if (rebuilt.contains(composition.id)) return@forEach
+        rebuild(composition)
+        val measured = measure(context, composition, composition.constraintsSize)
+        val layout = layout(measured, composition.render.position)
+
+        apply(null, layout)
+    }
 }

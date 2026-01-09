@@ -13,7 +13,7 @@ import org.lain.engine.player.jumpStrength
 import org.lain.engine.player.speed
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.parseMiniMessage
+import org.lain.engine.util.text.parseMiniMessage
 
 object ServerMixinAccess {
     private val table by injectEntityTable()

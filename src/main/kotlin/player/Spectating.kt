@@ -19,9 +19,7 @@ object SpawnMark : Component
  */
 
 @Serializable
-data class Spectating(
-    var isSpectating: Boolean = false
-) : Component
+data class Spectating(var isSpectating: Boolean = false) : Component
 
 fun Player.startSpectating() {
     this.set(StartSpectatingMark)

@@ -1,20 +1,16 @@
-package org.lain.engine.client
+package org.lain.engine.client.transport
 
-import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerInstantiateSettings
 import org.lain.engine.player.commonPlayerInstance
-import org.lain.engine.player.displayName
 import org.lain.engine.transport.packet.ClientboundWorldData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.Component
 import org.lain.engine.util.Vec3
 import org.lain.engine.util.getOrSet
-import org.lain.engine.util.has
-import org.lain.engine.util.require
 import org.lain.engine.world.World
 
 /**

@@ -9,6 +9,7 @@
     "PlayerListEntryAccessor",
     "ToastManagerMixin",
     "render.EntityRendererMixin",
+    "render.GameTestDebugRendererMixin",
     "resource.AtlasLoaderAccessor",
     "resource.AtlasLoaderMixin",
     "resource.BakedModelManagerMixin",
@@ -31,7 +32,6 @@
     "requireAnnotations": true
   },
   "mixins": [
-    "AbstractDecorationEntityMixin",
     "ItemStackMixin",
     "resource.SimpleResourceReloadMixin"
   ]

@@ -12,13 +12,12 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.ChatBarConfiguration
 import org.lain.engine.client.chat.ChatFormatSettings
-import org.lain.engine.client.mc.ClientEngineItemGroups
 import org.lain.engine.client.render.WARNING
-import org.lain.engine.client.render.WARNING_COLOR
+import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.server.ServerId
-import org.lain.engine.util.ENGINE_DIR
-import org.lain.engine.util.getBuiltinResource
+import org.lain.engine.util.file.ENGINE_DIR
+import org.lain.engine.util.file.getBuiltinResource
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
@@ -114,7 +113,6 @@ data class ResourceContext(
     val assets: Assets,
     val chatBarConfiguration: ChatBarConfiguration?,
     val formatConfiguration: ChatFormatSettings,
-    val itemGroups: ClientEngineItemGroups,
     val autogenerationItemAssets: AutoGenerationList = assets.autogenerationItemAssets
 )
 
@@ -137,7 +135,6 @@ private fun bakeResourceContext(gameSession: GameSession?): ResourceContext {
         Assets(assetsSource),
         CHAT_BAR_CONFIG.fetch(serverId)?.yaml(),
         FORMAT_CONFIG.fetch(serverId).getOrThrow().yaml(),
-        ITEM_GROUPS.fetch(serverId)?.yaml() ?: ClientEngineItemGroups()
     )
 }
 

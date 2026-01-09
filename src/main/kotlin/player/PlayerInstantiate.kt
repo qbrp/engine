@@ -1,8 +1,9 @@
 package org.lain.engine.player
 
+import org.lain.engine.server.SynchronizationComponent
 import org.lain.engine.util.Component
 import org.lain.engine.util.Pos
-import org.lain.engine.util.PersistentPlayerData
+import org.lain.engine.util.file.PersistentPlayerData
 import org.lain.engine.util.set
 import org.lain.engine.util.setNullable
 import org.lain.engine.world.Location
@@ -54,12 +55,12 @@ fun serverPlayerInstance(
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
 
     return commonPlayerInstance(settings, id).apply {
-        set(CommandQueue())
         set(MessageQueue())
         set(voiceApparatus)
         setNullable(persistent?.voiceLoose)
         set(PlayerUpdatesComponent())
         set(defaults)
         set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
+        set(SynchronizationComponent(false))
     }
 }

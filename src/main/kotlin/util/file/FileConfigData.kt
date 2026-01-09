@@ -1,4 +1,4 @@
-package org.lain.engine.util
+package org.lain.engine.util.file
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

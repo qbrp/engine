@@ -22,27 +22,29 @@ import org.lain.engine.chat.MessageSource
 import org.lain.engine.player.Player
 import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
-import org.lain.engine.player.chatHeadsEnabled
 import org.lain.engine.player.customName
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.displayName
+import org.lain.engine.player.resetCustomJumpStrength
 import org.lain.engine.player.resetCustomSpeed
+import org.lain.engine.player.setCustomJumpStrength
 import org.lain.engine.player.setCustomSpeed
 import org.lain.engine.player.speak
 import org.lain.engine.player.stopSpectating
 import org.lain.engine.player.toggleChatHeads
 import org.lain.engine.player.username
 import org.lain.engine.util.apply
-import org.lain.engine.util.applyConfig
-import org.lain.engine.util.compileItems
+import org.lain.engine.util.file.applyConfig
+import org.lain.engine.util.file.compileItems
 import org.lain.engine.util.get
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectItemContext
 import org.lain.engine.util.injectValue
-import org.lain.engine.util.loadOrCreateServerConfig
-import org.lain.engine.util.parseMiniMessage
+import org.lain.engine.util.file.loadOrCreateServerConfig
+import org.lain.engine.util.getServerStats
+import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.util.remove
 import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
@@ -178,7 +180,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                                         val playerNameList = players.formatPlayerList()
                                         players.forEach { player ->
                                             val enginePlayer = playerTable.requirePlayer(player)
-                                            enginePlayer.setCustomSpeed(speed)
+                                            enginePlayer.setCustomJumpStrength(speed)
                                         }
                                         ctx.sendFeedback("Установлена сила прыжка $speed для игроков $playerNameList", true)
                                     }
@@ -191,7 +193,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                                 val playerNameList = players.formatPlayerList()
                                 players.forEach { player ->
                                     val enginePlayer = playerTable.requirePlayer(player)
-                                    enginePlayer.resetCustomSpeed()
+                                    enginePlayer.resetCustomJumpStrength()
                                 }
                                 ctx.sendFeedback("Сброшена сила прыжка для игроков $playerNameList", true)
                             }
@@ -385,6 +387,15 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                 val player = it.requirePlayer()
                 val enabled = player.toggleChatHeads()
                 it.sendFeedback("Отображение иконки персонажа ${if (enabled) "включено" else "отключено"}", false)
+            }
+    )
+
+    register(
+        CommandManager.literal("engineticks")
+            .requires { it.hasPermission("engineticks") }
+            .executeCatching {
+                val stats = getServerStats(server.engine.tickTimes.toList())
+                it.sendFeedback("Средняя длительность последних 20 тактов engine: ${stats.averageTickTimeMillis} мл.", false)
             }
     )
 

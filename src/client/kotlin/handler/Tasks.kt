@@ -3,17 +3,14 @@ package org.lain.engine.client.handler
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
-import org.lain.engine.client.isLowDetailed
+import org.lain.engine.client.transport.isLowDetailed
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.transport.ClientContext
-import org.lain.engine.client.transport.ClientPacketHandler
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import java.util.Queue
 
 class TaskExecutor(
     private val tasks: ArrayDeque<Task> = ArrayDeque()

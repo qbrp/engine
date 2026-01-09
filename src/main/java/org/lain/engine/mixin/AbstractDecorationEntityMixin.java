@@ -1,4 +1,4 @@
-package org.lain.engine.client.mixin;
+package org.lain.engine.mixin;
 
 import net.minecraft.entity.decoration.AbstractDecorationEntity;
 import net.minecraft.entity.decoration.ItemFrameEntity;
@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class AbstractDecorationEntityMixin {
     @Inject(
             method = "canStayAttached",
-            at = @At("HEAD"),
+            at = @At("RETURN"),
             cancellable = true
     )
     public void engine$canStayAttached(CallbackInfoReturnable<Boolean> cir) {

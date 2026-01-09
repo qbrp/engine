@@ -59,9 +59,9 @@ data class AcousticBlockData(
     fun getPassability(pos: BlockPos, world: World, blockstate: BlockState): Float {
         val blockRegistryKey = blockstate.registryEntry.key.getOrNull()
 
-        val tag = tags.maxOf { (tag, volume) ->
+        val tag = tags.maxOfOrNull { (tag, volume) ->
             if (blockstate.isIn(tag)) volume else 0f
-        }
+        } ?: 0f
 
         val isFullCube = blockstate.isFullCube(world, pos)
         val isSolid = blockstate.isSolid

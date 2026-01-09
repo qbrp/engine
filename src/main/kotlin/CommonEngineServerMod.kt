@@ -8,7 +8,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
-import net.fabricmc.fabric.api.message.v1.ServerMessageEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.server.network.ServerPlayerEntity
@@ -18,13 +17,8 @@ import net.minecraft.util.Formatting
 import org.lain.engine.mc.EngineItemReferenceComponent
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.registerEngineCommands
-import org.lain.engine.player.displayName
-import org.lain.engine.player.username
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
-import org.lain.engine.util.parseMiniMessage
-import org.lain.engine.world.world
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -81,6 +75,7 @@ class CommonEngineServerMod : ModInitializer {
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
             if (world.isClient) return@register ActionResult.PASS
             val hitPlayer = hitResult?.entity ?: return@register ActionResult.PASS
+            if (hitPlayer !is ServerPlayerEntity) return@register ActionResult.PASS
             player.sendMessage(
                 Text.empty()
                     .append(hitPlayer.styledDisplayName)

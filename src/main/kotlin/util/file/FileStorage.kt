@@ -1,9 +1,8 @@
-package org.lain.engine.util
+package org.lain.engine.util.file
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
 import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
@@ -11,6 +10,8 @@ import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
 import org.lain.engine.player.chatHeadsEnabled
 import org.lain.engine.player.customName
+import org.lain.engine.util.get
+import org.lain.engine.util.require
 
 private val PLAYERS_DATA_DIR = ENGINE_DIR.resolve("players")
 private val PLAYERS_JSON = Json {
@@ -24,7 +25,7 @@ data class PersistentPlayerData(
     val stamina: Float,
     val voiceApparatus: VoiceApparatus,
     val voiceLoose: VoiceLoose?,
-    @SerialName("chat_heads") val chatHeads: Boolean
+    @SerialName("chat_heads") val chatHeads: Boolean = true
 )
 
 fun savePersistentPlayerData(player: Player) {

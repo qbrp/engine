@@ -1,14 +1,15 @@
 package org.lain.engine.client.util
 
-import org.lain.engine.client.render.DEFAULT_TEXT_COLOR
 import org.lain.engine.client.render.EngineSprite
-import org.lain.engine.util.EngineText
-import org.lain.engine.util.EngineTextStyle
+import org.lain.engine.util.Color
+import org.lain.engine.util.DEFAULT_TEXT_COLOR
+import org.lain.engine.util.text.EngineText
+import org.lain.engine.util.text.EngineTextStyle
 
 data class LittleNotification(
     val title: String,
     val description: String? = null,
-    val color: Int = DEFAULT_TEXT_COLOR,
+    val color: Color = DEFAULT_TEXT_COLOR,
     val sprite: EngineSprite,
     val lifeTime: Long = 120,
     val transitionTime: Long = 12,

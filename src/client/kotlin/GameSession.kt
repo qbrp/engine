@@ -5,7 +5,10 @@ import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.ClientHandler
-import org.lain.engine.client.render.ChatBubbleManager
+import org.lain.engine.client.chat.ChatBubbleList
+import org.lain.engine.client.transport.isLowDetailed
+import org.lain.engine.client.transport.lowDetailedClientPlayerInstance
+import org.lain.engine.client.transport.mainClientPlayerInstance
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
@@ -28,12 +31,13 @@ class GameSession(
     val handler: ClientHandler,
     val client: EngineClient,
 ) {
+    val renderer = client.renderer
     val chatEventBus = client.chatEventBus
     var playerSynchronizationRadius: Int = setup.settings.playerSynchronizationRadius
 
     val playerStorage = ClientPlayerStorage()
     val movementManager = MovementManager(handler)
-    val chatBubbleManager = ChatBubbleManager(client)
+    val chatBubbleList = ChatBubbleList(client.options, client.fontRenderer)
     val chatManager = ClientEngineChatManager(
         chatEventBus,
         client,
@@ -51,7 +55,8 @@ class GameSession(
 
     init {
         instantiatePlayer(mainPlayer)
-        client.onMainPlayerInstantiated(mainPlayer)
+        client.eventBus.onMainPlayerInstantiated(client, mainPlayer)
+        client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
     }
 
@@ -72,6 +77,8 @@ class GameSession(
                 player.isLowDetailed = true
             }
         }
+
+        chatBubbleList.cleanup()
     }
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): Player {

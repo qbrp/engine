@@ -98,16 +98,6 @@ class ServerHandler(
         }
     }
 
-    private data class SynchronizationState(
-        val player: Player,
-        val synchronizedPlayers: MutableList<Player> = mutableListOf()
-    )
-
-    private val states = mutableMapOf<PlayerId, SynchronizationState>()
-
-    private val Player.synchronizationState
-        get() = states.computeIfAbsent(id) { SynchronizationState(this) }
-
     private fun updatePlayer(id: PlayerId, update: Player.() -> Unit) = execute {
         server.playerStorage.get(id)?.update()
     }
@@ -156,15 +146,18 @@ class ServerHandler(
         val chat = server.chat
         val outcomingMessage = chat.outcomingMessageHistory[messageId] ?: return
         if (outcomingMessage.source.author.player?.id != player.id) return
-        CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.broadcast(
-            DeleteChatMessagePacket(messageId)
-        )
-        CHAT_LOGGER.info("Удалено сообщение игроком $by: $outcomingMessage")
+        val packet = DeleteChatMessagePacket(messageId)
+        playerStorage.getAll().forEach {
+            if (it.id == player.id) return@forEach
+            CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.sendS2C(packet, it.id)
+        }
+        CHAT_LOGGER.info("Удалено сообщение игроком $player: $outcomingMessage")
     }
 
     fun synchronizePlayers() {
-        for (player in playerStorage) {
-            val state = player.synchronizationState
+        val players = playerStorage.filter { it.synchronization.authorized }
+        for (player in players) {
+            val state = player.synchronization
             val playersInRadius = player
                 .filterNearestPlayers(globals.playerSynchronizationRadius)
             val playersToSync = playersInRadius
@@ -177,7 +170,7 @@ class ServerHandler(
                     CLIENTBOUND_FULL_PLAYER_ENDPOINT
                         .sendS2C(
                             FullPlayerPacket(
-                                player.id,
+                                playerToSync.id,
                                 FullPlayerData.of(playerToSync)
                             ),
                             player.id
@@ -287,6 +280,7 @@ class ServerHandler(
                 )
                 .send()
                 .requestAcknowledge()
+            server.execute { player.synchronization.authorized = true }
         }
     }
 

@@ -7,7 +7,7 @@ data class Rect2(val x1: Float, val y1: Float, val x2: Float, val y2: Float)
 data class Size(val width: Float, val height: Float)
 
 /**
- * Равномерно распределить и запонлить пространство квадратами с одинаковой высотой по горизонтальной оси
+ * Равномерно распределить и заполнить пространство квадратами с одинаковой высотой по горизонтальной оси
  */
 fun fitSquaresHorizontally(quads: List<Size>, width: Float, height: Float): List<Rect2> {
     val totalWidth = quads.sumOf { it.width }

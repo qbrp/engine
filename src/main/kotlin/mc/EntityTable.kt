@@ -68,6 +68,11 @@ class EntityTable {
         fun getPlayer(entity: T): Player? {
             return entityToPlayerMap[entity]
         }
+
+        fun invalidate() {
+            playerToEntityMap.clear()
+            entityToPlayerMap.clear()
+        }
     }
 
     fun setWorld(id: WorldId, world: McWorld) {

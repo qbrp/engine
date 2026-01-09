@@ -2,10 +2,11 @@ package org.lain.engine.client.render.ui
 
 import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.FontRenderer
-import org.lain.engine.client.render.MutableVec2
 import org.lain.engine.client.render.Vec2
+import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.ui.UiState.Companion.DEFAULT_SCALE
-import org.lain.engine.util.EngineText
+import org.lain.engine.util.Color
+import org.lain.engine.util.text.EngineText
 import kotlin.math.max
 import kotlin.math.min
 
@@ -35,6 +36,7 @@ data class Sizing(
     val height: ConstraintsSize
 ) {
     constructor(s: ConstraintsSize) : this(s, s)
+    constructor(width: Float, height: Float) : this(ConstraintsSize.Fixed(width), ConstraintsSize.Fixed(height))
 }
 
 data class Fragment(
@@ -47,7 +49,10 @@ data class Fragment(
     val text: TextArea? = null,
     val image: Image? = null,
     val background: Background? = null,
-    val onClick: ClickListener? = null
+    val onClick: ClickListener? = null,
+    val onRender: RenderListener? = null,
+    val onMeasure: MeasureListener? = null,
+    val onHover: HoverListener? = null,
 )
 
 data class TextArea(
@@ -66,7 +71,8 @@ sealed class SpriteSizing {
 }
 
 data class UiContext(
-    val fontRenderer: FontRenderer
+    val fontRenderer: FontRenderer,
+    val windowSize: Size
 )
 
 fun resolveSize(context: UiContext, fragment: Fragment, constraints: Size): Size {
@@ -90,10 +96,13 @@ fun resolveSize(context: UiContext, fragment: Fragment, constraints: Size): Size
 }
 
 data class LayoutData(
-    val fragment: Fragment,
+    val composition: Composition,
     val measuredSize: Size,
     val children: List<LayoutData> = emptyList()
-)
+) {
+    val fragment
+        get() = composition.lastFragment
+}
 
 fun constraintsAxis(size: ConstraintsSize, constraint: Float): Float {
     return when (size) {
@@ -110,8 +119,9 @@ fun leafSizeAxis(sizing: ConstraintsSize, intrinsic: Float, constraint: Float): 
     }
 }
 
-fun measure(context: UiContext, fragment: Fragment, constraints: Size): LayoutData {
+fun measure(context: UiContext, composition: Composition, constraints: Size = context.windowSize): LayoutData {
     // Определяем внутренние constraints для детей
+    val fragment = composition.lastFragment
     val sizing = fragment.sizing
     val innerConstraints = Size(
         constraintsAxis(sizing.width, constraints.width),
@@ -128,11 +138,11 @@ fun measure(context: UiContext, fragment: Fragment, constraints: Size): LayoutDa
     // 3. Leaf element: нет layout → возвращаем intrinsic или Fixed
     val layout = fragment.layout
     if (layout == null) {
-        return LayoutData(fragment, intrinsicSize, listOf())
+        return LayoutData(composition, intrinsicSize, listOf())
     }
 
     // 4. Container element: есть layout, измеряем детей
-    val childrenData = fragment.children.map { measure(context, it, innerConstraints) }
+    val childrenData = composition.children.map { measure(context, it, innerConstraints) }
     var totalWidth: Float = intrinsicSize.width
     var totalHeight: Float = intrinsicSize.height
     val gap = when (val layout = fragment.layout) {
@@ -169,22 +179,25 @@ fun measure(context: UiContext, fragment: Fragment, constraints: Size): LayoutDa
     totalWidth = min(totalWidth, constraints.width)
     totalHeight = min(totalHeight, constraints.height)
 
-    return LayoutData(fragment, Size(totalWidth, totalHeight), childrenData)
+    return LayoutData(composition, Size(totalWidth, totalHeight), childrenData)
 }
 
-data class PositionedFragment(
-    val fragment: Fragment,
+data class PreparedFragment(
+    val composition: Composition,
     val size: Size,
     val position: Vec2,
     val origin: Vec2,
-    val children: List<PositionedFragment> = emptyList()
-)
+    val children: List<PreparedFragment> = emptyList()
+) {
+    val fragment: Fragment
+        get() = composition.lastFragment
+}
 
 fun layout(
     data: LayoutData,
     position: Vec2 = Vec2(0f, 0f)
-): PositionedFragment {
-    val childrenResult = mutableListOf<PositionedFragment>()
+): PreparedFragment {
+    val childrenResult = mutableListOf<PreparedFragment>()
 
     // Финальная позиция этого фрагмента в глобальных координатах
     val finalPos = position.add(data.fragment.position)
@@ -226,8 +239,8 @@ fun layout(
         data.fragment.pivot.y * data.measuredSize.height
     )
 
-    return PositionedFragment(
-        fragment = data.fragment,
+    return PreparedFragment(
+        composition = data.composition,
         size = data.measuredSize,
         position = finalPos,
         origin = origin,
@@ -235,32 +248,43 @@ fun layout(
     )
 }
 
+fun UiState.applyFragment(
+    preparedFragment: PreparedFragment,
+    context: UiContext
+) {
+    val fragment = preparedFragment.fragment
+    position.set(preparedFragment.position)
+    origin.set(preparedFragment.origin)
 
-fun fragmentsToUiElements(context: UiContext, node: PositionedFragment): UiState {
-    val fragment = node.fragment
-    return UiState(
-        MutableVec2(node.position),
-        MutableVec2(node.origin),
-        MutableSize(node.size.width, node.size.height),
-        children = node.children.map { fragmentsToUiElements(context, it) }.toMutableList(),
-        features = UiFeatures(
-            background = fragment.background ?: Background(),
-            sprite = fragment.image?.let { image ->
-                UiSprite(
-                    image.sprite,
-                    when(val s = image.sizing) {
-                        is SpriteSizing.Fixed -> MutableSize(s.size)
-                        is SpriteSizing.Stretch -> MutableSize(node.size)
-                    }
-                )
-            },
-            text = fragment.text?.let { text ->
-                TextState(
-                    context.fontRenderer.breakTextByLines(text.content, node.size.width / text.scale),
-                    Color.WHITE,
-                    text.scale
-                )
-            }
+    size.width = preparedFragment.size.width
+    size.height = preparedFragment.size.height
+
+    features.background = fragment.background ?: Background()
+
+    features.sprite = fragment.image?.let { image ->
+        val spriteSize = when (val s = image.sizing) {
+            is SpriteSizing.Fixed -> MutableSize(s.size)
+            is SpriteSizing.Stretch -> MutableSize(preparedFragment.size)
+        }
+        UiSprite(image.sprite, spriteSize)
+    }
+
+    features.text = fragment.text?.let { text ->
+        TextState(
+            context.fontRenderer.breakTextByLines(
+                text.content,
+                preparedFragment.size.width / text.scale
+            ),
+            Color.WHITE,
+            text.scale
         )
-    )
+    }
+
+    listeners.apply {
+        click = fragment.onClick
+        render = fragment.onRender
+        hover = fragment.onHover
+    }
+
+    update()
 }

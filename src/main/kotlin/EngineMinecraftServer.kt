@@ -34,10 +34,10 @@ import org.lain.engine.server.ServerEventListener
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
 import org.lain.engine.util.MinecraftRaycastProvider
-import org.lain.engine.util.applyConfigCatching
-import org.lain.engine.util.compileItemsCatching
-import org.lain.engine.util.loadOrCreateServerConfig
-import org.lain.engine.util.parsePersistentPlayerData
+import org.lain.engine.util.file.applyConfigCatching
+import org.lain.engine.util.file.compileItemsCatching
+import org.lain.engine.util.file.loadOrCreateServerConfig
+import org.lain.engine.util.file.parsePersistentPlayerData
 import org.lain.engine.world.world
 
 data class EngineMinecraftServerDependencies(

@@ -22,6 +22,19 @@ interface Vec2 {
 
 fun Vec2(x: Float, y: Float): Vec2 = MutableVec2(x, y)
 
+fun ZeroMutableVec2() = MutableVec2(0f, 0f)
+
+fun ZeroVec2(): Vec2 = ZeroMutableVec2()
+
 data class MutableVec2(override var x: Float, override var y: Float): Vec2 {
     constructor(vec2: Vec2) : this(vec2.x, vec2.y)
+
+    fun set(x: Float = this.x, y: Float = this.y) {
+        this.x = x
+        this.y = y
+    }
+
+    fun set(vec2: Vec2) {
+        set(vec2.x, vec2.y)
+    }
 }

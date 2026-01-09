@@ -1,11 +1,8 @@
 package org.lain.engine.transport.network
 
-import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.disconnectInternal
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
-import org.lain.engine.util.engineId
-import org.lain.engine.util.parseMiniMessage
 import java.util.UUID
 
 @JvmInline
