@@ -163,7 +163,7 @@ public abstract class ChatHudMixin {
 
                         if (data != null && data.isLast() && chat.shouldRenderDebugInfo()) {
                             Text debugText = data.getMessage().getDebugText();
-                            context.drawTextWithShadow(this.client.textRenderer, debugText, indentedX1 + client.textRenderer.getWidth(visible.content()) + 4, j, ColorHelper.withAlpha(contentAlpha, Colors.GRAY));
+                            context.drawTextWithShadow(this.client.textRenderer, debugText, indentedX1 + 8 + client.textRenderer.getWidth(visible.content()) + 4, j, ColorHelper.withAlpha(contentAlpha, Colors.GRAY));
                         }
 
                         int alpha = 0;

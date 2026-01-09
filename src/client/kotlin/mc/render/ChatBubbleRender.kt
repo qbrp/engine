@@ -23,6 +23,7 @@ fun renderChatBubbles(
     cameraZ: Double,
     scale: Float,
     height: Float,
+    backgroundOpacity: Float,
     bubbles: List<ChatBubble>,
     dt: Float,
 ) {
@@ -52,10 +53,9 @@ fun renderChatBubbles(
         for (line in bubble.lines) {
             val text = textCache.get(line)
             val offset = (-client.textRenderer.getWidth(text)) / 2.0f
-            val bgAlpha = 1.0f - (85f / 100.0f)
 
             val textColor = Color.WHITE.withAlpha((alpha * 255).toInt())
-            val backgroundColor = Color.BLACK.withAlpha((bgAlpha * 255f).toInt())
+            val backgroundColor = Color.BLACK.withAlpha((backgroundOpacity * alpha * 255f).toInt())
             y += textRender.fontHeight
 
             val matrix = matrices.peek().positionMatrix

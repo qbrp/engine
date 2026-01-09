@@ -17,19 +17,28 @@ class EngineYamlConfig(
         ConfigType.CLIENT
     )
 ) : EngineOptions {
+    init { builder.push("chat-bubbles") }
 
-    private val chatBubbleScaleProperty = builder.defineFloat("chat.chat-bubble-scale", 0.1f, 0.01f, 3f)
-    private val chatBubbleHeightProperty = builder.defineFloat("chat.chat-bubble-height", 2.3f, 1f, 10f)
-    private val chatBubbleLineWidthProperty = builder.defineInteger("chat.chat-bubble-line-width", 200, 50, 1000)
-    private val chatBubbleLifeTimeProperty = builder.defineInteger("chat.chat-bubble-life-time", 200, 2, 2400)
-    private val chatInputShakingForceProperty = builder.defineFloat("chat-input.shaking-force", 3f, 0f, 5f)
-    private val chatInputShakingThresholdProperty = builder.defineFloat("chat-input.shaking-threshold", 0.5f, 0f, 1f)
+    private val chatBubbleScaleProperty = builder.defineFloat("scale", 1f, 0.01f, 3f)
+    private val chatBubbleHeightProperty = builder.defineFloat("height", 2.3f, 1f, 10f)
+    private val chatBubbleLineWidthProperty = builder.defineInteger("line-width", 200, 50, 1000)
+    private val chatBubbleLifeTimeProperty = builder.defineInteger("life-time", 200, 2, 2400)
+    private val chatBubbleBackgroundOpacityProperty = builder.defineInteger("background-opacity", 50, 0, 100)
 
-    private val arcRadiusProperty = builder.defineFloat("crosshair.arc-radius", 5f, 0.05f, 10f)
-    private val arcThicknessProperty = builder.defineFloat("crosshair.arc-thickness", 5f, 0.05f, 10f)
-    private val arcOffsetXProperty = builder.defineFloat("crosshair.arc-offset-x", 0f, -10f, 10f)
-    private val arcOffsetYProperty = builder.defineFloat("crosshair.arc-offset-y", 0f, -10f, 10f)
-    private val crosshairIndicatorVisibleProperty = builder.defineBoolean("crosshair.indicator-visible", false)
+    init { builder.pop() }
+
+    init { builder.push("chat-input") }
+
+    private val chatInputShakingForceProperty = builder.defineFloat("shaking-force", 3f, 0f, 5f)
+    private val chatInputShakingThresholdProperty = builder.defineFloat("shaking-threshold", 0.5f, 0f, 1f)
+
+    init { builder.pop() }
+
+    init { builder.push("crosshair") }
+
+    private val crosshairIndicatorVisibleProperty = builder.defineBoolean("indicator-visible", false)
+
+    init { builder.pop() }
 
     override val chatBubbleScale: Float
         get() = chatBubbleScaleProperty.get() / 50f
@@ -43,15 +52,9 @@ class EngineYamlConfig(
         get() = chatInputShakingForceProperty.get()
     override val chatInputShakingThreshold: Float
         get() = chatInputShakingThresholdProperty.get()
+    override val chatBubbleBackgroundOpacity: Float
+        get() = chatBubbleBackgroundOpacityProperty.get().toFloat() / 100f
 
-    override val arcRadius: Float
-        get() = arcRadiusProperty.get()
-    override val arcThickness: Float
-        get() = arcThicknessProperty.get()
-    override val arcOffsetX: Float
-        get() = arcOffsetXProperty.get()
-    override val arcOffsetY: Float
-        get() = arcOffsetYProperty.get()
     override val crosshairIndicatorVisible: Boolean
         get() = crosshairIndicatorVisibleProperty.get()
 

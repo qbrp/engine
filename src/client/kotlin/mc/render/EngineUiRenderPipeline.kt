@@ -37,9 +37,6 @@ class EngineUiRenderPipeline(
     override fun addFragment(constraints: Size?, clear: Boolean, fragment: () -> Fragment): Composition {
         fun compositionFromFragment(fragment: Fragment, constraintsSize: Size, builder: () -> Fragment): Composition {
             val uiState = UiState()
-//            val measured = measure(context, fragment, constraints ?: rootSize)
-//            val layout = layout(measured)
-//            uiState.applyFragment(layout, context)
             return Composition(
                 uiState,
                 builder,

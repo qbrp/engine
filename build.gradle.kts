@@ -68,8 +68,8 @@ dependencies {
     modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
     modImplementation("maven.modrinth:yaml-config:1.3.2-1.21.9-fabric")
+    modImplementation("maven.modrinth:ui-lib:2.1.4-1.21.9-fabric")
     modApi("maven.modrinth:architectury-api:18.0.5+fabric")
-    modApi("curse.maven:ui-933200:7061587")
 
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")!!)
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")

@@ -66,6 +66,7 @@ object ClientMixinAccess {
             cameraZ,
             client.options.chatBubbleScale,
             client.options.chatBubbleHeight,
+            client.options.chatBubbleBackgroundOpacity,
             client.gameSession?.chatBubbleList?.bubbles ?: emptyList(),
             MinecraftClient.renderTickCounter.fixedDeltaTicks
         )

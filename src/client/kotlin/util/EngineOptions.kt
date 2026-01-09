@@ -5,10 +5,7 @@ interface EngineOptions {
     val chatBubbleHeight: Float
     val chatBubbleLineWidth: Int
     val chatBubbleLifeTime: Int
-    val arcRadius: Float
-    val arcThickness: Float
-    val arcOffsetX: Float
-    val arcOffsetY: Float
+    val chatBubbleBackgroundOpacity: Float
     val chatInputShakingForce: Float
     val chatInputShakingThreshold: Float
     val crosshairIndicatorVisible: Boolean

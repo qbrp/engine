@@ -118,7 +118,7 @@ class ClientEngineChatManager(
 
         if (visible) {
             val author = message.source.player
-            if (author != null && message.isSpeech && author != gameSession.mainPlayer) {
+            if (author != null && message.isSpeech && (author != gameSession.mainPlayer || client.developerMode)) {
                 gameSession.chatBubbleList.setChatBubble(author, eventBus.getChatBubbleText(message.text))
             }
             if (isMentioned) {

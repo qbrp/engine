@@ -39,7 +39,7 @@ val RESET_CHAT_VOLUME = KeybindSettings(
 val DEVELOPER_MODE = KeybindSettings(
     name = "Режим разработчика",
     id = KeybindId("dev"),
-    GLFW.GLFW_KEY_F12,
+    GLFW.GLFW_KEY_F10,
     onPress = { client ->
         client.toggleDeveloperMode()
     }
@@ -59,7 +59,7 @@ val HIDE_INTERFACE = KeybindSettings(
 val ALLOW_SPEED_INTENTION_CHANGE = KeybindSettings(
     name = "Смена скорости ходьбы",
     id = KeybindId("speed"),
-    GLFW.GLFW_MOUSE_BUTTON_MIDDLE,
+    GLFW.GLFW_KEY_LEFT_ALT,
     onHold = { client -> client.gameSession?.movementManager?.locked = false },
     onRelease = { client -> client.gameSession?.movementManager?.locked = true },
     isMouse = true
