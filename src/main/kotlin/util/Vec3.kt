@@ -103,9 +103,9 @@ fun Vec3(x: Int, y: Int, z: Int) = ImmutableVec3(x.toFloat(), y.toFloat(), z.toF
 
 @Serializable
 data class ImmutableVec3(
-    override val x: Float,
-    override val y: Float,
-    override val z: Float
+    override val x: Float = 0f,
+    override val y: Float = 0f,
+    override val z: Float = 0f
 ) : Vec3 {
     override fun toString(): String {
         return "$x, $y, $z"
@@ -114,9 +114,9 @@ data class ImmutableVec3(
 }
 
 data class MutableVec3(
-    override var x: Float,
-    override var y: Float,
-    override var z: Float
+    override var x: Float = 0f,
+    override var y: Float = 0f,
+    override var z: Float = 0f
 ) : Vec3 {
 
     constructor(pos: Pos) : this(pos.x, pos.y, pos.z)

@@ -1,26 +1,75 @@
-package org.lain.engine.client.mixin.ui;
+package org.lain.engine.client.mixin.chat;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.screen.ChatInputSuggestor;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.KeyInput;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.OrderedText;
+import net.minecraft.text.Text;
+import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.mc.render.ChatChannelsBar;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftChat;
+import org.lain.engine.client.mc.render.ShakingTextFieldWidget;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ChatScreen.class)
-public class ChatScreenMixin {
+public abstract class ChatScreenMixin {
     @Shadow protected TextFieldWidget chatField;
+    @Shadow
+    ChatInputSuggestor chatInputSuggestor;
+
+    @Shadow protected String originalChatText;
+
+    @Shadow protected abstract void onChatFieldUpdate(String chatText);
+
+    @Shadow protected abstract @Nullable OrderedText format(String string, int firstCharacterIndex);
+
+    @ModifyArg(
+            method = "init",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/screen/ChatScreen;addDrawableChild(Lnet/minecraft/client/gui/Element;)Lnet/minecraft/client/gui/Element;"
+            )
+    )
+    public Element engine$init(Element par1) {
+        Screen screen = (Screen)((Object)this);
+        ChatInputSuggestor chatInputSuggestor = this.chatInputSuggestor;
+        this.chatField = new ShakingTextFieldWidget(
+                MinecraftClient.getInstance().advanceValidatingTextRenderer,
+                4,
+                screen.height - 12,
+                screen.width - 4,
+                12,
+                Text.translatable("chat.editBox")
+        ){
+            @Override
+            protected MutableText getNarrationMessage() {
+                return super.getNarrationMessage().append(chatInputSuggestor.getNarration());
+            }
+        };
+        this.chatField.setMaxLength(256);
+        this.chatField.setDrawsBackground(false);
+        this.chatField.setText(this.originalChatText);
+        this.chatField.setChangedListener(this::onChatFieldUpdate);
+        this.chatField.addFormatter(this::format);
+        this.chatField.setFocusUnlocked(false);
+        return this.chatField;
+    }
 
     @Inject(
             method = "sendMessage",
@@ -78,23 +127,6 @@ public class ChatScreenMixin {
         chatChannelsBar.onClick((float)click.x() - offsetX, (float)click.y() - offsetY);
     }
 
-    @Inject(
-            method = "render",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screen/Screen;render(Lnet/minecraft/client/gui/DrawContext;IIF)V"
-            )
-    )
-    private void engine$pushShake(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        MinecraftChat chat = MinecraftChat.INSTANCE;
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(
-                chat.getRandomShakeTranslation(),
-                chat.getRandomShakeTranslation()
-        );
-        context.getMatrices().popMatrix();
-    }
-
     @Redirect(
             method = "render",
             at = @At(
@@ -117,9 +149,12 @@ public class ChatScreenMixin {
     public void engine$onKeyPress(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
         MinecraftChat chat = MinecraftChat.INSTANCE;
         chat.updateChatInput(chatField.getText());
-        MinecraftChat.MessageData selectedMessage = chat.getSelectedMessage();
+        MinecraftChat.ChatMessageData selectedMessage = chat.getSelectedMessage();
         if (selectedMessage != null && input.key() == GLFW.GLFW_KEY_DELETE) {
             ClientMixinAccess.INSTANCE.deleteChatMessage(selectedMessage.getEngineMessage());
+        }
+        if (input.isEnter()) {
+            MinecraftChat.INSTANCE.setSelectedMessage(null);
         }
     }
 

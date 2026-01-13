@@ -221,7 +221,7 @@ class EngineChat(
                mention = hasMention,
                speech = isSpeech,
                volume = volume,
-               placeholders = getDefaultPlaceholders(recipient, source) + placeholders,
+               placeholders = getDefaultPlaceholders(recipient, source, volume) + placeholders,
                id = id
            )
         }
@@ -303,7 +303,7 @@ class EngineChat(
     private fun getDefaultPlaceholders(
         recipient: Player,
         source: MessageSource,
-        volume: Float? = null
+        volume: Float?
     ): Map<String, String> {
         val player = source.player
         val author = source.author

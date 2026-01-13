@@ -105,6 +105,10 @@ class MinecraftFontRenderer : FontRenderer {
     override val fontHeight: Float
         get() = minecraftTextRenderer.fontHeight.toFloat()
 
+    override fun getWidth(text: EngineOrderedTextSequence): Float {
+        return text.parts.sumOf { minecraftTextRenderer.getWidth(it.toMinecraft()).toFloat() }
+    }
+
     override fun breakTextByLines(
         text: EngineText,
         width: Float

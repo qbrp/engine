@@ -1,21 +1,27 @@
-package org.lain.engine.client.mixin.ui;
+package org.lain.engine.client.mixin.chat;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.hud.MessageIndicator;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.util.ChatMessages;
 import net.minecraft.text.OrderedText;
+import net.minecraft.text.StringVisitable;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 import org.lain.engine.client.chat.EngineChatMessage;
 import org.lain.engine.client.mc.MinecraftChat;
 import org.lain.engine.client.mc.render.ChatHudRenderKt;
+import org.lain.engine.util.Color;
+import org.lain.engine.util.ColorKt;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -31,6 +37,9 @@ import java.util.List;
 
 @Mixin(ChatHud.class)
 public abstract class ChatHudMixin {
+    @Unique
+    String MAXIMUM_REPEATS_TEXT = "x999+";
+
     @Shadow protected abstract int getLineHeight();
 
     @Shadow @Final private MinecraftClient client;
@@ -114,14 +123,15 @@ public abstract class ChatHudMixin {
     @Inject(
             method = "render",
             at = @At(
-                    value = "TAIL"
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/network/message/MessageHandler;getUnprocessedMessageCount()J"
             )
     )
     private void engine$render(DrawContext context, int currentTick, int mouseX, int mouseY, boolean focused, CallbackInfo ci) {
         MinecraftChat chat = MinecraftChat.INSTANCE;
         int i = this.getMessageIndex(toChatLineX(mouseX), this.toChatLineY(mouseY));
 
-        MinecraftChat.ChatHudLineData selectedMessage;
+        MinecraftChat.ChatLineData selectedMessage;
         if (i >= 0 && i <= this.visibleMessages.size()) {
             selectedMessage = chat.getChatHudLineData(this.visibleMessages.get(i));
         } else {
@@ -148,16 +158,28 @@ public abstract class ChatHudMixin {
                     int o = (int)Math.round(-8.0 * (d + 1.0) + 4.0 * d);
                     int j = y2 + o;
 
-                    int x1 = 4;
-                    context.fill(0, y1, x1 + ChatHudRenderKt.LINE_INDENT - 4, y2, ColorHelper.withAlpha(bgAlpha, Colors.BLACK));
+                    context.getMatrices().pushMatrix();
+                    context.getMatrices().translate(-2f, 0f);
+                    context.fill(0, y1, ChatHudRenderKt.LINE_INDENT - 2, y2, ColorHelper.withAlpha(bgAlpha, Colors.BLACK));
 
                     if (visible != null) {
-                        MinecraftChat.ChatHudLineData data = chat.getChatHudLineData(visible);
+                        MinecraftChat.ChatLineData data = chat.getChatHudLineData(visible);
                         if (data != null && data.isFirst()) {
-                            MinecraftChat.MessageData message = data.getMessage();
+                            MinecraftChat.ChatMessageData message = data.getMessage();
+                            EngineChatMessage engineMessage = message.getEngineMessage();
                             PlayerListEntry playerListEntry = message.getAuthor();
-                            if (playerListEntry != null && message.getEngineMessage().getShowHead()) {
-                                PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), x1, y1, 8, ColorHelper.withAlpha(contentAlpha, Colors.WHITE));
+                            if (playerListEntry != null && engineMessage.getShowHead()) {
+                                PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), 1, y1 + 1, 8, ColorHelper.withAlpha(contentAlpha, ColorHelper.getArgb(60, 60, 60)));
+                                PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), 0, y1, 8, ColorHelper.withAlpha(contentAlpha, Colors.WHITE));
+                            }
+                            int repeats = engineMessage.getRepeat();
+                            if (repeats > 1) {
+                                String string = "x" + repeats;
+                                if (repeats > 999) { string = MAXIMUM_REPEATS_TEXT; }
+                                Text text = Text.literal(string).formatted(Formatting.GOLD);
+                                int width = client.textRenderer.getWidth(text);
+                                int x0 = scaledWidth + ChatHudRenderKt.LINE_INDENT - width;
+                                context.drawText(client.textRenderer, text, x0, y1, ColorHelper.withAlpha(contentAlpha, Colors.BLACK), true);
                             }
                         }
 
@@ -168,20 +190,24 @@ public abstract class ChatHudMixin {
 
                         int alpha = 0;
                         if (data != null) {
-                            if (selectedMessage != null && data.getMessageId().equals(selectedMessage.getMessageId())) {
+                            if (selectedMessage != null) {
+                                if (data.getMessage().equals(selectedMessage.getMessage())) {
+                                    alpha += 30;
+                                }
+                            }
+
+                            MinecraftChat.ChatMessageData msg = chat.getSelectedMessage();
+                            if (msg != null && data.getMessage().equals(msg)){
                                 alpha += 30;
                             }
 
-                            MinecraftChat.MessageData msg = chat.getSelectedMessage();
-                            if (msg != null && data.getMessageId().equals(chat.messageIdOf(msg.getEngineMessage()))) {
-                                alpha += 30;
+                            if (alpha > 0) {
+                                context.fill(0, y1, indentedX1 + scaledWidth + ChatHudRenderKt.LINE_INDENT + 4 + 4 + 2, y2, ColorHelper.withAlpha(alpha, Colors.WHITE));
                             }
-                        }
-
-                        if (alpha > 0) {
-                            context.fill(0, y1, indentedX1 + scaledWidth + ChatHudRenderKt.LINE_INDENT + 4 + 4, y2, ColorHelper.withAlpha(alpha, Colors.WHITE));
                         }
                     }
+
+                    context.getMatrices().popMatrix();
                 }
         );
     }
@@ -226,12 +252,23 @@ public abstract class ChatHudMixin {
                     target = "Ljava/util/List;remove(I)Ljava/lang/Object;"
             )
     )
-    private Object egnine$redirectVisibleMessageRemove(
+    private Object engine$redirectVisibleMessageRemove(
             List<ChatHudLine.Visible> instance, int i
     ) {
         ChatHudLine.Visible line = instance.get(i);
         MinecraftChat.INSTANCE.deleteChatHudLine(line);
         return instance.remove(i);
+    }
+
+    @Redirect(
+            method = "addVisibleMessage",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/util/ChatMessages;breakRenderedChatMessageLines(Lnet/minecraft/text/StringVisitable;ILnet/minecraft/client/font/TextRenderer;)Ljava/util/List;"
+            )
+    )
+    private List<OrderedText> engine$breakRenderedChatMessageLines(StringVisitable message, int width, TextRenderer textRenderer) {
+        return ChatMessages.breakRenderedChatMessageLines(message, width - textRenderer.getWidth(MAXIMUM_REPEATS_TEXT), textRenderer);
     }
 
     @Inject(
@@ -242,7 +279,7 @@ public abstract class ChatHudMixin {
             cancellable = true
     )
     private void engine$logChatMessage(ChatHudLine message, CallbackInfo ci) {
-        boolean isEngineMessage = MinecraftChat.INSTANCE.isEngineMessage(message);
+        boolean isEngineMessage = MinecraftChat.INSTANCE.isMessageStored(message);
         if (isEngineMessage) {
             ci.cancel();
         }

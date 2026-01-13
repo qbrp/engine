@@ -44,8 +44,8 @@ fun splitEngineTextLinear(node: EngineText, by: String): List<EngineOrderedText>
         val split = text.content.split(by)
         output.addAll(split.mapIndexed { index, it ->
             val content = mutableListOf(it)
-            if (index != split.size) { content.add(by) }
-            text.deepCopy(content = content.joinToString()) }
+            if (index != split.lastIndex) { content.add(by) }
+            text.deepCopy(content = content.joinToString(separator = "")) }
         )
     }
     return output

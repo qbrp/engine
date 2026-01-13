@@ -1,6 +1,7 @@
 package org.lain.engine.client.render
 
 import org.lain.engine.util.Color
+import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.EngineOrderedTextSequence
 import org.lain.engine.util.text.EngineText
 
@@ -15,6 +16,7 @@ data class EngineSprite(
 
 interface FontRenderer {
     val fontHeight: Float
+    fun getWidth(text: EngineOrderedTextSequence): Float
     fun breakTextByLines(text: EngineText, width: Float): List<EngineOrderedTextSequence>
 }
 

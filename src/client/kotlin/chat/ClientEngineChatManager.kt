@@ -98,8 +98,6 @@ class ClientEngineChatManager(
     }
 
     fun addMessage(message: EngineChatMessage) {
-        messages += message
-        eventBus.onMessageAdd(message)
         val chatBar = chatBar ?: return
         val channel = message.channel
         val isSpy = message.isSpy
@@ -107,6 +105,18 @@ class ClientEngineChatManager(
         val visibleAsSpy = (isSpy && spy || !isSpy) && channel.spy
         val visible = channel.isAvailable && !chatBar.isHidden(channel.id) && visibleAsSpy
         val markRead = visible || !visibleAsSpy
+
+        // Если есть точно такое же сообщение
+        val similar = messages
+            .takeLast(9)
+            .find { it.channel == channel && it.display == message.display }
+        if (similar != null) {
+            similar.repeat += 1
+            return
+        }
+
+        messages += message
+        eventBus.onMessageAdd(message)
 
         if (!markRead) {
             chatBar.markUnread(channel.id)

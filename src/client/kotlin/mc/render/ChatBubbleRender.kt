@@ -51,12 +51,12 @@ fun renderChatBubbles(
 
         var y = 0f
         for (line in bubble.lines) {
-            val text = textCache.get(line)
-            val offset = (-client.textRenderer.getWidth(text)) / 2.0f
+            val text = textCache.get(line.text)
+            val offset = -(line.width / 2.0f)
 
             val textColor = Color.WHITE.withAlpha((alpha * 255).toInt())
             val backgroundColor = Color.BLACK.withAlpha((backgroundOpacity * alpha * 255f).toInt())
-            y += textRender.fontHeight
+            y -= textRender.fontHeight
 
             val matrix = matrices.peek().positionMatrix
             client.textRenderer.draw(

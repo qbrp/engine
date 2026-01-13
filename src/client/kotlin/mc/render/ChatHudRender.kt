@@ -1,6 +1,11 @@
 package org.lain.engine.client.mc.render
 
+import net.minecraft.client.font.TextRenderer
+import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.hud.ChatHudLine.Visible
+import net.minecraft.client.gui.widget.TextFieldWidget
+import net.minecraft.text.Text
+import org.lain.engine.client.mc.MinecraftChat
 
 // Зачем нужна вся эта хуйня? А потому-что инкапсуляция, сученька, всё скрываем, ООП нахуй
 
@@ -12,7 +17,7 @@ fun interface MessageOpacityMultiplierProvider {
     fun getMessageOpacityMultiplier(age: Int): Float
 }
 
-const val LINE_INDENT = 11
+const val LINE_INDENT = 8
 
 fun forEachVisibleLine(
     visibleLineCount: Int,
@@ -40,4 +45,13 @@ fun forEachVisibleLine(
         consumer.accept(0, o, n, visible, k, f)
     }
     return j
+}
+
+open class ShakingTextFieldWidget(textRenderer: TextRenderer, x: Int, y: Int, width: Int, height: Int, text: Text) : TextFieldWidget(textRenderer, x, y, width, height, text) {
+    override fun renderWidget(context: DrawContext, mouseX: Int, mouseY: Int, deltaTicks: Float) {
+        context.matrices.pushMatrix()
+        context.matrices.translate(MinecraftChat.getRandomShakeTranslation(), MinecraftChat.getRandomShakeTranslation())
+        super.renderWidget(context, mouseX, mouseY, deltaTicks)
+        context.matrices.popMatrix()
+    }
 }

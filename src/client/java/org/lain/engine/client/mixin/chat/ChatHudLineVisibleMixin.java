@@ -1,4 +1,4 @@
-package org.lain.engine.client.mixin.ui;
+package org.lain.engine.client.mixin.chat;
 
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.hud.MessageIndicator;

@@ -15,7 +15,8 @@ data class EngineChatMessage(
     val volume: Float? = null,
     val isSpy: Boolean = false,
     val showHead: Boolean = false,
-    val id: MessageId
+    val id: MessageId,
+    var repeat: Int = 1
 )
 
 val SYSTEM_CHANNEL = ClientChatChannel(

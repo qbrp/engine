@@ -81,6 +81,7 @@ dependencies {
     include(implementation("net.kyori:adventure-text-serializer-gson:$adventure")!!)
     include(implementation("net.kyori:adventure-api:$adventure")!!)
     modImplementation(include("net.kyori:adventure-platform-fabric:$adventurePlatform")!!)
+    modImplementation(include("net.kyori:adventure-platform-fabric:6.7.0")!!)
 
     // Kaml
     shaded("com.charleskorn.kaml:kaml:0.104.0")

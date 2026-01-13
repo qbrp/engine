@@ -120,6 +120,7 @@ fun findAssets(): ResourceList {
 
                         false -> {
                             json.substituteEngineRelativePathJson(asset)
+                            json.ensureParticleTextureReference()
                             modelType = ModelType.JSON
                         }
                     }
@@ -185,6 +186,13 @@ fun JsonObject.substituteEngineRelativePathJson(asset: Asset) {
     textures.entrySet().forEach { (key, path) ->
         val pathString = path.asString
         textures.addProperty(key, pathString.substituteEngineRelativePath(asset))
+    }
+}
+
+fun JsonObject.ensureParticleTextureReference() {
+    val textures = getAsJsonObject("textures")
+    if (!textures.has("particle") && !textures.isEmpty) {
+        textures.addProperty("particle", textures.entrySet().first().value.asString)
     }
 }
 

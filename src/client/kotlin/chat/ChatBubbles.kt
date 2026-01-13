@@ -13,7 +13,7 @@ import org.lain.engine.world.pos
 import kotlin.math.pow
 
 data class ChatBubble(
-    val lines: List<EngineOrderedTextSequence>,
+    val lines: List<Line>,
     val height: Float,
     val player: Player,
     var offsetY: Float,
@@ -22,7 +22,12 @@ data class ChatBubble(
     val expiration: Int,
     var lifetime: Float,
     var remove: Boolean = false
-)
+) {
+    data class Line(
+        val text: EngineOrderedTextSequence,
+        val width: Float
+    )
+}
 
 class ChatBubbleList(
     private val options: EngineOptions,
@@ -42,11 +47,11 @@ class ChatBubbleList(
         // Все прошлые чат-баблы сдвигаем вверх
         _bubbles
             .filter { it.player.id == player.id }
-            .forEach { it.offsetY += (height + 2) * options.chatBubbleScale }
+            .forEach { it.offsetY += (height + 2) * options.chatBubbleScale}
 
         _bubbles.add(
             ChatBubble(
-                lines,
+                lines.map { ChatBubble.Line(it, fontRenderer.getWidth(it)) },
                 height,
                 player,
                 0f,
