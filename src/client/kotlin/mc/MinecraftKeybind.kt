@@ -14,6 +14,7 @@ import org.lain.engine.client.control.DEVELOPER_MODE
 import org.lain.engine.client.control.HIDE_INTERFACE
 import org.lain.engine.client.control.RESET_CHAT_VOLUME
 import org.lain.engine.client.control.TOGGLE_CHAT_SPY
+import org.lain.engine.client.control.TRANSFORMATION_EDITOR
 import org.lain.engine.client.resources.toEngineIdentifier
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.inject
@@ -32,6 +33,7 @@ class KeybindManager(
         HIDE_INTERFACE.register()
         ALLOW_SPEED_INTENTION_CHANGE.register()
         TOGGLE_CHAT_SPY.register()
+        TRANSFORMATION_EDITOR.register()
     }
 
     fun registerKeybinding(keybinding: KeybindSettings): EngineKeybind {

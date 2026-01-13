@@ -1,10 +1,13 @@
 package org.lain.engine.client.control
 
+import net.minecraft.item.ItemStack
 import org.lain.engine.client.mc.KeyBindModifier
 import org.lain.engine.client.mc.KeybindId
 import org.lain.engine.client.mc.KeybindSettings
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.mc.render.TransformationsEditorScreen
 import org.lwjgl.glfw.GLFW
+import kotlin.math.PI
 
 val ADJUST_CHAT_VOLUME = KeybindSettings(
     name = "Увеличить громкость сообщения",
@@ -71,5 +74,20 @@ val TOGGLE_CHAT_SPY = KeybindSettings(
     key = GLFW.GLFW_KEY_N,
     onPress = { client ->
         client.gameSession?.chatManager?.toggleSpy()
+    }
+)
+
+val TRANSFORMATION_EDITOR = KeybindSettings(
+    name = "Редактор трансформаций",
+    id = KeybindId("transformation-editor"),
+    key = GLFW.GLFW_KEY_F9,
+    onPress = { client ->
+        val player = MinecraftClient.player ?: return@KeybindSettings
+        val mainHandItemStack = player.mainHandStack
+        val offHandItemStack = player.offHandStack
+        val itemStack = if (mainHandItemStack.isEmpty) offHandItemStack else mainHandItemStack
+        if (client.developerMode && player.activeItem != null && !itemStack.isEmpty) {
+            MinecraftClient.setScreen(TransformationsEditorScreen(itemStack))
+        }
     }
 )

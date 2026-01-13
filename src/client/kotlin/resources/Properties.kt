@@ -18,7 +18,7 @@ import net.minecraft.util.HeldItemContext
 
 private val CULLING = RenderStateDataKey.create<Boolean> { "Engine culling" }
 
-var FabricRenderState.culling: Boolean?
+var ItemRenderState.culling: Boolean?
     get() = this.getData(CULLING)
     set(value) { setData(CULLING, value) }
 

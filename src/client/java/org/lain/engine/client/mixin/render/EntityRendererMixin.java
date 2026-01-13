@@ -29,7 +29,7 @@ public abstract class EntityRendererMixin {
     public void engine$disableCulling(Entity entity, Frustum frustum, double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
         if ((((Object)this) instanceof ItemFrameEntityRenderer<?>) && state != null) {
             ItemFrameEntityRenderState renderState = (ItemFrameEntityRenderState)state;
-            Boolean culling = PropertiesKt.getCulling(renderState);
+            Boolean culling = PropertiesKt.getCulling(renderState.itemRenderState);
             if (culling != null && !culling) {
                 cir.setReturnValue(true);
                 cir.cancel();
