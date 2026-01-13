@@ -7,7 +7,6 @@ import org.joml.Matrix3x2f
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.render.ui.Composition
 import org.lain.engine.client.render.ui.CompositionRenderContext
-import org.lain.engine.client.render.ui.ConstraintsSize
 import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.render.ui.Fragment
 import org.lain.engine.client.render.ui.MutableSize
@@ -16,10 +15,7 @@ import org.lain.engine.client.render.ui.UiContext
 import org.lain.engine.client.render.ui.UiState
 import org.lain.engine.client.render.ui.UiFeatures
 import org.lain.engine.client.render.ui.UiListeners
-import org.lain.engine.client.render.ui.applyFragment
 import org.lain.engine.client.render.ui.blend
-import org.lain.engine.client.render.ui.layout
-import org.lain.engine.client.render.ui.measure
 import org.lain.engine.client.render.ui.recompose
 import org.lain.engine.util.text.EngineOrderedTextSequence
 import org.lain.engine.util.text.toMinecraft
@@ -29,36 +25,25 @@ class EngineUiRenderPipeline(
     private val client: MinecraftClient,
     private val fontRenderer: FontRenderer
 ) : EngineUi {
-    private val elements = mutableListOf<Composition>()
+    private val elements = mutableListOf<Slot>()
     private val textCache = TextCache()
     private val rootSize = MutableSize(0f, 0f)
     private val context by lazy { UiContext(fontRenderer, rootSize) }
 
-    override fun addFragment(constraints: Size?, clear: Boolean, fragment: () -> Fragment): Composition {
-        fun compositionFromFragment(fragment: Fragment, constraintsSize: Size, builder: () -> Fragment): Composition {
-            val uiState = UiState()
-            return Composition(
-                uiState,
-                builder,
-                lastFragment = fragment,
-                clear = clear,
-                children = fragment.children.map { compositionFromFragment(it, constraintsSize, { it }) }.toMutableList(),
-                constraintsSize = constraintsSize
-            )
-        }
+    private data class Slot(val composition: Composition, val clear: Boolean)
 
-        val composition = compositionFromFragment(fragment(), constraints ?: rootSize, fragment)
-        recompose(setOf(composition), context)
-        elements += composition
+    override fun addFragment(clear: Boolean, fragment: () -> Fragment): Composition {
+        val composition = Composition(fragment, context)
+        elements += Slot(composition, clear)
         return composition
     }
 
     override fun removeComposition(composition: Composition) {
-        elements -= composition
+        elements.removeIf { it.composition == composition }
     }
 
     private fun recomposeAll()  {
-        elements.forEach { recompose(setOf(it), context) }
+        elements.forEach { recompose(it.composition, context) }
     }
 
     fun invalidate() {
@@ -67,7 +52,7 @@ class EngineUiRenderPipeline(
     }
 
     fun render(context: DrawContext, dt: Float, mouseX: Float, mouseY: Float) {
-        elements.forEach { collectVertexes(it, context, dt, mouseX, mouseY) }
+        elements.forEach { collectVertexes(it.composition, context, dt, mouseX, mouseY) }
     }
 
     fun collectVertexes(composition: Composition, context: DrawContext, dt: Float, mouseX: Float, mouseY: Float) {

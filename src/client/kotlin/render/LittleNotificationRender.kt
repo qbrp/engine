@@ -147,7 +147,7 @@ class LittleNotificationsRenderManager(
     }
 
     fun create(notification: LittleNotification, slot: String? = null) {
-        val composition = ui.addFragment(Size(WIDTH, window.heightDp)) { LittleNotification(notification) }
+        val composition = ui.addFragment { LittleNotification(notification) }
         val element = composition.render
 
         val height = element.size.height

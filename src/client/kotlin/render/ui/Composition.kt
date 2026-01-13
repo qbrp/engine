@@ -1,5 +1,9 @@
 package org.lain.engine.client.render.ui
 
+import org.lain.engine.client.mc.render.EngineUiRenderPipeline.Slot
+import org.lain.engine.client.render.ZeroMutableVec2
+import org.lain.engine.client.render.ZeroVec2
+
 // States
 // Любой объект в дереве UI умеет хранить состояния. Это позволяет создавать неограниченное число свойств без дополнительных обёрток над фрагментами
 
@@ -17,6 +21,12 @@ object CompositionRenderContext {
 
 interface State<T> {
     fun get(): T
+
+    companion object {
+        fun recompose(listeners: Set<Composition>) {
+            listeners.forEach { recompose(it, CompositionRenderContext.getUiContextOrThrow()) }
+        }
+    }
 }
 
 class MutableState<T>(initial: T): State<T> {
@@ -30,7 +40,7 @@ class MutableState<T>(initial: T): State<T> {
 
     fun set(value: T) {
         this.value = value
-        recompose(listeners, CompositionRenderContext.getUiContextOrThrow())
+        State.recompose(listeners)
     }
 }
 
@@ -62,7 +72,7 @@ class MutableListState<T>(initial: List<T>): State<MutableList<T>>, Iterable<T> 
     }
 
     private fun update() {
-        recompose(listeners, CompositionRenderContext.getUiContextOrThrow())
+        State.recompose(listeners)
     }
 
     override fun iterator(): Iterator<T> = list.iterator()
@@ -86,40 +96,54 @@ value class CompositionId(val long: ULong) {
 data class Composition(
     val render: UiState,
     val fragmentBuilder: () -> Fragment,
+    var fragment: Fragment = fragmentBuilder(),
     val slots: LinkedHashSet<State<*>> = LinkedHashSet(),
     val children: MutableList<Composition> = mutableListOf(),
-    var lastFragment: Fragment = fragmentBuilder(),
     var id: CompositionId = CompositionId.next(),
-    var clear: Boolean = false,
-    val constraintsSize: Size
+    var measuredLayout: MeasuredLayout = MeasuredLayout(Size()),
+    var positionedLayout: PositionedLayout = PositionedLayout(Size(), ZeroVec2(), ZeroVec2())
 )
 
-fun recompose(compositions: Set<Composition>, context: UiContext) {
-    val rebuilt = mutableSetOf<CompositionId>()
-    fun rebuild(composition2: Composition) {
-        composition2.slots.clear()
-        composition2.lastFragment = composition2.fragmentBuilder()
-        composition2.children.forEach { rebuild(it) }
-        rebuilt.add(composition2.id)
+fun Composition(fragment: () -> Fragment, context: UiContext): Composition {
+    fun fromFragment(fragment: Fragment, builder: () -> Fragment): Composition {
+        val uiState = UiState()
+        return Composition(
+            uiState,
+            builder,
+            fragment = fragment,
+            children = fragment.children.map { fromFragment(it, { it }) }.toMutableList(),
+        )
     }
 
-    fun apply(parent: Composition?, fragment: PreparedFragment) {
-        fragment.composition.apply {
-            render.applyFragment(fragment, context)
-            if (parent != null && fragment.fragment !in parent.children.map { it.lastFragment }) {
-                parent.children.add(this)
-            }
-        }
-        fragment.children.forEach { apply(fragment.composition, it) }
-        fragment.composition.lastFragment.onMeasure?.let { it(fragment.composition) }
-    }
+    val composition = fromFragment(fragment(), fragment)
+    recompose(composition, context)
+    return composition
+}
 
-    compositions.forEach { composition ->
-        if (rebuilt.contains(composition.id)) return@forEach
-        rebuild(composition)
-        val measured = measure(context, composition, composition.constraintsSize)
-        val layout = layout(measured, composition.render.position)
+fun recomposeLayout(composition: Composition, context: UiContext) {
+    measure(context, composition)
+    layout(composition, composition.render.position)
+}
 
-        apply(null, layout)
-    }
+fun recomposeFragments(composition: Composition, context: UiContext): Fragment {
+    composition.slots.clear()
+    composition.fragment = composition.fragmentBuilder()
+    val children = composition.children
+    children.forEach { recomposeFragments(it, context) }
+
+    composition.fragment.children
+        .filter { ch -> ch !in children.map { it.fragment } }
+        .forEach { composition.children += Composition({ it }, context) }
+    return composition.fragment
+}
+
+fun recomposeUiState(composition: Composition, context: UiContext) {
+    updateCompositionUiState(composition, context)
+    composition.children.forEach { recomposeUiState(it, context) }
+}
+
+fun recompose(composition: Composition, context: UiContext) {
+    recomposeFragments(composition, context)
+    recomposeLayout(composition, context)
+    recomposeUiState(composition, context)
 }

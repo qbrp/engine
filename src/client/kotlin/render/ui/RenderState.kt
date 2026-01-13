@@ -32,7 +32,7 @@ fun clampedSize(
     return mutable
 }
 
-fun Size(width: Float, height: Float): Size = MutableSize(width, height)
+fun Size(width: Float = 0f, height: Float = 0f): Size = MutableSize(width, height)
 
 data class MutableSize(override var width: Float, override var height: Float) : Size {
     constructor(size: Size) : this(size.width, size.height)
@@ -123,6 +123,6 @@ data class UiState(
 }
 
 interface EngineUi {
-    fun addFragment(constraints: Size? = null, clear: Boolean = true, fragment: () -> Fragment): Composition
+    fun addFragment(clear: Boolean = true, fragment: () -> Fragment): Composition
     fun removeComposition(composition: Composition)
 }
