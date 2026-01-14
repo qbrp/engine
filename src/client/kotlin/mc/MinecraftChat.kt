@@ -26,6 +26,7 @@ import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.lerp
 import org.lain.engine.util.text.parseMiniMessage
+import org.lain.engine.util.text.removeLegacyFormattingCodes
 import java.util.IdentityHashMap
 import kotlin.collections.set
 import kotlin.math.pow
@@ -215,7 +216,7 @@ object MinecraftChat : ChatEventBus {
 
     /* FIXME: Последние строки сообщений дублируются, если это компоненты с какой-либо логикой. Поведение было замечено у достижений. */
     override fun onMessageAdd(message: EngineChatMessage) {
-        val displayText = MinecraftClientAudiences.of().asNative(MiniMessage.miniMessage().deserialize(message.display))
+        val displayText = MinecraftClientAudiences.of().asNative(MiniMessage.miniMessage().deserialize(message.display.removeLegacyFormattingCodes()))
         if (storeMessageContent(displayText.string, MinecraftClient.inGameHud.ticks, message)) {
             chatHud.addMessage(displayText)
         }

@@ -13,14 +13,26 @@ data class Pivot(
 ) {
     companion object {
         val TOP_LEFT = Pivot(0f, 0f)
+        val BOTTOM_LEFT = Pivot(0f, 1f)
     }
 }
 
 sealed class Layout {
-    data class Horizontal(val gap: Float) : Layout()
-    data class Vertical(val gap: Float) : Layout()
+    data class Linear(val gap: Float, val axis: Axis, val placement: Placement) : Layout()
     object Absolute : Layout()
 }
+
+enum class Axis {
+    VERTICAL, HORIZONTAL
+}
+
+enum class Placement {
+    POSITIVE, NEGATIVE
+}
+
+fun HorizontalLayout(gap: Float, placement: Placement = Placement.POSITIVE) = Layout.Linear(gap, Axis.HORIZONTAL, placement)
+
+fun VerticalLayout(gap: Float, placement: Placement = Placement.POSITIVE) = Layout.Linear(gap, Axis.VERTICAL, placement)
 
 sealed class ConstraintsSize {
     data class Fixed(val fixed: Float) : ConstraintsSize()
@@ -48,7 +60,7 @@ data class Fragment(
     val background: Background? = null,
     val onClick: ClickListener? = null,
     val onRender: RenderListener? = null,
-    val onMeasure: MeasureListener? = null,
+    val onRecompose: RecomposeListener? = null,
     val onHover: HoverListener? = null,
 )
 

@@ -144,19 +144,19 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         }
 
     override fun init() {
-        addDrawableChild(TransformationSliderWidget(getWidgetY(1), "Scale X", MAX_SCALE,{ scale.x }, { scale.x = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(1), "Scale Z", MAX_SCALE,{ scale.z }, { scale.z = it }))
         addDrawableChild(TransformationSliderWidget(getWidgetY(2), "Scale Y", MAX_SCALE,{ scale.y }, { scale.y = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(3), "Scale Z", MAX_SCALE,{ scale.z }, { scale.z = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(3), "Scale X", MAX_SCALE,{ scale.x }, { scale.x = it }))
         addText(4, "Scale")
 
-        addDrawableChild(TransformationSliderWidget(getWidgetY(5), "Rotation X", MAX_ROTATION, { rotation.x }, { rotation.x = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(5), "Rotation Z", MAX_ROTATION, { rotation.z }, { rotation.z = it }))
         addDrawableChild(TransformationSliderWidget(getWidgetY(6), "Rotation Y", MAX_ROTATION, { rotation.y }, { rotation.y = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(7), "Rotation Z", MAX_ROTATION, { rotation.z }, { rotation.z = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(7), "Rotation X", MAX_ROTATION, { rotation.x }, { rotation.x = it }))
         addText(8, "Rotation")
 
-        addDrawableChild(TransformationSliderWidget(getWidgetY(9), "Translation X", MAX_TRANSLATION, { translation.x }, { translation.x = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(9), "Translation Z", MAX_TRANSLATION, { translation.z }, { translation.z = it }))
         addDrawableChild(TransformationSliderWidget(getWidgetY(10), "Translation Y", MAX_TRANSLATION, { translation.y }, { translation.y = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(11), "Translation Z", MAX_TRANSLATION, { translation.z }, { translation.z = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(11), "Translation X", MAX_TRANSLATION, { translation.x }, { translation.x = it }))
         addText(12, "Translation")
 
         addDrawableChild(

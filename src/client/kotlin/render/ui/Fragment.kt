@@ -1,5 +1,8 @@
 package org.lain.engine.client.render.ui
 
+import org.lain.engine.client.render.MutableVec2
+import org.lain.engine.client.render.ZeroMutableVec2
+import org.lain.engine.util.sumOf
 import kotlin.math.max
 import kotlin.math.min
 
@@ -72,25 +75,27 @@ fun measure(
     val childrenData = composition.children.map { it.measuredLayout }
     var totalWidth: Float = intrinsicSize.width
     var totalHeight: Float = intrinsicSize.height
-    val gap = when (val layout = fragment.layout) {
-        is Layout.Horizontal -> layout.gap
-        is Layout.Vertical -> layout.gap
-        else -> 0f
-    }
 
     when (layout) {
-        is Layout.Horizontal -> {
-            val maxHeight = childrenData.maxOfOrNull { it.measuredSize.height } ?: 0f
-            totalWidth = max(totalWidth, childrenData.sumOf { it.measuredSize.width.toDouble() }.toFloat())
-            if (childrenData.size > 1) totalWidth += gap * (childrenData.size - 1)
-            totalHeight = max(maxHeight, intrinsicSize.height)
-        }
+        is Layout.Linear -> {
+            val mainSum: Float
+            val crossMax: Float
 
-        is Layout.Vertical -> {
-            val maxWidth = childrenData.maxOfOrNull { it.measuredSize.width } ?: 0f
-            totalHeight = max(totalHeight, childrenData.sumOf { it.measuredSize.height.toDouble() }.toFloat())
-            if (childrenData.size > 1) totalHeight += gap * (childrenData.size - 1)
-            totalWidth = max(maxWidth, intrinsicSize.width)
+            if (layout.axis == Axis.HORIZONTAL) {
+                mainSum = childrenData.sumOf { it.measuredSize.width } +
+                        max(0, childrenData.size - 1) * layout.gap
+                crossMax = childrenData.maxOfOrNull { it.measuredSize.height } ?: 0f
+
+                totalWidth = max(totalWidth, mainSum)
+                totalHeight = max(totalHeight, crossMax)
+            } else {
+                mainSum = childrenData.sumOf { it.measuredSize.height } +
+                        max(0, childrenData.size - 1) * layout.gap
+                crossMax = childrenData.maxOfOrNull { it.measuredSize.width } ?: 0f
+
+                totalWidth = max(totalWidth, crossMax)
+                totalHeight = max(totalHeight, mainSum)
+            }
         }
 
         is Layout.Absolute -> {

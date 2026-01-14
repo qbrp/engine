@@ -127,19 +127,34 @@ fun recomposeLayout(composition: Composition, context: UiContext) {
 
 fun recomposeFragments(composition: Composition, context: UiContext): Fragment {
     composition.slots.clear()
-    composition.fragment = composition.fragmentBuilder()
-    val children = composition.children
-    children.forEach { recomposeFragments(it, context) }
+    val newFragment = composition.fragmentBuilder()
+    composition.fragment = newFragment
 
-    composition.fragment.children
-        .filter { ch -> ch !in children.map { it.fragment } }
-        .forEach { composition.children += Composition({ it }, context) }
-    return composition.fragment
+    val oldChildren = composition.children
+    val newFragments = newFragment.children
+
+    val newCompositions = mutableListOf<Composition>()
+
+    for (fragment in newFragments) {
+        val existing = oldChildren.firstOrNull { it.fragment === fragment }
+        if (existing != null) {
+            recomposeFragments(existing, context)
+            newCompositions += existing
+        } else {
+            newCompositions += Composition({ fragment }, context)
+        }
+    }
+
+    composition.children.clear()
+    composition.children += newCompositions
+
+    return newFragment
 }
 
 fun recomposeUiState(composition: Composition, context: UiContext) {
     updateCompositionUiState(composition, context)
     composition.children.forEach { recomposeUiState(it, context) }
+    composition.fragment.onRecompose?.invoke(composition)
 }
 
 fun recompose(composition: Composition, context: UiContext) {

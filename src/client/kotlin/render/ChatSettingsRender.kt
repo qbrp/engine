@@ -1,6 +1,7 @@
 package org.lain.engine.client.render
 
 import org.lain.engine.client.render.ui.Fragment
+import org.lain.engine.client.render.ui.HorizontalLayout
 import org.lain.engine.client.render.ui.Image
 import org.lain.engine.client.render.ui.Layout
 import org.lain.engine.client.render.ui.MutableListState
@@ -14,7 +15,7 @@ fun ChatSettings(): Fragment {
     val children = mutableListStateOf<Fragment>()
 
     return Fragment(
-        layout = Layout.Horizontal(4f),
+        layout = HorizontalLayout(4f),
         children = children.get()
     )
 }

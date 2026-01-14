@@ -34,7 +34,7 @@ fun clampedSize(
 
 fun Size(width: Float = 0f, height: Float = 0f): Size = MutableSize(width, height)
 
-data class MutableSize(override var width: Float, override var height: Float) : Size {
+data class MutableSize(override var width: Float = 0f, override var height: Float = 0f) : Size {
     constructor(size: Size) : this(size.width, size.height)
 
     fun clampMin(x: Float, y: Float) {
@@ -53,7 +53,7 @@ data class MutableSize(override var width: Float, override var height: Float) : 
 }
 
 typealias RenderListener = (UiState) -> Unit
-typealias MeasureListener = (Composition) -> Unit
+typealias RecomposeListener = (Composition) -> Unit
 typealias HoverListener = (UiState, Float, Float) -> Unit
 typealias ClickListener = (UiState, Float, Float) -> Boolean
 
@@ -108,7 +108,8 @@ data class UiState(
     val scale: MutableVec2 = DEFAULT_SCALE,
     val features: UiFeatures = UiFeatures(),
     val listeners: UiListeners = UiListeners(),
-    var visible: Boolean = true
+    var visible: Boolean = true,
+    var opacity: Int = 255
 ) {
     val scaledSize = MutableSize(size.width, size.height)
     fun update() {

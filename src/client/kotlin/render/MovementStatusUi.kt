@@ -5,10 +5,16 @@ import org.lain.engine.client.render.ui.Background
 import org.lain.engine.client.render.ui.ConstraintsSize
 import org.lain.engine.client.render.ui.Fragment
 import org.lain.engine.client.render.ui.Layout
+import org.lain.engine.client.render.ui.Pivot
+import org.lain.engine.client.render.ui.Placement
 import org.lain.engine.client.render.ui.Sizing
+import org.lain.engine.client.render.ui.VerticalLayout
+import org.lain.engine.util.BLACK_TRANSPARENT_BG_COLOR
 import org.lain.engine.util.Color
 import org.lain.engine.util.SPEED_COLOR
 import org.lain.engine.util.STAMINA_COLOR
+import org.lain.engine.util.lerp
+import kotlin.math.abs
 
 fun MovementBar(gameSession: GameSession): Fragment {
     val renderer = gameSession.renderer
@@ -28,25 +34,27 @@ fun MovementBar(gameSession: GameSession): Fragment {
                     sizing = Sizing(ConstraintsSize.MatchParent),
                     onRender = { state ->
                         val size = state.size
-                        size.width = width * supplier()
+                        val value = supplier()
+                        size.width = width * value
                         state.visible = !renderer.hudHidden && renderer.isFirstPerson
                     },
-                    onMeasure = { composition -> width = composition.render.size.width }
+                    onRecompose = { composition -> width = composition.render.size.width }
                 ),
             ),
         )
     }
 
     return Fragment(
-        position = Vec2(2f, gameSession.client.window.heightDp - 2),
+        position = Vec2(2f, gameSession.client.window.heightDp - 3),
         sizing = Sizing(
-            ConstraintsSize.Fixed(32f),
-            ConstraintsSize.MatchParent
+            ConstraintsSize.Fixed(64f),
+            ConstraintsSize.Wrap
         ),
-        layout = Layout.Vertical(1f),
+        layout = VerticalLayout(1f, Placement.NEGATIVE),
         children = listOf(
             Bar(SPEED_COLOR) { gameSession.movementManager.intention },
             Bar(STAMINA_COLOR) { gameSession.movementManager.stamina },
-        )
+        ),
+        pivot = Pivot.BOTTOM_LEFT
     )
 }

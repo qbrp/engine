@@ -17,9 +17,11 @@ import org.lain.engine.client.render.ui.UiFeatures
 import org.lain.engine.client.render.ui.UiListeners
 import org.lain.engine.client.render.ui.blend
 import org.lain.engine.client.render.ui.recompose
+import org.lain.engine.util.Color
 import org.lain.engine.util.text.EngineOrderedTextSequence
 import org.lain.engine.util.text.toMinecraft
 import kotlin.math.ceil
+import kotlin.math.max
 
 class EngineUiRenderPipeline(
     private val client: MinecraftClient,
@@ -29,6 +31,7 @@ class EngineUiRenderPipeline(
     private val textCache = TextCache()
     private val rootSize = MutableSize(0f, 0f)
     private val context by lazy { UiContext(fontRenderer, rootSize) }
+    private val alphaStack = ArrayDeque<Int>()
 
     private data class Slot(val composition: Composition, val clear: Boolean)
 
@@ -65,6 +68,8 @@ class EngineUiRenderPipeline(
         val origin = state.origin
         val scale = state.scale
         val size = state.size
+        val opacity = max(0, 255 - (state.opacity - (alphaStack.lastOrNull() ?: 255)))
+        alphaStack.addLast(opacity)
         matrices.pushMatrix()
         matrices.translate(position.x - origin.x, position.y - origin.y)
 
@@ -78,11 +83,11 @@ class EngineUiRenderPipeline(
         if (state.visible) {
             val ceilWidth = ceil(size.width).toInt()
             val ceilHeight = ceil(size.height).toInt()
-            context.enableScissor(
-                -2, -2,
-                ceilWidth + 2,
-                ceilHeight + 2
-            )
+//            context.enableScissor(
+//                -2, -2,
+//                ceilWidth + 2,
+//                ceilHeight + 2
+//            )
 
             renderFeatures(
                 size.width, size.height,
@@ -97,7 +102,7 @@ class EngineUiRenderPipeline(
                 collectVertexes(child, context, dt, mouseX - position.x, mouseY - position.y)
             }
 
-            context.disableScissor()
+//            context.disableScissor()
         }
 
         renderListeners(
@@ -109,6 +114,7 @@ class EngineUiRenderPipeline(
         )
 
         matrices.popMatrix()
+        alphaStack.removeLast()
     }
 
     fun renderListeners(
@@ -138,20 +144,26 @@ class EngineUiRenderPipeline(
         context.matrices.pushMatrix()
         val tint = features.tint
 
+        fun getColor(color: Color): Color {
+            return tint
+                .blend(color)
+                //.withAlpha(color.alpha / alphaStack.last() * 255)
+        }
+
         context.fill(
             0f, 0f, width, height,
-            tint.blend(features.background.color1).integer,
-            tint.blend(features.background.color2).integer
+            getColor(features.background.color1).integer,
+            getColor(features.background.color2).integer
         )
 
         features.sprite?.let {
-            val color = tint.blend(it.color)
+            val color = getColor(it.color)
             context.drawEngineSprite(it.source, 0f, 0f, width, height, color)
         }
 
         features.text?.let { text ->
             var textY = 0
-            val color = tint.blend(text.color)
+            val color = getColor(text.color)
             context.matrices.scale(text.scale)
             text.lines.forEach { line ->
                 context.drawTextWithShadow(

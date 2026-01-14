@@ -19,7 +19,7 @@ class ScreenRenderer(private val client: EngineClient) {
     }
 
     fun setupGameSession(gameSession: GameSession) {
-//        client.ui.addFragment { MovementBar(gameSession) }
+        //client.ui.addFragment { MovementBar(gameSession) }
     }
 
     fun invalidate() {

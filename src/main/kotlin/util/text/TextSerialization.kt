@@ -12,9 +12,8 @@ fun String.escapeSlashes(): String {
     return replace("\\", "\\\\")
 }
 
-fun String.parseMiniMessage(): Text {
-    val text = this
-        .escapeSlashes()
+fun String.removeLegacyFormattingCodes(): String {
+    return this.escapeSlashes()
         .replace("§", "&")
         .replace("&0", "<black>")
         .replace("&1", "<dark_blue>")
@@ -35,6 +34,10 @@ fun String.parseMiniMessage(): Text {
         .replace("&r", "<resetCustom>")
         .replace("&l", "<bold>")
         .replace("&o", "<italic>")
+}
+
+fun String.parseMiniMessage(): Text {
+    val text = this.removeLegacyFormattingCodes()
 
     val component = MiniMessage.miniMessage().deserialize(text)
     val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))

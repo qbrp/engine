@@ -5,12 +5,14 @@ import org.lain.engine.client.render.ui.Composition
 import org.lain.engine.client.render.ui.ConstraintsSize
 import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.render.ui.Fragment
+import org.lain.engine.client.render.ui.HorizontalLayout
 import org.lain.engine.client.render.ui.Image
 import org.lain.engine.client.render.ui.Layout
 import org.lain.engine.client.render.ui.Size
 import org.lain.engine.client.render.ui.Sizing
 import org.lain.engine.client.render.ui.SpriteSizing
 import org.lain.engine.client.render.ui.TextArea
+import org.lain.engine.client.render.ui.VerticalLayout
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.util.BLACK_TRANSPARENT_BG_COLOR
 import org.lain.engine.util.clampDelta
@@ -79,7 +81,7 @@ class LittleNotificationState(
 private const val WIDTH = 175f
 private const val ICON_SIZE = 16f
 private fun LittleNotification(notification: LittleNotification) = Fragment(
-    layout = Layout.Horizontal(4f),
+    layout = HorizontalLayout(4f),
     sizing = Sizing(
         ConstraintsSize.Fixed(WIDTH),
         ConstraintsSize.Wrap
@@ -93,7 +95,7 @@ private fun LittleNotification(notification: LittleNotification) = Fragment(
             )
         ),
         Fragment(
-            layout = Layout.Vertical(2f),
+            layout = VerticalLayout(2f),
             children = listOfNotNull(
                 Fragment(text = TextArea(notification.titleTextNode)),
                 notification.descriptionTextNode?.let {

@@ -4,6 +4,9 @@ package org.lain.engine.util
 value class Color(val integer: Int) {
     constructor(long: Long) : this(long.toInt())
 
+    val alpha
+        get() = integer ushr 24 and 0xFF
+
     fun blend(
         other: Color?,
         colorA: Float?,

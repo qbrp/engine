@@ -27,6 +27,8 @@ private const val NAMESPACES_FILENAME = "namespaces.yml"
 @Serializable
 data class NamespaceConfig(
     val stackable: Boolean? = null,
+    val hat: Boolean? = null,
+    val equip: ItemEquipment? = null,
     val model: String = "~/{id}"
 )
 
@@ -135,7 +137,7 @@ fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompil
             }
             val assetId = EngineId(asset)
 
-            val equip = config.equip ?: config.hat?.let { if (it) ItemEquipment(EquipmentSlot.HEAD) else null }
+            val equip = (config.equip ?: namespaceConfig.equip) ?: (config.hat ?: namespaceConfig.hat)?.let { if (it) ItemEquipment(EquipmentSlot.HEAD) else null }
 
             itemsToAdd += EngineItem(
                 id,
