@@ -2,11 +2,16 @@ package org.lain.engine.util.text
 
 import com.google.gson.JsonParser
 import com.mojang.serialization.JsonOps
+import net.kyori.adventure.platform.modcommon.MinecraftServerAudiences
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
+import net.kyori.adventure.text.minimessage.tag.standard.StandardTags
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import net.minecraft.text.Text
 import net.minecraft.text.TextCodecs
+import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.parseHexColor
+import org.slf4j.LoggerFactory
 
 fun String.escapeSlashes(): String {
     return replace("\\", "\\\\")
@@ -31,20 +36,28 @@ fun String.removeLegacyFormattingCodes(): String {
         .replace("&d", "<light_purple>")
         .replace("&e", "<yellow>")
         .replace("&f", "<white>")
-        .replace("&r", "<resetCustom>")
+        .replace("&r", "<reset>")
         .replace("&l", "<bold>")
         .replace("&o", "<italic>")
 }
 
+val TEXT_LOGGER = LoggerFactory.getLogger("Engine Text Serialization")
+
 fun String.parseMiniMessage(): Text {
+    val server by injectMinecraftEngineServer()
     val text = this.removeLegacyFormattingCodes()
 
-    val component = MiniMessage.miniMessage().deserialize(text)
-    val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))
 
-    return TextCodecs.CODEC
-        .parse(JsonOps.INSTANCE, jsonObject)
-        .getOrThrow()
+    val component = MiniMessage.miniMessage().deserialize(text)
+    return try {
+        MinecraftServerAudiences.of(server.minecraftServer).asNative(component)
+    } catch (e: Throwable) {
+        TEXT_LOGGER.error("Возникла ошибка при десериализации текста MiniMessage:\n$this", e)
+        val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))
+        TextCodecs.CODEC
+            .parse(JsonOps.INSTANCE, jsonObject)
+            .getOrThrow()
+    }
 }
 
 fun main() {

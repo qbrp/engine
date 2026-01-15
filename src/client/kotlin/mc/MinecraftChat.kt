@@ -1,11 +1,5 @@
 package org.lain.engine.client.mc
 
-import net.kyori.adventure.platform.AudienceProvider
-import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
-import net.kyori.adventure.platform.modcommon.MinecraftServerAudiences
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.ComponentLike
-import net.kyori.adventure.text.minimessage.MiniMessage
 import net.minecraft.client.gui.hud.ChatHudLine
 import net.minecraft.client.network.PlayerListEntry
 import net.minecraft.client.util.ChatMessages
@@ -16,8 +10,9 @@ import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.ChatBar
 import org.lain.engine.client.chat.ChatEventBus
-import org.lain.engine.client.chat.EngineChatMessage
+import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
+import org.lain.engine.client.chat.isMessageVisible
 import org.lain.engine.client.mc.render.ChatChannelsBar
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
 import org.lain.engine.util.HIGH_VOLUME_COLOR
@@ -25,8 +20,6 @@ import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.lerp
-import org.lain.engine.util.text.parseMiniMessage
-import org.lain.engine.util.text.removeLegacyFormattingCodes
 import java.util.IdentityHashMap
 import kotlin.collections.set
 import kotlin.math.pow
@@ -36,10 +29,10 @@ object MinecraftChat : ChatEventBus {
     private val client by injectClient()
     private val chatLines = IdentityHashMap<ChatHudLine.Visible, ChatLineData>()
     private val chatMessages = IdentityHashMap<ChatHudLine, ChatMessageData>()
-    private val contentToEngineMessages = mutableMapOf<String, EngineChatMessage>()
+    private val contentToEngineMessages = mutableMapOf<String, AcceptedMessage>()
 
     private data class MessageIdentity(val tick: Int, val content: String)
-    private val identityContentToEngineMessages = mutableMapOf<MessageIdentity, EngineChatMessage>()
+    private val identityContentToEngineMessages = mutableMapOf<MessageIdentity, AcceptedMessage>()
 
     private data class StoredLine(
         val line: ChatHudLine.Visible,
@@ -80,7 +73,7 @@ object MinecraftChat : ChatEventBus {
         val node: ChatHudLine,
         val author: PlayerListEntry?,
         val brokenChatBubbleLines: List<OrderedText>,
-        val engineMessage: EngineChatMessage
+        val engineMessage: AcceptedMessage
     ) {
         val debugText = Text.of(" [volume ${engineMessage.volume}]")
     }
@@ -118,18 +111,20 @@ object MinecraftChat : ChatEventBus {
         index: Int
     ): Boolean {
         val content = node.content.string
+
         val engineMessage = if (isEngineMessage(node)) {
             contentToEngineMessages[content]
         } else {
-            EngineChatMessage(
+            AcceptedMessage(
                 content,
-                MiniMessage.miniMessage().serialize(MinecraftClientAudiences.of().asAdventure(node.content)),
+                content,
                 SYSTEM_CHANNEL,
                 MessageSource.getSystem(client.gameSession?.world ?: return false),
-                id = MessageId.next()
+                id = MessageId.next(),
+                isVanilla = true
             ).also {
+                contentToEngineMessages[content] = it
                 chatManager?.addMessage(it)
-                return true
             }
         } ?: return false
 
@@ -147,15 +142,14 @@ object MinecraftChat : ChatEventBus {
                 node,
                 authorEntity,
                 ChatMessages.breakRenderedChatMessageLines(
-                    engineMessage.text.parseMiniMessage(),
+                    engineMessage.text.parseMiniMessageClient(),
                     client.options.chatBubbleLineWidth,
                     MinecraftClient.textRenderer
                 ),
                 engineMessage
             )
         }
-        val isSpy = engineMessage.isSpy
-        val visible = channel.isAvailable && !chatBar.isHidden(channel.id) && (isSpy && spy || !isSpy)
+        val visible = isMessageVisible(engineMessage, spy, chatBar)
 
         val data = ChatLineData(chatHudLine, isFirst, isLast, messageData)
         if (engineMessage.isSpy) { spyMessages[chatHudLine] = storedLine }
@@ -178,7 +172,7 @@ object MinecraftChat : ChatEventBus {
         messageByLine.remove(line)?.let { allMessages.remove(it) }
     }
 
-    fun deleteMessage(chatMessage: EngineChatMessage) {
+    fun deleteMessage(chatMessage: AcceptedMessage) {
         val messages = chatLines.values.filter { it.message.engineMessage.id == chatMessage.id }
         val accessor = chatHud as ChatHudAccessor
         contentToEngineMessages.remove(chatMessage.display)
@@ -190,7 +184,7 @@ object MinecraftChat : ChatEventBus {
         }
     }
 
-    fun storeMessageContent(content: String, ticks: Int, message: EngineChatMessage): Boolean {
+    fun storeMessageContent(content: String, ticks: Int, message: AcceptedMessage): Boolean {
         val identity = MessageIdentity(ticks, content)
         if (identityContentToEngineMessages.contains(identity)) {
             return false
@@ -215,14 +209,15 @@ object MinecraftChat : ChatEventBus {
     }
 
     /* FIXME: Последние строки сообщений дублируются, если это компоненты с какой-либо логикой. Поведение было замечено у достижений. */
-    override fun onMessageAdd(message: EngineChatMessage) {
-        val displayText = MinecraftClientAudiences.of().asNative(MiniMessage.miniMessage().deserialize(message.display.removeLegacyFormattingCodes()))
-        if (storeMessageContent(displayText.string, MinecraftClient.inGameHud.ticks, message)) {
+    override fun onMessageAdd(message: AcceptedMessage) {
+        val displayText = message.display.parseMiniMessageClient()
+        val added = storeMessageContent(displayText.string, MinecraftClient.inGameHud.ticks, message)
+        if (added && !message.isVanilla) {
             chatHud.addMessage(displayText)
         }
     }
 
-    override fun onMessageDelete(message: EngineChatMessage) {
+    override fun onMessageDelete(message: AcceptedMessage) {
         deleteMessage(message)
     }
 
@@ -296,7 +291,7 @@ object MinecraftChat : ChatEventBus {
     }
 
     override fun onSettingsUpdate(settings: ClientChatSettings, chatBar: ChatBar) {
-        channelsBar.updateButtons(chatBar.configuration.sections)
+        channelsBar.updateButtons(chatBar.sections)
     }
 
     fun updateChatInput(input: String) {
@@ -336,6 +331,6 @@ object MinecraftChat : ChatEventBus {
     }
 
     override fun getChatBubbleText(content: String): String {
-        return content.parseMiniMessage().string
+        return content.parseMiniMessageClient().string
     }
 }

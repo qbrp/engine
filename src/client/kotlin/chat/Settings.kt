@@ -25,7 +25,7 @@ data class ChatBarSectionState(
 
 @Serializable
 data class ChatFormatSettings(
-    val spy: String,
+    val spy: String = "<gold>[Spy]</gold> {original}",
     val regex: ChatRegexSettings = ChatRegexSettings()
 )
 

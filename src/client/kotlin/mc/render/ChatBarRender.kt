@@ -60,7 +60,7 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
         buttons.forEach {
             val rect = it.rect
             if (mouseX in rect.x1..rect.x2 && mouseY in rect.y1..rect.y2) {
-                chatManager?.chatBar?.toggleHide(it.section)
+                chatManager?.chatBar?.toggleHide(it.section, chatManager)
                 client.audioManager.playUiNotificationSound()
             }
         }

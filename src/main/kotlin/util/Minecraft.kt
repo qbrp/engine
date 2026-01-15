@@ -4,6 +4,7 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
+import net.minecraft.util.math.Vec3d
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.ServerPlayerTable
 import org.lain.engine.mc.Username
@@ -39,4 +40,10 @@ class MinecraftRaycastProvider(
         val entity2 = entityTable.getEntity(player) ?: return false
         return entity1.canSee(entity2)
     }
+}
+
+fun MutableVec3.set(vec3: Vec3d) {
+    this.x = vec3.x.toFloat()
+    this.y = vec3.y.toFloat()
+    this.z = vec3.z.toFloat()
 }

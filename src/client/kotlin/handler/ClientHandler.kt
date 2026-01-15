@@ -7,7 +7,9 @@ import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.ClientEventBus
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.chat.EngineChatMessage
+import org.lain.engine.client.chat.AcceptedMessage
+import org.lain.engine.client.chat.SYSTEM_CHANNEL
+import org.lain.engine.client.chat.acceptOutcomingMessage
 import org.lain.engine.client.transport.clientWorld
 import org.lain.engine.client.transport.isLowDetailed
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
@@ -20,6 +22,7 @@ import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.customName
+import org.lain.engine.player.username
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.packet.ClientboundServerSettings
@@ -65,14 +68,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun tick() {
-        taskExecutor.flush(client)
+        taskExecutor.flush()
     }
 
     fun onChatMessageSend(content: String, channelId: ChannelId) {
         SERVERBOUND_CHAT_MESSAGE_ENDPOINT.sendC2SPacket(IncomingChatMessagePacket(content, channelId))
     }
 
-    fun onChatMessageDelete(message: EngineChatMessage) {
+    fun onChatMessageDelete(message: AcceptedMessage) {
         SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.sendC2SPacket(DeleteChatMessagePacket(message.id))
     }
 
@@ -168,57 +171,16 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         chatManager.updateSettings(settings.chat)
     }
 
-    fun applyChatMessage(message: OutcomingMessage) = with(gameSession!!) {
-        val channelId = message.channel
-        val channel = chatManager.getChannel(channelId)
-        val chatFormat = client.resources.formatConfiguration
-        var text = message.text
-
-        chatFormat.regex.replace.forEach { rule ->
-            val regex = Regex(rule.exp)
-
-            text = regex.replace(text) { match ->
-                val value = match.value
-                val cleaned = rule.remove?.let {
-                    value.replace(it, "")
-                } ?: value
-
-                rule.value.replace("{match}", cleaned)
-            }
-        }
-
-        var display = channel.format
-        val placeholders = (chatManager.settings.placeholders + message.placeholders).toMutableMap()
-        placeholders["text"] = text
-        placeholders.forEach { old, new ->
-            display = display
-                .replace("{$old}", new)
-        }
-
-        display = Regex("\\{([^|{}]+)\\|([^{}]*)\\}").replace(display) { match ->
-            val name = match.groupValues[1]
-            val defaultValue = match.groupValues.getOrNull(2)
-            val placeholder = placeholders[name]
-
-            placeholder ?: (defaultValue ?: "")
-        }
-
-        if (message.isSpy) {
-            display = chatFormat.spy.replace("{original}", display)
-        }
-
+    fun applyChatMessage(message: OutcomingMessage) {
+        val chatManager = gameSession?.chatManager ?: return
         chatManager.addMessage(
-            EngineChatMessage(
-                text,
-                display,
-                channel,
-                message.source,
-                message.mentioned,
-                message.speech,
-                message.volume,
-                message.isSpy,
-                message.head,
-                message.id
+            acceptOutcomingMessage(
+                message,
+                chatManager.availableChannels,
+                SYSTEM_CHANNEL,
+                chatManager.settings.placeholders,
+                client.resources.formatConfiguration,
+                gameSession!!.playerStorage.map { it.username }
             )
         )
     }

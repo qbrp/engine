@@ -2,10 +2,6 @@ package org.lain.engine.chat
 
 import org.lain.engine.player.Player
 import org.lain.engine.player.hasPermission
-import org.lain.engine.util.Component
-import org.lain.engine.util.has
-import org.lain.engine.util.require
-import org.lain.engine.util.set
 
 const val CHAT_OPERATOR_PERMISSION = "chat.operator"
 

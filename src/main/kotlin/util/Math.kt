@@ -6,6 +6,7 @@ import org.lain.engine.world.World
 import org.lain.engine.world.players
 import kotlin.math.abs
 import kotlin.math.pow
+import kotlin.math.round
 
 const val DEGREES_TO_RADIANS_DOUBLE = 0.017453292519943295
 
@@ -48,6 +49,9 @@ fun clampDelta(cur: Float, end: Float, threshold: Float): Float {
     }
 }
 
+fun roundToInt(float: Float): Int = round(float).toInt()
+
+fun roundToInt(double: Double): Int = round(double).toInt()
 
 fun filterNearestPlayers(
     world: World,

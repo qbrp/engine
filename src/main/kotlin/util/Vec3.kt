@@ -118,8 +118,11 @@ data class MutableVec3(
     override var y: Float = 0f,
     override var z: Float = 0f
 ) : Vec3 {
-
     constructor(pos: Pos) : this(pos.x, pos.y, pos.z)
+
+    override fun toString(): String {
+        return "($x, $y, $z)"
+    }
 
     fun mutateAdd(x: Float = this.x, y: Float = this.y, z: Float = this.z) {
         this.x = x

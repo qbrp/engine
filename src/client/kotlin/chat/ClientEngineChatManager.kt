@@ -17,14 +17,14 @@ class ClientEngineChatManager(
     private val gameSession: GameSession,
     settings: ClientChatSettings,
 ) {
-    private val logger = LoggerFactory.getLogger("Engine Chat Client")
     var settings = settings
         private set
     var defaultChannel = settings.channels[settings.default] ?: error("Invalid default channel")
         private set
+    private val logger = LoggerFactory.getLogger("Engine Chat Client")
     private var channels = mapOf<ChannelId, ClientChatChannel>()
-    private var availableChannels = mapOf<ChannelId, ClientChatChannel>()
-    private val systemChannel = SYSTEM_CHANNEL
+    var availableChannels = mapOf<ChannelId, ClientChatChannel>()
+        private set
 
     var chatBar: ChatBar? = null
         private set
@@ -58,9 +58,7 @@ class ClientEngineChatManager(
         spy = !spy
     }
 
-    private val messages: MutableList<EngineChatMessage> = mutableListOf()
-
-    fun getChannel(id: ChannelId) = channels[id] ?: systemChannel
+    private val messages: MutableList<AcceptedMessage> = mutableListOf()
 
     fun disableChannel(id: ChannelId) {
         val channel = channels[id] ?: return
@@ -97,14 +95,11 @@ class ClientEngineChatManager(
         gameSession.handler.onChatMessageSend(content, channel.id)
     }
 
-    fun addMessage(message: EngineChatMessage) {
+    fun addMessage(message: AcceptedMessage) {
         val chatBar = chatBar ?: return
         val channel = message.channel
-        val isSpy = message.isSpy
+        val author = message.source.author
         val isMentioned = message.isMentioned
-        val visibleAsSpy = (isSpy && spy || !isSpy) && channel.spy
-        val visible = channel.isAvailable && !chatBar.isHidden(channel.id) && visibleAsSpy
-        val markRead = visible || !visibleAsSpy
 
         // Если есть точно такое же сообщение
         val similar = messages
@@ -118,15 +113,11 @@ class ClientEngineChatManager(
         messages += message
         eventBus.onMessageAdd(message)
 
-        if (!markRead) {
-            chatBar.markUnread(channel.id)
-        }
-
         if (isMentioned) {
             chatBar.markMentioned(channel.id)
         }
 
-        if (visible) {
+        if (isMessageVisible(message, spy, chatBar)) {
             val author = message.source.player
             if (author != null && message.isSpeech && (author != gameSession.mainPlayer || client.developerMode)) {
                 gameSession.chatBubbleList.setChatBubble(author, eventBus.getChatBubbleText(message.text))
@@ -134,6 +125,8 @@ class ClientEngineChatManager(
             if (isMentioned) {
                 client.audioManager.playUiNotificationSound()
             }
+        } else if (author.player != gameSession.mainPlayer) {
+            chatBar.markUnread(channel.id)
         }
     }
 
@@ -145,7 +138,7 @@ class ClientEngineChatManager(
         eventBus.onMessageDelete(toDelete)
     }
 
-    private fun deleteSelfMessage(message: EngineChatMessage) {
+    private fun deleteSelfMessage(message: AcceptedMessage) {
         client.handler.onChatMessageDelete(message)
     }
 
@@ -171,11 +164,7 @@ class ClientEngineChatManager(
             }
         }
 
-        chatBar = ChatBar(
-            ChatBarConfiguration(chatBarSections2),
-            this
-        )
-
+        chatBar = ChatBar(ChatBarConfiguration(chatBarSections2),)
         settings = new
 
         eventBus.onSettingsUpdate(settings, chatBar!!)

@@ -3,14 +3,14 @@ package org.lain.engine.client.chat
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.EngineChat
 
-class ChatBar(
-    val configuration: ChatBarConfiguration,
-    private val chat: ClientEngineChatManager,
-    private val states: MutableMap<ChannelId, ChatBarSectionState> = mutableMapOf(),
-    private val statesBySection: MutableMap<ChatBarSection, ChatBarSectionState> = mutableMapOf(),
-) {
+fun ChatBar(configuration: ChatBarConfiguration) = ChatBar(configuration.sections)
+
+class ChatBar(val sections: List<ChatBarSection>) {
+    private val states: MutableMap<ChannelId, ChatBarSectionState> = mutableMapOf()
+    private val statesBySection: MutableMap<ChatBarSection, ChatBarSectionState> = mutableMapOf()
+
     init {
-        configuration.sections.forEach { section ->
+        sections.forEach { section ->
             val state = ChatBarSectionState(section, hide = false, unread = false, mentioned = false)
             section.channels.forEach {
                 states[it] = state
@@ -23,19 +23,19 @@ class ChatBar(
 
     fun isHidden(section: ChatBarSection) = statesBySection[section]?.hide ?: false
 
-    fun toggleHide(channelId: ChannelId) {
-        states[channelId]?.let { toggleHide(it.section)}
+    fun toggleHide(channelId: ChannelId, chat: ClientEngineChatManager?) {
+        states[channelId]?.let { toggleHide(it.section, chat)}
     }
 
-    fun toggleHide(section: ChatBarSection) {
+    fun toggleHide(section: ChatBarSection, chat: ClientEngineChatManager?) {
         val channelState = statesBySection[section] ?: return
         channelState.hide = !channelState.hide
         val isHidden = channelState.hide
         if (isHidden) {
-            section.channels.forEach { chat.disableChannel(it) }
+            section.channels.forEach { chat?.disableChannel(it) }
         } else {
             markRead(section)
-            section.channels.forEach { chat.enableChannel(it) }
+            section.channels.forEach { chat?.enableChannel(it) }
         }
     }
 

@@ -15,6 +15,7 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Pos
 import org.lain.engine.util.filterNearestPlayers
+import org.lain.engine.util.roundToInt
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.players
@@ -100,7 +101,6 @@ class EngineChat(
     }
 
     private suspend fun ChatChannel.processMessage(content: String, volume: Float, source: MessageSource) {
-        var content = content
         val sourceWorld = source.world
         val sourcePos = source.position
 
@@ -115,14 +115,7 @@ class EngineChat(
         if (sourcePos != null) {
             val toAdd = when (acoustic) {
                 is Acoustic.Distance -> {
-                    val recipients = filterNearestPlayers(sourceWorld, sourcePos, acoustic.radius)
-                    // Подсвечиваем упоминания. При реалистичной акустике они игнорируются
-                    recipients.forEach { player ->
-                        val username = player.username
-                        content = content
-                            .replace("@$username", "<bold><yellow>@$username</yellow></bold>")
-                    }
-                    recipients
+                    filterNearestPlayers(sourceWorld, sourcePos, acoustic.radius)
                 }
 
                 is Acoustic.Realistic -> {
@@ -156,10 +149,16 @@ class EngineChat(
             recipients.addAll(sourceWorld.players)
         }
 
+        if (mentions) {
+            recipients.addAll(
+                players.filter { hasMention(it, content) }
+            )
+        }
+
         // Рассылаем сообщение получателям и следящим игрокам, до которых сообщение не дошло
         recipients
             .distinct()
-            .filter { it == source.player || hasMention(it, content) || it.isChannelAvailableToRead(this) }
+            .filter { it == source.player || it.isChannelAvailableToRead(this) }
             .forEach {
                 if (dontSendMessageToAuthor && it == source.player) return@forEach
                 val volume = volumes[it]
@@ -312,6 +311,7 @@ class EngineChat(
             "author_name" to author.name,
             "recipient_username" to recipient.username,
             "recipient_name" to recipient.displayName,
+            "random-100" to roundToInt(Math.random() * 100f).toString()
         )
 
         volume?.let {

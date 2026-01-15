@@ -15,18 +15,10 @@ import org.lain.engine.transport.Packet
 class TaskExecutor(
     private val tasks: ArrayDeque<Task> = ArrayDeque()
 ) {
-    fun flush(client: EngineClient) {
+    fun flush() {
         while (tasks.isNotEmpty()) {
             val task = tasks.removeFirst()
-            try {
-                task.executor()
-            } catch (e: Throwable) {
-                ClientHandler.LOGGER.error("При обработке задачи $task возникла ошибка", e)
-                if (!client.developerMode) {
-                    MinecraftClient.disconnect(DisconnectText(e.message ?: "Unknown error"))
-                    break
-                }
-            }
+            task.executor()
         }
     }
 
@@ -50,7 +42,7 @@ data class Task(
 
 fun <P : Packet> ClientHandler.registerGameSessionReceiver(endpoint: Endpoint<P>, executor: P.(GameSession) -> Unit) {
     endpoint.registerClientReceiver {
-        val session = client.gameSession ?: error("Получен пакет данных в раннем состоянии авторизации на сервере")
+        val session = client.gameSession ?: error("Получен пакет данных в раннем состоянии авторизации на сервере [${endpoint.identifier}]")
         taskExecutor.add(endpoint.identifier) { this.executor(session) }
     }
 }
@@ -66,7 +58,7 @@ fun ClientHandler.updatePlayer(id: PlayerId, update: (Player) -> Unit) {
 fun ClientHandler.updatePlayerDetailed(id: PlayerId, update: (Player) -> Unit) {
     updatePlayer(id) {
         if (it.isLowDetailed) {
-            LOGGER.warn("Получен пакет данных игрока вне зоны обновлений: $id")
+            LOGGER.warn("Получен пакет данных игрока вне зоны обновлений: $it")
         }
         update(it)
     }
