@@ -92,6 +92,7 @@ dependencies {
 
     // Game tests
     testImplementation("net.fabricmc:fabric-loader-junit:${project.property("loader_version")}")
+    testImplementation(kotlin("test"))
 }
 
 tasks.test {
