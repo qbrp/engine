@@ -31,6 +31,7 @@ class EngineYamlConfig(
 
     private val chatInputShakingForceProperty = builder.defineFloat("shaking-force", 3f, 0f, 5f)
     private val chatInputShakingThresholdProperty = builder.defineFloat("shaking-threshold", 0.5f, 0f, 1f)
+    private val chatInputClosingProperty = builder.defineBoolean("closing", false)
 
     init { builder.pop() }
 
@@ -52,6 +53,8 @@ class EngineYamlConfig(
         get() = chatInputShakingForceProperty.get()
     override val chatInputShakingThreshold: Float
         get() = chatInputShakingThresholdProperty.get()
+    override val chatInputSendClosesChat: Boolean
+        get() = chatInputClosingProperty.get()
     override val chatBubbleBackgroundOpacity: Float
         get() = chatBubbleBackgroundOpacityProperty.get().toFloat() / 100f
 

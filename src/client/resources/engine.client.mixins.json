@@ -4,6 +4,7 @@
   "package": "org.lain.engine.client.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ClientCommandSourceMixin",
     "KeyboardMixin",
     "MouseMixin",
     "PlayerListEntryAccessor",
@@ -36,6 +37,7 @@
     "requireAnnotations": true
   },
   "mixins": [
+    "ClickEventActionMixin",
     "ItemStackMixin",
     "resource.SimpleResourceReloadMixin"
   ]

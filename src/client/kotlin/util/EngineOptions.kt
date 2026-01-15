@@ -8,5 +8,6 @@ interface EngineOptions {
     val chatBubbleBackgroundOpacity: Float
     val chatInputShakingForce: Float
     val chatInputShakingThreshold: Float
+    val chatInputSendClosesChat: Boolean
     val crosshairIndicatorVisible: Boolean
 }

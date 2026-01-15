@@ -13,5 +13,6 @@
   "yamlconfig.engine.engine-config.chat-input": "Поле ввода",
   "yamlconfig.engine.engine-config.chat-input.shaking-force": "Сила тряски",
   "yamlconfig.engine.engine-config.chat-input.shaking-threshold": "Порог тряски",
+  "yamlconfig.engine.engine-config.chat-input.closing": "Закрывать чат при отправке сообщения",
   "key.category.engine.category": "Engine"
 }

@@ -13,6 +13,8 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
+import org.lain.engine.client.control.KeybindsKt;
+import org.lain.engine.client.mc.MinecraftKeybindKt;
 import org.lain.engine.client.mc.render.ChatChannelsBar;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftChat;
@@ -38,6 +40,12 @@ public abstract class ChatScreenMixin {
     @Shadow protected abstract void onChatFieldUpdate(String chatText);
 
     @Shadow protected abstract @Nullable OrderedText format(String string, int firstCharacterIndex);
+
+    @Shadow public abstract String normalize(String chatText);
+
+    @Shadow private String chatLastMessage;
+
+    @Shadow private int messageHistoryIndex;
 
     @ModifyArg(
             method = "init",
@@ -150,11 +158,34 @@ public abstract class ChatScreenMixin {
         MinecraftChat chat = MinecraftChat.INSTANCE;
         chat.updateChatInput(chatField.getText());
         MinecraftChat.ChatMessageData selectedMessage = chat.getSelectedMessage();
-        if (selectedMessage != null && input.key() == GLFW.GLFW_KEY_DELETE) {
-            ClientMixinAccess.INSTANCE.deleteChatMessage(selectedMessage.getEngineMessage());
+        if (selectedMessage != null) {
+            if (input.key() == GLFW.GLFW_KEY_DELETE) {
+                ClientMixinAccess.INSTANCE.deleteChatMessage(selectedMessage.getEngineMessage());
+            } else if (MinecraftKeybindKt.isControlDown() && input.key() == GLFW.GLFW_KEY_C) {
+                MinecraftClient.getInstance().keyboard.setClipboard(selectedMessage.getNode().content().getString());
+                ClientMixinAccess.INSTANCE.setChatClipboardCopyTicksElapsed(0);
+            }
         }
         if (input.isEnter()) {
-            MinecraftChat.INSTANCE.setSelectedMessage(null);
+            chat.setSelectedMessage(null);
+        }
+    }
+
+    @Redirect(
+            method = "keyPressed",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/MinecraftClient;setScreen(Lnet/minecraft/client/gui/screen/Screen;)V"
+            )
+    )
+    public void engine$setScreen(MinecraftClient instance, Screen screen) {
+        if (ClientMixinAccess.INSTANCE.sendingMessageClosesChat() || MinecraftKeybindKt.isControlDown()) {
+            instance.setScreen(screen);
+        } else {
+            if (!normalize(chatField.getText()).isEmpty()) {
+                chatField.setText("");
+                messageHistoryIndex = instance.inGameHud.getChatHud().getMessageHistory().size();;
+            }
         }
     }
 

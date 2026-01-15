@@ -10,6 +10,7 @@ import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.hud.MessageIndicator;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.util.ChatMessages;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.StringVisitable;
 import net.minecraft.text.Text;
@@ -17,11 +18,12 @@ import net.minecraft.util.Colors;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
-import org.lain.engine.client.chat.EngineChatMessage;
+import org.lain.engine.client.chat.AcceptedMessage;
+import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftChat;
+import org.lain.engine.client.mc.MinecraftKeybindKt;
 import org.lain.engine.client.mc.render.ChatHudRenderKt;
-import org.lain.engine.util.Color;
-import org.lain.engine.util.ColorKt;
+import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -166,10 +168,10 @@ public abstract class ChatHudMixin {
                         MinecraftChat.ChatLineData data = chat.getChatHudLineData(visible);
                         if (data != null && data.isFirst()) {
                             MinecraftChat.ChatMessageData message = data.getMessage();
-                            EngineChatMessage engineMessage = message.getEngineMessage();
+                            AcceptedMessage engineMessage = message.getEngineMessage();
                             PlayerListEntry playerListEntry = message.getAuthor();
                             if (playerListEntry != null && engineMessage.getShowHead()) {
-                                PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), 1, y1 + 1, 8, ColorHelper.withAlpha(contentAlpha, ColorHelper.getArgb(60, 60, 60)));
+                                PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), 1, y1 + 1, 8, ColorHelper.withAlpha(contentAlpha, ColorHelper.getArgb(80, 80, 80)));
                                 PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), 0, y1, 8, ColorHelper.withAlpha(contentAlpha, Colors.WHITE));
                             }
                             int repeats = engineMessage.getRepeat();
@@ -199,6 +201,9 @@ public abstract class ChatHudMixin {
                             MinecraftChat.ChatMessageData msg = chat.getSelectedMessage();
                             if (msg != null && data.getMessage().equals(msg)){
                                 alpha += 30;
+                                if (ClientMixinAccess.INSTANCE.getChatClipboardCopyTicksElapsed() <= 2) {
+                                    alpha += 30;
+                                }
                             }
 
                             if (alpha > 0) {
