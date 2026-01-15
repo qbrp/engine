@@ -105,8 +105,10 @@ fun <P : Packet> PayloadTypeRegistry<RegistryByteBuf>.registerPayload(endpoint: 
 
 fun DisconnectText(reason: String) = "<red>[ENGINE] ${reason}</red>".parseMiniMessage()
 
+fun DisconnectText(exception: Throwable) = DisconnectText(exception.message ?: "Unknown error")
+
 fun disconnectInternal(playerId: PlayerId, reason: String) {
     val entity = ENTITY_TABLE.server.getEntity(playerId) as? ServerPlayerEntity ?: error("Player entity $playerId not found")
     val networkHandler = entity.networkHandler
-    entity.entityWorld.server.execute { networkHandler.disconnect(DisconnectText(reason)) }
+    networkHandler.disconnect(DisconnectText(reason))
 }

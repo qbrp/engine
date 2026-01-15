@@ -50,6 +50,7 @@ data class ChannelConfig(
     val speech: Boolean = false,
     val notify: Boolean = false,
     val permission: Boolean = false,
+    @SerialName("invoke_permission") val invokePermission: Boolean = false, // Только для команд
     val heads: Boolean = false
 )
 

@@ -3,6 +3,7 @@ package org.lain.engine.client
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.mc.render.TransformationsEditorScreen
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.Camera
 import org.lain.engine.client.render.EXCLAMATION
@@ -51,8 +52,14 @@ class EngineClient(
         }
 
     var gameSession: GameSession? = null
+    val gameSessionActive
+        get() = gameSession != null
+
+    var ticks = 0L
+        private set
 
     fun tick() {
+        ticks += 1
         gameSession?.tick()
         handler.tick()
         eventBus.tick()
@@ -86,21 +93,6 @@ class EngineClient(
     fun onScroll(delta: Float) {
         if (MinecraftClient.currentScreen != null) return
         gameSession?.movementManager?.roll(delta)
-    }
-
-    fun onKey(key: Int) {
-        if (developerMode) {
-            if (key == GLFW.GLFW_KEY_P) {
-                audioManager.playPigScreamSound()
-                applyLittleNotification(
-                    LittleNotification(
-                        "Проигран звук",
-                        "pig-scream.ogg",
-                        sprite = CD,
-                    ),
-                )
-            }
-        }
     }
 
     fun sendSpectatingNotification() {

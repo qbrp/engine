@@ -101,7 +101,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         val channel = it.value
         val name = it.key
         if (!commandChannels.contains(name)) return@forEach
-        dispatcher.registerServerChatCommand(name, channel)
+        dispatcher.registerServerChatCommand(name, channel, permission = commandChannels[name]!!.invokePermission)
     }
 
     val blockAcousticConfig = chat.acoustic.passability

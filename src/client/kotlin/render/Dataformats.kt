@@ -29,6 +29,10 @@ fun ZeroVec2(): Vec2 = ZeroMutableVec2()
 data class MutableVec2(override var x: Float, override var y: Float): Vec2 {
     constructor(vec2: Vec2) : this(vec2.x, vec2.y)
 
+    override fun toString(): String {
+        return "($x, $y)"
+    }
+
     fun addMutate(x: Float, y: Float) {
         this.x += x
         this.y += y

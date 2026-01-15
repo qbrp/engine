@@ -18,6 +18,7 @@ import org.lain.engine.util.Vec3
 import org.lain.engine.util.apply
 import org.lain.engine.util.has
 import org.lain.engine.util.remove
+import org.lain.engine.util.set
 import net.minecraft.world.World as McWorld
 import org.lain.engine.world.Location
 import org.lain.engine.world.Orientation
@@ -63,9 +64,7 @@ fun updatePlayerMinecraftSystems(
 ) {
     val pos = entity.entityPos
     player.apply<Location> {
-        position.x = pos.x.toFloat()
-        position.y = pos.y.toFloat()
-        position.z = pos.z.toFloat()
+        position.set(pos)
         this.world = world
     }
 
@@ -75,7 +74,7 @@ fun updatePlayerMinecraftSystems(
     }
 
     player.apply<Velocity> {
-        motion = entity.movement.engine()
+        motion.set(entity.movement)
     }
 
     player.apply<PlayerModel> {

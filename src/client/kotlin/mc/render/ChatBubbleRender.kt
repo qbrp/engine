@@ -67,7 +67,7 @@ fun renderChatBubbles(
                 false,
                 matrix,
                 vertexConsumers,
-                TextRenderer.TextLayerType.NORMAL,
+                TextRenderer.TextLayerType.SEE_THROUGH,
                 backgroundColor.integer,
                 LightmapTextureManager.MAX_LIGHT_COORDINATE
             )

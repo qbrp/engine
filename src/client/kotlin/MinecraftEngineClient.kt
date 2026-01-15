@@ -18,6 +18,7 @@ import org.lain.engine.client.mc.MinecraftAudioManager
 import org.lain.engine.client.mc.MinecraftCamera
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.ClientMinecraftNetwork
+import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.render.EngineUiRenderPipeline
 import org.lain.engine.client.mc.EngineYamlConfig
 import org.lain.engine.client.mc.KeybindManager
@@ -25,12 +26,15 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.mc.render.MinecraftFontRenderer
 import org.lain.engine.client.mc.render.MinecraftPainter
 import org.lain.engine.client.render.Window
+import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.server.ServerSingleplayerTransport
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.updatePlayerMinecraftSystems
+import org.lain.engine.player.Player
+import org.lain.engine.player.username
 import org.lain.engine.serverMinecraftPlayerInstance
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.Injector
@@ -38,6 +42,7 @@ import org.lain.engine.util.MinecraftUsername
 import org.lain.engine.util.engineId
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.registerMinecraftServer
+import org.slf4j.LoggerFactory
 import java.util.Optional
 
 class MinecraftEngineClient : ClientModInitializer {
@@ -70,6 +75,10 @@ class MinecraftEngineClient : ClientModInitializer {
     private val renderer
         get() = engineClient.renderer
 
+    private val connectionLogger = LoggerFactory.getLogger("Engine Connection")
+    private var readyToAuthorize = false
+    private var inAuthorization = false
+
     override fun onInitializeClient() {
         engineClient.options = config
         keybindManager = KeybindManager()
@@ -89,7 +98,7 @@ class MinecraftEngineClient : ClientModInitializer {
                 )
             } else {
                 Injector.register<ClientTransportContext>(ClientMinecraftNetwork())
-                authorize(entity)
+                readyToAuthorize = true
             }
 
             engineClient.handler.run()
@@ -102,30 +111,40 @@ class MinecraftEngineClient : ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register { handler, client -> onDisconnect() }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
+            val player = client.player
+
+            ClientMixinAccess.tick()
+            window.handleResize()
             try {
-                window.handleResize()
+                if (readyToAuthorize && player != null && !inAuthorization) {
+                    authorize(player)
+                    inAuthorization = true
+                }
+
+                val skippedPlayers = mutableListOf<Player>()
+                engineClient.gameSession?.let { session ->
+                    session.playerStorage.forEach { player ->
+                        val entity = clientPlayerTable.getEntity(player) ?: run {
+                            skippedPlayers += player
+                            return@forEach
+                        }
+                        val world = session.world
+                        updatePlayerMinecraftSystems(player, entity, world)
+                    }
+                    renderer.tick()
+                }
+
+                if (skippedPlayers.isNotEmpty()) {
+                    connectionLogger.warn("Состояние Minecraft не было обновлено для игроков: {}", skippedPlayers.joinToString { it.username })
+                }
+
                 engineClient.tick()
                 keybindManager.tick(engineClient)
             } catch (e: Throwable) {
-                e.printStackTrace()
-                client.networkHandler?.let {
-                    it.onDisconnected(
-                        DisconnectionInfo(
-                            DisconnectText(e.message ?: "Unknown error"),
-                            Optional.empty(),
-                            Optional.empty()
-                        )
-                    )
-                    onDisconnect()
+                connectionLogger.error("При тике Engine возникла ошибка: ", e)
+                client.networkHandler?.connection?.disconnect(DisconnectText(e.message ?: "Unknown error")) ?: run {
+                    connectionLogger.warn("Игрок отключен от несуществующего сервера")
                 }
-            }
-            engineClient.gameSession?.let { session ->
-                session.playerStorage.forEach { player ->
-                    val entity = clientPlayerTable.getEntity(player) ?: return@forEach
-                    val world = session.world
-                    updatePlayerMinecraftSystems(player, entity, world)
-                }
-                renderer.tick()
             }
         }
 
@@ -171,16 +190,22 @@ class MinecraftEngineClient : ClientModInitializer {
     }
 
     private fun onClientStarted() {
-        if (client.gameProfile.name == "denterest1") {
+        if (listOf("remii", "denterest").contains(client.gameProfile.name)) {
             audioManager.playPigScreamSound()
         }
     }
 
     private fun onDisconnect() {
         uiRenderPipeline.invalidate()
-        engineClient.leaveGameSession()
-        MinecraftChat.clearChatData()
         entityTable.client.invalidate()
+
+        if (engineClient.gameSessionActive) {
+            engineClient.leaveGameSession()
+            MinecraftChat.clearChatData()
+        }
+        readyToAuthorize = false
+        inAuthorization = false
+        connectionLogger.info("Игрок отключен от сервера Engine")
     }
 
     private fun authorize(player: ClientPlayerEntity) {

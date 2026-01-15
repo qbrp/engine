@@ -15,10 +15,13 @@ class MinecraftEngineClientEventBus(
     private val table: ClientPlayerTable
 ) : ClientEventBus {
     private data class PendingFullPlayerData(val player: Player, val data: FullPlayerData)
-    private val pendingFullPlayerData: Queue<PendingFullPlayerData> = LinkedList()
+    private val pendingFullPlayerData: MutableList<PendingFullPlayerData> = LinkedList()
 
     override fun tick() {
-        pendingFullPlayerData.flush { tryApplyFullPlayerData(it.player, it.data) }
+        for (player in pendingFullPlayerData.toList()) {
+            pendingFullPlayerData.remove(player)
+            tryApplyFullPlayerData(player.player, player.data)
+        }
     }
 
     override fun onFullPlayerData(

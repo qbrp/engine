@@ -76,18 +76,3 @@ val TOGGLE_CHAT_SPY = KeybindSettings(
         client.gameSession?.chatManager?.toggleSpy()
     }
 )
-
-val TRANSFORMATION_EDITOR = KeybindSettings(
-    name = "Редактор трансформаций",
-    id = KeybindId("transformation-editor"),
-    key = GLFW.GLFW_KEY_F9,
-    onPress = { client ->
-        val player = MinecraftClient.player ?: return@KeybindSettings
-        val mainHandItemStack = player.mainHandStack
-        val offHandItemStack = player.offHandStack
-        val itemStack = if (mainHandItemStack.isEmpty) offHandItemStack else mainHandItemStack
-        if (client.developerMode && player.activeItem != null && !itemStack.isEmpty) {
-            MinecraftClient.setScreen(TransformationsEditorScreen(itemStack))
-        }
-    }
-)

@@ -426,10 +426,11 @@ object EngineItemsSuggestionProvider : SuggestionProvider<ServerCommandSource> {
  * @param channel В какой канал будет отправляться `содержание`
  * @param argument Название аргумента команды
  */
-fun ServerCommandDispatcher.registerServerChatCommand(name: String, channel: ChatChannel, argument: String = "text") {
+fun ServerCommandDispatcher.registerServerChatCommand(name: String, channel: ChatChannel, argument: String = "text", permission: Boolean = false) {
     val engine by injectEngineServer()
     register(
         CommandManager.literal(name)
+            .requires { !permission || it.player?.hasPermission("chat.$name") == true }
             .then(
                 CommandManager.argument(argument, StringArgumentType.greedyString())
                     .executeCatching { ctx ->
@@ -459,6 +460,7 @@ fun ServerCommandDispatcher.registerServerPmCommand() {
 
                                 if (recipientPlayer == authorPlayer && !authorPlayer.developerMode) {
                                     ctx.source.sendError(Text.of("Вы не можете написать самому себе"))
+                                    return@executeCatching
                                 }
 
                                 engine.chat.sendMessage(

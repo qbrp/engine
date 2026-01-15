@@ -14,11 +14,10 @@ import org.lain.engine.client.control.DEVELOPER_MODE
 import org.lain.engine.client.control.HIDE_INTERFACE
 import org.lain.engine.client.control.RESET_CHAT_VOLUME
 import org.lain.engine.client.control.TOGGLE_CHAT_SPY
-import org.lain.engine.client.control.TRANSFORMATION_EDITOR
-import org.lain.engine.client.resources.toEngineIdentifier
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.inject
 import org.lwjgl.glfw.GLFW
+
+fun isControlDown() = InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
 
 class KeybindManager(
     private val category: KeyBinding.Category = KeyBinding.Category.create(EngineId("category"))
@@ -33,7 +32,6 @@ class KeybindManager(
         HIDE_INTERFACE.register()
         ALLOW_SPEED_INTENTION_CHANGE.register()
         TOGGLE_CHAT_SPY.register()
-        TRANSFORMATION_EDITOR.register()
     }
 
     fun registerKeybinding(keybinding: KeybindSettings): EngineKeybind {
@@ -60,11 +58,10 @@ class KeybindManager(
             val modifiers = settings.modifiers
             val dev = settings.dev
             val requireWorld = settings.requireWorld
-            val isControlDown = InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
 
             if (dev && !engineClient.developerMode) continue
             if (MinecraftClient.world == null && requireWorld) continue
-            if (modifiers.contains(KeyBindModifier.Control) && !isControlDown) continue
+            if (modifiers.contains(KeyBindModifier.Control) && !isControlDown()) continue
 
             val isPressed = keybind.isPressed
             val wasPressed = keybind.wasPressed
