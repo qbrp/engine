@@ -1,6 +1,9 @@
 package org.lain.engine.util
 
+import kotlinx.serialization.Serializable
+
 @JvmInline
+@Serializable
 value class Color(val integer: Int) {
     constructor(long: Long) : this(long.toInt())
 
@@ -112,6 +115,10 @@ value class Color(val integer: Int) {
         val GRAY = Color(0xFFAAAAAA)
         val DARK_RED = Color(0xFFAA0000)
         val YELLOW = Color(0xFFFFFF55)
+
+        fun parseString(string: String): Color {
+            return Color(Integer.parseInt(string, 16))
+        }
     }
 }
 

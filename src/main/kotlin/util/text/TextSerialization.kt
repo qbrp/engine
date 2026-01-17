@@ -47,7 +47,6 @@ fun String.parseMiniMessage(): Text {
     val server by injectMinecraftEngineServer()
     val text = this.removeLegacyFormattingCodes()
 
-
     val component = MiniMessage.miniMessage().deserialize(text)
     return try {
         MinecraftServerAudiences.of(server.minecraftServer).asNative(component)
@@ -59,6 +58,14 @@ fun String.parseMiniMessage(): Text {
             .getOrThrow()
     }
 }
+
+fun String.parseMiniMessageLegacy(): Text {
+    val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(MiniMessage.miniMessage().deserialize(this)))
+    return TextCodecs.CODEC
+        .parse(JsonOps.INSTANCE, jsonObject)
+        .getOrThrow()
+}
+
 
 fun main() {
     println(

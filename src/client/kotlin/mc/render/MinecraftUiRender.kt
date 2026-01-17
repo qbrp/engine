@@ -15,8 +15,8 @@ import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.render.Painter
 import org.lain.engine.util.*
+import org.lain.engine.util.text.EngineTextSpan
 import org.lain.engine.util.text.EngineOrderedText
-import org.lain.engine.util.text.EngineOrderedTextSequence
 import org.lain.engine.util.text.EngineText
 import org.lain.engine.util.text.splitEngineTextLinear
 import org.lain.engine.util.text.toMinecraft
@@ -105,24 +105,24 @@ class MinecraftFontRenderer : FontRenderer {
     override val fontHeight: Float
         get() = minecraftTextRenderer.fontHeight.toFloat()
 
-    override fun getWidth(text: EngineOrderedTextSequence): Float {
+    override fun getWidth(text: EngineOrderedText): Float {
         return text.parts.sumOf { minecraftTextRenderer.getWidth(it.toMinecraft()).toFloat() }
     }
 
     override fun breakTextByLines(
         text: EngineText,
         width: Float
-    ): List<EngineOrderedTextSequence> {
-        val lines = mutableListOf<EngineOrderedTextSequence>()
+    ): List<EngineOrderedText> {
+        val lines = mutableListOf<EngineOrderedText>()
         val split = splitEngineTextLinear(text, " ")
 
         var x = 0
-        val parts = mutableListOf<EngineOrderedText>()
+        val parts = mutableListOf<EngineTextSpan>()
 
         for (word in split) {
             val wordWidth = minecraftTextRenderer.getWidth(word.toMinecraft())
             if (x > 0 && x + wordWidth > width) {
-                lines += EngineOrderedTextSequence(parts.toList())
+                lines += EngineOrderedText(parts.toList())
                 parts.clear()
                 x = 0
             }
@@ -130,7 +130,7 @@ class MinecraftFontRenderer : FontRenderer {
             x += wordWidth
         }
         if (parts.isNotEmpty()) {
-            lines += EngineOrderedTextSequence(parts.toList())
+            lines += EngineOrderedText(parts.toList())
         }
 
         return lines

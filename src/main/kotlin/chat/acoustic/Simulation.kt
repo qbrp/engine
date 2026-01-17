@@ -11,6 +11,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.LongAdder
+import kotlin.math.max
 import kotlin.math.min
 
 interface AcousticSimulator {
@@ -104,14 +105,17 @@ fun simulateAsync(
                         val grid = chunk.grid
 
                         view.forEachCell(grid) { _, passability, x, y, z ->
-                            if (volumeGrid[x, y, z] != 0f) return@forEachCell
+                            //if (volumeGrid[x, y, z] != 0f) return@forEachCell
 
                             val volume = collectVolume(volumeGrid, x, y, z)
                             val delta = volume * passability * multiplier
 
-                            deltaGrid[x, y, z] = min(delta, maxVolume)
-
                             if (delta < 0.01f) return@forEachCell
+
+                            val current = volumeGrid[x, y, z]
+                            if (delta <= current) return@forEachCell
+
+                            deltaGrid[x, y, z] = delta
                             chunk.raised += 1
 
                             if (x == grid.x0) markActive(chunkX - 1, chunkY, chunkZ)

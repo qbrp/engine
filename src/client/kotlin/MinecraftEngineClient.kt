@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.network.ClientPlayerEntity
+import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.network.DisconnectionInfo
 import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
@@ -42,6 +43,7 @@ import org.lain.engine.util.MinecraftUsername
 import org.lain.engine.util.engineId
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.registerMinecraftServer
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import org.slf4j.LoggerFactory
 import java.util.Optional
 
@@ -121,11 +123,12 @@ class MinecraftEngineClient : ClientModInitializer {
                     inAuthorization = true
                 }
 
-                val skippedPlayers = mutableListOf<Player>()
+                val skippedPlayers = mutableListOf<PlayerEntity>()
+
                 engineClient.gameSession?.let { session ->
-                    session.playerStorage.forEach { player ->
-                        val entity = clientPlayerTable.getEntity(player) ?: run {
-                            skippedPlayers += player
+                    client.world?.players?.forEach { entity ->
+                        val player = clientPlayerTable.getPlayer(entity) ?: run {
+                            skippedPlayers += entity
                             return@forEach
                         }
                         val world = session.world
@@ -135,7 +138,7 @@ class MinecraftEngineClient : ClientModInitializer {
                 }
 
                 if (skippedPlayers.isNotEmpty()) {
-                    connectionLogger.warn("Состояние Minecraft не было обновлено для игроков: {}", skippedPlayers.joinToString { it.username })
+                    connectionLogger.warn("Состояние Minecraft не было обновлено для игроков: {}", skippedPlayers.joinToString { it.stringifiedName })
                 }
 
                 engineClient.tick()
@@ -183,6 +186,8 @@ class MinecraftEngineClient : ClientModInitializer {
                 ).also { this.server = it }
             )
         }
+
+
 
         ServerLifecycleEvents.SERVER_STOPPED.register { server ->
             this.server = null

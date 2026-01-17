@@ -16,6 +16,7 @@ import org.lain.engine.server.Notification
 import org.lain.engine.util.Pos
 import org.lain.engine.util.filterNearestPlayers
 import org.lain.engine.util.roundToInt
+import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.players
@@ -149,16 +150,10 @@ class EngineChat(
             recipients.addAll(sourceWorld.players)
         }
 
-        if (mentions) {
-            recipients.addAll(
-                players.filter { hasMention(it, content) }
-            )
-        }
-
         // Рассылаем сообщение получателям и следящим игрокам, до которых сообщение не дошло
         recipients
             .distinct()
-            .filter { it == source.player || it.isChannelAvailableToRead(this) }
+            .filter { it == source.player || it.isChannelAvailableToRead(this) || (mentions && hasMention(it, content)) }
             .forEach {
                 if (dontSendMessageToAuthor && it == source.player) return@forEach
                 val volume = volumes[it]
@@ -310,7 +305,7 @@ class EngineChat(
             "author_username" to (player?.username ?: ""),
             "author_name" to author.name,
             "recipient_username" to recipient.username,
-            "recipient_name" to recipient.displayName,
+            "recipient_name" to recipient.displayNameMiniMessage,
             "random-100" to roundToInt(Math.random() * 100f).toString()
         )
 
@@ -356,7 +351,7 @@ class EngineChat(
         val author = source.player
             ?.let { player ->
                 val builder = StringBuilder()
-                val displayName = player.displayName
+                val displayName = player.displayNameMiniMessage
                 val username = player.username
                 builder.append(displayName)
                 if (displayName != username) builder.append(" ($username)")

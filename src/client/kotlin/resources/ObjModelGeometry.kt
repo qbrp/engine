@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.renderer.v1.Renderer
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter
 import net.fabricmc.fabric.api.renderer.v1.model.MeshBakedGeometry
+import net.fabricmc.fabric.impl.client.indigo.renderer.IndigoRenderer
 import net.minecraft.client.render.model.*
 import net.minecraft.client.render.model.UnbakedModel.GuiLight
 import net.minecraft.client.render.model.json.ModelTransformation
@@ -28,7 +29,11 @@ class ObjGeometry(
         settings: ModelBakeSettings,
         model: SimpleModel
     ): BakedGeometry {
-        val renderer = Renderer.get()
+        var renderer = Renderer.get()
+
+        if (renderer == null) {
+            renderer = IndigoRenderer.INSTANCE;
+        }
 
         val builder = renderer.mutableMesh()
         val emitter = builder.emitter()
@@ -113,6 +118,7 @@ class ObjUnbakedModel(
 ): UnbakedModel {
     private val objGeometry = ObjGeometry(obj, mtl, options.flipV)
     override fun geometry(): Geometry = objGeometry
+    override fun transformations(): ModelTransformation? = options.transforms
 }
 
 data class ObjModelOptions(

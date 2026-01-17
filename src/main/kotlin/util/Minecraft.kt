@@ -9,6 +9,7 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.ServerPlayerTable
 import org.lain.engine.mc.Username
 import org.lain.engine.mc.engine
+import org.lain.engine.mc.toMinecraft
 import org.lain.engine.player.*
 import org.lain.engine.world.World
 
@@ -17,7 +18,7 @@ fun MinecraftUsername(player: PlayerEntity) = Username(player.name.string)
 val PlayerEntity.engineId
     get() = PlayerId(this.uuid)
 
-fun Pos.toBlockPos(): BlockPos = BlockPos(x.toInt(), y.toInt(), z.toInt())
+fun Pos.toBlockPos(): BlockPos = BlockPos.ofFloored(asVec3().toMinecraft())
 
 fun chunkSquare(from: ChunkPos, size: Int): Array<ChunkPos> {
     return Array<ChunkPos>(size * size) { i ->

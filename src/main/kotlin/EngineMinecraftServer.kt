@@ -112,7 +112,7 @@ open class EngineMinecraftServer(
         acousticSimulator.updateBlock(block, pos, world)
     }
 
-    fun onPlayerBlockInteraction(entity: PlayerEntity, pos: BlockPos, state: BlockState, world: World) {
+    fun onPlayerBlockInteraction(pos: BlockPos, state: BlockState, world: World) {
         onBlockAdd(state, pos, world)
     }
 

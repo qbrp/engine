@@ -1,16 +1,6 @@
 package org.lain.engine.util.text
 
-import com.google.gson.JsonParser
-import com.mojang.serialization.JsonOps
-import net.kyori.adventure.text.minimessage.MiniMessage
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
-import net.minecraft.text.OrderedText
-import net.minecraft.text.Style
-import net.minecraft.text.Text
-import net.minecraft.text.TextCodecs
-import net.minecraft.util.Colors
 import org.lain.engine.util.Color
-import org.lain.engine.util.parseHexColor
 
 data class EngineTextShadow(val color: Color?, val enabled: Boolean)
 
@@ -18,6 +8,10 @@ data class EngineText(
     val content: String,
     val style: EngineTextStyle = EmptyEngineTextStyle(),
     val siblings: List<EngineText> = listOf()
+)
+
+fun EngineText(text: String, color: TextColor) = EngineText(
+    text, EngineTextStyle(color=color)
 )
 
 fun splitEngineText(node: EngineText, by: String): List<EngineText> {
@@ -38,8 +32,8 @@ fun splitEngineText(node: EngineText, by: String): List<EngineText> {
         }
 }
 
-fun splitEngineTextLinear(node: EngineText, by: String): List<EngineOrderedText> {
-    val output = mutableListOf<EngineOrderedText>()
+fun splitEngineTextLinear(node: EngineText, by: String): List<EngineTextSpan> {
+    val output = mutableListOf<EngineTextSpan>()
     visitEngineText(node) { text ->
         val split = text.content.split(by)
         output.addAll(split.mapIndexed { index, it ->
@@ -67,7 +61,7 @@ fun resolveText(ordered: MutableEngineOrderedText, text: EngineText) {
 fun visitEngineText(
     node: EngineText,
     ordered: MutableEngineOrderedText = MutableEngineOrderedText(),
-    visitor: (EngineOrderedText) -> Unit
+    visitor: (EngineTextSpan) -> Unit
 ) {
     val snapshot = ordered.copy()
 

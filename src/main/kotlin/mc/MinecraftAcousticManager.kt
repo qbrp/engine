@@ -24,8 +24,10 @@ import org.lain.engine.chat.acoustic.simulateAsync
 import org.lain.engine.util.Pos
 import org.lain.engine.util.PrimitiveArrayPool
 import org.lain.engine.util.Timestamp
+import org.lain.engine.util.asVec3
 import org.lain.engine.util.isPowerOfTwo
 import org.lain.engine.util.minecraftChunkSectionCoord
+import org.lain.engine.util.toBlockPos
 import org.lain.engine.world.WorldId
 import org.slf4j.LoggerFactory
 import java.util.Collections
@@ -59,9 +61,9 @@ data class AcousticBlockData(
     fun getPassability(pos: BlockPos, world: World, blockstate: BlockState): Float {
         val blockRegistryKey = blockstate.registryEntry.key.getOrNull()
 
-        val tag = tags.maxOfOrNull { (tag, volume) ->
-            if (blockstate.isIn(tag)) volume else 0f
-        } ?: 0f
+        val tag = tags
+            .filter { (tag, _) -> blockstate.isIn(tag) }
+            .maxOfOrNull { (_, volume) -> volume }
 
         val isFullCube = blockstate.isFullCube(world, pos)
         val isSolid = blockstate.isSolid
@@ -78,7 +80,7 @@ data class AcousticBlockData(
 
         val blockId = blockRegistryKey?.value
 
-        return blocks[blockId] ?: max(tag, default)
+        return blocks[blockId] ?: tag ?: default
     }
 
     companion object {
@@ -343,7 +345,7 @@ class ConcurrentAcousticSceneBank {
         if (oldSegment.getPassability(pos.x, pos.y, pos.z) == value) return null
 
         synchronized(oldSegment) {
-             val newSegment = oldSegment.copy()
+            val newSegment = oldSegment.copy()
             oldSegment.destroy()
             newSegment.setPassability(pos.x, pos.y, pos.z, value)
 
@@ -446,12 +448,13 @@ class MinecraftAcousticManager(
         val mcWorld = entityTable.getMcWorld(world) ?: throw IllegalArgumentException("World $world")
         val acousticBlockData = acousticBlockData.get()
 
-        val y = pos.y.toInt()
+        val blockPos = pos.toBlockPos()
+        val y = blockPos.y
         if (y > mcWorld.height || y < mcWorld.bottomY) {
             throw InvalidMessageSourcePositionException(pos.y.toInt())
         }
-        val x = pos.x.toInt()
-        val z = pos.z.toInt()
+        val x = blockPos.x
+        val z = blockPos.z
 
         val range = range.get()
         val x0 = x - range
@@ -479,10 +482,15 @@ class MinecraftAcousticManager(
 
         try {
             for (offset in NEIGHBOURS_VON_NEUMANN + intArrayOf(0, 0, 0)) {
-                val blockPos = BlockPos(x, y, z)
-                val passability = acousticBlockData.getPassability(blockPos, mcWorld, mcWorld.getBlockState(blockPos))
-                val (lX, lY, lZ) = scene.worldToLocal(x + offset[0], y + offset[1], z + offset[2])
+                val blockPosRelative = blockPos.add(offset[0], offset[1], offset[2])
+                val passability = acousticBlockData.getPassability(
+                    blockPosRelative,
+                    mcWorld,
+                    mcWorld.getBlockState(blockPosRelative)
+                )
+                val (lX, lY, lZ) = scene.worldToLocal(blockPosRelative.x, blockPosRelative.y, blockPosRelative.z)
                 generation.volume[lX, lY, lZ] = volume * passability
+                println("Offset ${offset[0]}, ${offset[1]}, ${offset[2]} ($blockPosRelative) : $passability")
             }
             simulateAsync(
                 scene,

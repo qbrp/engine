@@ -2,11 +2,20 @@ package org.lain.engine.util.text
 
 import net.minecraft.text.OrderedText
 import net.minecraft.text.Style
-import net.minecraft.text.Text
 import net.minecraft.text.TextColor
 import org.lain.engine.mixin.StyleAccessor
+import org.lain.engine.player.CustomName
+import org.lain.engine.player.DisplayName
+import org.lain.engine.player.Player
 import org.lain.engine.util.Color
+import org.lain.engine.util.require
 import java.util.Optional
+
+val Player.displayNameMiniMessage
+    get() = this.require<DisplayName>().let { it.custom?.textMiniMessage ?: it.username.value }
+
+private val CustomName.textMiniMessage
+    get() = "<gradient:${this.color1}:${this.color2}>${this.text}</gradient>"
 
 private fun MinecraftStyle(
     color: Color?,
@@ -33,7 +42,7 @@ private fun MinecraftStyle(
 }
 
 private fun MinecraftStyle(style: EngineTextStyle) = MinecraftStyle(
-    style.color,
+    style.color?.baseColor,
     style.shadow?.color,
     style.bold,
     style.italic,
@@ -42,11 +51,11 @@ private fun MinecraftStyle(style: EngineTextStyle) = MinecraftStyle(
     style.obfuscated
 )
 
-fun EngineOrderedText.toMinecraft(): OrderedText {
-    return EngineOrderedTextSequence(listOf(this)).toMinecraft()
+fun EngineTextSpan.toMinecraft(): OrderedText {
+    return EngineOrderedText(listOf(this)).toMinecraft()
 }
 
-fun EngineOrderedTextSequence.toMinecraft(): OrderedText {
+fun EngineOrderedText.toMinecraft(): OrderedText {
     return OrderedText { visitor ->
         var globalIndex = 0
 

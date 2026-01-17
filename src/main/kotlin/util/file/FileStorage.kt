@@ -3,6 +3,7 @@ package org.lain.engine.util.file
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.lain.engine.player.CustomName
 import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
@@ -20,7 +21,7 @@ private val PLAYERS_JSON = Json {
 
 @Serializable
 data class PersistentPlayerData(
-    @SerialName("custom_name") val customName: String?,
+    @SerialName("custom_name") val customName: CustomName?,
     @SerialName("speed_intention") val speedIntention: Float,
     val stamina: Float,
     val voiceApparatus: VoiceApparatus,

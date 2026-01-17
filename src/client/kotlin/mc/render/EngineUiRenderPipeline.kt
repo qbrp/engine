@@ -10,7 +10,6 @@ import org.lain.engine.client.render.ui.CompositionRenderContext
 import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.render.ui.Fragment
 import org.lain.engine.client.render.ui.MutableSize
-import org.lain.engine.client.render.ui.Size
 import org.lain.engine.client.render.ui.UiContext
 import org.lain.engine.client.render.ui.UiState
 import org.lain.engine.client.render.ui.UiFeatures
@@ -18,7 +17,7 @@ import org.lain.engine.client.render.ui.UiListeners
 import org.lain.engine.client.render.ui.blend
 import org.lain.engine.client.render.ui.recompose
 import org.lain.engine.util.Color
-import org.lain.engine.util.text.EngineOrderedTextSequence
+import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.toMinecraft
 import kotlin.math.ceil
 import kotlin.math.max
@@ -147,7 +146,7 @@ class EngineUiRenderPipeline(
         fun getColor(color: Color): Color {
             return tint
                 .blend(color)
-                //.withAlpha(color.alpha / alphaStack.last() * 255)
+                //.withAlpha(color1.alpha / alphaStack.last() * 255)
         }
 
         context.fill(
@@ -187,13 +186,13 @@ class EngineUiRenderPipeline(
 }
 
 class TextCache {
-    private val map = mutableMapOf<EngineOrderedTextSequence, OrderedText>()
+    private val map = mutableMapOf<EngineOrderedText, OrderedText>()
 
     internal fun clear() {
         map.clear()
     }
 
-    fun get(text: EngineOrderedTextSequence): OrderedText {
+    fun get(text: EngineOrderedText): OrderedText {
         return map.getOrPut(text) { text.toMinecraft() }
     }
 }

@@ -9,6 +9,7 @@ import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.EngineChatSettings
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
+import org.lain.engine.player.CustomName
 import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
@@ -212,7 +213,7 @@ class ServerHandler(
         )
     }
 
-    fun onPlayerCustomName(player: Player, name: String?) {
+    fun onPlayerCustomName(player: Player, name: CustomName?) {
         CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT.broadcast(
             PlayerCustomNamePacket(
                 player.id,

@@ -8,12 +8,15 @@ import net.minecraft.world.World
 import net.minecraft.world.GameMode as McGameMode
 import org.lain.engine.player.Player
 import org.lain.engine.player.displayName
+import org.lain.engine.player.displayNameText
 import org.lain.engine.player.isSpectating
 import org.lain.engine.player.jumpStrength
 import org.lain.engine.player.speed
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessage
+import org.lain.engine.util.text.parseMiniMessageLegacy
 
 object ServerMixinAccess {
     private val table by injectEntityTable()
@@ -23,7 +26,7 @@ object ServerMixinAccess {
     var isDamageEnabled = false
 
     fun getDisplayName(player: PlayerEntity): Text? {
-        return player.engine?.displayName?.parseMiniMessage() ?: player.name
+        return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name
     }
 
     fun getSpeed(player: PlayerEntity): Double {
@@ -38,6 +41,11 @@ object ServerMixinAccess {
         return if (player.engine?.isSpectating ?: return null) {
             McGameMode.SPECTATOR
         } else null
+    }
+
+    fun onBlockAdded(world: World, blockPos: BlockPos, state: BlockState) {
+        if (world.isClient) return
+        server.onPlayerBlockInteraction(blockPos, state, world)
     }
 
     fun onBlockRemoved(world: World, blockState: BlockState, pos: BlockPos) {

@@ -10,6 +10,7 @@ import kotlinx.serialization.encoding.Encoder
 import org.lain.engine.player.Player
 import org.lain.engine.player.displayName
 import org.lain.engine.util.Pos
+import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
 import org.lain.engine.world.pos
 import org.lain.engine.world.world
@@ -35,7 +36,7 @@ data class MessageSource(
             return MessageSource(world, MessageAuthor("Система"))
         }
         fun getPlayer(player: Player): MessageSource {
-            return MessageSource(player.world, MessageAuthor(player.displayName, player), player.pos)
+            return MessageSource(player.world, MessageAuthor(player.displayNameMiniMessage, player), player.pos)
         }
     }
 }

@@ -2,10 +2,12 @@
   "schemaVersion": 1,
   "id": "engine",
   "version": "${version}",
-  "name": "engine",
-  "description": "",
-  "authors": [],
-  "contact": {},
+  "name": "Engine",
+  "description": "Модификация сервера qbrp, добавляет новые механики и утилиты для РП",
+  "authors": ["Lain1wakura"],
+  "contact": {
+    "homepage": "https://wiki.qbrp.online"
+  },
   "license": "All-Rights-Reserved",
   "icon": "assets/engine/icon.png",
   "environment": "*",

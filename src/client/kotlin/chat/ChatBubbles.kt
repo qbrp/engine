@@ -1,14 +1,12 @@
 package org.lain.engine.client.chat
 
-import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.Player
 import org.lain.engine.util.MutableVec3
 import org.lain.engine.util.lerp
-import org.lain.engine.util.text.EngineOrderedTextSequence
+import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.EngineText
-import org.lain.engine.util.text.OrderedEngineTextStyle
 import org.lain.engine.world.pos
 import kotlin.math.pow
 
@@ -24,7 +22,7 @@ data class ChatBubble(
     var remove: Boolean = false
 ) {
     data class Line(
-        val text: EngineOrderedTextSequence,
+        val text: EngineOrderedText,
         val width: Float
     )
 }
@@ -51,7 +49,9 @@ class ChatBubbleList(
 
         _bubbles.add(
             ChatBubble(
-                lines.map { ChatBubble.Line(it, fontRenderer.getWidth(it)) },
+                lines
+                    .map { ChatBubble.Line(it, fontRenderer.getWidth(it)) }
+                    .reversed(),
                 height,
                 player,
                 0f,

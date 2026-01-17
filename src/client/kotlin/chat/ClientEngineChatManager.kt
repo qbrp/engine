@@ -31,22 +31,22 @@ class ClientEngineChatManager(
 
     var spy: Boolean = false
         set(value) {
-            var notification: String
+            var status: String
             var description: String? = null
             if (value) {
                 eventBus.onSpyEnable()
-                notification = "включена"
+                status = "включена"
                 description = "Доступны сообщения, не дошедшие до вас. Повторное нажатие отключит слежку."
             } else {
                 eventBus.onSpyDisable()
-                notification = "выключена"
+                status = "выключена"
             }
 
             field = value
 
             client.applyLittleNotification(
                 LittleNotification(
-                    "Слежка $notification",
+                    "Слежка $status",
                     description,
                     color = SPY_COLOR,
                     sprite = EXCLAMATION
@@ -58,7 +58,7 @@ class ClientEngineChatManager(
         spy = !spy
     }
 
-    private val messages: MutableList<AcceptedMessage> = mutableListOf()
+    val messages: MutableList<AcceptedMessage> = mutableListOf()
 
     fun disableChannel(id: ChannelId) {
         val channel = channels[id] ?: return
@@ -125,7 +125,7 @@ class ClientEngineChatManager(
             if (isMentioned) {
                 client.audioManager.playUiNotificationSound()
             }
-        } else if (author.player != gameSession.mainPlayer) {
+        } else if ((message.isSpy && spy) || author.player != gameSession.mainPlayer) {
             chatBar.markUnread(channel.id)
         }
     }

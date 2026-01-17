@@ -18,6 +18,7 @@ import org.lain.engine.client.render.WARNING
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.player.CustomName
 import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerAttributes
@@ -113,7 +114,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
     }
 
-    fun applyPlayerCustomName(player: Player, customName: String?) = with(player) {
+    fun applyPlayerCustomName(player: Player, customName: CustomName?) = with(player) {
         this.customName = customName
     }
 

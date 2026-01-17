@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
@@ -64,26 +65,26 @@ class CommonEngineServerMod : ModInitializer {
             engineServer.onChunkUnload(world, chunk)
         }
 
-        UseBlockCallback.EVENT.register { entity, world, hand, hitResult ->
-            if (world.isClient) return@register ActionResult.PASS
-            val blockPos = hitResult.blockPos
-            val state = world.getBlockState(blockPos)
-            engineServer.onPlayerBlockInteraction(entity, blockPos, state, world)
-            ActionResult.PASS
-        }
-
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
             if (world.isClient) return@register ActionResult.PASS
             val hitPlayer = hitResult?.entity ?: return@register ActionResult.PASS
             if (hitPlayer !is ServerPlayerEntity) return@register ActionResult.PASS
             player.sendMessage(
-                Text.empty()
-                    .append(hitPlayer.styledDisplayName)
-                    .append(
-                        Text.empty()
-                            .append(" (${hitPlayer.name.string})")
-                            .formatted(Formatting.GRAY)
-                    ),
+                Text.empty().apply {
+                    val styled = hitPlayer.styledDisplayName
+                    val name = hitPlayer.name
+                    val similar = styled == name
+
+                    append(if (similar) name else hitPlayer.styledDisplayName)
+
+                    if (!similar) {
+                        append(
+                            Text.empty()
+                                .append(" (${hitPlayer.name.string})")
+                                .formatted(Formatting.GRAY)
+                        )
+                    }
+                },
                 true
             )
             ActionResult.PASS

@@ -5,7 +5,7 @@ import org.lain.engine.client.render.MutableVec2
 import org.lain.engine.client.render.Vec2
 import org.lain.engine.client.render.ZeroMutableVec2
 import org.lain.engine.util.Color
-import org.lain.engine.util.text.EngineOrderedTextSequence
+import org.lain.engine.util.text.EngineOrderedText
 import kotlin.math.max
 
 interface Size {
@@ -58,7 +58,7 @@ typealias HoverListener = (UiState, Float, Float) -> Unit
 typealias ClickListener = (UiState, Float, Float) -> Boolean
 
 data class TextState(
-    val lines: List<EngineOrderedTextSequence>,
+    val lines: List<EngineOrderedText>,
     val color: Color = Color.WHITE,
     val scale: Float = 1f
 )

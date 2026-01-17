@@ -19,12 +19,15 @@ import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageSource
+import org.lain.engine.player.CustomName
+import org.lain.engine.player.DisplayName
 import org.lain.engine.player.Player
 import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
 import org.lain.engine.player.customName
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.displayName
+import org.lain.engine.player.displayNameText
 import org.lain.engine.player.resetCustomJumpStrength
 import org.lain.engine.player.resetCustomSpeed
 import org.lain.engine.player.setCustomJumpStrength
@@ -33,6 +36,7 @@ import org.lain.engine.player.speak
 import org.lain.engine.player.stopSpectating
 import org.lain.engine.player.toggleChatHeads
 import org.lain.engine.player.username
+import org.lain.engine.util.Color
 import org.lain.engine.util.apply
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.compileItems
@@ -46,6 +50,7 @@ import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.getServerStats
 import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.util.remove
+import org.lain.engine.util.text.displayNameMiniMessage
 import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
 import java.util.concurrent.CompletableFuture
@@ -201,16 +206,34 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             )
     )
 
+    fun executeSetName(ctx: Context, text: String, color1: String, color2: String? = null) {
+        val player = ctx.requirePlayer()
+
+        player.customName = CustomName(text, Color.parseString(color1), color2?.let { Color.parseString(it) })
+        ctx.sendFeedback("Установлено имя ${player.displayNameMiniMessage}", false)
+    }
+
     register(
         CommandManager.literal("setname")
             .then(
                 CommandManager.argument("value", StringArgumentType.greedyString())
-                    .executeCatching { ctx ->
-                        val name = ctx.command.getString("value")
-                        val player = ctx.requirePlayer()
-                        player.customName = name
-                        ctx.sendFeedback("Установлено имя $name", false)
-                    }
+                    .then(
+                        CommandManager.argument("color1", StringArgumentType.word())
+                            .executeCatching { ctx ->
+                                val name = ctx.command.getString("value")
+                                val color1 = ctx.command.getString("color1")
+                                executeSetName(ctx, name, color1)
+                            }
+                            .then(
+                                CommandManager.argument("color2", StringArgumentType.word())
+                                    .executeCatching { ctx ->
+                                        val name = ctx.command.getString("value")
+                                        val color1 = ctx.command.getString("color1")
+                                        val color2 = ctx.command.getString("color2")
+                                        executeSetName(ctx, name, color1, color2)
+                                    }
+                            )
+                    )
             )
     )
 
@@ -471,7 +494,7 @@ fun ServerCommandDispatcher.registerServerPmCommand() {
                                     boomerang = true,
                                     placeholders = mapOf(
                                         "pm_receiver_username" to recipientPlayer.username,
-                                        "pm_receiver_name" to recipientPlayer.displayName
+                                        "pm_receiver_name" to recipientPlayer.displayNameMiniMessage
                                     )
                                 )
                             }

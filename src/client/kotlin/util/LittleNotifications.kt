@@ -5,6 +5,7 @@ import org.lain.engine.util.Color
 import org.lain.engine.util.DEFAULT_TEXT_COLOR
 import org.lain.engine.util.text.EngineText
 import org.lain.engine.util.text.EngineTextStyle
+import org.lain.engine.util.text.TextColor
 
 data class LittleNotification(
     val title: String,
@@ -16,7 +17,7 @@ data class LittleNotification(
 ) {
     val titleTextNode = EngineText(
         content = title,
-        style = EngineTextStyle(color = color),
+        style = EngineTextStyle(color = TextColor(color)),
     )
     val descriptionTextNode = description?.let {
         EngineText(it)

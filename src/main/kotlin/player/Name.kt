@@ -1,9 +1,13 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
+import net.kyori.adventure.text.minimessage.tag.standard.StandardTags
+import org.lain.engine.util.Color
 import org.lain.engine.util.Component
 import org.lain.engine.util.get
 import org.lain.engine.util.require
+import org.lain.engine.util.text.EngineText
+import org.lain.engine.util.text.TextColor
 
 @JvmInline
 @Serializable
@@ -15,13 +19,24 @@ value class Username(val value: String) {
     override fun toString(): String = value
 }
 
+const val CUSTOM_NAME_MAX_LENGTH = 32
+
+@Serializable
+data class CustomName(
+    val string: String,
+    val color1: Color,
+    val color2: Color? = null
+) {
+    init { require(string.length <= CUSTOM_NAME_MAX_LENGTH) }
+    val text by lazy { EngineText(string, TextColor(color1, color2)) }
+}
+
 @Serializable
 data class DisplayName(
     val username: Username,
-    var custom: String? = null
+    var custom: CustomName? = null
 ) : Component {
-    val name: String
-        get() = custom ?: username.value
+    val usernameText by lazy { EngineText(username.value) }
 }
 
 fun Player.removeCustomName() {
@@ -31,13 +46,15 @@ fun Player.removeCustomName() {
 var Player.customName
     get() = get<DisplayName>()?.custom
     set(value) {
-        val name = "$value<reset>"
-        markUpdate(PlayerUpdate.CustomName(name))
-        get<DisplayName>()?.custom = name
+        markUpdate(PlayerUpdate.CustomName(value))
+        get<DisplayName>()?.custom = value
     }
 
 val Player.displayName
-    get() = this.require<DisplayName>().name
+    get() = this.require<DisplayName>().let { it.custom?.string ?: it.username.value }
+
+val Player.displayNameText
+    get() = this.require<DisplayName>().let { it.custom?.text ?: it.usernameText }
 
 val Player.username
     get() = this.require<DisplayName>().username.value
