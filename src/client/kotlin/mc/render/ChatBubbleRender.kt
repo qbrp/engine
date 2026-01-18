@@ -80,6 +80,4 @@ fun renderChatBubbles(
 
         matrices.pop()
     }
-
-    vertexConsumers.drawCurrentLayer()
 }

@@ -6,46 +6,34 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.network.ClientPlayerEntity
+import net.minecraft.client.render.RenderLayer
+import net.minecraft.client.render.VertexConsumer
+import net.minecraft.client.render.VertexConsumerProvider
+import net.minecraft.client.render.VertexConsumers
 import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.network.DisconnectionInfo
 import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
-import org.lain.engine.client.mc.MinecraftChat
-import org.lain.engine.client.mc.MinecraftAudioManager
-import org.lain.engine.client.mc.MinecraftCamera
-import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.ClientMinecraftNetwork
-import org.lain.engine.client.mc.ClientMixinAccess
+import org.lain.engine.client.mc.*
+import org.lain.engine.client.mc.ClientMixinAccess.renderChatBubbles
 import org.lain.engine.client.mc.render.EngineUiRenderPipeline
-import org.lain.engine.client.mc.EngineYamlConfig
-import org.lain.engine.client.mc.KeybindManager
-import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.mc.render.MinecraftFontRenderer
 import org.lain.engine.client.mc.render.MinecraftPainter
 import org.lain.engine.client.render.Window
-import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.server.ServerSingleplayerTransport
 import org.lain.engine.client.transport.ClientTransportContext
+import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.updatePlayerMinecraftSystems
-import org.lain.engine.player.Player
-import org.lain.engine.player.username
 import org.lain.engine.serverMinecraftPlayerInstance
-import org.lain.engine.util.EngineId
-import org.lain.engine.util.Injector
-import org.lain.engine.util.MinecraftUsername
-import org.lain.engine.util.engineId
-import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.registerMinecraftServer
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import org.lain.engine.util.*
 import org.slf4j.LoggerFactory
-import java.util.Optional
 
 class MinecraftEngineClient : ClientModInitializer {
     private val client = MinecraftClient
@@ -174,6 +162,12 @@ class MinecraftEngineClient : ClientModInitializer {
             context.matrices.popMatrix()
         }
 
+        WorldRenderEvents.BEFORE_DEBUG_RENDER.register { ctx ->
+            val camera = ctx.gameRenderer().camera
+            val cameraPos = camera.pos
+            renderChatBubbles(ctx.matrices(), camera, ctx.consumers() as VertexConsumerProvider.Immediate, cameraPos.x, cameraPos.y, cameraPos.z)
+        }
+
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
             val transport = ServerSingleplayerTransport(engineClient)
             val dependencies = EngineMinecraftServerDependencies(server)
@@ -186,8 +180,6 @@ class MinecraftEngineClient : ClientModInitializer {
                 ).also { this.server = it }
             )
         }
-
-
 
         ServerLifecycleEvents.SERVER_STOPPED.register { server ->
             this.server = null

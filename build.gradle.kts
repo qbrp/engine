@@ -60,19 +60,19 @@ dependencies {
         transitive(dep)
     }
 
-    val minecraft_version = project.property("minecraft_version")
+    val minecraft_version = project.property("minecraft")
 
     // To change the versions see the gradle.properties file
     minecraft("com.mojang:minecraft:$minecraft_version")
     mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
-    modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
-    modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
-    modImplementation("maven.modrinth:yaml-config:1.3.2-1.21.9-fabric")
-    modImplementation("maven.modrinth:ui-lib:2.1.4-1.21.9-fabric")
-    modApi("maven.modrinth:architectury-api:18.0.5+fabric")
+    modImplementation("net.fabricmc:fabric-loader:${project.property("fabric_loader")}")
+    modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader")}")
+    modImplementation("maven.modrinth:yaml-config:${project.property("yaml_config")}-fabric")
+    modImplementation("maven.modrinth:ui-lib:${project.property("ui_lib")}-fabric")
+    modApi("maven.modrinth:architectury-api:${project.property("architectury_api")}+fabric")
 
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")!!)
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_api")}")
 
     // Kyori Adventure
     val adventure = project.property("adventure_lib_version")
@@ -81,7 +81,6 @@ dependencies {
     include(implementation("net.kyori:adventure-text-serializer-gson:$adventure")!!)
     include(implementation("net.kyori:adventure-api:$adventure")!!)
     modImplementation(include("net.kyori:adventure-platform-fabric:$adventurePlatform")!!)
-    modImplementation(include("net.kyori:adventure-platform-fabric:6.7.0")!!)
 
     // Kaml
     shaded("com.charleskorn.kaml:kaml:0.104.0")
@@ -91,7 +90,7 @@ dependencies {
     modImplementation("me.lucko:fabric-permissions-api:${project.property("fabric_permissions_version")}")
 
     // Game tests
-    testImplementation("net.fabricmc:fabric-loader-junit:${project.property("loader_version")}")
+    testImplementation("net.fabricmc:fabric-loader-junit:${project.property("fabric_loader")}")
     testImplementation(kotlin("test"))
 }
 
@@ -101,16 +100,16 @@ tasks.test {
 
 tasks.processResources {
     inputs.property("version", project.version)
-    inputs.property("minecraft_version", project.property("minecraft_version"))
-    inputs.property("loader_version", project.property("loader_version"))
+    inputs.property("minecraft_version", project.property("minecraft"))
+    inputs.property("loader_version", project.property("fabric_loader"))
     filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
         expand(
             "version" to project.version,
-            "minecraft_version" to project.property("minecraft_version"),
-            "loader_version" to project.property("loader_version"),
-            "kotlin_loader_version" to project.property("kotlin_loader_version")
+            "minecraft_version" to project.property("minecraft"),
+            "loader_version" to project.property("fabric_loader"),
+            "kotlin_loader_version" to project.property("kotlin_loader")
         )
     }
 }
