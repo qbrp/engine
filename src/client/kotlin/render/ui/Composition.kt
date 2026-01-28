@@ -163,7 +163,7 @@ fun recomposeFragments(composition: Composition, context: UiContext): Fragment {
     val newFragment = composition.fragmentBuilder()
     composition.fragment = newFragment
 
-    val oldChildren = composition.children
+    val oldChildren = composition.children.toMutableList()
     val newFragments = newFragment.children
 
     val newCompositions = mutableListOf<Composition>()
@@ -171,6 +171,7 @@ fun recomposeFragments(composition: Composition, context: UiContext): Fragment {
     for (fragment in newFragments) {
         val existing = oldChildren.firstOrNull { it.fragment == fragment }
         if (existing != null) {
+            oldChildren.remove(existing)
             recomposeFragments(existing, context)
             newCompositions += existing
         } else {

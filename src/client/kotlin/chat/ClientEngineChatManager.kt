@@ -31,6 +31,7 @@ class ClientEngineChatManager(
 
     var spy: Boolean = false
         set(value) {
+            field = value
             var status: String
             var description: String? = null
             if (value) {
@@ -41,8 +42,6 @@ class ClientEngineChatManager(
                 eventBus.onSpyDisable()
                 status = "выключена"
             }
-
-            field = value
 
             client.applyLittleNotification(
                 LittleNotification(
@@ -125,7 +124,7 @@ class ClientEngineChatManager(
             if (isMentioned) {
                 client.audioManager.playUiNotificationSound()
             }
-        } else if ((message.isSpy && spy) || author.player != gameSession.mainPlayer) {
+        } else if ((!message.isSpy || spy) && author.player != gameSession.mainPlayer) {
             chatBar.markUnread(channel.id)
         }
     }

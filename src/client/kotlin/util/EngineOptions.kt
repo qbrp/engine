@@ -6,6 +6,7 @@ interface EngineOptions {
     val chatBubbleLineWidth: Int
     val chatBubbleLifeTime: Int
     val chatBubbleBackgroundOpacity: Float
+    val chatBubbleIgnoreLightLevel: Boolean
     val hideChatBubblesWithUi: Boolean
     val chatInputShakingForce: Float
     val chatInputShakingThreshold: Float

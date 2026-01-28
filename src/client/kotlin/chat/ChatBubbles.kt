@@ -9,6 +9,7 @@ import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.EngineText
 import org.lain.engine.world.pos
 import kotlin.math.pow
+import kotlin.math.sin
 
 data class ChatBubble(
     val lines: List<Line>,
@@ -35,11 +36,8 @@ class ChatBubbleList(
     val bubbles: List<ChatBubble>
         get() = _bubbles
 
-    fun setChatBubble(player: Player, text: String) {
-        val lines = fontRenderer.breakTextByLines(
-            EngineText(text = text),
-            options.chatBubbleLineWidth.toFloat()
-        )
+    fun setChatBubble(player: Player, text: EngineText) {
+        val lines = fontRenderer.breakTextByLines(text, options.chatBubbleLineWidth.toFloat())
         val height = lines.count() * fontRenderer.fontHeight
 
         // Все прошлые чат-баблы сдвигаем вверх
@@ -68,21 +66,27 @@ class ChatBubbleList(
     }
 }
 
+private const val LIFTING_Y = 3
+private const val FADE_OUT_TIME = 3 * 20 // ticks
+
 fun updateChatBubble(bubble: ChatBubble, dt: Float, height: Float) {
-    val playerPos = bubble.player.pos
-    val alpha = 1f - 0.8f.pow(dt)
-    bubble.pos.mutateLerp(
-        playerPos.x,
-        playerPos.y + height + bubble.offsetY,
-        playerPos.z,
-        alpha
-    )
-    val opacity = bubble.opacity
     val lifetime = bubble.lifetime
     val fadeout = lifetime > bubble.expiration
 
-    val targetOpacity = if (fadeout) 0f else 1f
-    bubble.opacity = lerp(opacity, targetOpacity, alpha)
+    val playerPos = bubble.player.pos
+    val t = (lifetime / bubble.expiration).coerceIn(0f, 1f)
+    val t2 = (lifetime - bubble.expiration).coerceAtLeast(0f) / FADE_OUT_TIME
+    val lift1 = t * LIFTING_Y * 0.15f
+    val lift2 = sin(t2 * (Math.PI / 2)).toFloat() * LIFTING_Y * 0.85f
+    val lift = lift1 + lift2
+    bubble.pos.mutateLerp(
+        playerPos.x,
+        playerPos.y + height + lift + bubble.offsetY,
+        playerPos.z,
+        1f - 0.8f.pow(dt)
+    )
+    val opacity = 1 - sin(t2 * (Math.PI / 2)).toFloat()
+    bubble.opacity = opacity
     bubble.lifetime += dt
 
     if (opacity <= 0.01f && fadeout) {

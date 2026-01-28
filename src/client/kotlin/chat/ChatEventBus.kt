@@ -2,6 +2,7 @@ package org.lain.engine.client.chat
 
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
+import org.lain.engine.util.text.EngineText
 
 interface ChatEventBus {
     fun onMessageAdd(message: AcceptedMessage)
@@ -12,5 +13,5 @@ interface ChatEventBus {
     fun onSpyEnable()
     fun onSpyDisable()
     fun onMessageVolumeUpdate(old: Float, new: Float)
-    fun getChatBubbleText(content: String): String
+    fun getChatBubbleText(content: String): EngineText
 }

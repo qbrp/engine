@@ -124,6 +124,7 @@ object ClientMixinAccess {
             client.options.chatBubbleHeight,
             client.options.chatBubbleBackgroundOpacity,
             client.gameSession?.chatBubbleList?.bubbles ?: emptyList(),
+            client.options.chatBubbleIgnoreLightLevel,
             MinecraftClient.renderTickCounter.fixedDeltaTicks
         )
     }

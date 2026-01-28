@@ -5,7 +5,6 @@ import net.minecraft.client.network.PlayerListEntry
 import net.minecraft.client.util.ChatMessages
 import net.minecraft.text.OrderedText
 import net.minecraft.text.Text
-import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.ChatBar
@@ -20,6 +19,9 @@ import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.lerp
+import org.lain.engine.util.text.EngineText
+import org.lain.engine.util.text.EngineTextStyle
+import org.lain.engine.util.text.TextColor
 import java.util.IdentityHashMap
 import kotlin.collections.set
 import kotlin.math.pow
@@ -273,7 +275,8 @@ object MinecraftChat : ChatEventBus {
         }
     }
 
-    override fun getChatBubbleText(content: String): String {
-        return content.parseMiniMessageClient().string
+    override fun getChatBubbleText(content: String): EngineText {
+        val text = content.parseMiniMessageClient()
+        return EngineText(text = text.string)
     }
 }

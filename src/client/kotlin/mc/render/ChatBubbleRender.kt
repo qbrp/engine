@@ -5,16 +5,23 @@ import com.mojang.blaze3d.platform.DepthTestFunction
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.font.TextRenderer
 import net.minecraft.client.gl.RenderPipelines
+import net.minecraft.client.network.AbstractClientPlayerEntity
+import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.LightmapTextureManager
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.render.VertexFormats
 import net.minecraft.client.util.math.MatrixStack
+import net.minecraft.client.world.ClientWorld
+import net.minecraft.util.math.BlockPos
+import net.minecraft.world.LightType
 import org.lain.engine.client.chat.ChatBubble
 import org.lain.engine.client.chat.updateChatBubble
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.mc.toMinecraft
 import org.lain.engine.util.Color
 import org.lain.engine.util.EngineId
+import org.lain.engine.util.injectEntityTable
 
 private val textCache = TextCache()
 
@@ -30,9 +37,11 @@ fun renderChatBubbles(
     height: Float,
     backgroundOpacity: Float,
     bubbles: List<ChatBubble>,
+    ignoreLightLevel: Boolean,
     dt: Float,
 ) {
     val client = MinecraftClient
+    val entityTable by injectEntityTable()
     if (client.player == null || client.world == null) {
         return
     }
@@ -56,6 +65,7 @@ fun renderChatBubbles(
 
         var y = 0f
         for (line in bubble.lines) {
+            val player = entityTable.client.getEntity(bubble.player)
             val text = textCache.get(line.text)
             val offset = -(line.width / 2.0f)
 
@@ -74,7 +84,15 @@ fun renderChatBubbles(
                 vertexConsumers,
                 TextRenderer.TextLayerType.SEE_THROUGH,
                 backgroundColor.integer,
-                LightmapTextureManager.MAX_LIGHT_COORDINATE
+                if (!ignoreLightLevel && player != null) {
+                    LightmapTextureManager.applyEmission(
+                        client.entityRenderDispatcher.getLight(player, client.renderTickCounter.getTickProgress(true)
+                        ),
+                        2
+                    )
+                } else {
+                    LightmapTextureManager.MAX_LIGHT_COORDINATE
+                }
             )
         }
 

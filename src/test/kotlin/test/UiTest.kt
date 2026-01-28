@@ -68,6 +68,10 @@ class UiTest {
                     Fragment(
                         layout = HorizontalLayout(0f),
                         sizing = Sizing(20f, 20f)
+                    ),
+                    Fragment(
+                        layout = HorizontalLayout(0f),
+                        sizing = Sizing(20f, 20f)
                     )
                 )
             )

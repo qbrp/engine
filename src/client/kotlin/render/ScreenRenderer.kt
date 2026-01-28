@@ -21,18 +21,6 @@ class ScreenRenderer(private val client: EngineClient) {
 
     fun setupGameSession(gameSession: GameSession) {
         client.ui.addFragment { MovementBar(gameSession) }
-        client.ui.addFragment {
-            BlockHintContainer(
-                window,
-                false,
-                BlockHint(
-                    "Андезит",
-                    mutableListOf(
-                        "Булыжник оброс колючими лозами с мелкими стебельками. Израстают крошечные фиолетовые цветочки, но полные золотистой пыльцой."
-                    )
-                ),
-            )
-        }
     }
 
     fun invalidate() {
