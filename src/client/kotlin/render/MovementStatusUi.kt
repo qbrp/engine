@@ -9,6 +9,7 @@ import org.lain.engine.client.render.ui.Pivot
 import org.lain.engine.client.render.ui.Placement
 import org.lain.engine.client.render.ui.Sizing
 import org.lain.engine.client.render.ui.VerticalLayout
+import org.lain.engine.player.isSpectating
 import org.lain.engine.util.BLACK_TRANSPARENT_BG_COLOR
 import org.lain.engine.util.Color
 import org.lain.engine.util.SPEED_COLOR
@@ -35,8 +36,7 @@ fun MovementBar(gameSession: GameSession): Fragment {
                     onRender = { state ->
                         val size = state.size
                         val value = supplier()
-                        size.width = width * value
-                        state.visible = !renderer.hudHidden && renderer.isFirstPerson
+                        size.width = lerp(size.width, width * value, 0.5f)
                     },
                     onRecompose = { composition -> width = composition.render.size.width }
                 ),
@@ -55,6 +55,9 @@ fun MovementBar(gameSession: GameSession): Fragment {
             Bar(SPEED_COLOR) { gameSession.movementManager.intention },
             Bar(STAMINA_COLOR) { gameSession.movementManager.stamina },
         ),
-        pivot = Pivot.BOTTOM_LEFT
+        pivot = Pivot.BOTTOM_LEFT,
+        onRender = {
+            it.visible = !renderer.hudHidden && renderer.isFirstPerson && !gameSession.mainPlayer.isSpectating
+        }
     )
 }

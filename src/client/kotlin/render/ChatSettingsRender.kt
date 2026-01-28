@@ -3,6 +3,7 @@ package org.lain.engine.client.render
 import org.lain.engine.client.render.ui.Fragment
 import org.lain.engine.client.render.ui.HorizontalLayout
 import org.lain.engine.client.render.ui.Image
+import org.lain.engine.client.render.ui.InputResult
 import org.lain.engine.client.render.ui.Layout
 import org.lain.engine.client.render.ui.MutableListState
 import org.lain.engine.client.render.ui.MutableState
@@ -30,7 +31,7 @@ private fun OpenButton(
         ),
         onClick = { state, x, y ->
             childrenState.add(Fragment())
-            true
+            InputResult.FINISH
         }
     )
 }

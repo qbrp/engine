@@ -2,6 +2,7 @@ package org.lain.engine.mc
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.FloatArgumentType
+import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.ArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
@@ -10,10 +11,14 @@ import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import net.minecraft.command.argument.EntityArgumentType
 import net.minecraft.command.argument.Vec3ArgumentType
+import net.minecraft.entity.Entity
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.util.math.BlockPos
+import net.minecraft.world.chunk.Chunk
+import net.minecraft.world.chunk.WorldChunk
 import org.lain.engine.chat.CHAT_HEADS_PERMISSION
 import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.IncomingMessage
@@ -78,6 +83,10 @@ fun ServerCommandContext.getFloat(id: String): Float {
     return FloatArgumentType.getFloat(this, id)
 }
 
+fun ServerCommandContext.getInt(id: String): Int {
+    return IntegerArgumentType.getInteger(this, id)
+}
+
 fun ServerCommandContext.getString(id: String): String {
     return StringArgumentType.getString(this, id)
 }
@@ -120,6 +129,10 @@ data class Context(
 ) {
     fun requirePlayer(): Player {
         return player ?: throw FriendlyException("Команда предназначена для игрока")
+    }
+
+    fun requireEntity(): Entity {
+        return source.entity ?: throw FriendlyException("Команда предназначена для сущностей или игроков")
     }
 
     fun sendFeedback(text: String, broadcastToOps: Boolean) {
@@ -206,36 +219,35 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             )
     )
 
-    fun executeSetName(ctx: Context, text: String, color1: String, color2: String? = null) {
-        val player = ctx.requirePlayer()
-
-        player.customName = CustomName(text, Color.parseString(color1), color2?.let { Color.parseString(it) })
-        ctx.sendFeedback("Установлено имя ${player.displayNameMiniMessage}", false)
-    }
-
     register(
         CommandManager.literal("setname")
             .then(
-                CommandManager.argument("value", StringArgumentType.greedyString())
-                    .then(
-                        CommandManager.argument("color1", StringArgumentType.word())
-                            .executeCatching { ctx ->
-                                val name = ctx.command.getString("value")
-                                val color1 = ctx.command.getString("color1")
-                                executeSetName(ctx, name, color1)
-                            }
-                            .then(
-                                CommandManager.argument("color2", StringArgumentType.word())
-                                    .executeCatching { ctx ->
-                                        val name = ctx.command.getString("value")
-                                        val color1 = ctx.command.getString("color1")
-                                        val color2 = ctx.command.getString("color2")
-                                        executeSetName(ctx, name, color1, color2)
-                                    }
-                            )
-                    )
+                CommandManager.argument("args", StringArgumentType.greedyString())
+                    .executeCatching { ctx ->
+                        val raw = ctx.command.getString("args")
+                        val player = ctx.requirePlayer()
+
+                        val parts = raw.split(" ")
+                        if (parts.size < 1) {
+                            ctx.sendError("Использование: /setname <имя> <цвет1> [цвет2]")
+                            return@executeCatching
+                        }
+
+                        val name = parts[0]
+                        val color1 = parts.getOrNull(1)?.replace("#", "")
+                        val color2 = parts.getOrNull(2)?.replace("#", "")
+
+                        player.customName = CustomName(
+                            name,
+                            color1?.let { Color.parseString(it) } ?: Color.WHITE,
+                            color2?.let { Color.parseString(it) }
+                        )
+
+                        ctx.sendFeedback("Установлено имя ${player.displayNameMiniMessage}", false)
+                    }
             )
     )
+
 
     register(
         CommandManager.literal("spawn")
@@ -420,6 +432,49 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                 val stats = getServerStats(server.engine.tickTimes.toList())
                 it.sendFeedback("Средняя длительность последних 20 тактов engine: ${stats.averageTickTimeMillis} мл.", false)
             }
+    )
+
+    fun getLookedBlock(entity: Entity): Pair<BlockPos, WorldChunk> {
+        val lookPos = entity.raycast(10.0, 0.0f, false).pos
+        val blockPos = BlockPos.ofFloored(lookPos)
+        val chunkPos = entity.chunkPos
+        val chunk = entity.entityWorld.getChunk(chunkPos.x, chunkPos.z)
+        return blockPos to chunk
+    }
+
+    register(
+        CommandManager.literal("sethint")
+            .requires { it.hasPermission("sethint") }
+            .then(
+                CommandManager.argument("text", StringArgumentType.greedyString())
+                    .executeCatching { ctx ->
+                        val entity = ctx.requireEntity()
+                        val (blockPos, chunk) = getLookedBlock(entity)
+                        val text = ctx.command.getString("text")
+                        val number = text.split(" ").lastOrNull()?.let {
+                            if (it.all { char -> char.isDigit() }) it else null
+                        }?.toInt()
+
+                        val hint = chunk.setBlockHint(blockPos, text, number)
+                        ctx.sendFeedback(hint.displayText(hint.texts.indexOf(text)), true)
+                    }
+            )
+    )
+
+    register(
+        CommandManager.literal("detachhint")
+            .requires { it.hasPermission("detachhint") }
+            .then(
+                CommandManager.argument("index", IntegerArgumentType.integer())
+                    .executeCatching { ctx ->
+                        val entity = ctx.requireEntity()
+                        val (blockPos, chunk) = getLookedBlock(entity)
+                        val index = ctx.command.getInt("index")
+
+                        chunk.detachBlockHint(blockPos, index)
+                        ctx.sendFeedback("Удален текст под индексом $index", true)
+                    }
+            )
     )
 
     registerServerPmCommand()

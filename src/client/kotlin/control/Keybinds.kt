@@ -62,7 +62,7 @@ val HIDE_INTERFACE = KeybindSettings(
 val ALLOW_SPEED_INTENTION_CHANGE = KeybindSettings(
     name = "Смена скорости ходьбы",
     id = KeybindId("speed"),
-    GLFW.GLFW_KEY_LEFT_ALT,
+    GLFW.GLFW_MOD_ALT,
     onHold = { client -> client.gameSession?.movementManager?.locked = false },
     onRelease = { client -> client.gameSession?.movementManager?.locked = true },
     isMouse = true

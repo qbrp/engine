@@ -102,7 +102,7 @@ object MinecraftChat : ChatEventBus {
     ): Boolean {
         var isRepeat = false
         val content = node.content.string
-        val chatManager = requireChatManager()
+        val chatManager = chatManager ?: return false
         val chatBar = requireChatBar()
 
         val engineMessage = if (isEngineMessage(node)) {
@@ -147,9 +147,8 @@ object MinecraftChat : ChatEventBus {
         val data = ChatLineData(chatHudLine, isFirst, isLast, messageData)
 
         chatLines[chatHudLine] = data
-        return (!visible || isRepeat).also {
-            if (!it) { allMessages.add(0, data) }
-        }
+        if (!isRepeat) { allMessages.add(0, data) }
+        return (!visible || isRepeat)
     }
 
     fun deleteChatHudLine(line: ChatHudLine.Visible) {

@@ -24,6 +24,7 @@ class EngineYamlConfig(
     private val chatBubbleLineWidthProperty = builder.defineInteger("line-width", 200, 50, 1000)
     private val chatBubbleLifeTimeProperty = builder.defineInteger("life-time", 200, 2, 2400)
     private val chatBubbleBackgroundOpacityProperty = builder.defineInteger("background-opacity", 50, 0, 100)
+    private val hideChatBubblesWithUiProperty = builder.defineBoolean("hiding", true)
 
     init { builder.pop() }
 
@@ -57,6 +58,8 @@ class EngineYamlConfig(
         get() = chatInputClosingProperty.get()
     override val chatBubbleBackgroundOpacity: Float
         get() = chatBubbleBackgroundOpacityProperty.get().toFloat() / 100f
+    override val hideChatBubblesWithUi: Boolean
+        get() = hideChatBubblesWithUiProperty.get()
 
     override val crosshairIndicatorVisible: Boolean
         get() = crosshairIndicatorVisibleProperty.get()

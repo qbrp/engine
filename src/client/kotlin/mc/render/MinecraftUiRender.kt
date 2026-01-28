@@ -70,7 +70,7 @@ fun DrawContext.drawTexturedQuad(
     )
 }
 
-fun DrawContext.fill(x1: Float, y1: Float, x2: Float, y2: Float, color: Int, color2: Int) {
+fun DrawContext.fill(x1: Float, y1: Float, x2: Float, y2: Float, color: Int, color2: Int = color) {
     val (x1, x2) = if (x1 < x2) {
         x2 to x1
     } else {

@@ -61,9 +61,12 @@ public class KeyboardMixin {
             method = "onKey",
             at = @At(
                     value = "HEAD"
-            )
+            ),
+            cancellable = true
     )
     public void engine$onKey(long window, int action, KeyInput input, CallbackInfo ci) {
-        ClientMixinAccess.INSTANCE.onKey(input.key());
+        if (ClientMixinAccess.INSTANCE.onKey(input.key())) {
+            ci.cancel();
+        }
     }
 }

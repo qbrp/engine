@@ -2,23 +2,38 @@ package org.lain.engine.client.mc.render
 
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.screen.Screen
+import net.minecraft.client.input.CharInput
+import net.minecraft.client.input.KeyInput
 import net.minecraft.text.OrderedText
+import net.minecraft.text.Text
 import org.joml.Matrix3x2f
+import org.lain.engine.client.EngineClient
 import org.lain.engine.client.render.FontRenderer
+import org.lain.engine.client.render.ui.CharEvent
 import org.lain.engine.client.render.ui.Composition
 import org.lain.engine.client.render.ui.CompositionRenderContext
 import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.render.ui.Fragment
+import org.lain.engine.client.render.ui.KeyAction
+import org.lain.engine.client.render.ui.KeyEvent
+import org.lain.engine.client.render.ui.LineBorders
+import org.lain.engine.client.render.ui.Modifier
 import org.lain.engine.client.render.ui.MutableSize
+import org.lain.engine.client.render.ui.TextInput
+import org.lain.engine.client.render.ui.TextInputState
 import org.lain.engine.client.render.ui.UiContext
+import org.lain.engine.client.render.ui.UiElement
 import org.lain.engine.client.render.ui.UiState
 import org.lain.engine.client.render.ui.UiFeatures
 import org.lain.engine.client.render.ui.UiListeners
 import org.lain.engine.client.render.ui.blend
 import org.lain.engine.client.render.ui.recompose
 import org.lain.engine.util.Color
+import org.lain.engine.util.injectValue
 import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.toMinecraft
+import org.lwjgl.glfw.GLFW
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -26,22 +41,49 @@ class EngineUiRenderPipeline(
     private val client: MinecraftClient,
     private val fontRenderer: FontRenderer
 ) : EngineUi {
-    private val elements = mutableListOf<Slot>()
+    override val elements = mutableListOf<UiElement>()
     private val textCache = TextCache()
     private val rootSize = MutableSize(0f, 0f)
     private val context by lazy { UiContext(fontRenderer, rootSize) }
+    private val engine by lazy { injectValue<EngineClient>() }
     private val alphaStack = ArrayDeque<Int>()
+    var focus: Composition? = null
+        private set
 
-    private data class Slot(val composition: Composition, val clear: Boolean)
+    private val debugBorders = LineBorders(Color.AQUA, 1f)
+    private val developerMode
+        get() = engine.developerMode
 
-    override fun addFragment(clear: Boolean, fragment: () -> Fragment): Composition {
-        val composition = Composition(fragment, context)
-        elements += Slot(composition, clear)
+    override fun focusAppropriateElement(composition: Composition?): Boolean {
+        val compositions = composition?.let { listOf(it) } ?: elements.map { it.composition }
+        for (composition in compositions) {
+            if (composition.render.handlesKeyboard) {
+                focus = composition
+                client.setScreen(Focus(this))
+                return true
+            }
+            for (child in composition.children) {
+                if (focusAppropriateElement(child)) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    override fun addFragment(clear: Boolean, focus: Boolean, fragment: () -> Fragment): Composition {
+        val composition = Composition(fragment)
+        recompose(composition, context)
+        elements += UiElement(composition, clear)
+        if (focus) focusAppropriateElement(composition)
         return composition
     }
 
     override fun removeComposition(composition: Composition) {
-        elements.removeIf { it.composition == composition }
+        val removed = elements.removeIf { it.composition == composition }
+        if (removed && focus == composition) {
+            focus = null
+        }
     }
 
     private fun recomposeAll()  {
@@ -54,19 +96,20 @@ class EngineUiRenderPipeline(
     }
 
     fun render(context: DrawContext, dt: Float, mouseX: Float, mouseY: Float) {
-        elements.forEach { collectVertexes(it.composition, context, dt, mouseX, mouseY) }
+        elements.forEach {
+            val pos = it.composition.render.position
+            collectVertexes(it.composition, context, dt, mouseX - pos.x, mouseY - pos.y)
+        }
     }
 
     fun collectVertexes(composition: Composition, context: DrawContext, dt: Float, mouseX: Float, mouseY: Float) {
-        CompositionRenderContext.uiContext = this.context
-        CompositionRenderContext.composition = composition
+        CompositionRenderContext.startRendering(composition, this.context)
         val state = composition.render
         state.update() //перенести
         val matrices = context.matrices
         val position = state.position
         val origin = state.origin
         val scale = state.scale
-        val size = state.size
         val opacity = max(0, 255 - (state.opacity - (alphaStack.lastOrNull() ?: 255)))
         alphaStack.addLast(opacity)
         matrices.pushMatrix()
@@ -79,14 +122,25 @@ class EngineUiRenderPipeline(
                 .translate(origin.x, origin.y)
         }
 
+        val size = state.size
+        val width = size.width
+        val height = size.height
+        val scaledWidth = size.width * scale.x
+        val scaledHeight = size.height * scale.y
+
+        val localMouseX = (mouseX + origin.x) / scale.x
+        val localMouseY = (mouseY + origin.y) / scale.y
+
         if (state.visible) {
-            val ceilWidth = ceil(size.width).toInt()
-            val ceilHeight = ceil(size.height).toInt()
-//            context.enableScissor(
-//                -2, -2,
-//                ceilWidth + 2,
-//                ceilHeight + 2
-//            )
+            val ceilWidth = ceil(width).toInt()
+            val ceilHeight = ceil(height).toInt()
+            if (!developerMode) {
+                context.enableScissor(
+                    -2, -2,
+                    ceilWidth + 2,
+                    ceilHeight + 2
+                )
+            }
 
             renderFeatures(
                 size.width, size.height,
@@ -95,13 +149,24 @@ class EngineUiRenderPipeline(
                 context, dt
             )
 
+            val borders = if (inHover(localMouseX, localMouseY, width, height) && developerMode) {
+                debugBorders
+            } else {
+                state.borders
+            }
+
+            renderBorders(borders, width, height, context)
+
             for (child in composition.children) {
                 context.createNewRootLayer()
                 context.state.goUpLayer()
-                collectVertexes(child, context, dt, mouseX - position.x, mouseY - position.y)
+                val pos = child.render.position
+                collectVertexes(child, context, dt, localMouseX - pos.x, localMouseY - pos.y)
             }
 
-//            context.disableScissor()
+            if (!developerMode) {
+                context.disableScissor()
+            }
         }
 
         renderListeners(
@@ -116,6 +181,13 @@ class EngineUiRenderPipeline(
         alphaStack.removeLast()
     }
 
+    fun renderBorders(borders: LineBorders, width: Float, height: Float, context: DrawContext) {
+        borders.top?.let { context.fill(0f, 0f, width, it.thickness, it.color.integer) }
+        borders.bottom?.let { context.fill(0f, height - it.thickness, width, height, it.color.integer) }
+        borders.left?.let { context.fill(0f, 0f, it.thickness, height, it.color.integer) }
+        borders.right?.let { context.fill(width, 0f, width - it.thickness, height, it.color.integer) }
+    }
+
     fun renderListeners(
         state: UiState,
         listeners: UiListeners,
@@ -124,14 +196,22 @@ class EngineUiRenderPipeline(
         context: DrawContext
     ) {
         listeners.hover?.let {
-            if (mouseX in 0f..width && mouseY in 0f..height) {
+            if (inHover(mouseX, mouseY, width, height)) {
                 it.invoke(state, mouseX, mouseY)
             }
         }
-        if (listeners.render != null) {
-            listeners.render?.invoke(state)
-        }
+        listeners.render?.invoke(state)
     }
+
+    fun inHover(mouseX: Float, mouseY: Float, width: Float, height: Float) = mouseX in 0f..width && mouseY in 0f..height
+
+    //TODO
+//    fun renderTextInput(
+//        textInput: TextInputState,
+//        context: DrawContext
+//    ) {
+//        context.drawTexturedQuad()
+//    }
 
     fun renderFeatures(
         width: Float, height: Float,
@@ -195,4 +275,46 @@ class TextCache {
     fun get(text: EngineOrderedText): OrderedText {
         return map.getOrPut(text) { text.toMinecraft() }
     }
+}
+
+fun keyModsSet(mods: Int): Set<Modifier> {
+    val result = mutableSetOf<Modifier>()
+    if (mods and GLFW.GLFW_MOD_SHIFT != 0) result.add(Modifier.SHIFT)
+    if (mods and GLFW.GLFW_MOD_CONTROL != 0) result.add(Modifier.CTRL)
+    if (mods and GLFW.GLFW_MOD_ALT != 0) result.add(Modifier.ALT)
+    if (mods and GLFW.GLFW_MOD_SUPER != 0) result.add(Modifier.SUPER)
+    if (mods and GLFW.GLFW_MOD_CAPS_LOCK != 0) result.add(Modifier.CAPS_LOCK)
+    if (mods and GLFW.GLFW_MOD_NUM_LOCK != 0) result.add(Modifier.NUM_LOCK)
+    return result
+}
+
+fun KeyInput.toEngineKeyEvent(action: KeyAction) = KeyEvent(key, action, keyModsSet(modifiers))
+
+class Focus(private val ui: EngineUiRenderPipeline) : Screen(Text.of("Focus")) {
+    override fun keyPressed(input: KeyInput): Boolean {
+        return emitKeyEvent(
+            input.toEngineKeyEvent(KeyAction.PRESS)
+        )
+    }
+
+    override fun keyReleased(input: KeyInput): Boolean {
+        return emitKeyEvent(
+            input.toEngineKeyEvent(KeyAction.RELEASE)
+        )
+    }
+
+    override fun charTyped(input: CharInput): Boolean {
+        val focusedElement = ui.focus
+        val renderState = focusedElement?.render
+        return renderState?.onChar(CharEvent(input.codepoint, keyModsSet(input.modifiers))) ?: false
+    }
+
+    private fun emitKeyEvent(event: KeyEvent): Boolean {
+        val focusedElement = ui.focus
+        val renderState = focusedElement?.render
+        return renderState?.onKey(event) ?: false
+    }
+
+    override fun shouldPause(): Boolean = false
+    override fun renderBackground(context: DrawContext?, mouseX: Int, mouseY: Int, deltaTicks: Float) {}
 }

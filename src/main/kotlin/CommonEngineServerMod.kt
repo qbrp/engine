@@ -6,8 +6,6 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
-import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
@@ -20,6 +18,7 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.registerEngineCommands
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
+import org.lain.engine.mc.registerBlockHintAttachment
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -40,6 +39,7 @@ class CommonEngineServerMod : ModInitializer {
             EnvType.SERVER -> Environment.SERVER
         }
         EngineItemReferenceComponent.initialize()
+        registerBlockHintAttachment()
 
         ServerLifecycleEvents.SERVER_STARTED.register {
             engineServer.run()

@@ -10,10 +10,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.client.render.RenderLayer
-import net.minecraft.client.render.VertexConsumer
 import net.minecraft.client.render.VertexConsumerProvider
-import net.minecraft.client.render.VertexConsumers
 import net.minecraft.entity.player.PlayerEntity
 import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
@@ -139,6 +136,15 @@ class MinecraftEngineClient : ClientModInitializer {
             }
         }
 
+        WorldRenderEvents.END_MAIN.register { context ->
+            val camera = context.gameRenderer().camera
+            val cameraPos = camera.pos
+            val matrices = context.matrices()
+            val vertexConsumers = context.consumers()
+            if (vertexConsumers !is VertexConsumerProvider.Immediate) return@register
+            renderChatBubbles(matrices, camera, vertexConsumers, cameraPos.x, cameraPos.y, cameraPos.z)
+        }
+
         HudElementRegistry.addLast(
             EngineId("ui")
         ) { context, tickCounter ->
@@ -160,12 +166,6 @@ class MinecraftEngineClient : ClientModInitializer {
                 mouse.getScaledY(window).toFloat()
             )
             context.matrices.popMatrix()
-        }
-
-        WorldRenderEvents.BEFORE_DEBUG_RENDER.register { ctx ->
-            val camera = ctx.gameRenderer().camera
-            val cameraPos = camera.pos
-            renderChatBubbles(ctx.matrices(), camera, ctx.consumers() as VertexConsumerProvider.Immediate, cameraPos.x, cameraPos.y, cameraPos.z)
         }
 
         ServerLifecycleEvents.SERVER_STARTING.register { server ->

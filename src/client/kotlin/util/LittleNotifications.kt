@@ -16,8 +16,8 @@ data class LittleNotification(
     val transitionTime: Long = 12,
 ) {
     val titleTextNode = EngineText(
-        content = title,
-        style = EngineTextStyle(color = TextColor(color)),
+        text = title,
+        color = TextColor(color),
     )
     val descriptionTextNode = description?.let {
         EngineText(it)

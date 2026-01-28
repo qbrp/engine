@@ -7,8 +7,6 @@ import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.render.ui.Fragment
 import org.lain.engine.client.render.ui.HorizontalLayout
 import org.lain.engine.client.render.ui.Image
-import org.lain.engine.client.render.ui.Layout
-import org.lain.engine.client.render.ui.Size
 import org.lain.engine.client.render.ui.Sizing
 import org.lain.engine.client.render.ui.SpriteSizing
 import org.lain.engine.client.render.ui.TextArea

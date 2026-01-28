@@ -39,8 +39,8 @@ object ClientMixinAccess {
 
     fun isCrosshairAttackIndicatorVisible() = client.options.crosshairIndicatorVisible
 
-    fun onKey(key: Int) = with(client) {
-        if (developerMode && (ticks - developerModeKeyPressedTick > 20)) {
+    fun onKey(key: Int): Boolean = with(client) {
+        if (isControlDown() && developerMode && (ticks - developerModeKeyPressedTick > 20)) {
             developerModeKeyPressedTick = ticks
             if (key == GLFW.GLFW_KEY_1) {
                 audioManager.playPigScreamSound()
@@ -52,7 +52,7 @@ object ClientMixinAccess {
                     ),
                 )
             } else if (key == GLFW.GLFW_KEY_2) {
-                val player = MinecraftClient.player ?: return
+                val player = MinecraftClient.player ?: return@with true
                 val mainHandItemStack = player.mainHandStack
                 val offHandItemStack = player.offHandStack
                 val itemStack = if (mainHandItemStack.isEmpty) offHandItemStack else mainHandItemStack
@@ -60,7 +60,7 @@ object ClientMixinAccess {
                     MinecraftClient.setScreen(TransformationsEditorScreen(itemStack))
                 }
             } else if (key == GLFW.GLFW_KEY_3) {
-                val gameSession = gameSession ?: return@with
+                val gameSession = gameSession ?: return@with true
                 val start = Timestamp()
                 repeat(100) {
                     gameSession.chatManager.addMessage(
@@ -73,12 +73,14 @@ object ClientMixinAccess {
                 applyLittleNotification(
                     LittleNotification(
                         "Добавлено 100 случайных сообщений",
-                        "Время: ${start.timeElapsed()} мл.",
+                        "Время: ${end} мл.",
                         sprite = VOICE_WARNING,
                     ),
                 )
             }
+            return@with true
         }
+        false
     }
 
     fun sendChatMessage(content: String) {
@@ -109,6 +111,7 @@ object ClientMixinAccess {
         cameraY: Double,
         cameraZ: Double,
     ) {
+        if (client.options.hideChatBubblesWithUi && client.renderer.hudHidden) return
         org.lain.engine.client.mc.render.renderChatBubbles(
             matrices,
             camera,

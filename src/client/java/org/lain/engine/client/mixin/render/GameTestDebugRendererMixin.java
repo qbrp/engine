@@ -22,7 +22,7 @@ public class GameTestDebugRendererMixin {
             if (client.world != null && client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
                 Camera camera = client.gameRenderer.getCamera();
                 Vec3d cameraPos = camera.getPos();
-                ClientMixinAccess.INSTANCE.renderChatBubbles(matrices, camera, immediate, cameraPos.x, cameraPos.y, cameraPos.z);
+                //ClientMixinAccess.INSTANCE.renderChatBubbles(matrices, camera, immediate, cameraPos.x, cameraPos.y, cameraPos.z);
             }
         }
     }

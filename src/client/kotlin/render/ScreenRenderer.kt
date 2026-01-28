@@ -2,6 +2,7 @@ package org.lain.engine.client.render
 
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
+import org.lain.engine.mc.BlockHint
 
 class ScreenRenderer(private val client: EngineClient) {
     private val window = client.window
@@ -19,7 +20,19 @@ class ScreenRenderer(private val client: EngineClient) {
     }
 
     fun setupGameSession(gameSession: GameSession) {
-        //client.ui.addFragment { MovementBar(gameSession) }
+        client.ui.addFragment { MovementBar(gameSession) }
+        client.ui.addFragment {
+            BlockHintContainer(
+                window,
+                false,
+                BlockHint(
+                    "Андезит",
+                    mutableListOf(
+                        "Булыжник оброс колючими лозами с мелкими стебельками. Израстают крошечные фиолетовые цветочки, но полные золотистой пыльцой."
+                    )
+                ),
+            )
+        }
     }
 
     fun invalidate() {
