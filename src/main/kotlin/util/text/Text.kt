@@ -4,14 +4,15 @@ import org.lain.engine.util.Color
 
 data class EngineTextShadow(val color: Color?, val enabled: Boolean)
 
-data class EngineText(
+@ConsistentCopyVisibility
+data class EngineText internal constructor(
     val content: String,
     val style: EngineTextStyle = EmptyEngineTextStyle(),
     val siblings: List<EngineText> = listOf()
 )
 
-fun EngineText(text: String, color: TextColor) = EngineText(
-    text, EngineTextStyle(color=color)
+fun EngineText(text: String, color: TextColor = TextColor.Single(Color.WHITE), bold: Boolean = false) = EngineText(
+    text, EngineTextStyle(color = color, bold = bold)
 )
 
 fun splitEngineText(node: EngineText, by: String): List<EngineText> {
@@ -45,7 +46,7 @@ fun splitEngineTextLinear(node: EngineText, by: String): List<EngineTextSpan> {
     return output
 }
 
-fun resolveText(ordered: MutableEngineOrderedText, text: EngineText) {
+fun resolveText(ordered: MutableEngineTextSpan, text: EngineText) {
     val style = text.style
     val orderedStyle = ordered.style
     ordered.content = text.content
@@ -60,7 +61,7 @@ fun resolveText(ordered: MutableEngineOrderedText, text: EngineText) {
 
 fun visitEngineText(
     node: EngineText,
-    ordered: MutableEngineOrderedText = MutableEngineOrderedText(),
+    ordered: MutableEngineTextSpan = MutableEngineTextSpan(),
     visitor: (EngineTextSpan) -> Unit
 ) {
     val snapshot = ordered.copy()

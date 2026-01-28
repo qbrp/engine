@@ -37,7 +37,7 @@ class ChatBubbleList(
 
     fun setChatBubble(player: Player, text: String) {
         val lines = fontRenderer.breakTextByLines(
-            EngineText(content = text),
+            EngineText(text = text),
             options.chatBubbleLineWidth.toFloat()
         )
         val height = lines.count() * fontRenderer.fontHeight

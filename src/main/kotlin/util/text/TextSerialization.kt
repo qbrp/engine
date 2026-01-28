@@ -43,13 +43,17 @@ fun String.removeLegacyFormattingCodes(): String {
 
 val TEXT_LOGGER = LoggerFactory.getLogger("Engine Text Serialization")
 
-fun String.parseMiniMessage(): Text {
+fun EngineServerServerTextAudiences(): MinecraftServerAudiences {
     val server by injectMinecraftEngineServer()
+    return MinecraftServerAudiences.of(server.minecraftServer)
+}
+
+fun String.parseMiniMessage(): Text {
     val text = this.removeLegacyFormattingCodes()
 
     val component = MiniMessage.miniMessage().deserialize(text)
     return try {
-        MinecraftServerAudiences.of(server.minecraftServer).asNative(component)
+        EngineServerServerTextAudiences().asNative(component)
     } catch (e: Throwable) {
         TEXT_LOGGER.error("Возникла ошибка при десериализации текста MiniMessage:\n$this", e)
         val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))

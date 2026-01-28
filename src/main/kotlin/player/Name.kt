@@ -21,13 +21,22 @@ value class Username(val value: String) {
 
 const val CUSTOM_NAME_MAX_LENGTH = 32
 
+fun String.isAlphaNumeric(): Boolean {
+    val regex = Regex("^[A-Za-z0-9]+$")
+    return this.matches(regex)
+}
+
 @Serializable
 data class CustomName(
     val string: String,
     val color1: Color,
     val color2: Color? = null
 ) {
-    init { require(string.length <= CUSTOM_NAME_MAX_LENGTH) }
+    init {
+        require(string.length <= CUSTOM_NAME_MAX_LENGTH) { "Имя не должно превышать $CUSTOM_NAME_MAX_LENGTH символов" }
+        require(string.isAlphaNumeric()) { "Имя не должно содержать специальные символы" }
+    }
+
     val text by lazy { EngineText(string, TextColor(color1, color2)) }
 }
 
@@ -36,7 +45,7 @@ data class DisplayName(
     val username: Username,
     var custom: CustomName? = null
 ) : Component {
-    val usernameText by lazy { EngineText(username.value) }
+    val usernameText by lazy { EngineText(username.value, TextColor(Color.WHITE)) }
 }
 
 fun Player.removeCustomName() {

@@ -105,10 +105,10 @@ fun updatePlayerMovement(
         attributes.speed.default = if (isSpectating) {
             defaultSpeed
         } else {
-            if (!player.isInGameMasterMode && !player.isSpectating) {
-                stamina = (stamina + (staminaRegen - abs(velocityHorizontal) / maxSpeed * staminaConsume)).coerceIn(0f, 1f)
+            stamina = if (!player.isInGameMasterMode && !player.isSpectating) {
+                (stamina + (staminaRegen - abs(velocityHorizontal) / maxSpeed * staminaConsume)).coerceIn(0f, 1f)
             } else {
-                stamina = 1f
+                1f
             }
 
             val target = max(minSpeed, defaultSpeed * speedMul(intention, stamina, isSprinting, settings))

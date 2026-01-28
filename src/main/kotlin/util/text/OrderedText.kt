@@ -7,7 +7,7 @@ interface EngineTextSpan {
     fun deepCopy(content: String = this.content): EngineTextSpan
 }
 
-data class MutableEngineOrderedText(
+data class MutableEngineTextSpan(
     override var content: String = "",
     override val style: OrderedEngineTextStyle = OrderedEngineTextStyle()
 ) : EngineTextSpan {
@@ -16,4 +16,10 @@ data class MutableEngineOrderedText(
     }
 }
 
-class EngineOrderedText(val parts: List<EngineTextSpan>) : List<EngineTextSpan> by parts
+class EngineOrderedText(val parts: List<EngineTextSpan>) : List<EngineTextSpan> by parts {
+    fun with(text: EngineText): EngineOrderedText {
+        val parts = parts.toMutableList()
+        visitEngineText(text) { span -> parts.add(span) }
+        return EngineOrderedText(parts)
+    }
+}

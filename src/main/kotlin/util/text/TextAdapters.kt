@@ -15,7 +15,11 @@ val Player.displayNameMiniMessage
     get() = this.require<DisplayName>().let { it.custom?.textMiniMessage ?: it.username.value }
 
 private val CustomName.textMiniMessage
-    get() = "<gradient:${this.color1}:${this.color2}>${this.text}</gradient>"
+    get() = "<gradient:#${hex(color1)}:#${hex(color2 ?: color1)}>$string</gradient>"
+
+private fun hex(color: Color): String {
+    return "%06x".format(color.integer and 0xFFFFFF)
+}
 
 private fun MinecraftStyle(
     color: Color?,

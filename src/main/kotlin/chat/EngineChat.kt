@@ -351,7 +351,7 @@ class EngineChat(
         val author = source.player
             ?.let { player ->
                 val builder = StringBuilder()
-                val displayName = player.displayNameMiniMessage
+                val displayName = player.displayName
                 val username = player.username
                 builder.append(displayName)
                 if (displayName != username) builder.append(" ($username)")

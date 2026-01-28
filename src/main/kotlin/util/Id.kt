@@ -21,4 +21,4 @@ fun nextIdStr(): String {
     return nextId().toString()
 }
 
-fun EngineId(path: String) = Identifier.of(CommonEngineServerMod.MOD_ID, path)
+fun EngineId(path: String) = Identifier.of(CommonEngineServerMod.MOD_ID, path)!!
