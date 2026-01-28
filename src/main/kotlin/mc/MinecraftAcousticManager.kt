@@ -490,7 +490,7 @@ class MinecraftAcousticManager(
                 )
                 val (lX, lY, lZ) = scene.worldToLocal(blockPosRelative.x, blockPosRelative.y, blockPosRelative.z)
                 generation.volume[lX, lY, lZ] = volume * passability
-                println("Offset ${offset[0]}, ${offset[1]}, ${offset[2]} ($blockPosRelative) : $passability")
+                //println("Offset ${offset[0]}, ${offset[1]}, ${offset[2]} ($blockPosRelative) : $passability")
             }
             simulateAsync(
                 scene,

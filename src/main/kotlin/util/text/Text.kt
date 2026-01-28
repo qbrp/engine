@@ -11,9 +11,9 @@ data class EngineText internal constructor(
     val siblings: List<EngineText> = listOf()
 )
 
-fun EngineText(text: String, color: TextColor = TextColor.Single(Color.WHITE), bold: Boolean = false) = EngineText(
-    text, EngineTextStyle(color = color, bold = bold)
-)
+fun EngineText(text: String, style: EngineTextStyle): EngineText = EngineText(text, style, listOf())
+
+fun EngineText(text: String, color: TextColor = TextColor.Single(Color.WHITE), bold: Boolean = false) = EngineText(text, EngineTextStyle(color = color, bold = bold))
 
 fun splitEngineText(node: EngineText, by: String): List<EngineText> {
     val newChildren = node.siblings.flatMap { splitEngineText(it, by) }

@@ -10,6 +10,7 @@ import kotlinx.serialization.encoding.Encoder
 import org.lain.engine.player.Player
 import org.lain.engine.player.displayName
 import org.lain.engine.util.Pos
+import org.lain.engine.util.Timestamp
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
 import org.lain.engine.world.pos
@@ -24,6 +25,7 @@ data class MessageAuthor(
 data class MessageSource(
     val world: World,
     val author: MessageAuthor,
+    val time: Timestamp,
     val position: Pos? = null,
 ) {
     val player
@@ -32,11 +34,11 @@ data class MessageSource(
         get() = player != null
 
     companion object {
-        fun getSystem(world: World): MessageSource {
-            return MessageSource(world, MessageAuthor("Система"))
+        fun getSystem(world: World, time: Long = System.currentTimeMillis()): MessageSource {
+            return MessageSource(world, MessageAuthor("Система"), Timestamp(time))
         }
-        fun getPlayer(player: Player): MessageSource {
-            return MessageSource(player.world, MessageAuthor(player.displayNameMiniMessage, player), player.pos)
+        fun getPlayer(player: Player, time: Long = System.currentTimeMillis()): MessageSource {
+            return MessageSource(player.world, MessageAuthor(player.displayNameMiniMessage, player), Timestamp(time), player.pos)
         }
     }
 }

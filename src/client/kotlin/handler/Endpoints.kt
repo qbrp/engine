@@ -18,6 +18,7 @@ import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_JOIN_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_SPEED_INTENTION_PACKET
+import org.lain.engine.util.Timestamp
 import org.slf4j.Logger
 
 fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler, ) {
@@ -83,6 +84,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
                         sourceAuthorName,
                         player
                     ),
+                    // FIXME: Передавать в пакете время таймстамп
+                    Timestamp(),
                     sourcePosition,
                 ),
                 channel,

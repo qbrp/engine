@@ -23,7 +23,10 @@ object ServerMixinAccess {
     private val server by injectMinecraftEngineServer()
     private val chat get() = server.engine.chat
     private val chatSettings get() = chat.settings
+    var disableAchievementMessages = false
     var isDamageEnabled = false
+
+    fun isAchievementMessagesDisabled() = disableAchievementMessages
 
     fun getDisplayName(player: PlayerEntity): Text? {
         return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name

@@ -135,7 +135,7 @@ fun serverMinecraftPlayerInstance(
             entity.entityPos.engine(),
             DisplayName(
                 Username(entity.name),
-                persistentPlayerData?.customName
+                persistentPlayerData?.customName?.toDomain(entity.name.string)
             ),
             MovementStatus(
                 intention = persistentPlayerData?.speedIntention ?: MovementStatus.DEFAULT_INTENTION,

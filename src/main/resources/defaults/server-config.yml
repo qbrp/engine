@@ -52,6 +52,8 @@ chat:
       max: 1.5
       hearing-threshold: 0.05
 
+  advancements: false
+
   join:
     enabled: false
     message: ""

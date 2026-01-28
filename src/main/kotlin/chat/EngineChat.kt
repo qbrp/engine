@@ -14,6 +14,7 @@ import org.lain.engine.player.username
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Pos
+import org.lain.engine.util.Timestamp
 import org.lain.engine.util.filterNearestPlayers
 import org.lain.engine.util.roundToInt
 import org.lain.engine.util.text.displayNameMiniMessage
@@ -59,11 +60,10 @@ class EngineChat(
     fun processMessage(message: IncomingMessage) {
         incomingMessageHistory += message
         coroutineScope.launch {
-            val start = System.currentTimeMillis()
+            val time = Timestamp()
             val channel = getChannel(message.channel)
             channel.processMessage(message.content, message.volume, message.source)
-            val end = System.currentTimeMillis()
-            message.log(end - start)
+            message.log(time.timeElapsed())
         }
     }
 
@@ -90,7 +90,7 @@ class EngineChat(
         author: String,
         channel: ChatChannel = settings.defaultChannel
     ) {
-        processMessage(channel, MessageSource(world, MessageAuthor(author), pos), content)
+        processMessage(channel, MessageSource(world, MessageAuthor(author), Timestamp(), pos), content)
     }
 
     fun processSystemMessage(content: String, source: MessageSource) {
@@ -306,7 +306,7 @@ class EngineChat(
             "author_name" to author.name,
             "recipient_username" to recipient.username,
             "recipient_name" to recipient.displayNameMiniMessage,
-            "random-100" to roundToInt(Math.random() * 100f).toString()
+            "random-100" to roundToInt(Random(source.time.timeMillis).nextFloat() * 100f).toString()
         )
 
         volume?.let {

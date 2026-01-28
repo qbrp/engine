@@ -26,6 +26,7 @@ import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.player.CustomName
 import org.lain.engine.player.DisplayName
+import org.lain.engine.player.InvalidCustomNameException
 import org.lain.engine.player.Player
 import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
@@ -42,6 +43,7 @@ import org.lain.engine.player.stopSpectating
 import org.lain.engine.player.toggleChatHeads
 import org.lain.engine.player.username
 import org.lain.engine.util.Color
+import org.lain.engine.util.Timestamp
 import org.lain.engine.util.apply
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.compileItems
@@ -142,6 +144,10 @@ data class Context(
     fun sendError(text: String) {
         source.sendError(text.parseMiniMessage())
     }
+
+    fun sendError(exception: Throwable) {
+        source.sendError(Text.of(exception.message ?: "При выполнении команды возникла ошибка. Свяжитесь с администратором"))
+    }
 }
 
 fun ServerCommandDispatcher.registerEngineCommands() {
@@ -155,15 +161,16 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                 CommandManager.argument("players", EntityArgumentType.players())
                     .then(
                         CommandManager.literal("reset")
-                    ).executeCatching { ctx ->
-                        val players = ctx.command.getPlayers("players")
-                        val playerNameList = players.formatPlayerList()
-                        players.forEach { player ->
-                            val enginePlayer = playerTable.requirePlayer(player)
-                            enginePlayer.resetCustomSpeed()
-                        }
-                        ctx.sendFeedback("Сброшена скорость для игроков $playerNameList", true)
-                    }
+                            .executeCatching { ctx ->
+                                val players = ctx.command.getPlayers("players")
+                                val playerNameList = players.formatPlayerList()
+                                players.forEach { player ->
+                                    val enginePlayer = playerTable.requirePlayer(player)
+                                    enginePlayer.resetCustomSpeed()
+                                }
+                                ctx.sendFeedback("Сброшена скорость для игроков $playerNameList", true)
+                            }
+                    )
                     .then(
                         CommandManager.literal("set")
                             .then(
@@ -228,7 +235,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                         val player = ctx.requirePlayer()
 
                         val parts = raw.split(" ")
-                        if (parts.size < 1) {
+                        if (parts.isEmpty()) {
                             ctx.sendError("Использование: /setname <имя> <цвет1> [цвет2]")
                             return@executeCatching
                         }
@@ -237,11 +244,15 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                         val color1 = parts.getOrNull(1)?.replace("#", "")
                         val color2 = parts.getOrNull(2)?.replace("#", "")
 
-                        player.customName = CustomName(
-                            name,
-                            color1?.let { Color.parseString(it) } ?: Color.WHITE,
-                            color2?.let { Color.parseString(it) }
-                        )
+                        try {
+                            player.customName = CustomName(
+                                name,
+                                color1?.let { Color.parseString(it) } ?: Color.WHITE,
+                                color2?.let { Color.parseString(it) }
+                            )
+                        } catch (e: InvalidCustomNameException) {
+                            ctx.sendError(e)
+                        }
 
                         ctx.sendFeedback("Установлено имя ${player.displayNameMiniMessage}", false)
                     }
@@ -299,6 +310,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                                                     MessageSource(
                                                         world,
                                                         MessageAuthor(author),
+                                                        Timestamp(),
                                                         pos.engine()
                                                     )
                                                 )

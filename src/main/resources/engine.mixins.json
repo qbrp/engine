@@ -8,11 +8,13 @@
     "ItemFrameEntityMixin",
     "LivingEntityMixin",
     "MeCommandMixin",
+    "PlayerAdvancementTrackerMixin",
     "PlayerEntityMixin",
     "PlayerManagerMixin",
     "ServerPlayNetworkHandlerMixin",
     "StyleAccessor",
     "WhisperCommandMixin",
+    "WorldChunkMixin",
     "WorldMixin"
   ],
   "injectors": {

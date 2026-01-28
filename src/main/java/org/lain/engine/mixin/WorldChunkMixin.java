@@ -1,4 +1,4 @@
-package org.lain.engine.client.mixin;
+package org.lain.engine.mixin;
 
 import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget;
 import net.minecraft.server.world.ServerWorld;

@@ -26,6 +26,7 @@ data class ChatConfig(
     val pm: String,
     val join: ExclamationMessageConfig,
     val leave: ExclamationMessageConfig,
+    val advancements: Boolean,
     val acoustic: RealisticAcousticConfig
 )
 

@@ -22,9 +22,11 @@ value class Username(val value: String) {
 const val CUSTOM_NAME_MAX_LENGTH = 32
 
 fun String.isAlphaNumeric(): Boolean {
-    val regex = Regex("^[A-Za-z0-9]+$")
+    val regex = Regex("^[А-Яа-яA-Za-z0-9]+$")
     return this.matches(regex)
 }
+
+class InvalidCustomNameException(message: String) : RuntimeException(message)
 
 @Serializable
 data class CustomName(
@@ -33,8 +35,8 @@ data class CustomName(
     val color2: Color? = null
 ) {
     init {
-        require(string.length <= CUSTOM_NAME_MAX_LENGTH) { "Имя не должно превышать $CUSTOM_NAME_MAX_LENGTH символов" }
-        require(string.isAlphaNumeric()) { "Имя не должно содержать специальные символы" }
+        require(string.length <= CUSTOM_NAME_MAX_LENGTH) { throw InvalidCustomNameException("Имя не должно превышать $CUSTOM_NAME_MAX_LENGTH символов") }
+        require(string.isAlphaNumeric()) { throw InvalidCustomNameException("Имя не должно содержать специальные символы") }
     }
 
     val text by lazy { EngineText(string, TextColor(color1, color2)) }

@@ -39,6 +39,7 @@
   "mixins": [
     "ClickEventActionMixin",
     "ItemStackMixin",
+    "PlayerAdvancementTrackerMixin",
     "WorldChunkMixin",
     "resource.SimpleResourceReloadMixin"
   ]
