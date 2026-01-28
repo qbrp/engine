@@ -13,47 +13,45 @@ fun layout(
     position: Vec2 = Vec2(0f, 0f)
 ) {
     val fragment = composition.fragment
+    val padding = fragment.padding
     val data = composition.measuredLayout
 
     // Финальная позиция этого фрагмента в глобальных координатах
     val finalPos = position.add(fragment.position)
 
     when (val layout = fragment.layout) {
-        // FIXME: Нейрокод. Я заебался.
         is Layout.Linear -> {
-            val mainAxisForward = layout.placement == Placement.POSITIVE
-            var cursor = if (mainAxisForward) 0f else when(layout.axis) {
-                Axis.VERTICAL -> data.measuredSize.height
-                Axis.HORIZONTAL -> data.measuredSize.width
-            }
+            val forward = layout.placement == Placement.POSITIVE
+
+            var relX = if (!forward && layout.axis == Axis.HORIZONTAL) data.measuredSize.width - padding.right else padding.left
+            var relY = if (!forward && layout.axis == Axis.VERTICAL) data.measuredSize.height - padding.bottom else padding.top
 
             composition.children.forEach { child ->
                 val measuredSize = child.measuredLayout.measuredSize
-                val x: Float
-                val y: Float
+                layout(child, Vec2(relX, relY))
 
                 if (layout.axis == Axis.HORIZONTAL) {
-                    x = cursor
-                    y = 0f
-
-                    cursor += if (mainAxisForward) measuredSize.width + layout.gap
-                    else -(measuredSize.width + layout.gap)
-                } else {
-                    x = 0f
-                    y = cursor
-
-                    cursor += if (mainAxisForward) measuredSize.height + layout.gap
-                    else -(measuredSize.height + layout.gap)
+                    val append = measuredSize.width + layout.gap
+                    relX = if (forward) relX + append else relX - append
                 }
 
-                layout(child, Vec2(x, y))
+                if (layout.axis == Axis.VERTICAL) {
+                    val append = measuredSize.height + layout.gap
+                    relY = if (forward) relY + append else relY - append
+                }
             }
         }
 
 
         is Layout.Absolute -> {
             for (child in composition.children) {
-                layout(child, child.fragment.position)
+                layout(
+                    child,
+                    child.fragment.position.add(
+                        padding.left - padding.right,
+                        padding.vertical()
+                    )
+                )
             }
         }
 

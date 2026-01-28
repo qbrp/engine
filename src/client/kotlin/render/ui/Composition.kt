@@ -1,19 +1,27 @@
 package org.lain.engine.client.render.ui
 
-import org.lain.engine.client.mc.render.EngineUiRenderPipeline.Slot
-import org.lain.engine.client.render.ZeroMutableVec2
 import org.lain.engine.client.render.ZeroVec2
+import kotlin.reflect.KProperty
 
 // States
 // Любой объект в дереве UI умеет хранить состояния. Это позволяет создавать неограниченное число свойств без дополнительных обёрток над фрагментами
 
 /**
- * Глобальное состояние, хранящее **в данный момент** рисуемый виджет.
+ * Глобальное состояние, хранящее **в данный момент** рисуемый виджет и контекст UI.
  * Его используют объекты `State`, чтобы понимать, кому конкретно передаётся состояние, чтобы записать его в подписчики
  */
 object CompositionRenderContext {
     var composition: Composition? = null
     var uiContext: UiContext? = null
+
+    /**
+     * По контракту, функция рендеринга должна перед отрисовкой **каждой** композиции вызывать в начале этот метод
+     */
+    fun startRendering(composition: Composition, context: UiContext? = null) {
+        context?.let { this.uiContext = it }
+        this.composition = composition
+        composition.slotLastIndex = 0
+    }
 
     fun getUiContextOrThrow() = uiContext ?: error("Контекст UI не инициализирован")
 }
@@ -32,6 +40,10 @@ interface State<T> {
 class MutableState<T>(initial: T): State<T> {
     private var value: T = initial
     private val listeners = mutableSetOf<Composition>()
+
+    override fun toString(): String {
+        return value.toString()
+    }
 
     override fun get(): T {
         CompositionRenderContext.composition?.let { listeners += it }
@@ -82,7 +94,31 @@ inline fun <reified T> mutableStateOf(initial: T) = MutableState(initial)
 
 inline fun <reified T> mutableListStateOf(vararg initial: T) = MutableListState(initial.toList())
 
-// Composition
+class Remember<T : State<*>>(val builder: () -> T) {
+    private var state: T? = null
+
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        return state ?: run {
+            val composition = CompositionRenderContext.composition
+                ?: error("Render cycle is not active")
+
+            val index = composition.slotLastIndex
+            val slots = composition.slots
+
+            if (index < slots.size) {
+                slots[index] as T
+            } else {
+                val st = builder()
+                slots.add(st)
+                st
+            }
+        }.also { state = it }
+    }
+}
+
+fun <T : State<*>> remember(builder: () -> T) = Remember(builder)
+
+// RootComposition
 
 @JvmInline
 value class CompositionId(val long: ULong) {
@@ -93,40 +129,37 @@ value class CompositionId(val long: ULong) {
     }
 }
 
-data class Composition(
+class Composition internal constructor(
     val render: UiState,
     val fragmentBuilder: () -> Fragment,
     var fragment: Fragment = fragmentBuilder(),
-    val slots: LinkedHashSet<State<*>> = LinkedHashSet(),
-    val children: MutableList<Composition> = mutableListOf(),
+    val slots: MutableList<State<*>> = mutableListOf(),
+    var slotLastIndex: Int = 0,
+    var children: MutableList<Composition> = mutableListOf(),
     var id: CompositionId = CompositionId.next(),
     var measuredLayout: MeasuredLayout = MeasuredLayout(Size()),
-    var positionedLayout: PositionedLayout = PositionedLayout(Size(), ZeroVec2(), ZeroVec2())
+    var positionedLayout: PositionedLayout = PositionedLayout(Size(), ZeroVec2(), ZeroVec2()),
+    var parent: Composition? = null
 )
 
-fun Composition(fragment: () -> Fragment, context: UiContext): Composition {
-    fun fromFragment(fragment: Fragment, builder: () -> Fragment): Composition {
-        val uiState = UiState()
-        return Composition(
-            uiState,
-            builder,
-            fragment = fragment,
-            children = fragment.children.map { fromFragment(it, { it }) }.toMutableList(),
-        )
-    }
-
-    val composition = fromFragment(fragment(), fragment)
-    recompose(composition, context)
+fun Composition(builder: () -> Fragment): Composition {
+    val uiState = UiState()
+    val composition = Composition(
+        uiState,
+        builder
+    )
+    CompositionRenderContext.startRendering(composition)
+    composition.fragment = builder()
+    composition.children = composition.fragment.children.map { Composition { it } }.toMutableList()
     return composition
 }
 
-fun recomposeLayout(composition: Composition, context: UiContext) {
-    measure(context, composition)
-    layout(composition, composition.render.position)
+fun recomposeLayout(composition: Composition, constraints: Size, context: UiContext) {
+    measure(composition, context, constraints)
+    layout(composition)
 }
 
 fun recomposeFragments(composition: Composition, context: UiContext): Fragment {
-    composition.slots.clear()
     val newFragment = composition.fragmentBuilder()
     composition.fragment = newFragment
 
@@ -136,17 +169,18 @@ fun recomposeFragments(composition: Composition, context: UiContext): Fragment {
     val newCompositions = mutableListOf<Composition>()
 
     for (fragment in newFragments) {
-        val existing = oldChildren.firstOrNull { it.fragment === fragment }
+        val existing = oldChildren.firstOrNull { it.fragment == fragment }
         if (existing != null) {
             recomposeFragments(existing, context)
             newCompositions += existing
         } else {
-            newCompositions += Composition({ fragment }, context)
+            newCompositions += Composition({ fragment })
         }
     }
 
     composition.children.clear()
     composition.children += newCompositions
+    composition.children.forEach { it.parent = composition }
 
     return newFragment
 }
@@ -157,8 +191,15 @@ fun recomposeUiState(composition: Composition, context: UiContext) {
     composition.fragment.onRecompose?.invoke(composition)
 }
 
-fun recompose(composition: Composition, context: UiContext) {
+fun recompose(composition: Composition, constraints: Size, context: UiContext) {
     recomposeFragments(composition, context)
-    recomposeLayout(composition, context)
+    recomposeLayout(composition, constraints, context)
     recomposeUiState(composition, context)
+}
+
+/**
+ * Рекомпозиция. Взять ограничения у родительской композиции или окна
+ */
+fun recompose(composition: Composition, context: UiContext) {
+    recompose(composition, composition.parent?.measuredLayout?.measuredSize ?: context.windowSize, context)
 }
