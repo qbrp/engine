@@ -11,7 +11,6 @@ import net.minecraft.client.util.SpriteIdentifier
 import net.minecraft.util.Identifier
 import net.minecraft.util.JsonHelper
 import org.lain.engine.client.EngineClient
-import org.lain.engine.mc.EngineItem
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.injectValue

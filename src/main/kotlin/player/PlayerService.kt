@@ -11,6 +11,7 @@ import org.lain.engine.world.world
 
 typealias PlayerStorage = Storage<PlayerId, Player>
 
+//TODO: Убрать, переделать в чистые функции и отдать на попечение EngineServer
 class PlayerService(
     private val playerStorage: PlayerStorage,
     server: EngineServer

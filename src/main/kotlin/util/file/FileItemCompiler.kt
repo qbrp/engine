@@ -5,18 +5,20 @@ import com.charleskorn.kaml.decodeFromStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.entity.EquipmentSlot
-import net.minecraft.item.Item
 import net.minecraft.util.Identifier
 import org.lain.engine.EngineMinecraftServer
-import org.lain.engine.mc.EngineItem
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemName
+import org.lain.engine.item.ItemNamespace
+import org.lain.engine.item.ItemNamespaceId
+import org.lain.engine.item.ItemPrefab
+import org.lain.engine.mc.ItemProperties
 import org.lain.engine.mc.ItemEquipment
-import org.lain.engine.mc.ItemId
 import org.lain.engine.mc.ItemListTab
-import org.lain.engine.mc.ItemNamespace
-import org.lain.engine.mc.ItemNamespaceId
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.text.parseMiniMessage
 import kotlin.collections.iterator
+import kotlin.collections.map
 
 private val ITEMS_DIR = ENGINE_DIR.resolve("items")
 private val INVENTORY_TABS = ITEMS_DIR.resolve(INVENTORY_TABS_FILENAME)
@@ -83,7 +85,7 @@ fun deserializeCompilingItems(): CompileItems {
     return CompileItems(namespaceConfigs)
 }
 
-fun compileInventoryTabsConfig(namespaces: Map<String, List<EngineItem>>, items: List<ItemId>): List<ItemListTab> {
+fun compileInventoryTabsConfig(namespaces: Map<String, List<ItemProperties>>, items: List<ItemId>): List<ItemListTab> {
     if (!INVENTORY_TABS.exists()) return emptyList()
     val config = Yaml.default.decodeFromStream<InventoryTabsConfig>(INVENTORY_TABS.inputStream())
     return config.tabs.map { (id, entry) ->
@@ -108,14 +110,15 @@ fun compileInventoryTabsConfig(namespaces: Map<String, List<EngineItem>>, items:
 }
 
 fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompilingItems()) {
-    val itemsToAdd = mutableListOf<EngineItem>()
+    val itemsToAdd = mutableListOf<ItemProperties>()
     val namespaces = if (NAMESPACES.exists()) {
         Yaml.default.decodeFromStream<MutableMap<String, NamespaceConfig>>(NAMESPACES.inputStream())
     } else {
         mutableMapOf()
     }
     val defaultNamespace = namespaces["default"] ?: NamespaceConfig()
-    val namespaceToItemMap = mutableMapOf<String, MutableList<EngineItem>>()
+    val namespaceToItemMap = mutableMapOf<String, MutableList<ItemProperties>>()
+    val items = mutableListOf<Pair<ItemConfig, ItemProperties>>()
 
     for (namespace in compile.namespaces.values) {
         fun String.replaceToRelative(): String {
@@ -139,19 +142,24 @@ fun EngineMinecraftServer.compileItems(compile: CompileItems = deserializeCompil
 
             val equip = (config.equip ?: namespaceConfig.equip) ?: (config.hat ?: namespaceConfig.hat)?.let { if (it) ItemEquipment(EquipmentSlot.HEAD) else null }
 
-            itemsToAdd += EngineItem(
+            itemsToAdd += ItemProperties(
                 id,
-                config.displayName.parseMiniMessage(),
                 material,
                 assetId,
                 stackSize,
                 equip
             ).also {
+                items.add(config to it)
                 namespaceToItemMap.getOrPut(namespace.id) { mutableListOf() }.add(it)
             }
         }
     }
 
+    engine.itemPrefabStorage.load(
+        items.map { (config, properties) ->
+            ItemPrefab(properties.id, ItemName(config.displayName))
+        }
+    )
     itemContext.itemRegistry.upload(
         itemsToAdd,
         namespaces.map {

@@ -2,6 +2,7 @@ package org.lain.engine.util
 
 import net.minecraft.entity.player.PlayerEntity
 import org.lain.engine.EngineMinecraftServer
+import org.lain.engine.item.ItemStorage
 import org.lain.engine.mc.EngineItemContext
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.Player
@@ -54,6 +55,8 @@ fun injectMinecraftEngineServer() = inject<EngineMinecraftServer>()
 fun injectEntityTable() = inject<EntityTable>()
 
 fun injectItemContext() = inject<EngineItemContext>()
+
+fun injectItemStorage() = inject<ItemStorage>()
 
 fun registerMinecraftServer(
     server: EngineMinecraftServer

@@ -1,8 +1,12 @@
 package org.lain.engine.server
 
-import kotlinx.coroutines.Dispatchers
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemPrefabStorage
+import org.lain.engine.item.ItemStorage
+import org.lain.engine.item.bakeItem
 import org.lain.engine.player.PlayerService
 import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.flushPlayerMessages
@@ -33,6 +37,8 @@ class EngineServer(
     val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val playerService = PlayerService(playerStorage, this)
+    val itemStorage = ItemStorage()
+    val itemPrefabStorage = ItemPrefabStorage()
     val defaultWorld
         get() = worlds.toList().first().second
 
@@ -79,6 +85,13 @@ class EngineServer(
 
     fun getWorld(id: WorldId): World {
         return worlds[id] ?: throw IllegalArgumentException("World with id $id not found")
+    }
+
+    fun createItem(id: ItemId): EngineItem {
+        val prefab = itemPrefabStorage.get(id)
+        val item = bakeItem(prefab)
+        itemStorage.add(item.uuid, item)
+        return item
     }
 
     fun allWorlds() = worlds.values

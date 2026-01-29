@@ -1,6 +1,7 @@
 package org.lain.engine.mc
 
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.item.ItemStack
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.math.Vec3d
@@ -47,13 +48,25 @@ fun Username(text: Text) = Username(text.string)
 fun updateServerMinecraftSystems(
     engine: EngineServer,
     table: ServerPlayerTable,
-    players: List<Player>
+    players: List<Player>,
 ) {
     for (player in players) {
         val entity = table.getEntity(player) ?: return
         val world = engine.getWorld(entity.entityWorld)
 
         updatePlayerMinecraftSystems(player, entity, world)
+        val itemStacks = entity.inventory + entity.currentScreenHandler.stacks
+        for (itemStack in itemStacks) {
+            val reference = itemStack.get(EngineItemReferenceComponent.TYPE) ?: continue
+            val item = reference.getItem() ?: run {
+                if (reference.version != 0) {
+                    //detachEngineItemStack(itemStack)
+                }
+                continue
+            }
+
+            updateEngineItemStack(itemStack, item)
+        }
     }
 }
 

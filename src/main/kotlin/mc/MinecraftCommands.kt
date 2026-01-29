@@ -24,6 +24,8 @@ import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageSource
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemNamespaceId
 import org.lain.engine.player.CustomName
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.InvalidCustomNameException
@@ -400,13 +402,21 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                         } else {
                             items += id
                         }
-                        val stacks = items.mapNotNull { itemRegistry.stacks[it] }
-                        if (stacks.isEmpty()) {
+
+                        val prefabs = items.mapNotNull { itemRegistry.properties[it] }
+                        if (prefabs.isEmpty()) {
                             error("Предметы по идентификатору $id не найдены")
                         }
 
-                        stacks.forEach { player.giveItemStack(it.copy()) }
-                        val format = if (stacks.count() == 1) {
+                        prefabs.forEach { prefab ->
+                            server.createItemStack(prefab.id) { itemStack, item ->
+                                val copy = itemStack.copy()
+                                player.giveItemStack(copy)
+                                copy
+                            }
+                        }
+
+                        val format = if (prefabs.count() == 1) {
                             "Выдан предмет %s игроку %s"
                         } else {
                             "Выданы предметы %s игроку %s"

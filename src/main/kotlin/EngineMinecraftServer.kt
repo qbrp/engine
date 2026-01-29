@@ -2,12 +2,16 @@ package org.lain.engine
 
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.item.ItemStack
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.chat.IncomingMessage
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.bakeItem
 import org.lain.engine.mc.AcousticBlockData
 import org.lain.engine.mc.ConcurrentAcousticSceneBank
 import org.lain.engine.mc.EngineItemContext
@@ -17,6 +21,7 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.MinecraftAcousticManager
 import org.lain.engine.mc.MinecraftPermissionProvider
 import org.lain.engine.mc.Username
+import org.lain.engine.mc.bakeEngineItemStack
 import org.lain.engine.mc.updateServerMinecraftSystems
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.GameMaster
@@ -57,13 +62,17 @@ open class EngineMinecraftServer(
     protected val playerStorage = dependencies.playerStorage
     protected val acousticSceneBank = dependencies.acousticSceneBank
     protected val config = loadOrCreateServerConfig()
-    val itemContext = EngineItemContext(
-        EngineItemRegistry(),
-        listOf()
-    )
+    val itemContext = EngineItemContext(EngineItemRegistry())
     val acousticSimulator = dependencies.acousticSimulator
     val minecraftServer = dependencies.minecraftServer
     val engine = EngineServer(config.server, playerStorage, acousticSimulator, this, transportContext)
+
+    open fun createItemStack(itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> ItemStack): EngineItem {
+        val item = engine.createItem(itemId)
+        val properties = itemContext.itemRegistry.properties.get(itemId)!!
+        itemStackHandler(bakeEngineItemStack(properties, item), item)
+        return item
+    }
 
     open fun tick() {
         updateServerMinecraftSystems(engine, entityTable, engine.playerStorage.getAll())
@@ -75,6 +84,7 @@ open class EngineMinecraftServer(
         Injector.register<PlayerPermissionsProvider>(MinecraftPermissionProvider(entityTable))
         Injector.register<ServerTransportContext>(transportContext)
         Injector.register(itemContext)
+        Injector.register(engine.itemStorage)
         applyConfigCatching(config)
         compileItemsCatching()
         minecraftServer.worlds.forEach {
