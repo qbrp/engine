@@ -12,49 +12,20 @@ import net.minecraft.entity.EquipmentSlot
 import net.minecraft.item.ItemStack
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
-import net.minecraft.text.Style
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.Unit
-import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemNamespace
-import org.lain.engine.item.ItemNamespaceId
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.name
 import org.lain.engine.util.EngineId
+import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.injectItemStorage
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.Optional
 import java.util.UUID
 import kotlin.jvm.optionals.getOrNull
-
-class EngineItemRegistry {
-    // Список всех возможных идентификаторов (неймспейсов и предметов в неймспейсах). Для команд
-    var identifiers: List<String> = listOf()
-        private set
-    var properties: Map<ItemId, ItemProperties> = mapOf()
-        private set
-    var namespaces: Map<ItemNamespaceId, ItemNamespace> = mapOf()
-        private set
-
-    fun upload(
-        items: List<ItemProperties>,
-        namespaces: List<ItemNamespace>
-    ) {
-        val ids = mutableListOf<String>()
-        properties = items.associateBy {
-            ids += it.id.value
-            it.id
-        }
-        this.namespaces = namespaces.associateBy {
-            ids += it.id.value
-            it.id
-        }
-        identifiers = ids
-    }
-}
 
 data class ItemListTab(
     val id: String,
@@ -63,7 +34,7 @@ data class ItemListTab(
 )
 
 data class EngineItemContext(
-    val itemRegistry: EngineItemRegistry,
+    val itemPropertiesStorage: NamespacedStorage<ItemId, ItemProperties> = NamespacedStorage(),
     var tabs: List<ItemListTab> = mutableListOf(),
 )
 
@@ -98,22 +69,29 @@ fun updateEngineItemStack(itemStack: ItemStack, item: EngineItem) {
     )
 }
 
-fun bakeEngineItemStack(properties: ItemProperties, item: EngineItem): ItemStack {
-    val materialStack = Registries.ITEM.get(properties.material).defaultStack ?: error("Item not found")
-    materialStack.set(
+fun bakeEngineItemStack(
+    properties: ItemProperties,
+    item: EngineItem,
+    itemStack: ItemStack
+): ItemStack {
+    itemStack.set(
+        DataComponentTypes.ITEM_NAME,
+        Text.of(item.name)
+    )
+    itemStack.set(
         DataComponentTypes.ITEM_MODEL,
         properties.asset
     )
-    materialStack.set(
+    itemStack.set(
         DataComponentTypes.UNBREAKABLE,
         Unit.INSTANCE
     )
-    materialStack.set(
+    itemStack.set(
         DataComponentTypes.MAX_STACK_SIZE,
         properties.maxStackSize
     )
     properties.equipment?.let {
-        materialStack.set(
+        itemStack.set(
             DataComponentTypes.EQUIPPABLE,
             EquippableComponent.builder(it.slot)
                 .allowedEntities(EntityType.PLAYER)
@@ -121,19 +99,23 @@ fun bakeEngineItemStack(properties: ItemProperties, item: EngineItem): ItemStack
         )
     }
 
-    materialStack.set(
+    itemStack.set(
         EngineItemReferenceComponent.TYPE,
         EngineItemReferenceComponent(item.id, item.uuid, CURRENT_ITEM_VERSION)
     )
-    updateEngineItemStack(materialStack, item)
-    return materialStack
+    updateEngineItemStack(itemStack, item)
+    return itemStack
 }
+
+fun ItemStack.engine() = get(EngineItemReferenceComponent.TYPE)
+
+fun ItemStack.engineItem() = get(EngineItemReferenceComponent.TYPE)?.getItem()
 
 const val CURRENT_ITEM_VERSION = 1
 
 // 0 - до механики предметов, не нужно детачить
 data class EngineItemReferenceComponent(val id: ItemId, val uuid: ItemUuid?, val version: Int) {
-    private var cachedItem: EngineItem? = null
+    var cachedItem: EngineItem? = null
 
     fun getItem(): EngineItem? {
         if (uuid == null) return null
@@ -157,17 +139,16 @@ data class EngineItemReferenceComponent(val id: ItemId, val uuid: ItemUuid?, val
                 .codec(
                     RecordCodecBuilder.create { instance ->
                         instance.group(
-                            Codec.STRING.optionalFieldOf("id")
-                                .xmap(
-                                    { it.map(::ItemId).orElse(ItemId("unknown")) },
-                                    { Optional.of(it.value) }
-                                )
-                                .forGetter { Optional.of(it.id.value).getOrNull()?.let { ItemId(it) } },
-
+                            Codec.STRING.xmap(
+                                { ItemId(it) },
+                                { it.value }
+                            )
+                                .fieldOf("item")
+                                .forGetter { it.id },
                             Codec.STRING.optionalFieldOf("uuid")
                                 .xmap(
-                                    { it.map { ItemUuid(UUID.fromString(it)) }.orElse(null) },
-                                    { Optional.ofNullable(it?.value?.toString()) }
+                                    { it.map { ItemUuid(UUID.fromString(it).toString()) }.orElse(null) },
+                                    { Optional.ofNullable(it?.value) }
                                 )
                                 .forGetter { Optional.ofNullable(it.uuid).getOrNull() },
 

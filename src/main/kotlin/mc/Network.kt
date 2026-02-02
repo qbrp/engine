@@ -108,7 +108,7 @@ fun DisconnectText(reason: String) = "<red>[ENGINE] ${reason}</red>".parseMiniMe
 fun DisconnectText(exception: Throwable) = DisconnectText(exception.message ?: "Unknown error")
 
 fun disconnectInternal(playerId: PlayerId, reason: String) {
-    val entity = ENTITY_TABLE.server.getEntity(playerId) as? ServerPlayerEntity ?: error("Player entity $playerId not found")
+    val entity = ENTITY_TABLE.server.getEntity(playerId) as? ServerPlayerEntity ?: error("EnginePlayer entity $playerId not found")
     val networkHandler = entity.networkHandler
     networkHandler.disconnect(DisconnectText(reason))
 }

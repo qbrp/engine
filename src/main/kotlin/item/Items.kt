@@ -1,5 +1,6 @@
 package org.lain.engine.item
 
+import kotlinx.serialization.Serializable
 import org.lain.engine.util.ComponentManager
 import org.lain.engine.util.ComponentState
 import org.lain.engine.util.Storage
@@ -19,6 +20,7 @@ data class EngineItem(
 ) : ComponentManager by state
 
 @JvmInline
+@Serializable
 value class ItemId(val value: String) {
     init { require(!value.contains(" ")) { "Идентификатор содержит пробелы" } }
 
@@ -28,6 +30,11 @@ value class ItemId(val value: String) {
 }
 
 @JvmInline
-value class ItemUuid(val value: UUID)
+@Serializable
+value class ItemUuid(val value: String) {
+    companion object {
+        fun next() = ItemUuid(UUID.randomUUID().toString())
+    }
+}
 
 class ItemStorage : Storage<ItemUuid, EngineItem>()

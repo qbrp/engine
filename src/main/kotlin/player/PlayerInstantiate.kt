@@ -1,5 +1,6 @@
 package org.lain.engine.player
 
+import org.lain.engine.item.EngineItem
 import org.lain.engine.server.SynchronizationComponent
 import org.lain.engine.util.Component
 import org.lain.engine.util.Pos
@@ -19,6 +20,7 @@ data class PlayerInstantiateSettings(
     val attributes: PlayerAttributes = PlayerAttributes(),
     val spectating: Spectating = Spectating(),
     val gameMaster: GameMaster = GameMaster(),
+    val items: Set<EngineItem> = setOf()
 )
 
 data class DefaultPlayerAttributes(
@@ -31,13 +33,14 @@ data class DefaultPlayerAttributes(
 fun commonPlayerInstance(
     settings: PlayerInstantiateSettings,
     id: PlayerId
-): Player {
-    return Player(id).apply {
+): EnginePlayer {
+    return EnginePlayer(id).apply {
         set(Location(settings.world, settings.pos))
         set(Velocity())
         set(Orientation())
         set(PlayerModel())
         set(DeveloperMode(false))
+        set(PlayerInventory(settings.items.toMutableSet()))
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)
@@ -51,14 +54,14 @@ fun serverPlayerInstance(
     persistent: PersistentPlayerData? = null,
     defaults: DefaultPlayerAttributes,
     id: PlayerId,
-): Player {
+): EnginePlayer {
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
 
     return commonPlayerInstance(settings, id).apply {
         set(MessageQueue())
         set(voiceApparatus)
         setNullable(persistent?.voiceLoose)
-        set(PlayerUpdatesComponent())
+        set(PlayerUpdates())
         set(defaults)
         set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
         set(SynchronizationComponent(false))

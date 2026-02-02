@@ -6,7 +6,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.mc.InvalidMessageSourcePositionException
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.chatHeadsEnabled
 import org.lain.engine.player.displayName
 import org.lain.engine.player.isSpectating
@@ -19,11 +19,9 @@ import org.lain.engine.util.filterNearestPlayers
 import org.lain.engine.util.roundToInt
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
 import org.lain.engine.world.players
 import org.lain.engine.world.pos
 import org.lain.engine.world.world
-import org.slf4j.LoggerFactory
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
@@ -79,7 +77,7 @@ class EngineChat(
         logMessage(source, content, end - start)
     }
 
-    fun processMessage(channel: ChatChannel, player: Player, content: String) {
+    fun processMessage(channel: ChatChannel, player: EnginePlayer, content: String) {
         processMessage(channel, MessageSource.getPlayer(player), content)
     }
 
@@ -111,8 +109,8 @@ class EngineChat(
         // Акустики нет - сообщение нельзя обработать
         val acoustic = acoustic ?: return
         var dontSendMessageToAuthor = false
-        val volumes = mutableMapOf<Player, Float>()
-        val recipients = mutableListOf<Player>()
+        val volumes = mutableMapOf<EnginePlayer, Float>()
+        val recipients = mutableListOf<EnginePlayer>()
         if (sourcePos != null) {
             val toAdd = when (acoustic) {
                 is Acoustic.Distance -> {
@@ -165,7 +163,7 @@ class EngineChat(
             .forEach { sendSpyMessage(content, source, this, it, id = id) }
     }
 
-    fun sendSystemMessage(content: String, recipient: Player) {
+    fun sendSystemMessage(content: String, recipient: EnginePlayer) {
         sendMessage(
             content,
             source = MessageSource.getSystem(recipient.world),
@@ -179,7 +177,7 @@ class EngineChat(
         content: String,
         source: MessageSource,
         channel: ChatChannel,
-        recipient: Player,
+        recipient: EnginePlayer,
         boomerang: Boolean = false,
         volume: Float? = null,
         placeholders: Map<String, String> = mapOf(),
@@ -188,8 +186,6 @@ class EngineChat(
         var content = content
         val mustBeSpectator = channel.modifiers.contains(Modifier.Spectator)
         if (mustBeSpectator && !recipient.isSpectating) return
-
-        val hasMention = channel.notify || hasMention(recipient, content)
 
         val acoustic = channel.acoustic
         val isRealistic = acoustic is Acoustic.Realistic && volume != null
@@ -212,9 +208,10 @@ class EngineChat(
                content,
                source,
                channel,
-               mention = hasMention,
+               mention = hasMention(recipient, content),
                speech = isSpeech,
                volume = volume,
+               notify = channel.notify,
                placeholders = getDefaultPlaceholders(recipient, source, volume) + placeholders,
                id = id
            )
@@ -225,7 +222,7 @@ class EngineChat(
         content: String,
         source: MessageSource,
         originalChannel: ChatChannel,
-        recipient: Player,
+        recipient: EnginePlayer,
         id: MessageId
     ) {
         sendMessageInternal(
@@ -233,13 +230,14 @@ class EngineChat(
             content,
             source,
             originalChannel,
+            notify = originalChannel.notify,
             isSpy = true,
             id = id
         )
     }
 
     private fun sendMessageInternal(
-        recipient: Player,
+        recipient: EnginePlayer,
         text: String,
         source: MessageSource,
         channel: ChatChannel,
@@ -247,6 +245,7 @@ class EngineChat(
         speech: Boolean = false,
         volume: Float? = null,
         isSpy: Boolean = false,
+        notify: Boolean = false,
         head: Boolean = showHeads(source.player, channel),
         placeholders: Map<String, String> = getDefaultPlaceholders(recipient, source, volume),
         id: MessageId
@@ -258,6 +257,7 @@ class EngineChat(
                 source,
                 channel.id,
                 mention,
+                notify,
                 speech,
                 volume,
                 placeholders,
@@ -270,11 +270,11 @@ class EngineChat(
         )
     }
 
-    private fun hasMention(ofPlayer: Player, text: String): Boolean {
+    private fun hasMention(ofPlayer: EnginePlayer, text: String): Boolean {
         return text.contains("@${ofPlayer.username}")
     }
 
-    private fun showHeads(player: Player?, channel: ChatChannel): Boolean {
+    private fun showHeads(player: EnginePlayer?, channel: ChatChannel): Boolean {
         return (player?.chatHeadsEnabled ?: true) && channel.heads
     }
 
@@ -295,7 +295,7 @@ class EngineChat(
     }
 
     private fun getDefaultPlaceholders(
-        recipient: Player,
+        recipient: EnginePlayer,
         source: MessageSource,
         volume: Float?
     ): Map<String, String> {
@@ -323,7 +323,7 @@ class EngineChat(
         world: World,
         pos: Pos,
         volume: Float
-    ): Map<Player, Float> {
+    ): Map<EnginePlayer, Float> {
         val players = world.players
         val acousticLevel = settings.realisticAcousticFormatting.getLevel(volume)
 

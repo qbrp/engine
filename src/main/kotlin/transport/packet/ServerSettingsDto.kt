@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.MovementDefaultAttributes
 import org.lain.engine.player.MovementSettings
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.playerBaseInputVolume
 import org.lain.engine.server.EngineServer
 
@@ -16,7 +16,7 @@ data class ClientboundServerSettings(
     val defaultAttributes: ClientDefaultAttributes
 ) {
     companion object {
-        fun of (server: EngineServer, player: Player): ClientboundServerSettings {
+        fun of (server: EngineServer, player: EnginePlayer): ClientboundServerSettings {
             return ClientboundServerSettings(
                 server.globals.playerSynchronizationRadius,
                 ClientChatSettings.of(server.globals.chatSettings, player),

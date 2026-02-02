@@ -17,7 +17,6 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.math.BlockPos
-import net.minecraft.world.chunk.Chunk
 import net.minecraft.world.chunk.WorldChunk
 import org.lain.engine.chat.CHAT_HEADS_PERMISSION
 import org.lain.engine.chat.ChatChannel
@@ -25,17 +24,13 @@ import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemNamespaceId
 import org.lain.engine.player.CustomName
-import org.lain.engine.player.DisplayName
 import org.lain.engine.player.InvalidCustomNameException
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
 import org.lain.engine.player.customName
 import org.lain.engine.player.developerMode
-import org.lain.engine.player.displayName
-import org.lain.engine.player.displayNameText
 import org.lain.engine.player.resetCustomJumpStrength
 import org.lain.engine.player.resetCustomSpeed
 import org.lain.engine.player.setCustomJumpStrength
@@ -45,10 +40,11 @@ import org.lain.engine.player.stopSpectating
 import org.lain.engine.player.toggleChatHeads
 import org.lain.engine.player.username
 import org.lain.engine.util.Color
+import org.lain.engine.util.NamespaceId
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.apply
 import org.lain.engine.util.file.applyConfig
-import org.lain.engine.util.file.compileItems
+import org.lain.engine.util.file.compileContents
 import org.lain.engine.util.get
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.injectMinecraftEngineServer
@@ -78,7 +74,7 @@ fun ServerCommandContext.getPlayerEntity(id: String): ServerPlayerEntity {
     return EntityArgumentType.getPlayer(this, id)
 }
 
-fun ServerCommandContext.getPlayer(id: String): Player {
+fun ServerCommandContext.getPlayer(id: String): EnginePlayer {
     val entityTable by injectEntityTable()
     return entityTable.server.getPlayer(getPlayerEntity(id)) ?: throw FriendlyException("Игрок $id не найден")
 }
@@ -127,11 +123,11 @@ fun List<ServerPlayerEntity>.formatPlayerList() = joinToString(separator = ", ")
 private class FriendlyException(message: String) : RuntimeException(message)
 
 data class Context(
-    val player: Player?,
+    val player: EnginePlayer?,
     val source: ServerCommandSource,
     val command: ServerCommandContext
 ) {
-    fun requirePlayer(): Player {
+    fun requirePlayer(): EnginePlayer {
         return player ?: throw FriendlyException("Команда предназначена для игрока")
     }
 
@@ -393,23 +389,23 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                         val id = ItemId(argument)
                         val player = ctx.source.player ?: error("Команда доступна только игроку")
 
-                        val itemRegistry = itemContext.itemRegistry
+                        val itemRegistry = itemContext.itemPropertiesStorage
                         val items = mutableListOf<ItemId>()
 
-                        val namespace = itemRegistry.namespaces[ItemNamespaceId(argument)]
+                        val namespace = itemRegistry.namespaces[NamespaceId(argument)]
                         if (namespace != null) {
-                            items += namespace.items
+                            items += namespace.entries.keys.toList()
                         } else {
                             items += id
                         }
 
-                        val prefabs = items.mapNotNull { itemRegistry.properties[it] }
+                        val prefabs = items.map { itemRegistry[it] }
                         if (prefabs.isEmpty()) {
                             error("Предметы по идентификатору $id не найдены")
                         }
 
                         prefabs.forEach { prefab ->
-                            server.createItemStack(prefab.id) { itemStack, item ->
+                            server.createItemStack(ctx.requirePlayer(), prefab.id) { itemStack, item ->
                                 val copy = itemStack.copy()
                                 player.giveItemStack(copy)
                                 copy
@@ -432,7 +428,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
         CommandManager.literal("reloadengineitems")
             .requires { it.hasPermission("reloadengineitems") }
             .executeCatching {
-                server.compileItems()
+                server.compileContents()
                 it.sendFeedback("Предметы перезагружены", true)
             }
     )
@@ -508,7 +504,7 @@ object EngineItemsSuggestionProvider : SuggestionProvider<ServerCommandSource> {
         context: CommandContext<ServerCommandSource>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
-        val itemRegistry = itemContext.itemRegistry
+        val itemRegistry = itemContext.itemPropertiesStorage
         val identifiers = itemRegistry.identifiers
         val input = builder.remainingLowerCase.replace(""""""", "")
         identifiers

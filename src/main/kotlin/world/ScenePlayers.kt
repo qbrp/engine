@@ -1,17 +1,17 @@
 package org.lain.engine.world
 
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.Component
 import org.lain.engine.util.require
 
 data class ScenePlayers(
-    val players: MutableList<Player> = mutableListOf()
+    val players: MutableList<EnginePlayer> = mutableListOf()
 ) : Component {
-    fun add(player: Player) {
+    fun add(player: EnginePlayer) {
         players += player
     }
 
-    fun remove(player: Player) {
+    fun remove(player: EnginePlayer) {
         players -= player
     }
 }

@@ -17,15 +17,22 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.client.transport.ClientTransportContext
+import org.lain.engine.client.transport.clientItem
 import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.Gun
+import org.lain.engine.item.ItemUuid
+import org.lain.engine.item.SoundPlay
 import org.lain.engine.player.CustomName
 import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.Interaction
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.customName
 import org.lain.engine.player.username
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
+import org.lain.engine.transport.packet.ClientboundItemData
 import org.lain.engine.transport.packet.ClientboundServerSettings
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.ClientboundWorldData
@@ -34,23 +41,30 @@ import org.lain.engine.transport.packet.DeveloperModePacket
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.IncomingChatMessagePacket
+import org.lain.engine.transport.packet.InteractionPacket
+import org.lain.engine.transport.packet.ItemGunPacket
+import org.lain.engine.transport.packet.ItemPacket
+import org.lain.engine.transport.packet.PlayerCursorItemPacket
 import org.lain.engine.transport.packet.SERVERBOUND_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_DEVELOPER_MODE_PACKET
+import org.lain.engine.transport.packet.SERVERBOUND_INTERACTION_ENDPOINT
+import org.lain.engine.transport.packet.SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_VOLUME_PACKET
 import org.lain.engine.transport.packet.ServerPlayerData
+import org.lain.engine.transport.packet.ServerboundInteractionData
 import org.lain.engine.transport.packet.SetSpeedIntentionPacket
 import org.lain.engine.transport.packet.VolumePacket
+import org.lain.engine.util.IdCollisionException
+import org.lain.engine.util.apply
 import org.lain.engine.util.injectValue
 import org.lain.engine.util.replaceOrSet
 import org.lain.engine.util.require
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import kotlin.collections.forEach
-import kotlin.collections.plus
 
-typealias Update = Player.() -> Unit
+typealias Update = EnginePlayer.() -> Unit
 
 typealias PendingUpdates = MutableList<Update>
 
@@ -92,8 +106,20 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(DeveloperModePacket(boolean))
     }
 
+    fun onInteraction(interaction: Interaction) {
+        SERVERBOUND_INTERACTION_ENDPOINT.sendC2SPacket(
+            InteractionPacket(
+                ServerboundInteractionData.from(interaction)
+            )
+        )
+    }
+
+    fun onCursorItem(item: EngineItem?) {
+        SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT.sendC2SPacket(PlayerCursorItemPacket(item?.uuid))
+    }
+
     fun applyPlayerAttributeUpdate(
-        player: Player,
+        player: EnginePlayer,
         speed: AttributeUpdate? = null,
         jumpStrength: AttributeUpdate? = null
     ) = with(player) {
@@ -114,15 +140,15 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
     }
 
-    fun applyPlayerCustomName(player: Player, customName: CustomName?) = with(player) {
+    fun applyPlayerCustomName(player: EnginePlayer, customName: CustomName?) = with(player) {
         this.customName = customName
     }
 
-    fun applyPlayerSpeedIntention(player: Player, intention: Float) = with(player) {
+    fun applyPlayerSpeedIntention(player: EnginePlayer, intention: Float) = with(player) {
         this.require<MovementStatus>().intention = intention
     }
 
-    fun applyFullPlayerData(player: Player, data: FullPlayerData) = with(player) {
+    fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) = with(player) {
         replaceOrSet(data.movementStatus)
         replaceOrSet(data.attributes)
         isLowDetailed = false
@@ -133,7 +159,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         gameSession!!.instantiateLowDetailedPlayer(data)
     }
 
-    fun applyPlayerDestroyed(player: Player) {
+    fun applyPlayerDestroyed(player: EnginePlayer) {
         gameSession!!.playerStorage.remove(player.id)
         eventBus.onPlayerDestroy(client, player.id)
     }
@@ -203,6 +229,36 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 )
         }
         client.applyLittleNotification(notification)
+    }
+
+    fun applyItemPacket(item: ClientboundItemData) = with(gameSession!!) {
+        val item = clientItem(world, item)
+        fun add() = itemStorage.add(item.uuid, item)
+
+        try {
+            add()
+        } catch (e: IdCollisionException) {
+            itemStorage.remove(item.uuid)
+            add()
+
+            LOGGER.warn("Предмет ${item.id} (${item.uuid}) был перезаписан")
+        }
+    }
+
+    fun applyItemGunPacket(uuid: ItemUuid, selector: Boolean?, barrelBullets: Int?): Unit = with(gameSession!!) {
+        val item = itemStorage.get(uuid) ?: run {
+            LOGGER.warn("Прислан пакет данных для несуществующего предмета $uuid")
+            return
+        }
+
+        item.apply<Gun> {
+            barrelBullets?.let { barrel.bullets = it }
+            selector?.let { this.selector = it }
+        }
+    }
+
+    fun applyPlaySoundPacket(play: SoundPlay) {
+        client.audioManager.playSound(play)
     }
 
     companion object {

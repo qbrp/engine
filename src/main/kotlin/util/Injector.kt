@@ -1,11 +1,9 @@
 package org.lain.engine.util
 
-import net.minecraft.entity.player.PlayerEntity
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.mc.EngineItemContext
 import org.lain.engine.mc.EntityTable
-import org.lain.engine.player.Player
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.ServerTransportContext
 import kotlin.reflect.KClass

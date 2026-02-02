@@ -3,6 +3,7 @@ package org.lain.engine
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
+import net.minecraft.registry.Registries
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.BlockPos
@@ -11,11 +12,10 @@ import net.minecraft.world.chunk.Chunk
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
-import org.lain.engine.item.bakeItem
 import org.lain.engine.mc.AcousticBlockData
 import org.lain.engine.mc.ConcurrentAcousticSceneBank
 import org.lain.engine.mc.EngineItemContext
-import org.lain.engine.mc.EngineItemRegistry
+import org.lain.engine.mc.EngineItemReferenceComponent
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.MinecraftAcousticManager
@@ -26,7 +26,7 @@ import org.lain.engine.mc.updateServerMinecraftSystems
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.GameMaster
 import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerInstantiateSettings
@@ -43,6 +43,7 @@ import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.compileItemsCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.file.parsePersistentPlayerData
+import org.lain.engine.world.location
 import org.lain.engine.world.world
 
 data class EngineMinecraftServerDependencies(
@@ -58,24 +59,32 @@ open class EngineMinecraftServer(
     protected val dependencies: EngineMinecraftServerDependencies,
     protected open val transportContext: ServerTransportContext
 ) : ServerEventListener {
-    protected val entityTable = dependencies.entityTable.server
     protected val playerStorage = dependencies.playerStorage
     protected val acousticSceneBank = dependencies.acousticSceneBank
     protected val config = loadOrCreateServerConfig()
-    val itemContext = EngineItemContext(EngineItemRegistry())
+    val entityTable = dependencies.entityTable.server
+    val itemContext = EngineItemContext()
     val acousticSimulator = dependencies.acousticSimulator
     val minecraftServer = dependencies.minecraftServer
     val engine = EngineServer(config.server, playerStorage, acousticSimulator, this, transportContext)
 
-    open fun createItemStack(itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> ItemStack): EngineItem {
-        val item = engine.createItem(itemId)
-        val properties = itemContext.itemRegistry.properties.get(itemId)!!
-        itemStackHandler(bakeEngineItemStack(properties, item), item)
+    open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
+        val item = engine.createItem(owner.location, itemId)
+        val properties = itemContext.itemPropertiesStorage[itemId]
+        bakeEngineItemStack(properties, item, itemStack)
         return item
     }
 
+    open fun createItemStack(owner: EnginePlayer, itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> Unit): EngineItem {
+        val properties = itemContext.itemPropertiesStorage[itemId]
+        val itemStack = Registries.ITEM.get(properties.material).defaultStack ?: error("Illegal material id")
+        return wrapItemStack(owner, itemId, itemStack)
+            .also { itemStackHandler(itemStack, it) }
+    }
+
     open fun tick() {
-        updateServerMinecraftSystems(engine, entityTable, engine.playerStorage.getAll())
+        val players = engine.playerStorage.getAll()
+        updateServerMinecraftSystems(this, entityTable, players)
         engine.update()
     }
 
@@ -107,7 +116,7 @@ open class EngineMinecraftServer(
         entityTable.removePlayer(entity)
     }
 
-    override fun onPlayerInstantiated(player: Player) {
+    override fun onPlayerInstantiated(player: EnginePlayer) {
         val entity = minecraftServer.playerManager.getPlayer(player.id.value) ?: return
         entityTable.setPlayer(entity, player)
     }
@@ -135,7 +144,7 @@ fun serverMinecraftPlayerInstance(
     engineServer: EngineServer,
     entity: PlayerEntity,
     playerId: PlayerId,
-): Player {
+): EnginePlayer {
     val persistentPlayerData = parsePersistentPlayerData(playerId)
     val defaults = engineServer.globals.defaultPlayerAttributes
 
@@ -154,6 +163,9 @@ fun serverMinecraftPlayerInstance(
             PlayerAttributes(),
             Spectating(),
             GameMaster(),
+            entity.inventory.mainStacks
+                .mapNotNull { itemStack -> itemStack.get(EngineItemReferenceComponent.TYPE)?.getItem() }
+                .toSet()
         ),
         persistentPlayerData,
         defaults,

@@ -27,6 +27,7 @@ import org.lain.engine.client.server.ServerSingleplayerTransport
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.mc.DisconnectText
+import org.lain.engine.mc.EngineItemReferenceComponent
 import org.lain.engine.mc.updatePlayerMinecraftSystems
 import org.lain.engine.serverMinecraftPlayerInstance
 import org.lain.engine.util.*
@@ -68,7 +69,7 @@ class MinecraftEngineClient : ClientModInitializer {
 
     override fun onInitializeClient() {
         engineClient.options = config
-        keybindManager = KeybindManager()
+        keybindManager = KeybindManager(config = config.config)
         Injector.register(keybindManager)
         ClientPlayConnectionEvents.JOIN.register { handler, _, _ ->
             val entity = client.player!!
@@ -117,7 +118,13 @@ class MinecraftEngineClient : ClientModInitializer {
                             return@forEach
                         }
                         val world = session.world
-                        updatePlayerMinecraftSystems(player, entity, world)
+                        val itemStacks = (entity.inventory.mainStacks + entity.currentScreenHandler.cursorStack).toSet()
+                        val items = itemStacks.mapNotNull { itemStack ->
+                            val reference = itemStack.get(EngineItemReferenceComponent.TYPE) ?: return@mapNotNull null
+                            val item = reference.getClientItem() ?: return@mapNotNull null
+                            item to itemStack
+                        }
+                        updatePlayerMinecraftSystems(player, items, entity, world)
                     }
                     renderer.tick()
                 }

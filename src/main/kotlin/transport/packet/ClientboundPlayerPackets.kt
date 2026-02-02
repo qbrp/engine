@@ -2,8 +2,13 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import net.minecraft.network.PacketByteBuf
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemStorage
+import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.CustomName
 import org.lain.engine.player.DefaultPlayerAttributes
+import org.lain.engine.player.Interaction
 import org.lain.engine.player.MovementDefaultAttributes
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -100,3 +105,44 @@ fun PacketByteBuf.readAttributeUpdate(): AttributeUpdate {
         else -> throw IllegalStateException("Invalid attribute update value: $str")
     }
 }
+
+// Interactions
+
+@Serializable
+data class InteractionPacket(val interaction: ServerboundInteractionData) : Packet
+
+@Serializable
+sealed class ServerboundInteractionData {
+    @Serializable
+    data class SlotClick(val cursorItem: ItemUuid, val item: ItemUuid) : ServerboundInteractionData()
+    @Serializable
+    object RightClick : ServerboundInteractionData()
+    @Serializable
+    object LeftClick : ServerboundInteractionData()
+
+    fun toDomain(itemStorage: ItemStorage) = when(this) {
+        LeftClick -> Interaction.LeftClick
+        RightClick -> Interaction.RightClick
+        is SlotClick -> Interaction.SlotClick(
+            itemStorage.get(cursorItem) ?: error("Item $cursorItem not found"),
+            itemStorage.get(item) ?: error("Item $cursorItem not found")
+        )
+    }
+
+    companion object {
+        fun from(interaction: Interaction) = when(interaction) {
+            is Interaction.LeftClick -> LeftClick
+            is Interaction.RightClick -> RightClick
+            is Interaction.SlotClick -> SlotClick(interaction.cursorItem.uuid, interaction.item.uuid)
+        }
+    }
+}
+
+val SERVERBOUND_INTERACTION_ENDPOINT = Endpoint<InteractionPacket>()
+
+// Inventory
+
+@Serializable
+data class PlayerCursorItemPacket(val item: ItemUuid?) : Packet
+
+val SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT = Endpoint<PlayerCursorItemPacket>()

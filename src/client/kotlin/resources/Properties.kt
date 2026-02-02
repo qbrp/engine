@@ -15,6 +15,7 @@ import net.minecraft.client.world.ClientWorld
 import net.minecraft.item.ItemDisplayContext
 import net.minecraft.item.ItemStack
 import net.minecraft.util.HeldItemContext
+import org.joml.Vector3fc
 
 private val CULLING = RenderStateDataKey.create<Boolean> { "Engine culling" }
 
@@ -24,7 +25,8 @@ var ItemRenderState.culling: Boolean?
 
 class EngineItemModel(
     val itemModel: ItemModel,
-    val disableCulling: Boolean
+    val disableCulling: Boolean,
+    val markers: Map<String, Vector3fc>
 ) : ItemModel by itemModel {
     override fun update(
         state: ItemRenderState,
@@ -41,14 +43,16 @@ class EngineItemModel(
 
     class Unbaked(
         val model: ItemModel.Unbaked,
-        val disableCulling: Boolean
+        val disableCulling: Boolean,
+        val markers: Map<String, Vector3fc>
     ) : ItemModel.Unbaked {
         override fun getCodec(): MapCodec<out ItemModel.Unbaked> { throw AssertionError() }
 
         override fun bake(context: ItemModel.BakeContext): ItemModel {
             return EngineItemModel(
                 model.bake(context),
-                disableCulling
+                disableCulling,
+                markers
             )
         }
 

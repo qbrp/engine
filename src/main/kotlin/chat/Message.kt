@@ -7,8 +7,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import org.lain.engine.player.Player
-import org.lain.engine.player.displayName
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.Pos
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.text.displayNameMiniMessage
@@ -19,7 +18,7 @@ import java.util.UUID
 
 data class MessageAuthor(
     val name: String,
-    val player: Player? = null
+    val player: EnginePlayer? = null
 )
 
 data class MessageSource(
@@ -37,7 +36,7 @@ data class MessageSource(
         fun getSystem(world: World, time: Long = System.currentTimeMillis()): MessageSource {
             return MessageSource(world, MessageAuthor("Система"), Timestamp(time))
         }
-        fun getPlayer(player: Player, time: Long = System.currentTimeMillis()): MessageSource {
+        fun getPlayer(player: EnginePlayer, time: Long = System.currentTimeMillis()): MessageSource {
             return MessageSource(player.world, MessageAuthor(player.displayNameMiniMessage, player), Timestamp(time), player.pos)
         }
     }
@@ -134,6 +133,7 @@ data class OutcomingMessage(
     val source: MessageSource,
     val channel: ChannelId,
     val mentioned: Boolean = false,
+    val notify: Boolean = false,
     val speech: Boolean = false,
     val volume: Float? = 0f,
     val placeholders: Map<String, String> = mapOf(),

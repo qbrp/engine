@@ -21,16 +21,16 @@ data class MessageQueue(
     val messages: ConcurrentLinkedQueue<Speak> = ConcurrentLinkedQueue()
 ) : Component
 
-fun Player.speak(text: String, channel: ChannelId = ChatChannel.DEFAULT) {
+fun EnginePlayer.speak(text: String, channel: ChannelId = ChatChannel.DEFAULT) {
     require<MessageQueue>().messages += Speak(text, channel)
 }
 
-fun Player.flushMessages(todo: (Speak) -> Unit) {
+fun EnginePlayer.flushMessages(todo: (Speak) -> Unit) {
     get<MessageQueue>()?.messages?.flush(todo)
 }
 
 fun flushPlayerMessages(
-    player: Player,
+    player: EnginePlayer,
     chat: EngineChat,
     vocalSettings: VocalSettings,
 ) {

@@ -3,8 +3,6 @@ package org.lain.engine.client
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.render.TransformationsEditorScreen
-import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.Camera
 import org.lain.engine.client.render.EXCLAMATION
 import org.lain.engine.client.render.FontRenderer
@@ -17,13 +15,9 @@ import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.player.Player
-import org.lain.engine.player.PlayerId
 import org.lain.engine.player.developerMode
-import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.util.DEV_MODE_COLOR
 import org.lain.engine.util.SPECTATOR_MODE_COLOR
-import org.lwjgl.glfw.GLFW
 
 class EngineClient(
     val window: Window,

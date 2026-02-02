@@ -1,11 +1,6 @@
 package org.lain.engine.mc
 
-import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.Codec
-import com.mojang.serialization.DataResult
-import com.mojang.serialization.Decoder
-import com.mojang.serialization.DynamicOps
-import com.mojang.serialization.Encoder
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry
 import net.fabricmc.fabric.api.attachment.v1.AttachmentSyncPredicate
@@ -14,10 +9,8 @@ import net.fabricmc.fabric.api.attachment.v1.AttachmentType
 import net.minecraft.network.PacketByteBuf
 import net.minecraft.network.codec.PacketCodec
 import net.minecraft.network.codec.PacketDecoder
-import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.chunk.WorldChunk
-import org.lain.engine.player.Player
 import org.lain.engine.util.EngineId
 import kotlin.collections.iterator
 

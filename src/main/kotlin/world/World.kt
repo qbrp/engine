@@ -13,5 +13,6 @@ class World(
 fun world(id: WorldId): World {
     return World(id).apply {
         set(ScenePlayers())
+        set(WorldSoundsComponent())
     }
 }

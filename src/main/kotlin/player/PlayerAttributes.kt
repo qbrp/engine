@@ -1,8 +1,6 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.isInGameMasterMode
-import org.lain.engine.player.isSpectating
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.util.Component
 import org.lain.engine.util.require
@@ -26,15 +24,15 @@ data class PlayerAttributes(
 data class MovementDefaultAttributes(
     val attributes: Map<PlayerStatus, Map<PrimaryAttribute, Float>> = mapOf()
 ) {
-    fun getPrimarySeed(player: Player): Float? {
+    fun getPrimarySeed(player: EnginePlayer): Float? {
         return attributes[player.status]?.get(PrimaryAttribute.SPEED)
     }
 
-    fun getPrimaryJumpStrength(player: Player): Float? {
+    fun getPrimaryJumpStrength(player: EnginePlayer): Float? {
         return attributes[player.status]?.get(PrimaryAttribute.JUMP_STRENGTH)
     }
 
-    private val Player.status: PlayerStatus
+    private val EnginePlayer.status: PlayerStatus
         get() = when {
             isInGameMasterMode -> PlayerStatus.GM
             isSpectating -> PlayerStatus.SPECTATING
@@ -68,36 +66,36 @@ enum class PlayerStatus {
     DEFAULT, GM, SPECTATING
 }
 
-val Player.attributes
+val EnginePlayer.attributes
     get() = this.require<PlayerAttributes>()
 
-val Player.speed: Float
+val EnginePlayer.speed: Float
     get() = attributes.speed.get()
 
-fun Player.setCustomSpeed(speed: Float) {
+fun EnginePlayer.setCustomSpeed(speed: Float) {
     attributes.speed.custom = speed
     markCustomSpeedUpdated(speed)
 }
 
-fun Player.resetCustomSpeed() {
+fun EnginePlayer.resetCustomSpeed() {
     attributes.speed.resetCustom()
     markCustomSpeedUpdated(null)
 }
 
-val Player.jumpStrength: Float
+val EnginePlayer.jumpStrength: Float
     get() = attributes.jumpStrength.get()
 
-fun Player.setCustomJumpStrength(value: Float) {
+fun EnginePlayer.setCustomJumpStrength(value: Float) {
     attributes.jumpStrength.custom = value
     markCustomJumpStrengthUpdated(value)
 }
 
-fun Player.resetCustomJumpStrength() {
+fun EnginePlayer.resetCustomJumpStrength() {
     attributes.jumpStrength.resetCustom()
     markCustomJumpStrengthUpdated(null)
 }
 
-private fun Player.markCustomSpeedUpdated(value: Float? = null) {
+private fun EnginePlayer.markCustomSpeedUpdated(value: Float? = null) {
     markUpdate(
         PlayerUpdate.CustomSpeedAttribute(
             value?.let { AttributeUpdate.Value(it) } ?: AttributeUpdate.Reset
@@ -105,7 +103,7 @@ private fun Player.markCustomSpeedUpdated(value: Float? = null) {
     )
 }
 
-private fun Player.markCustomJumpStrengthUpdated(value: Float? = null) {
+private fun EnginePlayer.markCustomJumpStrengthUpdated(value: Float? = null) {
     markUpdate(
         PlayerUpdate.CustomJumpStrengthAttribute(
             value?.let { AttributeUpdate.Value(it) } ?: AttributeUpdate.Reset

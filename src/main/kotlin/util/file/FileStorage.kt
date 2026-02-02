@@ -6,7 +6,7 @@ import kotlinx.serialization.json.Json
 import org.lain.engine.player.CustomName
 import org.lain.engine.player.InvalidCustomNameException
 import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.VoiceApparatus
 import org.lain.engine.player.VoiceLoose
@@ -21,7 +21,7 @@ private val PLAYERS_DATA_DIR = ENGINE_DIR.resolve("players")
 private val PLAYERS_JSON = Json {
     prettyPrint = true
 }
-private val PLAYER_DATA_LOGGER = LoggerFactory.getLogger("Engine Player Data")
+private val PLAYER_DATA_LOGGER = LoggerFactory.getLogger("Engine EnginePlayer Data")
 
 @Serializable
 data class CustomNamePersistentData(
@@ -49,7 +49,7 @@ data class PersistentPlayerData(
     @SerialName("chat_heads") val chatHeads: Boolean = true
 )
 
-fun savePersistentPlayerData(player: Player) {
+fun savePersistentPlayerData(player: EnginePlayer) {
     val id = player.id.value.toString()
     val file = PLAYERS_DATA_DIR.resolve("$id.json")
 

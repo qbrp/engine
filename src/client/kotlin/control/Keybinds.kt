@@ -1,5 +1,6 @@
 package org.lain.engine.client.control
 
+import com.daqem.yamlconfig.client.gui.screen.ConfigScreen
 import net.minecraft.item.ItemStack
 import org.lain.engine.client.mc.KeyBindModifier
 import org.lain.engine.client.mc.KeybindId

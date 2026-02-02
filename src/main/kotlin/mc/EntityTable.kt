@@ -1,15 +1,12 @@
 package org.lain.engine.mc
 
-import net.minecraft.entity.Entity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.world.World as McWorld
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.world.WorldId
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.get
-import kotlin.collections.remove
 
 /**
  * # Таблица сущностей
@@ -28,15 +25,15 @@ class EntityTable {
     val client = Entity2PlayerTable<PlayerEntity>()
     val server = Entity2PlayerTable<ServerPlayerEntity>()
 
-    fun getGeneralPlayer(entity: PlayerEntity): Player? {
+    fun getGeneralPlayer(entity: PlayerEntity): EnginePlayer? {
         return client.getPlayer(entity) ?: (entity as? ServerPlayerEntity)?.let { server.getPlayer(it) }
     }
 
     class Entity2PlayerTable<T : PlayerEntity> {
         private val playerToEntityMap: ConcurrentHashMap<PlayerId, T> = ConcurrentHashMap()
-        private val entityToPlayerMap: ConcurrentHashMap<T, Player> = ConcurrentHashMap()
+        private val entityToPlayerMap: ConcurrentHashMap<T, EnginePlayer> = ConcurrentHashMap()
 
-        fun setPlayer(entity: T, player: Player) {
+        fun setPlayer(entity: T, player: EnginePlayer) {
             entityToPlayerMap[entity] = player
             playerToEntityMap[player.id] = entity
         }
@@ -57,15 +54,15 @@ class EntityTable {
             return playerToEntityMap[playerId]
         }
 
-        fun getEntity(player: Player): PlayerEntity? {
+        fun getEntity(player: EnginePlayer): PlayerEntity? {
             return getEntity(player.id)
         }
 
-        fun requirePlayer(entity: T): Player {
-            return getPlayer(entity) ?: error("Player ${entity.uuid} not found")
+        fun requirePlayer(entity: T): EnginePlayer {
+            return getPlayer(entity) ?: error("EnginePlayer ${entity.uuid} not found")
         }
 
-        fun getPlayer(entity: T): Player? {
+        fun getPlayer(entity: T): EnginePlayer? {
             return entityToPlayerMap[entity]
         }
 

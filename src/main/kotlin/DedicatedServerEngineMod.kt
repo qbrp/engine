@@ -5,7 +5,7 @@ import net.fabricmc.api.DedicatedServerModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.minecraft.server.network.ServerPlayerEntity
 import org.lain.engine.mc.isOp
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.transport.Endpoint
@@ -119,7 +119,7 @@ class ServerAuthorizationListener(
     private fun newAuthorizedPlayerInstance(
         connectionSession: ConnectionSession,
         entity: ServerPlayerEntity,
-    ): Player {
+    ): EnginePlayer {
         return serverMinecraftPlayerInstance(
             server.engine,
             entity,

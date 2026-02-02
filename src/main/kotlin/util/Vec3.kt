@@ -124,6 +124,12 @@ data class MutableVec3(
         return "($x, $y, $z)"
     }
 
+    fun set(vec: Vec3) {
+        this.x = vec.x
+        this.y = vec.y
+        this.z = vec.z
+    }
+
     fun mutateAdd(x: Float = this.x, y: Float = this.y, z: Float = this.z) {
         this.x = x
         this.y = y

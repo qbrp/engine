@@ -21,7 +21,7 @@ data class VoiceApparatus(
     val minVolume: Float? = null,
 ) : Component
 
-val Player.volume: Float
+val EnginePlayer.volume: Float
     get() {
         val voiceApparatus = require<VoiceApparatus>()
         val defaults = require<DefaultPlayerAttributes>()
@@ -68,9 +68,9 @@ private val VOICE_BREAK_LOGGER = LoggerFactory.getLogger("Engine Voice Break")
 val DefaultPlayerAttributes.playerBaseInputVolume
     get() = this.baseVolume - this.minVolume
 
-val Player.isVoiceLoosed get() = this.has<VoiceLoose>()
+val EnginePlayer.isVoiceLoosed get() = this.has<VoiceLoose>()
 
-val Player.canSpeakUnlimited get() = this.get<VoiceLoose>().let { it == null || it.secondPhase }
+val EnginePlayer.canSpeakUnlimited get() = this.get<VoiceLoose>().let { it == null || it.secondPhase }
 
 fun voiceBrokenContent(content: String, from: Float): String {
     var i = Random.nextInt((content.length * from).toInt(), content.length)
@@ -128,7 +128,7 @@ data class VocalSettings(
     val breakWarningThreshold: Float = tirednessThreshold * 0.9f
 )
 
-fun Player.updateVoiceApparatus(
+fun EnginePlayer.updateVoiceApparatus(
     chat: EngineChat,
     volume: Float = this.volume,
     settings: VocalSettings
@@ -159,7 +159,7 @@ fun Player.updateVoiceApparatus(
 }
 
 fun updatePlayerVoice(
-    player: Player,
+    player: EnginePlayer,
     chat: EngineChat,
     settings: VocalSettings,
     tickRate: Int = 1,

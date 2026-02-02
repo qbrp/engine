@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicReference
 data class ServerGlobals(
     val serverId: ServerId,
     var playerSynchronizationRadius: Int = 48,
+    var itemSynchronizationRadius: Int = 48,
     val defaultPlayerAttributes: DefaultPlayerAttributes = DefaultPlayerAttributes(),
     var vocalSettings: VocalSettings = VocalSettings(),
     var movementSettings: MovementSettings = MovementSettings(),

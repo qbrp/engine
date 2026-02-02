@@ -7,11 +7,10 @@ import org.lain.engine.chat.EngineChatSettings
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.Selector
 import org.lain.engine.chat.isChannelAvailable
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.player.PlayerId
-import org.lain.engine.server.EngineServer
 import org.lain.engine.util.ImmutableVec3
 import org.lain.engine.world.WorldId
 
@@ -29,6 +28,7 @@ data class OutcomingChatMessagePacket(
     val isSpy: Boolean,
     val placeholders: Map<String, String>,
     val heads: Boolean,
+    val notify: Boolean,
     val id: MessageId
 ) : Packet
 
@@ -56,7 +56,7 @@ data class ClientChatSettings(
     val placeholders: Map<String, String>,
 ) {
     companion object {
-        fun of(settings: EngineChatSettings, player: Player): ClientChatSettings {
+        fun of(settings: EngineChatSettings, player: EnginePlayer): ClientChatSettings {
             return ClientChatSettings(
                 (settings.channels + settings.pmChannel).associate {
                     it.id to ClientChatChannel.of(it, player)
@@ -84,7 +84,7 @@ data class ClientChatChannel(
     )
 
     companion object {
-        fun of(channel: ChatChannel, forPlayer: Player): ClientChatChannel {
+        fun of(channel: ChatChannel, forPlayer: EnginePlayer): ClientChatChannel {
             return ClientChatChannel(
                 channel.id,
                 channel.name,

@@ -1,6 +1,6 @@
 package org.lain.engine.util
 
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.players
@@ -57,8 +57,8 @@ fun filterNearestPlayers(
     world: World,
     pos: Pos,
     radius: Int,
-    players: List<Player> = world.players
-): List<Player> {
+    players: List<EnginePlayer> = world.players
+): List<EnginePlayer> {
     return players.filter {
         val l = it.get<Location>() ?: return@filter false
         l.world == world && l.position.squaredDistanceTo(pos) <= radius*radius
@@ -68,12 +68,12 @@ fun filterNearestPlayers(
 fun filterNearestPlayers(
     location: Location,
     radius: Int,
-    players: List<Player> = location.world.players
-): List<Player> {
+    players: List<EnginePlayer> = location.world.players
+): List<EnginePlayer> {
     return filterNearestPlayers(location.world, location.position, radius, players)
 }
 
-fun Player.filterNearestPlayers(radius: Int): List<Player> {
+fun EnginePlayer.filterNearestPlayers(radius: Int): List<EnginePlayer> {
     val location = get<Location>() ?: return emptyList()
     return filterNearestPlayers(location, radius)
 }

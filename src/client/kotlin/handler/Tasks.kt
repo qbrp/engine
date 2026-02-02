@@ -1,13 +1,10 @@
 package org.lain.engine.client.handler
 
-import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.transport.isLowDetailed
-import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.transport.registerClientReceiver
-import org.lain.engine.mc.DisconnectText
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -47,7 +44,7 @@ fun <P : Packet> ClientHandler.registerGameSessionReceiver(endpoint: Endpoint<P>
     }
 }
 
-fun ClientHandler.updatePlayer(id: PlayerId, update: (Player) -> Unit) {
+fun ClientHandler.updatePlayer(id: PlayerId, update: (EnginePlayer) -> Unit) {
     val player = client.gameSession?.getPlayer(id) ?: run {
         LOGGER.warn("Получен пакет данных несуществующего игрока: $id")
         return
@@ -55,7 +52,7 @@ fun ClientHandler.updatePlayer(id: PlayerId, update: (Player) -> Unit) {
     update(player)
 }
 
-fun ClientHandler.updatePlayerDetailed(id: PlayerId, update: (Player) -> Unit) {
+fun ClientHandler.updatePlayerDetailed(id: PlayerId, update: (EnginePlayer) -> Unit) {
     updatePlayer(id) {
         if (it.isLowDetailed) {
             LOGGER.warn("Получен пакет данных игрока вне зоны обновлений: $it")

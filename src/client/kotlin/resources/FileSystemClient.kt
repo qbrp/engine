@@ -32,6 +32,8 @@ value class SourceFile(val file: File) {
         return Yaml.default.decodeFromStream<T>(file.inputStream())
     }
 
+    fun openInputStream() = file.inputStream()
+
     fun resolve(child: String) = nullable(file.resolve(child))
 
     companion object {

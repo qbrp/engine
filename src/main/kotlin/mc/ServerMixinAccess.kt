@@ -5,17 +5,17 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
+import org.lain.engine.item.EngineItem
 import net.minecraft.world.GameMode as McGameMode
-import org.lain.engine.player.Player
-import org.lain.engine.player.displayName
-import org.lain.engine.player.displayNameText
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.isSpectating
 import org.lain.engine.player.jumpStrength
 import org.lain.engine.player.speed
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.require
 import org.lain.engine.util.text.displayNameMiniMessage
-import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.util.text.parseMiniMessageLegacy
 
 object ServerMixinAccess {
@@ -27,6 +27,10 @@ object ServerMixinAccess {
     var isDamageEnabled = false
 
     fun isAchievementMessagesDisabled() = disableAchievementMessages
+
+    fun setPlayerItemCursor(player: PlayerEntity, item: EngineItem?) {
+        player.engine?.require<PlayerInventory>()?.cursorItem = item
+    }
 
     fun getDisplayName(player: PlayerEntity): Text? {
         return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name
@@ -62,6 +66,6 @@ object ServerMixinAccess {
 
     fun shouldCancelDamage() = !isDamageEnabled
 
-    private val PlayerEntity.engine: Player?
+    private val PlayerEntity.engine: EnginePlayer?
         get() = table.getGeneralPlayer(this)
 }

@@ -6,8 +6,9 @@
   "client": [
     "ClientCommandSourceMixin",
     "KeyboardMixin",
-    "MouseMixin",
+    "MinecraftClientMixin",
     "PlayerListEntryAccessor",
+    "SoundLoaderMixin",
     "ToastManagerMixin",
     "chat.ChatHudAccessor",
     "chat.ChatHudLineMixin",
@@ -20,6 +21,7 @@
     "render.ItemModelManagerMixin",
     "render.ItemRenderStateAccessor",
     "render.LayerItemRenderStateMixin",
+    "render.PlayerEntityRendererMixin",
     "resource.AtlasLoaderAccessor",
     "resource.AtlasLoaderMixin",
     "resource.BakedModelManagerMixin",
@@ -39,6 +41,7 @@
   "mixins": [
     "ClickEventActionMixin",
     "ItemStackMixin",
+    "ScreenHandlerMixin",
     "resource.SimpleResourceReloadMixin"
   ]
 }

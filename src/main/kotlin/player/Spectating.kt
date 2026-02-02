@@ -2,8 +2,6 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.Component
-import org.lain.engine.util.has
-import org.lain.engine.util.remove
 import org.lain.engine.util.require
 import org.lain.engine.util.set
 
@@ -21,14 +19,14 @@ object SpawnMark : Component
 @Serializable
 data class Spectating(var isSpectating: Boolean = false) : Component
 
-fun Player.startSpectating() {
+fun EnginePlayer.startSpectating() {
     this.set(StartSpectatingMark)
 }
 
-fun Player.stopSpectating() {
+fun EnginePlayer.stopSpectating() {
     this.set(SpawnMark)
 }
 
-var Player.isSpectating
+var EnginePlayer.isSpectating
     get() = this.require<Spectating>().isSpectating
     set(value) { this.require<Spectating>().isSpectating = value }

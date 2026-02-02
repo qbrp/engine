@@ -20,6 +20,7 @@ data class AcceptedMessage(
     val volume: Float? = null,
     val isSpy: Boolean = false,
     val showHead: Boolean = false,
+    val notify: Boolean = false,
     val id: MessageId,
     var repeat: Int = 1,
     val isVanilla: Boolean = false
@@ -113,7 +114,8 @@ fun acceptOutcomingMessage(
         message.volume,
         message.isSpy,
         message.head,
-        message.id
+        message.notify,
+        message.id,
     )
 }
 

@@ -3,14 +3,13 @@ package org.lain.engine.transport.network
 import org.lain.engine.mc.registerServerReceiverInternal
 import org.lain.engine.mc.sendClientboundPacketInternal
 import org.lain.engine.mc.unregisterServerReceiverInternal
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerStorage
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.ServerPacketContext
 import org.lain.engine.transport.ServerPacketHandler
-import org.lain.engine.transport.ServerPacketSendTask
 import org.lain.engine.transport.ServerTransportContext
 
 class ServerNetworkTransport(
@@ -25,7 +24,7 @@ class ServerNetworkTransport(
 
     override fun <P : Packet> broadcastClientboundPacket(
         endpoint: Endpoint<P>,
-        lazyPacket: (Player) -> P
+        lazyPacket: (EnginePlayer) -> P
     ) {
         playerStorage.forEach { player ->
             sendClientboundPacket(endpoint, lazyPacket(player), player.id)

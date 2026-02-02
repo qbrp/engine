@@ -1,5 +1,7 @@
 package org.lain.engine.client.mc
 
+import com.daqem.yamlconfig.api.config.IConfig
+import com.daqem.yamlconfig.client.gui.screen.ConfigScreen
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.minecraft.client.gui.screen.Screen
@@ -20,7 +22,8 @@ import org.lwjgl.glfw.GLFW
 fun isControlDown() = InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
 
 class KeybindManager(
-    private val category: KeyBinding.Category = KeyBinding.Category.create(EngineId("category"))
+    private val category: KeyBinding.Category = KeyBinding.Category.create(EngineId("category")),
+    private val config: IConfig
 ) {
     private val keybinds = mutableMapOf<KeybindId, EngineKeybind>()
     val adjustChatVolume = ADJUST_CHAT_VOLUME.register()
@@ -32,6 +35,17 @@ class KeybindManager(
         HIDE_INTERFACE.register()
         ALLOW_SPEED_INTENTION_CHANGE.register()
         TOGGLE_CHAT_SPY.register()
+
+        KeybindSettings(
+            name = "Настройки",
+            id = KeybindId("options"),
+            key = GLFW.GLFW_KEY_F7,
+            onPress = { client ->
+                MinecraftClient.setScreen(
+                    ConfigScreen(null, config)
+                )
+            }
+        ).register()
     }
 
     fun registerKeybinding(keybinding: KeybindSettings): EngineKeybind {

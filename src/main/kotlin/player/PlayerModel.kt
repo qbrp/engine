@@ -11,12 +11,12 @@ data class PlayerModel(
     var height: Float = 1f
 ) : Component
 
-val Player.eyePos: Vec3
+val EnginePlayer.eyePos: Vec3
     get() {
         val location = require<Location>()
         val standingEyeHeight = require<PlayerModel>().standingEyeHeight
         return Vec3(location.x, standingEyeHeight, location.y)
     }
 
-val Player.height
+val EnginePlayer.height
     get() = require<PlayerModel>().height

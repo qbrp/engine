@@ -1,7 +1,6 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import net.kyori.adventure.text.minimessage.tag.standard.StandardTags
 import org.lain.engine.util.Color
 import org.lain.engine.util.Component
 import org.lain.engine.util.get
@@ -50,22 +49,22 @@ data class DisplayName(
     val usernameText by lazy { EngineText(username.value, TextColor(Color.WHITE)) }
 }
 
-fun Player.removeCustomName() {
+fun EnginePlayer.removeCustomName() {
     get<DisplayName>()?.custom = null
 }
 
-var Player.customName
+var EnginePlayer.customName
     get() = get<DisplayName>()?.custom
     set(value) {
         markUpdate(PlayerUpdate.CustomName(value))
         get<DisplayName>()?.custom = value
     }
 
-val Player.displayName
+val EnginePlayer.displayName
     get() = this.require<DisplayName>().let { it.custom?.string ?: it.username.value }
 
-val Player.displayNameText
+val EnginePlayer.displayNameText
     get() = this.require<DisplayName>().let { it.custom?.text ?: it.usernameText }
 
-val Player.username
+val EnginePlayer.username
     get() = this.require<DisplayName>().username.value

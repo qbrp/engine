@@ -1,3 +1,10 @@
 {
-  "pig-scream": {"sounds": ["engine:pig-scream"]}
+  "pig-scream": {
+    "sounds": [
+      {
+        "name": "engine:pig-scream",
+        "attenuation_distance": 16
+      }
+    ]
+  }
 }

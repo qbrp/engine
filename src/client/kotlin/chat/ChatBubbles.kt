@@ -2,9 +2,8 @@ package org.lain.engine.client.chat
 
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.util.EngineOptions
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.MutableVec3
-import org.lain.engine.util.lerp
 import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.EngineText
 import org.lain.engine.world.pos
@@ -14,7 +13,7 @@ import kotlin.math.sin
 data class ChatBubble(
     val lines: List<Line>,
     val height: Float,
-    val player: Player,
+    val player: EnginePlayer,
     var offsetY: Float,
     var pos: MutableVec3,
     var opacity: Float,
@@ -36,7 +35,7 @@ class ChatBubbleList(
     val bubbles: List<ChatBubble>
         get() = _bubbles
 
-    fun setChatBubble(player: Player, text: EngineText) {
+    fun setChatBubble(player: EnginePlayer, text: EngineText) {
         val lines = fontRenderer.breakTextByLines(text, options.chatBubbleLineWidth.toFloat())
         val height = lines.count() * fontRenderer.fontHeight
 

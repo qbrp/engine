@@ -1,5 +1,6 @@
 package org.lain.engine.world
 
+import kotlinx.serialization.Serializable
 import org.lain.engine.util.Component
 import org.lain.engine.util.ComponentManager
 import org.lain.engine.util.MutableVec3

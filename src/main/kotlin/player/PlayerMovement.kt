@@ -50,12 +50,12 @@ data class MovementSettings(
     val intentionEffect: Float = 0.7f
 )
 
-fun Player.intentSpeed(value: Float) {
+fun EnginePlayer.intentSpeed(value: Float) {
     require<MovementStatus>().intention = value
     markUpdate(PlayerUpdate.SpeedIntention(value))
 }
 
-val Player.stamina
+val EnginePlayer.stamina
     get() = this.require<MovementStatus>().stamina
 
 fun speedMul(
@@ -81,7 +81,7 @@ fun speedMul(
 fun maxSpeedMul(settings: MovementSettings) = speedMul(1f, 1f, true, settings)
 
 fun updatePlayerMovement(
-    player: Player,
+    player: EnginePlayer,
     primaryAttributes: MovementDefaultAttributes,
     settings: MovementSettings
 ) {

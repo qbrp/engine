@@ -10,6 +10,8 @@ import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_ITEM_GUN_PACKET
+import org.lain.engine.transport.packet.CLIENTBOUND_ITEM_PACKET
 import org.lain.engine.transport.packet.CLIENTBOUND_JOIN_GAME_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT
@@ -17,6 +19,7 @@ import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_DESTROY_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_JOIN_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_SOUND_PLAY_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.util.Timestamp
 import org.slf4j.Logger
@@ -90,6 +93,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
                 ),
                 channel,
                 mentioned,
+                notify,
                 speech,
                 volume,
                 placeholders,
@@ -102,5 +106,17 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) { gameSession ->
         applyDeleteChatMessage(message)
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_ITEM_PACKET) { gameSession ->
+        applyItemPacket(item)
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_ITEM_GUN_PACKET) { gameSession ->
+        applyItemGunPacket(uuid, selector, barrelBullets)
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { gameSession ->
+        applyPlaySoundPacket(play)
     }
 }

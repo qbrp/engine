@@ -2,7 +2,7 @@ package org.lain.engine.transport
 
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.serializer
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.ServerAcknowledgeTask
 import org.lain.engine.util.injectServerTransportContext
@@ -36,7 +36,7 @@ class Endpoint<P : Packet>(
         transport.broadcastClientboundPacket(this) { packet }
     }
 
-    fun broadcast(lazyPacket: (Player) -> P) {
+    fun broadcast(lazyPacket: (EnginePlayer) -> P) {
         transport.broadcastClientboundPacket(this, lazyPacket)
     }
 }
@@ -65,7 +65,7 @@ interface ServerTransportContext {
 
     fun <P : Packet> broadcastClientboundPacket(
         endpoint: Endpoint<P>,
-        lazyPacket: (Player) -> P,
+        lazyPacket: (EnginePlayer) -> P,
     )
 }
 

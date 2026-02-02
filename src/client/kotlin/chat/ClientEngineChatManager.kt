@@ -99,6 +99,7 @@ class ClientEngineChatManager(
         val channel = message.channel
         val author = message.source.author
         val isMentioned = message.isMentioned
+        val isNotify = message.notify
 
         // Если есть точно такое же сообщение
         val similar = messages
@@ -121,7 +122,7 @@ class ClientEngineChatManager(
             if (author != null && message.isSpeech && (author != gameSession.mainPlayer || client.developerMode)) {
                 gameSession.chatBubbleList.setChatBubble(author, eventBus.getChatBubbleText(message.text))
             }
-            if (isMentioned) {
+            if (isMentioned || isNotify) {
                 client.audioManager.playUiNotificationSound()
             }
         } else if ((!message.isSpy || spy) && author.player != gameSession.mainPlayer) {

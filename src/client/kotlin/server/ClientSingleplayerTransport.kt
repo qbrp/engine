@@ -4,7 +4,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.transport.ClientContext
 import org.lain.engine.client.transport.ClientPacketHandler
 import org.lain.engine.client.transport.ClientTransportContext
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -104,7 +104,7 @@ class ServerSingleplayerTransport(
 
     override fun <P : Packet> broadcastClientboundPacket(
         endpoint: Endpoint<P>,
-        lazyPacket: (Player) -> P
+        lazyPacket: (EnginePlayer) -> P
     ) {
         val plr = mainPlayer ?: return
         sendClientboundPacket(endpoint, lazyPacket(plr), plr.id)

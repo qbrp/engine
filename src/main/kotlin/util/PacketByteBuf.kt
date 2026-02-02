@@ -6,9 +6,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.serializer
 import net.minecraft.network.PacketByteBuf
-import org.lain.engine.player.Player
 import org.lain.engine.player.PlayerId
-import org.lain.engine.player.PlayerStorage
 import java.util.UUID
 
 fun PacketByteBuf.writeStringList(strings: List<String>) {

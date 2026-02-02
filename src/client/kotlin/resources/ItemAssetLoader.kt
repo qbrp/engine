@@ -1,6 +1,8 @@
 package org.lain.engine.client.resources
 
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonParseException
 import com.mojang.serialization.JsonOps
 import de.javagl.obj.Mtl
 import de.javagl.obj.Obj
@@ -10,6 +12,8 @@ import net.minecraft.client.texture.*
 import net.minecraft.client.util.SpriteIdentifier
 import net.minecraft.util.Identifier
 import net.minecraft.util.JsonHelper
+import org.joml.Vector3f
+import org.joml.Vector3fc
 import org.lain.engine.client.EngineClient
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.Timestamp
@@ -219,8 +223,16 @@ fun parseEngineItemAssets(
                     if (itemAsset == null) continue
 
                     val disableCulling = JsonHelper.getBoolean(item.json, "disable_culling", false)
+                    val markers = mutableMapOf<String, Vector3fc>()
+                    if (item.json.has("markers")) {
+                        JsonHelper.getObject(item.json, "markers")
+                            .entrySet()
+                            .forEach { (key, value) ->
+                                markers[key] = deserializeVec3f(value.asJsonArray)
+                            }
+                    }
                     contents[item.registrationId] = ItemAsset(
-                        EngineItemModel.Unbaked(itemAsset.model, disableCulling),
+                        EngineItemModel.Unbaked(itemAsset.model, disableCulling, markers),
                         itemAsset.properties,
                         itemAsset.registrySwapper
                     )
@@ -241,4 +253,12 @@ fun parseEngineItemAssets(
     }
     LOGGER.info("Ассеты предметов сгенерированы за {} мл.", start.timeElapsed())
     return contents
+}
+
+fun deserializeVec3f(jsonArray: JsonArray): Vector3fc {
+    if (jsonArray.size() != 3) {
+        throw JsonParseException("Expected 3 values, found: " + jsonArray.size());
+    }
+    val fs = jsonArray.map { it.asFloat }
+    return Vector3f(fs[0], fs[1], fs[2])
 }

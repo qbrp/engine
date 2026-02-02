@@ -1,17 +1,24 @@
 package org.lain.engine.client.transport
 
+import org.lain.engine.item.ItemInstantiationProperties
+import org.lain.engine.item.itemInstance
 import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerInstantiateSettings
 import org.lain.engine.player.commonPlayerInstance
+import org.lain.engine.transport.packet.ClientboundItemData
 import org.lain.engine.transport.packet.ClientboundWorldData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.Component
 import org.lain.engine.util.Vec3
 import org.lain.engine.util.getOrSet
+import org.lain.engine.util.set
+import org.lain.engine.util.setNullable
+import org.lain.engine.world.Location
 import org.lain.engine.world.World
+import org.lain.engine.world.WorldSoundsComponent
 
 /**
  * Объект находится за пределами видимости игрока и не синхронизируется точно.
@@ -19,7 +26,7 @@ import org.lain.engine.world.World
  */
 data class LowDetail(var enabled: Boolean = false) : Component
 
-var Player.isLowDetailed: Boolean
+var EnginePlayer.isLowDetailed: Boolean
     get() = this.getOrSet { LowDetail() }.enabled
     set(value) { this.getOrSet { LowDetail() }.enabled = value }
 
@@ -30,7 +37,7 @@ fun lowDetailedClientPlayerInstance(
     id: PlayerId,
     world: World,
     data: GeneralPlayerData
-): Player {
+): EnginePlayer {
     return commonPlayerInstance(
         PlayerInstantiateSettings(
             world,
@@ -45,7 +52,7 @@ fun mainClientPlayerInstance(
     id: PlayerId,
     world: World,
     data: ServerPlayerData
-): Player {
+): EnginePlayer {
     return commonPlayerInstance(
         PlayerInstantiateSettings(
             world,
@@ -61,4 +68,18 @@ fun mainClientPlayerInstance(
     ).also { it.isLowDetailed = false }
 }
 
-fun clientWorld(data: ClientboundWorldData) = World(data.id)
+fun clientItem(world: World, item: ClientboundItemData) = itemInstance(
+    item.uuid,
+    Location(world, item.position),
+    ItemInstantiationProperties(
+        item.id,
+        item.name,
+        item.gun,
+        item.gunDisplay,
+        item.tooltip
+    ),
+)
+
+fun clientWorld(data: ClientboundWorldData) = World(data.id).apply {
+    set(WorldSoundsComponent())
+}

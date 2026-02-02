@@ -3,13 +3,12 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.DisplayName
-import org.lain.engine.player.MovementSettings
 import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.VoiceApparatus
-import org.lain.engine.player.customName
+import org.lain.engine.player.items
 import org.lain.engine.player.playerBaseInputVolume
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
@@ -37,7 +36,7 @@ data class ClientboundSetupData(
     val settings: ClientboundServerSettings
 ) {
     companion object {
-        fun create(server: EngineServer, player: Player): ClientboundSetupData {
+        fun create(server: EngineServer, player: EnginePlayer): ClientboundSetupData {
             return ClientboundSetupData(
                 server.globals.serverId,
                 ClientboundPlayerList.of(server, player),
@@ -54,7 +53,7 @@ data class ClientboundSetupData(
  */
 data class ClientboundPlayerList private constructor(val players: List<GeneralPlayerData>) {
     companion object {
-        fun of(server: EngineServer, player: Player): ClientboundPlayerList {
+        fun of(server: EngineServer, player: EnginePlayer): ClientboundPlayerList {
             return ClientboundPlayerList(
                 server.playerStorage
                     .filter { it != player }
@@ -74,10 +73,11 @@ data class ServerPlayerData(
     val volume: Float,
     val minVolume: Float,
     val maxVolume: Float,
-    val baseVolume: Float
+    val baseVolume: Float,
+    val items: List<ClientboundItemData>
 ) {
     companion object {
-        fun of(player: Player): ServerPlayerData {
+        fun of(player: EnginePlayer): ServerPlayerData {
             val movementStatus = player.require<MovementStatus>()
             val voiceApparatus = player.require<VoiceApparatus>()
             val defaults = player.require<DefaultPlayerAttributes>()
@@ -90,7 +90,8 @@ data class ServerPlayerData(
                 voiceApparatus.inputVolume,
                 voiceApparatus.minVolume ?: defaults.minVolume,
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
-                voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume
+                voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
+                player.items.map { ClientboundItemData.from(it) }
             )
         }
     }
@@ -119,7 +120,7 @@ data class FullPlayerData(
     val attributes: PlayerAttributes,
 ) {
     companion object {
-        fun of(player: Player) = FullPlayerData(
+        fun of(player: EnginePlayer) = FullPlayerData(
             player.require(),
             player.require(),
         )
@@ -141,7 +142,7 @@ data class GeneralPlayerData(
     val displayName: DisplayName
 ) {
     companion object {
-        fun of(player: Player): GeneralPlayerData {
+        fun of(player: EnginePlayer): GeneralPlayerData {
             return GeneralPlayerData(
                 player.id,
                 player.require()

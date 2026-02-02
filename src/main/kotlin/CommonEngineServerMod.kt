@@ -7,8 +7,12 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
+import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
+import net.fabricmc.fabric.api.`object`.builder.v1.entity.FabricDefaultAttributeRegistry
 import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.entity.attribute.DefaultAttributeContainer
+import net.minecraft.entity.projectile.ArrowEntity
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
@@ -19,6 +23,9 @@ import org.lain.engine.mc.registerEngineCommands
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
 import org.lain.engine.mc.registerBlockHintAttachment
+import org.lain.engine.mc.spawnGunSmokeParticle
+import org.lain.engine.player.Interaction
+import org.lain.engine.player.setInteraction
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -87,6 +94,15 @@ class CommonEngineServerMod : ModInitializer {
                 },
                 true
             )
+            ActionResult.PASS
+        }
+
+        UseItemCallback.EVENT.register { player, world, hand ->
+            if (!world.isClient) {
+                if (player !is ServerPlayerEntity) return@register ActionResult.PASS
+                val player = entityTable.server.getPlayer(player)
+                player?.setInteraction(Interaction.RightClick)
+            }
             ActionResult.PASS
         }
 

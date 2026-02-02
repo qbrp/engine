@@ -6,12 +6,12 @@ import net.minecraft.text.TextColor
 import org.lain.engine.mixin.StyleAccessor
 import org.lain.engine.player.CustomName
 import org.lain.engine.player.DisplayName
-import org.lain.engine.player.Player
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.Color
 import org.lain.engine.util.require
 import java.util.Optional
 
-val Player.displayNameMiniMessage
+val EnginePlayer.displayNameMiniMessage
     get() = this.require<DisplayName>().let { it.custom?.textMiniMessage ?: it.username.value }
 
 private val CustomName.textMiniMessage

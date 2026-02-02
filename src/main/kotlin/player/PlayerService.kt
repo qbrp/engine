@@ -9,7 +9,7 @@ import org.lain.engine.util.file.savePersistentPlayerData
 import org.lain.engine.world.ScenePlayers
 import org.lain.engine.world.world
 
-typealias PlayerStorage = Storage<PlayerId, Player>
+typealias PlayerStorage = Storage<PlayerId, EnginePlayer>
 
 //TODO: Убрать, переделать в чистые функции и отдать на попечение EngineServer
 class PlayerService(
@@ -20,7 +20,7 @@ class PlayerService(
     private val eventListener = server.eventListener
     private val chat = server.chat
 
-    fun instantiate(player: Player) {
+    fun instantiate(player: EnginePlayer) {
         val world = player.world
         eventListener.onPlayerInstantiated(player)
 
@@ -32,7 +32,7 @@ class PlayerService(
         chat.trySendJoinMessage(player)
     }
 
-    fun destroy(player: Player) {
+    fun destroy(player: EnginePlayer) {
         playerStorage.remove(player.id)
         player.world.require<ScenePlayers>().remove(player)
         chat.trySendLeaveMessage(player)
