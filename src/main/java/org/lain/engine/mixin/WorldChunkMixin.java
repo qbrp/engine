@@ -19,7 +19,5 @@ public class WorldChunkMixin {
             at = @At("TAIL")
     )
     public void engine(ServerWorld world, ProtoChunk protoChunk, WorldChunk.EntityLoader entityLoader, CallbackInfo ci) {
-        AttachmentTarget attachmentTarget = (AttachmentTarget)this;
-        attachmentTarget.getAttachedOrCreate(BlockHintKt.getTYPE(), HashMap::new);
     }
 }

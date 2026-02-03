@@ -1,12 +1,8 @@
 package org.lain.engine.client.render.ui
 
-import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.FontRenderer
-import org.lain.engine.client.render.Vec2
-import org.lain.engine.client.render.ui.UiState.Companion.DEFAULT_SCALE
 import org.lain.engine.util.Color
 import org.lain.engine.util.sumOf
-import org.lain.engine.util.text.EngineText
 import kotlin.math.max
 import kotlin.math.min
 

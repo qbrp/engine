@@ -1,6 +1,6 @@
 package org.lain.engine.client.render.ui
 
-import org.lain.engine.client.render.ZeroVec2
+import org.lain.engine.util.ZeroVec2
 import kotlin.reflect.KProperty
 
 // States

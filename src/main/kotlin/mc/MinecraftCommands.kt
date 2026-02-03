@@ -9,6 +9,7 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
+import net.minecraft.command.argument.DefaultPosArgument
 import net.minecraft.command.argument.EntityArgumentType
 import net.minecraft.command.argument.Vec3ArgumentType
 import net.minecraft.entity.Entity
@@ -17,13 +18,17 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Vec3d
 import net.minecraft.world.chunk.WorldChunk
 import org.lain.engine.chat.CHAT_HEADS_PERMISSION
 import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageSource
+import org.lain.engine.item.EngineSoundCategory
 import org.lain.engine.item.ItemId
+import org.lain.engine.item.SoundEventId
+import org.lain.engine.item.SoundPlay
 import org.lain.engine.player.CustomName
 import org.lain.engine.player.InvalidCustomNameException
 import org.lain.engine.player.EnginePlayer
@@ -41,7 +46,9 @@ import org.lain.engine.player.toggleChatHeads
 import org.lain.engine.player.username
 import org.lain.engine.util.Color
 import org.lain.engine.util.NamespaceId
+import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
+import org.lain.engine.util.Vec3
 import org.lain.engine.util.apply
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.compileContents
@@ -56,6 +63,9 @@ import org.lain.engine.util.getServerStats
 import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.util.remove
 import org.lain.engine.util.text.displayNameMiniMessage
+import org.lain.engine.world.emitPlaySoundEvent
+import org.lain.engine.world.pos
+import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
 import java.util.concurrent.CompletableFuture
@@ -90,6 +100,11 @@ fun ServerCommandContext.getInt(id: String): Int {
 fun ServerCommandContext.getString(id: String): String {
     return StringArgumentType.getString(this, id)
 }
+
+fun ServerCommandContext.getVec3(id: String): Vec3d {
+    return Vec3ArgumentType.getVec3(this, id)
+}
+
 
 fun <T : ArgumentBuilder<ServerCommandSource, T>> ArgumentBuilder<ServerCommandSource, T>.executeCatching(todo: (Context) -> Unit): T {
     val playerTable = injectValue<EntityTable>().server
@@ -377,29 +392,32 @@ fun ServerCommandDispatcher.registerEngineCommands() {
         )
     )
 
+    fun <K, V> collectElements(storage: NamespacedStorage<K, V>, id: K): List<V> {
+        val items = mutableListOf<K>()
+
+        val namespace = storage.namespaces[NamespaceId(id.toString())]
+        if (namespace != null) {
+            items += namespace.entries.keys.toList()
+        } else {
+            items += id
+        }
+
+        return items.mapNotNull { storage.entries[it] }
+    }
+
     register(
         CommandManager.literal("engineitem")
             .requires { it.hasPermission("engineitem") }
             .then(
                 CommandManager.argument("id", StringArgumentType.string())
-                    .suggests(EngineItemsSuggestionProvider)
+                    .suggests(NamespacedIdProvider({ server.engine.itemPrefabStorage }))
                     .executeCatching { ctx ->
                         val itemContext by injectItemContext()
                         val argument = ctx.command.getString("id")
                         val id = ItemId(argument)
                         val player = ctx.source.player ?: error("Команда доступна только игроку")
 
-                        val itemRegistry = itemContext.itemPropertiesStorage
-                        val items = mutableListOf<ItemId>()
-
-                        val namespace = itemRegistry.namespaces[NamespaceId(argument)]
-                        if (namespace != null) {
-                            items += namespace.entries.keys.toList()
-                        } else {
-                            items += id
-                        }
-
-                        val prefabs = items.map { itemRegistry[it] }
+                        val prefabs = collectElements(itemContext.itemPropertiesStorage, id)
                         if (prefabs.isEmpty()) {
                             error("Предметы по идентификатору $id не найдены")
                         }
@@ -431,6 +449,55 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                 server.compileContents()
                 it.sendFeedback("Предметы перезагружены", true)
             }
+    )
+
+    fun executeEngineSoundCommand(ctx: Context, id: String, pos: Vec3d? = null, volume: Float = 1f) {
+        val soundEventStorage = server.engine.soundEventStorage
+        val id = SoundEventId(id)
+        val player = ctx.requirePlayer()
+        val event = soundEventStorage.entries[id] ?: error("Звуковое событие по идентификатору $id не найдено")
+        val pos = pos?.engine() ?: player.pos.copy()
+
+        player.world.emitPlaySoundEvent(
+            SoundPlay(
+                event,
+                pos,
+                EngineSoundCategory.PLAYERS,
+                volume
+            )
+        )
+
+        ctx.sendFeedback("Воспроизведено звуковое событие ${event.id} на координатах ${pos.x}, ${pos.y}, ${pos.z} громкостью $volume", true)
+    }
+
+    register(
+        CommandManager.literal("enginesound")
+            .requires { it.hasPermission("enginesound") }
+            .then(
+                CommandManager.argument("id", StringArgumentType.string())
+                    .suggests(NamespacedIdProvider({ server.engine.soundEventStorage }, false))
+                    .executeCatching { ctx ->
+                        val argument = ctx.command.getString("id")
+                        executeEngineSoundCommand(ctx, argument)
+                    }
+                    .then(
+                        CommandManager.argument("pos", Vec3ArgumentType.vec3())
+                            .executeCatching { ctx ->
+                                val argument = ctx.command.getString("id")
+                                val pos = ctx.command.getVec3("pos")
+                                executeEngineSoundCommand(ctx, argument, pos)
+                            }
+                            .then(
+                                CommandManager.argument("volume", FloatArgumentType.floatArg())
+                                    .executeCatching { ctx ->
+                                        val argument = ctx.command.getString("id")
+                                        val pos = ctx.command.getVec3("pos")
+                                        val volume = ctx.command.getFloat("volume")
+                                        executeEngineSoundCommand(ctx, argument, pos, volume)
+                                    }
+                            )
+                    )
+            )
     )
 
     register(
@@ -498,19 +565,19 @@ fun ServerCommandDispatcher.registerEngineCommands() {
     registerServerPmCommand()
 }
 
-object EngineItemsSuggestionProvider : SuggestionProvider<ServerCommandSource> {
-    private val itemContext by injectItemContext()
+class NamespacedIdProvider<K, V>(
+    val storageProvider: () -> NamespacedStorage<K, V>,
+    val includeNamespaces: Boolean = true
+) : SuggestionProvider<ServerCommandSource> {
+    val identifiers by lazy { if (includeNamespaces) storageProvider().identifiers else storageProvider().entries.keys.map { it.toString() } }
+
     override fun getSuggestions(
         context: CommandContext<ServerCommandSource>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
-        val itemRegistry = itemContext.itemPropertiesStorage
-        val identifiers = itemRegistry.identifiers
         val input = builder.remainingLowerCase.replace(""""""", "")
         identifiers
-            .filter {
-                it.startsWith(input) || it.split("/").any { it.startsWith(input) }
-            }
+            .filter { it.startsWith(input) || it.split("/").any { it.startsWith(input) } }
             .forEach { builder.suggest('"' + it + '"') }
         return builder.buildFuture()
     }

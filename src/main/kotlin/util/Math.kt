@@ -7,6 +7,7 @@ import org.lain.engine.world.players
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round
+import kotlin.random.Random
 
 const val DEGREES_TO_RADIANS_DOUBLE = 0.017453292519943295
 
@@ -89,3 +90,9 @@ inline fun <T> Iterable<T>.sumOf(selector: (T) -> Float): Float {
 fun parseHexColor(string: String): Int   {
     return string.removePrefix("#").toLong(16).toInt()
 }
+
+fun randomFloat() = Random.nextFloat()
+
+fun randomFloat(end: Float) = Random.nextFloat() * end
+
+fun randomInteger(end: Int) = Random.nextInt(end)

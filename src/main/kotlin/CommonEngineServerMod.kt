@@ -2,6 +2,7 @@ package org.lain.engine
 
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
+import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
@@ -9,23 +10,16 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
-import net.fabricmc.fabric.api.`object`.builder.v1.entity.FabricDefaultAttributeRegistry
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.entity.attribute.DefaultAttributeContainer
-import net.minecraft.entity.projectile.ArrowEntity
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Formatting
-import org.lain.engine.mc.EngineItemReferenceComponent
-import org.lain.engine.mc.EntityTable
-import org.lain.engine.mc.registerEngineCommands
-import org.lain.engine.util.Environment
-import org.lain.engine.util.Injector
-import org.lain.engine.mc.registerBlockHintAttachment
-import org.lain.engine.mc.spawnGunSmokeParticle
+import org.lain.engine.mc.*
 import org.lain.engine.player.Interaction
 import org.lain.engine.player.setInteraction
+import org.lain.engine.util.Environment
+import org.lain.engine.util.Injector
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -47,6 +41,7 @@ class CommonEngineServerMod : ModInitializer {
         }
         EngineItemReferenceComponent.initialize()
         registerBlockHintAttachment()
+        registerBlockDecalsAttachment()
 
         ServerLifecycleEvents.SERVER_STARTED.register {
             engineServer.run()
@@ -70,6 +65,11 @@ class CommonEngineServerMod : ModInitializer {
 
         ServerChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
             engineServer.onChunkUnload(world, chunk)
+        }
+
+        ServerChunkEvents.CHUNK_LOAD.register { world, chunk ->
+            val attachmentTarget = chunk as AttachmentTarget
+            attachmentTarget.getAttachedOrCreate(BLOCK_HINT_ATTACHMENT_TYPE, { mutableMapOf() })
         }
 
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->

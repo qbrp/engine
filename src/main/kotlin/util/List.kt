@@ -23,6 +23,7 @@ class FixedSizeList<T>(private val maxSize: Int) {
     fun toList(): List<T> = list.toList()
 }
 
-fun <T : Any> Collection<T>.applyForEach(block: T.() -> Unit) {
-    forEach { it.block() }
+fun <T : Any> List<T>.alsoForEach(block: (T) -> Unit): List<T> {
+    forEach { block(it) }
+    return this
 }
