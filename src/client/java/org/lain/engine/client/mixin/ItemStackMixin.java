@@ -1,5 +1,6 @@
 package org.lain.engine.client.mixin;
 
+import com.google.common.collect.Lists;
 import net.minecraft.component.ComponentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.MergedComponentMap;
@@ -16,9 +17,11 @@ import net.minecraft.util.ClickType;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.ClientItemStorageKt;
 import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.MinecraftUtilKt;
 import org.lain.engine.item.EngineItem;
 import org.lain.engine.item.TooltipKt;
 import org.lain.engine.mc.EngineItemReferenceComponent;
+import org.lain.engine.mc.ItemsKt;
 import org.lain.engine.util.text.TextAdaptersKt;
 import org.lain.engine.util.text.TextKt;
 import org.lain.engine.util.text.TextSerializationKt;
@@ -47,6 +50,24 @@ public abstract class ItemStackMixin {
 
     @Shadow @Final @Deprecated private @Nullable Item item;
 
+    @Shadow public abstract Text getFormattedName();
+
+    @Inject(
+            method = "getTooltip",
+            at = @At(
+                    value = "HEAD"
+            ),
+            cancellable = true
+    )
+    public void engine$getTooltip(Item.TooltipContext context, @Nullable PlayerEntity player, TooltipType type, CallbackInfoReturnable<List<Text>> cir) {
+        if (components.contains(ItemsKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
+            ArrayList<Text> list = Lists.newArrayList();
+            list.add(getFormattedName());
+            cir.setReturnValue(list);
+            cir.cancel();
+        }
+    }
+
     @Inject(
             method = "appendTooltip",
             at = @At(
@@ -65,7 +86,7 @@ public abstract class ItemStackMixin {
         if (engineItem != null) {
             appendComponentTooltip(DataComponentTypes.LORE, context, displayComponent, textConsumer, type);
             for (String line : TooltipKt.getTooltip(engineItem)) {
-                textConsumer.accept(TextSerializationKt.parseMiniMessage(line));
+                textConsumer.accept(MinecraftUtilKt.parseMiniMessageClient(line));
             }
             ci.cancel();
         }
@@ -88,13 +109,8 @@ public abstract class ItemStackMixin {
     }
 
     @Unique
-    private static boolean isEngineItem(ItemStack itemStack) {
-        return itemStack.getComponents().contains(EngineItemReferenceComponent.Companion.getTYPE());
-    }
-
-    @Unique
     private static EngineItem getEngineItem(ItemStack itemStack) {
-        EngineItemReferenceComponent component = itemStack.get(EngineItemReferenceComponent.Companion.getTYPE());
+        EngineItemReferenceComponent component = itemStack.get(ItemsKt.getENGINE_ITEM_REFERENCE_COMPONENT());
         if (component == null) {
             return null;
         }

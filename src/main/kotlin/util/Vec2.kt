@@ -6,6 +6,9 @@ interface Vec2 {
     fun scale(factor: Float): Vec2 {
         return MutableVec2(x * factor, y * factor)
     }
+    fun scale(vec2: Vec2): Vec2 {
+        return MutableVec2(this.x * vec2.x, this.y * vec2.y)
+    }
     fun divide(factor: Float): Vec2 {
         return MutableVec2(x / factor, y / factor)
     }
@@ -20,7 +23,7 @@ interface Vec2 {
     }
 }
 
-fun Vec2(x: Float, y: Float): Vec2 = MutableVec2(x, y)
+fun Vec2(x: Float, y: Float = x): Vec2 = MutableVec2(x, y)
 
 fun ZeroMutableVec2() = MutableVec2(0f, 0f)
 

@@ -6,12 +6,12 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.GameMode
-import org.apache.logging.log4j.core.jmx.Server
 import org.lain.engine.EngineMinecraftServer
+import org.lain.engine.item.Count
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.GunEvent
+import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemUuid
-import org.lain.engine.mc.engine
+import org.lain.engine.item.count
 import org.lain.engine.player.DestroyItemSignal
 import org.lain.engine.player.MovementStatus
 import org.lain.engine.player.EnginePlayer
@@ -25,8 +25,6 @@ import org.lain.engine.player.isSpectating
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.Vec3
 import org.lain.engine.util.apply
-import org.lain.engine.util.applyIfExists
-import org.lain.engine.util.engineId
 import org.lain.engine.util.get
 import org.lain.engine.util.has
 import org.lain.engine.util.remove
@@ -34,7 +32,11 @@ import org.lain.engine.util.require
 import org.lain.engine.util.set
 import net.minecraft.world.World as McWorld
 import org.lain.engine.world.Location
-import org.lain.engine.world.Orientation
+import org.lain.engine.player.Orientation
+import org.lain.engine.player.OrientationTranslation
+import org.lain.engine.player.cursorItem
+import org.lain.engine.player.handItem
+import org.lain.engine.player.items
 import org.lain.engine.world.Velocity
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -58,17 +60,27 @@ fun EngineServer.getPlayerWorld(player: PlayerEntity): World {
 fun Username(text: Text) = Username(text.string)
 
 fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: ServerPlayerEntity, player: EnginePlayer) {
-    val items = mutableListOf<ItemUuid>()
-    for (stack in entity.inventory.mainStacks) {
-        val engineItem = stack.engine() ?: continue
-        val itemUuid = engineItem.uuid
-        if (itemUuid != null) {
-            if (items.contains(itemUuid)) {
-                stack.remove(EngineItemReferenceComponent.TYPE)
-                engineServer.wrapItemStack(player, engineItem.id, stack)
-            } else {
-                items.add(itemUuid)
-            }
+    val itemCounts = mutableMapOf<ItemUuid, Int>()
+    val stackCounts = mutableMapOf<ItemStack, Int>()
+    val cursorItem = player.cursorItem
+    val stacks = entity.inventory.mainStacks
+        .map { it to it.engine()?.getItem() }
+        .filter { it.second != null }
+    for ((stack, engineItem) in stacks) {
+        val itemUuid = engineItem!!.uuid
+        val int1 = itemCounts[itemUuid] ?: 0
+        itemCounts[itemUuid] = int1 + engineItem.count
+        val int2 = stackCounts[stack] ?: 0
+        stackCounts[stack] = int2 + stack.count
+    }
+
+    for ((stack, engineItem) in stacks) {
+        val count = itemCounts[engineItem!!.uuid] ?: continue
+        val handItemCount = if (cursorItem?.uuid == engineItem.uuid) cursorItem.count else 0
+
+        if (count - handItemCount != (stackCounts[stack] ?: continue)) {
+            stack.remove(ENGINE_ITEM_REFERENCE_COMPONENT)
+            engineServer.wrapItemStack(player, engineItem.id, stack)
         }
     }
 }
@@ -84,15 +96,26 @@ fun updateServerMinecraftSystems(
         val world = engine.getWorld(entity.entityWorld)
 
         val itemStacks = entity.inventory + entity.currentScreenHandler.stacks
-        val items = itemStacks.mapNotNull { itemStack ->
-            val reference = itemStack.get(EngineItemReferenceComponent.TYPE) ?: return@mapNotNull null
-            val item = reference.getItem() ?: run {
-                if (reference.version != 0) {
+        val items: MutableList<Pair<EngineItem, ItemStack>> = mutableListOf()
+
+        for (itemStack in itemStacks) {
+            var item: EngineItem? = null
+            val reference = itemStack.engine()
+            if (reference != null) {
+                item = reference.getItem()
+                if (item == null && reference.version != 0) {
                     detachEngineItemStack(itemStack)
                 }
-                return@mapNotNull null
             }
-            item to itemStack
+
+            val instantiate = itemStack.remove(ENGINE_ITEM_INSTANTIATE_COMPONENT)
+            if (reference == null && instantiate != null) {
+                item = server.wrapItemStack(player, ItemId(instantiate), itemStack)
+            }
+
+            if (item != null) {
+                items.add(item to itemStack)
+            }
         }
 
         updatePlayerMinecraftSystems(player, items, entity, world)
@@ -112,6 +135,17 @@ fun updatePlayerMinecraftSystems(
     player.apply<Location> {
         position.set(pos)
         this.world = world
+    }
+
+    player.apply<OrientationTranslation> {
+        if (yaw != 0f) {
+            entity.yaw += yaw
+            yaw = 0f
+        }
+        if (pitch != 0f) {
+            entity.pitch += pitch
+            pitch = 0f
+        }
     }
 
     player.apply<Orientation> {
@@ -169,6 +203,13 @@ fun updatePlayerMinecraftSystems(
         playerInventoryItems -= item
 
         updateEngineItemStack(itemStack, item)
+
+        val countComponent = item.get<Count>()
+        if (countComponent == null) {
+            itemStack.count = 1
+        } else {
+            countComponent.value = itemStack.count
+        }
 
         if (destroyItemSignal != null && destroyItemSignal.item == item.uuid) {
             itemStack.decrement(destroyItemSignal.count)

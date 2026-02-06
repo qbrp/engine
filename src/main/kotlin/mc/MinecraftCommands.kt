@@ -52,6 +52,7 @@ import org.lain.engine.util.Vec3
 import org.lain.engine.util.apply
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.compileContents
+import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.get
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.injectMinecraftEngineServer
@@ -443,11 +444,11 @@ fun ServerCommandDispatcher.registerEngineCommands() {
     )
 
     register(
-        CommandManager.literal("reloadengineitems")
-            .requires { it.hasPermission("reloadengineitems") }
+        CommandManager.literal("reloadenginecontents")
+            .requires { it.hasPermission("reloadenginecontents") }
             .executeCatching {
-                server.compileContents()
-                it.sendFeedback("Предметы перезагружены", true)
+                server.loadContents()
+                it.sendFeedback("Контент перезагружен", true)
             }
     )
 

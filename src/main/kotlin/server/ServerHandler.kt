@@ -23,6 +23,7 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.VoiceApparatus
+import org.lain.engine.player.acousticDebug
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.intentSpeed
 import org.lain.engine.player.items
@@ -30,8 +31,11 @@ import org.lain.engine.player.speak
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.ServerTransportContext
+import org.lain.engine.transport.packet.AcousticDebugVolumesPacket
+import org.lain.engine.transport.packet.CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET
 import org.lain.engine.transport.packet.GlobalAcknowledgeListener
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_ITEM_GUN_PACKET
@@ -49,6 +53,7 @@ import org.lain.engine.transport.packet.ClientboundItemData
 import org.lain.engine.transport.packet.ClientboundServerSettings
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.ClientboundWorldData
+import org.lain.engine.transport.packet.ContentsUpdatePacket
 import org.lain.engine.transport.packet.DeleteChatMessagePacket
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.transport.packet.JoinGamePacket
@@ -79,6 +84,9 @@ import org.lain.engine.util.Pos
 import org.lain.engine.util.filterNearestPlayers
 import org.lain.engine.util.require
 import org.lain.engine.util.set
+import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.world.VoxelPos
+import org.lain.engine.world.location
 import org.lain.engine.world.pos
 import org.lain.engine.world.world
 import java.util.concurrent.LinkedBlockingQueue
@@ -138,7 +146,7 @@ class ServerHandler(
 
         SERVERBOUND_SPEED_INTENTION_PACKET.registerReceiver { ctx -> onPlayerSpeedIntentionSet(ctx.sender, value) }
         SERVERBOUND_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessage(ctx.sender, text, channel) }
-        SERVERBOUND_DEVELOPER_MODE_PACKET.registerReceiver { ctx -> onDeveloperModeEnabled(ctx.sender, enabled) }
+        SERVERBOUND_DEVELOPER_MODE_PACKET.registerReceiver { ctx -> onDeveloperModeEnabled(ctx.sender, enabled, acoustic) }
         SERVERBOUND_VOLUME_PACKET.registerReceiver { ctx -> onPlayerVolume(ctx.sender, volume) }
         SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessageDelete(ctx.sender, message) }
         SERVERBOUND_INTERACTION_ENDPOINT.registerReceiver { ctx -> onPlayerInteraction(ctx.sender, interaction) }
@@ -164,8 +172,9 @@ class ServerHandler(
         speak(content, channelId)
     }
 
-    private fun onDeveloperModeEnabled(playerId: PlayerId, enabled: Boolean) = updatePlayer(playerId) {
+    private fun onDeveloperModeEnabled(playerId: PlayerId, enabled: Boolean, acoustic: Boolean) = updatePlayer(playerId) {
         developerMode = enabled
+        acousticDebug = acoustic
     }
 
     private fun onPlayerInteraction(playerId: PlayerId, interaction: ServerboundInteractionData) = updatePlayer(playerId) {
@@ -197,11 +206,12 @@ class ServerHandler(
         CHAT_LOGGER.info("Удалено сообщение игроком $player: $outcomingMessage")
     }
 
-    fun synchronizePlayers(players: List<EnginePlayer>) {
+    fun synchronizePlayers() {
+        val players = playerStorage.filter { it.synchronization.authorized }
         for (player in players) {
             val state = player.synchronization
-            val playersInRadius = player
-                .filterNearestPlayers(globals.playerSynchronizationRadius)
+            val location = player.location
+            val playersInRadius = filterNearestPlayers(location, globals.playerSynchronizationRadius, players)
             val playersToSync = playersInRadius
                 .filter { it !in state.synchronizedPlayers }
             for (playerToSync in playersToSync) {
@@ -242,6 +252,10 @@ class ServerHandler(
 
             state.synchronizedPlayers.removeIf { it !in playersInRadius }
         }
+    }
+
+    fun onContentsUpdate() {
+        CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT.broadcast(ContentsUpdatePacket)
     }
 
     fun onSoundEvent(play: SoundPlay, receivers: List<EnginePlayer>) {
@@ -361,7 +375,7 @@ class ServerHandler(
                     playerId
                 )
                 .send()
-                .requestAcknowledge()
+//                .requestAcknowledge()
             server.execute { player.synchronization.authorized = true }
         }
     }
@@ -378,6 +392,13 @@ class ServerHandler(
                 ClientboundServerSettings.of(server, it)
             )
         }
+    }
+
+    fun onPersonalVolumeAcousticDebug(player: EnginePlayer, volumes: List<Pair<ImmutableVoxelPos, Float>>) {
+        CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET.sendS2C(
+            AcousticDebugVolumesPacket(volumes),
+            player.id
+        )
     }
 
     private fun <P : Packet> Endpoint<P>.broadcastInRadius(

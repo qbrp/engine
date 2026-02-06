@@ -85,7 +85,8 @@ data class AcousticLevelConfig(
 @Serializable
 data class AcousticVolumeConfig(
     @SerialName("hearing-threshold") val hearingThreshold: Float,
-    val max: Float
+    val max: Float,
+    val attenuation: Float
 )
 
 @Serializable
@@ -99,8 +100,6 @@ data class AcousticBlockConfig(
 
 @Serializable
 data class AcousticSimulationConfig(
-    val steps: Int,
-    @SerialName("chunk-size") val chunkSize: Int,
     val range: Int,
     @SerialName("performance-debug") val performanceDebug: Boolean
 )

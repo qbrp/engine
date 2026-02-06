@@ -51,6 +51,7 @@ chat:
     volume:
       max: 1.5
       hearing-threshold: 0.05
+      easing: 0.98
 
   advancements: false
 

@@ -7,6 +7,7 @@
     "ClientCommandSourceMixin",
     "KeyboardMixin",
     "MinecraftClientMixin",
+    "MouseMixin",
     "PlayerListEntryAccessor",
     "SoundLoaderMixin",
     "ToastManagerMixin",
@@ -16,6 +17,7 @@
     "chat.ChatHudMixin",
     "chat.ChatScreenMixin",
     "render.BasicItemModelAccessor",
+    "render.CameraMixin",
     "render.EntityRendererMixin",
     "render.GameTestDebugRendererMixin",
     "render.ItemModelManagerMixin",
@@ -28,9 +30,14 @@
     "resource.JsonUnbakedModelAccessor",
     "resource.ModelElementDeserializerMixin",
     "resource.TransformationDeserializerMixin",
+    "resource.SimpleResourceReloadMixin",
     "ui.DownloadingTerrainScreenMixin",
     "ui.InGameHudAcessor",
-    "ui.InGameHudMixin"
+    "ui.InGameHudMixin",
+    "ClickEventActionMixin",
+    "ItemGroupAccessor",
+    "ItemStackMixin",
+    "ScreenHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
@@ -38,10 +45,5 @@
   "overwrites": {
     "requireAnnotations": true
   },
-  "mixins": [
-    "ClickEventActionMixin",
-    "ItemStackMixin",
-    "ScreenHandlerMixin",
-    "resource.SimpleResourceReloadMixin"
-  ]
+  "mixins": []
 }

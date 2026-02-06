@@ -97,6 +97,8 @@ interface Vec3 : Pos {
     }
 }
 
+fun Vec3(x: Float) = ImmutableVec3(x, x, x)
+
 fun Vec3(x: Float, y: Float, z: Float) = ImmutableVec3(x, y, z)
 
 fun Vec3(x: Int, y: Int, z: Int) = ImmutableVec3(x.toFloat(), y.toFloat(), z.toFloat())

@@ -7,7 +7,9 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.transport.packet.CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_ITEM_GUN_PACKET
@@ -34,7 +36,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     // Players
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT) {
-        updatePlayer(id) { applyPlayerAttributeUpdate(it) }
+        updatePlayer(id) { applyPlayerAttributeUpdate(it, speed, jumpStrength) }
     }
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT) {
@@ -118,5 +120,13 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { gameSession ->
         applyPlaySoundPacket(play)
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT) { gameSession ->
+        applyContentsUpdatePacket()
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { gameSession ->
+        applyAcousticDebugVolumePacket(volumes)
     }
 }

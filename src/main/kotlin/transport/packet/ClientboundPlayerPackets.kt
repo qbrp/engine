@@ -2,23 +2,16 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import net.minecraft.network.PacketByteBuf
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemStorage
-import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.CustomName
-import org.lain.engine.player.DefaultPlayerAttributes
-import org.lain.engine.player.Interaction
-import org.lain.engine.player.MovementDefaultAttributes
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
 import org.lain.engine.player.PlayerId
-import org.lain.engine.player.playerBaseInputVolume
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.util.readPlayerId
 import org.lain.engine.util.writePlayerId
+import org.lain.engine.world.ImmutableVoxelPos
 
 ///// Movement
 
@@ -106,43 +99,16 @@ fun PacketByteBuf.readAttributeUpdate(): AttributeUpdate {
     }
 }
 
-// Interactions
+// Contents update
 
 @Serializable
-data class InteractionPacket(val interaction: ServerboundInteractionData) : Packet
+object ContentsUpdatePacket : Packet
+
+val CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT = Endpoint<ContentsUpdatePacket>()
+
+// Acoustic debug
 
 @Serializable
-sealed class ServerboundInteractionData {
-    @Serializable
-    data class SlotClick(val cursorItem: ItemUuid, val item: ItemUuid) : ServerboundInteractionData()
-    @Serializable
-    object RightClick : ServerboundInteractionData()
-    @Serializable
-    object LeftClick : ServerboundInteractionData()
+data class AcousticDebugVolumesPacket(val volumes: List<Pair<ImmutableVoxelPos, Float>>) : Packet
 
-    fun toDomain(itemStorage: ItemStorage) = when(this) {
-        LeftClick -> Interaction.LeftClick
-        RightClick -> Interaction.RightClick
-        is SlotClick -> Interaction.SlotClick(
-            itemStorage.get(cursorItem) ?: error("Item $cursorItem not found"),
-            itemStorage.get(item) ?: error("Item $cursorItem not found")
-        )
-    }
-
-    companion object {
-        fun from(interaction: Interaction) = when(interaction) {
-            is Interaction.LeftClick -> LeftClick
-            is Interaction.RightClick -> RightClick
-            is Interaction.SlotClick -> SlotClick(interaction.cursorItem.uuid, interaction.item.uuid)
-        }
-    }
-}
-
-val SERVERBOUND_INTERACTION_ENDPOINT = Endpoint<InteractionPacket>()
-
-// Inventory
-
-@Serializable
-data class PlayerCursorItemPacket(val item: ItemUuid?) : Packet
-
-val SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT = Endpoint<PlayerCursorItemPacket>()
+val CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET = Endpoint<AcousticDebugVolumesPacket>()

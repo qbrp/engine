@@ -77,12 +77,11 @@ class EngineServer(
 
         players.forEach { flushPlayerUpdates(it, handler) }
 
-        val authorizedPlayers = playerStorage.filter { it.synchronization.authorized }
-        handler.synchronizePlayers(authorizedPlayers)
+        handler.synchronizePlayers()
         taskQueue.flush { it.run() }
 
         tickTimes.add(start.timeElapsed().toInt())
-        worlds.values.forEach { processWorldSounds(handler, soundEventStorage, it) }
+        worlds.values.forEach { processWorldSounds(handler, soundEventStorage, globals.defaultItemSounds, it) }
     }
 
     fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {

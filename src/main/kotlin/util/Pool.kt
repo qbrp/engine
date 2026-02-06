@@ -5,7 +5,7 @@ object PrimitiveArrayPool {
     private val lock = Any()
     private val floatPool = mutableMapOf<Int, MutableList<FloatArray>>()
     private val intPool = mutableMapOf<Int, MutableList<IntArray>>()
-    private val bytePool = mutableMapOf<Int, MutableList<ByteArray>>()
+    private val booleanPool = mutableMapOf<Int, MutableList<BooleanArray>>()
 
     fun getFloat(size: Int): FloatArray = synchronized(lock) {
         floatPool[size]?.removeLastOrNull() ?: FloatArray(size)
@@ -25,12 +25,12 @@ object PrimitiveArrayPool {
         intPool.getOrPut(array.size) { mutableListOf() }.add(array)
     }
 
-    fun getByte(size: Int): ByteArray = synchronized(lock) {
-        bytePool[size]?.removeLastOrNull() ?: ByteArray(size)
+    fun getBool(size: Int): BooleanArray = synchronized(lock) {
+        booleanPool[size]?.removeLastOrNull() ?: BooleanArray(size)
     }
 
-    fun free(array: ByteArray, fill: Byte = 0) = synchronized(lock) {
+    fun free(array: BooleanArray, fill: Boolean = false) = synchronized(lock) {
         array.fill(fill)
-        bytePool.getOrPut(array.size) { mutableListOf() }.add(array)
+        booleanPool.getOrPut(array.size) { mutableListOf() }.add(array)
     }
 }

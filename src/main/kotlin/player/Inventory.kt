@@ -23,3 +23,6 @@ val EnginePlayer.items: Set<EngineItem>
 
 val EnginePlayer.handItem
     get() = this.require<PlayerInventory>().handItem
+
+val EnginePlayer.cursorItem
+    get() = this.require<PlayerInventory>().cursorItem

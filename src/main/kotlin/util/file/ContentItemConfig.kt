@@ -25,6 +25,7 @@ data class GunConfig(
     fun gunComponent() = Gun(
         barrel.let { Barrel(it.initial, it.bullets) },
         true,
+        false,
         ammunition.item
     )
 
@@ -51,7 +52,7 @@ data class ItemConfig(
     }
 }
 
-fun compileItemConfig(id: String, item: ItemConfig, namespace: NamespaceContents, namespaceConfig: NamespaceConfig): ItemProperties {
+fun compileItemProperties(id: String, item: ItemConfig, namespace: NamespaceContents, namespaceConfig: NamespaceConfig): ItemProperties {
     val namespacedId = NamespaceItemId(namespace.id, id)
     val material = Identifier.ofVanilla(item.material.lowercase())
     val cfgMaxStackSize = item.maxStackSize

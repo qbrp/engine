@@ -2,11 +2,13 @@ package org.lain.engine.mc
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import net.minecraft.block.Block
 import net.minecraft.block.BlockState
 import net.minecraft.registry.tag.TagKey
 import net.minecraft.util.Identifier
+import net.minecraft.util.collection.Pool
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.World
@@ -20,7 +22,10 @@ import org.lain.engine.chat.acoustic.NEIGHBOURS_VON_NEUMANN
 import org.lain.engine.chat.acoustic.SceneSize
 import org.lain.engine.chat.acoustic.freeGrid3f
 import org.lain.engine.chat.acoustic.getGrid3f
-import org.lain.engine.chat.acoustic.simulateAsync
+import org.lain.engine.chat.acoustic.simulateAsyncDijkstra
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerId
+import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.Pos
 import org.lain.engine.util.PrimitiveArrayPool
 import org.lain.engine.util.Timestamp
@@ -28,7 +33,10 @@ import org.lain.engine.util.asVec3
 import org.lain.engine.util.isPowerOfTwo
 import org.lain.engine.util.minecraftChunkSectionCoord
 import org.lain.engine.util.toBlockPos
+import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.WorldId
+import org.lain.engine.world.pos
 import org.slf4j.LoggerFactory
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
@@ -38,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.set
 import kotlin.jvm.optionals.getOrNull
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -249,6 +258,22 @@ class ChunkedAcousticView(
         scenes.forEach { it.vacant() }
     }
 
+    fun getPassability(x: Int, y: Int, z: Int): Float {
+        val chunkPosX = chunkSize.chunkX(x)
+        val chunkPosY = chunkSize.chunkY(y)
+        val chunkPosZ = chunkSize.chunkZ(z)
+        val chunk = chunkMap[ChunkPos(chunkPosX, chunkPosY, chunkPosZ)] ?: error("Координаты выходят за пределы чанка")
+        val baseX = chunk.x - minX
+        val baseY = chunk.y - minY
+        val baseZ = chunk.z - minZ
+
+        return chunk.passability[
+            x - baseX,
+            y - baseY,
+            z - baseZ
+        ]
+    }
+
     inline fun forEachCell(
         range: Grid3Range,
         block: (idx: Int, passability: Float, x: Int, y: Int, z: Int) -> Unit
@@ -406,13 +431,9 @@ class MinecraftAcousticManager(
     acousticBlockData: AcousticBlockData,
 ) : AcousticSimulator {
     private val logger = LoggerFactory.getLogger("Engine Acoustic Simulation")
-    private val coroutineScope = CoroutineScope(Dispatchers.Default)
-    private val threads = Runtime.getRuntime().availableProcessors()
-    private val executors = Executors.newFixedThreadPool(threads)
+    private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     var acousticBlockData = AtomicReference(acousticBlockData)
     var range = AtomicInteger(32)
-    var chunkSize = AtomicInteger(32)
-    var steps = AtomicInteger(100)
     var performanceDebug = AtomicBoolean(false)
 
     fun updateBlock(block: BlockState, pos: BlockPos, world: World) {
@@ -442,7 +463,7 @@ class MinecraftAcousticManager(
         pos: Pos,
         volume: Float,
         maxVolume: Float,
-        multiplier: Float
+        attenuation: Float,
     ): AcousticSimulationResult {
         val timestamp = Timestamp()
         val mcWorld = entityTable.getMcWorld(world) ?: throw IllegalArgumentException("World $world")
@@ -471,14 +492,17 @@ class MinecraftAcousticManager(
             )
         )
 
+        val freed = AtomicBoolean(false)
+        val use = AtomicBoolean(false)
+
         fun _finish() {
+            if (freed.get() || use.get()) return
+            freed.set(true)
             PrimitiveArrayPool.freeGrid3f(generation.volume)
             scene.free()
         }
 
         val performanceDebug = performanceDebug.get()
-        val steps = steps.get()
-        val chunkSize = chunkSize.get()
 
         try {
             for (offset in NEIGHBOURS_VON_NEUMANN + intArrayOf(0, 0, 0)) {
@@ -490,19 +514,12 @@ class MinecraftAcousticManager(
                 )
                 val (lX, lY, lZ) = scene.worldToLocal(blockPosRelative.x, blockPosRelative.y, blockPosRelative.z)
                 generation.volume[lX, lY, lZ] = volume * passability
-                //println("Offset ${offset[0]}, ${offset[1]}, ${offset[2]} ($blockPosRelative) : $passability")
             }
-            simulateAsync(
+            simulateAsyncDijkstra(
                 scene,
                 generation,
-                executors,
-                threads,
-                steps,
-                logger,
-                performanceDebug,
                 maxVolume,
-                multiplier,
-                chunkSize,
+                attenuation
             )
             if (performanceDebug) logger.info(
                 "[DEUBG] Просимулирована акустика в мире {} позиции {}, время обработки {} мс.",
@@ -516,6 +533,27 @@ class MinecraftAcousticManager(
         }
 
         return object : AcousticSimulationResult {
+            // Максимально не оптимизировано, но кому какое дело?
+            override fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float) {
+                use.set(true)
+                val minX = scene.minX.toFloat()
+                val minY = scene.minY.toFloat()
+                val minZ = scene.minZ.toFloat()
+                val playerPos = player.pos
+                    .sub(minX, minY, minZ)
+                coroutineScope.launch {
+                    val volumes = generation.volume.array
+                        .mapIndexed { i, _ -> generation.volume.posOf(i) }
+                        .filter { (x, y, z) -> abs(x - playerPos.x) <= radius && abs(y - playerPos.y) <= radius && abs(z - playerPos.z) <= radius }
+                        .map { (x, y, z) ->
+                            ImmutableVoxelPos(x + scene.minX, y + scene.minY, z + scene.minZ) to generation.volume[x, y, z]
+                        }
+                    handler.onPersonalVolumeAcousticDebug(player, volumes)
+                    use.set(false)
+                    finish()
+                }
+            }
+
             override fun getVolume(pos: Pos): Float? {
                 val x = pos.x.toInt()
                 val y = pos.y.toInt()

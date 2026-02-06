@@ -197,11 +197,61 @@ class Grid3f internal constructor(
     }
 }
 
+class Grid3b internal constructor(
+    w: Int,
+    h: Int,
+    d: Int,
+    internal val array: BooleanArray
+) : AbstractGrid3<Boolean>(w, h, d)
+{
+    constructor(
+        w: Int,
+        h: Int,
+        d: Int,
+        factory: (Int) -> Boolean = { false }
+    ): this(w, h, d, BooleanArray(w * h * d, factory))
+
+    override fun get(idx: Int): Boolean = array[idx]
+
+    override fun set(idx: Int, value: Boolean) {
+        array[idx] = value
+    }
+
+    fun arraycopy(other: Grid3f) {
+        require(this.array.size == other.array.size) { "Grid sizes do not match" }
+        System.arraycopy(this.array, 0, other.array, 0, this.array.size)
+    }
+
+    override fun fill(elem: Boolean) {
+        array.fill(elem)
+    }
+
+    fun clear() {
+        fill(false)
+    }
+
+    override fun forEachLinear(start: Int, end: Int, block: (Int, Int, Int, Int) -> Unit) {
+        array.forEachIndexed { i, elem ->
+            val (x, y, z) = posOf(i)
+            if (i == end) return@forEachIndexed
+            block(i, x, y, z)
+        }
+    }
+}
+
+fun PrimitiveArrayPool.getGrid3b(size: SceneSize) = getGrid3b(size.width, size.height, size.depth)
+
 fun PrimitiveArrayPool.getGrid3f(size: SceneSize) = getGrid3f(size.width, size.height, size.depth)
+
+fun PrimitiveArrayPool.getGrid3b(w: Int, h: Int, d: Int) = Grid3b(w, h, d, getBool(w * h * d))
 
 fun PrimitiveArrayPool.getGrid3f(w: Int, h: Int, d: Int) = Grid3f(w, h, d, getFloat(w * h * d))
 
 fun PrimitiveArrayPool.freeGrid3f(grid: Grid3f) = free(grid.array)
+
+fun PrimitiveArrayPool.freeGrid3b(grid: Grid3b) = free(grid.array)
+
+
 
 inline fun <reified T> Grid3(
     w: Int,

@@ -52,7 +52,7 @@ fun <P : Packet> sendClientboundPacketInternal(endpoint: Endpoint<P>, player: Pl
         packet,
         PayloadRegistry.payloadOf(endpoint),
     )
-    val player = ENTITY_TABLE.server.getEntity(player) as? ServerPlayerEntity ?: error("Entity for player $player not found")
+    val player = ENTITY_TABLE.server.getEntity(player) as? ServerPlayerEntity ?: error("[$packet] Entity for player $player not found")
     ServerPlayNetworking.send(player, payload)
 }
 

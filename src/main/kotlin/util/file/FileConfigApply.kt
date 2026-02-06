@@ -88,6 +88,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         ),
         chat.acoustic.volume.hearingThreshold,
         chat.acoustic.volume.max,
+        chat.acoustic.volume.attenuation,
         channels[chat.defaultChannel] ?: error("Указанный стандартный канал ${chat.defaultChannel} не существует"),
         chat.join.message,
         chat.join.enabled,
@@ -129,9 +130,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         )
     )
     val simulationConfig = chat.acoustic.simulation
-    acousticSimulator.steps.set(simulationConfig.steps)
     acousticSimulator.range.set(simulationConfig.range)
-    acousticSimulator.chunkSize.set(simulationConfig.chunkSize)
     acousticSimulator.performanceDebug.set(simulationConfig.performanceDebug)
 
     val statuses = mutableMapOf<PlayerStatus, Map<PrimaryAttribute, Float>>()

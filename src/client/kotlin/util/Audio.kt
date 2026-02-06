@@ -6,4 +6,5 @@ interface EngineAudioManager {
     fun playUiNotificationSound()
     fun playPigScreamSound()
     fun playSound(player: SoundPlay)
+    fun invalidateCache()
 }

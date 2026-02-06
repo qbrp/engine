@@ -52,7 +52,7 @@ object ClientMixinAccess {
         chatClipboardCopyTicksElapsed += 1
     }
 
-    fun getEngineItem(itemStack: ItemStack) = itemStack.get(EngineItemReferenceComponent.TYPE)?.getClientItem()
+    fun getEngineItem(itemStack: ItemStack) = itemStack.engine()?.getClientItem()
 
     fun predictItemLeftClickInteraction(): Boolean {
         val player = client.gameSession?.mainPlayer ?: return false
@@ -150,6 +150,12 @@ object ClientMixinAccess {
                             sprite = VOICE_WARNING,
                         ),
                     )
+                } else if (key == GLFW.GLFW_KEY_4) {
+                    client.camera.stress(2f)
+                } else if (key == GLFW.GLFW_KEY_5) {
+                    client.acousticDebug = !client.acousticDebug
+                } else {
+                    return@with false
                 }
             }
             return@with true
@@ -169,6 +175,8 @@ object ClientMixinAccess {
     fun getAssets(): Assets {
         return client.resources.assets
     }
+
+    fun getCamera() = client.camera
 
     fun createResourceList(): ResourceList {
         resources = findAssets()

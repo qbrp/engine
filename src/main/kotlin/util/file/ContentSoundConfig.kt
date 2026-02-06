@@ -15,7 +15,8 @@ data class SoundEventConfig(
     @SerialName("plays") val sounds: YamlNode,
     val volume: Float? = null,
     val pitch: Float? = null,
-    val distance: Int? = null
+    val distance: Int? = null,
+    @SerialName("pitch_random") val pitchRandom: Float? = null
 ) {
     fun getSoundEvent(
         id: SoundEventId,
@@ -30,7 +31,8 @@ data class SoundEventConfig(
                     it.volume ?: volume ?: 1f,
                     it.pitch ?: pitch ?: 1f,
                     it.weight,
-                    it.distance ?: distance ?: 16
+                    it.distance ?: distance ?: 16,
+                    it.pitchRandom ?: pitchRandom ?: 0f
                 )
             }
         )
@@ -43,7 +45,8 @@ data class SoundEntry(
     val weight: Int = 1,
     val volume: Float? = null,
     val pitch: Float? = null,
-    val distance: Int? = null
+    val distance: Int? = null,
+    @SerialName("pitch_random") val pitchRandom: Float? = null
 )
 
 fun deserializeSoundEntries(entries: YamlNode): List<SoundEntry> {

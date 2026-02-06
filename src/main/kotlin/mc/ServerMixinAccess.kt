@@ -5,16 +5,12 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
-import org.lain.engine.item.EngineItem
-import net.minecraft.world.GameMode as McGameMode
+import net.minecraft.world.chunk.WorldChunk
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerInventory
-import org.lain.engine.player.isSpectating
 import org.lain.engine.player.jumpStrength
 import org.lain.engine.player.speed
-import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.require
+import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessageLegacy
 
@@ -25,12 +21,9 @@ object ServerMixinAccess {
     private val chatSettings get() = chat.settings
     var disableAchievementMessages = false
     var isDamageEnabled = false
+    var blockRemovedCallback: ((WorldChunk, BlockPos) -> Unit)? = null
 
     fun isAchievementMessagesDisabled() = disableAchievementMessages
-
-    fun setPlayerItemCursor(player: PlayerEntity, item: EngineItem?) {
-        player.engine?.require<PlayerInventory>()?.cursorItem = item
-    }
 
     fun getDisplayName(player: PlayerEntity): Text? {
         return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name
@@ -44,20 +37,19 @@ object ServerMixinAccess {
         return player.engine?.jumpStrength?.toDouble() ?: 0.1
     }
 
-    fun overrideSpectatorGameMode(player: PlayerEntity): McGameMode? {
-        return if (player.engine?.isSpectating ?: return null) {
-            McGameMode.SPECTATOR
-        } else null
-    }
-
     fun onBlockAdded(world: World, blockPos: BlockPos, state: BlockState) {
         if (world.isClient) return
         server.onPlayerBlockInteraction(blockPos, state, world)
     }
 
-    fun onBlockRemoved(world: World, blockState: BlockState, pos: BlockPos) {
-        if (world.isClient) return
-        server.onBlockBreak(blockState, pos, world)
+    fun onBlockRemoved(world: World, pos: BlockPos) {
+        val chunk = world.getWorldChunk(pos)
+        chunk.removeBlockDecals(pos)
+        blockRemovedCallback?.invoke(chunk, pos)
+
+        if (!world.isClient) {
+            server.onBlockBreak(pos, world)
+        }
     }
 
     fun shouldCancelSendJoinMessage() = chatSettings.joinMessage != "" || !chatSettings.joinMessageEnabled

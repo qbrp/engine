@@ -1,10 +1,12 @@
 package org.lain.engine.world
 
+import org.lain.engine.item.EngineItem
 import org.lain.engine.item.EngineSoundCategory
 import org.lain.engine.item.SoundEventId
 import org.lain.engine.item.SoundEventStorage
 import org.lain.engine.item.SoundPlay
 import org.lain.engine.item.getOrSingleSound
+import org.lain.engine.item.sound
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.Component
 import org.lain.engine.util.Vec3
@@ -22,16 +24,37 @@ sealed class WorldSoundPlayRequest {
         val volume: Float = 1f,
         val pitch: Float = 1f
     ) : WorldSoundPlayRequest()
+    data class Item(
+        val item: EngineItem,
+        val key: String,
+        val category: EngineSoundCategory,
+        val volume: Float = 1f,
+        val pitch: Float = 1f
+    ) : WorldSoundPlayRequest()
 }
 
 data class WorldSoundsComponent(val events: Queue<WorldSoundPlayRequest> = LinkedList()) : Component
 
-fun processWorldSounds(handler: ServerHandler, soundEventStorage: SoundEventStorage, world: World) {
+fun processWorldSounds(
+    handler: ServerHandler,
+    soundEventStorage: SoundEventStorage,
+    defaultItemSounds: Map<String, SoundEventId>,
+    world: World
+) {
     world.require<WorldSoundsComponent>().events.flush { request ->
         val play = when(request) {
             is WorldSoundPlayRequest.Positioned -> SoundPlay(
                 soundEventStorage.getOrSingleSound(request.eventId),
                 request.pos,
+                request.category,
+                request.volume,
+                request.pitch
+            )
+            is WorldSoundPlayRequest.Item -> SoundPlay(
+                soundEventStorage.getOrSingleSound(
+                    request.item.sound?.get(request.key) ?: defaultItemSounds[request.key] ?: SoundEventId.MISSING,
+                ),
+                request.item.pos,
                 request.category,
                 request.volume,
                 request.pitch
@@ -45,7 +68,11 @@ fun processWorldSounds(handler: ServerHandler, soundEventStorage: SoundEventStor
     }
 }
 
-fun World.emitPlaySoundEvent(play: SoundPlay) = this.require<WorldSoundsComponent>().events.add(WorldSoundPlayRequest.Simple(play))
+fun World.emitPlaySoundEvent(request: WorldSoundPlayRequest) {
+    this.require<WorldSoundsComponent>().events.add(request)
+}
+
+fun World.emitPlaySoundEvent(play: SoundPlay) = emitPlaySoundEvent(WorldSoundPlayRequest.Simple(play))
 
 fun World.emitPlaySoundEvent(
     event: SoundEventId,

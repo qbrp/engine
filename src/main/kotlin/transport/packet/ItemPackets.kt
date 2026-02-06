@@ -1,6 +1,7 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.item.Count
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Gun
 import org.lain.engine.item.GunDisplay
@@ -11,6 +12,7 @@ import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.name
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.util.ImmutableVec3
 import org.lain.engine.util.Pos
 import org.lain.engine.util.get
 import org.lain.engine.world.Location
@@ -23,21 +25,23 @@ data class ItemPacket(val item: ClientboundItemData) : Packet
 data class ClientboundItemData(
     val id: ItemId,
     val uuid: ItemUuid,
-    val position: Pos,
+    val position: ImmutableVec3,
     val name: ItemName? = null,
     val gun: Gun?,
     val gunDisplay: GunDisplay?,
-    val tooltip: ItemTooltip?
+    val tooltip: ItemTooltip?,
+    val count: Int?
 ) {
     companion object {
         fun from(item: EngineItem) = ClientboundItemData(
             item.id,
             item.uuid,
-            item.pos,
+            ImmutableVec3(item.pos),
             item.get(),
             item.get(),
             item.get(),
-            item.get()
+            item.get(),
+            item.get<Count>()?.value
         )
     }
 }

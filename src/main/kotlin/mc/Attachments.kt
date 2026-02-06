@@ -1,10 +1,11 @@
+
 package org.lain.engine.mc
 
 import com.mojang.serialization.Codec
-import com.mojang.serialization.MapCodec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry
 import net.fabricmc.fabric.api.attachment.v1.AttachmentSyncPredicate
+import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType
 import net.minecraft.network.PacketByteBuf
 import net.minecraft.network.RegistryByteBuf
@@ -12,6 +13,7 @@ import net.minecraft.network.codec.PacketCodec
 import net.minecraft.network.codec.PacketCodecs
 import net.minecraft.network.codec.PacketDecoder
 import net.minecraft.util.math.BlockPos
+import net.minecraft.world.chunk.Chunk
 import org.lain.engine.util.EngineId
 import org.lain.engine.world.BlockDecals
 import org.lain.engine.world.Decal
@@ -93,6 +95,28 @@ fun registerBlockHintAttachment() {
 
 var BLOCK_DECALS_ATTACHMENT_TYPE: AttachmentType<Map<BlockPos, BlockDecals>>? = null
 
+fun Chunk.removeBlockDecals(pos: BlockPos) {
+    val target = this as AttachmentTarget
+    val blockCopy = target.getAttached(BLOCK_DECALS_ATTACHMENT_TYPE)?.toMutableMap() ?: mutableMapOf()
+    blockCopy.remove(pos)
+    target.setAttached(BLOCK_DECALS_ATTACHMENT_TYPE, blockCopy)
+}
+
+fun Chunk.setBlockDecals(pos: BlockPos, decals: BlockDecals) {
+    val target = this as AttachmentTarget
+    val blockCopy = target.getAttached(BLOCK_DECALS_ATTACHMENT_TYPE)?.toMutableMap() ?: mutableMapOf()
+    blockCopy[pos] = decals
+    target.setAttached(BLOCK_DECALS_ATTACHMENT_TYPE, blockCopy)
+}
+
+fun Chunk.updateBlockDecals(pos: BlockPos, update: (BlockDecals?) -> BlockDecals) {
+    val target = this as AttachmentTarget
+    val blocksCopy = target.getAttached(BLOCK_DECALS_ATTACHMENT_TYPE)?.toMutableMap() ?: mutableMapOf()
+    val oldDecals = blocksCopy[pos]
+    blocksCopy[pos] = update(oldDecals)
+    target.setAttached(BLOCK_DECALS_ATTACHMENT_TYPE, blocksCopy)
+}
+
 val DECAL_CONTENTS_CODEC: Codec<DecalContents> =
     Codec.STRING.dispatch(
         { contents ->
@@ -116,7 +140,6 @@ val DECAL_CONTENTS_CODEC: Codec<DecalContents> =
 val DECAL_CODEC: Codec<Decal> =
     RecordCodecBuilder.create { inst ->
         inst.group(
-            Codec.INT.fieldOf("id").forGetter(Decal::id),
             Codec.INT.fieldOf("x").forGetter(Decal::x),
             Codec.INT.fieldOf("y").forGetter(Decal::y),
             DECAL_CONTENTS_CODEC.fieldOf("contents").forGetter(Decal::contents)
@@ -150,7 +173,18 @@ val BLOCK_DECALS_CODEC: Codec<BlockDecals> =
         ).apply(inst, ::BlockDecals)
     }
 
-val BLOCK_DECALS_ATTACHMENT_CODEC: Codec<Map<BlockPos, BlockDecals>> = Codec.unboundedMap(BlockPos.CODEC, BLOCK_DECALS_CODEC)
+val BLOCK_POS_AS_STRING_CODEC: Codec<BlockPos> =
+    Codec.STRING.xmap(
+        { str ->
+            val (x, y, z) = str.split(',').map(String::toInt)
+            BlockPos(x, y, z)
+        },
+        { pos -> "${pos.x},${pos.y},${pos.z}" }
+    )
+
+val BLOCK_DECALS_ATTACHMENT_CODEC: Codec<Map<BlockPos, BlockDecals>> =
+    Codec.unboundedMap(BLOCK_POS_AS_STRING_CODEC, BLOCK_DECALS_CODEC)
+
 
 val DECAL_CONTENTS_PACKET_CODEC = PacketCodecs.INTEGER.dispatch(
     { contents ->
@@ -171,7 +205,6 @@ val DECAL_CONTENTS_PACKET_CODEC = PacketCodecs.INTEGER.dispatch(
 
 val DECAL_PACKET_CODEC =
     PacketCodec.tuple(
-        PacketCodecs.INTEGER, Decal::id,
         PacketCodecs.INTEGER, Decal::x,
         PacketCodecs.INTEGER, Decal::y,
         DECAL_CONTENTS_PACKET_CODEC, Decal::contents,
@@ -207,7 +240,7 @@ val BLOCK_DECALS_ATTACHMENT_PACKET_CODEC: PacketCodec<RegistryByteBuf, Map<Block
     )
 
 fun registerBlockDecalsAttachment() {
-    BLOCK_DECALS_ATTACHMENT_TYPE = AttachmentRegistry.create(EngineId("block-hint")) { builder ->
+    BLOCK_DECALS_ATTACHMENT_TYPE = AttachmentRegistry.create(EngineId("block-decals")) { builder ->
         builder.persistent(BLOCK_DECALS_ATTACHMENT_CODEC)
         builder.syncWith(BLOCK_DECALS_ATTACHMENT_PACKET_CODEC, AttachmentSyncPredicate.all())
     }

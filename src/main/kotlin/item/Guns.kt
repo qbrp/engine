@@ -1,17 +1,26 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.DestroyItemSignal
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.Orientation
 import org.lain.engine.player.PlayerUpdate
+import org.lain.engine.player.ShakeScreenComponent
+import org.lain.engine.player.eyePos
 import org.lain.engine.player.markUpdate
+import org.lain.engine.player.shake
+import org.lain.engine.player.translateRotation
 import org.lain.engine.util.Component
-import org.lain.engine.util.applyIfExists
+import org.lain.engine.util.Vec3
+import org.lain.engine.util.flush
+import org.lain.engine.util.handle
 import org.lain.engine.util.get
-import org.lain.engine.util.remove
+import org.lain.engine.util.require
 import org.lain.engine.util.set
-import org.lain.engine.world.emitPlaySoundEvent
+import org.lain.engine.world.World
+import org.lain.engine.world.pos
 import org.lain.engine.world.world
+import java.util.LinkedList
+import java.util.Queue
 
 @Serializable
 data class Barrel(var bullets: Int, val maxBullets: Int)
@@ -20,10 +29,11 @@ data class Barrel(var bullets: Int, val maxBullets: Int)
 data class Gun(
     val barrel: Barrel = Barrel(0, 2),
     var selector: Boolean = true,
+    var clicked: Boolean = false,
     val ammunition: ItemId
 ) : Component {
     fun copy(): Gun {
-        return Gun(Barrel(barrel.bullets, barrel.maxBullets), selector, ammunition)
+        return Gun(Barrel(barrel.bullets, barrel.maxBullets), selector, clicked, ammunition)
     }
 }
 
@@ -50,29 +60,57 @@ sealed class GunEvent {
 }
 
 fun EngineItem.setGunEvent(event: GunEvent) {
-
     this.set(GunEventComponent(event))
 }
 
+
+data class WorldGunEvents(val bullet: Queue<BulletFireEvent> = LinkedList()) : Component
+
+private fun World.emitBulletFireEvent(gun: EngineItem, start: Vec3, vector: Vec3) {
+    this.require<WorldGunEvents>().bullet += BulletFireEvent(gun, start, vector)
+}
+
+data class BulletFireEvent(val gun: EngineItem, val start: Vec3, val vector: Vec3)
+
+private const val ROUND_BARREL = "round_barrel"
+private const val ROUND_BARREL_FULL = "round_barrel_full"
+private const val CLICK_EMPTY_SOUND = "click_empty"
 private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
 
 // Вызывается на клиенте (для предсказания) и сервере
-fun updateGunState(items: Set<EngineItem>) {
+fun updateGunState(items: Set<EngineItem>, client: Boolean = false) {
     for (item in items) { // Кейс 1: загрузка боеприпасов в оружие
         val gun = item.get<Gun>() ?: continue
         val barrel = gun.barrel
-        item.applyIfExists<GunEventComponent> {
+        item.handle<GunEventComponent> {
             when(val event = this.event) {
                 is GunEvent.BarrelAmmoLoad -> {
                     barrel.bullets = (barrel.bullets + event.count).coerceAtMost(barrel.maxBullets)
                     event.loader.markUpdate(PlayerUpdate.GunBarrelBullets(item.uuid, barrel.bullets))
+                    item.emitPlaySoundEvent(ROUND_BARREL, EngineSoundCategory.NEUTRAL)
+                    gun.clicked = false
                 }
                 is GunEvent.Shoot -> {
-                    if (barrel.bullets > 0 && !gun.selector) {
-                        barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
-                        item.emitPlaySoundEvent(GUNFIRE_SOUND, EngineSoundCategory.NEUTRAL)
-                        event.shooter.markUpdate(PlayerUpdate.GunBarrelBullets(item.uuid, barrel.bullets))
+                    val shooter = event.shooter
+                    if (!gun.selector) {
+                        if (barrel.bullets > 0) {
+                            barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
+                            item.emitPlaySoundEvent(GUNFIRE_SOUND, EngineSoundCategory.NEUTRAL)
+                            shooter.translateRotation(pitch = -5f)
+                            shooter.markUpdate(PlayerUpdate.GunBarrelBullets(item.uuid, barrel.bullets))
+                            // FIXME: Антипаттерн, сделать вместо этого обработку по GunFireEvent
+                            if (client) {
+                                shooter.shake(0.3f)
+                            }
+
+                            val rotationVector = event.shooter.require<Orientation>().rotationVector
+                            val start = event.shooter.eyePos
+                            shooter.world.emitBulletFireEvent(item, start, rotationVector)
+                        } else if (!gun.clicked) {
+                            item.emitPlaySoundEvent(CLICK_EMPTY_SOUND, EngineSoundCategory.NEUTRAL)
+                            gun.clicked = true
+                        }
                     }
                 }
                 is GunEvent.SelectorToggle -> {

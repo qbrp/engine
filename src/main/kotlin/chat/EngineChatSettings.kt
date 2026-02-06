@@ -8,6 +8,7 @@ data class EngineChatSettings(
     val realisticAcousticFormatting: AcousticFormatting = AcousticFormatting(),
     val acousticHearingThreshold: Float = 0.05f,
     val acousticMaxVolume: Float = 1.5f,
+    val acousticAttenuation: Float = 0.9f,
     val defaultChannel: ChatChannel = BUILTIN_DEFAULT_CHANNEL,
     val joinMessage: String = BUILTIN_JOIN_MESSAGE,
     val joinMessageEnabled: Boolean = true,

@@ -6,16 +6,17 @@ import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.chat.ChatBubbleList
+import org.lain.engine.client.mc.updateBulletsVisual
 import org.lain.engine.client.transport.clientItem
 import org.lain.engine.client.transport.isLowDetailed
 import org.lain.engine.client.transport.lowDetailedClientPlayerInstance
 import org.lain.engine.client.transport.mainClientPlayerInstance
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.supplyPlayerInventoryItemsLocation
 import org.lain.engine.item.updateGunState
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.ShakeScreenComponent
 import org.lain.engine.player.SpawnMark
 import org.lain.engine.player.items
 import org.lain.engine.player.stamina
@@ -24,8 +25,11 @@ import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
+import org.lain.engine.util.handle
 import org.lain.engine.util.has
+import org.lain.engine.util.remove
 import org.lain.engine.util.require
+import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldSoundsComponent
 import org.lain.engine.world.pos
@@ -42,6 +46,8 @@ class GameSession(
     val chatEventBus = client.chatEventBus
     var playerSynchronizationRadius: Int = setup.settings.playerSynchronizationRadius
 
+    var admin = false
+    var acousticDebugVolumes = listOf<Pair<VoxelPos, Float>>()
     val playerStorage = ClientPlayerStorage()
     val itemStorage = ClientItemStorage()
     val movementManager = MovementManager(handler)
@@ -82,11 +88,16 @@ class GameSession(
 
             val playerItems = player.items
             supplyPlayerInventoryItemsLocation(player, playerItems)
-            updateGunState(playerItems)
+            updateGunState(playerItems, true)
             updatePlayerMovement(player, movementDefaultAttributes, movementSettings)
 
             if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
                 player.isLowDetailed = true
+            }
+
+            player.handle<ShakeScreenComponent> {
+                client.camera.stress(stress)
+                player.remove<ShakeScreenComponent>()
             }
 
             world.require<WorldSoundsComponent>().events.clear()

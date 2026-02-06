@@ -1,6 +1,14 @@
 package org.lain.engine.client
 
+import dev.architectury.event.events.client.ClientCommandRegistrationEvent
 import net.fabricmc.api.ClientModInitializer
+import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry
+import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget
+import net.fabricmc.fabric.api.attachment.v1.AttachmentType
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents
@@ -8,18 +16,32 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
+import net.fabricmc.fabric.api.event.player.UseBlockCallback
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.resource.featuretoggle.FeatureFlags
+import net.minecraft.server.command.CommandManager
+import net.minecraft.text.Text
+import net.minecraft.util.ActionResult
+import net.minecraft.util.math.ChunkPos
+import net.minecraft.world.chunk.Chunk
 import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.ClientMixinAccess.renderChatBubbles
+import org.lain.engine.client.mc.render.ChunkDecalsStorage
 import org.lain.engine.client.mc.render.EngineUiRenderPipeline
 import org.lain.engine.client.mc.render.MinecraftFontRenderer
 import org.lain.engine.client.mc.render.MinecraftPainter
+import org.lain.engine.client.mc.render.registerEngineItemGroupEvent
+import org.lain.engine.client.mc.render.renderAcousticDebugLabels
+import org.lain.engine.client.mc.render.renderBlockDecals
+import org.lain.engine.client.mc.render.updateEngineItemGroupEntries
+import org.lain.engine.client.mc.render.updateRandomEngineItemGroupIcon
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
@@ -27,17 +49,28 @@ import org.lain.engine.client.server.ServerSingleplayerTransport
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.mc.DisconnectText
+import org.lain.engine.mc.ENGINE_ITEM_REFERENCE_COMPONENT
 import org.lain.engine.mc.EngineItemReferenceComponent
+import org.lain.engine.mc.ServerMixinAccess
 import org.lain.engine.mc.updatePlayerMinecraftSystems
+import org.lain.engine.player.OrientationTranslation
 import org.lain.engine.serverMinecraftPlayerInstance
 import org.lain.engine.util.*
+import org.lain.engine.world.BlockDecals
+import org.lain.engine.world.Decal
+import org.lain.engine.world.DecalContents
+import org.lain.engine.world.DecalsLayer
+import org.lain.engine.world.Direction
 import org.slf4j.LoggerFactory
+import kotlin.math.asin
+import kotlin.math.atan2
 
 class MinecraftEngineClient : ClientModInitializer {
     private val client = MinecraftClient
     private val fabricLoader = FabricLoader.getInstance()
     private val entityTable by injectEntityTable()
     private val clientPlayerTable by lazy { entityTable.client }
+    private var chunks = mutableListOf<Chunk>()
 
     private val window = Window(this)
     private val fontRenderer = MinecraftFontRenderer()
@@ -45,7 +78,8 @@ class MinecraftEngineClient : ClientModInitializer {
     private val camera = MinecraftCamera(client)
     val uiRenderPipeline = EngineUiRenderPipeline(client, fontRenderer)
 
-    private val eventBus = MinecraftEngineClientEventBus(client, clientPlayerTable)
+    private val decalsStorage: ChunkDecalsStorage = ChunkDecalsStorage()
+    private val eventBus = MinecraftEngineClientEventBus(client, clientPlayerTable, decalsStorage, chunks)
     private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
         window,
@@ -71,6 +105,23 @@ class MinecraftEngineClient : ClientModInitializer {
         engineClient.options = config
         keybindManager = KeybindManager(config = config.config)
         Injector.register(keybindManager)
+        registerEngineItemGroupEvent()
+
+        ServerMixinAccess.blockRemovedCallback = { chunk, blockPos ->
+            client.execute { decalsStorage.update(chunk, blockPos) }
+        }
+
+        ClientCommandRegistrationCallback.EVENT.register { dispatcher, env ->
+            dispatcher.register(
+                ClientCommandManager.literal("reloadclientengineitems")
+                    .executes { ctx ->
+                        updateEngineItemGroupEntries()
+                        ctx.source.sendFeedback(Text.of("Предметы скомпилированы"))
+                        1
+                    }
+            )
+        }
+
         ClientPlayConnectionEvents.JOIN.register { handler, _, _ ->
             val entity = client.player!!
 
@@ -112,7 +163,9 @@ class MinecraftEngineClient : ClientModInitializer {
                 val skippedPlayers = mutableListOf<PlayerEntity>()
 
                 engineClient.gameSession?.let { session ->
-                    client.world?.players?.forEach { entity ->
+                    val mcWorld = client.world
+                    session.admin = player?.permissionLevel == 4
+                    mcWorld?.players?.forEach { entity ->
                         val player = clientPlayerTable.getPlayer(entity) ?: run {
                             skippedPlayers += entity
                             return@forEach
@@ -120,13 +173,26 @@ class MinecraftEngineClient : ClientModInitializer {
                         val world = session.world
                         val itemStacks = (entity.inventory.mainStacks + entity.currentScreenHandler.cursorStack).toSet()
                         val items = itemStacks.mapNotNull { itemStack ->
-                            val reference = itemStack.get(EngineItemReferenceComponent.TYPE) ?: return@mapNotNull null
+                            val reference = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT) ?: return@mapNotNull null
                             val item = reference.getClientItem() ?: return@mapNotNull null
                             item to itemStack
                         }
+
+                        player.apply<OrientationTranslation> {
+                            if (yaw != 0f || pitch != 0f) {
+                                camera.impulse(-yaw, -pitch)
+                            }
+                        }
+
                         updatePlayerMinecraftSystems(player, items, entity, world)
+                        if (engineClient.ticks % 20L == 0L) {
+                            updateRandomEngineItemGroupIcon()
+                        }
                     }
                     renderer.tick()
+                    if (mcWorld != null) {
+                        updateBulletsVisual(session.world, mcWorld, session.mainPlayer, decalsStorage)
+                    }
                 }
 
                 if (skippedPlayers.isNotEmpty()) {
@@ -144,12 +210,84 @@ class MinecraftEngineClient : ClientModInitializer {
         }
 
         WorldRenderEvents.END_MAIN.register { context ->
-            val camera = context.gameRenderer().camera
+            val gameRenderer = context.gameRenderer()
+            val camera = gameRenderer.camera
             val cameraPos = camera.pos
             val matrices = context.matrices()
+            val queue = context.commandQueue()
+
+            val gameSession = engineClient.gameSession
+            val acousticDebugVolumes = gameSession?.acousticDebugVolumes
+            val playerBlockPos = client.player?.blockPos ?: return@register
+            if (engineClient.developerMode && engineClient.acousticDebug && gameSession != null && acousticDebugVolumes?.isNotEmpty() == true) {
+                renderAcousticDebugLabels(
+                    eventBus.acousticDebugVolumesBlockPosCache,
+                    listOf(playerBlockPos, playerBlockPos.add(0, 1, 0)),
+                    gameSession.vocalRegulator.volume.base,
+                    gameSession.vocalRegulator.volume.max,
+                    queue,
+                    matrices,
+                    gameRenderer.entityRenderStates.cameraRenderState
+                )
+            }
+
             val vertexConsumers = context.consumers()
             if (vertexConsumers !is VertexConsumerProvider.Immediate) return@register
             renderChatBubbles(matrices, camera, vertexConsumers, cameraPos.x, cameraPos.y, cameraPos.z)
+        }
+
+        WorldRenderEvents.BEFORE_ENTITIES.register { context ->
+            val matrices = context.matrices()
+            val queue = context.commandQueue()
+            val camera = context.gameRenderer().camera
+            val images = decalsStorage.getBlockImages()
+            matrices.push()
+            matrices.translate(camera.pos.negate())
+            for ((pos, image) in images) {
+                val (chunkPos, blockPos) = pos.first to pos.second
+                for (layer in image.layers) {
+                    renderBlockDecals(layer, blockPos, matrices, queue)
+                }
+            }
+            matrices.pop()
+        }
+
+        var debugDecalsVersion = 0
+        UseBlockCallback.EVENT.register { entity, world, hand, result ->
+            if (world.isClient && engineClient.developerMode && isControlDown()) {
+                val pos = result.blockPos
+                val chunk = world.getChunk(pos)
+                val decals = List(10) {
+                    Decal(
+                        randomInteger(16),
+                        randomInteger(16),
+                        DecalContents.Chip(1)
+                    )
+                }
+                decalsStorage.modify(
+                    chunk,
+                    pos,
+                    BlockDecals(
+                        debugDecalsVersion++,
+                        listOf(
+                            DecalsLayer(
+                                Direction.entries.associateWith { decals }
+                            )
+                        )
+                    )
+                )
+            }
+            ActionResult.PASS
+        }
+
+        ClientChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
+            chunks -= chunk
+            decalsStorage.unload(chunk.pos)
+        }
+
+        ClientChunkEvents.CHUNK_LOAD.register { world, chunk ->
+            chunks += chunk
+            decalsStorage.survey(chunk)
         }
 
         HudElementRegistry.addLast(
@@ -197,11 +335,13 @@ class MinecraftEngineClient : ClientModInitializer {
         if (listOf("remii", "denterest").contains(client.gameProfile.name)) {
             audioManager.playPigScreamSound()
         }
+        decalsStorage.textureManager = client.textureManager
     }
 
-    private fun onDisconnect() {
+    private fun onDisconnect() = client.execute {
         uiRenderPipeline.invalidate()
         entityTable.client.invalidate()
+        decalsStorage.clear()
 
         if (engineClient.gameSessionActive) {
             engineClient.leaveGameSession()

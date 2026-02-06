@@ -1,5 +1,6 @@
 package org.lain.engine.util
 
+import kotlinx.serialization.Serializable
 import java.util.Spliterator
 
 class IdCollisionException(id: Any) : RuntimeException("Object with id $id already contained")
@@ -34,6 +35,7 @@ open class Storage<K : Any, T : Any> : Iterable<T> {
 }
 
 @JvmInline
+@Serializable
 value class NamespaceId(val value: String) {
     init { require(!value.contains(" ")) { "Идентификатор содержит пробелы" } }
 

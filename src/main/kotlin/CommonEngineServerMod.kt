@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.server.PlayerConfigEntry
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
@@ -20,6 +21,7 @@ import org.lain.engine.player.Interaction
 import org.lain.engine.player.setInteraction
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
+import org.lain.engine.util.file.PlayerConfig
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -39,7 +41,7 @@ class CommonEngineServerMod : ModInitializer {
             EnvType.CLIENT -> Environment.CLIENT
             EnvType.SERVER -> Environment.SERVER
         }
-        EngineItemReferenceComponent.initialize()
+        initializeEngineItemComponents()
         registerBlockHintAttachment()
         registerBlockDecalsAttachment()
 
@@ -51,7 +53,10 @@ class CommonEngineServerMod : ModInitializer {
             engineServer.disable()
         }
 
-        ServerPlayConnectionEvents.JOIN.register { handler, _, _ ->
+        ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
+            if (System.getenv("OP").toBoolean()) {
+                server.playerManager.addToOperators(PlayerConfigEntry(handler.player.gameProfile))
+            }
             engineServer.onJoinPlayer(handler.player)
         }
 

@@ -14,6 +14,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
 import org.lain.engine.mc.AcousticBlockData
 import org.lain.engine.mc.ConcurrentAcousticSceneBank
+import org.lain.engine.mc.ENGINE_ITEM_REFERENCE_COMPONENT
 import org.lain.engine.mc.EngineItemContext
 import org.lain.engine.mc.EngineItemReferenceComponent
 import org.lain.engine.mc.engine
@@ -21,7 +22,11 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.MinecraftAcousticManager
 import org.lain.engine.mc.MinecraftPermissionProvider
 import org.lain.engine.mc.Username
-import org.lain.engine.mc.bakeEngineItemStack
+import org.lain.engine.mc.engineItem
+import org.lain.engine.mc.removeBlockDecals
+import org.lain.engine.mc.updateBlockDecals
+import org.lain.engine.mc.wrapEngineItemStack
+import org.lain.engine.mc.updateBullets
 import org.lain.engine.mc.updateServerMinecraftSystems
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.GameMaster
@@ -40,7 +45,7 @@ import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
 import org.lain.engine.util.MinecraftRaycastProvider
 import org.lain.engine.util.file.applyConfigCatching
-import org.lain.engine.util.file.compileItemsCatching
+import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.file.parsePersistentPlayerData
 import org.lain.engine.world.location
@@ -71,13 +76,13 @@ open class EngineMinecraftServer(
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
         val item = engine.createItem(owner.location, itemId)
         val properties = itemContext.itemPropertiesStorage[itemId]
-        bakeEngineItemStack(properties, item, itemStack)
+        wrapEngineItemStack(properties, item, itemStack)
         return item
     }
 
     open fun createItemStack(owner: EnginePlayer, itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> Unit): EngineItem {
         val properties = itemContext.itemPropertiesStorage[itemId]
-        val itemStack = Registries.ITEM.get(properties.material).defaultStack ?: error("Illegal material id")
+        val itemStack = properties.getMaterialStack()
         return wrapItemStack(owner, itemId, itemStack)
             .also { itemStackHandler(itemStack, it) }
     }
@@ -85,6 +90,7 @@ open class EngineMinecraftServer(
     open fun tick() {
         val players = engine.playerStorage.getAll()
         updateServerMinecraftSystems(this, entityTable, players)
+        updateBullets(engine.defaultWorld, minecraftServer.overworld)
         engine.update()
     }
 
@@ -95,7 +101,7 @@ open class EngineMinecraftServer(
         Injector.register(itemContext)
         Injector.register(engine.itemStorage)
         applyConfigCatching(config)
-        compileItemsCatching()
+        loadContents()
         minecraftServer.worlds.forEach {
             val id = it.engine
             engine.addWorld(world(id))
@@ -123,7 +129,7 @@ open class EngineMinecraftServer(
 
     override fun onChatMessage(message: IncomingMessage) {}
 
-    fun onBlockBreak(block: BlockState, pos: BlockPos, world: World) {
+    fun onBlockBreak(pos: BlockPos, world: World) {
         acousticSimulator.removeBlock(pos, world)
     }
 
@@ -164,7 +170,7 @@ fun serverMinecraftPlayerInstance(
             Spectating(),
             GameMaster(),
             entity.inventory.mainStacks
-                .mapNotNull { itemStack -> itemStack.get(EngineItemReferenceComponent.TYPE)?.getItem() }
+                .mapNotNull { itemStack -> itemStack.engineItem() }
                 .toSet()
         ),
         persistentPlayerData,

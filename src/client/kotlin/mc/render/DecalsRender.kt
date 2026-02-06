@@ -15,6 +15,7 @@ import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.chunk.Chunk
 import org.joml.Vector3f
 import org.lain.engine.mc.BLOCK_DECALS_ATTACHMENT_TYPE
+import org.lain.engine.mc.setBlockDecals
 import org.lain.engine.mc.toMinecraft
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.alsoForEach
@@ -28,7 +29,8 @@ typealias ChunkBlockDecals = MutableMap<BlockPos, BlockDecals>
 
 data class BlockDecalImageData(val layers: MutableList<DecalsLayerTexture>)
 
-class ChunkDecalsStorage(private val textureManager: TextureManager) {
+class ChunkDecalsStorage {
+    lateinit var textureManager: TextureManager
     private val chunks: MutableMap<ChunkPos, ChunkBlockDecals> = mutableMapOf()
     private val images: MutableMap<Pair<ChunkPos, BlockPos>, BlockDecalImageData> = mutableMapOf()
 
@@ -44,9 +46,7 @@ class ChunkDecalsStorage(private val textureManager: TextureManager) {
     }
 
     fun modify(chunk: Chunk, pos: BlockPos, decals: BlockDecals) {
-        val oldBlocksCopy = (chunk as AttachmentTarget).getAttached(BLOCK_DECALS_ATTACHMENT_TYPE)?.toMutableMap() ?: mutableMapOf()
-        oldBlocksCopy[pos] = decals
-        (chunk as AttachmentTarget).setAttached(BLOCK_DECALS_ATTACHMENT_TYPE, oldBlocksCopy)
+        chunk.setBlockDecals(pos, decals)
         update(chunk, pos)
     }
 
@@ -59,24 +59,31 @@ class ChunkDecalsStorage(private val textureManager: TextureManager) {
         )
     }
 
+    fun clear() {
+        chunks.keys.toList().forEach { unload(it) }
+    }
+
     fun update(chunk: Chunk, pos: BlockPos) {
         RenderSystem.assertOnRenderThread()
         val chunkPos = chunk.pos
         val blocks = (chunk as AttachmentTarget).getAttached(BLOCK_DECALS_ATTACHMENT_TYPE)?.toMap() ?: emptyMap()
         val oldBlocks = chunks[chunkPos] ?: emptyMap()
         val oldBlockDecals = oldBlocks[pos]
-        val newBlockDecals = blocks[pos] ?: return
+        val newBlockDecals = blocks[pos]
         update(
             chunkPos,
             mutableMapOf(pos to newBlockDecals),
-            mutableMapOf(pos to oldBlockDecals)
+            mapOf(pos to oldBlockDecals)
         )
     }
 
-    private fun update(chunkPos: ChunkPos, newBlocks: ChunkBlockDecals, oldBlocks: MutableMap<BlockPos, BlockDecals?>) {
+    private fun update(chunkPos: ChunkPos, newBlocks: Map<BlockPos, BlockDecals?>, oldBlocks: Map<BlockPos, BlockDecals?>) {
+        val remaining = oldBlocks.toMutableMap()
         for ((pos, newBlockDecals) in newBlocks) {
+            if (newBlockDecals == null) continue
             val oldBlockDecals = oldBlocks[pos]
             if (oldBlockDecals?.version != newBlockDecals.version) {
+                remaining.remove(pos)
                 val key = chunkPos to pos
                 var image = images[key]
                 val imageLayersCount = image?.layers?.count()
@@ -96,7 +103,13 @@ class ChunkDecalsStorage(private val textureManager: TextureManager) {
                     val decalLayer = decalLayers[index]
                     imageLayer.compile(decalLayer)
                 }
+
+                chunks.computeIfAbsent(chunkPos) { mutableMapOf() }[pos] = newBlockDecals
             }
+        }
+
+        for ((blockPos, decals) in remaining) {
+            images.remove(ChunkPos(blockPos) to blockPos)
         }
     }
 
@@ -168,7 +181,7 @@ fun renderBlockDecals(texture: DecalsLayerTexture, blockPos: BlockPos, matrices:
     matrices.pop()
 }
 
-fun OrderedRenderCommandQueue.drawSide(layerTexture: DecalsLayerTexture, matrices: MatrixStack, side: Direction) {
+private fun OrderedRenderCommandQueue.drawSide(layerTexture: DecalsLayerTexture, matrices: MatrixStack, side: Direction) {
     val (x0, y0) = side.getStartPos()
     val u0 = x0.toFloat() / 48f
     val v0 = y0.toFloat() / 32f

@@ -8,6 +8,7 @@ import org.lain.engine.client.render.EXCLAMATION
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.render.QUESTION
 import org.lain.engine.client.render.ScreenRenderer
+import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.util.EngineAudioManager
@@ -22,7 +23,7 @@ import org.lain.engine.util.SPECTATOR_MODE_COLOR
 class EngineClient(
     val window: Window,
     val fontRenderer: FontRenderer,
-    private val camera: Camera,
+    val camera: Camera,
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
@@ -40,8 +41,24 @@ class EngineClient(
         set(value) {
             gameSession?.let {
                 it.mainPlayer.developerMode = value
-                handler.onDeveloperModeUpdate(value)
+                handler.onDeveloperModeUpdate(value, acousticDebug)
             }
+            field = value
+        }
+    var acousticDebug: Boolean = false
+        set(value) {
+            val text = if (value) "Включена" else "Выключена"
+
+            applyLittleNotification(
+                LittleNotification(
+                    "Отладка акустики",
+                    text,
+                    DEV_MODE_COLOR,
+                    VOICE_WARNING
+                )
+            )
+            handler.onDeveloperModeUpdate(developerMode, value)
+
             field = value
         }
 

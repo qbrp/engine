@@ -15,7 +15,7 @@ val EnginePlayer.eyePos: Vec3
     get() {
         val location = require<Location>()
         val standingEyeHeight = require<PlayerModel>().standingEyeHeight
-        return Vec3(location.x, standingEyeHeight, location.y)
+        return Vec3(location.x, location.y + standingEyeHeight, location.z)
     }
 
 val EnginePlayer.height

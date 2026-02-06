@@ -1,12 +1,17 @@
 package org.lain.engine.chat.acoustic
 
+import kotlinx.coroutines.Job
 import org.lain.engine.mc.ChunkedAcousticView
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerId
+import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.Pos
 import org.lain.engine.util.PrimitiveArrayPool
 import org.lain.engine.util.Timestamp
 import org.lain.engine.world.WorldId
 import org.slf4j.Logger
 import java.util.Collections
+import java.util.PriorityQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,11 +25,12 @@ interface AcousticSimulator {
         pos: Pos,
         volume: Float,
         maxVolume: Float,
-        multiplier: Float
+        attenuation: Float,
     ): AcousticSimulationResult
 }
 
 interface AcousticSimulationResult {
+    fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float)
     fun getVolume(pos: Pos): Float?
     fun finish()
 }
@@ -33,145 +39,64 @@ class AcousticGeneration(
     val volume: Grid3f
 )
 
-fun simulateAsync(
+data class Node(
+    val x: Int,
+    val y: Int,
+    val z: Int,
+    val volume: Float
+)
+fun simulateAsyncDijkstra(
     view: ChunkedAcousticView,
     generation: AcousticGeneration,
-    executors: ExecutorService,
-    threads: Int,
-    steps: Int,
-    logger: Logger,
-    performanceDebug: Boolean,
     maxVolume: Float,
-    multiplier: Float = 1f,
-    chunkSize: Int = 16,
+    attenuation: Float = 1f,
 ) {
-    fun debug(str: String) {
-        if (performanceDebug) logger.info("[DEBUG] $str")
-    }
-
-    val prepareStart = Timestamp()
-    val computing = LongAdder()
-    val transforming = LongAdder()
-
-    val size = view.totalSize
-
     val volumeGrid = generation.volume
-    val deltaGrid = PrimitiveArrayPool.getGrid3f(size)
+    val queue = PriorityQueue<Node> { a, b -> b.volume.compareTo(a.volume) }
 
-    // Начальный прогон по чанкам, чтобы пометить активный
-
-    val chunksList = splitIntoChunks(size, chunkSize)
-    val chunkMap = chunkMapOf(size, chunksList, chunkSize)
-    val chunks = chunkMap.size
-    val nextActive = Collections.synchronizedList(MutableList(chunkMap.size) { false })
-    chunkMap.forEach { idx, x, y, z ->
-        val chunk = chunkMap[idx]
-        volumeGrid.forEach(chunk.grid) { idx, x, y, z ->
-            if (volumeGrid[idx] != 0f) {
-                chunk.isActive = true
-            }
-        }
-    }
-
-    val threadsToUse = threads.coerceIn(0, chunks)
-    val globalIndex = AtomicInteger(0)
-    val chunkCoords = Array(chunks) { i -> MutableVec3i(0, 0, 0) }
-
-    debug("Время подготовки симуляции: ${prepareStart.timeElapsed()} мл.")
-
-    for (i in 0..steps) {
-        fun markActive(x: Int, y: Int, z: Int) {
-            val index = chunkMap.indexOf(x, y, z)
-            if (index !in 0 until chunkMap.size) return
-            nextActive[index] = true
-        }
-
-        val latch = CountDownLatch(threadsToUse)
-
-        for (t in 0 until threadsToUse) {
-            executors.submit {
-                while (true) {
-                    try {
-                        val i = globalIndex.getAndIncrement()
-                        if (i >= chunks) break
-
-                        val chunk = chunkMap[i]
-                        val chunkPos = chunkCoords[i]
-                        val (chunkX, chunkY, chunkZ) = chunkPos
-                        chunkMap.posOf(i, chunkPos)
-
-                        if (!chunk.isActive || chunk.isRaiseFinished) continue
-
-                        val grid = chunk.grid
-
-                        view.forEachCell(grid) { _, passability, x, y, z ->
-                            //if (volumeGrid[x, y, z] != 0f) return@forEachCell
-
-                            val volume = collectVolume(volumeGrid, x, y, z)
-                            val delta = volume * passability * multiplier
-
-                            if (delta < 0.01f) return@forEachCell
-
-                            val current = volumeGrid[x, y, z]
-                            if (delta <= current) return@forEachCell
-
-                            deltaGrid[x, y, z] = delta
-                            chunk.raised += 1
-
-                            if (x == grid.x0) markActive(chunkX - 1, chunkY, chunkZ)
-                            else if (x == grid.x1 - 1) markActive(chunkX + 1, chunkY, chunkZ)
-
-                            if (y == grid.y0) markActive(chunkX, chunkY - 1, chunkZ)
-                            else if (y == grid.y1 - 1) markActive(chunkX, chunkY + 1, chunkZ)
-
-                            if (z == grid.z0) markActive(chunkX, chunkY, chunkZ - 1)
-                            else if (z == grid.z1 - 1) markActive(chunkX, chunkY, chunkZ + 1)
-                        }
-                    } catch (e: Exception) {
-                        logger.error("Возникла ошибка при симуляции акустики", e)
-                        break
-                    }
+    for (cx in 0 until volumeGrid.w) {
+        for (cy in 0 until volumeGrid.h) {
+            for (cz in 0 until volumeGrid.d) {
+                val v = volumeGrid[cx, cy, cz]
+                if (v > 0.0f) {
+                    queue.add(Node(cx, cy, cz, v))
                 }
-                latch.countDown()
             }
-        }
-
-        val computingStart = Timestamp()
-
-        latch.await()
-
-        computing.add(computingStart.timeElapsed())
-
-        val transformingStart = Timestamp()
-
-        for (i in nextActive.indices) {
-            val isActive = nextActive[i]
-            if (isActive) {
-                chunkMap[i].isActive = true
-            }
-        }
-
-        val edited = transformVolume(
-            volumeGrid,
-            deltaGrid,
-        )
-
-        globalIndex.set(0)
-        deltaGrid.clear()
-        nextActive.fill(false)
-
-        transforming.add(transformingStart.timeElapsed())
-
-        if (edited == 0) {
-            break
         }
     }
 
-    debug("Расчёт клеток: $computing мл.")
-    debug("Применение: $transforming мл.")
+    val EPS = 1e-6f
 
-    val workedChunks = chunksList.count { it.isActive }
-    debug("Заполненность: ${(workedChunks / chunks.toFloat() * 100).toInt()}%")
+    while (queue.isNotEmpty()) {
+        val node = queue.poll()
+        val x = node.x
+        val y = node.y
+        val z = node.z
+        val v = node.volume
 
-    PrimitiveArrayPool.freeGrid3f(deltaGrid)
+        if (v + EPS < volumeGrid[x, y, z]) continue
+
+        for (offset in NEIGHBOURS_VON_NEUMANN) {
+            val nx = x + offset[0]
+            val ny = y + offset[1]
+            val nz = z + offset[2]
+
+            if (nx !in 0 until volumeGrid.w || ny !in 0 until volumeGrid.h || nz !in 0 until volumeGrid.d)
+                continue
+
+            val pass = view.getPassability(nx, ny, nz)
+            if (pass <= 0f) continue
+
+            var spread = v * pass * attenuation
+            if (spread <= 0.01f) continue
+
+            if (spread > maxVolume) spread = maxVolume
+
+            val current = volumeGrid[nx, ny, nz]
+            if (spread > current + EPS) {
+                volumeGrid[nx, ny, nz] = spread
+                queue.add(Node(nx, ny, nz, spread))
+            }
+        }
+    }
 }

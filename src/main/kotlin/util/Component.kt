@@ -1,12 +1,10 @@
 package org.lain.engine.util
 
-import kotlinx.serialization.Serializable
 import java.util.Spliterator
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.reflect.KClass
-import kotlin.reflect.KProperty
 
 /**
  * Вспомогательный интерфейс для определения компонентов
@@ -150,7 +148,7 @@ inline fun <reified T : Component> ComponentManager.apply(todo: T.() -> Unit): T
     return require<T>().apply(todo)
 }
 
-inline fun <reified T : Component> ComponentManager.applyIfExists(todo: T.() -> Unit): T? {
+inline fun <reified T : Component> ComponentManager.handle(todo: T.() -> Unit): T? {
     return get<T>()?.apply(todo)
 }
 

@@ -8,7 +8,7 @@ import org.lain.engine.util.file.PersistentPlayerData
 import org.lain.engine.util.set
 import org.lain.engine.util.setNullable
 import org.lain.engine.world.Location
-import org.lain.engine.world.Orientation
+import org.lain.engine.player.Orientation
 import org.lain.engine.world.Velocity
 import org.lain.engine.world.World
 
@@ -39,6 +39,7 @@ fun commonPlayerInstance(
         set(Velocity())
         set(Orientation())
         set(PlayerModel())
+        set(OrientationTranslation(0f, 0f))
         set(DeveloperMode(false))
         set(PlayerInventory(settings.items.toMutableSet()))
         set(settings.displayName)

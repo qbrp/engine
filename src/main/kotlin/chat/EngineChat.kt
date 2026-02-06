@@ -7,7 +7,9 @@ import kotlinx.coroutines.launch
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.mc.InvalidMessageSourcePositionException
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.acousticDebug
 import org.lain.engine.player.chatHeadsEnabled
+import org.lain.engine.player.developerMode
 import org.lain.engine.player.displayName
 import org.lain.engine.player.isSpectating
 import org.lain.engine.player.username
@@ -126,6 +128,7 @@ class EngineChat(
                     if (writtenByPlayer) sendMessage(content, source, this, author, volume = volume, id = id)
                     try {
                         runAcousticSpreadSimulation(
+                            author,
                             sourceWorld,
                             sourcePos,
                             volume,
@@ -320,14 +323,16 @@ class EngineChat(
     }
 
     private suspend fun runAcousticSpreadSimulation(
+        author: EnginePlayer?,
         world: World,
         pos: Pos,
         volume: Float
     ): Map<EnginePlayer, Float> {
         val players = world.players
         val acousticLevel = settings.realisticAcousticFormatting.getLevel(volume)
+        val multiplier = acousticLevel.multiplier * settings.acousticAttenuation
 
-        val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, acousticLevel.multiplier)
+        val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, multiplier)
 
         val recipients = players
             .mapNotNull {
@@ -339,6 +344,11 @@ class EngineChat(
                     null
                 }
             } // получаем уровни шума
+
+        if (author?.acousticDebug == true) {
+            results.debug(author, server.handler, 16f)
+        }
+
         results.finish()
         return recipients.toMap()
     }

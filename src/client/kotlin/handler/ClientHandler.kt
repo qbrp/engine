@@ -61,6 +61,7 @@ import org.lain.engine.util.apply
 import org.lain.engine.util.injectValue
 import org.lain.engine.util.replaceOrSet
 import org.lain.engine.util.require
+import org.lain.engine.world.VoxelPos
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -102,8 +103,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         SERVERBOUND_SPEED_INTENTION_PACKET.sendC2SPacket(SetSpeedIntentionPacket(value))
     }
 
-    fun onDeveloperModeUpdate(boolean: Boolean) {
-        SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(DeveloperModePacket(boolean))
+    fun onDeveloperModeUpdate(boolean: Boolean, acoustic: Boolean) {
+        SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(DeveloperModePacket(boolean, acoustic))
     }
 
     fun onInteraction(interaction: Interaction) {
@@ -259,6 +260,15 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun applyPlaySoundPacket(play: SoundPlay) {
         client.audioManager.playSound(play)
+    }
+
+    fun applyContentsUpdatePacket() {
+        client.audioManager.invalidateCache()
+    }
+
+    fun applyAcousticDebugVolumePacket(volumes: List<Pair<VoxelPos, Float>>) = with(gameSession!!) {
+        acousticDebugVolumes = volumes
+        eventBus.onAcousticDebugVolumes(volumes, this)
     }
 
     companion object {

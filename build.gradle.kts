@@ -50,6 +50,7 @@ repositories {
             includeGroup("curse.maven")
         }
     }
+    maven("https://maven.logandark.net")
 }
 
 val transitive by configurations.creating

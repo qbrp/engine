@@ -1,6 +1,8 @@
 package org.lain.engine.server
 
 import org.lain.engine.chat.EngineChatSettings
+import org.lain.engine.item.ItemSounds
+import org.lain.engine.item.SoundEventId
 import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.MovementSettings
 import org.lain.engine.player.VocalSettings
@@ -13,5 +15,6 @@ data class ServerGlobals(
     val defaultPlayerAttributes: DefaultPlayerAttributes = DefaultPlayerAttributes(),
     var vocalSettings: VocalSettings = VocalSettings(),
     var movementSettings: MovementSettings = MovementSettings(),
-    var chatSettings: EngineChatSettings = EngineChatSettings()
+    var chatSettings: EngineChatSettings = EngineChatSettings(),
+    var defaultItemSounds: Map<String, SoundEventId> = mapOf()
 )

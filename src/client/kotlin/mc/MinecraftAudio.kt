@@ -12,11 +12,13 @@ import net.minecraft.sound.SoundEvents
 import net.minecraft.util.Identifier
 import net.minecraft.util.Util
 import net.minecraft.util.math.floatprovider.ConstantFloatProvider
+import net.minecraft.util.math.floatprovider.FloatSupplier
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.item.EngineSoundCategory
 import org.lain.engine.item.SoundEvent
 import org.lain.engine.item.SoundEventId
+import org.lain.engine.item.SoundId
 import org.lain.engine.item.SoundPlay
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.ImmutableVec3
@@ -67,6 +69,10 @@ fun EngineSoundCategory.toMinecraft() = when(this) {
 class SoundSetCache {
     private val sets: MutableMap<SoundEventId, WeightedSoundSet> = mutableMapOf()
 
+    fun invalidate() {
+        sets.clear()
+    }
+
     fun get(event: SoundEvent): WeightedSoundSet {
         return sets.computeIfAbsent(event.id) {
             val set = WeightedSoundSet(EngineId(event.id.value), null)
@@ -75,13 +81,13 @@ class SoundSetCache {
                     Sound(
                         EngineId(it.id.value),
                         ConstantFloatProvider.create(it.volume),
-                        ConstantFloatProvider.create(it.pitch),
+                        { random -> it.pitch + (it.pitchRandom * random.nextFloat() * 2 - it.pitchRandom) },
                         it.weight,
                         Sound.RegistrationType.FILE,
                         false,
                         false,
                         it.distance
-                    )
+                    ) as SoundContainer<Sound>
                 }
                 .forEach { set.add(it) }
             set
@@ -154,6 +160,10 @@ class MinecraftAudioManager(
 
     override fun playPigScreamSound() {
         playMaster(PIG_SCREAM, 1f - Random.nextFloat() / 8f, 2f)
+    }
+
+    override fun invalidateCache() {
+        soundSetCache.invalidate()
     }
 
     override fun playSound(player: SoundPlay) {
