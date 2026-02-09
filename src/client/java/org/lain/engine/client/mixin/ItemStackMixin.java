@@ -100,6 +100,7 @@ public abstract class ItemStackMixin {
             cancellable = true
     )
     public void engine$onClicked(ItemStack stack, Slot slot, ClickType clickType, PlayerEntity player, StackReference cursorStackReference, CallbackInfoReturnable<Boolean> cir) {
+        if (!player.getEntityWorld().isClient()) return;
         ItemStack slotStack = slot.getStack();
         EngineItem slotItem = getEngineItem(slotStack);
         EngineItem item = getEngineItem(stack);
