@@ -1,9 +1,12 @@
 package org.lain.engine
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withContext
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
-import net.minecraft.registry.Registries
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.BlockPos
@@ -12,42 +15,17 @@ import net.minecraft.world.chunk.Chunk
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
-import org.lain.engine.mc.AcousticBlockData
-import org.lain.engine.mc.ConcurrentAcousticSceneBank
-import org.lain.engine.mc.ENGINE_ITEM_REFERENCE_COMPONENT
-import org.lain.engine.mc.EngineItemContext
-import org.lain.engine.mc.EngineItemReferenceComponent
-import org.lain.engine.mc.engine
-import org.lain.engine.mc.EntityTable
-import org.lain.engine.mc.MinecraftAcousticManager
-import org.lain.engine.mc.MinecraftPermissionProvider
-import org.lain.engine.mc.Username
-import org.lain.engine.mc.engineItem
-import org.lain.engine.mc.removeBlockDecals
-import org.lain.engine.mc.updateBlockDecals
-import org.lain.engine.mc.wrapEngineItemStack
-import org.lain.engine.mc.updateBullets
-import org.lain.engine.mc.updateServerMinecraftSystems
-import org.lain.engine.player.DisplayName
-import org.lain.engine.player.GameMaster
-import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerAttributes
-import org.lain.engine.player.PlayerId
-import org.lain.engine.player.PlayerInstantiateSettings
-import org.lain.engine.player.PlayerPermissionsProvider
-import org.lain.engine.player.PlayerStorage
-import org.lain.engine.player.Spectating
-import org.lain.engine.player.serverPlayerInstance
+import org.lain.engine.mc.*
+import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerEventListener
+import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
 import org.lain.engine.util.MinecraftRaycastProvider
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.util.file.parsePersistentPlayerData
 import org.lain.engine.world.location
 import org.lain.engine.world.world
 
@@ -64,14 +42,19 @@ open class EngineMinecraftServer(
     protected val dependencies: EngineMinecraftServerDependencies,
     protected open val transportContext: ServerTransportContext
 ) : ServerEventListener {
+    val minecraftServer = dependencies.minecraftServer
+    val database = connectDatabase(minecraftServer)
     protected val playerStorage = dependencies.playerStorage
     protected val acousticSceneBank = dependencies.acousticSceneBank
     protected val config = loadOrCreateServerConfig()
     val entityTable = dependencies.entityTable.server
     val itemContext = EngineItemContext()
     val acousticSimulator = dependencies.acousticSimulator
-    val minecraftServer = dependencies.minecraftServer
     val engine = EngineServer(config.server, playerStorage, acousticSimulator, this, transportContext)
+
+    private val autosaveTimer = ItemAutosaveTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database)
+    private val unloadTimer = UnloadInactiveItemsTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database, engine)
+    protected val itemLoader = ItemLoader(database, engine)
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
         val item = engine.createItem(owner.location, itemId)
@@ -89,9 +72,11 @@ open class EngineMinecraftServer(
 
     open fun tick() {
         val players = engine.playerStorage.getAll()
-        updateServerMinecraftSystems(this, entityTable, players)
+        updateServerMinecraftSystems(this, entityTable, players, itemLoader)
         updateBullets(engine.defaultWorld, minecraftServer.overworld)
         engine.update()
+        autosaveTimer.tick()
+        unloadTimer.tick()
     }
 
     open fun run() {
@@ -147,16 +132,18 @@ open class EngineMinecraftServer(
 }
 
 fun serverMinecraftPlayerInstance(
-    engineServer: EngineServer,
+    server: EngineMinecraftServer,
     entity: PlayerEntity,
     playerId: PlayerId,
 ): EnginePlayer {
+    val engine = server.engine
     val persistentPlayerData = parsePersistentPlayerData(playerId)
-    val defaults = engineServer.globals.defaultPlayerAttributes
+    val defaults = engine.globals.defaultPlayerAttributes
+    val stacks = entity.inventory.mainStacks
 
     return serverPlayerInstance(
         PlayerInstantiateSettings(
-            engineServer.getWorld(entity.entityWorld.engine),
+            engine.getWorld(entity.entityWorld.engine),
             entity.entityPos.engine(),
             DisplayName(
                 Username(entity.name),
@@ -169,12 +156,25 @@ fun serverMinecraftPlayerInstance(
             PlayerAttributes(),
             Spectating(),
             GameMaster(),
-            entity.inventory.mainStacks
-                .mapNotNull { itemStack -> itemStack.engineItem() }
+            stacks
+                .mapNotNull { it.engineItem() }
                 .toSet()
         ),
         persistentPlayerData,
         defaults,
         playerId
     )
+}
+
+suspend fun prepareServerMinecraftPlayer(server: EngineMinecraftServer, entity: PlayerEntity, player: EnginePlayer) = withContext(Dispatchers.IO) {
+    val items = entity.inventory.mainStacks
+        .mapNotNull { itemStack -> itemStack.engine() }
+
+    val loadTasks = items
+        .filter { it.cachedItem == null && it.uuid != null}
+        .map {
+            async { server.database.loadItem(player.location, it.uuid!!) }
+        }
+
+    loadTasks.awaitAll()
 }

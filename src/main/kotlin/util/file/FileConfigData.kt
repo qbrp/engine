@@ -10,7 +10,8 @@ data class ServerConfig(
     val chat: ChatConfig,
     val player: PlayerConfig,
     val vocal: VoiceApparatusConfig,
-    val movement: MovementConfig
+    val movement: MovementConfig,
+    @SerialName("item_autosave_period") val itemAutosavePeriod: Long // в секундах
 )
 
 

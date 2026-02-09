@@ -7,39 +7,14 @@ import net.minecraft.text.Text
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.GameMode
 import org.lain.engine.EngineMinecraftServer
-import org.lain.engine.item.Count
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.count
-import org.lain.engine.player.DestroyItemSignal
-import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerInventory
-import org.lain.engine.player.PlayerModel
-import org.lain.engine.player.SpawnMark
-import org.lain.engine.player.StartSpectatingMark
-import org.lain.engine.player.Username
-import org.lain.engine.player.isInGameMasterMode
-import org.lain.engine.player.isSpectating
+import org.lain.engine.item.*
+import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.Vec3
-import org.lain.engine.util.apply
-import org.lain.engine.util.get
-import org.lain.engine.util.has
-import org.lain.engine.util.remove
-import org.lain.engine.util.require
-import org.lain.engine.util.set
+import org.lain.engine.storage.ItemLoader
+import org.lain.engine.util.*
+import org.lain.engine.util.math.Vec3
+import org.lain.engine.world.*
 import net.minecraft.world.World as McWorld
-import org.lain.engine.world.Location
-import org.lain.engine.player.Orientation
-import org.lain.engine.player.OrientationTranslation
-import org.lain.engine.player.cursorItem
-import org.lain.engine.player.handItem
-import org.lain.engine.player.items
-import org.lain.engine.world.Velocity
-import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
 
 fun Vec3.toMinecraft(): Vec3d = Vec3d(x.toDouble(), y.toDouble(), z.toDouble())
 
@@ -60,27 +35,15 @@ fun EngineServer.getPlayerWorld(player: PlayerEntity): World {
 fun Username(text: Text) = Username(text.string)
 
 fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: ServerPlayerEntity, player: EnginePlayer) {
-    val itemCounts = mutableMapOf<ItemUuid, Int>()
-    val stackCounts = mutableMapOf<ItemStack, Int>()
-    val cursorItem = player.cursorItem
-    val stacks = entity.inventory.mainStacks
-        .map { it to it.engine()?.getItem() }
-        .filter { it.second != null }
-    for ((stack, engineItem) in stacks) {
-        val itemUuid = engineItem!!.uuid
-        val int1 = itemCounts[itemUuid] ?: 0
-        itemCounts[itemUuid] = int1 + engineItem.count
-        val int2 = stackCounts[stack] ?: 0
-        stackCounts[stack] = int2 + stack.count
-    }
-
-    for ((stack, engineItem) in stacks) {
-        val count = itemCounts[engineItem!!.uuid] ?: continue
-        val handItemCount = if (cursorItem?.uuid == engineItem.uuid) cursorItem.count else 0
-
-        if (count - handItemCount != (stackCounts[stack] ?: continue)) {
+    val items = mutableListOf<ItemUuid>()
+    for (stack in entity.inventory.mainStacks) {
+        val engineItem = stack.engine() ?: continue
+        val itemUuid = engineItem.uuid
+        if (items.contains(itemUuid)) {
             stack.remove(ENGINE_ITEM_REFERENCE_COMPONENT)
             engineServer.wrapItemStack(player, engineItem.id, stack)
+        } else {
+            items.add(itemUuid)
         }
     }
 }
@@ -89,6 +52,7 @@ fun updateServerMinecraftSystems(
     server: EngineMinecraftServer,
     table: ServerPlayerTable,
     players: List<EnginePlayer>,
+    itemLoader: ItemLoader
 ) {
     val engine = server.engine
     for (player in players) {
@@ -103,8 +67,13 @@ fun updateServerMinecraftSystems(
             val reference = itemStack.engine()
             if (reference != null) {
                 item = reference.getItem()
-                if (item == null && reference.version != 0) {
-                    detachEngineItemStack(itemStack)
+                val uuid = reference.uuid
+                if (item == null) {
+                    if (!itemLoader.isLoading(uuid)) {
+                        itemLoader.loadItem(player.location, uuid)
+                    } else if (itemLoader.isNotFound(uuid)) {
+                        detachEngineItemStack(itemStack)
+                    }
                 }
             }
 
@@ -199,6 +168,7 @@ fun updatePlayerMinecraftSystems(
              handItemSet = item
         }
 
+        item.getOrSet { HoldsBy(player.id) }
         playerInventory.items += item
         playerInventoryItems -= item
 
@@ -220,6 +190,7 @@ fun updatePlayerMinecraftSystems(
 
     for (removedItem in playerInventoryItems) {
         playerInventory.items.remove(removedItem)
+        removedItem.remove<HoldsBy>()
     }
 
     player.remove<DestroyItemSignal>()
