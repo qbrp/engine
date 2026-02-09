@@ -1,10 +1,10 @@
-import org.gradle.kotlin.dsl.testImplementation
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "2.2.21"
-    id("fabric-loom") version "1.13-SNAPSHOT"
+    id("fabric-loom") version "1.15-SNAPSHOT"
     id("maven-publish")
     kotlin("plugin.serialization") version "2.1.0"
     id("com.gradleup.shadow") version "9.3.0"
@@ -45,12 +45,18 @@ repositories {
             includeGroup("maven.modrinth")
         }
     }
-    maven("https://cursemaven.com") {
-        content {
-            includeGroup("curse.maven")
+
+    maven("https://maven.logandark.net")
+
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/qbrp/cyberia")
+        credentials {
+            username = findProperty("gpr.user") as String?
+            password = findProperty("gpr.key") as String?
         }
     }
-    maven("https://maven.logandark.net")
+
 }
 
 val transitive by configurations.creating
@@ -63,17 +69,17 @@ dependencies {
 
     val minecraft_version = project.property("minecraft")
 
-    // To change the versions see the gradle.properties file
     minecraft("com.mojang:minecraft:$minecraft_version")
     mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
     modImplementation("net.fabricmc:fabric-loader:${project.property("fabric_loader")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader")}")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_api")}")
+
+    // YAML Config
+
     modImplementation("maven.modrinth:yaml-config:${project.property("yaml_config")}-fabric")
     modImplementation("maven.modrinth:ui-lib:${project.property("ui_lib")}-fabric")
     modApi("maven.modrinth:architectury-api:${project.property("architectury_api")}+fabric")
-
-    include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")!!)
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_api")}")
 
     // Kyori Adventure
     val adventure = project.property("adventure_lib_version")
@@ -84,6 +90,7 @@ dependencies {
     modImplementation(include("net.kyori:adventure-platform-fabric:$adventurePlatform")!!)
 
     // Kaml
+    include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")!!)
     shaded("com.charleskorn.kaml:kaml:0.104.0")
     shaded("de.javagl:obj:0.4.0")
 
@@ -93,6 +100,12 @@ dependencies {
     // Game tests
     testImplementation("net.fabricmc:fabric-loader-junit:${project.property("fabric_loader")}")
     testImplementation(kotlin("test"))
+
+    // Тяжелые зависимости
+    modImplementation("org.lain:cyberia:1.0")
+    compileOnly("org.jetbrains.exposed:exposed-core:1.0.0")
+    compileOnly("org.jetbrains.exposed:exposed-jdbc:1.0.0")
+    compileOnly("org.xerial:sqlite-jdbc:3.51.1.0")
 }
 
 tasks.test {
@@ -108,9 +121,9 @@ tasks.processResources {
     filesMatching("fabric.mod.json") {
         expand(
             "version" to project.version,
-            "minecraft_version" to project.property("minecraft"),
-            "loader_version" to project.property("fabric_loader"),
-            "kotlin_loader_version" to project.property("kotlin_loader")
+            "minecraft_version" to project.property("minecraft")!!,
+            "loader_version" to project.property("fabric_loader")!!,
+            "kotlin_loader_version" to project.property("kotlin_loader")!!
         )
     }
 }
