@@ -8,7 +8,6 @@ import net.minecraft.block.Block
 import net.minecraft.block.BlockState
 import net.minecraft.registry.tag.TagKey
 import net.minecraft.util.Identifier
-import net.minecraft.util.collection.Pool
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.World
@@ -24,23 +23,19 @@ import org.lain.engine.chat.acoustic.freeGrid3f
 import org.lain.engine.chat.acoustic.getGrid3f
 import org.lain.engine.chat.acoustic.simulateAsyncDijkstra
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerId
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.Pos
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.PrimitiveArrayPool
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.asVec3
-import org.lain.engine.util.isPowerOfTwo
+import org.lain.engine.util.math.isPowerOfTwo
 import org.lain.engine.util.minecraftChunkSectionCoord
 import org.lain.engine.util.toBlockPos
 import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.pos
 import org.slf4j.LoggerFactory
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -49,7 +44,6 @@ import kotlin.jvm.optionals.getOrNull
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
-import kotlin.math.max
 import kotlin.math.min
 
 class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Message source is too high or low")

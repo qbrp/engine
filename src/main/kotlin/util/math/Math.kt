@@ -1,6 +1,7 @@
-package org.lain.engine.util
+package org.lain.engine.util.math
 
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.util.get
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.players

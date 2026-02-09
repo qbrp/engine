@@ -7,7 +7,6 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.ServerAcknowledgeTask
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.nextId
-import kotlin.collections.forEach
 import kotlin.reflect.KClass
 
 class Endpoint<P : Packet>(

@@ -1,11 +1,9 @@
 package org.lain.engine.client.mc.render
 
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
-import net.fabricmc.fabric.impl.client.indigo.renderer.render.ItemRenderContext
 import net.minecraft.client.gui.Click
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget
 import net.minecraft.client.gui.widget.ButtonWidget
 import net.minecraft.client.gui.widget.SliderWidget
 import net.minecraft.client.gui.widget.TextWidget
@@ -17,15 +15,13 @@ import net.minecraft.component.DataComponentTypes
 import net.minecraft.item.ItemDisplayContext
 import net.minecraft.item.ItemStack
 import net.minecraft.text.Text
-import net.minecraft.util.Colors
 import net.minecraft.util.Identifier
 import org.joml.Vector3f
 import org.joml.Vector3fc
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mixin.render.BasicItemModelAccessor
-import org.lain.engine.client.render.ui.recompose
 import org.lain.engine.client.resources.EngineItemModel
-import org.lain.engine.util.MutableVec3
+import org.lain.engine.util.math.MutableVec3
 import kotlin.math.max
 
 object AdditionalTransformationsBank {

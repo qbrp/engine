@@ -1,4 +1,4 @@
-package org.lain.engine.util
+package org.lain.engine.util.math
 
 interface Vec2 {
     val x: Float

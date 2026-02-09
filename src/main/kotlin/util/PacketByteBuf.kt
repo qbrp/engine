@@ -7,6 +7,8 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.serializer
 import net.minecraft.network.PacketByteBuf
 import org.lain.engine.player.PlayerId
+import org.lain.engine.util.math.Pos
+import org.lain.engine.util.math.Vec3
 import java.util.UUID
 
 fun PacketByteBuf.writeStringList(strings: List<String>) {

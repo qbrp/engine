@@ -1,6 +1,6 @@
 package org.lain.engine.world
 
-import org.lain.engine.util.Vec3
+import org.lain.engine.util.math.Vec3
 
 data class Decal(val x: Int, val y: Int, val contents: DecalContents)
 

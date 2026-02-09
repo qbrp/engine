@@ -115,6 +115,7 @@ value class Color(val integer: Int) {
         val GRAY = Color(0xFFAAAAAA)
         val DARK_RED = Color(0xFFAA0000)
         val YELLOW = Color(0xFFFFFF55)
+        val RED = Color(0xFFFF0000)
 
         fun parseString(string: String): Color {
             return Color(Integer.parseInt(string, 16))
@@ -131,6 +132,7 @@ val DEV_MODE_COLOR = Color.BLUE
 
 val SPECTATOR_MODE_COLOR = Color.BLUE
 val WARNING_COLOR = Color.ORANGE
+val FREECAM_WARNING_COLOR = Color.RED
 
 val STAMINA_COLOR = Color.ORANGE
 val SPEED_COLOR = Color.AQUA

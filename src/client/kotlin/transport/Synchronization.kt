@@ -13,7 +13,7 @@ import org.lain.engine.transport.packet.ClientboundWorldData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.Component
-import org.lain.engine.util.Vec3
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.getOrSet
 import org.lain.engine.util.set
 import org.lain.engine.world.Location

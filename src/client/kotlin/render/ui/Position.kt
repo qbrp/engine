@@ -1,6 +1,6 @@
 package org.lain.engine.client.render.ui
 
-import org.lain.engine.util.Vec2
+import org.lain.engine.util.math.Vec2
 
 data class PositionedLayout(
     val size: Size,

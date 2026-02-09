@@ -6,7 +6,7 @@ import net.minecraft.client.gui.render.state.SimpleGuiElementRenderState
 import net.minecraft.client.render.VertexConsumer
 import net.minecraft.client.texture.TextureSetup
 import org.joml.Matrix3x2f
-import org.lain.engine.util.toRadians
+import org.lain.engine.util.math.toRadians
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.sin

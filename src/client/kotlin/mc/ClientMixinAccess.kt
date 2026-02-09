@@ -3,17 +3,14 @@ package org.lain.engine.client.mc
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.component.DataComponentTypes
 import net.minecraft.inventory.StackReference
 import net.minecraft.item.ItemStack
-import net.minecraft.sound.SoundCategory
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
 import org.lain.engine.client.getClientItem
 import org.lain.engine.client.mc.render.TransformationsEditorScreen
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
-import org.lain.engine.client.resources.Asset
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
@@ -27,19 +24,15 @@ import org.lain.engine.item.SoundId
 import org.lain.engine.item.SoundPlay
 import org.lain.engine.item.SoundSource
 import org.lain.engine.item.gunAmmoConsumeCount
-import org.lain.engine.mc.EngineItemReferenceComponent
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.engineItem
 import org.lain.engine.player.Interaction
-import org.lain.engine.player.handItem
 import org.lain.engine.player.processLeftClickInteraction
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.VEC3_ZERO
-import org.lain.engine.util.Vec3
+import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.get
-import org.lain.engine.util.injectItemStorage
 import org.lain.engine.util.injectValue
-import org.lain.engine.util.roundToInt
+import org.lain.engine.util.math.roundToInt
 import org.lwjgl.glfw.GLFW
 
 object ClientMixinAccess {

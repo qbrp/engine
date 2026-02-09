@@ -4,13 +4,11 @@ import net.minecraft.client.MinecraftClient
 import org.joml.Quaternionf
 import org.lain.engine.client.render.Camera
 import org.lain.engine.mc.engine
-import org.lain.engine.util.PerlinNoise
-import org.lain.engine.util.VEC3_ZERO
-import org.lain.engine.util.Vec2
-import org.lain.engine.util.Vec3
-import org.lain.engine.util.lerp
-import java.sql.Time
-import kotlin.math.PI
+import org.lain.engine.util.math.PerlinNoise
+import org.lain.engine.util.math.VEC3_ZERO
+import org.lain.engine.util.math.Vec2
+import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.lerp
 import kotlin.math.pow
 
 

@@ -17,18 +17,14 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.Unit
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemName
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.name
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.injectItemStorage
-import org.lain.engine.util.require
 import org.lain.engine.util.text.parseMiniMessage
-import java.util.Optional
-import java.util.UUID
+import java.util.*
 import kotlin.jvm.optionals.getOrNull
-import kotlin.math.round
 
 data class ItemListTab(
     val id: String,
@@ -142,7 +138,7 @@ val ENGINE_ITEM_INSTANTIATE_COMPONENT: ComponentType<String> = Registry.register
 
 val ENGINE_ITEM_REFERENCE_COMPONENT: ComponentType<EngineItemReferenceComponent> = Registry.register(
     Registries.DATA_COMPONENT_TYPE,
-    EngineId("reference-component"),
+    EngineId("reference-component-v2"),
     ComponentType
         .builder<EngineItemReferenceComponent>()
         .codec(
@@ -177,14 +173,13 @@ fun initializeEngineItemComponents() = kotlin.Unit
 const val CURRENT_ITEM_VERSION = 1
 
 // 0 - до механики предметов, не нужно детачить
-data class EngineItemReferenceComponent(val id: ItemId, val uuid: ItemUuid?, val version: Int) {
+data class EngineItemReferenceComponent(val id: ItemId, val uuid: ItemUuid, val version: Int) {
     var cachedItem: EngineItem? = null
 
     fun getItem(): EngineItem? {
-        if (uuid == null) return null
         return cachedItem ?: run {
             val itemStorage by injectItemStorage()
-            val item = itemStorage.get(uuid!!)
+            val item = itemStorage.get(uuid)
             cachedItem = item
             item
         }

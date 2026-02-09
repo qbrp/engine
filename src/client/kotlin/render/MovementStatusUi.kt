@@ -13,8 +13,8 @@ import org.lain.engine.player.isSpectating
 import org.lain.engine.util.Color
 import org.lain.engine.util.SPEED_COLOR
 import org.lain.engine.util.STAMINA_COLOR
-import org.lain.engine.util.Vec2
-import org.lain.engine.util.lerp
+import org.lain.engine.util.math.Vec2
+import org.lain.engine.util.math.lerp
 
 fun MovementBar(gameSession: GameSession): Fragment {
     val renderer = gameSession.renderer

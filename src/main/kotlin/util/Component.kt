@@ -1,9 +1,7 @@
 package org.lain.engine.util
 
-import java.util.Spliterator
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.component1
-import kotlin.collections.component2
 import kotlin.reflect.KClass
 
 /**
@@ -64,7 +62,12 @@ interface ComponentManager : Iterable<Component> {
     fun <T : Component> getComponentsOfClass(clazz: KClass<T>): List<T>
 }
 
-class ComponentState : ComponentManager {
+@Suppress("UNCHECKED_CAST")
+class ComponentState(components: List<Component> = emptyList()) : ComponentManager {
+    init {
+        components.forEach { set(it) }
+    }
+
     private val components = ConcurrentHashMap<KClass<out Component>, Component>()
 
     override fun getComponents(): List<Component> {

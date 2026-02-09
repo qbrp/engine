@@ -1,7 +1,7 @@
 package org.lain.engine.player
 
 import org.lain.engine.util.Component
-import org.lain.engine.util.Vec3
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.require
 import org.lain.engine.world.Location
 

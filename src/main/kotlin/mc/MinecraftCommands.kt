@@ -9,7 +9,6 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import net.minecraft.command.argument.DefaultPosArgument
 import net.minecraft.command.argument.EntityArgumentType
 import net.minecraft.command.argument.Vec3ArgumentType
 import net.minecraft.entity.Entity
@@ -48,10 +47,8 @@ import org.lain.engine.util.Color
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.Vec3
 import org.lain.engine.util.apply
 import org.lain.engine.util.file.applyConfig
-import org.lain.engine.util.file.compileContents
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.get
 import org.lain.engine.util.injectEngineServer

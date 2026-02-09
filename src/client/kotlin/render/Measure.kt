@@ -1,6 +1,6 @@
 package org.lain.engine.client.render
 
-import org.lain.engine.util.sumOf
+import org.lain.engine.util.math.sumOf
 
 data class Rect2(val x1: Float, val y1: Float, val x2: Float, val y2: Float)
 

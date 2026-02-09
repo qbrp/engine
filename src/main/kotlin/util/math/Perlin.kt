@@ -1,9 +1,12 @@
-package org.lain.engine.util
+package org.lain.engine.util.math
+
+import java.util.Random
+import kotlin.math.floor
 
 class PerlinNoise(seed: Long) {
     private val p: IntArray by lazy(LazyThreadSafetyMode.NONE) {
         val arr = (0 until 256).toMutableList()
-        val rnd = java.util.Random(seed)
+        val rnd = Random(seed)
         arr.shuffle(rnd)
         IntArray(512) { arr[it and 255] }
     }
@@ -15,8 +18,8 @@ class PerlinNoise(seed: Long) {
         if ((hash and 1) == 0) x else -x
 
     fun noise(x: Float): Float {
-        val xi = kotlin.math.floor(x).toInt() and 255
-        val xf = x - kotlin.math.floor(x)
+        val xi = floor(x).toInt() and 255
+        val xf = x - floor(x)
 
         val u = fade(xf)
 

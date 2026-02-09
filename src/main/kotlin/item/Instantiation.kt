@@ -24,13 +24,19 @@ data class ItemInstantiationSettings(
 )
 
 fun itemInstance(uuid: ItemUuid, location: Location, properties: ItemInstantiationSettings): EngineItem {
-    return EngineItem(properties.id, uuid, ComponentState()).apply {
+    val state = ComponentState().apply {
         if (properties.count != null) set(Count(properties.count))
-        set(location.copy())
         setNullable(properties.name?.copy())
         setNullable(properties.gun?.copy())
         setNullable(properties.gunDisplay?.copy())
         setNullable(properties.tooltip?.copy())
         setNullable(properties.sounds?.copy())
+    }
+    return itemInstance(uuid, properties.id, location, state)
+}
+
+fun itemInstance(uuid: ItemUuid, id: ItemId, location: Location, state: ComponentState): EngineItem {
+    return EngineItem(id, uuid, state).apply {
+        set(location.copy())
     }
 }

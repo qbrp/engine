@@ -1,7 +1,6 @@
-package org.lain.engine.util
+package org.lain.engine.util.math
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.MutableVec3
 import kotlin.math.min
 import kotlin.math.sqrt
 

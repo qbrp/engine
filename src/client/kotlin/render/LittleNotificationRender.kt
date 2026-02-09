@@ -13,8 +13,8 @@ import org.lain.engine.client.render.ui.TextArea
 import org.lain.engine.client.render.ui.VerticalLayout
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.util.BLACK_TRANSPARENT_BG_COLOR
-import org.lain.engine.util.clampDelta
-import org.lain.engine.util.easeInStep
+import org.lain.engine.util.math.clampDelta
+import org.lain.engine.util.math.easeInStep
 
 class LittleNotificationState(
     val info: LittleNotification,

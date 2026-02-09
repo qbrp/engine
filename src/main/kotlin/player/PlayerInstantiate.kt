@@ -3,12 +3,11 @@ package org.lain.engine.player
 import org.lain.engine.item.EngineItem
 import org.lain.engine.server.SynchronizationComponent
 import org.lain.engine.util.Component
-import org.lain.engine.util.Pos
-import org.lain.engine.util.file.PersistentPlayerData
+import org.lain.engine.util.math.Pos
+import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.util.set
 import org.lain.engine.util.setNullable
 import org.lain.engine.world.Location
-import org.lain.engine.player.Orientation
 import org.lain.engine.world.Velocity
 import org.lain.engine.world.World
 

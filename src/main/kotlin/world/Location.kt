@@ -1,12 +1,9 @@
 package org.lain.engine.world
 
-import kotlinx.serialization.Serializable
 import org.lain.engine.util.Component
 import org.lain.engine.util.ComponentManager
-import org.lain.engine.util.MutableVec3
-import org.lain.engine.util.Pos
-import org.lain.engine.util.Vec3
-import org.lain.engine.util.asVec3
+import org.lain.engine.util.math.MutableVec3
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.require
 
 data class Location(

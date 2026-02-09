@@ -1,7 +1,7 @@
 package org.lain.engine.world
 
 import org.lain.engine.util.Component
-import org.lain.engine.util.Vec3
+import org.lain.engine.util.math.Vec3
 
 sealed class GlowScattering {
     data class Radius(val r: Float): GlowScattering()

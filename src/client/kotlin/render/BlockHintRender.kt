@@ -15,7 +15,7 @@ import org.lain.engine.client.render.ui.remember
 import org.lain.engine.mc.BlockHint
 import org.lain.engine.util.BLACK_TRANSPARENT_BG_COLOR
 import org.lain.engine.util.BLOCK_HINT_COLOR
-import org.lain.engine.util.Vec2
+import org.lain.engine.util.math.Vec2
 import org.lain.engine.util.text.EngineText
 
 fun BlockHintContainer(window: Window, editor: Boolean, hint: BlockHint?) = Fragment(

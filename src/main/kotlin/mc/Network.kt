@@ -10,11 +10,11 @@ import net.minecraft.network.packet.CustomPayload
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
 import org.lain.engine.player.PlayerId
-import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.deserializePacket
+import org.lain.engine.transport.network.ConnectionSession
+import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.serializePacket
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.engineId
@@ -30,7 +30,6 @@ fun <P : Packet> registerServerReceiverInternal(
     connectionManager: ServerConnectionManager,
     handler: ServerPacketHandlerInternal<P>,
 ) {
-
     val payloadId = PayloadRegistry.payloadOf(channel)
 
     ServerPlayNetworking.registerGlobalReceiver(payloadId) { payload, context ->

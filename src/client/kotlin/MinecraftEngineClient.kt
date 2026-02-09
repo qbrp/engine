@@ -1,13 +1,12 @@
 package org.lain.engine.client
 
-import dev.architectury.event.events.client.ClientCommandRegistrationEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import net.fabricmc.api.ClientModInitializer
-import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry
-import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget
-import net.fabricmc.fabric.api.attachment.v1.AttachmentType
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
@@ -17,31 +16,17 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.resource.featuretoggle.FeatureFlags
-import net.minecraft.server.command.CommandManager
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
-import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.chunk.Chunk
-import org.lain.engine.AuthPacket
-import org.lain.engine.EngineMinecraftServerDependencies
-import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
+import org.lain.engine.*
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.ClientMixinAccess.renderChatBubbles
-import org.lain.engine.client.mc.render.ChunkDecalsStorage
-import org.lain.engine.client.mc.render.EngineUiRenderPipeline
-import org.lain.engine.client.mc.render.MinecraftFontRenderer
-import org.lain.engine.client.mc.render.MinecraftPainter
-import org.lain.engine.client.mc.render.registerEngineItemGroupEvent
-import org.lain.engine.client.mc.render.renderAcousticDebugLabels
-import org.lain.engine.client.mc.render.renderBlockDecals
-import org.lain.engine.client.mc.render.updateEngineItemGroupEntries
-import org.lain.engine.client.mc.render.updateRandomEngineItemGroupIcon
+import org.lain.engine.client.mc.render.*
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
@@ -50,20 +35,13 @@ import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.ENGINE_ITEM_REFERENCE_COMPONENT
-import org.lain.engine.mc.EngineItemReferenceComponent
 import org.lain.engine.mc.ServerMixinAccess
 import org.lain.engine.mc.updatePlayerMinecraftSystems
 import org.lain.engine.player.OrientationTranslation
-import org.lain.engine.serverMinecraftPlayerInstance
 import org.lain.engine.util.*
-import org.lain.engine.world.BlockDecals
-import org.lain.engine.world.Decal
-import org.lain.engine.world.DecalContents
-import org.lain.engine.world.DecalsLayer
-import org.lain.engine.world.Direction
+import org.lain.engine.util.math.randomInteger
+import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
-import kotlin.math.asin
-import kotlin.math.atan2
 
 class MinecraftEngineClient : ClientModInitializer {
     private val client = MinecraftClient
@@ -128,13 +106,13 @@ class MinecraftEngineClient : ClientModInitializer {
             if (client.isInSingleplayer) {
                 val server = server ?: throw RuntimeException("Server not started")
                 val engine = server.engine
-                engine.playerService.instantiate(
-                    serverMinecraftPlayerInstance(
-                        engine,
-                        entity,
-                        entity.engineId
-                    )
-                )
+                val player = serverMinecraftPlayerInstance(server, entity, entity.engineId)
+                CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                    prepareServerMinecraftPlayer(server, entity, player)
+                    engine.execute {
+                        engine.playerService.instantiate(player)
+                    }
+                }
             } else {
                 Injector.register<ClientTransportContext>(ClientMinecraftNetwork())
                 readyToAuthorize = true

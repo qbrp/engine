@@ -2,7 +2,7 @@ package org.lain.engine.client.render.ui
 
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.util.Color
-import org.lain.engine.util.sumOf
+import org.lain.engine.util.math.sumOf
 import kotlin.math.max
 import kotlin.math.min
 

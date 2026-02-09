@@ -1,18 +1,12 @@
-package org.lain.engine.util.file
+package org.lain.engine.storage
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.lain.engine.player.CustomName
-import org.lain.engine.player.InvalidCustomNameException
-import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerId
-import org.lain.engine.player.VoiceApparatus
-import org.lain.engine.player.VoiceLoose
-import org.lain.engine.player.chatHeadsEnabled
-import org.lain.engine.player.customName
+import org.lain.engine.player.*
 import org.lain.engine.util.Color
+import org.lain.engine.util.file.ENGINE_DIR
+import org.lain.engine.util.file.ensureExists
 import org.lain.engine.util.get
 import org.lain.engine.util.require
 import org.slf4j.LoggerFactory
@@ -21,7 +15,7 @@ private val PLAYERS_DATA_DIR = ENGINE_DIR.resolve("players")
 private val PLAYERS_JSON = Json {
     prettyPrint = true
 }
-private val PLAYER_DATA_LOGGER = LoggerFactory.getLogger("Engine EnginePlayer Data")
+private val PLAYER_DATA_LOGGER = LoggerFactory.getLogger("Engine Player Data")
 
 @Serializable
 data class CustomNamePersistentData(

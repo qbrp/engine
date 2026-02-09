@@ -8,7 +8,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.Pos
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World

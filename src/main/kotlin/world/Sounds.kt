@@ -9,7 +9,7 @@ import org.lain.engine.item.getOrSingleSound
 import org.lain.engine.item.sound
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.Component
-import org.lain.engine.util.Vec3
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.flush
 import org.lain.engine.util.require
 import java.util.LinkedList

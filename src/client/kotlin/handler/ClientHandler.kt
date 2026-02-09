@@ -10,57 +10,18 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.chat.acceptOutcomingMessage
-import org.lain.engine.client.transport.clientWorld
-import org.lain.engine.client.transport.isLowDetailed
-import org.lain.engine.client.transport.ClientAcknowledgeHandler
-import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.render.WARNING
-import org.lain.engine.util.WARNING_COLOR
-import org.lain.engine.client.transport.ClientTransportContext
-import org.lain.engine.client.transport.clientItem
+import org.lain.engine.client.transport.*
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Gun
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.SoundPlay
-import org.lain.engine.player.CustomName
-import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.Interaction
-import org.lain.engine.player.PlayerAttributes
-import org.lain.engine.player.customName
-import org.lain.engine.player.username
+import org.lain.engine.player.*
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
-import org.lain.engine.transport.packet.ClientboundItemData
-import org.lain.engine.transport.packet.ClientboundServerSettings
-import org.lain.engine.transport.packet.ClientboundSetupData
-import org.lain.engine.transport.packet.ClientboundWorldData
-import org.lain.engine.transport.packet.DeleteChatMessagePacket
-import org.lain.engine.transport.packet.DeveloperModePacket
-import org.lain.engine.transport.packet.FullPlayerData
-import org.lain.engine.transport.packet.GeneralPlayerData
-import org.lain.engine.transport.packet.IncomingChatMessagePacket
-import org.lain.engine.transport.packet.InteractionPacket
-import org.lain.engine.transport.packet.ItemGunPacket
-import org.lain.engine.transport.packet.ItemPacket
-import org.lain.engine.transport.packet.PlayerCursorItemPacket
-import org.lain.engine.transport.packet.SERVERBOUND_CHAT_MESSAGE_ENDPOINT
-import org.lain.engine.transport.packet.SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
-import org.lain.engine.transport.packet.SERVERBOUND_DEVELOPER_MODE_PACKET
-import org.lain.engine.transport.packet.SERVERBOUND_INTERACTION_ENDPOINT
-import org.lain.engine.transport.packet.SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT
-import org.lain.engine.transport.packet.SERVERBOUND_SPEED_INTENTION_PACKET
-import org.lain.engine.transport.packet.SERVERBOUND_VOLUME_PACKET
-import org.lain.engine.transport.packet.ServerPlayerData
-import org.lain.engine.transport.packet.ServerboundInteractionData
-import org.lain.engine.transport.packet.SetSpeedIntentionPacket
-import org.lain.engine.transport.packet.VolumePacket
-import org.lain.engine.util.IdCollisionException
-import org.lain.engine.util.apply
-import org.lain.engine.util.injectValue
-import org.lain.engine.util.replaceOrSet
-import org.lain.engine.util.require
+import org.lain.engine.transport.packet.*
+import org.lain.engine.util.*
 import org.lain.engine.world.VoxelPos
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -228,7 +189,19 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                     sprite = WARNING,
                     lifeTime = 300
                 )
+
+            Notification.VOICE_BREAK -> TODO()
+            Notification.VOICE_TIREDNESS -> TODO()
+            Notification.FREECAM ->
+                LittleNotification(
+                    "Вы используете мод Freecam",
+                    "Его использование способствует получению мета-информации, для игры на сервере он запрещен.",
+                    color = FREECAM_WARNING_COLOR,
+                    sprite = WARNING,
+                    lifeTime = 300
+                )
         }
+
         client.applyLittleNotification(notification)
     }
 

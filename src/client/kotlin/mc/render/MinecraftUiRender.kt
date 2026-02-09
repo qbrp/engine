@@ -15,6 +15,7 @@ import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.render.Painter
 import org.lain.engine.util.*
+import org.lain.engine.util.math.sumOf
 import org.lain.engine.util.text.EngineTextSpan
 import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.EngineText

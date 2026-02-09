@@ -18,10 +18,8 @@ import org.lain.engine.util.HIGH_VOLUME_COLOR
 import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
-import org.lain.engine.util.lerp
+import org.lain.engine.util.math.lerp
 import org.lain.engine.util.text.EngineText
-import org.lain.engine.util.text.EngineTextStyle
-import org.lain.engine.util.text.TextColor
 import java.util.IdentityHashMap
 import kotlin.collections.set
 import kotlin.math.pow

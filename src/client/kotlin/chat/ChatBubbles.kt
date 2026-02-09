@@ -3,7 +3,7 @@ package org.lain.engine.client.chat
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.MutableVec3
+import org.lain.engine.util.math.MutableVec3
 import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.EngineText
 import org.lain.engine.world.pos

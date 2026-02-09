@@ -7,7 +7,13 @@ import net.minecraft.util.math.ChunkPos
 import net.minecraft.util.math.Vec3d
 import org.lain.engine.mc.ServerPlayerTable
 import org.lain.engine.mc.toMinecraft
-import org.lain.engine.player.*
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerId
+import org.lain.engine.player.RaycastProvider
+import org.lain.engine.player.Username
+import org.lain.engine.util.math.MutableVec3
+import org.lain.engine.util.math.Pos
+import org.lain.engine.util.math.asVec3
 
 fun MinecraftUsername(player: PlayerEntity) = Username(player.name.string)
 
@@ -44,3 +50,5 @@ fun MutableVec3.set(vec3: Vec3d) {
     this.y = vec3.y.toFloat()
     this.z = vec3.z.toFloat()
 }
+
+fun MinecraftServer.getPlayer(id: PlayerId) = playerManager.getPlayer(id.value)

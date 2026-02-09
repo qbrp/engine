@@ -4,10 +4,10 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.util.apply
 
 import org.lain.engine.util.Component
-import org.lain.engine.util.lerp
+import org.lain.engine.util.math.lerp
 import org.lain.engine.util.require
-import org.lain.engine.util.smootherstep
-import org.lain.engine.util.smoothstep
+import org.lain.engine.util.math.smootherstep
+import org.lain.engine.util.math.smoothstep
 import org.lain.engine.world.velocity
 import kotlin.math.abs
 import kotlin.math.max

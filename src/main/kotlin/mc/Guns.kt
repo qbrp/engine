@@ -1,33 +1,24 @@
 package org.lain.engine.mc
 
-import net.minecraft.block.Blocks
 import net.minecraft.block.ShapeContext
 import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.entity.projectile.ProjectileUtil
 import net.minecraft.particle.ParticleTypes
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.hit.HitResult
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.RaycastContext
 import net.minecraft.world.chunk.Chunk
-import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.BulletFireEvent
 import org.lain.engine.item.WorldGunEvents
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.shake
-import org.lain.engine.util.Pos
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.flush
 import org.lain.engine.util.require
-import org.lain.engine.util.toBlockPos
 import org.lain.engine.world.BlockDecals
 import org.lain.engine.world.Decal
 import org.lain.engine.world.DecalContents
-import org.lain.engine.world.Decals
 import org.lain.engine.world.DecalsLayer
 import org.lain.engine.world.Direction
 import org.lain.engine.world.World
-import org.lain.engine.world.pos
 
 fun spawnGunSmokeParticle(player: PlayerEntity) {
     val lookVector = player.rotationVector.normalize()

@@ -11,7 +11,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.player.PlayerId
-import org.lain.engine.util.ImmutableVec3
+import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.WorldId
 
 @Serializable

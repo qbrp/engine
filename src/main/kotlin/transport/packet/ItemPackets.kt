@@ -9,13 +9,10 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemName
 import org.lain.engine.item.ItemTooltip
 import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.name
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.util.ImmutableVec3
-import org.lain.engine.util.Pos
+import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.get
-import org.lain.engine.world.Location
 import org.lain.engine.world.pos
 
 @Serializable
