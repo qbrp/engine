@@ -9,8 +9,6 @@ import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.MENTION
 import org.lain.engine.client.render.Rect2
-import org.lain.engine.client.render.Size
-import org.lain.engine.client.render.fitSquaresHorizontally
 import org.lain.engine.util.Color
 
 data class ChatChannelButton(val textWidth: Int, val rect: Rect2, val text: Text, val section: ChatBarSection)
@@ -18,12 +16,18 @@ data class ChatChannelButton(val textWidth: Int, val rect: Rect2, val text: Text
 data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
     private val client by injectClient()
     private val padding = 1f
+    private val buttonSpacing = 2f
+    private val iconReserve = 10f
+
     private val chatManager: ClientEngineChatManager? get() = client.gameSession?.chatManager
     private var sections = listOf<ChatBarSection>()
+
     private val chatHud
         get() = MinecraftClient.inGameHud.chatHud
+
     val height get() = MinecraftClient.textRenderer.fontHeight + (padding * 2)
-    val width get() = 320f + 4 + 4 + LINE_INDENT
+    var width = 0f
+        private set
 
     fun updateButtons(sections: List<ChatBarSection>) {
         this.sections = sections
@@ -32,28 +36,34 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
 
     fun measure() {
         val textRenderer = MinecraftClient.textRenderer
-        val fontHeight = textRenderer.fontHeight
+        var cursorX = 0f
+        val result = mutableListOf<ChatChannelButton>()
 
-        val sizes = mutableMapOf<ChatBarSection, Int>()
-        val texts = mutableMapOf<ChatBarSection, Text>()
-
-        buttons = sections.fitSquaresHorizontally(width, height) {
-            val text = Text.of(it.name)
+        sections.forEach { section ->
+            val text = Text.of(section.name)
             val textWidth = textRenderer.getWidth(text)
-            sizes[it] = textWidth
-            texts[it] = text
-            Size(
-                textWidth.toFloat(),
-                fontHeight.toFloat()
+
+            val buttonWidth = textWidth + padding * 2 + iconReserve
+
+            val rect = Rect2(
+                cursorX,
+                0f,
+                cursorX + buttonWidth,
+                height
             )
-        }.map { (section, rect2) ->
-            ChatChannelButton(
-                sizes[section]!!,
-                rect2,
-                texts[section]!!,
+
+            result += ChatChannelButton(
+                textWidth,
+                rect,
+                text,
                 section
             )
+
+            cursorX += buttonWidth + buttonSpacing - padding
         }
+
+        buttons = result
+        width = if (cursorX > 0f) cursorX - buttonSpacing else 0f
     }
 
     fun onClick(mouseX: Float, mouseY: Float) {
@@ -97,7 +107,7 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
                 context.drawTextWithShadow(
                     textRenderer,
                     button.text,
-                    x1 + (rectWidth - textWidth) / 2,
+                    x1 + padding.toInt(),
                     y1 + padding.toInt(),
                     color.integer
                 )
@@ -110,8 +120,8 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
 
                     context.drawEngineSprite(
                         sprite,
-                        x1 + rectWidth - iconSize,
-                        y1 - iconSize / 2f,
+                        x1 + rectWidth - iconSize - 2f,
+                        y1 + 1f,
                         iconSize,
                         iconSize
                     )

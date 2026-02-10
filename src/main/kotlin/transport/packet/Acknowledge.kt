@@ -1,23 +1,17 @@
 package org.lain.engine.transport.packet
 
-import kotlinx.coroutines.Dispatchers
-
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.channels.Channel as KotlinxChannel
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
 import org.lain.engine.transport.ServerTransportContext
-import kotlin.collections.set
+import kotlinx.coroutines.channels.Channel as KotlinxChannel
 
 data class AcknowledgePacket(val id: Long) : Packet
 
-internal fun Endpoint(id: String) = Endpoint(
+internal fun AcknowledgeEndpoint(id: String) = Endpoint(
     id,
     PacketCodec.Binary(
         { AcknowledgePacket(readLong()) },
@@ -25,8 +19,8 @@ internal fun Endpoint(id: String) = Endpoint(
     )
 )
 
-val ACKNOWLEDGE_REQUEST_CHANNEL = Endpoint("acknowledge_request")
-val ACKNOWLEDGE_CONFIRM_CHANNEL = Endpoint("acknowledge_confirm")
+val ACKNOWLEDGE_REQUEST_CHANNEL = AcknowledgeEndpoint("acknowledge_request")
+val ACKNOWLEDGE_CONFIRM_CHANNEL = AcknowledgeEndpoint("acknowledge_confirm")
 
 object GlobalAcknowledgeListener {
     private val listeners: MutableMap<Long, () -> Unit> = mutableMapOf()

@@ -80,6 +80,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT.sendC2SPacket(PlayerCursorItemPacket(item?.uuid))
     }
 
+    fun onChatStartTyping(channelId: ChannelId) {
+        SERVERBOUND_CHAT_TYPING_START_ENDPOINT.sendC2SPacket(ChatTypingStartPacket(channelId))
+    }
+
+    fun onChatEndTyping() {
+        SERVERBOUND_CHAT_TYPING_END_ENDPOINT.sendC2SPacket(ChatTypingEndPacket)
+    }
+
     fun applyPlayerAttributeUpdate(
         player: EnginePlayer,
         speed: AttributeUpdate? = null,

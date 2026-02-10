@@ -47,6 +47,13 @@ inline fun <reified P : Packet> Endpoint(
     return Endpoint(P::class.channelName, codec)
 }
 
+@OptIn(InternalSerializationApi::class)
+inline fun <reified P : Packet> Endpoint(
+    name: String
+): Endpoint<P> {
+    return Endpoint(name, PacketCodec.Kotlinx(P::class.serializer()))
+}
+
 val KClass<out Packet>.channelName
     get() = simpleName?.lowercase() ?: error("Unknown packet class name")
 

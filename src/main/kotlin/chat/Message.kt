@@ -8,13 +8,13 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.math.Pos
 import org.lain.engine.util.Timestamp
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
 import org.lain.engine.world.pos
 import org.lain.engine.world.world
-import java.util.UUID
+import java.util.*
 
 data class MessageAuthor(
     val name: String,
@@ -115,7 +115,8 @@ data class ChatChannel(
     val notify: Boolean = false,
     val permission: Boolean = false,
     val heads: Boolean = false,
-    val mentions: Boolean = true
+    val mentions: Boolean = true,
+    val typeIndicatorRange: Int? = null,
 ) {
     companion object {
         val DEFAULT = ChannelId("default")

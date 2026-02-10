@@ -1,11 +1,13 @@
 package org.lain.engine.client.mc
 
 import net.minecraft.client.network.ClientPlayerEntity
+import net.minecraft.client.network.PlayerListEntry
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.inventory.StackReference
 import net.minecraft.item.ItemStack
+import net.minecraft.text.Text
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
 import org.lain.engine.client.getClientItem
@@ -15,28 +17,60 @@ import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
+import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.*
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.engineItem
 import org.lain.engine.player.Interaction
+import org.lain.engine.player.PlayerId
 import org.lain.engine.player.processLeftClickInteraction
+import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.get
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.roundToInt
+import org.lain.engine.util.text.displayNameMiniMessage
+import org.lain.engine.util.text.parseMiniMessageLegacy
 import org.lwjgl.glfw.GLFW
 
 object ClientMixinAccess {
     private val client by injectClient()
     private var resources: ResourceList? = null
     private var developerModeKeyPressedTick = 0L
+    val typingPlayers = mutableSetOf<PlayerListEntry>()
     var chatClipboardCopyTicksElapsed = 0
 
     fun tick() {
         chatClipboardCopyTicksElapsed += 1
+    }
+
+    fun registerEndpoints() {
+        CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.registerClientReceiver {
+            val player = getPlayerListEntry(player) ?: return@registerClientReceiver
+            typingPlayers.add(player)
+        }
+
+        CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.registerClientReceiver {
+            val player = getPlayerListEntry(player) ?: run {
+                typingPlayers.clear() // Если что-то сломалось
+                return@registerClientReceiver
+            }
+            typingPlayers.remove(player)
+        }
+    }
+
+    private fun getPlayerListEntry(id: PlayerId): PlayerListEntry? {
+        return MinecraftClient.networkHandler?.playerList?.find { it.profile.id == id.value }
+    }
+
+    fun getDisplayName(player: PlayerListEntry): Text {
+        return client.gameSession?.getPlayer(PlayerId(player.profile.id)).let {
+            it?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.displayName ?: Text.of(player.profile.name)
+        }
     }
 
     fun getEngineItem(itemStack: ItemStack) = itemStack.engine()?.getClientItem()

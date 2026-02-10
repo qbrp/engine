@@ -10,11 +10,7 @@ import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.LightmapTextureManager
 import net.minecraft.client.render.VertexConsumerProvider
-import net.minecraft.client.render.VertexFormats
 import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.LightType
 import org.lain.engine.client.chat.ChatBubble
 import org.lain.engine.client.chat.updateChatBubble
 import org.lain.engine.client.mc.MinecraftClient

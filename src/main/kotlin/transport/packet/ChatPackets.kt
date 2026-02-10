@@ -1,16 +1,11 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.ChatChannel
-import org.lain.engine.chat.EngineChatSettings
-import org.lain.engine.chat.MessageId
-import org.lain.engine.chat.Selector
-import org.lain.engine.chat.isChannelAvailable
+import org.lain.engine.chat.*
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.player.PlayerId
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.WorldId
 
@@ -100,3 +95,21 @@ data class ClientChatChannel(
         }
     }
 }
+
+@Serializable
+data class ChatTypingStartPacket(val channel: ChannelId) : Packet
+
+val SERVERBOUND_CHAT_TYPING_START_ENDPOINT = Endpoint<ChatTypingStartPacket>()
+
+@Serializable
+object ChatTypingEndPacket : Packet
+
+
+val SERVERBOUND_CHAT_TYPING_END_ENDPOINT = Endpoint<ChatTypingEndPacket>()
+
+@Serializable
+data class ChatTypingPlayerPacket(val player: PlayerId) : Packet
+
+val CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT = Endpoint<ChatTypingPlayerPacket>("chat-typing-player-start")
+
+val CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT = Endpoint<ChatTypingPlayerPacket>("chat-typing-player-end")

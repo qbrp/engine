@@ -2,7 +2,6 @@ package org.lain.engine.client.render
 
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
-import org.lain.engine.mc.BlockHint
 
 class ScreenRenderer(private val client: EngineClient) {
     private val window = client.window

@@ -117,6 +117,14 @@ value class Color(val integer: Int) {
         val YELLOW = Color(0xFFFFFF55)
         val RED = Color(0xFFFF0000)
 
+        fun of(alpha: Int, red: Int, green: Int, blue: Int): Color {
+            return Color((alpha and 0xFF) shl 24 or ((red and 0xFF) shl 16) or ((green and 0xFF) shl 8) or (blue and 0xFF))
+        }
+
+        fun of(red: Int, green: Int, blue: Int): Color {
+            return of(255, red, green, blue)
+        }
+
         fun parseString(string: String): Color {
             return Color(Integer.parseInt(string, 16))
         }

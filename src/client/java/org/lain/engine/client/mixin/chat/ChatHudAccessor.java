@@ -13,6 +13,9 @@ public interface ChatHudAccessor {
     @Accessor("visibleMessages")
     List<ChatHudLine.Visible> engine$getVisibleMessages();
 
+    @Accessor("scrolledLines")
+    int engine$getScrolledLines();
+
     @Accessor("messages")
     List<ChatHudLine> engine$getMessages();
 

@@ -8,6 +8,7 @@ import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.hud.MessageIndicator;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.util.ChatMessages;
 import net.minecraft.client.util.InputUtil;
@@ -23,6 +24,9 @@ import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftChat;
 import org.lain.engine.client.mc.MinecraftKeybindKt;
 import org.lain.engine.client.mc.render.ChatHudRenderKt;
+import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.player.DisplayName;
+import org.lain.engine.player.EnginePlayer;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -140,11 +144,39 @@ public abstract class ChatHudMixin {
             selectedMessage = null;
         }
 
+        float h = this.client.options.getTextBackgroundOpacity().getValue().floatValue();
+        int m = MathHelper.floor((float)((float)(context.getScaledWindowHeight() - 40) / getChatScale()));
+        int lineHeight = getLineHeight();
+
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(-2f, 0f);
+        List<PlayerListEntry> entities = ClientMixinAccess.INSTANCE.getTypingPlayers().stream().toList();
+
+        if (!entities.isEmpty()) {
+            context.fill(0, m, MathHelper.floor(getWidth() / getChatScale()) + 4 + 4 + 2 + ChatHudRenderKt.LINE_INDENT, m + lineHeight, ColorHelper.withAlpha(h, Colors.BLACK));
+
+            int textX = 0;
+            for (PlayerListEntry player : entities) {
+                Text name = ClientMixinAccess.INSTANCE.getDisplayName(player);
+                PlayerSkinDrawer.draw(context, player.getSkinTextures(), textX + 1, m + 1, 8, ColorHelper.withAlpha(Colors.WHITE, ColorHelper.getArgb(80, 80, 80)));
+                PlayerSkinDrawer.draw(context, player.getSkinTextures(), textX, m, 8, Colors.WHITE);
+                textX += 10;
+                context.drawTextWithShadow(client.textRenderer, name, textX, m + 1, Colors.WHITE);
+                textX += client.textRenderer.getWidth(name);
+                if (player != entities.getLast()) {
+                    textX += 1;
+                    context.drawTextWithShadow(client.textRenderer, ",", textX, m + 1, Colors.LIGHT_GRAY);
+                }
+                textX += 4;
+            }
+            context.drawTextWithShadow(client.textRenderer, "печатает...", textX, m + 1, Colors.LIGHT_GRAY);
+        }
+
         ChatHudRenderKt.forEachVisibleLine(
                 getVisibleLineCount(),
                 currentTick,
                 focused,
-                MathHelper.floor((float)((float)(context.getScaledWindowHeight() - 40) / getChatScale())),
+                m,
                 getLineHeight(),
                 visibleMessages,
                 scrolledLines,
@@ -153,15 +185,12 @@ public abstract class ChatHudMixin {
                     float f = (float)this.getChatScale();
                     int scaledWidth = MathHelper.ceil(((float)this.getWidth() / f));
                     double d = this.client.options.getChatLineSpacing().getValue();
-                    float h = this.client.options.getTextBackgroundOpacity().getValue().floatValue();
                     float g = this.client.options.getChatOpacity().getValue().floatValue() * 0.9f + 0.1f;
                     float bgAlpha = backgroundOpacity * h;
                     float contentAlpha = backgroundOpacity * g;
                     int o = (int)Math.round(-8.0 * (d + 1.0) + 4.0 * d);
                     int j = y2 + o;
 
-                    context.getMatrices().pushMatrix();
-                    context.getMatrices().translate(-2f, 0f);
                     context.fill(0, y1, ChatHudRenderKt.LINE_INDENT - 2, y2, ColorHelper.withAlpha(bgAlpha, Colors.BLACK));
 
                     if (visible != null) {
@@ -211,10 +240,10 @@ public abstract class ChatHudMixin {
                             }
                         }
                     }
-
-                    context.getMatrices().popMatrix();
                 }
         );
+
+        context.getMatrices().popMatrix();
     }
 
     @Redirect(

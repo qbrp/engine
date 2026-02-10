@@ -185,6 +185,7 @@ public abstract class ChatScreenMixin {
             if (!normalize(chatField.getText()).isEmpty()) {
                 chatField.setText("");
                 messageHistoryIndex = instance.inGameHud.getChatHud().getMessageHistory().size();;
+                MinecraftChat.INSTANCE.onCloseChatInput();
             }
         }
     }
@@ -194,6 +195,7 @@ public abstract class ChatScreenMixin {
             at = @At("TAIL")
     )
     public void engine$close(CallbackInfo ci) {
+        MinecraftChat.INSTANCE.onCloseChatInput();
         MinecraftChat.INSTANCE.setSelectedMessage(null);
     }
 }

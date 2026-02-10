@@ -4,11 +4,11 @@ import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.render.EXCLAMATION
-import org.lain.engine.util.SPY_COLOR
+import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
+import org.lain.engine.util.SPY_COLOR
 import org.slf4j.LoggerFactory
 
 class ClientEngineChatManager(
@@ -23,6 +23,8 @@ class ClientEngineChatManager(
         private set
     private val logger = LoggerFactory.getLogger("Engine Chat Client")
     private var channels = mapOf<ChannelId, ClientChatChannel>()
+    private var charTypeTimer = 0
+    private var isTyping = false
     var availableChannels = mapOf<ChannelId, ClientChatChannel>()
         private set
 
@@ -69,6 +71,37 @@ class ClientEngineChatManager(
         eventBus.onChannelEnable(channel)
     }
 
+    fun endTyping() {
+        charTypeTimer = 0
+        isTyping = false
+        client.handler.onChatEndTyping()
+    }
+
+    fun onCharTyped(input: String) {
+        if (input.startsWith("/")) {
+            return
+        }
+
+        if (input.isEmpty()) {
+            endTyping()
+            return
+        }
+
+        charTypeTimer = (charTypeTimer + 20).coerceAtMost(120)
+        if (charTypeTimer > 20 && !isTyping && input.count() > 4) {
+            isTyping = true
+            client.handler.onChatStartTyping(channelOf(input).id)
+        }
+    }
+
+    fun tick() {
+        charTypeTimer = (charTypeTimer - 1).coerceAtLeast(0)
+        if (isTyping && charTypeTimer <= 0) {
+            isTyping = false
+            client.handler.onChatEndTyping()
+        }
+    }
+
     fun sendMessage(text: String) {
         val prefix = text.take(1)
         var content = text
@@ -92,6 +125,18 @@ class ClientEngineChatManager(
         } ?: defaultChannel
 
         gameSession.handler.onChatMessageSend(content, channel.id)
+    }
+
+    private fun channelOf(text: String): ClientChatChannel {
+        val channels = availableChannels.values
+        val prefix = text.take(1)
+        return channels.firstOrNull { ch ->
+            val channelSelectors = ch.selectors
+            val regexSelector = channelSelectors.regex.firstOrNull { Regex(it.expression).matches(text) }
+            val prefixSelector = channelSelectors.prefixes.firstOrNull { prefix == it.value }
+
+            prefixSelector != null || regexSelector != null
+        } ?: defaultChannel
     }
 
     fun addMessage(message: AcceptedMessage) {
@@ -154,12 +199,12 @@ class ClientEngineChatManager(
         val configuration = client.resources.chatBarConfiguration
         val chatBarSections = configuration?.sections ?: channels.map { it.toChatBarSection() }
         val chatBarSections2 = chatBarSections.filter { section ->
-            section.channels.none { channel ->
+            section.channels.any { channel ->
                 if (!availableChannels.contains(channel)) {
                     logger.warn("Канал $channel в секции панели чата ${section.name} не существует")
-                    true
-                } else {
                     false
+                } else {
+                    true
                 }
             }
         }

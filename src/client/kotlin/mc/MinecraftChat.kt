@@ -7,21 +7,16 @@ import net.minecraft.text.OrderedText
 import net.minecraft.text.Text
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
-import org.lain.engine.client.chat.ChatBar
-import org.lain.engine.client.chat.ChatEventBus
-import org.lain.engine.client.chat.AcceptedMessage
-import org.lain.engine.client.chat.SYSTEM_CHANNEL
-import org.lain.engine.client.chat.isMessageVisible
+import org.lain.engine.client.chat.*
 import org.lain.engine.client.mc.render.ChatChannelsBar
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
-import org.lain.engine.util.HIGH_VOLUME_COLOR
-import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
+import org.lain.engine.util.HIGH_VOLUME_COLOR
+import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.text.EngineText
-import java.util.IdentityHashMap
-import kotlin.collections.set
+import java.util.*
 import kotlin.math.pow
 import kotlin.random.Random
 
@@ -37,8 +32,8 @@ object MinecraftChat : ChatEventBus {
     private var allMessages = mutableListOf<ChatLineData>()
     private val spy get() = chatManager?.spy ?: false
 
-    private val chatManager get() = client.gameSession?.chatManager
     private val chatHud get() =  MinecraftClient.inGameHud.chatHud
+    val chatManager get() = client.gameSession?.chatManager
     var selectedMessage: ChatMessageData? = null
     val channelsBar = ChatChannelsBar()
 
@@ -71,6 +66,10 @@ object MinecraftChat : ChatEventBus {
     data class ChatLineData(val line: ChatHudLine.Visible, val isFirst: Boolean, val isLast: Boolean, val message: ChatMessageData) {
         val channelId get() = message.engineMessage.channel.id
         val messageId get() = message.engineMessage.id.value
+    }
+
+    fun onCloseChatInput() {
+        chatManager?.endTyping()
     }
 
     fun updateSelectedMessage(chatHudLine: ChatHudLine.Visible?) {

@@ -1,10 +1,7 @@
 package org.lain.engine.server
 
 import kotlinx.coroutines.*
-import org.lain.engine.chat.CHAT_LOGGER
-import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.MessageId
-import org.lain.engine.chat.OutcomingMessage
+import org.lain.engine.chat.*
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.SoundPlay
@@ -88,11 +85,41 @@ class ServerHandler(
         SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessageDelete(ctx.sender, message) }
         SERVERBOUND_INTERACTION_ENDPOINT.registerReceiver { ctx -> onPlayerInteraction(ctx.sender, interaction) }
         SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT.registerReceiver { ctx -> onPlayerCursorItem(ctx.sender, item) }
+        SERVERBOUND_CHAT_TYPING_START_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingStart(ctx.sender, channel) }
+        SERVERBOUND_CHAT_TYPING_END_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingEnd(ctx.sender) }
     }
 
     fun invalidate() {
         transport.unregisterAll()
         destroy = true
+    }
+
+    private val typingPlayers = mutableSetOf<PlayerId>()
+
+    private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) {
+        val player = server.playerStorage.get(player) ?: error("Player $player not found")
+        val channel = server.chat.getChannel(channelId)
+        val acoustic = channel.acoustic ?: error("Channel $channelId doesn't have acoustic")
+        typingPlayers.add(player.id)
+
+        val range = channel.typeIndicatorRange
+        val players = when(acoustic) {
+            is Acoustic.Global -> playerStorage.getAll()
+            is Acoustic.Distance -> player.filterNearestPlayers(range ?: acoustic.radius)
+            is Acoustic.Realistic -> {
+                val radius = range ?: server.chat.settings.defaultChannel.typeIndicatorRange ?: 16
+                if (range == null) {
+                    CHAT_LOGGER.warn("Акустическая симуляция не работает, чтобы подсчитать, каким игрокам отображать индикатор ввода сообщения. Используется стандартный радиус $radius блоков.")
+                }
+                player.filterNearestPlayers(radius)
+            }
+        }
+        val packet = ChatTypingPlayerPacket(player.id)
+        players.forEach { CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.sendS2C(packet, it.id) }
+    }
+
+    private fun onPlayerChatTypingEnd(player: PlayerId) {
+        CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.broadcast(ChatTypingPlayerPacket(player))
     }
 
     private fun onPlayerVolume(player: PlayerId, volume: Float) = updatePlayer(player) {

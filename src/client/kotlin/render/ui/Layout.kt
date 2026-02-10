@@ -45,6 +45,8 @@ fun updateCompositionUiState(
         )
     }
 
+    features.head = fragment.playerHead
+
     if (textInput == null && fragment.textInput != null) {
         textInput = TextInputState()
     }

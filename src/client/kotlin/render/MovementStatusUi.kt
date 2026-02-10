@@ -1,14 +1,7 @@
 package org.lain.engine.client.render
 
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.render.ui.Background
-import org.lain.engine.client.render.ui.ConstraintsSize
-import org.lain.engine.client.render.ui.Fragment
-import org.lain.engine.client.render.ui.Layout
-import org.lain.engine.client.render.ui.Pivot
-import org.lain.engine.client.render.ui.Placement
-import org.lain.engine.client.render.ui.Sizing
-import org.lain.engine.client.render.ui.VerticalLayout
+import org.lain.engine.client.render.ui.*
 import org.lain.engine.player.isSpectating
 import org.lain.engine.util.Color
 import org.lain.engine.util.SPEED_COLOR
@@ -44,7 +37,7 @@ fun MovementBar(gameSession: GameSession): Fragment {
     }
 
     return Fragment(
-        position = Vec2(2f, gameSession.client.window.heightDp - 3),
+        position = Vec2(2f, 2f),
         sizing = Sizing(
             ConstraintsSize.Fixed(64f),
             ConstraintsSize.Wrap
@@ -54,7 +47,7 @@ fun MovementBar(gameSession: GameSession): Fragment {
             Bar(SPEED_COLOR) { gameSession.movementManager.intention },
             Bar(STAMINA_COLOR) { gameSession.movementManager.stamina },
         ),
-        pivot = Pivot.BOTTOM_LEFT,
+        pivot = Pivot.TOP_LEFT,
         onRender = {
             it.visible = !renderer.hudHidden && renderer.isFirstPerson && !gameSession.mainPlayer.isSpectating
         }

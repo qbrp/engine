@@ -2,35 +2,19 @@ package org.lain.engine.client.mc.render
 
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.PlayerSkinDrawer
 import net.minecraft.client.gui.screen.Screen
 import net.minecraft.client.input.CharInput
 import net.minecraft.client.input.KeyInput
+import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.text.OrderedText
 import net.minecraft.text.Text
 import org.joml.Matrix3x2f
-import org.lain.engine.client.EngineClient
+import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.render.FontRenderer
-import org.lain.engine.client.render.ui.CharEvent
-import org.lain.engine.client.render.ui.Composition
-import org.lain.engine.client.render.ui.CompositionRenderContext
-import org.lain.engine.client.render.ui.EngineUi
-import org.lain.engine.client.render.ui.Fragment
-import org.lain.engine.client.render.ui.KeyAction
-import org.lain.engine.client.render.ui.KeyEvent
-import org.lain.engine.client.render.ui.LineBorders
-import org.lain.engine.client.render.ui.Modifier
-import org.lain.engine.client.render.ui.MutableSize
-import org.lain.engine.client.render.ui.TextInput
-import org.lain.engine.client.render.ui.TextInputState
-import org.lain.engine.client.render.ui.UiContext
-import org.lain.engine.client.render.ui.UiElement
-import org.lain.engine.client.render.ui.UiState
-import org.lain.engine.client.render.ui.UiFeatures
-import org.lain.engine.client.render.ui.UiListeners
-import org.lain.engine.client.render.ui.blend
-import org.lain.engine.client.render.ui.recompose
+import org.lain.engine.client.render.ui.*
 import org.lain.engine.util.Color
-import org.lain.engine.util.injectValue
+import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.toMinecraft
 import org.lwjgl.glfw.GLFW
@@ -45,7 +29,8 @@ class EngineUiRenderPipeline(
     private val textCache = TextCache()
     private val rootSize = MutableSize(0f, 0f)
     private val context by lazy { UiContext(fontRenderer, rootSize) }
-    private val engine by lazy { injectValue<EngineClient>() }
+    private val engine by injectClient()
+    private val entityTable by injectEntityTable()
     private val alphaStack = ArrayDeque<Int>()
     var focus: Composition? = null
         private set
@@ -255,6 +240,27 @@ class EngineUiRenderPipeline(
                 textY += client.textRenderer.fontHeight
             }
         }
+
+        features.head?.let { head ->
+            val player = entityTable.client.getEntity(head) as? ClientPlayerEntity ?: return@let
+            PlayerSkinDrawer.draw(
+                context,
+                player.skin,
+                1,
+                1,
+                width.toInt(),
+                Color.of(80, 80, 80).integer
+            )
+            PlayerSkinDrawer.draw(
+                context,
+                player.skin,
+                0,
+                0,
+                width.toInt(),
+                Color.WHITE.integer
+            )
+        }
+
         context.matrices.popMatrix()
     }
 

@@ -1,12 +1,11 @@
 package org.lain.engine.client
 
+import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.ClientHandler
-import org.lain.engine.client.chat.ChatBubbleList
-import org.lain.engine.client.mc.updateBulletsVisual
 import org.lain.engine.client.transport.clientItem
 import org.lain.engine.client.transport.isLowDetailed
 import org.lain.engine.client.transport.lowDetailedClientPlayerInstance
@@ -14,13 +13,7 @@ import org.lain.engine.client.transport.mainClientPlayerInstance
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.item.supplyPlayerInventoryItemsLocation
 import org.lain.engine.item.updateGunState
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerId
-import org.lain.engine.player.ShakeScreenComponent
-import org.lain.engine.player.SpawnMark
-import org.lain.engine.player.items
-import org.lain.engine.player.stamina
-import org.lain.engine.player.updatePlayerMovement
+import org.lain.engine.player.*
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.GeneralPlayerData
@@ -76,6 +69,7 @@ class GameSession(
     }
 
     fun tick() {
+        chatManager.tick()
         val players = playerStorage.getAll()
 
         movementManager.stamina = mainPlayer.stamina

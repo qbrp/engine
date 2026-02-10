@@ -119,6 +119,7 @@ class MinecraftEngineClient : ClientModInitializer {
             }
 
             engineClient.handler.run()
+            ClientMixinAccess.registerEndpoints()
         }
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }

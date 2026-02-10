@@ -4,6 +4,7 @@ import net.minecraft.client.font.TextRenderer
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.hud.ChatHudLine.Visible
 import net.minecraft.client.gui.widget.TextFieldWidget
+import net.minecraft.client.input.CharInput
 import net.minecraft.text.Text
 import org.lain.engine.client.mc.MinecraftChat
 
@@ -53,5 +54,14 @@ open class ShakingTextFieldWidget(textRenderer: TextRenderer, x: Int, y: Int, wi
         context.matrices.translate(MinecraftChat.getRandomShakeTranslation(), MinecraftChat.getRandomShakeTranslation())
         super.renderWidget(context, mouseX, mouseY, deltaTicks)
         context.matrices.popMatrix()
+    }
+
+    override fun charTyped(input: CharInput?): Boolean {
+        return if (super.charTyped(input)) {
+            MinecraftChat.chatManager?.onCharTyped(this.text)
+            true
+        } else {
+            false
+        }
     }
 }
