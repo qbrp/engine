@@ -113,7 +113,7 @@ class ServerHandler(
                 }
                 player.filterNearestPlayers(radius)
             }
-        }
+        }.filter { it.isChannelAvailableToRead(channel) }
         val packet = ChatTypingPlayerPacket(player.id)
         players.forEach { CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.sendS2C(packet, it.id) }
     }

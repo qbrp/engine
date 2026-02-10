@@ -24,7 +24,7 @@ class ClientEngineChatManager(
     private val logger = LoggerFactory.getLogger("Engine Chat Client")
     private var channels = mapOf<ChannelId, ClientChatChannel>()
     private var charTypeTimer = 0
-    private var isTyping = false
+    private var typing: ClientChatChannel? = null
     var availableChannels = mapOf<ChannelId, ClientChatChannel>()
         private set
 
@@ -73,31 +73,35 @@ class ClientEngineChatManager(
 
     fun endTyping() {
         charTypeTimer = 0
-        isTyping = false
+        typing = null
         client.handler.onChatEndTyping()
     }
 
-    fun onCharTyped(input: String) {
+    fun onTextInput(input: String): ClientChatChannel? {
         if (input.startsWith("/")) {
-            return
+            return null
         }
 
         if (input.isEmpty()) {
             endTyping()
-            return
+            return null
         }
 
+        val channel = channelOf(input)
         charTypeTimer = (charTypeTimer + 20).coerceAtMost(120)
-        if (charTypeTimer > 20 && !isTyping && input.count() > 4) {
-            isTyping = true
-            client.handler.onChatStartTyping(channelOf(input).id)
+        if (charTypeTimer > 20 && input.count() > 4) {
+            if (typing != channel) {
+                typing = channel
+                client.handler.onChatStartTyping(channel.id)
+            }
         }
+        return channel
     }
 
     fun tick() {
         charTypeTimer = (charTypeTimer - 1).coerceAtLeast(0)
-        if (isTyping && charTypeTimer <= 0) {
-            isTyping = false
+        if (typing != null && charTypeTimer <= 0) {
+            typing = null
             client.handler.onChatEndTyping()
         }
     }

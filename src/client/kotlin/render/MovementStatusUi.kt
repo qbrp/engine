@@ -37,7 +37,7 @@ fun MovementBar(gameSession: GameSession): Fragment {
     }
 
     return Fragment(
-        position = Vec2(2f, 2f),
+        position = Vec2(2f, gameSession.client.window.heightDp - 3f),
         sizing = Sizing(
             ConstraintsSize.Fixed(64f),
             ConstraintsSize.Wrap
@@ -47,7 +47,7 @@ fun MovementBar(gameSession: GameSession): Fragment {
             Bar(SPEED_COLOR) { gameSession.movementManager.intention },
             Bar(STAMINA_COLOR) { gameSession.movementManager.stamina },
         ),
-        pivot = Pivot.TOP_LEFT,
+        pivot = Pivot.BOTTOM_LEFT,
         onRender = {
             it.visible = !renderer.hudHidden && renderer.isFirstPerson && !gameSession.mainPlayer.isSpectating
         }
