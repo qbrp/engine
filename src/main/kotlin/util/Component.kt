@@ -64,11 +64,11 @@ interface ComponentManager : Iterable<Component> {
 
 @Suppress("UNCHECKED_CAST")
 class ComponentState(components: List<Component> = emptyList()) : ComponentManager {
+    private val components = ConcurrentHashMap<KClass<out Component>, Component>()
+
     init {
         components.forEach { set(it) }
     }
-
-    private val components = ConcurrentHashMap<KClass<out Component>, Component>()
 
     override fun getComponents(): List<Component> {
         return components.values.toList()

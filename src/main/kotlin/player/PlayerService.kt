@@ -2,10 +2,12 @@ package org.lain.engine.player
 
 import org.lain.engine.chat.trySendJoinMessage
 import org.lain.engine.chat.trySendLeaveMessage
+import org.lain.engine.item.HoldsBy
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.Storage
-import org.lain.engine.util.require
 import org.lain.engine.storage.savePersistentPlayerData
+import org.lain.engine.util.Storage
+import org.lain.engine.util.remove
+import org.lain.engine.util.require
 import org.lain.engine.world.ScenePlayers
 import org.lain.engine.world.world
 
@@ -35,6 +37,9 @@ class PlayerService(
     fun destroy(player: EnginePlayer) {
         playerStorage.remove(player.id)
         player.world.require<ScenePlayers>().remove(player)
+
+        player.items.forEach { item -> item.remove<HoldsBy>() }
+
         chat.trySendLeaveMessage(player)
         handler.onPlayerDestroy(player)
         savePersistentPlayerData(player)

@@ -2,14 +2,15 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.Component
-import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.get
+import org.lain.engine.util.math.ImmutableVec3
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.WorldSoundPlayRequest
 import org.lain.engine.world.emitPlaySoundEvent
 import org.lain.engine.world.world
 
+@Serializable
 data class ItemSounds(val sounds: Map<String, SoundEventId>) : Component
 
 val EngineItem.sound

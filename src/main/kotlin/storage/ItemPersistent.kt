@@ -15,8 +15,11 @@ data class PersistentItemData(val components: List<ItemData>)
 
 @Serializable
 sealed class ItemData {
+    @Serializable
     data class Display(val name: ItemName?, val tooltip: ItemTooltip?) : ItemData()
+    @Serializable
     data class Guns(val data: Gun, val display: GunDisplay?) : ItemData()
+    @Serializable
     data class Sounds(val data: ItemSounds) : ItemData()
 }
 

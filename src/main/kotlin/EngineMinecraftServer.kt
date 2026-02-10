@@ -1,9 +1,6 @@
 package org.lain.engine
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
@@ -54,7 +51,7 @@ open class EngineMinecraftServer(
 
     private val autosaveTimer = ItemAutosaveTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database)
     private val unloadTimer = UnloadInactiveItemsTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database, engine)
-    protected val itemLoader = ItemLoader(database, engine)
+    protected val itemLoader = ItemLoader(this)
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
         val item = engine.createItem(owner.location, itemId)
@@ -95,7 +92,8 @@ open class EngineMinecraftServer(
         engine.run()
     }
 
-    open fun disable() {
+    open fun disable() = runBlocking {
+        database.saveItems(engine.itemStorage.getAll())
         engine.stop()
     }
 
@@ -105,6 +103,7 @@ open class EngineMinecraftServer(
         val player = entityTable.getPlayer(entity) ?: return
         engine.playerService.destroy(player)
         entityTable.removePlayer(entity)
+        unloadTimer.activate()
     }
 
     override fun onPlayerInstantiated(player: EnginePlayer) {
@@ -167,14 +166,15 @@ fun serverMinecraftPlayerInstance(
 }
 
 suspend fun prepareServerMinecraftPlayer(server: EngineMinecraftServer, entity: PlayerEntity, player: EnginePlayer) = withContext(Dispatchers.IO) {
-    val items = entity.inventory.mainStacks
-        .mapNotNull { itemStack -> itemStack.engine() }
-
-    val loadTasks = items
-        .filter { it.cachedItem == null && it.uuid != null}
-        .map {
-            async { server.database.loadItem(player.location, it.uuid!!) }
+    val awaits = mutableListOf<Job>()
+    for (itemStack in entity.inventory.mainStacks) {
+        val reference = itemStack.engine() ?: continue
+        if (reference.getItem() == null) {
+            awaits += launch {
+                server.loadItemStack(itemStack, player)
+            }
         }
+    }
 
-    loadTasks.awaitAll()
+    awaits.joinAll()
 }

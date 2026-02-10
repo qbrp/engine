@@ -2,7 +2,6 @@ package org.lain.engine.client.mc.render
 
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
-import net.minecraft.component.DataComponentTypes
 import net.minecraft.item.ItemGroup
 import net.minecraft.item.ItemStack
 import net.minecraft.item.Items
@@ -54,7 +53,7 @@ fun registerEngineItemGroupEvent() {
                 val stack = item.properties.getMaterialStack()
                 val properties = item.properties
                 val prefab = item.prefab.properties
-                wrapEngineItemStackBase(stack, properties.maxStackSize)
+                wrapEngineItemStackBase(stack, properties.maxStackSize, properties.equipment)
                 wrapEngineItemStackVisual(stack, prefab.name?.text ?: "Предмет", properties.asset)
                 stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, properties.id.value)
                 entries.add(stack)

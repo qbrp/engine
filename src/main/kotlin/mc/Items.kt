@@ -89,7 +89,7 @@ fun wrapEngineItemStackVisual(
     }
 }
 
-fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int) {
+fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int, equipment: ItemEquipment?) {
     itemStack.set(
         DataComponentTypes.UNBREAKABLE,
         Unit.INSTANCE
@@ -98,6 +98,14 @@ fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int) {
         DataComponentTypes.MAX_STACK_SIZE,
         maxStackSize
     )
+    equipment?.let {
+        itemStack.set(
+            DataComponentTypes.EQUIPPABLE,
+            EquippableComponent.builder(it.slot)
+                .allowedEntities(EntityType.PLAYER)
+                .build()
+        )
+    }
 }
 
 fun wrapEngineItemStack(
@@ -106,15 +114,7 @@ fun wrapEngineItemStack(
     itemStack: ItemStack
 ): ItemStack {
     wrapEngineItemStackVisual(itemStack, item.name, properties.asset)
-    wrapEngineItemStackBase(itemStack, properties.maxStackSize)
-    properties.equipment?.let {
-        itemStack.set(
-            DataComponentTypes.EQUIPPABLE,
-            EquippableComponent.builder(it.slot)
-                .allowedEntities(EntityType.PLAYER)
-                .build()
-        )
-    }
+    wrapEngineItemStackBase(itemStack, properties.maxStackSize, properties.equipment)
 
     itemStack.set(
         ENGINE_ITEM_REFERENCE_COMPONENT,
@@ -126,6 +126,15 @@ fun wrapEngineItemStack(
 fun ItemStack.engine() = get(ENGINE_ITEM_REFERENCE_COMPONENT)
 
 fun ItemStack.engineItem() = get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getItem()
+
+val ENGINE_ITEM_WRAP_COMPONENT: ComponentType<String> = Registry.register(
+    Registries.DATA_COMPONENT_TYPE,
+    EngineId("wrap-component"),
+    ComponentType
+        .builder<String>()
+        .codec(Codec.STRING)
+        .build()
+)
 
 val ENGINE_ITEM_INSTANTIATE_COMPONENT: ComponentType<String> = Registry.register(
     Registries.DATA_COMPONENT_TYPE,

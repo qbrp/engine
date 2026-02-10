@@ -13,7 +13,10 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.util.*
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.world.*
+import org.lain.engine.world.Location
+import org.lain.engine.world.Velocity
+import org.lain.engine.world.World
+import org.lain.engine.world.WorldId
 import net.minecraft.world.World as McWorld
 
 fun Vec3.toMinecraft(): Vec3d = Vec3d(x.toDouble(), y.toDouble(), z.toDouble())
@@ -70,7 +73,7 @@ fun updateServerMinecraftSystems(
                 val uuid = reference.uuid
                 if (item == null) {
                     if (!itemLoader.isLoading(uuid)) {
-                        itemLoader.loadItem(player.location, uuid)
+                        itemLoader.loadItemStack(itemStack, player)
                     } else if (itemLoader.isNotFound(uuid)) {
                         detachEngineItemStack(itemStack)
                     }
