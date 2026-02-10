@@ -6,6 +6,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.util.Color
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.WorldId
 
@@ -24,6 +25,7 @@ data class OutcomingChatMessagePacket(
     val placeholders: Map<String, String>,
     val heads: Boolean,
     val notify: Boolean,
+    val color: Color? = null,
     val id: MessageId
 ) : Packet
 

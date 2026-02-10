@@ -10,15 +10,10 @@ import net.minecraft.world.RaycastContext
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.item.BulletFireEvent
 import org.lain.engine.item.WorldGunEvents
-import org.lain.engine.util.math.Pos
 import org.lain.engine.util.flush
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.require
-import org.lain.engine.world.BlockDecals
-import org.lain.engine.world.Decal
-import org.lain.engine.world.DecalContents
-import org.lain.engine.world.DecalsLayer
-import org.lain.engine.world.Direction
-import org.lain.engine.world.World
+import org.lain.engine.world.*
 
 fun spawnGunSmokeParticle(player: PlayerEntity) {
     val lookVector = player.rotationVector.normalize()
@@ -46,7 +41,7 @@ fun raycastBulletEvent(world: net.minecraft.world.World, event: BulletFireEvent)
             start.toMinecraft(),
             end.toMinecraft(),
             RaycastContext.ShapeType.COLLIDER,
-            RaycastContext.FluidHandling.ANY,
+            RaycastContext.FluidHandling.NONE,
             ShapeContext.absent()
         )
     )

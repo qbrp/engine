@@ -3,28 +3,11 @@ package org.lain.engine.client.handler
 import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
-import org.lain.engine.client.EngineClient
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
-import org.lain.engine.transport.packet.CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET
-import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_FULL_PLAYER_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_ITEM_GUN_PACKET
-import org.lain.engine.transport.packet.CLIENTBOUND_ITEM_PACKET
-import org.lain.engine.transport.packet.CLIENTBOUND_JOIN_GAME_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_DESTROY_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_JOIN_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_SOUND_PLAY_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_SPEED_INTENTION_PACKET
+import org.lain.engine.transport.packet.*
 import org.lain.engine.util.Timestamp
-import org.slf4j.Logger
 
 fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler, ) {
     clientAcknowledgeHandler.run()
@@ -101,6 +84,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
                 placeholders,
                 isSpy,
                 heads,
+                color,
                 id
             )
         )

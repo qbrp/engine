@@ -59,7 +59,7 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
                 section
             )
 
-            cursorX += buttonWidth + buttonSpacing - padding
+            cursorX += buttonWidth + buttonSpacing
         }
 
         buttons = result

@@ -3,11 +3,9 @@ package org.lain.engine.client.mc
 import com.daqem.yamlconfig.api.config.ConfigExtension
 import com.daqem.yamlconfig.api.config.ConfigType
 import com.daqem.yamlconfig.api.config.IConfig
-import com.daqem.yamlconfig.api.config.entry.IConfigEntry
 import com.daqem.yamlconfig.impl.config.ConfigBuilder
 import org.lain.engine.CommonEngineServerMod
 import org.lain.engine.client.util.EngineOptions
-import org.lain.engine.util.EngineId
 
 class EngineYamlConfig(
     builder: ConfigBuilder = ConfigBuilder(
@@ -17,6 +15,12 @@ class EngineYamlConfig(
         ConfigType.CLIENT
     )
 ) : EngineOptions {
+    init { builder.push("chat") }
+
+    private val chatFieldWidthProperty = builder.defineInteger("chat-width", 440, 0, 600)
+
+    init { builder.pop() }
+
     init { builder.push("chat-bubbles") }
 
     private val chatBubbleScaleProperty = builder.defineFloat("scale", 1f, 0.01f, 3f)
@@ -63,6 +67,8 @@ class EngineYamlConfig(
         get() = hideChatBubblesWithUiProperty.get()
     override val chatBubbleIgnoreLightLevel: Boolean
         get() = chatBubbleIgnoreLightLevelProperty.get()
+    override val chatFieldWidth: Int
+        get() = chatFieldWidthProperty.get()
 
     override val crosshairIndicatorVisible: Boolean
         get() = crosshairIndicatorVisibleProperty.get()

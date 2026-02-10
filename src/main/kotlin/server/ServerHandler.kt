@@ -298,6 +298,7 @@ class ServerHandler(
                     message.placeholders,
                     message.head,
                     message.notify,
+                    message.color,
                     message.id
                 ),
                 player.id

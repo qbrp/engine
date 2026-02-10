@@ -7,26 +7,14 @@ import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.tag.TagKey
 import net.minecraft.util.Identifier
 import org.lain.engine.EngineMinecraftServer
-import org.lain.engine.chat.Acoustic
-import org.lain.engine.chat.AcousticFormatting
-import org.lain.engine.chat.AcousticLevel
-import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.ChatChannel
-import org.lain.engine.chat.EngineChatSettings
-import org.lain.engine.chat.Modifier
-import org.lain.engine.chat.Selector
+import org.lain.engine.chat.*
 import org.lain.engine.mc.AcousticBlockData
 import org.lain.engine.mc.ServerMixinAccess
 import org.lain.engine.mc.registerServerChatCommand
-import org.lain.engine.player.MovementDefaultAttributes
-import org.lain.engine.player.MovementSettings
-import org.lain.engine.player.PlayerStatus
-import org.lain.engine.player.PrimaryAttribute
-import org.lain.engine.player.VocalSettings
+import org.lain.engine.player.*
+import org.lain.engine.util.Color
 import org.slf4j.LoggerFactory
 import java.io.File
-import kotlin.collections.forEach
-import kotlin.collections.get
 import kotlin.jvm.optionals.getOrNull
 
 private val CONFIG_FILE = ENGINE_DIR.resolve(CONFIG_FILENAME)
@@ -69,7 +57,20 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         it.regex?.let { regex -> selectors += Selector.Regex(regex.exp, regex.remove) }
         val speech = it.speech
 
-        ChatChannel(ChannelId(id), it.name ?: id, format, acoustic, modifiers, selectors, speech, it.notify, it.permission, it.heads)
+        ChatChannel(
+            ChannelId(id),
+            it.name ?: id,
+            format,
+            acoustic,
+            modifiers,
+            selectors,
+            speech,
+            it.notify,
+            it.permission,
+            it.heads,
+            typeIndicatorRange=it.chatTypeRadius,
+            background = it.background?.let { Color.parseString(it) }
+        )
     }
 
     val chatSettings = EngineChatSettings(

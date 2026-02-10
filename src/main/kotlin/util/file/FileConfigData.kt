@@ -3,6 +3,7 @@ package org.lain.engine.util.file
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.ServerId
+import org.lain.engine.util.Color
 
 @Serializable
 data class ServerConfig(
@@ -53,7 +54,9 @@ data class ChannelConfig(
     val notify: Boolean = false,
     val permission: Boolean = false,
     @SerialName("invoke_permission") val invokePermission: Boolean = false, // Только для команд
-    val heads: Boolean = false
+    val heads: Boolean = false,
+    val background: String? = null,
+    @SerialName("type_radius") val chatTypeRadius: Int? = null,
 )
 
 @Serializable

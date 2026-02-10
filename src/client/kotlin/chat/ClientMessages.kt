@@ -1,13 +1,12 @@
 package org.lain.engine.client.chat
 
 import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.GameSession
-import org.lain.engine.player.username
 import org.lain.engine.transport.packet.ClientChatChannel
+import org.lain.engine.util.Color
 import org.lain.engine.world.World
 
 data class AcceptedMessage(
@@ -21,10 +20,13 @@ data class AcceptedMessage(
     val isSpy: Boolean = false,
     val showHead: Boolean = false,
     val notify: Boolean = false,
+    val background: Color? = null,
     val id: MessageId,
     var repeat: Int = 1,
-    val isVanilla: Boolean = false
-)
+    val isVanilla: Boolean = false,
+) {
+    val backgroundColorInt = background?.integer
+}
 
 val SYSTEM_CHANNEL = ClientChatChannel(
     ChannelId("system"),
@@ -115,6 +117,7 @@ fun acceptOutcomingMessage(
         message.isSpy,
         message.head,
         message.notify,
+        message.color,
         message.id,
     )
 }

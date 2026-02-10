@@ -6,16 +6,12 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.mc.InvalidMessageSourcePositionException
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.acousticDebug
-import org.lain.engine.player.chatHeadsEnabled
-import org.lain.engine.player.displayName
-import org.lain.engine.player.isSpectating
-import org.lain.engine.player.username
+import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
-import org.lain.engine.util.math.Pos
+import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.util.math.roundToInt
 import org.lain.engine.util.text.displayNameMiniMessage
@@ -26,7 +22,6 @@ import org.lain.engine.world.world
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
-import kotlin.text.StringBuilder
 
 class EngineChat(
     private val acousticSimulation: AcousticSimulator,
@@ -215,6 +210,7 @@ class EngineChat(
                volume = volume,
                notify = channel.notify,
                placeholders = getDefaultPlaceholders(recipient, source, volume) + placeholders,
+               background = channel.background,
                id = id
            )
         }
@@ -234,7 +230,8 @@ class EngineChat(
             originalChannel,
             notify = originalChannel.notify,
             isSpy = true,
-            id = id
+            id = id,
+            background = originalChannel.background,
         )
     }
 
@@ -250,6 +247,7 @@ class EngineChat(
         notify: Boolean = false,
         head: Boolean = showHeads(source.player, channel),
         placeholders: Map<String, String> = getDefaultPlaceholders(recipient, source, volume),
+        background: Color? = null,
         id: MessageId
     ) {
         server.handler.onOutcomingMessage(
@@ -265,6 +263,7 @@ class EngineChat(
                 placeholders,
                 isSpy,
                 head,
+                background,
                 id
             ).also {
                 outcomingMessageHistory[it.id] = it

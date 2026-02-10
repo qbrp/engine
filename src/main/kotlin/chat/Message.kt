@@ -8,6 +8,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.text.displayNameMiniMessage
@@ -116,6 +117,7 @@ data class ChatChannel(
     val permission: Boolean = false,
     val heads: Boolean = false,
     val mentions: Boolean = true,
+    val background: Color? = null,
     val typeIndicatorRange: Int? = null,
 ) {
     companion object {
@@ -140,5 +142,6 @@ data class OutcomingMessage(
     val placeholders: Map<String, String> = mapOf(),
     val isSpy: Boolean = false,
     val head: Boolean = false,
+    val color: Color? = null,
     val id: MessageId
 )

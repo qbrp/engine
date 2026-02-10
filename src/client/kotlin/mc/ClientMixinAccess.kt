@@ -51,7 +51,9 @@ object ClientMixinAccess {
     fun registerEndpoints() {
         CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.registerClientReceiver {
             val player = getPlayerListEntry(player) ?: return@registerClientReceiver
-            typingPlayers.add(player)
+            if (player.profile.id != MinecraftClient.networkHandler?.profile?.id || client.developerMode) {
+                typingPlayers.add(player)
+            }
         }
 
         CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.registerClientReceiver {
@@ -202,6 +204,8 @@ object ClientMixinAccess {
     fun getResourceList(): ResourceList {
         return resources ?: findAssets().also { resources = it }
     }
+
+    fun getChatWidth() = client.options.chatFieldWidth
 
     fun getAssets(): Assets {
         return client.resources.assets

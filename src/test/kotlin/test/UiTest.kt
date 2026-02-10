@@ -1,7 +1,7 @@
 package test
 
 import org.lain.engine.client.render.FontRenderer
-import org.lain.engine.util.Vec2
+import org.lain.engine.util.math.Vec2
 import org.lain.engine.client.render.ui.Background
 import org.lain.engine.client.render.ui.ClickListener
 import org.lain.engine.client.render.ui.Composition

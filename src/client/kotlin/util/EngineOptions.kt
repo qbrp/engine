@@ -11,5 +11,6 @@ interface EngineOptions {
     val chatInputShakingForce: Float
     val chatInputShakingThreshold: Float
     val chatInputSendClosesChat: Boolean
+    val chatFieldWidth: Int
     val crosshairIndicatorVisible: Boolean
 }
