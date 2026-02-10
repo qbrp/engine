@@ -2,6 +2,7 @@ package org.lain.engine.mc
 
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
@@ -35,6 +36,15 @@ object ServerMixinAccess {
 
     fun getJumpStrength(player: PlayerEntity): Double {
         return player.engine?.jumpStrength?.toDouble() ?: 0.1
+    }
+
+    fun onServerPlayerEntityInitialized(entity: ServerPlayerEntity) {
+        val table = table.server
+        val player = table.getPlayer(entity)
+        if (player != null) {
+            table.removePlayer(entity)
+            table.setPlayer(entity, player)
+        }
     }
 
     fun onBlockAdded(world: World, blockPos: BlockPos, state: BlockState) {

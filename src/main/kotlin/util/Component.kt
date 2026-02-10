@@ -67,7 +67,7 @@ class ComponentState(components: List<Component> = emptyList()) : ComponentManag
     private val components = ConcurrentHashMap<KClass<out Component>, Component>()
 
     init {
-        components.forEach { set(it) }
+        components.forEach { setComponent<Component>(it::class as KClass<Component>, it) }
     }
 
     override fun getComponents(): List<Component> {
@@ -77,7 +77,7 @@ class ComponentState(components: List<Component> = emptyList()) : ComponentManag
     override fun <T : Component> setComponent(type: KClass<T>, component: T): T {
         val old = components.putIfAbsent(type, component)
         if (old != null) {
-            throw ComponentCollisionException("Component $type already added")
+            throw ComponentCollisionException("Component ${component::class} already added")
         }
         return component
     }

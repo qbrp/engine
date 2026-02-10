@@ -4,11 +4,16 @@
   "package": "org.lain.engine.client.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ClickEventActionMixin",
     "ClientCommandSourceMixin",
+    "ClientPlayerEntityMixin",
+    "ItemGroupAccessor",
+    "ItemStackMixin",
     "KeyboardMixin",
     "MinecraftClientMixin",
     "MouseMixin",
     "PlayerListEntryAccessor",
+    "ScreenHandlerMixin",
     "SoundLoaderMixin",
     "ToastManagerMixin",
     "chat.ChatHudAccessor",
@@ -29,15 +34,11 @@
     "resource.BakedModelManagerMixin",
     "resource.JsonUnbakedModelAccessor",
     "resource.ModelElementDeserializerMixin",
-    "resource.TransformationDeserializerMixin",
     "resource.SimpleResourceReloadMixin",
+    "resource.TransformationDeserializerMixin",
     "ui.DownloadingTerrainScreenMixin",
     "ui.InGameHudAcessor",
-    "ui.InGameHudMixin",
-    "ClickEventActionMixin",
-    "ItemGroupAccessor",
-    "ItemStackMixin",
-    "ScreenHandlerMixin"
+    "ui.InGameHudMixin"
   ],
   "injectors": {
     "defaultRequire": 1

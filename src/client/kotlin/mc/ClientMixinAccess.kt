@@ -1,5 +1,6 @@
 package org.lain.engine.client.mc
 
+import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.util.math.MatrixStack
@@ -15,23 +16,16 @@ import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.EngineSoundCategory
-import org.lain.engine.item.Gun
-import org.lain.engine.item.SoundEvent
-import org.lain.engine.item.SoundEventId
-import org.lain.engine.item.SoundId
-import org.lain.engine.item.SoundPlay
-import org.lain.engine.item.SoundSource
-import org.lain.engine.item.gunAmmoConsumeCount
+import org.lain.engine.item.*
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.engineItem
 import org.lain.engine.player.Interaction
 import org.lain.engine.player.processLeftClickInteraction
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.get
+import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
+import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.roundToInt
 import org.lwjgl.glfw.GLFW
 
@@ -154,6 +148,16 @@ object ClientMixinAccess {
             return@with true
         }
         return@with false
+    }
+
+    fun onClientPlayerEntityInitialized(entity: ClientPlayerEntity) {
+        val entityTable by injectEntityTable()
+        val table = entityTable.client
+        val player = table.getPlayer(entity)
+        if (player != null) {
+            table.removePlayer(entity)
+            table.setPlayer(entity, player)
+        }
     }
 
     fun sendChatMessage(content: String) {
