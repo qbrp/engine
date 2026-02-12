@@ -1,18 +1,11 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.Count
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.Gun
-import org.lain.engine.item.GunDisplay
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemName
-import org.lain.engine.item.ItemTooltip
-import org.lain.engine.item.ItemUuid
+import org.lain.engine.item.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.get
+import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.pos
 
 @Serializable
@@ -34,10 +27,10 @@ data class ClientboundItemData(
             item.id,
             item.uuid,
             ImmutableVec3(item.pos),
-            item.get(),
-            item.get(),
-            item.get(),
-            item.get(),
+            item.get<ItemName>()?.copy(),
+            item.get<Gun>()?.copy(),
+            item.get<GunDisplay>()?.copy(),
+            item.get<ItemTooltip>()?.copy(),
             item.get<Count>()?.value
         )
     }

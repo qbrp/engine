@@ -81,10 +81,9 @@ fun UnloadInactiveItemsTimer(period: Long, itemStorage: ItemStorage, database: D
 suspend fun EngineMinecraftServer.loadItemStack(itemStack: ItemStack, owner: EnginePlayer) {
     val reference = itemStack.engine() ?: return
     val uuid = reference.uuid
-    val id = reference.id
     val item = database.loadItem(owner.location, uuid) ?: return
     minecraftServer.execute {
-        wrapItemStack(owner, id, itemStack)
+        wrapItemStack(owner, item, itemStack)
         engine.itemStorage.add(uuid, item)
     }
 }

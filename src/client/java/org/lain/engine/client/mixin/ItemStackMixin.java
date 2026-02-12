@@ -93,19 +93,18 @@ public abstract class ItemStackMixin {
     }
 
     @Inject(
-            method = "onClicked",
+            method = "onStackClicked",
             at = @At(
                     value = "HEAD"
-            ),
-            cancellable = true
+            )
     )
-    public void engine$onClicked(ItemStack stack, Slot slot, ClickType clickType, PlayerEntity player, StackReference cursorStackReference, CallbackInfoReturnable<Boolean> cir) {
+    public void engine$onClicked(Slot slot, ClickType clickType, PlayerEntity player, CallbackInfoReturnable<Boolean> cir) {
         if (!player.getEntityWorld().isClient()) return;
         ItemStack slotStack = slot.getStack();
         EngineItem slotItem = getEngineItem(slotStack);
-        EngineItem item = getEngineItem(stack);
+        EngineItem item = getEngineItem((ItemStack) (Object)this);
         if (slotItem != null && item != null) {
-            cir.setReturnValue(ClientMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem, cursorStackReference));
+            ClientMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem);
         }
     }
 

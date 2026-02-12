@@ -3,7 +3,6 @@ package org.lain.engine.util.file
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.ServerId
-import org.lain.engine.util.Color
 
 @Serializable
 data class ServerConfig(

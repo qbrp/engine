@@ -1,11 +1,11 @@
 package org.lain.engine.client.mc
 
+import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.network.PlayerListEntry
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.inventory.StackReference
 import net.minecraft.item.ItemStack
 import net.minecraft.text.Text
 import org.lain.engine.client.chat.AcceptedMessage
@@ -25,6 +25,7 @@ import org.lain.engine.mc.engineItem
 import org.lain.engine.player.Interaction
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.processLeftClickInteraction
+import org.lain.engine.player.setInteraction
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT
 import org.lain.engine.util.Timestamp
@@ -79,7 +80,13 @@ object ClientMixinAccess {
 
     fun predictItemLeftClickInteraction(): Boolean {
         val player = client.gameSession?.mainPlayer ?: return false
+        player.setInteraction(Interaction.LeftClick)
         return processLeftClickInteraction(player)
+    }
+
+    fun canBreakBlocks(): Boolean {
+        val player = client.gameSession?.mainPlayer ?: return false
+        return !processLeftClickInteraction(player)
     }
 
     fun onLeftMouseClick() {
@@ -93,15 +100,10 @@ object ClientMixinAccess {
 
     fun isGunWithSelector(item: EngineItem) = item.get<Gun>()?.selector == false
 
-    fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem, stackReference: StackReference): Boolean {
-        var success = false
-        val gunAmmoConsumeCount = item.gunAmmoConsumeCount(cursorItem)
-        if (gunAmmoConsumeCount != 0)  {
-            stackReference.get().decrement(gunAmmoConsumeCount)
-            success = true
+    fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem) {
+        if (MinecraftClient.currentScreen is CreativeInventoryScreen) {
+            client.handler.onInteraction(Interaction.SlotClick(cursorItem, item))
         }
-        client.handler.onInteraction(Interaction.SlotClick(cursorItem, item))
-        return success
     }
 
     fun isEngineLoaded(): Boolean {
@@ -206,6 +208,8 @@ object ClientMixinAccess {
     }
 
     fun getChatWidth() = client.options.chatFieldWidth
+
+    fun getChatSize() = client.options.chatFieldSize
 
     fun getAssets(): Assets {
         return client.resources.assets

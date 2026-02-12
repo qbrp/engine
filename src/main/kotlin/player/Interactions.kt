@@ -1,16 +1,7 @@
 package org.lain.engine.player
 
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.Gun
-import org.lain.engine.item.GunEvent
-import org.lain.engine.item.gunAmmoConsumeCount
-import org.lain.engine.item.setGunEvent
-import org.lain.engine.util.Component
-import org.lain.engine.util.handle
-import org.lain.engine.util.get
-import org.lain.engine.util.has
-import org.lain.engine.util.remove
-import org.lain.engine.util.set
+import org.lain.engine.item.*
+import org.lain.engine.util.*
 
 sealed class Interaction {
     data class SlotClick(
@@ -31,11 +22,7 @@ fun EnginePlayer.setInteraction(interaction: Interaction) {
 /** @return Отменить стандартное взаимодействие */
 fun processLeftClickInteraction(player: EnginePlayer, handItem: EngineItem? = player.handItem): Boolean {
     // стрельба
-    if (handItem?.has<Gun>() == true) {
-        handItem.setGunEvent(GunEvent.Shoot(player))
-        return true
-    }
-    return false
+    return handItem?.has<Gun>() == true
 }
 
 fun updatePlayerInteractions(player: EnginePlayer) {
@@ -44,7 +31,9 @@ fun updatePlayerInteractions(player: EnginePlayer) {
 
     when(interaction) {
         Interaction.LeftClick -> {
-            processLeftClickInteraction(player, handItem)
+            if (handItem?.has<Gun>() == true) {
+                handItem.setGunEvent(GunEvent.Shoot(player))
+            }
         }
         is Interaction.RightClick -> {
             // предохранитель
@@ -56,7 +45,12 @@ fun updatePlayerInteractions(player: EnginePlayer) {
             val slotItem = interaction.item
             val cursorItem = interaction.cursorItem
 
-            // Кейс 1: загрузка боеприпасов в оружие
+            // Кейс 1: объединение
+            if (merge(slotItem, cursorItem)) {
+                player.require<PlayerInventory>().handItem = null
+            }
+
+            // Кейс 2: загрузка боеприпасов в оружие
             slotItem.handle<Gun> {
                 val count = slotItem.gunAmmoConsumeCount(cursorItem)
                 if (count > 0) {

@@ -10,7 +10,7 @@ data class ItemPrefab(val properties: ItemInstantiationSettings) {
 }
 
 fun bakeItem(location: Location, prefab: ItemPrefab): EngineItem {
-    return itemInstance(ItemUuid.next(), location, prefab.properties.copy())
+    return itemInstance(ItemUuid.next(), location, prefab.properties)
 }
 
 data class ItemInstantiationSettings(

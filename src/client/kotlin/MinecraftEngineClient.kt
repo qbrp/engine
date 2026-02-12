@@ -155,7 +155,7 @@ class MinecraftEngineClient : ClientModInitializer {
                             val reference = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT) ?: return@mapNotNull null
                             val item = reference.getClientItem() ?: return@mapNotNull null
                             item to itemStack
-                        }
+                        }.toSet()
 
                         player.apply<OrientationTranslation> {
                             if (yaw != 0f || pitch != 0f) {

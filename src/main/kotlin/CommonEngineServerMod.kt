@@ -21,7 +21,6 @@ import org.lain.engine.player.Interaction
 import org.lain.engine.player.setInteraction
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
-import org.lain.engine.util.file.PlayerConfig
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -64,7 +63,7 @@ class CommonEngineServerMod : ModInitializer {
             engineServer.onLeavePlayer(handler.player)
         }
 
-        ServerTickEvents.END_SERVER_TICK.register {
+        ServerTickEvents.START_SERVER_TICK.register {
             engineServer.tick()
         }
 

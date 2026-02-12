@@ -7,7 +7,9 @@ import org.lain.engine.client.mc.ClientMixinAccess;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MinecraftClient.class)
 public abstract class MinecraftClientMixin {
@@ -15,20 +17,29 @@ public abstract class MinecraftClientMixin {
 
     @Shadow protected abstract boolean doAttack();
 
-    @Redirect(
-            method = "handleInputEvents",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/MinecraftClient;doAttack()Z"
-            )
+    @Inject(
+            method = "handleBlockBreaking",
+            at = @At("HEAD"),
+            cancellable = true
     )
-    public boolean engine$handleInputEvents(MinecraftClient instance) {
+    public void engine$handleBlockBreaking(boolean breaking, CallbackInfo ci) {
         ClientMixinAccess mixinAccess = ClientMixinAccess.INSTANCE;
-        if (!mixinAccess.predictItemLeftClickInteraction()) {
-            return this.doAttack();
-        } else {
+        if (!mixinAccess.canBreakBlocks()) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(
+            method = "doAttack",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    public void engine$doAttack(CallbackInfoReturnable<Boolean> cir) {
+        ClientMixinAccess mixinAccess = ClientMixinAccess.INSTANCE;
+        if (mixinAccess.predictItemLeftClickInteraction()) {
             mixinAccess.onLeftMouseClick();
-            return false;
+            cir.cancel();
+            cir.setReturnValue(true);
         }
     }
 }

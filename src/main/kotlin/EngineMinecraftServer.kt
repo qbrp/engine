@@ -50,14 +50,18 @@ open class EngineMinecraftServer(
     val engine = EngineServer(config.server, playerStorage, acousticSimulator, this, transportContext)
 
     private val autosaveTimer = ItemAutosaveTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database)
-    private val unloadTimer = UnloadInactiveItemsTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database, engine)
+    private val unloadTimer = UnloadInactiveItemsTimer(config.itemAutosavePeriod / 2 * 1000, engine.itemStorage, database, engine)
     protected val itemLoader = ItemLoader(this)
+
+    open fun wrapItemStack(owner: EnginePlayer, item: EngineItem, itemStack: ItemStack): EngineItem {
+        val properties = itemContext.itemPropertiesStorage[item.id]
+        wrapEngineItemStack(properties, item, itemStack)
+        return item
+    }
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
         val item = engine.createItem(owner.location, itemId)
-        val properties = itemContext.itemPropertiesStorage[itemId]
-        wrapEngineItemStack(properties, item, itemStack)
-        return item
+        return wrapItemStack(owner, item, itemStack)
     }
 
     open fun createItemStack(owner: EnginePlayer, itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> Unit): EngineItem {
