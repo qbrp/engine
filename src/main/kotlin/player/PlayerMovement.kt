@@ -1,14 +1,12 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.apply
-
 import org.lain.engine.util.Component
+import org.lain.engine.util.apply
 import org.lain.engine.util.math.lerp
-import org.lain.engine.util.require
 import org.lain.engine.util.math.smootherstep
 import org.lain.engine.util.math.smoothstep
-import org.lain.engine.world.velocity
+import org.lain.engine.util.require
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -83,7 +81,8 @@ fun maxSpeedMul(settings: MovementSettings) = speedMul(1f, 1f, true, settings)
 fun updatePlayerMovement(
     player: EnginePlayer,
     primaryAttributes: MovementDefaultAttributes,
-    settings: MovementSettings
+    settings: MovementSettings,
+    isClient: Boolean = false
 ) {
     val defaultSpeed = primaryAttributes.getPrimarySeed(player) ?: 0.055f
     val attributes = player.require<PlayerAttributes>()
@@ -110,8 +109,10 @@ fun updatePlayerMovement(
             } else {
                 1f
             }
+            println("Стамина (${if (isClient) "клиент" else "сервер"}): $stamina (${(staminaRegen - abs(velocityHorizontal) / maxSpeed * staminaConsume)}) ($velocityHorizontal)")
 
             val target = max(minSpeed, defaultSpeed * speedMul(intention, stamina, isSprinting, settings))
+            //println("Множитель скорости (${if (isClient) "клиент" else "сервер"}): ${speedMul(intention, stamina, isSprinting, settings)}")
             lerp(speedAttribute, target, 0.2f)
         }
     }

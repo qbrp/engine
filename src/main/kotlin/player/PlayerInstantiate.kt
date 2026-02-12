@@ -8,7 +8,6 @@ import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.util.set
 import org.lain.engine.util.setNullable
 import org.lain.engine.world.Location
-import org.lain.engine.world.Velocity
 import org.lain.engine.world.World
 
 data class PlayerInstantiateSettings(

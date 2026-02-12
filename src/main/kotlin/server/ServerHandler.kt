@@ -255,7 +255,8 @@ class ServerHandler(
             PlayerSpeedIntentionPacket(
                 player.id,
                 intention
-            )
+            ),
+            excludeSelf = true
         )
     }
 
@@ -369,10 +370,11 @@ class ServerHandler(
     private fun <P : Packet> Endpoint<P>.broadcastInRadius(
         center: Pos,
         radius: Int,
+        exclude: List<EnginePlayer> = emptyList(),
         packet: (EnginePlayer) -> P
     ) {
         for (player in playerStorage) {
-            if (player.pos.squaredDistanceTo(center) <= radius * radius) {
+            if (player !in exclude && player.pos.squaredDistanceTo(center) <= radius * radius) {
                 sendS2C(packet(player), player.id)
             }
         }
@@ -383,14 +385,15 @@ class ServerHandler(
         radius: Int = playerSynchronizationRadius,
         packet: (EnginePlayer) -> P
     ) {
-        broadcastInRadius(player.pos, radius, packet)
+        broadcastInRadius(player.pos, radius, packet=packet)
     }
 
     private fun <P : Packet> Endpoint<P>.broadcastInRadius(
         player: EnginePlayer,
         packet: P,
-        radius: Int = playerSynchronizationRadius,
+        excludeSelf: Boolean = false,
+        radius: Int = playerSynchronizationRadius
     ) {
-        broadcastInRadius(player.pos, radius, { packet })
+        broadcastInRadius(player.pos, radius, exclude=if (excludeSelf) listOf(player) else emptyList(), packet={ packet })
     }
 }

@@ -43,7 +43,7 @@ class GameSession(
     var acousticDebugVolumes = listOf<Pair<VoxelPos, Float>>()
     val playerStorage = ClientPlayerStorage()
     val itemStorage = ClientItemStorage()
-    val movementManager = MovementManager(handler)
+    val movementManager = MovementManager(this)
     val chatBubbleList = ChatBubbleList(client.options, client.fontRenderer)
     val chatManager = ClientEngineChatManager(
         chatEventBus,
@@ -82,8 +82,9 @@ class GameSession(
 
             val playerItems = player.items
             supplyPlayerInventoryItemsLocation(player, playerItems)
+            updatePlayerInteractions(player)
             updateGunState(playerItems, true)
-            updatePlayerMovement(player, movementDefaultAttributes, movementSettings)
+            updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
 
             if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
                 player.isLowDetailed = true

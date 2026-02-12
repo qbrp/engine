@@ -14,7 +14,6 @@ import org.lain.engine.storage.ItemLoader
 import org.lain.engine.util.*
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
-import org.lain.engine.world.Velocity
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import net.minecraft.world.World as McWorld
@@ -43,7 +42,6 @@ fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: Ser
         val engineItem = stack.engine() ?: continue
         val itemUuid = engineItem.uuid
         if (items.contains(itemUuid)) {
-            stack.remove(ENGINE_ITEM_REFERENCE_COMPONENT)
             engineServer.wrapItemStack(player, engineItem.id, stack)
         } else {
             items.add(itemUuid)
@@ -62,7 +60,8 @@ fun updateServerMinecraftSystems(
         val entity = table.getEntity(player) ?: return
         val world = engine.getWorld(entity.entityWorld)
 
-        val itemStacks = entity.inventory + entity.currentScreenHandler.stacks
+        val screenHandler = entity.currentScreenHandler
+        val itemStacks = entity.inventory + screenHandler.stacks + screenHandler.cursorStack
         val items: MutableList<Pair<EngineItem, ItemStack>> = mutableListOf()
 
         for (itemStack in itemStacks) {
@@ -90,7 +89,7 @@ fun updateServerMinecraftSystems(
             }
         }
 
-        updatePlayerMinecraftSystems(player, items, entity, world)
+        updatePlayerMinecraftSystems(player, items.toSet(), entity, world)
         if (entity is ServerPlayerEntity) {
             excludeEngineItemDuplicates(server, entity, player)
         }
@@ -99,15 +98,23 @@ fun updateServerMinecraftSystems(
 
 fun updatePlayerMinecraftSystems(
     player: EnginePlayer,
-    items: List<Pair<EngineItem, ItemStack>>,
+    items: Set<Pair<EngineItem, ItemStack>>,
     entity: PlayerEntity,
     world: World
 ) {
+    val location = player.require<Location>()
+    val velocity = player.require<Velocity>()
     val pos = entity.entityPos
-    player.apply<Location> {
-        position.set(pos)
-        this.world = world
-    }
+
+    velocity.prev.set(location.position)
+    location.position.set(pos)
+    location.world = world
+
+    velocity.motion.set(
+        location.position.x - velocity.prev.x,
+        location.position.y - velocity.prev.y,
+        location.position.z - velocity.prev.z
+    )
 
     player.apply<OrientationTranslation> {
         if (yaw != 0f) {
@@ -123,10 +130,6 @@ fun updatePlayerMinecraftSystems(
     player.apply<Orientation> {
         yaw = entity.yaw
         pitch = entity.pitch
-    }
-
-    player.apply<Velocity> {
-        motion.set(entity.movement)
     }
 
     player.apply<PlayerModel> {

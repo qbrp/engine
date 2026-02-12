@@ -131,6 +131,12 @@ data class MutableVec3(
         this.z = vec.z
     }
 
+    fun set(x: Float, y: Float, z: Float) {
+        this.x = x
+        this.y = y
+        this.z = z
+    }
+
     fun mutateAdd(x: Float = this.x, y: Float = this.y, z: Float = this.z) {
         this.x = x
         this.y = y
@@ -138,13 +144,19 @@ data class MutableVec3(
     }
 
     fun mutateLerp(x: Float, y: Float, z: Float, alpha: Float = 1f) {
-        this.x = this.x + (x - this.x) * alpha
-        this.y = this.y + (y - this.y) * alpha
-        this.z = this.z + (z - this.z) * alpha
+        this.x += (x - this.x) * alpha
+        this.y += (y - this.y) * alpha
+        this.z += (z - this.z) * alpha
     }
 
     fun mutateLerp(vec3: Vec3, alpha: Float = 1f) {
         mutateLerp(vec3.x, vec3.y, vec3.z, alpha)
+    }
+
+    fun mutateSub(vec3: Vec3) {
+        this.x -= vec3.x
+        this.y -= vec3.y
+        this.z -= vec3.z
     }
 
     fun addY(value: Float) {
