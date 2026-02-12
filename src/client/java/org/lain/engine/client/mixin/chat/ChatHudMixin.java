@@ -24,10 +24,7 @@ import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftChat;
 import org.lain.engine.client.mc.render.ChatHudRenderKt;
 import org.spongepowered.asm.mixin.*;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -72,6 +69,22 @@ public abstract class ChatHudMixin {
 
     @Shadow
     private boolean hasUnreadNewMessages;
+
+    @ModifyConstant(
+            method = "addMessage(Lnet/minecraft/client/gui/hud/ChatHudLine;)V",
+            constant = @Constant(intValue = 100)
+    )
+    private int engine$increaseChatLimit1(int original) {
+        return ClientMixinAccess.INSTANCE.getChatSize();
+    }
+
+    @ModifyConstant(
+            method = "addVisibleMessage",
+            constant = @Constant(intValue = 100)
+    )
+    private int engine$increaseChatLimit2(int original) {
+        return ClientMixinAccess.INSTANCE.getChatSize();
+    }
 
     // Нам не нужны индикаторы, показывающие, что сообщение изменено, оно небезопасно и т.д.
     @Inject(
@@ -250,7 +263,7 @@ public abstract class ChatHudMixin {
                             if (repeats > 999) { string = MAXIMUM_REPEATS_TEXT; }
                             Text text = Text.literal(string).formatted(Formatting.GOLD);
                             int width = client.textRenderer.getWidth(text);
-                            int x0 = chatWidth + 8 - width;
+                            int x0 = chatWidth +  - width;
                             context.drawText(client.textRenderer, text, x0, y1, ColorHelper.withAlpha(backgroundOpacity * chatOpacity, Colors.BLACK), true);
                         }
                     }
@@ -313,7 +326,7 @@ public abstract class ChatHudMixin {
             if (totalHeight != visibleHeight) {
                 int scrollbarAlpha = scrollY > 0 ? 170 : 96;
                 int scrollbarColor = this.hasUnreadNewMessages ? 0xCC3333 : 0x3333AA;
-                int scrollbarX = chatWidth + 4;
+                int scrollbarX = chatWidth;
 
                 context.fill(
                         scrollbarX,

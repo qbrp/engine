@@ -12,9 +12,12 @@
   "yamlconfig.engine.engine-config.chat-bubbles.offset-y": "Высота",
   "yamlconfig.engine.engine-config.chat-bubbles.hiding": "Скрывать на F11",
   "yamlconfig.engine.engine-config.chat-bubbles.ignore-light-level": "Игнорировать уровень освещения",
-  "yamlconfig.engine.engine-config.chat-input": "Поле ввода",
+  "yamlconfig.engine.engine-config.chat-input": "Поле ввода чата",
   "yamlconfig.engine.engine-config.chat-input.shaking-force": "Сила тряски",
   "yamlconfig.engine.engine-config.chat-input.shaking-threshold": "Порог тряски",
   "yamlconfig.engine.engine-config.chat-input.closing": "Закрывать чат при отправке сообщения",
+  "yamlconfig.engine.engine-config.chat": "Окно чата",
+  "yamlconfig.engine.engine-config.chat.width": "Максимальная ширина",
+  "yamlconfig.engine.engine-config.chat.size": "Вместимость",
   "key.category.engine.category": "Engine"
 }

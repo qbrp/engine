@@ -15,7 +15,7 @@ data class ChatChannelButton(val textWidth: Int, val rect: Rect2, val text: Text
 
 data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
     private val client by injectClient()
-    private val padding = 1f
+    private val padding = 2f
     private val buttonSpacing = 2f
     private val iconReserve = 10f
 

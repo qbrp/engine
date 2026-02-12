@@ -17,7 +17,8 @@ class EngineYamlConfig(
 ) : EngineOptions {
     init { builder.push("chat") }
 
-    private val chatFieldWidthProperty = builder.defineInteger("chat-width", 440, 0, 600)
+    private val chatFieldWidthProperty = builder.defineInteger("width", 440, 0, 600)
+    private val chatFieldSizeProperty = builder.defineInteger("size", 300, 0, 5000)
 
     init { builder.pop() }
 
@@ -69,6 +70,8 @@ class EngineYamlConfig(
         get() = chatBubbleIgnoreLightLevelProperty.get()
     override val chatFieldWidth: Int
         get() = chatFieldWidthProperty.get()
+    override val chatFieldSize: Int
+        get() = chatFieldSizeProperty.get()
 
     override val crosshairIndicatorVisible: Boolean
         get() = crosshairIndicatorVisibleProperty.get()
