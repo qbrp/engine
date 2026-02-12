@@ -8,12 +8,14 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import org.lain.engine.mc.ServerMixinAccess;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Optional;
@@ -53,6 +55,21 @@ public class LivingEntityMixin {
         if (ServerMixinAccess.INSTANCE.shouldCancelDamage()) {
             cir.setReturnValue(false);
             cir.cancel();
+        }
+    }
+
+    @Inject(
+            method = "jump",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    public void engine$jump(CallbackInfo ci) {
+        if ((Object) this instanceof PlayerEntity player) {
+            if (ServerMixinAccess.INSTANCE.canJump(player)) {
+                ServerMixinAccess.INSTANCE.onPlayerJump(player);
+            } else {
+                ci.cancel();
+            }
         }
     }
 }

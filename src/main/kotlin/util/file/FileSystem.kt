@@ -16,3 +16,11 @@ fun getBuiltinResource(path: String): URL? {
     val classLoader = Thread.currentThread().contextClassLoader
     return classLoader.getResource("defaults/$path")
 }
+
+fun updateOldFileNaming() {
+    val items = ENGINE_DIR.resolve("items")
+    if (items.exists()) {
+        items.renameTo(CONTENTS_DIR)
+        CONFIG_LOGGER.warn("Файл старого формата engine/items переименован в engine/contents")
+    }
+}

@@ -6,6 +6,7 @@ import org.lain.engine.util.apply
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.math.smootherstep
 import org.lain.engine.util.math.smoothstep
+import org.lain.engine.util.remove
 import org.lain.engine.util.require
 import kotlin.math.abs
 import kotlin.math.max
@@ -30,12 +31,19 @@ data class MovementStatus(
 }
 
 /**
+ * Обрабатывается системами Minecraft
+ */
+object Jump : Component
+
+/**
  * @param sprintMultiplier Множитель скорости в режиме бега
  * @param minSpeedFactor Множитель к показателю аттрибута скорости, определяющий самую низкую возможную скорость (от 0 до 1)
  * @param slowdownStaminaThreshold Порог стамины, при котором персонаж начинает замедляться
  * @param staminaConsumption Уменьшение стамины за 1 тик при максимальной скорости
  * @param staminaRegen **Постоянное** восстановление стамины за 1 тик. Стамина тратиться, когда `staminaConsumption` становится больше `staminaRegen`
  * @param intentionEffect Как сильно `intention` игрока влияет на скорость. Ограничивает множитель скорости.
+ * @param sprintMinIntentionEffect Минимальное значение `intentionEffect`, когда игрок бежит (прибавляется к нему)
+ * @param jumpStaminaConsume Потребление стамины при прыжке
  */
 @Serializable
 data class MovementSettings(
@@ -45,8 +53,13 @@ data class MovementSettings(
     val staminaConsumption: Float = 0.0033f,
     val staminaRegen: Float = 0.003f,
     val sprintMinIntentionEffect: Float = 0.5f,
-    val intentionEffect: Float = 0.7f
+    val intentionEffect: Float = 0.7f,
+    val jumpStaminaConsume: Float = 0.3f,
 )
+
+fun canPlayerJump(player: EnginePlayer, settings: MovementSettings): Boolean {
+    return player.stamina > settings.jumpStaminaConsume
+}
 
 fun EnginePlayer.intentSpeed(value: Float) {
     require<MovementStatus>().intention = value
@@ -105,14 +118,14 @@ fun updatePlayerMovement(
             defaultSpeed
         } else {
             stamina = if (!player.isInGameMasterMode && !player.isSpectating) {
-                (stamina + (staminaRegen - abs(velocityHorizontal) / maxSpeed * staminaConsume)).coerceIn(0f, 1f)
+                val jumpConsume = if (player.remove<Jump>() != null) settings.jumpStaminaConsume else 0f
+                val movementConsume = abs(velocityHorizontal) / maxSpeed * staminaConsume
+                (stamina + staminaRegen - movementConsume - jumpConsume).coerceIn(0f, 1f)
             } else {
                 1f
             }
-            println("Стамина (${if (isClient) "клиент" else "сервер"}): $stamina (${(staminaRegen - abs(velocityHorizontal) / maxSpeed * staminaConsume)}) ($velocityHorizontal)")
 
             val target = max(minSpeed, defaultSpeed * speedMul(intention, stamina, isSprinting, settings))
-            //println("Множитель скорости (${if (isClient) "клиент" else "сервер"}): ${speedMul(intention, stamina, isSprinting, settings)}")
             lerp(speedAttribute, target, 0.2f)
         }
     }

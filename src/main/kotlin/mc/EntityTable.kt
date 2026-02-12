@@ -2,11 +2,11 @@ package org.lain.engine.mc
 
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.world.World as McWorld
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.world.WorldId
 import java.util.concurrent.ConcurrentHashMap
+import net.minecraft.world.World as McWorld
 
 /**
  * # Таблица сущностей
@@ -26,7 +26,11 @@ class EntityTable {
     val server = Entity2PlayerTable<ServerPlayerEntity>()
 
     fun getGeneralPlayer(entity: PlayerEntity): EnginePlayer? {
-        return client.getPlayer(entity) ?: (entity as? ServerPlayerEntity)?.let { server.getPlayer(it) }
+        return if (entity is ServerPlayerEntity) {
+            server.getPlayer(entity)
+        } else {
+            client.getPlayer(entity)
+        }
     }
 
     class Entity2PlayerTable<T : PlayerEntity> {

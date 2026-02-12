@@ -178,10 +178,11 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
             movement.sprintMultiplier,
             movement.minSpeedFactor,
             movement.slowdownStaminaThreshold,
-            movement.staminaConsumeMinutes / 60 / 20,
+            if (movement.enableStamina) movement.staminaConsumeMinutes / 60 / 20 else 0f,
             movement.staminaRegenMinutes / 60 / 20,
             movement.minSpeedSprintFactor,
-            movement.intentionEffect
+            movement.intentionEffect,
+            if (movement.enableStamina) movement.jumpStaminaConsume else 0f
         )
         it.chatSettings = chatSettings
 

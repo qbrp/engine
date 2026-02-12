@@ -21,6 +21,7 @@ import org.lain.engine.player.Interaction
 import org.lain.engine.player.setInteraction
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
+import org.lain.engine.util.file.updateOldFileNaming
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -40,6 +41,7 @@ class CommonEngineServerMod : ModInitializer {
             EnvType.CLIENT -> Environment.CLIENT
             EnvType.SERVER -> Environment.SERVER
         }
+        updateOldFileNaming()
         initializeEngineItemComponents()
         registerBlockHintAttachment()
         registerBlockDecalsAttachment()

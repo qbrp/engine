@@ -12,6 +12,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.gunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
+import org.lain.engine.util.getOrSet
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.set
@@ -67,6 +68,14 @@ object ServerMixinAccess {
             table.removePlayer(entity)
             table.setPlayer(entity, player)
         }
+    }
+
+    fun onPlayerJump(entity: PlayerEntity) {
+        entity.engine?.getOrSet { Jump }
+    }
+
+    fun canJump(entity: PlayerEntity): Boolean {
+        return entity.engine?.let { player -> canPlayerJump(player, server.engine.globals.movementSettings) } ?: true
     }
 
     fun onBlockAdded(world: World, blockPos: BlockPos, state: BlockState) {

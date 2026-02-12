@@ -5,26 +5,15 @@ import com.charleskorn.kaml.decodeFromStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.EngineMinecraftServer
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemInstantiationSettings
-import org.lain.engine.item.ItemName
-import org.lain.engine.item.ItemPrefab
-import org.lain.engine.item.ItemSounds
-import org.lain.engine.item.ItemTooltip
-import org.lain.engine.item.SoundEvent
-import org.lain.engine.item.SoundEventId
-import org.lain.engine.mc.ItemProperties
+import org.lain.engine.item.*
 import org.lain.engine.mc.ItemEquipment
 import org.lain.engine.mc.ItemListTab
+import org.lain.engine.mc.ItemProperties
 import org.lain.engine.util.Namespace
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.util.Timestamp
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.iterator
-import kotlin.collections.map
 
-private val CONTENTS_DIR = ENGINE_DIR.resolve("contents")
+val CONTENTS_DIR = ENGINE_DIR.resolve("contents")
 private val INVENTORY_TABS = CONTENTS_DIR.resolve(INVENTORY_TABS_FILENAME)
 private val NAMESPACES = CONTENTS_DIR.resolve(NAMESPACES_FILENAME)
 private const val INVENTORY_TABS_FILENAME = "tabs.yml"
