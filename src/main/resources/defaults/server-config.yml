@@ -34,8 +34,6 @@ chat:
       solid: 0.0
       partial: 0.95
       air: 0.99
-      tags:
-        "test": 1
       blocks:
         "minecraft:sand": 0.5
     formatting:
