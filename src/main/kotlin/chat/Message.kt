@@ -119,6 +119,7 @@ data class ChatChannel(
     val mentions: Boolean = true,
     val background: Color? = null,
     val typeIndicatorRange: Int? = null,
+    val typeIndicator: Boolean = true,
 ) {
     companion object {
         val DEFAULT = ChannelId("default")
@@ -138,7 +139,7 @@ data class OutcomingMessage(
     val mentioned: Boolean = false,
     val notify: Boolean = false,
     val speech: Boolean = false,
-    val volume: Float? = 0f,
+    val volumes: EngineChat.Volumes? = null,
     val placeholders: Map<String, String> = mapOf(),
     val isSpy: Boolean = false,
     val head: Boolean = false,

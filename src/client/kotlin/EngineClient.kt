@@ -3,18 +3,12 @@ package org.lain.engine.client
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.Camera
-import org.lain.engine.client.render.EXCLAMATION
-import org.lain.engine.client.render.FontRenderer
-import org.lain.engine.client.render.QUESTION
-import org.lain.engine.client.render.ScreenRenderer
-import org.lain.engine.client.render.VOICE_WARNING
-import org.lain.engine.client.render.Window
+import org.lain.engine.client.render.*
 import org.lain.engine.client.render.ui.EngineUi
+import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.player.developerMode
 import org.lain.engine.util.DEV_MODE_COLOR
@@ -27,9 +21,10 @@ class EngineClient(
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
-    val eventBus: ClientEventBus
+    val eventBus: ClientEventBus,
 ) {
     lateinit var options: EngineOptions
+    lateinit var thread: Thread
     val handler = ClientHandler(this, eventBus)
     val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
@@ -75,6 +70,8 @@ class EngineClient(
         handler.tick()
         eventBus.tick()
     }
+
+    fun isOnThread() = Thread.currentThread() == thread
 
     fun execute(r: () -> Unit) {
         handler.taskExecutor.add("Unnamed task", r)

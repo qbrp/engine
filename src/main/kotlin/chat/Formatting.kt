@@ -1,6 +1,5 @@
 package org.lain.engine.chat
 
-import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
 private val colorMap = mapOf(
@@ -59,5 +58,6 @@ data class AcousticFormatting(val levels: List<AcousticLevel> = listOf()) {
 data class AcousticLevel(
     val volume: Float,
     val multiplier: Float = 1f,
-    val placeholders: Map<String, String>
+    val inputPlaceholders: Map<String, String>,
+    val outPlaceholders: Map<String, String>
 )

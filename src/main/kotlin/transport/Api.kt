@@ -15,11 +15,19 @@ class Endpoint<P : Packet>(
 ) {
     private val transport by injectServerTransportContext()
 
-    fun sendS2C(packet: P, player: PlayerId) {
+    private fun executeOnThread(runnable: () -> Unit) {
+        if (transport.isOnThread()) {
+            runnable()
+        } else {
+            transport.executeOnThread(runnable)
+        }
+    }
+
+    fun sendS2C(packet: P, player: PlayerId) = executeOnThread {
         transport.sendClientboundPacket(this, packet, player)
     }
 
-    fun sendAllS2C(packets: List<P>, player: PlayerId) {
+    fun sendAllS2C(packets: List<P>, player: PlayerId) = executeOnThread {
         packets.forEach { sendS2C(it, player) }
     }
 
@@ -27,15 +35,15 @@ class Endpoint<P : Packet>(
         return ServerPacketSendTask(id, packet, this, transport, player)
     }
 
-    fun registerReceiver(handler: ServerPacketHandler<P>) {
+    fun registerReceiver(handler: ServerPacketHandler<P>) = executeOnThread {
         transport.registerServerReceiver(this, handler)
     }
 
-    fun broadcast(packet: P) {
+    fun broadcast(packet: P) = executeOnThread {
         transport.broadcastClientboundPacket(this) { packet }
     }
 
-    fun broadcast(lazyPacket: (EnginePlayer) -> P) {
+    fun broadcast(lazyPacket: (EnginePlayer) -> P) = executeOnThread {
         transport.broadcastClientboundPacket(this, lazyPacket)
     }
 }
@@ -57,6 +65,10 @@ inline fun <reified P : Packet> Endpoint(
 val KClass<out Packet>.channelName
     get() = simpleName?.lowercase() ?: error("Unknown packet class name")
 
+/**
+ * **Изначально не потокобезопасен.** Проверку делать через `isOnThread` и `executeOnThread`.
+ * Потокобезопасная логика встроена в `Endpoint`
+ */
 interface ServerTransportContext {
     fun <P : Packet> registerServerReceiver(endpoint: Endpoint<P>, handler: ServerPacketHandler<P>)
 
@@ -73,6 +85,9 @@ interface ServerTransportContext {
         endpoint: Endpoint<P>,
         lazyPacket: (EnginePlayer) -> P,
     )
+
+    fun isOnThread(): Boolean
+    fun executeOnThread(runnable: () -> Unit)
 }
 
 class ServerPacketSendTask<P : Packet>(
@@ -90,10 +105,8 @@ class ServerPacketSendTask<P : Packet>(
     suspend fun requestAcknowledge(
         retryAttempts: Int = 10,
         retryTime: Int = 500
-    ) {
-        withAcknowledge(retryAttempts, retryTime)
+    ) = withAcknowledge(retryAttempts, retryTime)
             .also { it.run() }
-    }
 
     fun withAcknowledge(
         retryAttempts: Int = 10,

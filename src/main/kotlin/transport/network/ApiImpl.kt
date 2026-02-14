@@ -1,18 +1,16 @@
 package org.lain.engine.transport.network
 
+import net.minecraft.server.MinecraftServer
 import org.lain.engine.mc.registerServerReceiverInternal
 import org.lain.engine.mc.sendClientboundPacketInternal
 import org.lain.engine.mc.unregisterServerReceiverInternal
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerStorage
-import org.lain.engine.transport.Endpoint
-import org.lain.engine.transport.Packet
-import org.lain.engine.transport.ServerPacketContext
-import org.lain.engine.transport.ServerPacketHandler
-import org.lain.engine.transport.ServerTransportContext
+import org.lain.engine.transport.*
 
 class ServerNetworkTransport(
+    private val server: MinecraftServer,
     private val connectionManager: ServerConnectionManager,
     private val playerStorage: PlayerStorage
 ) : ServerTransportContext {
@@ -29,6 +27,14 @@ class ServerNetworkTransport(
         playerStorage.forEach { player ->
             sendClientboundPacket(endpoint, lazyPacket(player), player.id)
         }
+    }
+
+    override fun isOnThread(): Boolean {
+        return server.isOnThread()
+    }
+
+    override fun executeOnThread(runnable: () -> Unit) {
+        server.execute { runnable() }
     }
 
     override fun unregisterAll() {

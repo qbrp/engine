@@ -13,15 +13,13 @@ import org.lain.engine.client.chat.acceptOutcomingMessage
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.transport.*
 import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.Gun
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.SoundPlay
+import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.VoxelPos
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -237,6 +235,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             barrelBullets?.let { barrel.bullets = it }
             selector?.let { this.selector = it }
         }
+    }
+
+    fun applyBulletFirePacket(start: Vec3, vector: Vec3) = with(gameSession!!) {
+        world.emitBulletFireEvent(start, vector, null)
     }
 
     fun applyPlaySoundPacket(play: SoundPlay) {

@@ -3,6 +3,7 @@ package org.lain.engine.client.mc
 import net.minecraft.client.gui.hud.ChatHudLine
 import net.minecraft.client.network.PlayerListEntry
 import net.minecraft.client.util.ChatMessages
+import net.minecraft.entity.player.SkinTextures
 import net.minecraft.text.OrderedText
 import net.minecraft.text.Text
 import org.lain.engine.chat.MessageId
@@ -10,12 +11,18 @@ import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
 import org.lain.engine.client.mc.render.ChatChannelsBar
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
+import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.player.PlayerId
+import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.HIGH_VOLUME_COLOR
 import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.text.EngineText
+import org.lain.engine.util.text.displayNameMiniMessage
+import org.lain.engine.util.text.parseMiniMessageLegacy
 import java.util.*
 import kotlin.math.pow
 import kotlin.random.Random
@@ -53,6 +60,38 @@ object MinecraftChat : ChatEventBus {
         }
     }
     var isWritingCommand = false
+    val typingPlayers = mutableSetOf<TypingPlayer>()
+
+    data class TypingPlayer(val id: PlayerId, val skinTextures: SkinTextures, val fallbackName: () -> Text)
+
+    fun registerEndpoints() {
+        CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.registerClientReceiver {
+            val playerListEntry = getPlayerListEntry(player) ?: return@registerClientReceiver
+            if (playerListEntry.profile.id != MinecraftClient.networkHandler?.profile?.id || client.developerMode) {
+                typingPlayers.add(
+                    TypingPlayer(player, playerListEntry.skinTextures) {
+                        playerListEntry.displayName ?: Text.of(playerListEntry.profile.name)
+                    }
+                )
+            }
+        }
+
+        CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.registerClientReceiver {
+            val player = getPlayerListEntry(player) ?: run {
+                typingPlayers.clear() // Если что-то сломалось
+                return@registerClientReceiver
+            }
+            typingPlayers.removeIf { player.profile.id == it.id.value }
+        }
+    }
+
+    private fun getPlayerListEntry(id: PlayerId): PlayerListEntry? {
+        return MinecraftClient.networkHandler?.playerList?.find { it.profile.id == id.value }
+    }
+
+    fun getDisplayName(player: TypingPlayer): Text {
+        return client.gameSession?.getPlayer(player.id).let { it?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.fallbackName() }
+    }
 
     data class ChatMessageData(
         val node: ChatHudLine,
@@ -187,6 +226,7 @@ object MinecraftChat : ChatEventBus {
         identityContentToEngineMessages.clear()
         allMessages.clear()
         selectedMessage = null
+        typingPlayers.clear()
     }
 
     /* FIXME: Последние строки сообщений дублируются, если это компоненты с какой-либо логикой. Поведение было замечено у достижений. */

@@ -1,23 +1,13 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.Orientation
-import org.lain.engine.player.PlayerUpdate
-import org.lain.engine.player.eyePos
-import org.lain.engine.player.markUpdate
-import org.lain.engine.player.shake
-import org.lain.engine.player.translateRotation
-import org.lain.engine.util.Component
+import org.lain.engine.player.*
+import org.lain.engine.server.ServerHandler
+import org.lain.engine.util.*
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.handle
-import org.lain.engine.util.get
-import org.lain.engine.util.require
-import org.lain.engine.util.set
 import org.lain.engine.world.World
 import org.lain.engine.world.world
-import java.util.LinkedList
-import java.util.Queue
+import java.util.*
 
 @Serializable
 data class Barrel(var bullets: Int, val maxBullets: Int)
@@ -63,11 +53,13 @@ fun EngineItem.setGunEvent(event: GunEvent) {
 
 data class WorldGunEvents(val bullet: Queue<BulletFireEvent> = LinkedList()) : Component
 
-private fun World.emitBulletFireEvent(gun: EngineItem, start: Vec3, vector: Vec3) {
-    this.require<WorldGunEvents>().bullet += BulletFireEvent(gun, start, vector)
+fun World.emitBulletFireEvent(start: Vec3, vector: Vec3, exclude: EnginePlayer?) {
+    this.require<WorldGunEvents>().bullet += BulletFireEvent(start, vector, exclude)
 }
 
-data class BulletFireEvent(val gun: EngineItem, val start: Vec3, val vector: Vec3)
+data class BulletFireEvent(val start: Vec3, val vector: Vec3, val shooter: EnginePlayer?)
+
+const val BULLET_FIRE_RADIUS = 64
 
 private const val ROUND_BARREL = "round_barrel"
 private const val ROUND_BARREL_FULL = "round_barrel_full"
@@ -103,7 +95,7 @@ fun updateGunState(items: Set<EngineItem>, client: Boolean = false) {
 
                             val rotationVector = event.shooter.require<Orientation>().rotationVector
                             val start = event.shooter.eyePos
-                            shooter.world.emitBulletFireEvent(item, start, rotationVector)
+                            shooter.world.emitBulletFireEvent(start, rotationVector, shooter)
                         } else if (!gun.clicked) {
                             item.emitPlaySoundEvent(CLICK_EMPTY_SOUND, EngineSoundCategory.NEUTRAL)
                             gun.clicked = true
@@ -119,4 +111,8 @@ fun updateGunState(items: Set<EngineItem>, client: Boolean = false) {
             item.removeComponent(this)
         }
     }
+}
+
+fun broadcastBulletEvents(handler: ServerHandler, world: World) = world.require<WorldGunEvents>().bullet.flush {
+    handler.onBulletEvent(world, it)
 }

@@ -2,23 +2,17 @@ package org.lain.engine.server
 
 import kotlinx.coroutines.*
 import org.lain.engine.chat.*
-import org.lain.engine.item.ItemStorage
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.SoundPlay
+import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.getOrSet
+import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.ImmutableVec3
-import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.util.require
-import org.lain.engine.util.set
-import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.location
-import org.lain.engine.world.pos
-import org.lain.engine.world.world
+import org.lain.engine.world.*
 import java.lang.Runnable
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
@@ -37,8 +31,8 @@ enum class Notification {
 
 class ServerHandler(
     private val server: EngineServer,
-    private val transport: ServerTransportContext
 ) {
+    private val transportContext by injectServerTransportContext()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val playerStorage: PlayerStorage
         get() = server.playerStorage
@@ -65,7 +59,7 @@ class ServerHandler(
         }
     }
 
-    private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) = execute {
+    private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) {
         server.playerStorage.get(id)?.update()
     }
 
@@ -90,7 +84,7 @@ class ServerHandler(
     }
 
     fun invalidate() {
-        transport.unregisterAll()
+        transportContext.unregisterAll()
         destroy = true
     }
 
@@ -99,7 +93,12 @@ class ServerHandler(
     private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) {
         val player = server.playerStorage.get(player) ?: error("Player $player not found")
         val channel = server.chat.getChannel(channelId)
-        val acoustic = channel.acoustic ?: error("Channel $channelId doesn't have acoustic")
+        val acoustic = channel.acoustic
+
+        if (!channel.typeIndicator || acoustic == null) {
+            return
+        }
+
         typingPlayers.add(player.id)
 
         val range = channel.typeIndicatorRange
@@ -147,7 +146,7 @@ class ServerHandler(
         } catch (e: Throwable) {
             return@updatePlayer
         }
-        set(InteractionComponent(interaction))
+        getOrSet { InteractionComponent(interaction) }
     }
 
     private fun onPlayerCursorItem(playerId: PlayerId, itemId: ItemUuid?) = updatePlayer(playerId) {
@@ -294,7 +293,7 @@ class ServerHandler(
                     message.channel,
                     message.mentioned,
                     message.speech,
-                    message.volume,
+                    message.volumes,
                     message.isSpy,
                     message.placeholders,
                     message.head,
@@ -341,7 +340,7 @@ class ServerHandler(
                     playerId
                 )
                 .send()
-//                .requestAcknowledge()
+                .requestAcknowledge()
             server.execute { player.synchronization.authorized = true }
         }
     }
@@ -367,14 +366,26 @@ class ServerHandler(
         )
     }
 
+    fun onBulletEvent(world: World, event: BulletFireEvent) {
+        val packet = BulletFirePacket(
+            ImmutableVec3(event.start),
+            ImmutableVec3(event.vector)
+        )
+        CLIENTBOUND_BULLET_FIRE_PACKET.broadcastInRadius(
+            Location(world, event.start),
+            BULLET_FIRE_RADIUS,
+            exclude = listOfNotNull(event.shooter)
+        ) { packet }
+    }
+
     private fun <P : Packet> Endpoint<P>.broadcastInRadius(
-        center: Pos,
+        center: Location,
         radius: Int,
         exclude: List<EnginePlayer> = emptyList(),
         packet: (EnginePlayer) -> P
     ) {
         for (player in playerStorage) {
-            if (player !in exclude && player.pos.squaredDistanceTo(center) <= radius * radius) {
+            if (player !in exclude && player.world == center.world && player.pos.squaredDistanceTo(center.position) <= radius * radius) {
                 sendS2C(packet(player), player.id)
             }
         }
@@ -385,7 +396,7 @@ class ServerHandler(
         radius: Int = playerSynchronizationRadius,
         packet: (EnginePlayer) -> P
     ) {
-        broadcastInRadius(player.pos, radius, packet=packet)
+        broadcastInRadius(player.location, radius, packet=packet)
     }
 
     private fun <P : Packet> Endpoint<P>.broadcastInRadius(
@@ -394,6 +405,6 @@ class ServerHandler(
         excludeSelf: Boolean = false,
         radius: Int = playerSynchronizationRadius
     ) {
-        broadcastInRadius(player.pos, radius, exclude=if (excludeSelf) listOf(player) else emptyList(), packet={ packet })
+        broadcastInRadius(player.location, radius, exclude=if (excludeSelf) listOf(player) else emptyList(), packet={ packet })
     }
 }

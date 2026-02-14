@@ -11,6 +11,7 @@ import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemAccess
 import org.lain.engine.item.ItemId
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
@@ -35,10 +36,7 @@ data class EngineMinecraftServerDependencies(
     val acousticSimulator: MinecraftAcousticManager = MinecraftAcousticManager(entityTable, acousticSceneBank, acousticBlockData),
 )
 
-open class EngineMinecraftServer(
-    protected val dependencies: EngineMinecraftServerDependencies,
-    protected open val transportContext: ServerTransportContext
-) : ServerEventListener {
+abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies, ) : ServerEventListener {
     val minecraftServer = dependencies.minecraftServer
     val database = connectDatabase(minecraftServer)
     protected val playerStorage = dependencies.playerStorage
@@ -47,11 +45,13 @@ open class EngineMinecraftServer(
     val entityTable = dependencies.entityTable.server
     val itemContext = EngineItemContext()
     val acousticSimulator = dependencies.acousticSimulator
-    val engine = EngineServer(config.server, playerStorage, acousticSimulator, this, transportContext)
+    val engine = EngineServer(config.server, playerStorage, acousticSimulator, this, minecraftServer.thread)
 
     private val autosaveTimer = ItemAutosaveTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database)
     private val unloadTimer = UnloadInactiveItemsTimer(config.itemAutosavePeriod / 2 * 1000, engine.itemStorage, database, engine)
     protected val itemLoader = ItemLoader(this)
+
+    protected abstract val transportContext: ServerTransportContext
 
     open fun wrapItemStack(owner: EnginePlayer, item: EngineItem, itemStack: ItemStack): EngineItem {
         val properties = itemContext.itemPropertiesStorage[item.id]
@@ -86,6 +86,8 @@ open class EngineMinecraftServer(
         Injector.register<ServerTransportContext>(transportContext)
         Injector.register(itemContext)
         Injector.register(engine.itemStorage)
+        Injector.register<ItemAccess>(engine.itemStorage)
+        Injector.register(engine.globals.movementSettings)
         applyConfigCatching(config)
         loadContents()
         minecraftServer.worlds.forEach {

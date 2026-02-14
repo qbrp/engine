@@ -66,6 +66,11 @@ class ServerAcknowledgeTask(
         return this
     }
 
+    fun onTimeoutServerThread(b: () -> Unit): ServerAcknowledgeTask {
+        onTimeout = { transport.executeOnThread(b) }
+        return this
+    }
+
     suspend fun run() = withContext(Dispatchers.IO) {
         val receiveChannel = KotlinxChannel<Unit>(capacity = 1)
         var timeout = false

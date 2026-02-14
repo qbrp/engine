@@ -27,10 +27,10 @@ import org.lain.engine.*
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.ClientMixinAccess.renderChatBubbles
 import org.lain.engine.client.mc.render.*
+import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
-import org.lain.engine.client.server.ServerSingleplayerTransport
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.mc.DisconnectText
@@ -76,14 +76,15 @@ class MinecraftEngineClient : ClientModInitializer {
         get() = engineClient.renderer
 
     private val connectionLogger = LoggerFactory.getLogger("Engine Connection")
-    private var readyToAuthorize = false
     private var inAuthorization = false
+    var readyToAuthorize = false
 
     override fun onInitializeClient() {
         engineClient.options = config
         keybindManager = KeybindManager(config = config.config)
-        Injector.register(keybindManager)
         registerEngineItemGroupEvent()
+
+        Injector.register(keybindManager)
 
         ServerMixinAccess.blockRemovedCallback = { chunk, blockPos ->
             client.execute { decalsStorage.update(chunk, blockPos) }
@@ -103,6 +104,11 @@ class MinecraftEngineClient : ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register { handler, _, _ ->
             val entity = client.player!!
 
+            if (engineClient.gameSessionActive) {
+                connectionLogger.warn("Сброс активной игровой сессии. Это баг, который не должен возникать в обычных условиях")
+                onDisconnect()
+            }
+
             if (client.isInSingleplayer) {
                 val server = server ?: throw RuntimeException("Server not started")
                 val engine = server.engine
@@ -115,11 +121,13 @@ class MinecraftEngineClient : ClientModInitializer {
                 }
             } else {
                 Injector.register<ClientTransportContext>(ClientMinecraftNetwork())
-                readyToAuthorize = true
             }
 
             engineClient.handler.run()
-            ClientMixinAccess.registerEndpoints()
+            MinecraftChat.registerEndpoints()
+
+            inAuthorization = false
+            readyToAuthorize = true
         }
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
@@ -134,7 +142,7 @@ class MinecraftEngineClient : ClientModInitializer {
             ClientMixinAccess.tick()
             window.handleResize()
             try {
-                if (readyToAuthorize && player != null && !inAuthorization) {
+                if (!client.isInSingleplayer && readyToAuthorize && player != null && !inAuthorization) {
                     authorize(player)
                     inAuthorization = true
                 }
@@ -293,14 +301,13 @@ class MinecraftEngineClient : ClientModInitializer {
         }
 
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
-            val transport = ServerSingleplayerTransport(engineClient)
             val dependencies = EngineMinecraftServerDependencies(server)
             Injector.register<ClientTransportContext>(ClientSingleplayerTransport(engineClient))
 
             registerMinecraftServer(
                 IntegratedEngineMinecraftServer(
                     dependencies,
-                    transport
+                    engineClient
                 ).also { this.server = it }
             )
         }
@@ -315,6 +322,7 @@ class MinecraftEngineClient : ClientModInitializer {
             audioManager.playPigScreamSound()
         }
         decalsStorage.textureManager = client.textureManager
+        engineClient.thread = (client as MinecraftClientAccessor).`engine$getThread`()
     }
 
     private fun onDisconnect() = client.execute {

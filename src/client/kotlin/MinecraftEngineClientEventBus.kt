@@ -3,14 +3,16 @@ package org.lain.engine.client
 import net.minecraft.client.MinecraftClient
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.chunk.Chunk
+import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.render.ChunkDecalsStorage
+import org.lain.engine.item.ItemAccess
 import org.lain.engine.mc.ClientPlayerTable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.util.Injector
 import org.lain.engine.world.VoxelPos
-import java.util.LinkedList
+import java.util.*
 
 class MinecraftEngineClientEventBus(
     private val minecraft: MinecraftClient,
@@ -52,6 +54,7 @@ class MinecraftEngineClientEventBus(
         playerId: PlayerId
     ) {
         table.removePlayer(playerId)
+        MinecraftChat.typingPlayers.removeIf { it.id == playerId }
     }
 
     override fun onMainPlayerInstantiated(
@@ -61,6 +64,10 @@ class MinecraftEngineClientEventBus(
     ) {
         table.setPlayer(minecraft.player!!, player)
         Injector.register(gameSession.itemStorage)
+        Injector.register(gameSession.movementSettings)
+        if (!minecraft.isInSingleplayer) {
+            Injector.register<ItemAccess>(gameSession.itemStorage)
+        }
         chunks.forEach { decalsStorage.survey(it) }
     }
 

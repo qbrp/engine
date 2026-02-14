@@ -21,7 +21,7 @@ import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.name
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.injectItemStorage
+import org.lain.engine.util.injectItemAccess
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
@@ -127,15 +127,6 @@ fun ItemStack.engine() = get(ENGINE_ITEM_REFERENCE_COMPONENT)
 
 fun ItemStack.engineItem() = get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getItem()
 
-val ENGINE_ITEM_WRAP_COMPONENT: ComponentType<String> = Registry.register(
-    Registries.DATA_COMPONENT_TYPE,
-    EngineId("wrap-component"),
-    ComponentType
-        .builder<String>()
-        .codec(Codec.STRING)
-        .build()
-)
-
 val ENGINE_ITEM_INSTANTIATE_COMPONENT: ComponentType<String> = Registry.register(
     Registries.DATA_COMPONENT_TYPE,
     EngineId("initialize-component"),
@@ -187,10 +178,35 @@ data class EngineItemReferenceComponent(val id: ItemId, val uuid: ItemUuid, val 
 
     fun getItem(): EngineItem? {
         return cachedItem ?: run {
-            val itemStorage by injectItemStorage()
-            val item = itemStorage.get(uuid)
+            val itemStorage by injectItemAccess()
+            val item = itemStorage.getItem(uuid)
             cachedItem = item
             item
         }
     }
 }
+
+data class LegacyEngineItemReferenceComponent(val item: ItemId)
+
+val ENGINE_ITEM_REFERENCE_COMPONENT_LEGACY: ComponentType<LegacyEngineItemReferenceComponent> = Registry.register(
+    Registries.DATA_COMPONENT_TYPE,
+    EngineId("reference-component"),
+    ComponentType
+        .builder<LegacyEngineItemReferenceComponent>()
+        .codec(
+            RecordCodecBuilder.create { instance ->
+                instance.group(
+                    Codec.STRING.xmap(
+                        { ItemId(it) },
+                        { it.value }
+                    )
+                        .fieldOf("item")
+                        .forGetter { it.item }
+                ).apply(
+                    instance,
+                    ::LegacyEngineItemReferenceComponent
+                )
+            }
+        )
+        .build()
+)

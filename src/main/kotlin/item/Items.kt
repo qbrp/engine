@@ -4,8 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.util.ComponentManager
 import org.lain.engine.util.ComponentState
 import org.lain.engine.util.Storage
-import java.util.UUID
-import kotlin.uuid.Uuid
+import java.util.*
 
 /**
  * # Предмет модификации
@@ -37,4 +36,12 @@ value class ItemUuid(val value: String) {
     }
 }
 
-class ItemStorage : Storage<ItemUuid, EngineItem>()
+class ItemStorage : Storage<ItemUuid, EngineItem>(), ItemAccess {
+    override fun getItem(uuid: ItemUuid): EngineItem? {
+        return this.get(uuid)
+    }
+}
+
+interface ItemAccess {
+    fun getItem(uuid: ItemUuid): EngineItem?
+}

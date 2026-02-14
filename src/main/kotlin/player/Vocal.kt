@@ -2,12 +2,7 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.chat.EngineChat
-import org.lain.engine.util.Component
-import org.lain.engine.util.get
-import org.lain.engine.util.has
-import org.lain.engine.util.remove
-import org.lain.engine.util.require
-import org.lain.engine.util.set
+import org.lain.engine.util.*
 import org.slf4j.LoggerFactory
 import kotlin.random.Random
 
@@ -46,7 +41,7 @@ fun getRealVolume(
     val tirednessMultiplier = if (!loosen) {
         0.8f
     } else {
-        1f
+        0.9f
     }
 
     val max = ((1 - tiredness * tirednessMultiplier) * maxVolume)
@@ -187,10 +182,12 @@ fun updatePlayerVoice(
     // 5 минут
     if (tiredness > breakWarningThreshold && voiceApparatus.lastNotificationTick > 6000) {
         voiceApparatus.lastNotificationTick = 0
-        chat.sendSystemMessage(
-            "<yellow>Аккуратнее! Кажется, вы вот-вот сорвёте голос.</yellow>",
-            player
-        )
+        if (voiceLoose == null) {
+            chat.sendSystemMessage(
+                "<yellow>Аккуратнее! Кажется, вы вот-вот сорвёте голос.</yellow>",
+                player
+            )
+        }
     }
     if (tiredness < breakWarningThreshold) {
         voiceApparatus.lastNotificationTick += tickRate

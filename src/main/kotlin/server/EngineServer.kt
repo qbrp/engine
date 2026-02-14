@@ -2,23 +2,8 @@ package org.lain.engine.server
 
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemPrefab
-import org.lain.engine.item.ItemStorage
-import org.lain.engine.item.SoundEvent
-import org.lain.engine.item.SoundEventId
-import org.lain.engine.item.bakeItem
-import org.lain.engine.item.supplyPlayerInventoryItemsLocation
-import org.lain.engine.item.updateGunState
-import org.lain.engine.player.PlayerService
-import org.lain.engine.player.PlayerStorage
-import org.lain.engine.player.flushPlayerMessages
-import org.lain.engine.player.flushPlayerUpdates
-import org.lain.engine.player.items
-import org.lain.engine.player.updatePlayerInteractions
-import org.lain.engine.player.updatePlayerMovement
-import org.lain.engine.player.updatePlayerVoice
+import org.lain.engine.item.*
+import org.lain.engine.player.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
@@ -35,10 +20,10 @@ class EngineServer(
     val playerStorage: PlayerStorage,
     val acousticSimulator: AcousticSimulator,
     val eventListener: ServerEventListener,
-    val transportContext: ServerTransportContext
+    val thread: Thread,
 ) {
     val globals: ServerGlobals = ServerGlobals(id)
-    val handler = ServerHandler(this, transportContext)
+    val handler = ServerHandler(this)
 
     private val taskQueue = ConcurrentLinkedQueue<Runnable>()
     private val worlds: MutableMap<WorldId, World> = mutableMapOf()
@@ -81,7 +66,10 @@ class EngineServer(
         taskQueue.flush { it.run() }
 
         tickTimes.add(start.timeElapsed().toInt())
-        worlds.values.forEach { processWorldSounds(handler, soundEventStorage, globals.defaultItemSounds, it) }
+        worlds.values.forEach {
+            processWorldSounds(handler, soundEventStorage, globals.defaultItemSounds, it)
+            broadcastBulletEvents(handler, it)
+        }
     }
 
     fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {
@@ -91,8 +79,14 @@ class EngineServer(
     }
 
     fun execute(r: Runnable) {
-        taskQueue += r
+        if (isOnThread()) {
+            r.run()
+        } else {
+            taskQueue += r
+        }
     }
+
+    fun isOnThread() = Thread.currentThread() == thread
 
     fun addWorld(world: World) {
         worlds[world.id] = world

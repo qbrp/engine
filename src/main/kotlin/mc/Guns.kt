@@ -8,6 +8,7 @@ import net.minecraft.util.hit.BlockHitResult
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.RaycastContext
 import net.minecraft.world.chunk.Chunk
+import org.lain.engine.item.BULLET_FIRE_RADIUS
 import org.lain.engine.item.BulletFireEvent
 import org.lain.engine.item.WorldGunEvents
 import org.lain.engine.util.flush
@@ -35,7 +36,7 @@ fun spawnGunSmokeParticle(player: PlayerEntity) {
 
 fun raycastBulletEvent(world: net.minecraft.world.World, event: BulletFireEvent): BlockHitResult? {
     val start = event.start
-    val end = start.add(event.vector.mul(64))
+    val end = start.add(event.vector.mul(BULLET_FIRE_RADIUS))
     val results = world.raycast(
         RaycastContext(
             start.toMinecraft(),

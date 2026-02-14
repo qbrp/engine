@@ -21,3 +21,4 @@ fun merge(baseItem: EngineItem, mergeItem: EngineItem): Boolean {
     val countable = baseItem.has<Count>() && mergeItem.has<Count>()
     return similarKind && countable
 }
+

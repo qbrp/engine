@@ -44,3 +44,10 @@ data class ItemGunPacket(val uuid: ItemUuid, var selector: Boolean?, var barrelB
 
 val CLIENTBOUND_ITEM_GUN_PACKET = Endpoint<ItemGunPacket>()
 
+@Serializable
+data class BulletFirePacket(
+    val start: ImmutableVec3,
+    val vector: ImmutableVec3
+) : Packet
+
+val CLIENTBOUND_BULLET_FIRE_PACKET = Endpoint<BulletFirePacket>()

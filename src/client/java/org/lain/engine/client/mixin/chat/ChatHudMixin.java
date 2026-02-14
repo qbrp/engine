@@ -29,6 +29,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Mixin(ChatHud.class)
 public abstract class ChatHudMixin {
@@ -176,7 +178,7 @@ public abstract class ChatHudMixin {
         float backgroundOpacitySetting = this.client.options.getTextBackgroundOpacity().getValue().floatValue();
         double lineSpacing = this.client.options.getChatLineSpacing().getValue();
 
-        List<PlayerListEntry> entities = ClientMixinAccess.INSTANCE.getTypingPlayers().stream().toList();
+        List<MinecraftChat.TypingPlayer> entities = MinecraftChat.INSTANCE.getTypingPlayers().stream().toList();
 
         if (!entities.isEmpty()) {
             context.fill(
@@ -186,8 +188,8 @@ public abstract class ChatHudMixin {
             );
 
             int textX = 0;
-            for (PlayerListEntry player : entities) {
-                Text name = ClientMixinAccess.INSTANCE.getDisplayName(player);
+            for (MinecraftChat.TypingPlayer player : entities) {
+                Text name = MinecraftChat.INSTANCE.getDisplayName(player);
                 PlayerSkinDrawer.draw(context, player.getSkinTextures(), textX + 1, bottomY + 1, 8, ColorHelper.withAlpha(Colors.WHITE, ColorHelper.getArgb(80, 80, 80)));
                 PlayerSkinDrawer.draw(context, player.getSkinTextures(), textX, bottomY, 8, Colors.WHITE);
                 textX += 10;

@@ -4,7 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import org.lain.engine.chat.acoustic.AcousticSimulator
+import org.lain.engine.chat.acoustic.NEIGHBOURS_26
 import org.lain.engine.mc.InvalidMessageSourcePositionException
 import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
@@ -17,7 +19,6 @@ import org.lain.engine.util.math.roundToInt
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
 import org.lain.engine.world.players
-import org.lain.engine.world.pos
 import org.lain.engine.world.world
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
@@ -105,7 +106,7 @@ class EngineChat(
         // Акустики нет - сообщение нельзя обработать
         val acoustic = acoustic ?: return
         var dontSendMessageToAuthor = false
-        val volumes = mutableMapOf<EnginePlayer, Float>()
+        val volumes = mutableMapOf<EnginePlayer, Volumes>()
         val recipients = mutableListOf<EnginePlayer>()
         if (sourcePos != null) {
             val toAdd = when (acoustic) {
@@ -119,7 +120,7 @@ class EngineChat(
 
                     // Посылаем перед симуляцией сообщение автору, чтобы показать иллюзию быстрой обработки
                     dontSendMessageToAuthor = true
-                    if (writtenByPlayer) sendMessage(content, source, this, author, volume = volume, id = id)
+                    if (writtenByPlayer) sendMessage(content, source, this, author, volumes = Volumes.fixed(volume), id = id)
                     try {
                         runAcousticSpreadSimulation(
                             author,
@@ -152,7 +153,7 @@ class EngineChat(
             .forEach {
                 if (dontSendMessageToAuthor && it == source.player) return@forEach
                 val volume = volumes[it]
-                sendMessage(content, source, this, it, volume = volume, id = id)
+                sendMessage(content, source, this, it, volumes = volume, id = id)
             }
 
         players
@@ -176,7 +177,7 @@ class EngineChat(
         channel: ChatChannel,
         recipient: EnginePlayer,
         boomerang: Boolean = false,
-        volume: Float? = null,
+        volumes: Volumes? = null,
         placeholders: Map<String, String> = mapOf(),
         id: MessageId = MessageId.next()
     ) {
@@ -185,10 +186,13 @@ class EngineChat(
         if (mustBeSpectator && !recipient.isSpectating) return
 
         val acoustic = channel.acoustic
-        val isRealistic = acoustic is Acoustic.Realistic && volume != null
 
-        if (isRealistic) {
-            content = formatTextAcoustic(content, volume, acoustic.distort)
+        if (volumes != null) {
+            content = formatTextAcoustic(
+                content,
+                volumes.result,
+                (acoustic as? Acoustic.Realistic)?.distort ?: false
+            )
         }
 
         val isSpeech = channel.speech && source.speech
@@ -207,9 +211,9 @@ class EngineChat(
                channel,
                mention = hasMention(recipient, content),
                speech = isSpeech,
-               volume = volume,
+               volumes = volumes,
                notify = channel.notify,
-               placeholders = getDefaultPlaceholders(recipient, source, volume) + placeholders,
+               placeholders = getDefaultPlaceholders(recipient, source, volumes) + placeholders,
                background = channel.background,
                id = id
            )
@@ -242,11 +246,11 @@ class EngineChat(
         channel: ChatChannel,
         mention: Boolean = hasMention(recipient, text),
         speech: Boolean = false,
-        volume: Float? = null,
+        volumes: Volumes? = null,
         isSpy: Boolean = false,
         notify: Boolean = false,
         head: Boolean = showHeads(source.player, channel),
-        placeholders: Map<String, String> = getDefaultPlaceholders(recipient, source, volume),
+        placeholders: Map<String, String> = getDefaultPlaceholders(recipient, source, volumes),
         background: Color? = null,
         id: MessageId
     ) {
@@ -259,7 +263,7 @@ class EngineChat(
                 mention,
                 notify,
                 speech,
-                volume,
+                volumes,
                 placeholders,
                 isSpy,
                 head,
@@ -298,7 +302,7 @@ class EngineChat(
     private fun getDefaultPlaceholders(
         recipient: EnginePlayer,
         source: MessageSource,
-        volume: Float?
+        volumes: Volumes?
     ): Map<String, String> {
         val player = source.player
         val author = source.author
@@ -310,14 +314,28 @@ class EngineChat(
             "random-100" to roundToInt(Random(source.time.timeMillis).nextFloat() * 100f).toString()
         )
 
-        volume?.let {
-            val level = settings.realisticAcousticFormatting.getLevel(it)
-            level.placeholders.forEach { old, new ->
-                placeholders[old] = new
-            }
+        fun substitute(newPlaceholders: Map<String, String>) {
+            newPlaceholders.forEach { (old, new) -> placeholders[old] = new }
         }
 
+        volumes?.input?.let { substitute(settings.realisticAcousticFormatting.getLevel(it).inputPlaceholders) }
+        volumes?.result?.let { substitute(settings.realisticAcousticFormatting.getLevel(it).outPlaceholders) }
+
         return placeholders
+    }
+
+    /**
+     * @param input Оригинальная громкость сообщения
+     * @param result Услышанная громкость
+     */
+    @Serializable
+    data class Volumes(
+        val input: Float,
+        val result: Float
+    ) {
+        companion object {
+            fun fixed(volume: Float) = Volumes(volume, volume)
+        }
     }
 
     private suspend fun runAcousticSpreadSimulation(
@@ -325,7 +343,7 @@ class EngineChat(
         world: World,
         pos: Pos,
         volume: Float
-    ): Map<EnginePlayer, Float> {
+    ): Map<EnginePlayer, Volumes> {
         val players = world.players
         val acousticLevel = settings.realisticAcousticFormatting.getLevel(volume)
         val multiplier = acousticLevel.multiplier * settings.acousticAttenuation
@@ -334,14 +352,20 @@ class EngineChat(
 
         val recipients = players
             .mapNotNull {
-                val pos = it.pos
-                val volume = results.getVolume(pos) ?: return@mapNotNull null
+                val pos = it.eyePos
+                val volume =
+                    NEIGHBOURS_26
+                        .mapNotNull { offset -> results.getVolume(pos.add(offset)) }
+                        .maxOrNull()
+                        ?: return@mapNotNull null
+
                 return@mapNotNull if (volume > settings.acousticHearingThreshold) {
                     it to volume
                 } else {
                     null
                 }
             } // получаем уровни шума
+            .map { (player, resultVolume) -> player to Volumes(volume, resultVolume) }
 
         if (author?.acousticDebug == true) {
             results.debug(author, server.handler, 16f)

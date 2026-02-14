@@ -7,10 +7,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.itemInstance
+import org.lain.engine.item.*
 import org.lain.engine.util.Component
 import org.lain.engine.util.ComponentState
 import org.lain.engine.world.Location
@@ -50,6 +47,10 @@ suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
             is ItemData.Sounds -> {
                 components.addIfNotNull(component.data)
             }
+            is ItemData.Count -> {
+                components.addIfNotNull(Count(component.value))
+            }
+
         }
     }
 

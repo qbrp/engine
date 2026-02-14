@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
@@ -9,7 +9,6 @@ import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
 import net.minecraft.text.Text
-import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mixin.ItemGroupAccessor
 import org.lain.engine.mc.ENGINE_ITEM_INSTANTIATE_COMPONENT
 import org.lain.engine.mc.wrapEngineItemStackBase

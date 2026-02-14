@@ -20,7 +20,7 @@ data class OutcomingChatMessagePacket(
     val channel: ChannelId,
     val mentioned: Boolean,
     val speech: Boolean,
-    val volume: Float?,
+    val volume: EngineChat.Volumes?,
     val isSpy: Boolean,
     val placeholders: Map<String, String>,
     val heads: Boolean,

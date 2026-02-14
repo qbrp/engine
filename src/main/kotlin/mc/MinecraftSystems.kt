@@ -16,6 +16,7 @@ import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
+import org.slf4j.LoggerFactory
 import net.minecraft.world.World as McWorld
 
 fun Vec3.toMinecraft(): Vec3d = Vec3d(x.toDouble(), y.toDouble(), z.toDouble())
@@ -42,10 +43,31 @@ fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: Ser
         val engineItem = stack.engine() ?: continue
         val itemUuid = engineItem.uuid
         if (items.contains(itemUuid)) {
-            engineServer.wrapItemStack(player, engineItem.id, stack)
+            engineServer.wrapItemStackCatching(player, engineItem.id, stack)
         } else {
             items.add(itemUuid)
         }
+    }
+}
+
+fun updateLegacyEngineItems(server: EngineMinecraftServer, player: EnginePlayer, itemStacks: List<ItemStack>) {
+    for (item in itemStacks) {
+        if (item.contains(ENGINE_ITEM_REFERENCE_COMPONENT_LEGACY)) {
+            val component = item.remove(ENGINE_ITEM_REFERENCE_COMPONENT_LEGACY)!!
+            server.wrapItemStackCatching(player, component.item, item)
+        }
+    }
+}
+
+private val ITEM_LOGGER = LoggerFactory.getLogger("Engine Itemstacks")
+
+private fun EngineMinecraftServer.wrapItemStackCatching(player: EnginePlayer, itemId: ItemId, stack: ItemStack): EngineItem? {
+    return try {
+        wrapItemStack(player, itemId, stack)
+    } catch (t: Throwable) {
+        detachEngineItemStack(stack)
+        ITEM_LOGGER.error("Не удалось создать engine-предмет $itemId", t)
+        null
     }
 }
 
@@ -62,6 +84,7 @@ fun updateServerMinecraftSystems(
 
         val screenHandler = entity.currentScreenHandler
         val itemStacks = entity.inventory + screenHandler.stacks + screenHandler.cursorStack
+        updateLegacyEngineItems(server, player, itemStacks)
         val items: MutableList<Pair<EngineItem, ItemStack>> = mutableListOf()
 
         for (itemStack in itemStacks) {
@@ -81,7 +104,7 @@ fun updateServerMinecraftSystems(
 
             val instantiate = itemStack.remove(ENGINE_ITEM_INSTANTIATE_COMPONENT)
             if (reference == null && instantiate != null) {
-                item = server.wrapItemStack(player, ItemId(instantiate), itemStack)
+                item = server.wrapItemStackCatching(player, ItemId(instantiate), itemStack)
             }
 
             if (item != null) {

@@ -121,7 +121,7 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
                     context.drawEngineSprite(
                         sprite,
                         x1 + rectWidth - iconSize - 2f,
-                        y1 + 1f,
+                        y1 + padding,
                         iconSize,
                         iconSize
                     )

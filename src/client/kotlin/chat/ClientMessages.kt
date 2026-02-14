@@ -1,9 +1,6 @@
 package org.lain.engine.client.chat
 
-import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.MessageId
-import org.lain.engine.chat.MessageSource
-import org.lain.engine.chat.OutcomingMessage
+import org.lain.engine.chat.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.util.Color
@@ -16,7 +13,7 @@ data class AcceptedMessage(
     val source: MessageSource,
     val isMentioned: Boolean = false,
     val isSpeech: Boolean = false,
-    val volume: Float? = null,
+    val volume: EngineChat.Volumes? = null,
     val isSpy: Boolean = false,
     val showHead: Boolean = false,
     val notify: Boolean = false,
@@ -113,7 +110,7 @@ fun acceptOutcomingMessage(
         message.source,
         message.mentioned,
         message.speech,
-        message.volume,
+        message.volumes,
         message.isSpy,
         message.head,
         message.notify,

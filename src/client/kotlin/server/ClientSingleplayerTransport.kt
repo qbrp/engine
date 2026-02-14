@@ -6,11 +6,8 @@ import org.lain.engine.client.transport.ClientPacketHandler
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.transport.Endpoint
-import org.lain.engine.transport.Packet
-import org.lain.engine.transport.ServerPacketContext
-import org.lain.engine.transport.ServerPacketHandler
-import org.lain.engine.transport.ServerTransportContext
+import org.lain.engine.server.EngineServer
+import org.lain.engine.transport.*
 import org.lain.engine.transport.packet.JoinGamePacket
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.nextId
@@ -46,7 +43,7 @@ class ClientSingleplayerTransport(
     private val client: EngineClient
 ) : ClientTransportContext {
     private val context = ClientContext(client)
-    override val packetHistory: FixedSizeList<Long> = FixedSizeList(3000)
+    override val packetHistory: FixedSizeList<Long> = FixedSizeList(4000)
 
     override fun unregisterAll() {
         CommonSingleplayerEndpointRegistry.unregisterAll(Side.CLIENT)
@@ -71,7 +68,8 @@ class ClientSingleplayerTransport(
 }
 
 class ServerSingleplayerTransport(
-    private val client: EngineClient
+    private val client: EngineClient,
+    private val server: EngineServer
 ) : ServerTransportContext {
     private val mainPlayer
         get() = client.gameSession?.mainPlayer
@@ -81,9 +79,11 @@ class ServerSingleplayerTransport(
         handler: ServerPacketHandler<P>
     ) {
         CommonSingleplayerEndpointRegistry.register(endpoint, Side.SERVER) { packet, id ->
-            val plr = mainPlayer ?: return@register
-            val context = ServerPacketContext(plr.id)
-            handler.invoke(packet, context)
+            executeOnThread {
+                val plr = mainPlayer ?: return@executeOnThread
+                val context = ServerPacketContext(plr.id)
+                handler.invoke(packet, context)
+            }
         }
     }
 
@@ -102,6 +102,7 @@ class ServerSingleplayerTransport(
         }
     }
 
+
     override fun <P : Packet> broadcastClientboundPacket(
         endpoint: Endpoint<P>,
         lazyPacket: (EnginePlayer) -> P
@@ -109,4 +110,8 @@ class ServerSingleplayerTransport(
         val plr = mainPlayer ?: return
         sendClientboundPacket(endpoint, lazyPacket(plr), plr.id)
     }
+
+    override fun isOnThread(): Boolean = server.isOnThread()
+
+    override fun executeOnThread(runnable: () -> Unit) = server.execute(runnable)
 }

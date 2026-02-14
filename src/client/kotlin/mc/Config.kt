@@ -17,7 +17,7 @@ class EngineYamlConfig(
 ) : EngineOptions {
     init { builder.push("chat") }
 
-    private val chatFieldWidthProperty = builder.defineInteger("width", 440, 0, 600)
+    private val chatFieldWidthProperty = builder.defineInteger("width", 340, 0, 600)
     private val chatFieldSizeProperty = builder.defineInteger("size", 300, 0, 5000)
 
     init { builder.pop() }

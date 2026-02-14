@@ -1,6 +1,7 @@
 package org.lain.engine.chat.acoustic
 
 import org.lain.engine.mc.ChunkedAcousticView
+import org.lain.engine.util.math.Vec3
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 
@@ -69,6 +70,21 @@ val NEIGHBOURS_VON_NEUMANN = arrayOf(
     intArrayOf(0, 0, 1),
     intArrayOf(0, 0, -1)
 )
+
+val NEIGHBOURS_26 = arrayOf(
+    Vec3(-1, -1, -1), Vec3(-1, -1, 0), Vec3(-1, -1, 1),
+    Vec3(-1, 0, -1),  Vec3(-1, 0, 0),  Vec3(-1, 0, 1),
+    Vec3(-1, 1, -1),  Vec3(-1, 1, 0),  Vec3(-1, 1, 1),
+
+    Vec3(0, -1, -1),  Vec3(0, -1, 0),  Vec3(0, -1, 1),
+    Vec3(0, 0, -1),                                 Vec3(0, 0, 1),
+    Vec3(0, 1, -1),   Vec3(0, 1, 0),   Vec3(0, 1, 1),
+
+    Vec3(1, -1, -1),  Vec3(1, -1, 0),  Vec3(1, -1, 1),
+    Vec3(1, 0, -1),   Vec3(1, 0, 0),   Vec3(1, 0, 1),
+    Vec3(1, 1, -1),   Vec3(1, 1, 0),   Vec3(1, 1, 1)
+)
+
 
 fun collectVolumeAvg(vol: Grid3f, x: Int, y: Int, z: Int): Float {
     var weightedSum = 0f

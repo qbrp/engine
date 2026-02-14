@@ -12,10 +12,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.gunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
-import org.lain.engine.util.getOrSet
-import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.injectMinecraftEngineServer
-import org.lain.engine.util.set
+import org.lain.engine.util.*
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessageLegacy
 
@@ -28,11 +25,17 @@ object ServerMixinAccess {
     var isDamageEnabled = false
     var blockRemovedCallback: ((WorldChunk, BlockPos) -> Unit)? = null
 
-    fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem, cursorStack: ItemStack, slotStack: ItemStack, player: PlayerEntity): Boolean {
+    fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem, slotStack: ItemStack, cursorStack: ItemStack, player: PlayerEntity): Boolean {
         if (merge(item, cursorItem)) {
-            cursorStack.increment(slotStack.count);
-            slotStack.setCount(0);
-            return true
+            val space = slotStack.maxCount - slotStack.count
+            return if (space > 0) {
+                val toMove = minOf(cursorStack.count, space)
+                slotStack.increment(toMove)
+                cursorStack.decrement(toMove)
+                true
+            } else {
+                false
+            }
         }
 
         var success = false
@@ -75,7 +78,10 @@ object ServerMixinAccess {
     }
 
     fun canJump(entity: PlayerEntity): Boolean {
-        return entity.engine?.let { player -> canPlayerJump(player, server.engine.globals.movementSettings) } ?: true
+        return entity.engine?.let { player ->
+            val settings by injectMovementSettings()
+            canPlayerJump(player, settings)
+        } ?: true
     }
 
     fun onBlockAdded(world: World, blockPos: BlockPos, state: BlockState) {

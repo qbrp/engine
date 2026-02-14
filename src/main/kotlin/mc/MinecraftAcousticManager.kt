@@ -12,21 +12,12 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
-import org.lain.engine.chat.acoustic.AcousticGeneration
-import org.lain.engine.chat.acoustic.AcousticSimulationResult
-import org.lain.engine.chat.acoustic.AcousticSimulator
-import org.lain.engine.chat.acoustic.Grid3Range
-import org.lain.engine.chat.acoustic.Grid3f
-import org.lain.engine.chat.acoustic.NEIGHBOURS_VON_NEUMANN
-import org.lain.engine.chat.acoustic.SceneSize
-import org.lain.engine.chat.acoustic.freeGrid3f
-import org.lain.engine.chat.acoustic.getGrid3f
-import org.lain.engine.chat.acoustic.simulateAsyncDijkstra
+import org.lain.engine.chat.acoustic.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.math.Pos
 import org.lain.engine.util.PrimitiveArrayPool
 import org.lain.engine.util.Timestamp
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
 import org.lain.engine.util.minecraftChunkSectionCoord
 import org.lain.engine.util.toBlockPos
@@ -34,12 +25,11 @@ import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.pos
 import org.slf4j.LoggerFactory
-import java.util.Collections
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.collections.set
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -417,8 +407,6 @@ class ConcurrentAcousticSceneBank {
     private fun getChunk(world: WorldId, pos: ChunkPos) = chunkMap[WorldChunkKey(world, pos)]
 }
 
-
-
 class MinecraftAcousticManager(
     private val entityTable: EntityTable,
     private val acousticSceneBank: ConcurrentAcousticSceneBank,
@@ -516,9 +504,11 @@ class MinecraftAcousticManager(
                 attenuation
             )
             if (performanceDebug) logger.info(
-                "[DEUBG] Просимулирована акустика в мире {} позиции {}, время обработки {} мс.",
+                "[DEUBG] Просимулирована акустика в мире {} позиции {}, множитель {}, максимальная громкость {}, время обработки {} мс.",
                 world,
                 pos,
+                attenuation,
+                maxVolume,
                 timestamp.timeElapsed()
             )
         } catch (e: Exception) {

@@ -102,6 +102,10 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyItemGunPacket(uuid, selector, barrelBullets)
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_BULLET_FIRE_PACKET) { gameSession ->
+        applyBulletFirePacket(start, vector)
+    }
+
     registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { gameSession ->
         applyPlaySoundPacket(play)
     }

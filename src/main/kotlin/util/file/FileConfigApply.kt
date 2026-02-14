@@ -83,7 +83,8 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
                 AcousticLevel(
                     it.volume,
                     it.multiplier,
-                    it.placeholders
+                    it.inputPlaceholders,
+                    it.outputPlaceholders,
                 )
             }
         ),

@@ -43,8 +43,8 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
 class DedicatedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,
     val connectionManager: ServerConnectionManager = ServerConnectionManager(),
-    transportContext: ServerTransportContext = ServerNetworkTransport(connectionManager, dependencies.playerStorage),
-) : EngineMinecraftServer(dependencies, transportContext) {
+    override val transportContext: ServerTransportContext = ServerNetworkTransport(dependencies.minecraftServer, connectionManager, dependencies.playerStorage),
+) : EngineMinecraftServer(dependencies) {
     val authorizationListener = ServerAuthorizationListener(
         connectionManager,
         this,

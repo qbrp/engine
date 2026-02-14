@@ -16,9 +16,7 @@ import org.lain.engine.transport.deserializePacket
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.serializePacket
-import org.lain.engine.util.EngineId
-import org.lain.engine.util.engineId
-import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.*
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
@@ -107,7 +105,8 @@ fun DisconnectText(reason: String) = "<red>[ENGINE] ${reason}</red>".parseMiniMe
 fun DisconnectText(exception: Throwable) = DisconnectText(exception.message ?: "Unknown error")
 
 fun disconnectInternal(playerId: PlayerId, reason: String) {
-    val entity = ENTITY_TABLE.server.getEntity(playerId) as? ServerPlayerEntity ?: error("EnginePlayer entity $playerId not found")
+    val server by injectMinecraftEngineServer()
+    val entity = ENTITY_TABLE.server.getEntity(playerId) as? ServerPlayerEntity ?: server.minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
     val networkHandler = entity.networkHandler
     networkHandler.disconnect(DisconnectText(reason))
 }

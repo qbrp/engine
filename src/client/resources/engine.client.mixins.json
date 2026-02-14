@@ -10,6 +10,7 @@
     "ItemGroupAccessor",
     "ItemStackMixin",
     "KeyboardMixin",
+    "MinecraftClientAccessor",
     "MinecraftClientMixin",
     "MouseMixin",
     "PlayerListEntryAccessor",

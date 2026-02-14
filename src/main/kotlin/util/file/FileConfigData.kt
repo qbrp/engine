@@ -82,7 +82,8 @@ data class RealisticAcousticConfig(
 data class AcousticLevelConfig(
     val volume: Float,
     val multiplier: Float = 1f,
-    val placeholders: Map<String, String> = mapOf()
+    @SerialName("input_placeholders") val inputPlaceholders: Map<String, String> = mapOf(),
+    @SerialName("output_placeholders") val outputPlaceholders: Map<String, String> = mapOf()
 )
 
 @Serializable
