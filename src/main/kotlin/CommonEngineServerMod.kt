@@ -8,7 +8,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
-import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.server.PlayerConfigEntry
@@ -17,8 +16,6 @@ import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Formatting
 import org.lain.engine.mc.*
-import org.lain.engine.player.Interaction
-import org.lain.engine.player.setInteraction
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
 import org.lain.engine.util.file.updateOldFileNaming
@@ -100,15 +97,6 @@ class CommonEngineServerMod : ModInitializer {
                 },
                 true
             )
-            ActionResult.PASS
-        }
-
-        UseItemCallback.EVENT.register { player, world, hand ->
-            if (!world.isClient) {
-                if (player !is ServerPlayerEntity) return@register ActionResult.PASS
-                val player = entityTable.server.getPlayer(player)
-                player?.setInteraction(Interaction.RightClick)
-            }
             ActionResult.PASS
         }
 

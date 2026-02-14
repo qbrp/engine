@@ -45,7 +45,8 @@ data class ItemConfig(
     val hat: Boolean? = null,
     val gun: GunConfig? = null,
     val tooltip: String? = null,
-    val sounds: Map<String, String>? = null
+    val sounds: Map<String, String>? = null,
+    val mass: Float? = null,
 ) {
     enum class AssetType {
         GENERATED, FILE

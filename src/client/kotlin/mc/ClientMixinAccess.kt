@@ -1,6 +1,5 @@
 package org.lain.engine.client.mc
 
-import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
@@ -31,6 +30,7 @@ import org.lwjgl.glfw.GLFW
 
 object ClientMixinAccess {
     private val client by injectClient()
+    private val mainPlayer get() = client.gameSession?.mainPlayer
     private var resources: ResourceList? = null
     private var developerModeKeyPressedTick = 0L
     var chatClipboardCopyTicksElapsed = 0
@@ -57,7 +57,7 @@ object ClientMixinAccess {
     }
 
     fun onLeftMouseClick() {
-        client.handler.onInteraction(Interaction.LeftClick)
+        mainPlayer?.setInteraction(Interaction.LeftClick)
     }
 
     fun onCursorStackSet(itemStack: ItemStack?) {
@@ -68,9 +68,9 @@ object ClientMixinAccess {
     fun isGunWithSelector(item: EngineItem) = item.get<Gun>()?.selector == false
 
     fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem) {
-        if (MinecraftClient.currentScreen is CreativeInventoryScreen) {
-            client.handler.onInteraction(Interaction.SlotClick(cursorItem, item))
-        }
+//        if (MinecraftClient.currentScreen is CreativeInventoryScreen) {
+//            mainPlayer?.setInteraction(Interaction.SlotClick(cursorItem, item))
+//        }
     }
 
     fun isEngineLoaded(): Boolean {

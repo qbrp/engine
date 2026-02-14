@@ -1,11 +1,12 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.ItemStorage
+import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.Interaction
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.util.Storage
 
 @Serializable
 data class SetSpeedIntentionPacket(
@@ -32,24 +33,26 @@ val SERVERBOUND_VOLUME_PACKET = Endpoint<VolumePacket>()
 // Interactions
 
 @Serializable
-data class InteractionPacket(val interaction: ServerboundInteractionData) : Packet
+data class InteractionPacket(val interaction: PacketInteractionData) : Packet
 
 @Serializable
-sealed class ServerboundInteractionData {
+sealed class PacketInteractionData {
     @Serializable
-    data class SlotClick(val cursorItem: ItemUuid, val item: ItemUuid) : ServerboundInteractionData()
+    data class SlotClick(val cursorItem: ItemUuid, val item: ItemUuid) : PacketInteractionData()
     @Serializable
-    object RightClick : ServerboundInteractionData()
+    object RightClick : PacketInteractionData()
     @Serializable
-    object LeftClick : ServerboundInteractionData()
+    object LeftClick : PacketInteractionData()
 
-    fun toDomain(itemStorage: ItemStorage) = when(this) {
-        LeftClick -> Interaction.LeftClick
-        RightClick -> Interaction.RightClick
-        is SlotClick -> Interaction.SlotClick(
-            itemStorage.get(cursorItem) ?: error("Item $cursorItem not found"),
-            itemStorage.get(item) ?: error("Item $cursorItem not found")
-        )
+    fun toDomain(itemStorage: Storage<ItemUuid, EngineItem>, notFound: (ItemUuid) -> Unit = {}): Interaction? {
+        return when(this) {
+            LeftClick -> Interaction.LeftClick
+            RightClick -> Interaction.RightClick
+            is SlotClick -> Interaction.SlotClick(
+                itemStorage.get(cursorItem) ?: return null,
+                itemStorage.get(item) ?: return null,
+            )
+        }
     }
 
     companion object {

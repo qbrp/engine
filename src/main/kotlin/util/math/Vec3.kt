@@ -114,6 +114,7 @@ data class ImmutableVec3(
     constructor(pos: Pos) : this(pos.x, pos.y, pos.z)
 }
 
+@Serializable
 data class MutableVec3(
     override var x: Float = 0f,
     override var y: Float = 0f,

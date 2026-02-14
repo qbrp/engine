@@ -171,6 +171,7 @@ fun compileContents(namespaces: Map<NamespaceId, NamespaceContents> = loadNamesp
                             config.gun?.gunDisplayComponent(),
                             config.tooltip?.let { ItemTooltip(it) },
                             if (config.stackable == true) properties.maxStackSize else null,
+                            config.mass?.let { Mass(it) },
                             sounds = config.sounds?.let { component ->
                                 ItemSounds(
                                     component.mapValues { SoundEventId(it.value.replaceToRelative(namespace)) }

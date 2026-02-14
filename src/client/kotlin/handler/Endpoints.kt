@@ -94,16 +94,17 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyDeleteChatMessage(message)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ITEM_PACKET) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_ITEM_ENDPOINT) { gameSession ->
         applyItemPacket(item)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ITEM_GUN_PACKET) { gameSession ->
-        applyItemGunPacket(uuid, selector, barrelBullets)
-    }
-
-    registerGameSessionReceiver(CLIENTBOUND_BULLET_FIRE_PACKET) { gameSession ->
-        applyBulletFirePacket(start, vector)
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_PACKET) { gameSession ->
+        updatePlayer(playerId) {
+            applyInteractionPacket(
+                it,
+                interaction.toDomain(gameSession.itemStorage) ?: return@updatePlayer
+            )
+        }
     }
 
     registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { gameSession ->

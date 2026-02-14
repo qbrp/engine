@@ -6,6 +6,7 @@ import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.ClientHandler
+import org.lain.engine.client.render.handleItemShakes
 import org.lain.engine.client.transport.clientItem
 import org.lain.engine.client.transport.isLowDetailed
 import org.lain.engine.client.transport.lowDetailedClientPlayerInstance
@@ -21,10 +22,9 @@ import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.handle
 import org.lain.engine.util.has
 import org.lain.engine.util.remove
-import org.lain.engine.util.require
 import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.World
-import org.lain.engine.world.WorldSoundsComponent
+import org.lain.engine.world.events
 import org.lain.engine.world.pos
 
 class GameSession(
@@ -82,23 +82,26 @@ class GameSession(
 
             val playerItems = player.items
             supplyPlayerInventoryItemsLocation(player, playerItems)
-            updatePlayerInteractions(player)
-            updateGunState(playerItems, true)
+            updatePlayerInteractions(player, false)
+            updateGunState(playerItems)
             updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
 
             if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
                 player.isLowDetailed = true
             }
 
+            handleItemShakes(player, playerItems)
+
             player.handle<ShakeScreenComponent> {
                 client.camera.stress(stress)
                 player.remove<ShakeScreenComponent>()
             }
 
-            world.require<WorldSoundsComponent>().events.clear()
+            player.remove<InteractionComponent>()?.let { handler.onInteraction(it.interaction) }
         }
 
         chatBubbleList.cleanup()
+        world.events.sounds.clear()
     }
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {

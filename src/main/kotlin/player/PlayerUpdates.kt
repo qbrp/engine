@@ -1,6 +1,5 @@
 package org.lain.engine.player
 
-import org.lain.engine.item.ItemUuid
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.Component
@@ -14,8 +13,6 @@ sealed class PlayerUpdate {
     data class CustomJumpStrengthAttribute(val value: AttributeUpdate) : PlayerUpdate()
     data class CustomName(val value: org.lain.engine.player.CustomName?) : PlayerUpdate()
     data class SpeedIntention(val value: Float) : PlayerUpdate()
-    data class GunSelector(val item: ItemUuid, val selector: Boolean) : PlayerUpdate()
-    data class GunBarrelBullets(val item: ItemUuid, val bullets: Int) : PlayerUpdate()
 }
 
 data class PlayerUpdates(
@@ -41,8 +38,6 @@ fun flushPlayerUpdates(
                 is PlayerUpdate.CustomSpeedAttribute -> onPlayerCustomSpeedUpdate(player, it.value)
                 is PlayerUpdate.CustomName -> onPlayerCustomName(player, it.value)
                 is PlayerUpdate.SpeedIntention -> onPlayerSpeedIntention(player, it.value)
-                is PlayerUpdate.GunSelector -> { transport.onItemGunUpdate(player, it.item, selector = it.selector) }
-                is PlayerUpdate.GunBarrelBullets -> { transport.onItemGunUpdate(player, it.item, barrelBullets = it.bullets) }
             }
         }
     }

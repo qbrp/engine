@@ -20,6 +20,7 @@ data class ItemInstantiationSettings(
     val gunDisplay: GunDisplay? = null,
     val tooltip: ItemTooltip? = null,
     val count: Int? = null, // null значит всегда 1
+    val mass: Mass? = null,
     val sounds: ItemSounds? = null,
 )
 
@@ -31,6 +32,7 @@ fun itemInstance(uuid: ItemUuid, location: Location, properties: ItemInstantiati
         setNullable(properties.gunDisplay?.copy())
         setNullable(properties.tooltip?.copy())
         setNullable(properties.sounds?.copy())
+        setNullable(properties.mass?.copy())
     }
     return itemInstance(uuid, properties.id, location, state)
 }

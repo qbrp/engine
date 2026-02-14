@@ -1,19 +1,9 @@
 package org.lain.engine.world
 
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.EngineSoundCategory
-import org.lain.engine.item.SoundEventId
-import org.lain.engine.item.SoundEventStorage
-import org.lain.engine.item.SoundPlay
-import org.lain.engine.item.getOrSingleSound
-import org.lain.engine.item.sound
+import org.lain.engine.item.*
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.Component
-import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.flush
-import org.lain.engine.util.require
-import java.util.LinkedList
-import java.util.Queue
+import org.lain.engine.util.math.Vec3
 
 sealed class WorldSoundPlayRequest {
     data class Simple(val play: SoundPlay) : WorldSoundPlayRequest()
@@ -33,15 +23,13 @@ sealed class WorldSoundPlayRequest {
     ) : WorldSoundPlayRequest()
 }
 
-data class WorldSoundsComponent(val events: Queue<WorldSoundPlayRequest> = LinkedList()) : Component
-
 fun processWorldSounds(
     handler: ServerHandler,
     soundEventStorage: SoundEventStorage,
     defaultItemSounds: Map<String, SoundEventId>,
     world: World
 ) {
-    world.require<WorldSoundsComponent>().events.flush { request ->
+    world.events.sounds.flush { request ->
         val play = when(request) {
             is WorldSoundPlayRequest.Positioned -> SoundPlay(
                 soundEventStorage.getOrSingleSound(request.eventId),
@@ -69,7 +57,7 @@ fun processWorldSounds(
 }
 
 fun World.emitPlaySoundEvent(request: WorldSoundPlayRequest) {
-    this.require<WorldSoundsComponent>().events.add(request)
+    events.sounds.add(request)
 }
 
 fun World.emitPlaySoundEvent(play: SoundPlay) = emitPlaySoundEvent(WorldSoundPlayRequest.Simple(play))
@@ -80,7 +68,7 @@ fun World.emitPlaySoundEvent(
     category: EngineSoundCategory,
     volume: Float = 1f,
     pitch: Float = 1f
-) = this.require<WorldSoundsComponent>().events.add(
+) = events.sounds.add(
     WorldSoundPlayRequest.Positioned(
         event,
         pos,

@@ -24,6 +24,8 @@ sealed class ItemData {
 
     @Serializable
     data class Count(val value: Int) : ItemData()
+    @Serializable
+    data class Mass(val value: Float) : ItemData()
 }
 
 fun <T : ItemData> MutableList<ItemData>.addIf(statement: () -> Boolean, component: () -> T) {
@@ -51,6 +53,7 @@ fun itemPersistentData(item: EngineItem): PersistentItemData {
     components.addIfNotNull(item.wrap<ItemSounds> { ItemData.Sounds(it.copy()) })
     components.addIfNotNull(item.wrap<Gun> { ItemData.Guns(it.copy(), item.get<GunDisplay>()?.copy()) })
     components.addIfNotNull(item.wrap<Count> { ItemData.Count(it.value)  })
+    components.addIfNotNull(item.wrap<Mass> { ItemData.Mass(it.mass)  })
 
     return PersistentItemData(components)
 }

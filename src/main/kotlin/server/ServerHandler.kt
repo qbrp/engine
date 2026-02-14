@@ -2,7 +2,9 @@ package org.lain.engine.server
 
 import kotlinx.coroutines.*
 import org.lain.engine.chat.*
-import org.lain.engine.item.*
+import org.lain.engine.item.ItemStorage
+import org.lain.engine.item.ItemUuid
+import org.lain.engine.item.SoundPlay
 import org.lain.engine.player.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -140,12 +142,8 @@ class ServerHandler(
         acousticDebug = acoustic
     }
 
-    private fun onPlayerInteraction(playerId: PlayerId, interaction: ServerboundInteractionData) = updatePlayer(playerId) {
-        val interaction = try {
-            interaction.toDomain(itemStorage)
-        } catch (e: Throwable) {
-            return@updatePlayer
-        }
+    private fun onPlayerInteraction(playerId: PlayerId, interaction: PacketInteractionData) = updatePlayer(playerId) {
+        val interaction = interaction.toDomain(itemStorage) ?: return@updatePlayer
         getOrSet { InteractionComponent(interaction) }
     }
 
@@ -169,7 +167,7 @@ class ServerHandler(
         CHAT_LOGGER.info("Удалено сообщение игроком $player: $outcomingMessage")
     }
 
-    fun synchronizePlayers() {
+    fun tick() {
         val players = playerStorage.filter { it.synchronization.authorized }
         for (player in players) {
             val state = player.synchronization
@@ -199,7 +197,7 @@ class ServerHandler(
                     for (item in playerToSync.items) {
                         if (item.uuid !in state.synchronizedItems) {
                             awaits += coroutineScope.launch {
-                                CLIENTBOUND_ITEM_PACKET.taskS2C(
+                                CLIENTBOUND_ITEM_ENDPOINT.taskS2C(
                                     ItemPacket(ClientboundItemData.from(item)),
                                     player.id
                                 )
@@ -215,6 +213,16 @@ class ServerHandler(
 
             state.synchronizedPlayers.removeIf { it !in playersInRadius }
         }
+    }
+
+    fun onPlayerInteraction(player: EnginePlayer, interaction: Interaction) {
+        CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastExcluding(
+            exclude = listOf(player),
+            PlayerInteractionPacket(
+                player.id,
+                PacketInteractionData.from(interaction)
+            )
+        )
     }
 
     fun onContentsUpdate() {
@@ -265,18 +273,6 @@ class ServerHandler(
                 player.id,
                 name
             )
-        )
-    }
-
-    fun onItemGunUpdate(
-        player: EnginePlayer,
-        item: ItemUuid,
-        selector: Boolean? = null,
-        barrelBullets: Int? = null
-    ) {
-        CLIENTBOUND_ITEM_GUN_PACKET.broadcastInRadius(
-            player,
-            ItemGunPacket(item, selector, barrelBullets)
         )
     }
 
@@ -366,19 +362,18 @@ class ServerHandler(
         )
     }
 
-    fun onBulletEvent(world: World, event: BulletFireEvent) {
-        val packet = BulletFirePacket(
-            ImmutableVec3(event.start),
-            ImmutableVec3(event.vector)
-        )
-        CLIENTBOUND_BULLET_FIRE_PACKET.broadcastInRadius(
-            Location(world, event.start),
-            BULLET_FIRE_RADIUS,
-            exclude = listOfNotNull(event.shooter)
-        ) { packet }
+    fun <P : Packet> Endpoint<P>.broadcastExcluding(
+        exclude: List<EnginePlayer> = emptyList(),
+        packet: P
+    ) {
+        for (player in playerStorage) {
+            if (player !in exclude) {
+                sendS2C(packet, player.id)
+            }
+        }
     }
 
-    private fun <P : Packet> Endpoint<P>.broadcastInRadius(
+    fun <P : Packet> Endpoint<P>.broadcastInRadius(
         center: Location,
         radius: Int,
         exclude: List<EnginePlayer> = emptyList(),
@@ -391,7 +386,7 @@ class ServerHandler(
         }
     }
 
-    private fun <P : Packet> Endpoint<P>.broadcastInRadius(
+    fun <P : Packet> Endpoint<P>.broadcastInRadius(
         player: EnginePlayer,
         radius: Int = playerSynchronizationRadius,
         packet: (EnginePlayer) -> P
@@ -399,7 +394,7 @@ class ServerHandler(
         broadcastInRadius(player.location, radius, packet=packet)
     }
 
-    private fun <P : Packet> Endpoint<P>.broadcastInRadius(
+    fun <P : Packet> Endpoint<P>.broadcastInRadius(
         player: EnginePlayer,
         packet: P,
         excludeSelf: Boolean = false,

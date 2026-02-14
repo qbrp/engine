@@ -16,6 +16,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
+import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.VertexConsumerProvider
@@ -37,7 +38,9 @@ import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.ENGINE_ITEM_REFERENCE_COMPONENT
 import org.lain.engine.mc.ServerMixinAccess
 import org.lain.engine.mc.updatePlayerMinecraftSystems
+import org.lain.engine.player.Interaction
 import org.lain.engine.player.OrientationTranslation
+import org.lain.engine.player.setInteraction
 import org.lain.engine.util.*
 import org.lain.engine.util.math.randomInteger
 import org.lain.engine.world.*
@@ -275,6 +278,11 @@ class MinecraftEngineClient : ClientModInitializer {
         ClientChunkEvents.CHUNK_LOAD.register { world, chunk ->
             chunks += chunk
             decalsStorage.survey(chunk)
+        }
+
+        UseItemCallback.EVENT.register { player, world, hand ->
+            if (world.isClient) { engineClient.gameSession?.mainPlayer?.setInteraction(Interaction.RightClick) }
+            ActionResult.PASS
         }
 
         HudElementRegistry.addLast(

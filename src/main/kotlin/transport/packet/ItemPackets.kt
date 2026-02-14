@@ -36,18 +36,4 @@ data class ClientboundItemData(
     }
 }
 
-val CLIENTBOUND_ITEM_PACKET = Endpoint<ItemPacket>()
-
-// Содержит дельты
-@Serializable
-data class ItemGunPacket(val uuid: ItemUuid, var selector: Boolean?, var barrelBullets: Int?) : Packet
-
-val CLIENTBOUND_ITEM_GUN_PACKET = Endpoint<ItemGunPacket>()
-
-@Serializable
-data class BulletFirePacket(
-    val start: ImmutableVec3,
-    val vector: ImmutableVec3
-) : Packet
-
-val CLIENTBOUND_BULLET_FIRE_PACKET = Endpoint<BulletFirePacket>()
+val CLIENTBOUND_ITEM_ENDPOINT = Endpoint<ItemPacket>()

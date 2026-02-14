@@ -1,10 +1,13 @@
 package org.lain.engine.world
 
-import kotlinx.serialization.Serializable
-import org.lain.engine.item.WorldGunEvents
+import org.lain.engine.item.GunShoot
+import org.lain.engine.util.Component
 import org.lain.engine.util.ComponentManager
 import org.lain.engine.util.ComponentState
+import org.lain.engine.util.require
 import org.lain.engine.util.set
+import java.util.*
+import kotlin.apply
 
 class World(
     val id: WorldId,
@@ -14,7 +17,13 @@ class World(
 fun world(id: WorldId): World {
     return World(id).apply {
         set(ScenePlayers())
-        set(WorldSoundsComponent())
-        set(WorldGunEvents())
+        set(WorldEvents())
     }
 }
+
+data class WorldEvents(
+    val sounds: Queue<WorldSoundPlayRequest> = LinkedList(),
+    val shoots: Queue<GunShoot> = LinkedList(),
+) : Component
+
+val World.events get() = this.require<WorldEvents>()

@@ -3,12 +3,12 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.Serializable
 import net.minecraft.network.PacketByteBuf
 import org.lain.engine.player.CustomName
-import org.lain.engine.transport.Endpoint
-import org.lain.engine.transport.Packet
-import org.lain.engine.transport.PacketCodec
 import org.lain.engine.player.PlayerId
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
+import org.lain.engine.transport.Endpoint
+import org.lain.engine.transport.Packet
+import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.readPlayerId
 import org.lain.engine.util.writePlayerId
 import org.lain.engine.world.ImmutableVoxelPos
@@ -112,3 +112,10 @@ val CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT = Endpoint<ContentsUpdatePacket>()
 data class AcousticDebugVolumesPacket(val volumes: List<Pair<ImmutableVoxelPos, Float>>) : Packet
 
 val CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET = Endpoint<AcousticDebugVolumesPacket>()
+
+// Interaction
+
+@Serializable
+data class PlayerInteractionPacket(val playerId: PlayerId, val interaction: PacketInteractionData) : Packet
+
+val CLIENTBOUND_PLAYER_INTERACTION_PACKET = Endpoint<PlayerInteractionPacket>()

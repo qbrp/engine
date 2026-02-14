@@ -9,11 +9,9 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.world.RaycastContext
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.item.BULLET_FIRE_RADIUS
-import org.lain.engine.item.BulletFireEvent
-import org.lain.engine.item.WorldGunEvents
+import org.lain.engine.item.GunShoot
 import org.lain.engine.util.flush
 import org.lain.engine.util.math.Pos
-import org.lain.engine.util.require
 import org.lain.engine.world.*
 
 fun spawnGunSmokeParticle(player: PlayerEntity) {
@@ -34,7 +32,7 @@ fun spawnGunSmokeParticle(player: PlayerEntity) {
     }
 }
 
-fun raycastBulletEvent(world: net.minecraft.world.World, event: BulletFireEvent): BlockHitResult? {
+fun raycastBulletEvent(world: net.minecraft.world.World, event: GunShoot): BlockHitResult? {
     val start = event.start
     val end = start.add(event.vector.mul(BULLET_FIRE_RADIUS))
     val results = world.raycast(
@@ -112,7 +110,7 @@ fun addBulletDecal(chunk: Chunk, blockPos: BlockPos, pos: Pos, direction: Direct
 fun updateBullets(
     world: World,
     mcWorld: ServerWorld,
-) = world.require<WorldGunEvents>().bullet.flush { event ->
+) = world.events.shoots.flush { event ->
     val hitResult = raycastBulletEvent(mcWorld, event) ?: return@flush
     val blockPos = hitResult.blockPos
     val pos = hitResult.pos

@@ -1,13 +1,16 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.*
-import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.*
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.items
+import org.lain.engine.player.translateRotation
+import org.lain.engine.util.Component
+import org.lain.engine.util.get
+import org.lain.engine.util.handle
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.set
 import org.lain.engine.world.World
 import org.lain.engine.world.world
-import java.util.*
 
 @Serializable
 data class Barrel(var bullets: Int, val maxBullets: Int)
@@ -41,23 +44,22 @@ fun EngineItem.gunAmmoConsumeCount(item: EngineItem): Int {
 data class GunEventComponent(val event: GunEvent) : Component
 
 sealed class GunEvent {
-    data class BarrelAmmoLoad(val count: Int, val loader: EnginePlayer) : GunEvent()
-    data class Shoot(val shooter: EnginePlayer) : GunEvent()
-    data class SelectorToggle(val player: EnginePlayer) : GunEvent()
+    data class BarrelAmmoLoad(val count: Int) : GunEvent()
+    data class Shoot(val shoot: GunShoot) : GunEvent()
+    object SelectorToggle : GunEvent()
 }
+
+data class GunShoot(val start: Vec3, val vector: Vec3) : Component
+
+data class ShootTag(
+    val shoot: GunShoot,
+    val bulletMass: Float,
+    val bulletSpeed: Float,
+) : Component
 
 fun EngineItem.setGunEvent(event: GunEvent) {
     this.set(GunEventComponent(event))
 }
-
-
-data class WorldGunEvents(val bullet: Queue<BulletFireEvent> = LinkedList()) : Component
-
-fun World.emitBulletFireEvent(start: Vec3, vector: Vec3, exclude: EnginePlayer?) {
-    this.require<WorldGunEvents>().bullet += BulletFireEvent(start, vector, exclude)
-}
-
-data class BulletFireEvent(val start: Vec3, val vector: Vec3, val shooter: EnginePlayer?)
 
 const val BULLET_FIRE_RADIUS = 64
 
@@ -68,7 +70,7 @@ private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
 
 // Вызывается на клиенте (для предсказания) и сервере
-fun updateGunState(items: Set<EngineItem>, client: Boolean = false) {
+fun updateGunState(items: Set<EngineItem>) {
     for (item in items) { // Кейс 1: загрузка боеприпасов в оружие
         val gun = item.get<Gun>() ?: continue
         val barrel = gun.barrel
@@ -76,26 +78,16 @@ fun updateGunState(items: Set<EngineItem>, client: Boolean = false) {
             when(val event = this.event) {
                 is GunEvent.BarrelAmmoLoad -> {
                     barrel.bullets = (barrel.bullets + event.count).coerceAtMost(barrel.maxBullets)
-                    event.loader.markUpdate(PlayerUpdate.GunBarrelBullets(item.uuid, barrel.bullets))
                     item.emitPlaySoundEvent(ROUND_BARREL, EngineSoundCategory.NEUTRAL)
                     gun.clicked = false
                 }
                 is GunEvent.Shoot -> {
-                    val shooter = event.shooter
                     if (!gun.selector) {
+                        val shoot = event.shoot
                         if (barrel.bullets > 0) {
                             barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
                             item.emitPlaySoundEvent(GUNFIRE_SOUND, EngineSoundCategory.NEUTRAL)
-                            shooter.translateRotation(pitch = -5f)
-                            shooter.markUpdate(PlayerUpdate.GunBarrelBullets(item.uuid, barrel.bullets))
-                            // FIXME: Антипаттерн, сделать вместо этого обработку по GunFireEvent
-                            if (client) {
-                                shooter.shake(0.3f)
-                            }
-
-                            val rotationVector = event.shooter.require<Orientation>().rotationVector
-                            val start = event.shooter.eyePos
-                            shooter.world.emitBulletFireEvent(start, rotationVector, shooter)
+                            item.set(ShootTag(shoot, DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED))
                         } else if (!gun.clicked) {
                             item.emitPlaySoundEvent(CLICK_EMPTY_SOUND, EngineSoundCategory.NEUTRAL)
                             gun.clicked = true
@@ -105,7 +97,6 @@ fun updateGunState(items: Set<EngineItem>, client: Boolean = false) {
                 is GunEvent.SelectorToggle -> {
                     gun.selector = !gun.selector
                     item.emitPlaySoundEvent(SELECTOR_TOGGLE_SOUND, EngineSoundCategory.NEUTRAL)
-                    event.player.markUpdate(PlayerUpdate.GunSelector(item.uuid, gun.selector))
                 }
             }
             item.removeComponent(this)
@@ -113,6 +104,20 @@ fun updateGunState(items: Set<EngineItem>, client: Boolean = false) {
     }
 }
 
-fun broadcastBulletEvents(handler: ServerHandler, world: World) = world.require<WorldGunEvents>().bullet.flush {
-    handler.onBulletEvent(world, it)
+val DEFAULT_WEAPON_MASS = 2f
+val DEFAULT_BULLET_MASS = 0.004f
+val DEFAULT_BULLET_SPEED = 800f
+
+val ShootTag.recoilSpeed get() = bulletMass * bulletSpeed / DEFAULT_WEAPON_MASS
+
+fun handleGunShotTags(
+    player: EnginePlayer,
+    items: Collection<EngineItem> = player.items,
+    world: World = player.world,
+) {
+    items.forEach { item ->
+        val shootTag = item.get<ShootTag>() ?: return@forEach
+        player.translateRotation(pitch = shootTag.recoilSpeed * 1.4427f)
+        item.removeComponent(shootTag)
+    }
 }

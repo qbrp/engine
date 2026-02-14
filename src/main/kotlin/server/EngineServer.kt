@@ -4,7 +4,6 @@ import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
@@ -54,21 +53,21 @@ class EngineServer(
             updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
             flushPlayerMessages(player, chat, vocalSettings)
             updatePlayerVoice(player, chat, globals.vocalSettings)
-            updatePlayerInteractions(player)
+            updatePlayerInteractions(player, handler=handler)
             val playerItems = player.items
             updateGunState(playerItems)
+            handleGunShotTags(player, playerItems)
             supplyPlayerInventoryItemsLocation(player, playerItems)
         }
 
         players.forEach { flushPlayerUpdates(it, handler) }
 
-        handler.synchronizePlayers()
+        handler.tick()
         taskQueue.flush { it.run() }
 
         tickTimes.add(start.timeElapsed().toInt())
-        worlds.values.forEach {
-            processWorldSounds(handler, soundEventStorage, globals.defaultItemSounds, it)
-            broadcastBulletEvents(handler, it)
+        worlds.values.forEach { world ->
+            processWorldSounds(handler, soundEventStorage, globals.defaultItemSounds, world)
         }
     }
 

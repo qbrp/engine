@@ -1,11 +1,12 @@
 package org.lain.engine.util
 
 import kotlinx.serialization.Serializable
-import java.util.Spliterator
+import java.util.*
 
 class IdCollisionException(id: Any) : RuntimeException("Object with id $id already contained")
 
-open class Storage<K : Any, T : Any> : Iterable<T> {
+open class
+Storage<K : Any, T : Any> : Iterable<T> {
     private val map = mutableMapOf<K, T>()
 
     fun get(key: K): T? {
