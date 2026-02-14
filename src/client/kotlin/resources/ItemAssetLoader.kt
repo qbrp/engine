@@ -8,7 +8,8 @@ import de.javagl.obj.Mtl
 import de.javagl.obj.Obj
 import net.minecraft.client.item.ItemAsset
 import net.minecraft.client.render.item.model.BasicItemModel
-import net.minecraft.client.texture.*
+import net.minecraft.client.texture.MissingSprite
+import net.minecraft.client.texture.SpriteAtlasTexture
 import net.minecraft.client.util.SpriteIdentifier
 import net.minecraft.util.Identifier
 import net.minecraft.util.JsonHelper
@@ -19,8 +20,6 @@ import org.lain.engine.util.EngineId
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.injectValue
 import org.slf4j.LoggerFactory
-import kotlin.io.extension
-import kotlin.text.replace
 
 /**
  * Возвращает идентификатор файлового ассета относительно `engine/assets` без расширения
@@ -232,7 +231,7 @@ fun parseEngineItemAssets(
                             }
                     }
                     contents[item.registrationId] = ItemAsset(
-                        EngineItemModel.Unbaked(itemAsset.model, disableCulling, markers),
+                        EngineItemModel.Unbaked(asset, itemAsset.model, disableCulling, markers),
                         itemAsset.properties,
                         itemAsset.registrySwapper
                     )

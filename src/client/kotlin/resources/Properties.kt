@@ -1,15 +1,10 @@
 package org.lain.engine.client.resources
 
 import com.mojang.serialization.MapCodec
-import net.fabricmc.fabric.api.client.rendering.v1.FabricRenderState
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
 import net.minecraft.client.item.ItemModelManager
 import net.minecraft.client.render.item.ItemRenderState
-import net.minecraft.client.render.item.model.BasicItemModel
 import net.minecraft.client.render.item.model.ItemModel
-import net.minecraft.client.render.item.tint.TintSource
-import net.minecraft.client.render.model.BakedQuad
-import net.minecraft.client.render.model.ModelSettings
 import net.minecraft.client.render.model.ResolvableModel
 import net.minecraft.client.world.ClientWorld
 import net.minecraft.item.ItemDisplayContext
@@ -24,6 +19,7 @@ var ItemRenderState.culling: Boolean?
     set(value) { setData(CULLING, value) }
 
 class EngineItemModel(
+    val asset: Asset,
     val itemModel: ItemModel,
     val disableCulling: Boolean,
     val markers: Map<String, Vector3fc>
@@ -42,6 +38,7 @@ class EngineItemModel(
     }
 
     class Unbaked(
+        val asset: Asset,
         val model: ItemModel.Unbaked,
         val disableCulling: Boolean,
         val markers: Map<String, Vector3fc>
@@ -50,6 +47,7 @@ class EngineItemModel(
 
         override fun bake(context: ItemModel.BakeContext): ItemModel {
             return EngineItemModel(
+                asset,
                 model.bake(context),
                 disableCulling,
                 markers

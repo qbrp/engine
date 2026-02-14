@@ -1,5 +1,8 @@
 package org.lain.engine.client.mc.render
 
+import com.google.gson.Gson
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
 import net.minecraft.client.gui.Click
 import net.minecraft.client.gui.DrawContext
@@ -16,12 +19,16 @@ import net.minecraft.item.ItemDisplayContext
 import net.minecraft.item.ItemStack
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.minecraft.util.JsonHelper
 import org.joml.Vector3f
 import org.joml.Vector3fc
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mixin.render.BasicItemModelAccessor
+import org.lain.engine.client.mixin.render.GameRendererAccessor
+import org.lain.engine.client.mixin.render.GuiRendererAccessor
 import org.lain.engine.client.resources.EngineItemModel
 import org.lain.engine.util.math.MutableVec3
+import java.io.File
 import kotlin.math.max
 
 object AdditionalTransformationsBank {
@@ -92,6 +99,60 @@ fun Transformations.minecraft() = ModelTransformation(
     fixed.minecraft(), // ???
 )
 
+fun Transformations.toDisplayJson(): JsonObject {
+    val display = JsonObject()
+
+    fun addIfNotIdentity(name: String, transformation: Transformation) {
+        if (!transformation.isIdentity()) {
+            display.add(name, transformation.toJson())
+        }
+    }
+
+    addIfNotIdentity("thirdperson_righthand", thirdPersonRightHand)
+    addIfNotIdentity("thirdperson_lefthand", thirdPersonLeftHand)
+    addIfNotIdentity("firstperson_righthand", firstPersonRightHand)
+    addIfNotIdentity("firstperson_lefthand", firstPersonLeftHand)
+    addIfNotIdentity("head", head)
+    addIfNotIdentity("gui", gui)
+    addIfNotIdentity("ground", ground)
+    addIfNotIdentity("fixed", fixed)
+
+    return display
+}
+
+fun Transformation.toJson(): JsonObject {
+    val json = JsonObject()
+
+    if (!translation.isZero()) {
+        json.add("translation", translation.toJsonArray(0.0625f))
+    }
+
+    if (!rotation.isZero()) {
+        json.add("rotation", rotation.toJsonArray())
+    }
+
+    if (!scale.isZero()) {
+        json.add("scale", scale.toJsonArray())
+    }
+
+    return json
+}
+
+fun MutableVec3.toJsonArray(divide: Float = 1f): JsonArray {
+    val array = JsonArray()
+    array.add(x / divide)
+    array.add(y / divide)
+    array.add(z / divide)
+    return array
+}
+
+fun MutableVec3.isZero(): Boolean =
+    x == 0f && y == 0f && z == 0f
+
+fun Transformation.isIdentity(): Boolean =
+    translation.isZero() && rotation.isZero() && scale.isZero()
+
+
 fun ItemRenderState.LayerRenderState.setAdditionalTransformations(transformations: Transformations, context: ItemDisplayContext) {
     setData(RENDER_STATE_KEY, transformations.minecraft().getTransformation(context))
 }
@@ -100,10 +161,14 @@ fun ItemRenderState.LayerRenderState.getAdditionalTransformations(): net.minecra
     return getData(RENDER_STATE_KEY)
 }
 
+private val guiRenderer get() = (MinecraftClient.gameRenderer as GameRendererAccessor).`engine$getGuiRenderer`() as GuiRendererAccessor
+
+
 class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Text.of("Transformation editor")) {
     private val modelId = itemStack.get(DataComponentTypes.ITEM_MODEL)!!
     private val model = MinecraftClient.bakedModelManager.getItemModel(modelId)
     private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)
+    private val sliders = mutableListOf<TransformationSliderWidget>()
 
     private fun computeTransformations(model: ItemModel): Transformations {
         val m = model as? BasicItemModel ?: (model as? EngineItemModel)?.itemModel as? BasicItemModel
@@ -139,33 +204,62 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
             }
         }
 
+    fun File.withExtension(newExt: String): File {
+        val nameWithoutExt = this.nameWithoutExtension.replace(".asset", "")
+        val parentDir = this.parentFile
+        val cleanExt = newExt.removePrefix(".")
+        return File(parentDir, "$nameWithoutExt.$cleanExt")
+    }
+
     override fun init() {
-        addDrawableChild(TransformationSliderWidget(getWidgetY(1), "Scale Z", MAX_SCALE,{ scale.z }, { scale.z = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(2), "Scale Y", MAX_SCALE,{ scale.y }, { scale.y = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(3), "Scale X", MAX_SCALE,{ scale.x }, { scale.x = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(1), "Scale Z", MAX_SCALE,{ scale.z }, { scale.z = it }, model))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(2), "Scale Y", MAX_SCALE,{ scale.y }, { scale.y = it }, model))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(3), "Scale X", MAX_SCALE,{ scale.x }, { scale.x = it }, model))
         addText(4, "Scale")
 
-        addDrawableChild(TransformationSliderWidget(getWidgetY(5), "Rotation Z", MAX_ROTATION, { rotation.z }, { rotation.z = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(6), "Rotation Y", MAX_ROTATION, { rotation.y }, { rotation.y = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(7), "Rotation X", MAX_ROTATION, { rotation.x }, { rotation.x = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(5), "Rotation Z", MAX_ROTATION, { rotation.z }, { rotation.z = it }, model))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(6), "Rotation Y", MAX_ROTATION, { rotation.y }, { rotation.y = it }, model))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(7), "Rotation X", MAX_ROTATION, { rotation.x }, { rotation.x = it }, model))
         addText(8, "Rotation")
 
-        addDrawableChild(TransformationSliderWidget(getWidgetY(9), "Translation Z", MAX_TRANSLATION, { translation.z }, { translation.z = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(10), "Translation Y", MAX_TRANSLATION, { translation.y }, { translation.y = it }))
-        addDrawableChild(TransformationSliderWidget(getWidgetY(11), "Translation X", MAX_TRANSLATION, { translation.x }, { translation.x = it }))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(9), "Translation Z", MAX_TRANSLATION, { translation.z }, { translation.z = it }, model))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(10), "Translation Y", MAX_TRANSLATION, { translation.y }, { translation.y = it }, model))
+        addDrawableChild(TransformationSliderWidget(getWidgetY(11), "Translation X", MAX_TRANSLATION, { translation.x }, { translation.x = it }, model))
         addText(12, "Translation")
 
         addDrawableChild(
             ButtonWidget.builder(
                 Text.of("Reset"),
                 {
-                    if (model as? BasicItemModel == null) return@builder
+                    if (model == null) return@builder
                     transformations = computeTransformations(model)
                     AdditionalTransformationsBank.set(modelId, transformations)
                 }
             )
                 .size(SLIDER_WIDTH, LINE_HEIGHT)
                 .position(PADDING, PADDING)
+                .build()
+        )
+
+        addDrawableChild(
+            ButtonWidget.builder(
+                Text.of("Export engine model")
+            ) {
+                if (model as? EngineItemModel == null) return@builder
+                val source = model.asset.source.file
+                    .withExtension("json")
+                val reader = source.reader()
+                val json = JsonHelper.deserialize(reader).asJsonObject
+                json.add(
+                    "display",
+                    transformations.toDisplayJson()
+                )
+                reader.close()
+                source.writeText(Gson().toJson(json))
+                AdditionalTransformationsBank.remove(modelId)
+            }
+                .size(SLIDER_WIDTH, LINE_HEIGHT)
+                .position(PADDING, PADDING + LINE_HEIGHT)
                 .build()
         )
 
@@ -186,6 +280,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         }
         contextList.width = w
         contextList.x = MinecraftClient.window.scaledWidth - w - 2
+        contextList.setSelectedByValue(context)
     }
 
     override fun mouseClicked(click: Click, doubled: Boolean): Boolean {
@@ -205,7 +300,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
 
     override fun close() {
         super.close()
-        if (model is BasicItemModel && computeTransformations(model) == transformations) {
+        if (computeTransformations(model) == transformations) {
             AdditionalTransformationsBank.remove(modelId)
         }
     }
@@ -229,8 +324,10 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         val maxValue: Float,
         private val getter: () -> Float,
         private val setter: (Float) -> Unit,
+        private val model: ItemModel,
     ): SliderWidget(PADDING, y, SLIDER_WIDTH, LINE_HEIGHT, Text.of(option), getter().toDouble()) {
-        init { updateMessage() }
+        private var tick = 0
+        init { refresh() }
 
         override fun updateMessage() {
             message = Text.of("$option: " + String.format("%.2f", validatedValue()))
@@ -238,6 +335,11 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
 
         override fun applyValue() {
             setter(validatedValue())
+            if (tick++ % 10 == 0) {
+                (model as? EngineItemModel).let {
+                    guiRenderer.`engine$onItemAtlasChanged`()
+                }
+            }
         }
 
         fun refresh() {
