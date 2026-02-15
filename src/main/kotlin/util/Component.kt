@@ -20,6 +20,9 @@ class ComponentCollisionException(message: String) : RuntimeException(message)
 
 //// Manager
 
+interface Entity : ComponentManager {
+    val stringId: String
+}
 
 interface ComponentManager : Iterable<Component> {
     // Iterators

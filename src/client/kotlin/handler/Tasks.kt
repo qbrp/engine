@@ -2,12 +2,15 @@ package org.lain.engine.client.handler
 
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
-import org.lain.engine.client.transport.isLowDetailed
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
+import org.lain.engine.server.ComponentSynchronizer
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.util.Component
+import org.lain.engine.util.Entity
+import org.lain.engine.util.Storage
 
 class TaskExecutor(
     private val tasks: ArrayDeque<Task> = ArrayDeque()
@@ -61,5 +64,19 @@ fun ClientHandler.updatePlayerDetailed(id: PlayerId, update: (EnginePlayer) -> U
             LOGGER.warn("Получен пакет данных игрока вне зоны обновлений: $it")
         }
         update(it)
+    }
+}
+
+// Common synchronizers
+
+fun <T : Entity, I : Any, C : Component> ClientHandler.registerSynchronizerEndpoint(
+    synchronizer: ComponentSynchronizer<T, C>,
+    storageGetter: (GameSession) -> Storage<I, T>,
+    idGetter: (String) -> I,
+) {
+    registerGameSessionReceiver(synchronizer.endpoint) { gameSession ->
+        val id = idGetter(id)
+        val entity = storageGetter(gameSession).get(id) ?: return@registerGameSessionReceiver
+        synchronizer.resolver(entity, component)
     }
 }

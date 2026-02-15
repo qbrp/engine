@@ -1,4 +1,4 @@
-package org.lain.engine.client.transport
+package org.lain.engine.client.handler
 
 import org.lain.engine.item.ItemInstantiationSettings
 import org.lain.engine.item.itemInstance

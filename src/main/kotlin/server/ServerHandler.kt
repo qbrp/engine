@@ -83,6 +83,7 @@ class ServerHandler(
         SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT.registerReceiver { ctx -> onPlayerCursorItem(ctx.sender, item) }
         SERVERBOUND_CHAT_TYPING_START_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingStart(ctx.sender, channel) }
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingEnd(ctx.sender) }
+        SERVERBOUND_PLAYER_ARM_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
     }
 
     fun invalidate() {
@@ -104,14 +105,13 @@ class ServerHandler(
         typingPlayers.add(player.id)
 
         val range = channel.typeIndicatorRange
-        val players = when(acoustic) {
+        val nearestPlayers = range?.let { player.filterNearestPlayers(it) }
+        val players = nearestPlayers ?: when(acoustic) {
             is Acoustic.Global -> playerStorage.getAll()
-            is Acoustic.Distance -> player.filterNearestPlayers(range ?: acoustic.radius)
+            is Acoustic.Distance -> player.filterNearestPlayers(acoustic.radius)
             is Acoustic.Realistic -> {
-                val radius = range ?: server.chat.settings.defaultChannel.typeIndicatorRange ?: 16
-                if (range == null) {
-                    CHAT_LOGGER.warn("Акустическая симуляция не работает, чтобы подсчитать, каким игрокам отображать индикатор ввода сообщения. Используется стандартный радиус $radius блоков.")
-                }
+                val radius = server.chat.settings.defaultChannel.typeIndicatorRange ?: 16
+                CHAT_LOGGER.warn("Акустическая симуляция не работает, чтобы подсчитать, каким игрокам отображать индикатор ввода сообщения. Используется стандартный радиус $radius блоков.")
                 player.filterNearestPlayers(radius)
             }
         }.filter { it.isChannelAvailableToRead(channel) }
@@ -175,6 +175,9 @@ class ServerHandler(
             val playersInRadius = filterNearestPlayers(location, globals.playerSynchronizationRadius, players)
             val playersToSync = playersInRadius
                 .filter { it !in state.synchronizedPlayers }
+
+            tickSynchronizationComponent(player)
+
             for (playerToSync in playersToSync) {
                 if (playerToSync.id != player.id) {
                     state.synchronizedPlayers += playerToSync

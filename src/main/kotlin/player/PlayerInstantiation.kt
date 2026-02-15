@@ -1,10 +1,13 @@
 package org.lain.engine.player
 
 import org.lain.engine.item.EngineItem
-import org.lain.engine.server.SynchronizationComponent
+import org.lain.engine.server.PLAYER_ARM_STATUS_SYNCHRONIZER
+import org.lain.engine.server.PlayerSynchronizationComponent
+import org.lain.engine.server.Synchronizations
+import org.lain.engine.server.submit
+import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.util.Component
 import org.lain.engine.util.math.Pos
-import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.util.set
 import org.lain.engine.util.setNullable
 import org.lain.engine.world.Location
@@ -63,6 +66,12 @@ fun serverPlayerInstance(
         set(PlayerUpdates())
         set(defaults)
         set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
-        set(SynchronizationComponent(false))
+        set(PlayerSynchronizationComponent(false))
+        set(Synchronizations<EnginePlayer>(mutableMapOf()))
+            .also { it.initializeSynchronizers() }
     }
+}
+
+fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
+    submit(PLAYER_ARM_STATUS_SYNCHRONIZER)
 }
