@@ -1,13 +1,22 @@
 package org.lain.engine.client.chat
 
 import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.EngineChat
 
 fun ChatBar(configuration: ChatBarConfiguration) = ChatBar(configuration.sections)
 
 class ChatBar(val sections: List<ChatBarSection>) {
     private val states: MutableMap<ChannelId, ChatBarSectionState> = mutableMapOf()
     private val statesBySection: MutableMap<ChatBarSection, ChatBarSectionState> = mutableMapOf()
+
+    fun copy(chat: ClientEngineChatManager?, configuration: ChatBarConfiguration): ChatBar {
+        return ChatBar(configuration).also { bar ->
+            states
+                .forEach { (channelId, section) ->
+                    if (section.hide) bar.toggleHide(channelId, chat)
+                    if (section.unread) bar.markUnread(channelId)
+                }
+        }
+    }
 
     init {
         sections.forEach { section ->

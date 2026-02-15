@@ -56,6 +56,7 @@ data class ChannelConfig(
     val heads: Boolean = false,
     val background: String? = null,
     @SerialName("type_radius") val chatTypeRadius: Int? = null,
+    @SerialName("type_indicator") val chatTypeIndicator: Boolean = true,
 )
 
 @Serializable

@@ -95,10 +95,10 @@ class MinecraftEngineClient : ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, env ->
             dispatcher.register(
-                ClientCommandManager.literal("reloadclientengineitems")
+                ClientCommandManager.literal("reloadclientenginecontents")
                     .executes { ctx ->
                         updateEngineItemGroupEntries()
-                        ctx.source.sendFeedback(Text.of("Предметы скомпилированы"))
+                        ctx.source.sendFeedback(Text.of("Контен скомпилирован"))
                         1
                     }
             )
@@ -161,7 +161,7 @@ class MinecraftEngineClient : ClientModInitializer {
                             return@forEach
                         }
                         val world = session.world
-                        val itemStacks = (entity.inventory.mainStacks + entity.currentScreenHandler.cursorStack).toSet()
+                        val itemStacks = (entity.inventory + entity.currentScreenHandler.cursorStack).toSet()
                         val items = itemStacks.mapNotNull { itemStack ->
                             val reference = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT) ?: return@mapNotNull null
                             val item = reference.getClientItem() ?: return@mapNotNull null

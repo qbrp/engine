@@ -11,4 +11,5 @@ interface ClientEventBus {
     fun onPlayerDestroy(client: EngineClient, playerId: PlayerId)
     fun onMainPlayerInstantiated(client: EngineClient, gameSession: GameSession, player: EnginePlayer)
     fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession)
+    fun onContentsUpdate()
 }

@@ -15,7 +15,8 @@ import org.lain.engine.util.EngineId
 @Serializable
 data class GunConfig(
     val barrel: BarrelConfig = BarrelConfig(1, 0),
-    val ammunition: AmmunitionConfig
+    val ammunition: AmmunitionConfig? = null,
+    val display: GunDisplay? = null,
 ) {
     @Serializable
     data class BarrelConfig(val bullets: Int, val initial: Int = 0)
@@ -26,10 +27,13 @@ data class GunConfig(
         barrel.let { Barrel(it.initial, it.bullets) },
         true,
         false,
-        ammunition.item
+        ammunition?.item
     )
 
-    fun gunDisplayComponent() = ammunition.display?.let { GunDisplay(it) }
+    fun gunDisplayComponent(): GunDisplay? {
+        val ammunitionDisplay = ammunition?.display
+        return display?.copy(ammunition=ammunitionDisplay ?: display.ammunition)
+    }
 }
 
 @Serializable

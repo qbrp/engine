@@ -5,6 +5,7 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.render.ChunkDecalsStorage
+import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.mc.ClientPlayerTable
 import org.lain.engine.player.EnginePlayer
@@ -73,5 +74,9 @@ class MinecraftEngineClientEventBus(
 
     override fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession) {
         acousticDebugVolumesBlockPosCache = volumes.map { (pos, volume) -> BlockPos(pos.x, pos.y, pos.z) to volume }
+    }
+
+    override fun onContentsUpdate() {
+        updateEngineItemGroupEntries()
     }
 }

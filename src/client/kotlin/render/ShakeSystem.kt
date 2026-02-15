@@ -14,6 +14,5 @@ fun handleItemShakes(player: EnginePlayer, items: Collection<EngineItem>) {
         val shootTag = item.get<ShootTag>() ?: return@forEach
         player.shake(shootTag.recoilSpeed / 2f)
         player.world.events.shoots += shootTag.shoot
-        item.removeComponent(shootTag)
     }
 }

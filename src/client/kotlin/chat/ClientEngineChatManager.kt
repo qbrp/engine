@@ -213,7 +213,8 @@ class ClientEngineChatManager(
             }
         }
 
-        chatBar = ChatBar(ChatBarConfiguration(chatBarSections2),)
+        val cfg = ChatBarConfiguration(chatBarSections2)
+        chatBar = chatBar?.copy(this, cfg) ?: ChatBar(cfg)
         settings = new
 
         eventBus.onSettingsUpdate(settings, chatBar!!)

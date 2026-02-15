@@ -5,13 +5,10 @@ import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
-import org.lain.engine.client.handler.ClientHandler
+import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.handleItemShakes
-import org.lain.engine.client.transport.clientItem
-import org.lain.engine.client.transport.isLowDetailed
-import org.lain.engine.client.transport.lowDetailedClientPlayerInstance
-import org.lain.engine.client.transport.mainClientPlayerInstance
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
+import org.lain.engine.item.handleGunShotTags
 import org.lain.engine.item.supplyPlayerInventoryItemsLocation
 import org.lain.engine.item.updateGunState
 import org.lain.engine.player.*
@@ -98,6 +95,7 @@ class GameSession(
             }
 
             handleItemShakes(player, playerItems)
+            handleGunShotTags(player, playerItems)
 
             player.handle<ShakeScreenComponent> {
                 client.camera.stress(stress)

@@ -68,7 +68,8 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
             it.notify,
             it.permission,
             it.heads,
-            typeIndicatorRange=it.chatTypeRadius,
+            typeIndicatorRange = it.chatTypeRadius,
+            typeIndicator = it.chatTypeIndicator,
             background = it.background?.let { Color.parseString(it) }
         )
     }
