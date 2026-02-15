@@ -1,7 +1,11 @@
 package org.lain.engine.client.mc.render
 
+import net.minecraft.client.gui.Click
 import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder
+import net.minecraft.client.gui.widget.ClickableWidget
 import net.minecraft.text.Text
+import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.ChatBarSection
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.mc.MinecraftClient
@@ -9,7 +13,29 @@ import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.MENTION
 import org.lain.engine.client.render.Rect2
+import org.lain.engine.player.extendArm
 import org.lain.engine.util.Color
+
+class HandStatusButtonWidget(val client: EngineClient, x: Int, y: Int, width: Int, height: Int, message: Text) : ClickableWidget(x, y, width, height, message) {
+    override fun renderWidget(
+        context: DrawContext,
+        mouseX: Int,
+        mouseY: Int,
+        deltaTicks: Float
+    ) {
+        var color = MinecraftClient.options.getTextBackgroundColor(Int.MIN_VALUE)
+        if (client.gameSession?.mainPlayer?.extendArm == true || isMouseOver(mouseX.toDouble(), mouseY.toDouble())) {
+            color = Color(color).blend(Color.WHITE, 0.8f).integer
+        }
+        context.fill(x, y, width + x, height + y, color)
+    }
+
+    override fun onClick(click: Click, doubled: Boolean) {
+        client.gameSession?.apply { extendArm = !extendArm }
+    }
+
+    override fun appendClickableNarrations(builder: NarrationMessageBuilder?) {}
+}
 
 data class ChatChannelButton(val textWidth: Int, val rect: Rect2, val text: Text, val section: ChatBarSection)
 

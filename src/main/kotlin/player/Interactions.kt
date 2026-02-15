@@ -54,7 +54,7 @@ fun updatePlayerInteractions(player: EnginePlayer, removeInteraction: Boolean = 
 
             // Кейс 1: объединение
             if (merge(slotItem, cursorItem)) {
-                player.require<PlayerInventory>().handItem = null
+                player.require<PlayerInventory>().mainHandItem = null
             }
 
             // Кейс 2: загрузка боеприпасов в оружие

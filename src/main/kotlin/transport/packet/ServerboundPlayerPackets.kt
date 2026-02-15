@@ -72,3 +72,10 @@ val SERVERBOUND_INTERACTION_ENDPOINT = Endpoint<InteractionPacket>()
 data class PlayerCursorItemPacket(val item: ItemUuid?) : Packet
 
 val SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT = Endpoint<PlayerCursorItemPacket>()
+
+// Arm
+
+@Serializable
+data class PlayerArmPacket(val extend: Boolean) : Packet
+
+val SERVERBOUND_PLAYER_ARM_ENDPOINT = Endpoint<PlayerArmPacket>()

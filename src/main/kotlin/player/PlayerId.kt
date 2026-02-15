@@ -6,11 +6,15 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import java.util.UUID
+import java.util.*
 
 @JvmInline
 @Serializable(with = PlayerIdSerializer::class)
-value class PlayerId(val value: UUID)
+value class PlayerId(val value: UUID) {
+    companion object {
+        fun fromString(str: String): PlayerId = PlayerId(UUID.fromString(str))
+    }
+}
 
 object PlayerIdSerializer : KSerializer<PlayerId> {
     override val descriptor = PrimitiveSerialDescriptor("PlayerId", PrimitiveKind.STRING)

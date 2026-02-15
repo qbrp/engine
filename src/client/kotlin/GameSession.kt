@@ -39,6 +39,13 @@ class GameSession(
     val chatEventBus = client.chatEventBus
     var playerSynchronizationRadius: Int = setup.settings.playerSynchronizationRadius
 
+    var extendArm = false
+    set(value) {
+        handler.onArmStatusUpdate(value)
+        mainPlayer.extendArm = value
+        field = value
+    }
+
     var admin = false
     var acousticDebugVolumes = listOf<Pair<VoxelPos, Float>>()
     val playerStorage = ClientPlayerStorage()

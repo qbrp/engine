@@ -43,6 +43,7 @@ fun commonPlayerInstance(
         set(OrientationTranslation(0f, 0f))
         set(DeveloperMode(false))
         set(PlayerInventory(settings.items.toMutableSet()))
+        set(ArmStatus(false))
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)

@@ -11,7 +11,9 @@ import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.chat.acceptOutcomingMessage
 import org.lain.engine.client.render.WARNING
-import org.lain.engine.client.transport.*
+import org.lain.engine.client.transport.ClientAcknowledgeHandler
+import org.lain.engine.client.transport.ClientTransportContext
+import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.SoundPlay
@@ -44,6 +46,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun tick() {
         taskExecutor.flush()
+    }
+
+    fun onArmStatusUpdate(extend: Boolean) {
+        SERVERBOUND_PLAYER_ARM_ENDPOINT.sendC2SPacket(PlayerArmPacket(extend))
     }
 
     fun onChatMessageSend(content: String, channelId: ChannelId) {
@@ -235,6 +241,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun applyContentsUpdatePacket() {
         client.audioManager.invalidateCache()
+        client.eventBus.onContentsUpdate()
     }
 
     fun applyAcousticDebugVolumePacket(volumes: List<Pair<VoxelPos, Float>>) = with(gameSession!!) {

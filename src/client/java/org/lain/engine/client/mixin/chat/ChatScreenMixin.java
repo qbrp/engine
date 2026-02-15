@@ -12,13 +12,16 @@ import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.control.KeybindsKt;
 import org.lain.engine.client.mc.MinecraftKeybindKt;
 import org.lain.engine.client.mc.render.ChatChannelsBar;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftChat;
+import org.lain.engine.client.mc.render.HandStatusButtonWidget;
 import org.lain.engine.client.mc.render.ShakingTextFieldWidget;
+import org.lain.engine.client.mixin.render.ScreenAccessor;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -76,6 +79,18 @@ public abstract class ChatScreenMixin {
         this.chatField.setChangedListener(this::onChatFieldUpdate);
         this.chatField.addFormatter(this::format);
         this.chatField.setFocusUnlocked(false);
+
+        ((ScreenAccessor) screen).engine$addDrawableChild(
+                new HandStatusButtonWidget(
+                        ClientMixinAccess.INSTANCE.getEngineClient(),
+                        screen.width - 32 - 2,
+                        screen.height - 32 - 14 - 2,
+                        32,
+                        32,
+                        Text.of("Выставить руку")
+                )
+        );
+
         return this.chatField;
     }
 

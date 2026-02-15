@@ -3,12 +3,17 @@ package org.lain.engine.client.mc
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
+import net.minecraft.client.render.entity.state.PlayerEntityRenderState
 import net.minecraft.client.util.math.MatrixStack
+import net.minecraft.entity.PlayerLikeEntity
+import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
 import org.lain.engine.client.getClientItem
 import org.lain.engine.client.mc.render.TransformationsEditorScreen
+import org.lain.engine.client.mc.render.setMainArmPose
+import org.lain.engine.client.mc.render.setMinorArmPose
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.resources.Assets
@@ -17,13 +22,8 @@ import org.lain.engine.client.resources.findAssets
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.*
 import org.lain.engine.mc.engine
-import org.lain.engine.player.Interaction
-import org.lain.engine.player.processLeftClickInteraction
-import org.lain.engine.player.setInteraction
-import org.lain.engine.util.Timestamp
-import org.lain.engine.util.get
-import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.injectValue
+import org.lain.engine.player.*
+import org.lain.engine.util.*
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.roundToInt
 import org.lwjgl.glfw.GLFW
@@ -35,9 +35,30 @@ object ClientMixinAccess {
     private var developerModeKeyPressedTick = 0L
     var chatClipboardCopyTicksElapsed = 0
 
+    fun getEngineClient() = client
+
     fun tick() {
         chatClipboardCopyTicksElapsed += 1
     }
+
+    fun updatePlayerRenderState(playerLikeEntity: PlayerLikeEntity, playerEntityRenderState: PlayerEntityRenderState, f: Float) {
+        if (playerLikeEntity !is PlayerEntity) return
+        val entityTable by injectEntityTable()
+        val enginePlayer = entityTable.client.getPlayer(playerLikeEntity) ?: return
+        val inventory = enginePlayer.require<PlayerInventory>()
+        val extends = enginePlayer.require<ArmStatus>().extend
+
+       playerEntityRenderState.setMainArmPose(
+           armPoseOf(true, extends, isGun(inventory.mainHandItem), isGunWithSelector(inventory.mainHandItem))
+       )
+        playerEntityRenderState.setMinorArmPose(
+            armPoseOf(false, extends, isGun(inventory.offHandItem), isGunWithSelector(inventory.offHandItem))
+        )
+    }
+
+    private fun isGun(item: EngineItem?) = item?.has<Gun>() == true
+
+    private fun isGunWithSelector(item: EngineItem?) = item?.get<Gun>()?.selector == false
 
     fun getEngineItem(itemStack: ItemStack): EngineItem? {
         return client.gameSession?.let {
@@ -64,8 +85,6 @@ object ClientMixinAccess {
         val engineItem = itemStack?.engine()?.getClientItem()
         client.handler.onCursorItem(engineItem)
     }
-
-    fun isGunWithSelector(item: EngineItem) = item.get<Gun>()?.selector == false
 
     fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem) {
 //        if (MinecraftClient.currentScreen is CreativeInventoryScreen) {
@@ -146,6 +165,11 @@ object ClientMixinAccess {
                     client.camera.stress(2f)
                 } else if (key == GLFW.GLFW_KEY_5) {
                     client.acousticDebug = !client.acousticDebug
+                } else if (key == GLFW.GLFW_KEY_6) {
+                    client.gameSession?.mainPlayer?.handle<ArmStatus> {
+                        extend = !extend
+                    }
+                    client.audioManager.playUiNotificationSound()
                 } else {
                     return@with false
                 }

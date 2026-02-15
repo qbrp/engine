@@ -31,6 +31,10 @@ value class ItemId(val value: String) {
 @JvmInline
 @Serializable
 value class ItemUuid(val value: String) {
+    override fun toString(): String {
+        return value
+    }
+
     companion object {
         fun next() = ItemUuid(UUID.randomUUID().toString())
     }

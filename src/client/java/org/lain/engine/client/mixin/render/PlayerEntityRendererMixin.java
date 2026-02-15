@@ -2,6 +2,7 @@ package org.lain.engine.client.mixin.render;
 
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
+import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.entity.PlayerLikeEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Arm;
@@ -11,21 +12,16 @@ import org.lain.engine.item.EngineItem;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(PlayerEntityRenderer.class)
 public class PlayerEntityRendererMixin {
     @Inject(
-            method = "getArmPose(Lnet/minecraft/entity/PlayerLikeEntity;Lnet/minecraft/item/ItemStack;Lnet/minecraft/util/Hand;)Lnet/minecraft/client/render/entity/model/BipedEntityModel$ArmPose;",
-            at = @At("HEAD"),
-            cancellable = true
+            method = "updateRenderState(Lnet/minecraft/entity/PlayerLikeEntity;Lnet/minecraft/client/render/entity/state/PlayerEntityRenderState;F)V",
+            at = @At("TAIL")
     )
-    private static void engine$getArmPose(PlayerLikeEntity player, ItemStack stack, Hand hand, CallbackInfoReturnable<BipedEntityModel.ArmPose> cir) {
-        ClientMixinAccess clientMixinAccess = ClientMixinAccess.INSTANCE;
-        EngineItem engineItem = clientMixinAccess.getEngineItem(stack);
-        if (engineItem != null && clientMixinAccess.isGunWithSelector(engineItem) && hand == Hand.MAIN_HAND) {
-            cir.setReturnValue(BipedEntityModel.ArmPose.CROSSBOW_HOLD);
-            cir.cancel();
-        }
+    public void engine$updateRenderState(PlayerLikeEntity playerLikeEntity, PlayerEntityRenderState playerEntityRenderState, float f, CallbackInfo ci) {
+        ClientMixinAccess.INSTANCE.updatePlayerRenderState(playerLikeEntity, playerEntityRenderState, f);
     }
 }

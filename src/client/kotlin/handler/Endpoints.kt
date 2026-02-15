@@ -6,6 +6,8 @@ import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.player.PlayerId
+import org.lain.engine.server.PLAYER_ARM_STATUS_SYNCHRONIZER
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.Timestamp
 
@@ -118,4 +120,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { gameSession ->
         applyAcousticDebugVolumePacket(volumes)
     }
+
+    registerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER, { it.playerStorage }, { PlayerId.fromString(it) })
 }

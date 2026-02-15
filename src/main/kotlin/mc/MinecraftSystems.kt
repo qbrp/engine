@@ -190,11 +190,19 @@ fun updatePlayerMinecraftSystems(
     val playerInventory = player.require<PlayerInventory>()
     val playerInventoryItems = playerInventory.items.toMutableList()
     val destroyItemSignal = player.get<DestroyItemSignal>()
-    var handItemSet: EngineItem? = null
+
+    val mainHandStackId = entity.mainHandStack.engine()?.uuid
+    val offHandStackId = entity.offHandStack.engine()?.uuid
+    var mainHandItem: EngineItem? = null
+    var offHandItem: EngineItem? = null
 
     for ((item, itemStack) in items) {
-        if (entity.mainHandStack.engine()?.id == item.id) {
-             handItemSet = item
+
+        if (mainHandStackId == item.uuid) {
+            mainHandItem = item
+        }
+        if (offHandStackId == item.uuid) {
+            offHandItem = item
         }
 
         item.getOrSet { HoldsBy(player.id) }
@@ -215,7 +223,8 @@ fun updatePlayerMinecraftSystems(
         }
     }
 
-    playerInventory.handItem = handItemSet
+    playerInventory.mainHandItem = mainHandItem
+    playerInventory.offHandItem = offHandItem
 
     for (removedItem in playerInventoryItems) {
         playerInventory.items.remove(removedItem)

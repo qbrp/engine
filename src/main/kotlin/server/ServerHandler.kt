@@ -91,6 +91,11 @@ class ServerHandler(
         destroy = true
     }
 
+    private fun onPlayerArmStatus(playerId: PlayerId, extend: Boolean) = updatePlayer(playerId) {
+        extendArm = extend
+        markDirty<ArmStatus>()
+    }
+
     private val typingPlayers = mutableSetOf<PlayerId>()
 
     private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) {

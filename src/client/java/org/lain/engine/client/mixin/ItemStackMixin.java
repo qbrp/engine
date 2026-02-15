@@ -85,7 +85,7 @@ public abstract class ItemStackMixin {
         EngineItem engineItem = getEngineItem((ItemStack)((Object)this));
         if (engineItem != null) {
             appendComponentTooltip(DataComponentTypes.LORE, context, displayComponent, textConsumer, type);
-            for (String line : TooltipKt.getTooltip(engineItem)) {
+            for (String line : TooltipKt.getTooltip(engineItem, type.isAdvanced())) {
                 textConsumer.accept(MinecraftUtilKt.parseMiniMessageClient(line));
             }
             ci.cancel();
