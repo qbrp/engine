@@ -30,6 +30,7 @@
     "render.ItemModelManagerMixin",
     "render.ItemRenderStateAccessor",
     "render.LayerItemRenderStateMixin",
+    "render.PlayerEntityRendererMixin",
     "resource.AtlasLoaderAccessor",
     "resource.AtlasLoaderMixin",
     "resource.BakedModelManagerMixin",
