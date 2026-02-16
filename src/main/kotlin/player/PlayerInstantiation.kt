@@ -70,7 +70,7 @@ fun serverPlayerInstance(
     }
 }
 
-fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
+private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_ARM_STATUS_SYNCHRONIZER)
     submit(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
 }

@@ -40,6 +40,7 @@
     "resource.ModelElementDeserializerMixin",
     "resource.SimpleResourceReloadMixin",
     "resource.TransformationDeserializerMixin",
+    "screen.BookEditScreenMixin",
     "ui.DownloadingTerrainScreenMixin",
     "ui.InGameHudAcessor",
     "ui.InGameHudMixin"

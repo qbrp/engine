@@ -16,6 +16,8 @@ import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.SoundPlay
 import org.lain.engine.player.*
 import org.lain.engine.server.AttributeUpdate
@@ -90,6 +92,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun onChatEndTyping() {
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.sendC2SPacket(ChatTypingEndPacket)
+    }
+
+    fun onWriteableContentsUpdate(item: ItemUuid, contents: List<String>) {
+        SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.sendC2SPacket(WriteableUpdatePacket(item, contents))
     }
 
     fun applyPlayerAttributeUpdate(

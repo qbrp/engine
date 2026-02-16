@@ -72,8 +72,9 @@ fun clientItem(world: World, item: ClientboundItemData) = itemInstance(
         item.gun,
         item.gunDisplay,
         item.tooltip,
-        mass = item.mass,
-        count = item.count
+        item.count,
+        item.mass,
+        item.writeable
     ),
 )
 

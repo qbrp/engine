@@ -11,10 +11,15 @@ import org.lain.engine.util.get
 import org.lain.engine.util.require
 import org.slf4j.LoggerFactory
 
-private val PLAYERS_DATA_DIR = ENGINE_DIR.resolve("players")
+val STORAGE_DIR = ENGINE_DIR.resolve("storage")
+    .also { it.mkdirs() }
+
+val PLAYERS_DATA_DIR = STORAGE_DIR.resolve("players")
+    .also { it.mkdirs() }
 private val PLAYERS_JSON = Json {
     prettyPrint = true
 }
+
 private val PLAYER_DATA_LOGGER = LoggerFactory.getLogger("Engine Player Data")
 
 @Serializable

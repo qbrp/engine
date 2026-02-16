@@ -9,6 +9,7 @@ import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.DeveloperModeKeysKt;
 import org.lain.engine.client.mc.KeybindManager;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
@@ -65,7 +66,7 @@ public class KeyboardMixin {
             cancellable = true
     )
     public void engine$onKey(long window, int action, KeyInput input, CallbackInfo ci) {
-        if (ClientMixinAccess.INSTANCE.onKey(input.key())) {
+        if (DeveloperModeKeysKt.onKeyDeveloperMode(input.key())) {
             ci.cancel();
         }
     }

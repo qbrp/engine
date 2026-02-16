@@ -2,13 +2,13 @@ package org.lain.engine.server
 
 import kotlinx.coroutines.*
 import org.lain.engine.chat.*
-import org.lain.engine.item.ItemStorage
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.SoundPlay
+import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.storage.backupBookContent
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.get
 import org.lain.engine.util.getOrSet
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.ImmutableVec3
@@ -84,11 +84,25 @@ class ServerHandler(
         SERVERBOUND_CHAT_TYPING_START_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingStart(ctx.sender, channel) }
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingEnd(ctx.sender) }
         SERVERBOUND_PLAYER_ARM_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
+        SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.registerReceiver { ctx -> onWriteableContentsUpdate(ctx.sender, item, contents) }
     }
 
     fun invalidate() {
         transportContext.unregisterAll()
         destroy = true
+    }
+
+    private fun onWriteableContentsUpdate(playerId: PlayerId, itemUuid: ItemUuid, contents: List<String>) = updatePlayer(playerId) {
+        val item = handItem
+        val writeable = handItem?.get<Writeable>()
+        if (item?.uuid != itemUuid || writeable == null) error("Invalid item packet")
+        if (contents.count() > writeable.pages) error("Invalid contents size")
+
+        if (writeable.contents != contents) {
+            writeable.contents = contents
+            item.markDirty<Writeable>()
+            backupBookContent(username, item.id, contents)
+        }
     }
 
     private fun onPlayerArmStatus(playerId: PlayerId, extend: Boolean) = updatePlayer(playerId) {
@@ -181,7 +195,13 @@ class ServerHandler(
             val playersToSync = playersInRadius
                 .filter { it !in state.synchronizedPlayers }
 
-            tickSynchronizationComponent(player)
+            tickSynchronizationComponent(playerStorage, player)
+            player.items.forEach { item ->
+                val component = item.get<Synchronizations<EngineItem>>()
+                if (component != null) {
+                    tickSynchronizationComponent(playerStorage, item, component)
+                }
+            }
 
             for (playerToSync in playersToSync) {
                 if (playerToSync.id != player.id) {

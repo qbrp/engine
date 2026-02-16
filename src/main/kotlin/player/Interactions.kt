@@ -30,39 +30,51 @@ fun updatePlayerInteractions(player: EnginePlayer, removeInteraction: Boolean = 
     val interaction = player.get<InteractionComponent>()?.interaction ?: return
     val handItem = player.handItem
 
-    when(interaction) {
-        Interaction.LeftClick -> {
-            if (handItem?.has<Gun>() == true) {
-                val rotationVector = player.require<Orientation>().rotationVector
-                val start = player.eyePos
-                handItem.setGunEvent(
-                    GunEvent.Shoot(
-                        GunShoot(start, rotationVector)
+    run {
+        when (interaction) {
+            Interaction.LeftClick -> {
+                if (handItem?.has<Gun>() == true) {
+                    val rotationVector = player.require<Orientation>().rotationVector
+                    val start = player.eyePos
+                    handItem.setGunEvent(
+                        GunEvent.Shoot(
+                            GunShoot(start, rotationVector)
+                        )
                     )
-                )
-            }
-        }
-        is Interaction.RightClick -> {
-            // предохранитель
-            if (handItem?.has<Gun>() == true) {
-                handItem.setGunEvent(GunEvent.SelectorToggle)
-            }
-        }
-        is Interaction.SlotClick -> {
-            val slotItem = interaction.item
-            val cursorItem = interaction.cursorItem
-
-            // Кейс 1: объединение
-            if (merge(slotItem, cursorItem)) {
-                player.require<PlayerInventory>().mainHandItem = null
+                }
             }
 
-            // Кейс 2: загрузка боеприпасов в оружие
-            slotItem.handle<Gun> {
-                val count = slotItem.gunAmmoConsumeCount(cursorItem)
-                if (count > 0) {
-                    slotItem.setGunEvent(GunEvent.BarrelAmmoLoad(count))
-                    player.set(DestroyItemSignal(cursorItem.uuid, count))
+            is Interaction.RightClick -> {
+                // Кейс 1: предохранитель
+                if (handItem?.has<Gun>() == true) {
+                    handItem.setGunEvent(GunEvent.SelectorToggle)
+                }
+
+                // Кейс 2: редактирование книги
+                handItem?.handle<Writeable> {
+                    handItem.emitPlaySoundEvent(WRITEABLE_OPEN_SOUND, EngineSoundCategory.AMBIENT, player=player)
+                    player.set(OpenBookTag)
+                }
+            }
+
+            is Interaction.SlotClick -> {
+                val slotItem = interaction.item
+                val cursorItem = interaction.cursorItem
+
+                // Кейс 1: объединение
+                if (merge(slotItem, cursorItem)) {
+                    player.require<PlayerInventory>().mainHandItem = null
+                    return@run
+                }
+
+                // Кейс 2: загрузка боеприпасов в оружие
+                slotItem.handle<Gun> {
+                    val count = slotItem.gunAmmoConsumeCount(cursorItem)
+                    if (count > 0) {
+                        slotItem.setGunEvent(GunEvent.BarrelAmmoLoad(count))
+                        player.set(DestroyItemSignal(cursorItem.uuid, count))
+                    }
+                    return@run
                 }
             }
         }

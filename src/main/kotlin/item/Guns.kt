@@ -72,8 +72,7 @@ fun EngineItem.setGunEvent(event: GunEvent) {
 
 const val BULLET_FIRE_RADIUS = 64
 
-private const val ROUND_BARREL = "round_barrel"
-private const val ROUND_BARREL_FULL = "round_barrel_full"
+private const val ROUND_BARREL_SOUND = "round_barrel"
 private const val CLICK_EMPTY_SOUND = "click_empty"
 private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
@@ -87,7 +86,7 @@ fun updateGunState(items: Set<EngineItem>) {
             when(val event = this.event) {
                 is GunEvent.BarrelAmmoLoad -> {
                     barrel.bullets = (barrel.bullets + event.count).coerceAtMost(barrel.maxBullets)
-                    item.emitPlaySoundEvent(ROUND_BARREL, EngineSoundCategory.NEUTRAL)
+                    item.emitPlaySoundEvent(ROUND_BARREL_SOUND, EngineSoundCategory.NEUTRAL)
                     gun.clicked = false
                 }
                 is GunEvent.Shoot -> {

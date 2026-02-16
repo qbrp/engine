@@ -18,11 +18,15 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.client.gui.screen.ingame.BookEditScreen
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.VertexConsumerProvider
+import net.minecraft.component.type.WritableBookContentComponent
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.text.RawFilteredPair
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
+import net.minecraft.util.Hand
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.*
 import org.lain.engine.client.mc.*
@@ -34,17 +38,21 @@ import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
+import org.lain.engine.item.OpenBookTag
+import org.lain.engine.item.Writeable
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.ENGINE_ITEM_REFERENCE_COMPONENT
 import org.lain.engine.mc.ServerMixinAccess
 import org.lain.engine.mc.updatePlayerMinecraftSystems
 import org.lain.engine.player.Interaction
 import org.lain.engine.player.OrientationTranslation
+import org.lain.engine.player.handItem
 import org.lain.engine.player.setInteraction
 import org.lain.engine.util.*
 import org.lain.engine.util.math.randomInteger
 import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
+import java.util.*
 
 class MinecraftEngineClient : ClientModInitializer {
     private val client = MinecraftClient
@@ -140,13 +148,13 @@ class MinecraftEngineClient : ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register { handler, client -> onDisconnect() }
 
         ClientTickEvents.END_CLIENT_TICK.register { client ->
-            val player = client.player
+            val entity = client.player
 
             ClientMixinAccess.tick()
             window.handleResize()
             try {
-                if (!client.isInSingleplayer && readyToAuthorize && player != null && !inAuthorization) {
-                    authorize(player)
+                if (!client.isInSingleplayer && readyToAuthorize && entity != null && !inAuthorization) {
+                    authorize(entity)
                     inAuthorization = true
                 }
 
@@ -154,7 +162,7 @@ class MinecraftEngineClient : ClientModInitializer {
 
                 engineClient.gameSession?.let { session ->
                     val mcWorld = client.world
-                    session.admin = player?.permissionLevel == 4
+                    session.admin = entity?.permissionLevel == 4
                     mcWorld?.players?.forEach { entity ->
                         val player = clientPlayerTable.getPlayer(entity) ?: run {
                             skippedPlayers += entity
@@ -175,6 +183,21 @@ class MinecraftEngineClient : ClientModInitializer {
                         }
 
                         updatePlayerMinecraftSystems(player, items, entity, world)
+
+                        player.remove<OpenBookTag>()?.let {
+                            val writeable = player.handItem?.get<Writeable>() ?: return@let
+                            client.setScreen(
+                                BookEditScreen(
+                                    entity,
+                                    entity.mainHandStack,
+                                    Hand.MAIN_HAND,
+                                    WritableBookContentComponent(
+                                        writeable.contents.map { RawFilteredPair(it, Optional.empty()) },
+                                    )
+                                )
+                            )
+                        }
+
                         if (engineClient.ticks % 20L == 0L) {
                             updateRandomEngineItemGroupIcon()
                         }

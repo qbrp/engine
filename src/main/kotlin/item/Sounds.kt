@@ -1,6 +1,7 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.Component
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.get
@@ -77,8 +78,9 @@ fun EngineItem.emitPlaySoundEvent(
     category: EngineSoundCategory,
     volume: Float = 1f,
     pitch: Float = 1f,
+    player: EnginePlayer? = null,
 ) {
     this.world.emitPlaySoundEvent(
-        WorldSoundPlayRequest.Item(this, key, category, volume, pitch)
+        WorldSoundPlayRequest.Item(this, key, category, volume, pitch, player)
     )
 }

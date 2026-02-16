@@ -6,6 +6,7 @@ import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.server.ITEM_WRITEABLE_SYNCHRONIZER
 import org.lain.engine.server.PLAYER_ARM_STATUS_SYNCHRONIZER
 import org.lain.engine.server.PLAYER_CUSTOM_NAME_SYNCHRONIZER
 import org.lain.engine.transport.packet.*
@@ -119,4 +120,5 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
+    registerItemSynchronizerEndpoint(ITEM_WRITEABLE_SYNCHRONIZER)
 }

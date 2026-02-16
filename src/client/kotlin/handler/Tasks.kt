@@ -3,6 +3,8 @@ package org.lain.engine.client.handler
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.server.ComponentSynchronizer
@@ -87,4 +89,12 @@ fun <C : Component> ClientHandler.registerPlayerSynchronizerEndpoint(
     synchronizer,
     { it.playerStorage },
     { PlayerId.fromString(it) }
+)
+
+fun <C : Component> ClientHandler.registerItemSynchronizerEndpoint(
+    synchronizer: ComponentSynchronizer<EngineItem, C>,
+) = registerSynchronizerEndpoint(
+    synchronizer,
+    { it.itemStorage },
+    { ItemUuid.fromString(it) }
 )

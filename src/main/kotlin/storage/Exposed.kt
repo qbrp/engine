@@ -48,10 +48,12 @@ suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
                 components.addIfNotNull(component.data)
             }
             is ItemData.Count -> {
-                components.addIfNotNull(Count(component.value))
+                components.add(Count(component.value))
             }
             is ItemData.Mass ->
-                components.addIfNotNull(Mass(component.value))
+                components.add(Mass(component.value))
+            is ItemData.Book ->
+                components.add(component.writeable)
         }
     }
 

@@ -22,6 +22,7 @@ data class ClientboundItemData(
     val tooltip: ItemTooltip?,
     val count: Int?,
     val mass: Mass?,
+    val writeable: Writeable?,
 ) {
     companion object {
         fun from(item: EngineItem) = ClientboundItemData(
@@ -33,9 +34,15 @@ data class ClientboundItemData(
             item.get<GunDisplay>()?.copy(),
             item.get<ItemTooltip>()?.copy(),
             item.get<Count>()?.value,
-            item.get<Mass>()?.copy()
+            item.get<Mass>()?.copy(),
+            item.get<Writeable>()?.copy()
         )
     }
 }
 
 val CLIENTBOUND_ITEM_ENDPOINT = Endpoint<ItemPacket>()
+
+@Serializable
+data class WriteableUpdatePacket(val item: ItemUuid, val contents: List<String>) : Packet
+
+val SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT = Endpoint<WriteableUpdatePacket>()

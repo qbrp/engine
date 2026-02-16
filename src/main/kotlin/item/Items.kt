@@ -3,6 +3,7 @@ package org.lain.engine.item
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.ComponentManager
 import org.lain.engine.util.ComponentState
+import org.lain.engine.util.Entity
 import org.lain.engine.util.Storage
 import java.util.*
 
@@ -16,7 +17,10 @@ data class EngineItem(
     val id: ItemId,
     val uuid: ItemUuid,
     val state: ComponentState
-) : ComponentManager by state
+) : Entity, ComponentManager by state {
+    override val stringId: String
+        get() = this.uuid.toString()
+}
 
 @JvmInline
 @Serializable
@@ -37,6 +41,7 @@ value class ItemUuid(val value: String) {
 
     companion object {
         fun next() = ItemUuid(UUID.randomUUID().toString())
+        fun fromString(string: String): ItemUuid = ItemUuid(string)
     }
 }
 

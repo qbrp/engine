@@ -113,6 +113,7 @@ fun updateServerMinecraftSystems(
         }
 
         updatePlayerMinecraftSystems(player, items.toSet(), entity, world)
+        player.remove<OpenBookTag>()
         if (entity is ServerPlayerEntity) {
             excludeEngineItemDuplicates(server, entity, player)
         }
@@ -191,13 +192,13 @@ fun updatePlayerMinecraftSystems(
     val playerInventoryItems = playerInventory.items.toMutableList()
     val destroyItemSignal = player.get<DestroyItemSignal>()
 
-    val mainHandStackId = entity.mainHandStack.engine()?.uuid
+    val mainItemStack = entity.mainHandStack
+    val mainHandStackId = mainItemStack.engine()?.uuid
     val offHandStackId = entity.offHandStack.engine()?.uuid
     var mainHandItem: EngineItem? = null
     var offHandItem: EngineItem? = null
 
     for ((item, itemStack) in items) {
-
         if (mainHandStackId == item.uuid) {
             mainHandItem = item
         }
