@@ -11,6 +11,10 @@ import java.util.*
 @JvmInline
 @Serializable(with = PlayerIdSerializer::class)
 value class PlayerId(val value: UUID) {
+    override fun toString(): String {
+        return value.toString()
+    }
+
     companion object {
         fun fromString(str: String): PlayerId = PlayerId(UUID.fromString(str))
     }

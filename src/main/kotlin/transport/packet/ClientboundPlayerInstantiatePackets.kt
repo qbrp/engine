@@ -1,6 +1,7 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.MovementStatus
@@ -118,11 +119,13 @@ data class FullPlayerPacket(
 data class FullPlayerData(
     val movementStatus: MovementStatus,
     val attributes: PlayerAttributes,
+    val armStatus: ArmStatus
 ) {
     companion object {
         fun of(player: EnginePlayer) = FullPlayerData(
             player.require(),
             player.require(),
+            player.require()
         )
     }
 }

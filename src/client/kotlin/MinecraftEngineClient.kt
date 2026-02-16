@@ -281,7 +281,11 @@ class MinecraftEngineClient : ClientModInitializer {
         }
 
         UseItemCallback.EVENT.register { player, world, hand ->
-            if (world.isClient) { engineClient.gameSession?.mainPlayer?.setInteraction(Interaction.RightClick) }
+            if (world.isClient) {
+                if (player.isMainPlayer) {
+                    engineClient.gameSession?.mainPlayer?.setInteraction(Interaction.RightClick)
+                }
+            }
             ActionResult.PASS
         }
 

@@ -1,14 +1,10 @@
 package org.lain.engine.client.control
 
-import com.daqem.yamlconfig.client.gui.screen.ConfigScreen
-import net.minecraft.item.ItemStack
 import org.lain.engine.client.mc.KeyBindModifier
 import org.lain.engine.client.mc.KeybindId
 import org.lain.engine.client.mc.KeybindSettings
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.render.TransformationsEditorScreen
 import org.lwjgl.glfw.GLFW
-import kotlin.math.PI
 
 val ADJUST_CHAT_VOLUME = KeybindSettings(
     name = "Увеличить громкость сообщения",
@@ -75,5 +71,14 @@ val TOGGLE_CHAT_SPY = KeybindSettings(
     key = GLFW.GLFW_KEY_N,
     onPress = { client ->
         client.gameSession?.chatManager?.toggleSpy()
+    }
+)
+
+val EXTEND_HAND = KeybindSettings(
+    name = "Выставить руку",
+    id = KeybindId("extend-arm"),
+    key = GLFW.GLFW_KEY_Y,
+    onPress = { client ->
+        client.gameSession?.apply { extendArm = !extendArm }
     }
 )

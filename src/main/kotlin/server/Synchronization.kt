@@ -4,7 +4,9 @@ import kotlinx.serialization.*
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.ArmStatus
+import org.lain.engine.player.DisplayName
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.customName
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
@@ -49,8 +51,9 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
     val target: SynchronizationTarget,
     val radius: Int,
     val resolver: (T, C) -> Unit,
+    val excludeEntity: Boolean = true,
     val endpoint: Endpoint<ComponentSynchronizationPacket<C>> = Endpoint(
-        componentClass.simpleName!!,
+        componentClass.simpleName!!.lowercase(),
         PacketCodec.Binary(
             {
                 val id = readString()
@@ -68,6 +71,7 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
 inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
     target: SynchronizationTarget,
     radius: Int,
+    excludeEntity: Boolean = false,
     noinline resolver: (T, C) -> Unit,
 ) = ComponentSynchronizer<T, C>(
     C::class,
@@ -80,10 +84,12 @@ inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
 
 inline fun <reified C : Component> PlayerComponentSynchronizer(
     global: Boolean = false,
+    exclude: Boolean = false,
     noinline resolver: (EnginePlayer, C) -> Unit = { player, component -> player.replace(component) },
 ) = ComponentSynchronizer(
     SynchronizationTarget.PLAYER,
     if (!global) 48 else Int.MAX_VALUE,
+    exclude,
     resolver,
 )
 
@@ -103,7 +109,11 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(entity: T, component
                     endpoint.broadcastInRadius(
                         entity.location,
                         synchronizer.radius,
-                        listOfNotNull(entity as? EnginePlayer),
+                        if (synchronizer.excludeEntity) {
+                            listOfNotNull(entity as? EnginePlayer)
+                        } else {
+                            emptyList()
+                        },
                     ) { packet }
                     state.dirty = false
                 }

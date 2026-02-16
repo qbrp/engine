@@ -43,6 +43,5 @@ class PlayerService(
         chat.trySendLeaveMessage(player)
         handler.onPlayerDestroy(player)
         savePersistentPlayerData(player)
-        player.removeAll()
     }
 }

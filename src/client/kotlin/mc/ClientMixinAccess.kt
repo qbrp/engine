@@ -1,5 +1,6 @@
 package org.lain.engine.client.mc
 
+import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
@@ -68,7 +69,6 @@ object ClientMixinAccess {
 
     fun predictItemLeftClickInteraction(): Boolean {
         val player = client.gameSession?.mainPlayer ?: return false
-        player.setInteraction(Interaction.LeftClick)
         return processLeftClickInteraction(player)
     }
 
@@ -87,9 +87,9 @@ object ClientMixinAccess {
     }
 
     fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem) {
-//        if (MinecraftClient.currentScreen is CreativeInventoryScreen) {
-//            mainPlayer?.setInteraction(Interaction.SlotClick(cursorItem, item))
-//        }
+        if (MinecraftClient.currentScreen is CreativeInventoryScreen) {
+            client.handler.onInteraction(Interaction.SlotClick(cursorItem, item))
+        }
     }
 
     fun isEngineLoaded(): Boolean {
@@ -162,10 +162,8 @@ object ClientMixinAccess {
                         ),
                     )
                 } else if (key == GLFW.GLFW_KEY_4) {
-                    client.camera.stress(2f)
-                } else if (key == GLFW.GLFW_KEY_5) {
                     client.acousticDebug = !client.acousticDebug
-                } else if (key == GLFW.GLFW_KEY_6) {
+                } else if (key == GLFW.GLFW_KEY_5) {
                     client.gameSession?.mainPlayer?.handle<ArmStatus> {
                         extend = !extend
                     }
