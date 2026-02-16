@@ -114,10 +114,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
     }
 
-    fun applyPlayerCustomName(player: EnginePlayer, customName: CustomName?) = with(player) {
-        this.customName = customName
-    }
-
     fun applyPlayerSpeedIntention(player: EnginePlayer, intention: Float) = with(player) {
         this.require<MovementStatus>().intention = intention
     }
@@ -125,6 +121,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) = with(player) {
         replaceOrSet(data.movementStatus)
         replaceOrSet(data.attributes)
+        replaceOrSet(data.armStatus)
         isLowDetailed = false
         client.eventBus.onFullPlayerData(client, id, data)
     }

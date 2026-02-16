@@ -275,15 +275,6 @@ class ServerHandler(
         )
     }
 
-    fun onPlayerCustomName(player: EnginePlayer, name: CustomName?) {
-        CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT.broadcast(
-            PlayerCustomNamePacket(
-                player.id,
-                name
-            )
-        )
-    }
-
     fun onOutcomingMessage(player: EnginePlayer, message: OutcomingMessage) {
         val source = message.source
         CLIENTBOUND_CHAT_MESSAGE_ENDPOINT

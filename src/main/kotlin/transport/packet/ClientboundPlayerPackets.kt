@@ -2,7 +2,6 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import net.minecraft.network.PacketByteBuf
-import org.lain.engine.player.CustomName
 import org.lain.engine.player.PlayerId
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
@@ -37,15 +36,6 @@ data class PlayerNotificationPacket(
 ) : Packet
 
 val CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT = Endpoint<PlayerNotificationPacket>()
-
-@Serializable
-data class PlayerCustomNamePacket(
-    val id: PlayerId,
-    val name: CustomName?
-) : Packet
-
-val CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT =
-    Endpoint<PlayerCustomNamePacket>()
 
 // Server Settings
 

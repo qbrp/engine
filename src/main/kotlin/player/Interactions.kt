@@ -17,7 +17,7 @@ sealed class Interaction {
 data class InteractionComponent(val interaction: Interaction) : Component
 
 fun EnginePlayer.setInteraction(interaction: Interaction) {
-    this.getOrSet { InteractionComponent(interaction) }
+    this.set(InteractionComponent(interaction))
 }
 
 /** @return Отменить стандартное взаимодействие */

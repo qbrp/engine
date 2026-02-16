@@ -19,53 +19,23 @@ import net.minecraft.text.Text
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.chunk.WorldChunk
-import org.lain.engine.chat.CHAT_HEADS_PERMISSION
-import org.lain.engine.chat.ChatChannel
-import org.lain.engine.chat.IncomingMessage
-import org.lain.engine.chat.MessageAuthor
-import org.lain.engine.chat.MessageSource
+import org.lain.engine.chat.*
 import org.lain.engine.item.EngineSoundCategory
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.SoundEventId
 import org.lain.engine.item.SoundPlay
-import org.lain.engine.player.CustomName
-import org.lain.engine.player.InvalidCustomNameException
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.VoiceApparatus
-import org.lain.engine.player.VoiceLoose
-import org.lain.engine.player.customName
-import org.lain.engine.player.developerMode
-import org.lain.engine.player.resetCustomJumpStrength
-import org.lain.engine.player.resetCustomSpeed
-import org.lain.engine.player.setCustomJumpStrength
-import org.lain.engine.player.setCustomSpeed
-import org.lain.engine.player.speak
-import org.lain.engine.player.stopSpectating
-import org.lain.engine.player.toggleChatHeads
-import org.lain.engine.player.username
-import org.lain.engine.util.Color
-import org.lain.engine.util.NamespaceId
-import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.Timestamp
-import org.lain.engine.util.apply
+import org.lain.engine.player.*
+import org.lain.engine.server.markDirty
+import org.lain.engine.util.*
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadContents
-import org.lain.engine.util.get
-import org.lain.engine.util.injectEngineServer
-import org.lain.engine.util.injectMinecraftEngineServer
-import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.injectItemContext
-import org.lain.engine.util.injectValue
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.util.getServerStats
-import org.lain.engine.util.text.parseMiniMessage
-import org.lain.engine.util.remove
 import org.lain.engine.util.text.displayNameMiniMessage
+import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.world.emitPlaySoundEvent
 import org.lain.engine.world.pos
 import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
-import java.lang.RuntimeException
 import java.util.concurrent.CompletableFuture
 
 typealias ServerCommandDispatcher = CommandDispatcher<ServerCommandSource>
@@ -261,6 +231,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                                 color1?.let { Color.parseString(it) } ?: Color.WHITE,
                                 color2?.let { Color.parseString(it) }
                             )
+                            player.markDirty<DisplayName>()
                         } catch (e: InvalidCustomNameException) {
                             ctx.sendError(e)
                         }

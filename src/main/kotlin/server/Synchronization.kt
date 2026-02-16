@@ -128,3 +128,4 @@ class ComponentSynchronizationPacket<C : Component>(val id: String, val componen
 // Player
 
 val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>()
+val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(true) { player, name -> player.customName = name.custom }

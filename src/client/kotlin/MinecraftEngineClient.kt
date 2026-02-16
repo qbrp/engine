@@ -181,7 +181,7 @@ class MinecraftEngineClient : ClientModInitializer {
                     }
                     renderer.tick()
                     if (mcWorld != null) {
-                        updateBulletsVisual(session.world, mcWorld, session.mainPlayer, decalsStorage)
+                        updateBulletsVisual(session.world, mcWorld, decalsStorage)
                     }
                 }
 
@@ -251,6 +251,7 @@ class MinecraftEngineClient : ClientModInitializer {
                     Decal(
                         randomInteger(16),
                         randomInteger(16),
+                        0f,
                         DecalContents.Chip(1)
                     )
                 }

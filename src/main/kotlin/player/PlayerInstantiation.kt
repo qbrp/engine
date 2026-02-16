@@ -1,10 +1,7 @@
 package org.lain.engine.player
 
 import org.lain.engine.item.EngineItem
-import org.lain.engine.server.PLAYER_ARM_STATUS_SYNCHRONIZER
-import org.lain.engine.server.PlayerSynchronizationComponent
-import org.lain.engine.server.Synchronizations
-import org.lain.engine.server.submit
+import org.lain.engine.server.*
 import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.util.Component
 import org.lain.engine.util.math.Pos
@@ -75,4 +72,5 @@ fun serverPlayerInstance(
 
 fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_ARM_STATUS_SYNCHRONIZER)
+    submit(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
 }

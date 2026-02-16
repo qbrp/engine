@@ -2,24 +2,17 @@ package org.lain.engine.client.mc
 
 import com.daqem.yamlconfig.api.config.IConfig
 import com.daqem.yamlconfig.client.gui.screen.ConfigScreen
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
-import net.minecraft.client.gui.screen.Screen
 import net.minecraft.client.option.KeyBinding
 import net.minecraft.client.util.InputUtil
-import org.lain.engine.CommonEngineServerMod
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.control.ADJUST_CHAT_VOLUME
-import org.lain.engine.client.control.ALLOW_SPEED_INTENTION_CHANGE
-import org.lain.engine.client.control.DECREASE_CHAT_VOLUME
-import org.lain.engine.client.control.DEVELOPER_MODE
-import org.lain.engine.client.control.HIDE_INTERFACE
-import org.lain.engine.client.control.RESET_CHAT_VOLUME
-import org.lain.engine.client.control.TOGGLE_CHAT_SPY
+import org.lain.engine.client.control.*
 import org.lain.engine.util.EngineId
 import org.lwjgl.glfw.GLFW
 
 fun isControlDown() = InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
+
+fun isShiftDown() = InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_SHIFT)
 
 class KeybindManager(
     private val category: KeyBinding.Category = KeyBinding.Category.create(EngineId("category")),
@@ -35,6 +28,7 @@ class KeybindManager(
         HIDE_INTERFACE.register()
         ALLOW_SPEED_INTENTION_CHANGE.register()
         TOGGLE_CHAT_SPY.register()
+        EXTEND_HAND.register()
 
         KeybindSettings(
             name = "Настройки",

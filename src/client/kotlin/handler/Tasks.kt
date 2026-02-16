@@ -80,3 +80,11 @@ fun <T : Entity, I : Any, C : Component> ClientHandler.registerSynchronizerEndpo
         synchronizer.resolver(entity, component)
     }
 }
+
+fun <C : Component> ClientHandler.registerPlayerSynchronizerEndpoint(
+    synchronizer: ComponentSynchronizer<EnginePlayer, C>,
+) = registerSynchronizerEndpoint(
+    synchronizer,
+    { it.playerStorage },
+    { PlayerId.fromString(it) }
+)

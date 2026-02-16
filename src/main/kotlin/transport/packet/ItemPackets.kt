@@ -20,7 +20,8 @@ data class ClientboundItemData(
     val gun: Gun?,
     val gunDisplay: GunDisplay?,
     val tooltip: ItemTooltip?,
-    val count: Int?
+    val count: Int?,
+    val mass: Mass?,
 ) {
     companion object {
         fun from(item: EngineItem) = ClientboundItemData(
@@ -31,7 +32,8 @@ data class ClientboundItemData(
             item.get<Gun>()?.copy(),
             item.get<GunDisplay>()?.copy(),
             item.get<ItemTooltip>()?.copy(),
-            item.get<Count>()?.value
+            item.get<Count>()?.value,
+            item.get<Mass>()?.copy()
         )
     }
 }

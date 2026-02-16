@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 sealed class PlayerUpdate {
     data class CustomSpeedAttribute(val value: AttributeUpdate) : PlayerUpdate()
     data class CustomJumpStrengthAttribute(val value: AttributeUpdate) : PlayerUpdate()
-    data class CustomName(val value: org.lain.engine.player.CustomName?) : PlayerUpdate()
     data class SpeedIntention(val value: Float) : PlayerUpdate()
 }
 
@@ -36,7 +35,6 @@ fun flushPlayerUpdates(
             when(it) {
                 is PlayerUpdate.CustomJumpStrengthAttribute -> onPlayerJumpStrengthUpdate(player, it.value)
                 is PlayerUpdate.CustomSpeedAttribute -> onPlayerCustomSpeedUpdate(player, it.value)
-                is PlayerUpdate.CustomName -> onPlayerCustomName(player, it.value)
                 is PlayerUpdate.SpeedIntention -> onPlayerSpeedIntention(player, it.value)
             }
         }

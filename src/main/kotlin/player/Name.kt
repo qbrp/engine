@@ -56,7 +56,6 @@ fun EnginePlayer.removeCustomName() {
 var EnginePlayer.customName
     get() = get<DisplayName>()?.custom
     set(value) {
-        markUpdate(PlayerUpdate.CustomName(value))
         get<DisplayName>()?.custom = value
     }
 

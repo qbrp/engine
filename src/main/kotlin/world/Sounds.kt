@@ -29,7 +29,7 @@ fun processWorldSounds(
     defaultItemSounds: Map<String, SoundEventId>,
     world: World
 ) {
-    world.events.sounds.flush { request ->
+    world.events<WorldSoundPlayRequest>().flush { request ->
         val play = when(request) {
             is WorldSoundPlayRequest.Positioned -> SoundPlay(
                 soundEventStorage.getOrSingleSound(request.eventId),
@@ -57,7 +57,7 @@ fun processWorldSounds(
 }
 
 fun World.emitPlaySoundEvent(request: WorldSoundPlayRequest) {
-    events.sounds.add(request)
+    events<WorldSoundPlayRequest>().add(request)
 }
 
 fun World.emitPlaySoundEvent(play: SoundPlay) = emitPlaySoundEvent(WorldSoundPlayRequest.Simple(play))
@@ -68,7 +68,7 @@ fun World.emitPlaySoundEvent(
     category: EngineSoundCategory,
     volume: Float = 1f,
     pitch: Float = 1f
-) = events.sounds.add(
+) = events<WorldSoundPlayRequest>().add(
     WorldSoundPlayRequest.Positioned(
         event,
         pos,

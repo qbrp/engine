@@ -6,8 +6,8 @@ import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
-import org.lain.engine.player.PlayerId
 import org.lain.engine.server.PLAYER_ARM_STATUS_SYNCHRONIZER
+import org.lain.engine.server.PLAYER_CUSTOM_NAME_SYNCHRONIZER
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.Timestamp
 
@@ -22,10 +22,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT) {
         updatePlayer(id) { applyPlayerAttributeUpdate(it, speed, jumpStrength) }
-    }
-
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_CUSTOM_NAME_ENDPOINT) {
-        updatePlayer(id) { applyPlayerCustomName(it, name) }
     }
 
     registerGameSessionReceiver(CLIENTBOUND_SPEED_INTENTION_PACKET) {
@@ -121,5 +117,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyAcousticDebugVolumePacket(volumes)
     }
 
-    registerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER, { it.playerStorage }, { PlayerId.fromString(it) })
+    registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
+    registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
 }

@@ -11,6 +11,7 @@ import org.lain.engine.util.handle
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.set
 import org.lain.engine.world.World
+import org.lain.engine.world.events
 import org.lain.engine.world.world
 
 @Serializable
@@ -57,9 +58,13 @@ data class GunShoot(val start: Vec3, val vector: Vec3) : Component
 
 data class ShootTag(
     val shoot: GunShoot,
-    val bulletMass: Float,
-    val bulletSpeed: Float,
+    val bullet: BulletParameters
 ) : Component
+
+data class BulletParameters(
+    val bulletMass: Float,
+    val bulletSpeed: Float
+)
 
 fun EngineItem.setGunEvent(event: GunEvent) {
     this.set(GunEventComponent(event))
@@ -91,7 +96,8 @@ fun updateGunState(items: Set<EngineItem>) {
                         if (barrel.bullets > 0) {
                             barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
                             item.emitPlaySoundEvent(GUNFIRE_SOUND, EngineSoundCategory.NEUTRAL)
-                            item.set(ShootTag(shoot, DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED))
+                            item.set(ShootTag(shoot, BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)))
+                            item.world.events<GunShoot>() += shoot
                         } else if (!gun.clicked) {
                             item.emitPlaySoundEvent(CLICK_EMPTY_SOUND, EngineSoundCategory.NEUTRAL)
                             gun.clicked = true
@@ -112,7 +118,7 @@ val DEFAULT_WEAPON_MASS = 2f
 val DEFAULT_BULLET_MASS = 0.004f
 val DEFAULT_BULLET_SPEED = 800f
 
-val ShootTag.recoilSpeed get() = bulletMass * bulletSpeed / DEFAULT_WEAPON_MASS
+val BulletParameters.recoilSpeed get() = bulletMass * bulletSpeed / DEFAULT_WEAPON_MASS
 
 fun handleGunShotTags(
     player: EnginePlayer,
@@ -121,7 +127,7 @@ fun handleGunShotTags(
 ) {
     items.forEach { item ->
         val shootTag = item.get<ShootTag>() ?: return@forEach
-        player.translateRotation(pitch =(shootTag.recoilSpeed * 1.4427f))
+        player.translateRotation(pitch = -(shootTag.bullet.recoilSpeed * 3f))
         item.removeComponent(shootTag)
     }
 }

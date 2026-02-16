@@ -6,7 +6,7 @@ import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.*
-import org.lain.engine.client.render.handleItemShakes
+import org.lain.engine.client.render.handleBulletFireShakes
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.item.handleGunShotTags
 import org.lain.engine.item.supplyPlayerInventoryItemsLocation
@@ -19,10 +19,7 @@ import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.handle
 import org.lain.engine.util.has
 import org.lain.engine.util.remove
-import org.lain.engine.world.VoxelPos
-import org.lain.engine.world.World
-import org.lain.engine.world.events
-import org.lain.engine.world.pos
+import org.lain.engine.world.*
 
 class GameSession(
     val server: ServerId,
@@ -94,7 +91,7 @@ class GameSession(
                 player.isLowDetailed = true
             }
 
-            handleItemShakes(player, playerItems)
+            handleBulletFireShakes(client.camera, world, playerItems)
             handleGunShotTags(player, playerItems)
 
             player.handle<ShakeScreenComponent> {
@@ -102,11 +99,15 @@ class GameSession(
                 player.remove<ShakeScreenComponent>()
             }
 
-            player.remove<InteractionComponent>()?.let { handler.onInteraction(it.interaction) }
+            player.remove<InteractionComponent>()?.let {
+                if (player == mainPlayer && it.interaction !is Interaction.SlotClick) {
+                    handler.onInteraction(it.interaction)
+                }
+            }
         }
 
         chatBubbleList.cleanup()
-        world.events.sounds.clear()
+        world.events<WorldSoundPlayRequest>().clear()
     }
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {
