@@ -13,15 +13,14 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.ChatBarConfiguration
 import org.lain.engine.client.chat.ChatFormatSettings
 import org.lain.engine.client.render.WARNING
-import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.server.ServerId
+import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.getBuiltinResource
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.io.writeText
 
 fun getServerFile(serverId: ServerId) = ENGINE_DIR
     .resolve(serverId.value)
@@ -80,9 +79,8 @@ typealias AssetPacker = () -> Asset
 
 class Assets(val source: SourceFile) {
     val directory = source.file
-    val autogenerationItemAssets = source.resolve("autogenerate.yml")
-        ?.yaml<AutoGenerationList>()
-        ?: AutoGenerationList()
+    val spriteAtlases = source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules()
+    val autogenerationItemAssets = source.resolve("autogenerate.yml")?.yaml<AutoGenerationList>() ?: AutoGenerationList()
 
     fun getAsset(relative: String): Asset? {
         val relative = File(relative)
@@ -142,7 +140,6 @@ private fun bakeResourceContext(gameSession: GameSession?): ResourceContext {
 
 private val CHAT_BAR_CONFIG = OverridableResource("chat-bar.yml")
 private val FORMAT_CONFIG = OverridableResource("format.yml")
-private val ITEM_GROUPS = OverridableResource("item-groups.yml")
 private val ASSETS = OverridableResource("assets", true)
 
 class ResourceManager(

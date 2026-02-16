@@ -1,15 +1,13 @@
 package org.lain.engine.client.resources
 
 import com.mojang.serialization.MapCodec
+import kotlinx.serialization.Serializable
 import net.minecraft.client.texture.NativeImage
 import net.minecraft.client.texture.SpriteContents
 import net.minecraft.client.texture.SpriteDimensions
 import net.minecraft.client.texture.atlas.AtlasSource
 import net.minecraft.resource.ResourceManager
-import net.minecraft.resource.metadata.ResourceMetadata
 import net.minecraft.util.Identifier
-import org.lain.engine.client.mc.ClientMixinAccess
-import org.lain.engine.util.EngineId
 import org.lain.engine.util.Timestamp
 
 /**
@@ -21,13 +19,22 @@ data class EngineTexture(val asset: Asset) {
         .toEngineIdentifier()
 }
 
-class EngineAtlasSource(val resources: ResourceList) : AtlasSource {
+/**
+ * Правила загрузки атласов - по каким директорием в какие атласы загружать текстуры.
+ */
+@Serializable
+data class SpriteAtlasRules(
+    val default: String = "blocks",
+    val directories: Map<String, String> = mapOf()
+)
+
+class EngineAtlasSource(val textures: List<EngineTexture>) : AtlasSource {
     override fun load(
         resourceManager: ResourceManager,
         regions: AtlasSource.SpriteRegions
     ) {
         val start = Timestamp()
-        resources.textureAssets.forEach { texture ->
+        textures.forEach { texture ->
             val id = texture.registrationId
             regions.add(id) { openSprite(id, texture.asset) }
         }
@@ -47,6 +54,7 @@ class EngineAtlasSource(val resources: ResourceList) : AtlasSource {
             val width = nativeImage.width
             val height = nativeImage.height
             val spriteDimensions = SpriteDimensions(width, height)
+            input.close()
             return SpriteContents(id, spriteDimensions, nativeImage)
         }
     }

@@ -13,6 +13,8 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.resources.EngineAtlasSource;
+import org.lain.engine.client.resources.EngineTexture;
+import org.lain.engine.client.resources.ResourceList;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,6 +23,7 @@ import org.spongepowered.asm.mixin.Shadow;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Mixin(AtlasLoader.class)
@@ -37,9 +40,16 @@ public class AtlasLoaderMixin {
     public static AtlasLoader of(ResourceManager resourceManager, Identifier id) {
         Identifier identifier = FINDER.toResourcePath(id);
         ArrayList<AtlasSource> list = new ArrayList<AtlasSource>();
-        if (Objects.equals(identifier.getPath(), "atlases/blocks.json")) {
-            list.add(new EngineAtlasSource(ClientMixinAccess.INSTANCE.getResourceList()));
+        ResourceList resourceList = ClientMixinAccess.INSTANCE.getResourceList();
+        List<EngineTexture> atlasTextures = resourceList.getTextureAssets().get(
+                id.getPath().replace("atlases/", "").replace(".json", "")
+        );
+
+        if (atlasTextures != null) {
+            list.add(new EngineAtlasSource(atlasTextures));
+            LOGGER.info("Атлас {} дополнен {} текстурами Engine", id, atlasTextures.size());
         }
+
         for (Resource resource : resourceManager.getAllResources(identifier)) {
             try {
                 BufferedReader bufferedReader = resource.getReader();
