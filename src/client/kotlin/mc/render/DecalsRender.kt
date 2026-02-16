@@ -16,14 +16,14 @@ import net.minecraft.world.chunk.Chunk
 import org.joml.Vector3f
 import org.lain.engine.mc.BLOCK_DECALS_ATTACHMENT_TYPE
 import org.lain.engine.mc.setBlockDecals
-import org.lain.engine.mc.toMinecraft
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.alsoForEach
 import org.lain.engine.world.BlockDecals
 import org.lain.engine.world.DecalContents
 import org.lain.engine.world.DecalsLayer
 import org.lain.engine.world.Direction
-import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 typealias ChunkBlockDecals = MutableMap<BlockPos, BlockDecals>
 
@@ -124,6 +124,16 @@ class DecalsLayerTexture(val blockPos: BlockPos) : AutoCloseable {
     // Полная развёртка всех сторон блока
     private val texture = NativeImageBackedTexture("Block Decals ${blockPos.toShortString()}", 48, 32, true)
     val id = EngineId("decals/${blockPos.x}/${blockPos.y}/${blockPos.z}")
+    val depths = mutableMapOf<Direction, MutableMap<Float, Area>>()
+
+    data class Area(var x1: Int, var y1: Int, var x2: Int, var y2: Int) {
+        fun stretch(x: Int, y: Int) {
+            x2 = max(x, x2)
+            x1 = min(x, x1)
+            y2 = max(y, y2)
+            y1 = min(y, y1)
+        }
+    }
 
     override fun close() {
         texture.close()
@@ -139,23 +149,45 @@ class DecalsLayerTexture(val blockPos: BlockPos) : AutoCloseable {
         for ((direction, decals) in layer.directions) {
             val (x0, y0) = direction.getStartPos()
 
+            val depthAreas = depths.getOrPut(direction) { mutableMapOf() }
+
             for (decal in decals) {
+                val depthArea = depthAreas.getOrPut(decal.depth) {
+                    Area(
+                        Int.MAX_VALUE,
+                        Int.MAX_VALUE,
+                        Int.MIN_VALUE,
+                        Int.MIN_VALUE
+                    )
+                }
+
                 when(val contents = decal.contents) {
                     is DecalContents.Chip -> {
                         val radius = contents.radius
                         val halfRadius = radius / 2
-                        val (x0, y0) = x0 - halfRadius to y0 - halfRadius
+                        val (pX0, pY0) = x0 - halfRadius to y0 - halfRadius
 
                         repeat(radius) { i ->
                             repeat(radius) { j ->
-                                val px = x0 + decal.x - halfRadius + i
-                                val py = y0 + decal.y - halfRadius + j
+                                val px = pX0 + decal.x - halfRadius + i
+                                val py = pY0 + decal.y - halfRadius + j
                                 if (px in 0 until 48 && py in 0 until 32) {
                                     image.setColorArgb(px, py, Colors.BLACK)
+                                    depthArea.stretch(
+                                        px - x0,
+                                        py - y0,
+                                    )
                                 }
                             }
                         }
                     }
+                }
+
+                depthArea.apply {
+                    x1 = (x1 - 1).coerceIn(0, 16)
+                    y1 = (y1 - 1).coerceIn(0, 16)
+                    x2 = (x2 + 1).coerceIn(0, 16)
+                    y2 = (y2 + 1).coerceIn(0, 16)
                 }
             }
         }
@@ -181,49 +213,75 @@ fun renderBlockDecals(texture: DecalsLayerTexture, blockPos: BlockPos, matrices:
     matrices.pop()
 }
 
-private fun OrderedRenderCommandQueue.drawSide(layerTexture: DecalsLayerTexture, matrices: MatrixStack, side: Direction) {
+private fun OrderedRenderCommandQueue.drawSide(
+    layerTexture: DecalsLayerTexture,
+    matrices: MatrixStack,
+    side: Direction
+) {
     val (x0, y0) = side.getStartPos()
-    val u0 = x0.toFloat() / 48f
-    val v0 = y0.toFloat() / 32f
-    val u1 = (x0 + 16).toFloat() / 48f
-    val v1 = (y0 + 16).toFloat() / 32f
     val light = LightmapTextureManager.MAX_LIGHT_COORDINATE
     val normal = side.normal.let { Vector3f(it.x, it.y, it.z) }
     val epsilon = 0.001f
+    val depthMap = layerTexture.depths[side] ?: return
 
-    submitCustom(matrices, RenderLayer.getEntityCutoutNoCull(layerTexture.id)) { entry, vc ->
-        fun submitVertex(x: Float, y: Float, z: Float, u: Float, v: Float) {
-            vc
-                .vertex(entry, x + (normal.x * epsilon), y + (normal.y * epsilon), z + + (normal.z * epsilon))
-                .texture(u, v)
-                .overlay(OverlayTexture.DEFAULT_UV)
-                .color(Colors.WHITE)
-                .light(light)
-                .normal(entry, normal)
-        }
+    depthMap.forEach { depth, area ->
 
-        when (side) {
-            Direction.UP, Direction.DOWN -> {
-                val y = if (side == Direction.UP) 1f else 0f
-                submitVertex(0f, y, 0f, u0, v0)
-                submitVertex(0f, y, 1f, u0, v1)
-                submitVertex(1f, y, 1f, u1, v1)
-                submitVertex(1f, y, 0f, u1, v0)
+        // UV
+        val u0 = (x0 + area.x1) / 48f
+        val v0 = (y0 + area.y1) / 32f
+        val u1 = (x0 + area.x2) / 48f
+        val v1 = (y0 + area.y2) / 32f
+
+        // ЛОКАЛЬНЫЕ координаты на стороне (0..1)
+        val px0 = area.x1 / 16f
+        val py0 = area.y1 / 16f
+        val px1 = area.x2 / 16f
+        val py1 = area.y2 / 16f
+
+        submitCustom(matrices, RenderLayer.getEntityCutoutNoCull(layerTexture.id)) { entry, vc ->
+            fun submitVertex(x: Float, y: Float, z: Float, u: Float, v: Float) {
+                vc.vertex(
+                    entry,
+                    x + normal.x * (epsilon - depth),
+                    y + normal.y * (epsilon - depth),
+                    z + normal.z * (epsilon - depth)
+                )
+                    .texture(u, v)
+                    .overlay(OverlayTexture.DEFAULT_UV)
+                    .color(Colors.WHITE)
+                    .light(light)
+                    .normal(entry, normal)
             }
-            Direction.NORTH, Direction.SOUTH -> {
-                val z = if (side == Direction.NORTH) 0f else 1f
-                submitVertex(0f, 0f, z, u0, v0)
-                submitVertex(0f, 1f, z, u0, v1)
-                submitVertex(1f, 1f, z, u1, v1)
-                submitVertex(1f, 0f, z, u1, v0)
-            }
-            Direction.EAST, Direction.WEST -> {
-                val x = if (side == Direction.EAST) 1f else 0f
-                submitVertex(x, 0f, 0f, u0, v0)
-                submitVertex(x, 1f, 0f, u0, v1)
-                submitVertex(x, 1f, 1f, u1, v1)
-                submitVertex(x, 0f, 1f, u1, v0)
+
+            when (side) {
+                Direction.UP, Direction.DOWN -> {
+                    val y = if (side == Direction.UP) 1f else 0f
+
+                    submitVertex(px0, y, py0, u0, v0)
+                    submitVertex(px0, y, py1, u0, v1)
+                    submitVertex(px1, y, py1, u1, v1)
+                    submitVertex(px1, y, py0, u1, v0)
+                }
+
+                Direction.NORTH, Direction.SOUTH -> {
+                    val z = if (side == Direction.NORTH) 0f else 1f
+
+                    submitVertex(px0, py0, z, u0, v0)
+                    submitVertex(px0, py1, z, u0, v1)
+                    submitVertex(px1, py1, z, u1, v1)
+                    submitVertex(px1, py0, z, u1, v0)
+                }
+
+                Direction.EAST, Direction.WEST -> {
+                    val x = if (side == Direction.EAST) 1f else 0f
+
+                    submitVertex(x, py0, px0, u0, v0)
+                    submitVertex(x, py1, px0, u0, v1)
+                    submitVertex(x, py1, px1, u1, v1)
+                    submitVertex(x, py0, px1, u1, v0)
+                }
             }
         }
     }
 }
+

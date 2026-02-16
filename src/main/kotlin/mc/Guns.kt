@@ -65,24 +65,30 @@ fun addBulletDecal(chunk: Chunk, blockPos: BlockPos, pos: Pos, direction: Direct
     val localY = pos.y - blockPos.y
     val localZ = pos.z - blockPos.z
 
-    val (u0, v0) = when (direction) {
-        Direction.UP, Direction.DOWN ->
-            localX to localZ
-
-        Direction.NORTH, Direction.SOUTH ->
-            localX to localY
-
-        Direction.EAST, Direction.WEST ->
-            localZ to localY
-    }
     val (u, v) = when (direction) {
-        Direction.NORTH -> (1.0f - u0) to v0
-        Direction.WEST  -> (1.0f - u0) to v0
-        Direction.DOWN  -> u0 to (1.0f - v0)
-        else -> u0 to v0
+        Direction.UP    -> localX to localZ
+        Direction.DOWN  -> localX to localZ
+
+        Direction.NORTH -> localX to localY
+        Direction.SOUTH -> localX to localY
+
+        Direction.WEST  -> localZ to localY
+        Direction.EAST  -> localZ to localY
     }
 
-    val decal = Decal((u * 16).toInt(), (v * 16).toInt(), DecalContents.Chip(1))
+    val depth = when (direction) {
+        Direction.DOWN  -> localY          // грань Y = 0
+        Direction.UP    -> 1f - localY     // грань Y = 1
+
+        Direction.NORTH -> localZ          // грань Z = 0
+        Direction.SOUTH -> 1f - localZ     // грань Z = 1
+
+        Direction.WEST  -> localX          // грань X = 0
+        Direction.EAST  -> 1f - localX     // грань X = 1
+    }
+
+
+    val decal = Decal((u * 16).toInt(), (v * 16).toInt(), depth, DecalContents.Chip(1))
 
     chunk.updateBlockDecals(blockPos) { decals ->
         decals?.let {
@@ -110,7 +116,7 @@ fun addBulletDecal(chunk: Chunk, blockPos: BlockPos, pos: Pos, direction: Direct
 fun updateBullets(
     world: World,
     mcWorld: ServerWorld,
-) = world.events.shoots.flush { event ->
+) = world.events<GunShoot>().flush { event ->
     val hitResult = raycastBulletEvent(mcWorld, event) ?: return@flush
     val blockPos = hitResult.blockPos
     val pos = hitResult.pos

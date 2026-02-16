@@ -2,7 +2,7 @@ package org.lain.engine.world
 
 import org.lain.engine.util.math.Vec3
 
-data class Decal(val x: Int, val y: Int, val contents: DecalContents)
+data class Decal(val x: Int, val y: Int, val depth: Float, val contents: DecalContents)
 
 sealed class DecalContents {
     data class Chip(val radius: Int) : DecalContents()

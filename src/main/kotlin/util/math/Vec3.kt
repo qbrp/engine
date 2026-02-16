@@ -94,6 +94,28 @@ interface Vec3 : Pos {
         val dz = z - to.z
         return dx * dx + dy * dy + dz * dz
     }
+
+    fun distance(vec: Pos): Float {
+        val d = vec.x - this.x;
+        val e = vec.y - this.y;
+        val f = vec.z - this.z;
+        return sqrt(d * d + e * e + f * f);
+    }
+
+    fun div(v: Vec3): Vec3 {
+        return div(v, MutableVec3(this))
+    }
+
+    fun div(v: Vec3, dest: MutableVec3): Vec3 {
+        dest.x = x / v.x
+        dest.y = y / v.y
+        dest.z = z / v.z
+        return dest
+    }
+
+    fun div(scalar: Float): Vec3 {
+        return Vec3(this.x / scalar, this.y / scalar, this.z / scalar)
+    }
 }
 
 fun Vec3(x: Float) = ImmutableVec3(x, x, x)

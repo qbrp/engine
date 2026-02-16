@@ -15,16 +15,7 @@ import net.minecraft.network.codec.PacketDecoder
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.util.EngineId
-import org.lain.engine.world.BlockDecals
-import org.lain.engine.world.Decal
-import org.lain.engine.world.DecalContents
-import org.lain.engine.world.Decals
-import org.lain.engine.world.DecalsLayer
-import org.lain.engine.world.Direction
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.iterator
-import kotlin.collections.set
+import org.lain.engine.world.*
 
 private val BLOCK_HINT_CODEC: Codec<BlockHint> =
     RecordCodecBuilder.create { inst ->
@@ -142,6 +133,7 @@ val DECAL_CODEC: Codec<Decal> =
         inst.group(
             Codec.INT.fieldOf("x").forGetter(Decal::x),
             Codec.INT.fieldOf("y").forGetter(Decal::y),
+            Codec.FLOAT.fieldOf("depth").forGetter(Decal::depth),
             DECAL_CONTENTS_CODEC.fieldOf("contents").forGetter(Decal::contents)
         ).apply(inst, ::Decal)
     }
@@ -207,6 +199,7 @@ val DECAL_PACKET_CODEC =
     PacketCodec.tuple(
         PacketCodecs.INTEGER, Decal::x,
         PacketCodecs.INTEGER, Decal::y,
+        PacketCodecs.FLOAT, Decal::depth,
         DECAL_CONTENTS_PACKET_CODEC, Decal::contents,
         ::Decal
     )
