@@ -95,7 +95,6 @@ class GameSession(
             handleGunShotTags(player, playerItems)
 
             player.handle<ShakeScreenComponent> {
-                client.camera.stress(stress)
                 player.remove<ShakeScreenComponent>()
             }
 

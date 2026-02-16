@@ -106,6 +106,9 @@ dependencies {
     compileOnly("org.jetbrains.exposed:exposed-core:1.0.0")
     compileOnly("org.jetbrains.exposed:exposed-jdbc:1.0.0")
     compileOnly("org.xerial:sqlite-jdbc:3.51.1.0")
+
+    // Camera Overhaul совместимость
+    modCompileOnly("maven.modrinth:cameraoverhaul:y8OOuYdV")
 }
 
 tasks.test {
