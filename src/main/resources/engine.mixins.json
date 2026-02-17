@@ -6,6 +6,7 @@
   "mixins": [
     "BlockItemMixin",
     "BlockMixin",
+    "ChunkDataSenderMixin",
     "ItemFrameEntityMixin",
     "ItemStackMixin",
     "LivingEntityMixin",

@@ -12,12 +12,12 @@ import org.lain.engine.util.Component
  * @param contents Текст на страницах
  * @param backgroundAsset Идентификатор ассета, используемый для рисования фона
  */
-data class Writeable(
+data class Writable(
     val pages: Int,
     var contents: List<String>,
     val backgroundAsset: String? = null,
 ) : Component
 
-const val WRITEABLE_OPEN_SOUND = "writeable_open"
+const val WRITEABLE_OPEN_SOUND = "writable_open"
 
 object OpenBookTag : Component

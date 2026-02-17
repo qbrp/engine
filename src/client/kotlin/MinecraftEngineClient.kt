@@ -39,15 +39,12 @@ import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.item.OpenBookTag
-import org.lain.engine.item.Writeable
-import org.lain.engine.mc.DisconnectText
-import org.lain.engine.mc.ENGINE_ITEM_REFERENCE_COMPONENT
-import org.lain.engine.mc.ServerMixinAccess
-import org.lain.engine.mc.updatePlayerMinecraftSystems
+import org.lain.engine.item.Writable
+import org.lain.engine.mc.*
 import org.lain.engine.player.Interaction
+import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.OrientationTranslation
 import org.lain.engine.player.handItem
-import org.lain.engine.player.setInteraction
 import org.lain.engine.util.*
 import org.lain.engine.util.math.randomInteger
 import org.lain.engine.world.*
@@ -68,7 +65,7 @@ class MinecraftEngineClient : ClientModInitializer {
     val uiRenderPipeline = EngineUiRenderPipeline(client, fontRenderer)
 
     private val decalsStorage: ChunkDecalsStorage = ChunkDecalsStorage()
-    private val eventBus = MinecraftEngineClientEventBus(client, clientPlayerTable, decalsStorage, chunks)
+    private val eventBus = MinecraftEngineClientEventBus(client, clientPlayerTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
         window,
@@ -98,7 +95,11 @@ class MinecraftEngineClient : ClientModInitializer {
         Injector.register(keybindManager)
 
         ServerMixinAccess.blockRemovedCallback = { chunk, blockPos ->
-            client.execute { decalsStorage.update(chunk, blockPos) }
+            client.execute {
+                val pos = ImmutableVoxelPos(blockPos.engine())
+                engineClient.gameSession?.world?.chunkStorage?.removeVoxel(pos)
+                decalsStorage.unloadTexture(pos)
+            }
         }
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, env ->
@@ -120,17 +121,7 @@ class MinecraftEngineClient : ClientModInitializer {
                 onDisconnect()
             }
 
-            if (client.isInSingleplayer) {
-                val server = server ?: throw RuntimeException("Server not started")
-                val engine = server.engine
-                val player = serverMinecraftPlayerInstance(server, entity, entity.engineId)
-                CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                    prepareServerMinecraftPlayer(server, entity, player)
-                    engine.execute {
-                        engine.playerService.instantiate(player)
-                    }
-                }
-            } else {
+            if (!client.isInSingleplayer) {
                 Injector.register<ClientTransportContext>(ClientMinecraftNetwork())
             }
 
@@ -153,22 +144,24 @@ class MinecraftEngineClient : ClientModInitializer {
             ClientMixinAccess.tick()
             window.handleResize()
             try {
-                if (!client.isInSingleplayer && readyToAuthorize && entity != null && !inAuthorization) {
+                if (readyToAuthorize && entity != null && !inAuthorization) {
                     authorize(entity)
                     inAuthorization = true
                 }
 
                 val skippedPlayers = mutableListOf<PlayerEntity>()
+                val gameSession = engineClient.gameSession
 
-                engineClient.gameSession?.let { session ->
+                gameSession?.let { session ->
                     val mcWorld = client.world
                     session.admin = entity?.permissionLevel == 4
                     mcWorld?.players?.forEach { entity ->
+                        val world = session.world
+
                         val player = clientPlayerTable.getPlayer(entity) ?: run {
                             skippedPlayers += entity
                             return@forEach
                         }
-                        val world = session.world
                         val itemStacks = (entity.inventory + entity.currentScreenHandler.cursorStack).toSet()
                         val items = itemStacks.mapNotNull { itemStack ->
                             val reference = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT) ?: return@mapNotNull null
@@ -176,35 +169,38 @@ class MinecraftEngineClient : ClientModInitializer {
                             item to itemStack
                         }.toSet()
 
-                        player.apply<OrientationTranslation> {
-                            if (yaw != 0f || pitch != 0f) {
-                                camera.impulse(-yaw, -pitch)
-                            }
-                        }
-
                         updatePlayerMinecraftSystems(player, items, entity, world)
 
                         player.remove<OpenBookTag>()?.let {
-                            val writeable = player.handItem?.get<Writeable>() ?: return@let
-                            client.setScreen(
-                                BookEditScreen(
-                                    entity,
-                                    entity.mainHandStack,
-                                    Hand.MAIN_HAND,
-                                    WritableBookContentComponent(
-                                        writeable.contents.map { RawFilteredPair(it, Optional.empty()) },
+                            if (player == gameSession.mainPlayer) {
+                                val writable = player.handItem?.get<Writable>() ?: return@let
+                                client.setScreen(
+                                    BookEditScreen(
+                                        entity,
+                                        entity.mainHandStack,
+                                        Hand.MAIN_HAND,
+                                        WritableBookContentComponent(
+                                            writable.contents.map { RawFilteredPair(it, Optional.empty()) },
+                                        )
                                     )
                                 )
-                            )
+                            }
                         }
 
                         if (engineClient.ticks % 20L == 0L) {
                             updateRandomEngineItemGroupIcon()
                         }
                     }
+
+                    gameSession.mainPlayer.apply<OrientationTranslation> {
+                        if (yaw != 0f || pitch != 0f) {
+                            camera.impulse(-yaw, -pitch)
+                        }
+                    }
+
                     renderer.tick()
                     if (mcWorld != null) {
-                        updateBulletsVisual(session.world, mcWorld, decalsStorage)
+                        updateBulletsVisual(session.world, mcWorld)
                     }
                 }
 
@@ -214,6 +210,12 @@ class MinecraftEngineClient : ClientModInitializer {
 
                 engineClient.tick()
                 keybindManager.tick(engineClient)
+
+                if (gameSession != null) {
+                    handleDecalsAttaches(gameSession.world)
+                    decalsStorage.handleDecalsEvent(gameSession.world)
+                }
+
             } catch (e: Throwable) {
                 connectionLogger.error("При тике Engine возникла ошибка: ", e)
                 client.networkHandler?.connection?.disconnect(DisconnectText(e.message ?: "Unknown error")) ?: run {
@@ -253,14 +255,15 @@ class MinecraftEngineClient : ClientModInitializer {
             val matrices = context.matrices()
             val queue = context.commandQueue()
             val camera = context.gameRenderer().camera
-            val images = decalsStorage.getBlockImages()
+            val images = decalsStorage.getBlockImages(
+                engineClient.gameSession?.mainPlayer?.pos ?: return@register,
+                MinecraftClient.options.viewDistance.value
+            )
+
             matrices.push()
             matrices.translate(camera.pos.negate())
             for ((pos, image) in images) {
-                val (chunkPos, blockPos) = pos.first to pos.second
-                for (layer in image.layers) {
-                    renderBlockDecals(layer, blockPos, matrices, queue)
-                }
+                renderBlockDecals(image.gameTexture, pos, matrices, queue)
             }
             matrices.pop()
         }
@@ -269,26 +272,22 @@ class MinecraftEngineClient : ClientModInitializer {
         UseBlockCallback.EVENT.register { entity, world, hand, result ->
             if (world.isClient && engineClient.developerMode && isControlDown()) {
                 val pos = result.blockPos
-                val chunk = world.getChunk(pos)
                 val decals = List(10) {
                     Decal(
                         randomInteger(16),
                         randomInteger(16),
                         0f,
-                        DecalContents.Chip(1)
+                        DecalContents.Chip(1, 1f)
                     )
                 }
-                decalsStorage.modify(
-                    chunk,
-                    pos,
+                decalsStorage.updateTexture(
                     BlockDecals(
                         debugDecalsVersion++,
-                        listOf(
-                            DecalsLayer(
-                                Direction.entries.associateWith { decals }
-                            )
+                        mapOf(
+                            BULLET_DAMAGE_DECALS_LAYER to DecalsLayer(Direction.entries.associateWith { decals })
                         )
-                    )
+                    ),
+                    ImmutableVoxelPos(pos.engine())
                 )
             }
             ActionResult.PASS
@@ -296,18 +295,13 @@ class MinecraftEngineClient : ClientModInitializer {
 
         ClientChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
             chunks -= chunk
-            decalsStorage.unload(chunk.pos)
-        }
-
-        ClientChunkEvents.CHUNK_LOAD.register { world, chunk ->
-            chunks += chunk
-            decalsStorage.survey(chunk)
+            decalsStorage.unloadTextures(chunk.pos.engine())
         }
 
         UseItemCallback.EVENT.register { player, world, hand ->
             if (world.isClient) {
                 if (player.isMainPlayer) {
-                    engineClient.gameSession?.mainPlayer?.setInteraction(Interaction.RightClick)
+                    engineClient.gameSession?.mainPlayer?.getOrSet { InteractionComponent(Interaction.RightClick) }
                 }
             }
             ActionResult.PASS
@@ -364,7 +358,7 @@ class MinecraftEngineClient : ClientModInitializer {
     private fun onDisconnect() = client.execute {
         uiRenderPipeline.invalidate()
         entityTable.client.invalidate()
-        decalsStorage.clear()
+        decalsStorage.unload()
 
         if (engineClient.gameSessionActive) {
             engineClient.leaveGameSession()
@@ -375,13 +369,25 @@ class MinecraftEngineClient : ClientModInitializer {
         connectionLogger.info("Игрок отключен от сервера Engine")
     }
 
-    private fun authorize(player: ClientPlayerEntity) {
+    private fun authorize(entity: ClientPlayerEntity) {
+        if (client.isInSingleplayer) {
+            val server = server ?: throw RuntimeException("Server not started")
+            val engine = server.engine
+            val player = serverMinecraftPlayerInstance(server, entity, entity.engineId)
+            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                prepareServerMinecraftPlayer(server, entity, player)
+                engine.execute {
+                    engine.playerService.instantiate(player)
+                }
+            }
+        } else {
         SERVERBOUND_AUTH_ENDPOINT
             .sendC2SPacket(
                 AuthPacket(
-                    MinecraftUsername(player),
+                    MinecraftUsername(entity),
                     fabricLoader.allMods.map { it.metadata.id }
                 )
             )
+        }
     }
 }

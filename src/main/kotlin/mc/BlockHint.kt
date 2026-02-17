@@ -1,10 +1,11 @@
 package org.lain.engine.mc
 
+import kotlinx.serialization.Serializable
 import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.chunk.WorldChunk
-import kotlin.collections.plus
 
+@Serializable
 data class BlockHint(
     val title: String,
     val texts: MutableList<String> = mutableListOf()

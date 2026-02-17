@@ -6,11 +6,12 @@ import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
-import org.lain.engine.server.ITEM_WRITEABLE_SYNCHRONIZER
+import org.lain.engine.server.ITEM_Writable_SYNCHRONIZER
 import org.lain.engine.server.PLAYER_ARM_STATUS_SYNCHRONIZER
 import org.lain.engine.server.PLAYER_CUSTOM_NAME_SYNCHRONIZER
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.Timestamp
+import org.lain.engine.world.EngineChunk
 
 fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler, ) {
     clientAcknowledgeHandler.run()
@@ -101,7 +102,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         updatePlayer(playerId) {
             applyInteractionPacket(
                 it,
-                interaction.toDomain(gameSession.itemStorage) ?: return@updatePlayer
+                interaction.toDomain(gameSession.itemStorage, { error("Рассинхронизация: предмет $it") })!!
             )
         }
     }
@@ -118,7 +119,15 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyAcousticDebugVolumePacket(volumes)
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_VOXEL_UPDATE_ENDPOINT) { gameSession ->
+        applyVoxelUpdate(voxelPos, decals, hint)
+    }
+
+    CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { ctx ->
+        taskExecutor.add("chunk-load") { applyChunkPacket(pos, EngineChunk(decals.toMutableMap(), hints.toMutableMap())) }
+    }
+
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
-    registerItemSynchronizerEndpoint(ITEM_WRITEABLE_SYNCHRONIZER)
+    registerItemSynchronizerEndpoint(ITEM_Writable_SYNCHRONIZER)
 }

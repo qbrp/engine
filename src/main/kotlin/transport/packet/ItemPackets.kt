@@ -22,7 +22,7 @@ data class ClientboundItemData(
     val tooltip: ItemTooltip?,
     val count: Int?,
     val mass: Mass?,
-    val writeable: Writeable?,
+    val writable: Writable?,
 ) {
     companion object {
         fun from(item: EngineItem) = ClientboundItemData(
@@ -35,7 +35,7 @@ data class ClientboundItemData(
             item.get<ItemTooltip>()?.copy(),
             item.get<Count>()?.value,
             item.get<Mass>()?.copy(),
-            item.get<Writeable>()?.copy()
+            item.get<Writable>()?.copy()
         )
     }
 }

@@ -16,17 +16,18 @@ import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.SoundPlay
+import org.lain.engine.mc.BlockHint
 import org.lain.engine.player.*
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
-import org.lain.engine.world.VoxelPos
+import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.*
 
 typealias Update = EnginePlayer.() -> Unit
 
@@ -47,7 +48,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun tick() {
+        gameSession?.playerStorage?.forEach {
+            if (!it.has<InteractionComponent>()) {
+                val interaction = it.get<InteractionQueueComponent>()?.interactions?.poll() ?: return@forEach
+                it.setInteraction(interaction)
+            }
+        }
         taskExecutor.flush()
+        clientAcknowledgeHandler.tick()
     }
 
     fun onArmStatusUpdate(extend: Boolean) {
@@ -149,7 +157,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         if (client.gameSession != null) {
             error("Игровая сессия уже запущена!")
         }
-        val world = clientWorld(worldData)
+        val world = clientWorld(worldData, ChunkStorage())
         val gameSession = GameSession(
             data.serverId,
             world,
@@ -234,8 +242,15 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
     }
 
-    fun applyInteractionPacket(player: EnginePlayer, interaction: Interaction) = with(gameSession!!) {
-        player.setInteraction(interaction)
+    data class InteractionQueueComponent(val interactions: Queue<Interaction>) : Component
+
+    fun applyInteractionPacket(player: EnginePlayer, interaction: Interaction): Unit = with(gameSession!!) {
+        player.getOrSet { InteractionQueueComponent(LinkedList()) }.apply {
+            interactions.add(interaction)
+            if (interactions.count() > 1) {
+                LOGGER.warn("Взаимодействия присылаются слишком быстро! $interaction для $player отложено")
+            }
+        }
     }
 
     fun applyPlaySoundPacket(play: SoundPlay) {
@@ -250,6 +265,24 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     fun applyAcousticDebugVolumePacket(volumes: List<Pair<VoxelPos, Float>>) = with(gameSession!!) {
         acousticDebugVolumes = volumes
         eventBus.onAcousticDebugVolumes(volumes, this)
+    }
+
+    private val pendingChunks: Queue<Pair<EngineChunkPos, EngineChunk>> = LinkedList()
+
+    fun applyChunkPacket(pos: EngineChunkPos, chunk: EngineChunk) {
+        val session = gameSession
+        if (session == null) {
+            pendingChunks.add(pos to chunk)
+        } else {
+            if (pendingChunks.isNotEmpty()) {
+                pendingChunks.flush { session.loadChunk(it.first, it.second) }
+            }
+            session.loadChunk(pos, chunk)
+        }
+    }
+
+    fun applyVoxelUpdate(pos: VoxelPos, decals: BlockDecals? = null, hint: BlockHint?) = with(gameSession!!) {
+        world.setDecals(pos, decals)
     }
 
     companion object {

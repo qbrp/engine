@@ -11,6 +11,7 @@ import org.lain.engine.util.Component
 import org.lain.engine.util.getOrSet
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.set
+import org.lain.engine.world.ChunkStorage
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldEvents
@@ -74,10 +75,10 @@ fun clientItem(world: World, item: ClientboundItemData) = itemInstance(
         item.tooltip,
         item.count,
         item.mass,
-        item.writeable
+        item.writable
     ),
 )
 
-fun clientWorld(data: ClientboundWorldData) = World(data.id).apply {
+fun clientWorld(data: ClientboundWorldData, chunkStorage: ChunkStorage) = World(data.id, chunkStorage).apply {
     set(WorldEvents())
 }

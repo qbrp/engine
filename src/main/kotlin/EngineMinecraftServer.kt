@@ -6,6 +6,7 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.util.WorldSavePath
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
@@ -20,10 +21,11 @@ import org.lain.engine.server.ServerEventListener
 import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
-import org.lain.engine.util.MinecraftRaycastProvider
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
+import org.lain.engine.util.require
+import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.location
 import org.lain.engine.world.world
 
@@ -36,7 +38,7 @@ data class EngineMinecraftServerDependencies(
     val acousticSimulator: MinecraftAcousticManager = MinecraftAcousticManager(entityTable, acousticSceneBank, acousticBlockData),
 )
 
-abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies, ) : ServerEventListener {
+abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies) : ServerEventListener {
     val minecraftServer = dependencies.minecraftServer
     val database = connectDatabase(minecraftServer)
     protected val playerStorage = dependencies.playerStorage
@@ -45,7 +47,14 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     val entityTable = dependencies.entityTable.server
     val itemContext = EngineItemContext()
     val acousticSimulator = dependencies.acousticSimulator
-    val engine = EngineServer(config.server, playerStorage, acousticSimulator, this, minecraftServer.thread)
+    val engine = EngineServer(
+        config.server,
+        playerStorage,
+        acousticSimulator,
+        this,
+        minecraftServer.thread,
+        minecraftServer.getSavePath(WorldSavePath.ROOT).toFile()
+    )
 
     private val autosaveTimer = ItemAutosaveTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database)
     private val unloadTimer = UnloadInactiveItemsTimer(config.itemAutosavePeriod / 2 * 1000, engine.itemStorage, database, engine)
@@ -99,13 +108,16 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     open fun disable() = runBlocking {
-        database.saveItems(engine.itemStorage.getAll())
+        database.saveItemPersistentDataBatch(engine.itemStorage.getAll().mapPersistentData())
         engine.stop()
     }
 
     open fun onJoinPlayer(entity: ServerPlayerEntity) {}
 
     open fun onLeavePlayer(entity: ServerPlayerEntity) {
+        if (entity.networkHandler.isConnectionOpen) {
+            return
+        }
         val player = entityTable.getPlayer(entity) ?: return
         engine.playerService.destroy(player)
         entityTable.removePlayer(entity)
@@ -121,6 +133,10 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     fun onBlockBreak(pos: BlockPos, world: World) {
         acousticSimulator.removeBlock(pos, world)
+        val world = engine.getWorld(world.engine)
+        val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
+        world.chunkStorage.removeVoxel(voxelPos)
+        engine.handler.onVoxelDestroy(world, voxelPos)
     }
 
     fun onBlockAdd(block: BlockState, pos: BlockPos, world: World) {
@@ -132,7 +148,11 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     fun onChunkUnload(world: World, chunk: Chunk) {
+        val pos = chunk.pos.engine()
         acousticSimulator.onChunkUnload(world.engine, chunk)
+        engine.handler.onChunkUnload(pos)
+        val engineChunk = engine.getWorld(world).chunkStorage.getChunk(pos) ?: return
+        saveChunk(engine, pos, engineChunk.decals.toMap(), engineChunk.hints.toMap())
     }
 }
 
@@ -172,15 +192,15 @@ fun serverMinecraftPlayerInstance(
 }
 
 suspend fun prepareServerMinecraftPlayer(server: EngineMinecraftServer, entity: PlayerEntity, player: EnginePlayer) = withContext(Dispatchers.IO) {
-    val awaits = mutableListOf<Job>()
+    val items = mutableListOf<Deferred<EngineItem?>>()
     for (itemStack in entity.inventory.mainStacks) {
         val reference = itemStack.engine() ?: continue
         if (reference.getItem() == null) {
-            awaits += launch {
-                server.loadItemStack(itemStack, player)
-            }
+            items.add(
+                async { server.loadItemStack(itemStack, player) }
+            )
         }
     }
 
-    awaits.joinAll()
+    player.require<PlayerInventory>().items.addAll(items.awaitAll().filterNotNull())
 }

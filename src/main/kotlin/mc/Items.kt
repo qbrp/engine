@@ -7,20 +7,20 @@ import net.minecraft.component.ComponentType
 import net.minecraft.component.DataComponentTypes
 import net.minecraft.component.type.EquippableComponent
 import net.minecraft.component.type.LoreComponent
-import net.minecraft.component.type.WritableBookContentComponent
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.EquipmentSlot
 import net.minecraft.item.ItemStack
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
-import net.minecraft.text.RawFilteredPair
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.Unit
-import org.lain.engine.item.*
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemUuid
+import org.lain.engine.item.name
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.handle
 import org.lain.engine.util.injectItemAccess
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.*
@@ -174,15 +174,9 @@ const val CURRENT_ITEM_VERSION = 1
 
 // 0 - до механики предметов, не нужно детачить
 data class EngineItemReferenceComponent(val id: ItemId, val uuid: ItemUuid, val version: Int) {
-    var cachedItem: EngineItem? = null
-
     fun getItem(): EngineItem? {
-        return cachedItem ?: run {
-            val itemStorage by injectItemAccess()
-            val item = itemStorage.getItem(uuid)
-            cachedItem = item
-            item
-        }
+        val itemStorage by injectItemAccess()
+        return itemStorage.getItem(uuid)
     }
 }
 

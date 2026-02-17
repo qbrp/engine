@@ -6,10 +6,7 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.*
 import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.resources.ResourceManager
-import org.lain.engine.client.util.EngineAudioManager
-import org.lain.engine.client.util.EngineOptions
-import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
+import org.lain.engine.client.util.*
 import org.lain.engine.player.developerMode
 import org.lain.engine.util.DEV_MODE_COLOR
 import org.lain.engine.util.SPECTATOR_MODE_COLOR
@@ -25,6 +22,7 @@ class EngineClient(
 ) {
     lateinit var options: EngineOptions
     lateinit var thread: Thread
+    var savedState: SavedState? = null
     val handler = ClientHandler(this, eventBus)
     val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
@@ -134,6 +132,7 @@ class EngineClient(
 
     fun leaveGameSession() {
         val gameSession = gameSession ?: error("Game session is not active")
+        savedState = SavedState(gameSession.server, gameSession.world.chunkStorage)
         gameSession.destroy()
         this.gameSession = null
     }

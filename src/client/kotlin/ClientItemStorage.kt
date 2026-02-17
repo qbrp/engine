@@ -16,10 +16,6 @@ class ClientItemStorage : Storage<ItemUuid, EngineItem>(), ItemAccess {
 fun injectClientItemStorage() = inject<ClientItemStorage>()
 
 fun EngineItemReferenceComponent.getClientItem(): EngineItem? {
-    return cachedItem ?: run {
-        val itemStorage by injectClientItemStorage()
-        val item = itemStorage.get(uuid)
-        cachedItem = item
-        item
-    }
+    val itemStorage by injectClientItemStorage()
+    return itemStorage.get(uuid)
 }

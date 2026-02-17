@@ -49,8 +49,8 @@ sealed class PacketInteractionData {
             LeftClick -> Interaction.LeftClick
             RightClick -> Interaction.RightClick
             is SlotClick -> Interaction.SlotClick(
-                itemStorage.get(cursorItem) ?: return null,
-                itemStorage.get(item) ?: return null,
+                itemStorage.get(cursorItem) ?: run { notFound(cursorItem); return null },
+                itemStorage.get(item) ?: run { notFound(item); return null },
             )
         }
     }

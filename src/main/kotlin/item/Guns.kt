@@ -78,7 +78,7 @@ private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
 
 // Вызывается на клиенте (для предсказания) и сервере
-fun updateGunState(items: Set<EngineItem>) {
+fun updateGunState(items: Collection<EngineItem>) {
     for (item in items) { // Кейс 1: загрузка боеприпасов в оружие
         val gun = item.get<Gun>() ?: continue
         val barrel = gun.barrel

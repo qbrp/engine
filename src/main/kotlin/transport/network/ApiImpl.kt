@@ -7,6 +7,7 @@ import org.lain.engine.mc.unregisterServerReceiverInternal
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerStorage
+import org.lain.engine.server.DesynchronizationException
 import org.lain.engine.transport.*
 
 class ServerNetworkTransport(
@@ -34,7 +35,11 @@ class ServerNetworkTransport(
     }
 
     override fun executeOnThread(runnable: () -> Unit) {
-        server.execute { runnable() }
+        if (server.isOnThread()) {
+            runnable()
+        } else {
+            server.execute(runnable)
+        }
     }
 
     override fun unregisterAll() {
@@ -61,7 +66,11 @@ class ServerNetworkTransport(
 
                 if (fail != null) {
                     fail.printStackTrace()
-                    connectionManager.disconnect(session, fail.message ?: "Неизвестная ошибка")
+                    val message = when(fail) {
+                        is DesynchronizationException -> "Рассинхронизация: ${fail.message!!}.<newline>Перезайдите в игру. В случае, если ошибка продолжает появляться, свяжитесь с администраторами"
+                        else -> fail.message ?: "Неизвестная ошибка"
+                    }
+                    connectionManager.disconnect(session, message)
                 }
             }
         }

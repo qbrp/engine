@@ -172,7 +172,7 @@ fun compileContents(namespaces: Map<NamespaceId, NamespaceContents> = loadNamesp
                             config.tooltip?.let { ItemTooltip(it) },
                             if (config.stackable == true) properties.maxStackSize else null,
                             config.mass?.let { Mass(it) },
-                            config.writeable?.let { Writeable(it.pages, listOf(), it.texture) },
+                            config.writable?.let { Writable(it.pages, listOf(), it.texture) },
                             sounds = config.sounds?.let { component ->
                                 ItemSounds(
                                     component.mapValues { SoundEventId(it.value.replaceToRelative(namespace)) }

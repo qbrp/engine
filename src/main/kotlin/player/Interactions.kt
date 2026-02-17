@@ -51,7 +51,7 @@ fun updatePlayerInteractions(player: EnginePlayer, removeInteraction: Boolean = 
                 }
 
                 // Кейс 2: редактирование книги
-                handItem?.handle<Writeable> {
+                handItem?.handle<Writable> {
                     handItem.emitPlaySoundEvent(WRITEABLE_OPEN_SOUND, EngineSoundCategory.AMBIENT, player=player)
                     player.set(OpenBookTag)
                 }

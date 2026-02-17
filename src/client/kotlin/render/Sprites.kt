@@ -7,6 +7,7 @@ val WARNING = EngineSprite("textures/icon/warning.png", 32)
 val CD = EngineSprite("textures/icon/cd.png", 32)
 val VOICE_WARNING = EngineSprite("textures/icon/voice_warning.png", 32)
 val VOICE_BROKEN = EngineSprite("textures/icon/voice_broken.png", 32)
+val HAND = EngineSprite("textures/icon/hand.png", 32)
 
 // 16x16
 val EXCLAMATION_RED = EngineSprite("textures/icon/exclamation_red.png", 16)

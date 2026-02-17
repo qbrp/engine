@@ -1,6 +1,9 @@
 package org.lain.engine.server
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.lain.engine.chat.*
 import org.lain.engine.item.*
 import org.lain.engine.player.*
@@ -9,13 +12,12 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.get
-import org.lain.engine.util.getOrSet
+import org.lain.engine.util.has
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.util.require
 import org.lain.engine.world.*
-import java.lang.Runnable
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
 
@@ -30,6 +32,10 @@ enum class Notification {
     VOICE_TIREDNESS,
     FREECAM,
 }
+
+class DesynchronizationException(message: String) : RuntimeException(message)
+
+fun desync(message: String): Nothing = throw DesynchronizationException(message)
 
 class ServerHandler(
     private val server: EngineServer,
@@ -62,7 +68,7 @@ class ServerHandler(
     }
 
     private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) {
-        server.playerStorage.get(id)?.update()
+        server.playerStorage.get(id)?.update() ?: desync("Игрок не находится на сервере")
     }
 
     private fun getPlayer(id: PlayerId): EnginePlayer? {
@@ -94,13 +100,13 @@ class ServerHandler(
 
     private fun onWriteableContentsUpdate(playerId: PlayerId, itemUuid: ItemUuid, contents: List<String>) = updatePlayer(playerId) {
         val item = handItem
-        val writeable = handItem?.get<Writeable>()
-        if (item?.uuid != itemUuid || writeable == null) error("Invalid item packet")
-        if (contents.count() > writeable.pages) error("Invalid contents size")
+        val writable = handItem?.get<Writable>()
+        if (item?.uuid != itemUuid || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
+        if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
 
-        if (writeable.contents != contents) {
-            writeable.contents = contents
-            item.markDirty<Writeable>()
+        if (writable.contents != contents) {
+            writable.contents = contents
+            item.markDirty<Writable>()
             backupBookContent(username, item.id, contents)
         }
     }
@@ -112,13 +118,13 @@ class ServerHandler(
 
     private val typingPlayers = mutableSetOf<PlayerId>()
 
-    private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) {
-        val player = server.playerStorage.get(player) ?: error("Player $player not found")
+    private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) = updatePlayer(player) {
+        val player = this
         val channel = server.chat.getChannel(channelId)
         val acoustic = channel.acoustic
 
         if (!channel.typeIndicator || acoustic == null) {
-            return
+            return@updatePlayer
         }
 
         typingPlayers.add(player.id)
@@ -143,7 +149,11 @@ class ServerHandler(
     }
 
     private fun onPlayerVolume(player: PlayerId, volume: Float) = updatePlayer(player) {
-        this.require<VoiceApparatus>().inputVolume = volume
+        val settings = require<DefaultPlayerAttributes>()
+        if (volume > settings.maxVolume || volume < settings.minVolume) {
+            desync("Недопустимый уровень громкости")
+        }
+        require<VoiceApparatus>().inputVolume = volume
     }
 
     private fun onPlayerSpeedIntentionSet(player: PlayerId, value: Float) = updatePlayer(player) {
@@ -163,14 +173,22 @@ class ServerHandler(
 
     private fun onPlayerInteraction(playerId: PlayerId, interaction: PacketInteractionData) = updatePlayer(playerId) {
         val interaction = interaction.toDomain(itemStorage) ?: return@updatePlayer
-        getOrSet { InteractionComponent(interaction) }
+        if (has<InteractionComponent>()) {
+            desync("Слишком частая отправка пакетов взаимодействия")
+        }
+        setInteraction(interaction)
     }
 
+    // FIXME: Искать предметы по инвентарю игрока, а не глобально
     private fun onPlayerCursorItem(playerId: PlayerId, itemId: ItemUuid?) = updatePlayer(playerId) {
-        // FIXME: Искать предметы по инвентарю игрока, а не глобально
-        require<PlayerInventory>().cursorItem = itemId?.let {
-            itemStorage.get(it) ?: error("Item $itemId not found")
+        val item = itemId?.let {
+            val result = itemStorage.get(it) ?: desync("Установленный курсором предмет $itemId не найден")
+            if (result.owner != null && result.owner != playerId) {
+                desync("Захвачен чужой предмет")
+            }
+            result
         }
+        require<PlayerInventory>().cursorItem = item
     }
 
     private fun onChatMessageDelete(by: PlayerId, messageId: MessageId) {
@@ -192,8 +210,6 @@ class ServerHandler(
             val state = player.synchronization
             val location = player.location
             val playersInRadius = filterNearestPlayers(location, globals.playerSynchronizationRadius, players)
-            val playersToSync = playersInRadius
-                .filter { it !in state.synchronizedPlayers }
 
             tickSynchronizationComponent(playerStorage, player)
             player.items.forEach { item ->
@@ -203,54 +219,74 @@ class ServerHandler(
                 }
             }
 
-            for (playerToSync in playersToSync) {
-                if (playerToSync.id != player.id) {
-                    state.synchronizedPlayers += playerToSync
+            val items: MutableList<ItemUuid> = mutableListOf()
+            for (playerInRadius in playersInRadius) {
+                if (playerInRadius !in state.players && playerInRadius.id != player.id) {
+                    state.players += playerInRadius
 
                     // Игрок будет кикнут, если состояние синхронизации не придёт
                     coroutineScope.launch {
                         CLIENTBOUND_FULL_PLAYER_ENDPOINT
-                            .sendS2C(
+                            .taskS2C(
                                 FullPlayerPacket(
-                                    playerToSync.id,
-                                    FullPlayerData.of(playerToSync)
+                                    playerInRadius.id,
+                                    FullPlayerData.of(playerInRadius)
                                 ),
                                 player.id
                             )
+                            .send()
+                            .withAcknowledge()
+                            .onTimeoutServerThread { state.players -= playerInRadius }
+                            .run()
                     }
                 }
 
-                coroutineScope.launch {
-                    val awaits = mutableListOf<Job>()
-                    for (item in playerToSync.items) {
-                        if (item.uuid !in state.synchronizedItems) {
-                            awaits += coroutineScope.launch {
-                                CLIENTBOUND_ITEM_ENDPOINT.taskS2C(
-                                    ItemPacket(ClientboundItemData.from(item)),
-                                    player.id
-                                )
-                                    .send()
-                                    .requestAcknowledge()
-                            }
-                            state.synchronizedItems += item.uuid
+                for (item in playerInRadius.items) {
+                    items.add(item.uuid)
+                    if (item.uuid !in state.items) {
+                        state.items += item.uuid
+                        val packet = ItemPacket(ClientboundItemData.from(item))
+                        coroutineScope.launch {
+                            CLIENTBOUND_ITEM_ENDPOINT.taskS2C(
+                                packet,
+                                player.id
+                            )
+                                .send()
+                                .withAcknowledge()
+                                .onTimeoutServerThread { state.items -= item.uuid }
+                                .run()
                         }
                     }
-                    awaits.joinAll()
                 }
             }
 
-            state.synchronizedPlayers.removeIf { it !in playersInRadius }
+            state.players.removeIf { it !in playersInRadius }
+            state.items.removeIf { it !in items }
         }
     }
 
-    fun onPlayerInteraction(player: EnginePlayer, interaction: Interaction) {
-        CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastExcluding(
-            exclude = listOf(player),
-            PlayerInteractionPacket(
-                player.id,
-                PacketInteractionData.from(interaction)
-            )
+    fun onChunkSend(chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer) {
+        CLIENTBOUND_CHUNK_ENDPOINT.sendS2C(
+            EngineChunkPacket(
+                pos,
+                chunk.decals.mapKeys { (k, v) -> ImmutableVoxelPos(k) },
+                chunk.hints.mapKeys { (k, v) -> ImmutableVoxelPos(k) }
+            ),
+            player.id
         )
+        player.synchronization.chunks += pos
+    }
+
+    fun onPlayerInteraction(player: EnginePlayer, interaction: Interaction) {
+        val packet = PlayerInteractionPacket(
+            player.id,
+            PacketInteractionData.from(interaction)
+        )
+        CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastInRadius(
+            player.location,
+            playerSynchronizationRadius,
+            exclude = listOf(player)
+        ) { packet }
     }
 
     fun onContentsUpdate() {
@@ -345,6 +381,7 @@ class ServerHandler(
         }
 
         coroutineScope.launch {
+            val synchronization = player.synchronization
             CLIENTBOUND_JOIN_GAME_ENDPOINT
                 .taskS2C(
                     JoinGamePacket(
@@ -355,8 +392,13 @@ class ServerHandler(
                     playerId
                 )
                 .send()
-                .requestAcknowledge()
-            server.execute { player.synchronization.authorized = true }
+                .withAcknowledge()
+                .onTimeoutServerThread { synchronization.disconnect = true }
+                .run()
+            server.execute {
+                synchronization.items.addAll(player.items.map { it.uuid })
+                synchronization.authorized = true
+            }
         }
     }
 
@@ -364,6 +406,15 @@ class ServerHandler(
         CLIENTBOUND_PLAYER_DESTROY_ENDPOINT.broadcast(
             PlayerDestroyPacket(player.id)
         )
+        playerStorage.forEach { it.synchronization.players.remove(player) }
+    }
+
+    fun onItemsBatchDestroy(item: List<ItemUuid>) {
+        playerStorage.forEach { it.synchronization.items.removeAll(item) }
+    }
+
+    fun onChunkUnload(chunk: EngineChunkPos) {
+        playerStorage.forEach { it.synchronization.chunks.remove(chunk) }
     }
 
     fun onServerSettingsUpdate() {
@@ -381,6 +432,20 @@ class ServerHandler(
         )
     }
 
+    fun onVoxelDestroy(world: World, voxelPos: ImmutableVoxelPos) {
+//        val packet = DestroyVoxelPacket(voxelPos)
+//        CLIENTBOUND_VOXEL_DESTROY_ENDPOINT.broadcastOutSimulationRadius(world, voxelPos) { packet }
+    }
+
+    fun onVoxelDecalsUpdate(world: World, voxelPos: VoxelPos) {
+        val packet = VoxelUpdatePacket(
+            ImmutableVoxelPos(voxelPos),
+            world.chunkStorage.getDecals(voxelPos),
+            null
+        )
+        CLIENTBOUND_VOXEL_UPDATE_ENDPOINT.broadcastOutSimulationRadius(world, voxelPos) { packet }
+    }
+
     fun <P : Packet> Endpoint<P>.broadcastExcluding(
         exclude: List<EnginePlayer> = emptyList(),
         packet: P
@@ -388,6 +453,18 @@ class ServerHandler(
         for (player in playerStorage) {
             if (player !in exclude) {
                 sendS2C(packet, player.id)
+            }
+        }
+    }
+
+    fun <P : Packet> Endpoint<P>.broadcastOutSimulationRadius(
+        world: World,
+        pos: VoxelPos,
+        packet: (EnginePlayer) -> P
+    ) {
+        for (player in playerStorage) {
+            if (player.world == world && player.pos.squaredDistanceTo(pos) >= playerSynchronizationRadius * playerSynchronizationRadius) {
+                sendS2C(packet(player), player.id)
             }
         }
     }

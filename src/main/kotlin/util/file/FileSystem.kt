@@ -26,7 +26,7 @@ fun updateOldFileNaming() {
         CONFIG_LOGGER.warn("Файл старого формата engine/items переименован в engine/contents")
     }
     if (players.exists()) {
-        players.copyTo(PLAYERS_DATA_DIR)
+        runCatching { players.copyTo(PLAYERS_DATA_DIR) }
         players.deleteRecursively()
         CONFIG_LOGGER.warn("Данные игроков файла старого формата engine/players скопированы в engine/storage/players")
     }

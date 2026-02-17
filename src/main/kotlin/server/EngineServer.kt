@@ -8,10 +8,8 @@ import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.flush
-import org.lain.engine.world.Location
-import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
-import org.lain.engine.world.processWorldSounds
+import org.lain.engine.world.*
+import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class EngineServer(
@@ -20,8 +18,9 @@ class EngineServer(
     val acousticSimulator: AcousticSimulator,
     val eventListener: ServerEventListener,
     val thread: Thread,
+    savePath: File,
 ) {
-    val globals: ServerGlobals = ServerGlobals(id)
+    val globals: ServerGlobals = ServerGlobals(id, savePath=savePath)
     val handler = ServerHandler(this)
 
     private val taskQueue = ConcurrentLinkedQueue<Runnable>()
@@ -68,6 +67,9 @@ class EngineServer(
         tickTimes.add(start.timeElapsed().toInt())
         worlds.values.forEach { world ->
             processWorldSounds(handler, soundEventStorage, globals.defaultItemSounds, world)
+            handleDecalsAttaches(world)
+            broadcastDecalsAttachments(handler, world)
+            world.events<DecalEvent>().clear()
         }
     }
 

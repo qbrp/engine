@@ -14,7 +14,11 @@ import org.lain.engine.world.Location
 
 fun connectDatabase(server: MinecraftServer): Database {
     val path = server.getSavePath(WorldSavePath.ROOT)
-    val database = Database.connect("jdbc:sqlite:$path/engine.db")
+    val oldEngineDbFile = path.toFile().resolve("engine.db")
+    if (oldEngineDbFile.exists()) {
+        oldEngineDbFile.renameTo(path.toFile().resolve("engine-players.db"))
+    }
+    val database = Database.connect("jdbc:sqlite:$path/engine-players.db")
     transaction { SchemaUtils.create(ItemsTable) }
     return database
 }
@@ -53,7 +57,7 @@ suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
             is ItemData.Mass ->
                 components.add(Mass(component.value))
             is ItemData.Book ->
-                components.add(component.writeable)
+                components.add(component.writable)
         }
     }
 

@@ -1,8 +1,6 @@
 package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
-import net.minecraft.client.gui.screen.TitleScreen
-import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen
 import org.lain.engine.client.transport.ClientContext
 import org.lain.engine.client.transport.ClientPacketHandler
 import org.lain.engine.client.transport.ClientTransportContext
@@ -34,7 +32,7 @@ class ClientMinecraftNetwork : ClientTransportContext {
             packetHistory.add(payload.packetId)
             val client = context.client()
             val packet = payload.packet
-            //println("Принят пакет $packet, ID: ${payload.packetId}")
+            println("Принят пакет $packet, ID: ${payload.packetId}")
 
             client.execute {
                 if (client.world == null) return@execute

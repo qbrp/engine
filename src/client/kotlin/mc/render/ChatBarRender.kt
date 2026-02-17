@@ -5,12 +5,15 @@ import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder
 import net.minecraft.client.gui.widget.ClickableWidget
 import net.minecraft.text.Text
+import net.minecraft.util.Colors
+import net.minecraft.util.math.ColorHelper
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.ChatBarSection
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.render.EXCLAMATION_RED
+import org.lain.engine.client.render.HAND
 import org.lain.engine.client.render.MENTION
 import org.lain.engine.client.render.Rect2
 import org.lain.engine.player.extendArm
@@ -23,11 +26,22 @@ class HandStatusButtonWidget(val client: EngineClient, x: Int, y: Int, width: In
         mouseY: Int,
         deltaTicks: Float
     ) {
-        var color = MinecraftClient.options.getTextBackgroundColor(Int.MIN_VALUE)
-        if (client.gameSession?.mainPlayer?.extendArm == true || isMouseOver(mouseX.toDouble(), mouseY.toDouble())) {
-            color = Color(color).blend(Color.WHITE, 0.8f).integer
+        var alpha = 0.5f
+        if (client.gameSession?.mainPlayer?.extendArm == true) {
+            alpha += 0.4f
         }
-        context.fill(x, y, width + x, height + y, color)
+        if (isMouseOver(mouseX.toDouble(), mouseY.toDouble())) {
+            alpha += 0.1f
+        }
+        context.fill(x, y, width + x, height + y, MinecraftClient.options.getTextBackgroundColor(Int.MIN_VALUE))
+        context.drawEngineSprite(
+            HAND,
+            x.toFloat(),
+            y.toFloat(),
+            width.toFloat(),
+            height.toFloat(),
+            Color(ColorHelper.withAlpha(alpha, Colors.WHITE))
+        )
     }
 
     override fun onClick(click: Click, doubled: Boolean) {

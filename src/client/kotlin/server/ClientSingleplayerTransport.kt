@@ -8,6 +8,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.*
+import org.lain.engine.transport.packet.EngineChunkPacket
 import org.lain.engine.transport.packet.JoinGamePacket
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.nextId
@@ -97,7 +98,7 @@ class ServerSingleplayerTransport(
         player: PlayerId,
         id: Long
     ) {
-        if (player == mainPlayer?.id || packet is JoinGamePacket) {
+        if (player == mainPlayer?.id || packet is JoinGamePacket || packet is EngineChunkPacket) {
             CommonSingleplayerEndpointRegistry.invoke(endpoint, Side.CLIENT, packet, id)
         }
     }

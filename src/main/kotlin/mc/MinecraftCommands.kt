@@ -538,7 +538,7 @@ class NamespacedIdProvider<K, V>(
     val storageProvider: () -> NamespacedStorage<K, V>,
     val includeNamespaces: Boolean = true
 ) : SuggestionProvider<ServerCommandSource> {
-    val identifiers by lazy { if (includeNamespaces) storageProvider().identifiers else storageProvider().entries.keys.map { it.toString() } }
+    val identifiers get() = if (includeNamespaces) storageProvider().identifiers else storageProvider().entries.keys
 
     override fun getSuggestions(
         context: CommandContext<ServerCommandSource>,
@@ -546,14 +546,17 @@ class NamespacedIdProvider<K, V>(
     ): CompletableFuture<Suggestions> {
         val input = builder.remainingLowerCase.replace(""""""", "")
         identifiers
-            .filter { it.startsWith(input) || it.split("/").any { it.startsWith(input) } }
+            .map { it.toString() }
+            .filter {
+                it.startsWith(input) || it.split("/").any { it.startsWith(input) }
+            }
             .forEach { builder.suggest('"' + it + '"') }
         return builder.buildFuture()
     }
 }
 
 /**
- * Регистрация команды типа `/<название> <содержание>`, отправляющий содержание в чат-канал
+ * Регистрация команды типа `/<название> <содержание>`, отправляющий содержание в чат-каналs
  * @param name Название команды (/команда)
  * @param channel В какой канал будет отправляться `содержание`
  * @param argument Название аргумента команды

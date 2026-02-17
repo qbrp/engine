@@ -51,6 +51,11 @@ fun clampDelta(cur: Float, end: Float, threshold: Float): Float {
     }
 }
 
+fun floorToInt(float: Float): Int {
+    val i = float.toInt()
+    return if (float < i.toDouble()) i - 1 else i
+}
+
 fun roundToInt(float: Float): Int = round(float).toInt()
 
 fun roundToInt(double: Double): Int = round(double).toInt()

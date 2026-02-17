@@ -6,6 +6,7 @@ import org.lain.engine.util.ComponentState
 import org.lain.engine.util.Entity
 import org.lain.engine.util.Storage
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * # Предмет модификации
@@ -46,6 +47,8 @@ value class ItemUuid(val value: String) {
 }
 
 class ItemStorage : Storage<ItemUuid, EngineItem>(), ItemAccess {
+    override val map: MutableMap<ItemUuid, EngineItem> = ConcurrentHashMap()
+
     override fun getItem(uuid: ItemUuid): EngineItem? {
         return this.get(uuid)
     }

@@ -3,20 +3,17 @@ package org.lain.engine.client.mixin.screen;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.BookEditScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.component.type.WritableBookContentComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.text.TextContent;
 import net.minecraft.text.TranslatableTextContent;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import org.lain.engine.client.mc.ClientMixinAccess;
-import org.lain.engine.client.mc.MinecraftUtilKt;
 import org.lain.engine.client.mixin.render.ScreenAccessor;
-import org.lain.engine.item.Writeable;
+import org.lain.engine.item.Writable;
 import org.lain.engine.util.IdKt;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,7 +34,7 @@ public class BookEditScreenMixin {
     @Final
     private List<String> pages;
     @Unique
-    private Writeable writeable;
+    private Writable writable;
     @Unique
     private Identifier backgroundTextureId;
 
@@ -46,7 +43,7 @@ public class BookEditScreenMixin {
             at = @At("TAIL")
     )
     public void engine$initialize(PlayerEntity player, ItemStack stack, Hand hand, WritableBookContentComponent writableBookContent, CallbackInfo ci) {
-        writeable = ClientMixinAccess.INSTANCE.getWriteable(stack);
+        writable = ClientMixinAccess.INSTANCE.getWriteable(stack);
     }
 
     @Redirect(
@@ -57,7 +54,7 @@ public class BookEditScreenMixin {
             )
     )
     public Element engine$removeDoneButton(BookEditScreen instance, Element element) {
-        if (writeable != null) {
+        if (writable != null) {
             if (element instanceof ButtonWidget && ((ButtonWidget)element).getMessage().getContent() instanceof TranslatableTextContent) {
                 TranslatableTextContent content = (TranslatableTextContent)((ButtonWidget)element).getMessage().getContent();
                 if (Objects.equals(content.getKey(), "book.signButton")) {
@@ -74,8 +71,8 @@ public class BookEditScreenMixin {
             at = @At("TAIL")
     )
     public void engine$init(CallbackInfo ci) {
-        if (writeable != null && writeable.getBackgroundAsset() != null) {
-            backgroundTextureId = IdKt.EngineId(writeable.getBackgroundAsset());
+        if (writable != null && writable.getBackgroundAsset() != null) {
+            backgroundTextureId = IdKt.EngineId(writable.getBackgroundAsset());
         }
     }
 
@@ -99,8 +96,8 @@ public class BookEditScreenMixin {
             constant = @Constant(intValue = 100)
     )
     public int engine$clampPages(int constant) {
-        if (writeable != null) {
-            return writeable.getPages();
+        if (writable != null) {
+            return writable.getPages();
         } else {
             return constant;
         }
@@ -115,8 +112,8 @@ public class BookEditScreenMixin {
             cancellable = true
     )
     public void engine$finalize(CallbackInfo ci) {
-        if (writeable != null) {
-            ClientMixinAccess.INSTANCE.onBookClose(stack, writeable, pages);
+        if (writable != null) {
+            ClientMixinAccess.INSTANCE.onBookClose(stack, writable, pages);
             ci.cancel();
         }
     }

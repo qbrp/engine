@@ -41,7 +41,6 @@ class CommonEngineServerMod : ModInitializer {
         updateOldFileNaming()
         initializeEngineItemComponents()
         registerBlockHintAttachment()
-        registerBlockDecalsAttachment()
 
         ServerLifecycleEvents.SERVER_STARTED.register {
             engineServer.run()

@@ -51,7 +51,7 @@ data class ItemConfig(
     val tooltip: String? = null,
     val sounds: Map<String, String>? = null,
     val mass: Float? = null,
-    val writeable: WriteableConfig? = null,
+    val writable: WritableConfig? = null,
 ) {
     enum class AssetType {
         GENERATED, FILE
@@ -59,7 +59,7 @@ data class ItemConfig(
 }
 
 @Serializable
-data class WriteableConfig(val pages: Int, val texture: String? = null)
+data class WritableConfig(val pages: Int, val texture: String? = null)
 
 fun compileItemProperties(id: String, item: ItemConfig, namespace: NamespaceContents, namespaceConfig: NamespaceConfig): ItemProperties {
     val namespacedId = NamespaceItemId(namespace.id, id)

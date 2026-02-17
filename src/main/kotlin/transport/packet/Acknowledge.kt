@@ -1,13 +1,12 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
 import org.lain.engine.transport.ServerTransportContext
-import kotlinx.coroutines.channels.Channel as KotlinxChannel
+import java.util.concurrent.ConcurrentHashMap
 
 data class AcknowledgePacket(val id: Long) : Packet
 
@@ -23,7 +22,7 @@ val ACKNOWLEDGE_REQUEST_CHANNEL = AcknowledgeEndpoint("acknowledge_request")
 val ACKNOWLEDGE_CONFIRM_CHANNEL = AcknowledgeEndpoint("acknowledge_confirm")
 
 object GlobalAcknowledgeListener {
-    private val listeners: MutableMap<Long, () -> Unit> = mutableMapOf()
+    private val listeners: ConcurrentHashMap<Long, () -> Unit> = ConcurrentHashMap()
     private var lock = Any()
 
     fun addListener(id: Long, onReceive: () -> Unit) = synchronized(lock) {
@@ -71,38 +70,33 @@ class ServerAcknowledgeTask(
         return this
     }
 
-    suspend fun run() = withContext(Dispatchers.IO) {
-        val receiveChannel = KotlinxChannel<Unit>(capacity = 1)
-        var timeout = false
-        GlobalAcknowledgeListener.addListener(id) { receiveChannel.trySend(Unit) }
+    suspend fun run() = coroutineScope {
+        val deferred = CompletableDeferred<Unit>()
+
+        GlobalAcknowledgeListener.addListener(id) {
+            deferred.complete(Unit)
+        }
 
         val senderJob = launch {
-            var attempts = 0
-            while (isActive && attempts < retryAttempts) {
+            repeat(retryAttempts) {
                 transport.sendClientboundPacket(
                     ACKNOWLEDGE_REQUEST_CHANNEL,
                     AcknowledgePacket(id),
                     player
                 )
-
                 delay(retryTime.toLong())
-                attempts++
-            }
-            if (!timeout) {
-                timeout = true
-                onTimeout()
-                receiveChannel.close()
             }
         }
 
         try {
-            receiveChannel.receive() // ждём подтверждение
-        } catch (e: ClosedReceiveChannelException) {
+            withTimeout(retryAttempts * retryTime.toLong()) {
+                deferred.await()
+            }
+        } catch (e: TimeoutCancellationException) {
+            onTimeout()
         } finally {
-            timeout = true
             GlobalAcknowledgeListener.removeListener(id)
-            receiveChannel.close()
-            senderJob.cancel() // останавливаем отправку
+            senderJob.cancel()
         }
     }
 }

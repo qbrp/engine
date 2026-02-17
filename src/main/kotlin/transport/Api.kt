@@ -23,8 +23,8 @@ class Endpoint<P : Packet>(
         }
     }
 
-    fun sendS2C(packet: P, player: PlayerId) = executeOnThread {
-        transport.sendClientboundPacket(this, packet, player)
+    fun sendS2C(packet: P, player: PlayerId, id: Long = nextId()) = executeOnThread {
+        transport.sendClientboundPacket(this, packet, player, id)
     }
 
     fun sendAllS2C(packets: List<P>, player: PlayerId) = executeOnThread {

@@ -15,6 +15,7 @@ import org.lain.engine.player.*
 import org.lain.engine.util.*
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessageLegacy
+import org.lain.engine.world.world
 
 object ServerMixinAccess {
     private val table by injectEntityTable()
@@ -24,6 +25,8 @@ object ServerMixinAccess {
     var disableAchievementMessages = false
     var isDamageEnabled = false
     var blockRemovedCallback: ((WorldChunk, BlockPos) -> Unit)? = null
+
+    fun inEnginePlayer(player: ServerPlayerEntity) = table.server.getPlayer(player) != null
 
     fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem, slotStack: ItemStack, cursorStack: ItemStack, player: PlayerEntity): Boolean {
         if (merge(item, cursorItem)) {
@@ -84,6 +87,14 @@ object ServerMixinAccess {
         } ?: true
     }
 
+    fun onChunkDataSent(chunk: WorldChunk, player: ServerPlayerEntity) {
+        val player = table.server.getPlayer(player) ?: return
+        val chunkStorage = player.world.chunkStorage
+        val chunkPos = chunk.pos.engine()
+        val engineChunk = chunkStorage.requireChunk(chunkPos)
+        server.engine.handler.onChunkSend(engineChunk, chunkPos, player)
+    }
+
     fun onBlockAdded(world: World, blockPos: BlockPos, state: BlockState) {
         if (world.isClient) return
         server.onPlayerBlockInteraction(blockPos, state, world)
@@ -91,7 +102,6 @@ object ServerMixinAccess {
 
     fun onBlockRemoved(world: World, pos: BlockPos) {
         val chunk = world.getWorldChunk(pos)
-        chunk.removeBlockDecals(pos)
         blockRemovedCallback?.invoke(chunk, pos)
 
         if (!world.isClient) {

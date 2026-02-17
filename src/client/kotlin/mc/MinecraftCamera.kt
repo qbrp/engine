@@ -55,7 +55,7 @@ class MinecraftCamera(
     override fun update(positionConsumer: (Vec3) -> Unit, rotationConsumer: (Vec2) -> Unit, dt: Float) {
         time += dt
 
-        val noise = Vec3(0.0f)
+        val noise = MutableVec3(0.0f)
         var totalIntensity = 0f
 
         shakeEffects.removeIf { effect ->
@@ -72,7 +72,7 @@ class MinecraftCamera(
                 }
                 if (intensity > 0f && intensity.isFinite()) {
                     val sampleStep = time * effect.frequency
-                    noise.add(
+                    noise.mutateAdd(
                         perlinX1.noise(sampleStep) * intensity,
                         perlinY1.noise(sampleStep) * intensity,
                         perlinZ1.noise(sampleStep) * intensity
@@ -84,7 +84,7 @@ class MinecraftCamera(
         }
 
         if (totalIntensity > 1f) {
-            noise.div(totalIntensity)
+            noise.mutateDiv(totalIntensity, totalIntensity, totalIntensity)
         }
 
         val finalPosition = noise.mul(maxShakeTranslation)

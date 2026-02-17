@@ -16,7 +16,6 @@ import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
-import org.lain.engine.util.handle
 import org.lain.engine.util.has
 import org.lain.engine.util.remove
 import org.lain.engine.world.*
@@ -79,24 +78,19 @@ class GameSession(
         }
 
         for (player in players) {
-            if (player.isLowDetailed) continue
+            if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
+                player.isLowDetailed = true
+                return
+            } else {
+                player.isLowDetailed = false
+            }
 
             val playerItems = player.items
             supplyPlayerInventoryItemsLocation(player, playerItems)
             updatePlayerInteractions(player, false)
-            updateGunState(playerItems)
             updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
 
-            if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
-                player.isLowDetailed = true
-            }
-
-            handleBulletFireShakes(client.camera, world, playerItems)
             handleGunShotTags(player, playerItems)
-
-            player.handle<ShakeScreenComponent> {
-                player.remove<ShakeScreenComponent>()
-            }
 
             player.remove<InteractionComponent>()?.let {
                 if (player == mainPlayer && it.interaction !is Interaction.SlotClick) {
@@ -105,8 +99,17 @@ class GameSession(
             }
         }
 
+        val items = itemStorage.getAll()
+        updateGunState(items)
+        handleBulletFireShakes(mainPlayer, client.camera, world, items)
+
         chatBubbleList.cleanup()
         world.events<WorldSoundPlayRequest>().clear()
+    }
+
+    fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
+        world.chunkStorage.setChunk(pos, chunk)
+        client.eventBus.onChunkLoad(pos, chunk)
     }
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {

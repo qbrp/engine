@@ -8,12 +8,15 @@ import kotlinx.serialization.Serializable
 import net.fabricmc.api.DedicatedServerModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.minecraft.server.network.ServerPlayerEntity
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.getPlayer
 import org.lain.engine.mc.hasPermission
 import org.lain.engine.mc.isOp
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.server.Notification
+import org.lain.engine.server.synchronization
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.ServerTransportContext
@@ -21,8 +24,6 @@ import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.network.ServerNetworkTransport
 import org.lain.engine.transport.network.SessionId
-import org.lain.engine.util.engineId
-import org.lain.engine.util.getPlayer
 import org.lain.engine.util.registerMinecraftServer
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.*
@@ -49,6 +50,20 @@ class DedicatedEngineMinecraftServer(
         connectionManager,
         this,
     )
+
+    override fun tick() {
+        for (player in engine.playerStorage.getAll()) {
+            if (player.synchronization.disconnect) {
+                val entity = entityTable.getEntity(player.id) as? ServerPlayerEntity ?: continue
+                connectionManager.disconnect(
+                    connectionManager.getSession(player.id),
+                    "Время ожидания подтверждения входа в игру истекло"
+                )
+                onLeavePlayer(entity)
+            }
+        }
+        super.tick()
+    }
 
     override fun run() {
         super.run()

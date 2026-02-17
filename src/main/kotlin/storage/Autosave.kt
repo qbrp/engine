@@ -52,13 +52,15 @@ class CoroutineQueueTimer<T : Any>(
 
 private val LOGGER = LoggerFactory.getLogger("Engine Autosave")
 
-fun ItemAutosaveTimer(period: Long, itemStorage: ItemStorage, database: Database) = CoroutineQueueTimer(period, ItemIoCoroutineScope, { itemStorage.getAll() }) { items ->
-    database.saveItems(items)
+fun ItemAutosaveTimer(period: Long, itemStorage: ItemStorage, database: Database) = CoroutineQueueTimer(
+    period,
+    ItemIoCoroutineScope,
+    { itemStorage.getAll().mapPersistentData() }
+) { items ->
+    database.saveItemPersistentDataBatch(items)
 }
 
-suspend fun Database.saveItems(items: List<EngineItem>) {
-    saveItemPersistentDataBatch(items.map { it to itemPersistentData(it) })
-}
+fun List<EngineItem>.mapPersistentData() = map { it to itemPersistentData(it) }
 
 fun UnloadInactiveItemsTimer(period: Long, itemStorage: ItemStorage, database: Database, server: EngineServer) = CoroutineQueueTimer(
     period,
@@ -67,28 +69,28 @@ fun UnloadInactiveItemsTimer(period: Long, itemStorage: ItemStorage, database: D
         itemStorage
             .getAll()
             .filter { !it.has<HoldsBy>() }
+            .mapPersistentData()
     }
 ) { items ->
-    database.saveItems(items)
+    val engineItems = items.map { it.first.uuid }
+    database.saveItemPersistentDataBatch(items)
     server.execute {
         if (items.isNotEmpty()) {
-            items.forEach { itemStorage.remove(it.uuid) }
+            server.handler.onItemsBatchDestroy(engineItems)
+            items.forEach { itemStorage.remove(it.first.uuid) }
             LOGGER.info("Выгружено и сохранено {} неактивных предметов", items.count())
         }
     }
 }
 
-suspend fun EngineMinecraftServer.loadItemStack(itemStack: ItemStack, owner: EnginePlayer) {
-    val reference = itemStack.engine() ?: return
+suspend fun EngineMinecraftServer.loadItemStack(itemStack: ItemStack, owner: EnginePlayer): EngineItem? {
+    val reference = itemStack.engine() ?: return null
     val uuid = reference.uuid
-    val item = database.loadItem(owner.location, uuid) ?: return
-    minecraftServer.execute {
-        wrapItemStack(owner, item, itemStack)
-        engine.itemStorage.add(uuid, item)
-    }
+    return database.loadItem(owner.location, uuid)
+        ?.also { engine.itemStorage.add(it.uuid, it) }
 }
 
-class ItemLoader(private val engine: EngineMinecraftServer, ) {
+class ItemLoader(private val server: EngineMinecraftServer, ) {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val items = mutableMapOf<ItemUuid, Long>()
     private val notFound = mutableSetOf<ItemUuid>()
@@ -103,7 +105,13 @@ class ItemLoader(private val engine: EngineMinecraftServer, ) {
         val currentTimeMillis = System.currentTimeMillis()
         if (time == null || currentTimeMillis - time > TIMEOUT) {
             items[uuid] = currentTimeMillis
-            coroutineScope.launch { engine.loadItemStack(itemStack, owner) }
+            coroutineScope.launch {
+                val item = server.loadItemStack(itemStack, owner) ?: run {
+                    notFound.add(uuid)
+                    return@launch
+                }
+                server.engine.execute { server.wrapItemStack(owner, item, itemStack) }
+            }
         }
     }
 

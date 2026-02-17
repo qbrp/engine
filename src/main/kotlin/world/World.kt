@@ -11,6 +11,7 @@ import kotlin.reflect.KClass
 
 class World(
     val id: WorldId,
+    val chunkStorage: ChunkStorage = ChunkStorage(),
     private val state: ComponentState = ComponentState()
 ) : ComponentManager by state
 

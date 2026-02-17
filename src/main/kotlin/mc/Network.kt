@@ -16,8 +16,10 @@ import org.lain.engine.transport.deserializePacket
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.serializePacket
-import org.lain.engine.util.*
-import org.lain.engine.util.text.parseMiniMessage
+import org.lain.engine.util.EngineId
+import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.injectMinecraftEngineServer
+import org.lain.engine.util.text.parseMiniMessageLegacy
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 
@@ -100,7 +102,7 @@ fun <P : Packet> PayloadTypeRegistry<RegistryByteBuf>.registerPayload(endpoint: 
     return payloadId
 }
 
-fun DisconnectText(reason: String) = "<red>[ENGINE] ${reason}</red>".parseMiniMessage()
+fun DisconnectText(reason: String) = "<red>[ENGINE] ${reason}</red>".parseMiniMessageLegacy()
 
 fun DisconnectText(exception: Throwable) = DisconnectText(exception.message ?: "Unknown error")
 

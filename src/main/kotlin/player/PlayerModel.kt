@@ -39,11 +39,12 @@ fun armPoseOf(
     main: Boolean,
     extend: Boolean,
     gun: Boolean,
-    safetyOff: Boolean
+    safetyOff: Boolean,
+    safetyOffLeft: Boolean,
 ): ArmPose {
     return when {
         gun && !safetyOff -> ArmPose.NEUTRAL
-        extend && (gun || main) -> ArmPose.EXPOSE
+        extend && !safetyOffLeft && (gun || main) -> ArmPose.EXPOSE
         gun -> ArmPose.HOLD_WEAPON
         else -> ArmPose.NEUTRAL
     }

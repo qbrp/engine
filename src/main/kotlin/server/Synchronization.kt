@@ -5,21 +5,25 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.HoldsBy
 import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.Writeable
+import org.lain.engine.item.Writable
 import org.lain.engine.player.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.*
+import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.Location
 import org.lain.engine.world.location
 import org.slf4j.LoggerFactory
+import java.util.*
 import kotlin.reflect.KClass
 
 data class PlayerSynchronizationComponent(
     var authorized: Boolean,
-    val synchronizedPlayers: MutableList<EnginePlayer> = mutableListOf(),
-    val synchronizedItems: MutableList<ItemUuid> = mutableListOf()
+    val players: MutableList<EnginePlayer> = mutableListOf(),
+    val items: MutableList<ItemUuid> = Collections.synchronizedList(mutableListOf()),
+    val chunks: MutableList<EngineChunkPos> = mutableListOf(),
+    var disconnect: Boolean = false,
 ) : Component
 
 val EnginePlayer.synchronization
@@ -160,4 +164,4 @@ val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(t
 
 // Item
 
-val ITEM_WRITEABLE_SYNCHRONIZER = ItemComponentSynchronizer<Writeable>()
+val ITEM_Writable_SYNCHRONIZER = ItemComponentSynchronizer<Writable>()

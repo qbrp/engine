@@ -1,7 +1,5 @@
 package org.lain.engine.client.mc.render
 
-import com.mojang.blaze3d.systems.RenderSystem
-import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget
 import net.minecraft.client.render.LightmapTextureManager
 import net.minecraft.client.render.OverlayTexture
 import net.minecraft.client.render.RenderLayer
@@ -10,119 +8,94 @@ import net.minecraft.client.texture.NativeImageBackedTexture
 import net.minecraft.client.texture.TextureManager
 import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.util.Colors
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.ChunkPos
-import net.minecraft.world.chunk.Chunk
+import net.minecraft.util.math.ColorHelper
 import org.joml.Vector3f
-import org.lain.engine.mc.BLOCK_DECALS_ATTACHMENT_TYPE
-import org.lain.engine.mc.setBlockDecals
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.alsoForEach
-import org.lain.engine.world.BlockDecals
-import org.lain.engine.world.DecalContents
-import org.lain.engine.world.DecalsLayer
-import org.lain.engine.world.Direction
+import org.lain.engine.util.flush
+import org.lain.engine.util.math.Pos
+import org.lain.engine.util.math.isPowerOfTwo
+import org.lain.engine.util.math.squaredDistanceTo
+import org.lain.engine.world.*
 import kotlin.math.max
 import kotlin.math.min
 
-typealias ChunkBlockDecals = MutableMap<BlockPos, BlockDecals>
-
-data class BlockDecalImageData(val layers: MutableList<DecalsLayerTexture>)
+data class BlockDecalImageData(
+    val gameTexture: DecalsTexture
+)
 
 class ChunkDecalsStorage {
     lateinit var textureManager: TextureManager
-    private val chunks: MutableMap<ChunkPos, ChunkBlockDecals> = mutableMapOf()
-    private val images: MutableMap<Pair<ChunkPos, BlockPos>, BlockDecalImageData> = mutableMapOf()
+    private val images: MutableMap<EngineChunkPos, MutableMap<ImmutableVoxelPos, BlockDecalImageData>> = mutableMapOf()
 
-    fun unload(chunkPos: ChunkPos) {
-        val removed = chunks.remove(chunkPos)
-        removed?.forEach { blockPos, _ ->
-            val image = images.remove(chunkPos to blockPos)
-            image?.layers?.forEach {
-                textureManager.destroyTexture(it.id)
-                it.close()
+    fun unloadTextures(chunkPos: EngineChunkPos) {
+        images.remove(chunkPos)?.forEach { (pos, image) -> unloadTexture(pos, chunkPos) }
+    }
+
+    fun unloadTexture(voxelPos: VoxelPos, chunkPos: EngineChunkPos = EngineChunkPos(voxelPos)) {
+        textures(chunkPos).remove(voxelPos)?.let {
+            val texture = it.gameTexture
+            textureManager.destroyTexture(texture.id)
+            texture.close()
+        }
+    }
+
+    fun loadTextures(pos: EngineChunkPos, chunk: EngineChunk) = chunk.decals.forEach { (voxelPos, decals) ->
+        updateTexture(decals, ImmutableVoxelPos(voxelPos), pos)
+    }
+
+    fun updateTexture(decals: BlockDecals, voxelPos: ImmutableVoxelPos, chunk: EngineChunkPos = EngineChunkPos(voxelPos)) {
+        var image = textures(chunk)[voxelPos]
+        val decalLayers = decals.layers
+        val maxResolution = decalLayers.maxOf { layer -> layer.key.resolution }
+
+        if (image == null) {
+            val texture = DecalsTexture(voxelPos, maxResolution)
+            texture.register(textureManager)
+            image = BlockDecalImageData(texture)
+            textures(chunk)[voxelPos] = image
+        }
+
+        image.gameTexture.compile(decalLayers)
+    }
+
+    private fun textures(chunk: EngineChunkPos) = images.computeIfAbsent(chunk) { mutableMapOf() }
+
+    fun unload() {
+        images.toMap().forEach { unloadTextures(it.key) }
+    }
+
+    fun getBlockImages(basePos: Pos, renderDistanceChunks: Int): List<Pair<VoxelPos, BlockDecalImageData>> {
+        return images
+            .filter {
+                squaredDistanceTo(
+                    it.key.x,
+                    it.key.z,
+                    basePos.x.toInt() / 16,
+                    basePos.z.toInt() / 16
+                ) < renderDistanceChunks * renderDistanceChunks
             }
+            .flatMap { it.value.toList() }
+    }
+
+    fun handleDecalsEvent(world: World) = world.events<DecalEvent>().flush { event ->
+        val decals = world.chunkStorage.getDecals(event.pos) ?: run {
+            unloadTexture(event.pos, event.chunk)
+            return@flush
         }
-    }
-
-    fun modify(chunk: Chunk, pos: BlockPos, decals: BlockDecals) {
-        chunk.setBlockDecals(pos, decals)
-        update(chunk, pos)
-    }
-
-    fun survey(chunk: Chunk) {
-        val blocks = (chunk as AttachmentTarget).getAttached(BLOCK_DECALS_ATTACHMENT_TYPE)?.toMutableMap() ?: mutableMapOf()
-        update(
-            chunk.pos,
-            blocks,
-            mutableMapOf()
-        )
-    }
-
-    fun clear() {
-        chunks.keys.toList().forEach { unload(it) }
-    }
-
-    fun update(chunk: Chunk, pos: BlockPos) {
-        RenderSystem.assertOnRenderThread()
-        val chunkPos = chunk.pos
-        val blocks = (chunk as AttachmentTarget).getAttached(BLOCK_DECALS_ATTACHMENT_TYPE)?.toMap() ?: emptyMap()
-        val oldBlocks = chunks[chunkPos] ?: emptyMap()
-        val oldBlockDecals = oldBlocks[pos]
-        val newBlockDecals = blocks[pos]
-        update(
-            chunkPos,
-            mutableMapOf(pos to newBlockDecals),
-            mapOf(pos to oldBlockDecals)
-        )
-    }
-
-    private fun update(chunkPos: ChunkPos, newBlocks: Map<BlockPos, BlockDecals?>, oldBlocks: Map<BlockPos, BlockDecals?>) {
-        val remaining = oldBlocks.toMutableMap()
-        for ((pos, newBlockDecals) in newBlocks) {
-            if (newBlockDecals == null) continue
-            val oldBlockDecals = oldBlocks[pos]
-            if (oldBlockDecals?.version != newBlockDecals.version) {
-                remaining.remove(pos)
-                val key = chunkPos to pos
-                var image = images[key]
-                val imageLayersCount = image?.layers?.count()
-                val decalLayers = newBlockDecals.layers
-
-                if (image == null || imageLayersCount != decalLayers.count()) {
-                    image = BlockDecalImageData(
-                        decalLayers
-                            .map { DecalsLayerTexture(pos) }
-                            .alsoForEach { it.register(textureManager) }
-                            .toMutableList()
-                    ).also { images[key] = it }
-                }
-
-                for (index in 0 until decalLayers.size) {
-                    val imageLayer = image.layers[index]
-                    val decalLayer = decalLayers[index]
-                    imageLayer.compile(decalLayer)
-                }
-
-                chunks.computeIfAbsent(chunkPos) { mutableMapOf() }[pos] = newBlockDecals
-            }
-        }
-
-        for ((blockPos, decals) in remaining) {
-            images.remove(ChunkPos(blockPos) to blockPos)
-        }
-    }
-
-    fun getBlockImages() = images.entries
-
-    fun getTextures(chunkPos: ChunkPos, blockPos: BlockPos): Collection<DecalsLayerTexture>? {
-        return images[chunkPos to blockPos]?.layers
+        updateTexture(decals, ImmutableVoxelPos(event.pos), event.chunk)
     }
 }
 
-class DecalsLayerTexture(val blockPos: BlockPos) : AutoCloseable {
+class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable {
     // Полная развёртка всех сторон блока
-    private val texture = NativeImageBackedTexture("Block Decals ${blockPos.toShortString()}", 48, 32, true)
+    val width = 3 * resolution
+    val height = 2 * resolution
+    private val texture = NativeImageBackedTexture(
+        "Block Decals ${blockPos.toShortString()}",
+        width,
+        height,
+        true
+    )
     val id = EngineId("decals/${blockPos.x}/${blockPos.y}/${blockPos.z}")
     val depths = mutableMapOf<Direction, MutableMap<Float, Area>>()
 
@@ -143,51 +116,57 @@ class DecalsLayerTexture(val blockPos: BlockPos) : AutoCloseable {
         textureManager.registerTexture(id, texture)
     }
 
-    fun compile(layer: DecalsLayer) {
+    fun compile(layers: Map<DecalsLayerType, DecalsLayer>) {
+        if (layers.keys.any { !isPowerOfTwo(it.resolution) }) {
+            error("Слои должны иметь разрешение в степенях двойки (16, 32, 64...)")
+        }
+
         val image = texture.image ?: return
-        image.fillRect(0, 0, 48, 32, 0)
-        for ((direction, decals) in layer.directions) {
-            val (x0, y0) = direction.getStartPos()
+        image.fillRect(0, 0, width, height, 0)
+        for ((type, layer) in layers) {
+            val scale = resolution / type.resolution
+            for ((direction, decals) in layer.directions) {
+                val (x0, y0) = direction.getStartPos(resolution)
+                val depthAreas = depths.getOrPut(direction) { mutableMapOf() }
 
-            val depthAreas = depths.getOrPut(direction) { mutableMapOf() }
+                for (decal in decals) {
+                    val depthArea = depthAreas.getOrPut(decal.depth) {
+                        Area(
+                            Int.MAX_VALUE,
+                            Int.MAX_VALUE,
+                            Int.MIN_VALUE,
+                            Int.MIN_VALUE
+                        )
+                    }
 
-            for (decal in decals) {
-                val depthArea = depthAreas.getOrPut(decal.depth) {
-                    Area(
-                        Int.MAX_VALUE,
-                        Int.MAX_VALUE,
-                        Int.MIN_VALUE,
-                        Int.MIN_VALUE
-                    )
-                }
+                    when (val contents = decal.contents) {
+                        is DecalContents.Chip -> {
+                            val radius = contents.radius
+                            val halfRadius = radius / 2
 
-                when(val contents = decal.contents) {
-                    is DecalContents.Chip -> {
-                        val radius = contents.radius
-                        val halfRadius = radius / 2
-                        val (pX0, pY0) = x0 - halfRadius to y0 - halfRadius
-
-                        repeat(radius) { i ->
-                            repeat(radius) { j ->
-                                val px = pX0 + decal.x - halfRadius + i
-                                val py = pY0 + decal.y - halfRadius + j
-                                if (px in 0 until 48 && py in 0 until 32) {
-                                    image.setColorArgb(px, py, Colors.BLACK)
-                                    depthArea.stretch(
-                                        px - x0,
-                                        py - y0,
-                                    )
+                            repeat(radius) { i ->
+                                repeat(radius) { j ->
+                                    val px = decal.x - halfRadius + i
+                                    val py = decal.y - halfRadius + j
+                                    if (px in 0 until width && py in 0 until height) {
+                                        image.setColorArgb(
+                                            x0 + px,
+                                            y0 + py,
+                                            ColorHelper.withAlpha(contents.opacity, Colors.BLACK)
+                                        )
+                                        depthArea.stretch(px, py,)
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                depthArea.apply {
-                    x1 = (x1 - 1).coerceIn(0, 16)
-                    y1 = (y1 - 1).coerceIn(0, 16)
-                    x2 = (x2 + 1).coerceIn(0, 16)
-                    y2 = (y2 + 1).coerceIn(0, 16)
+                    depthArea.apply {
+                        x1 = (x1 - 1).coerceIn(0, type.resolution - 1)
+                        y1 = (y1 - 1).coerceIn(0, type.resolution - 1)
+                        x2 = (x2 + 1).coerceIn(0, type.resolution - 1)
+                        y2 = (y2 + 1).coerceIn(0, type.resolution - 1)
+                    }
                 }
             }
         }
@@ -195,16 +174,16 @@ class DecalsLayerTexture(val blockPos: BlockPos) : AutoCloseable {
     }
 }
 
-private fun Direction.getStartPos() = when(this) {
+private fun Direction.getStartPos(resolution: Int) = when(this) {
     Direction.DOWN -> 0 to 0
-    Direction.UP -> 0 to 16
-    Direction.NORTH -> 16 to 0
-    Direction.SOUTH -> 16 to 16
-    Direction.WEST -> 32 to 0
-    Direction.EAST -> 32 to 16
+    Direction.UP -> 0 to resolution
+    Direction.NORTH -> resolution to 0
+    Direction.SOUTH -> resolution to resolution
+    Direction.WEST -> resolution * 2 to 0
+    Direction.EAST -> resolution * 2 to resolution
 }
 
-fun renderBlockDecals(texture: DecalsLayerTexture, blockPos: BlockPos, matrices: MatrixStack, queue: OrderedRenderCommandQueue) {
+fun renderBlockDecals(texture: DecalsTexture, blockPos: VoxelPos, matrices: MatrixStack, queue: OrderedRenderCommandQueue) {
     matrices.push()
     matrices.translate(blockPos.x.toDouble(), blockPos.y.toDouble(), blockPos.z.toDouble())
     for (direction in Direction.entries) {
@@ -214,31 +193,32 @@ fun renderBlockDecals(texture: DecalsLayerTexture, blockPos: BlockPos, matrices:
 }
 
 private fun OrderedRenderCommandQueue.drawSide(
-    layerTexture: DecalsLayerTexture,
+    layerTexture: DecalsTexture,
     matrices: MatrixStack,
     side: Direction
 ) {
-    val (x0, y0) = side.getStartPos()
+    val (x0, y0) = side.getStartPos(layerTexture.resolution)
     val light = LightmapTextureManager.MAX_LIGHT_COORDINATE
     val normal = side.normal.let { Vector3f(it.x, it.y, it.z) }
     val epsilon = 0.001f
     val depthMap = layerTexture.depths[side] ?: return
 
-    depthMap.forEach { depth, area ->
+    val width = layerTexture.width.toFloat()
+    val height = layerTexture.height.toFloat()
+    val resolution = layerTexture.resolution.toFloat()
 
-        // UV
-        val u0 = (x0 + area.x1) / 48f
-        val v0 = (y0 + area.y1) / 32f
-        val u1 = (x0 + area.x2) / 48f
-        val v1 = (y0 + area.y2) / 32f
+    depthMap.forEach { (depth, area) ->
+        val u0 = (x0 + area.x1) / width
+        val v0 = (y0 + area.y1) / height
+        val u1 = (x0 + area.x2) / width
+        val v1 = (y0 + area.y2) / height
 
-        // ЛОКАЛЬНЫЕ координаты на стороне (0..1)
-        val px0 = area.x1 / 16f
-        val py0 = area.y1 / 16f
-        val px1 = area.x2 / 16f
-        val py1 = area.y2 / 16f
+        val px0 = area.x1 / resolution
+        val py0 = area.y1 / resolution
+        val px1 = area.x2 / resolution
+        val py1 = area.y2 / resolution
 
-        submitCustom(matrices, RenderLayer.getEntityCutoutNoCull(layerTexture.id)) { entry, vc ->
+        submitCustom(matrices, RenderLayer.getEntityTranslucent(layerTexture.id)) { entry, vc ->
             fun submitVertex(x: Float, y: Float, z: Float, u: Float, v: Float) {
                 vc.vertex(
                     entry,

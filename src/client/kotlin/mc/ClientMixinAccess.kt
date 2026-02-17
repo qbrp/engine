@@ -18,7 +18,7 @@ import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Gun
-import org.lain.engine.item.Writeable
+import org.lain.engine.item.Writable
 import org.lain.engine.mc.engine
 import org.lain.engine.player.*
 import org.lain.engine.util.*
@@ -35,13 +35,13 @@ object ClientMixinAccess {
         chatClipboardCopyTicksElapsed += 1
     }
 
-    fun getWriteable(itemStack: ItemStack): Writeable? {
-        return getEngineItem(itemStack)?.get<Writeable>()
+    fun getWriteable(itemStack: ItemStack): Writable? {
+        return getEngineItem(itemStack)?.get<Writable>()
     }
 
-    fun onBookClose(itemStack: ItemStack, writeable: Writeable, pages: List<String>) {
+    fun onBookClose(itemStack: ItemStack, writable: Writable, pages: List<String>) {
         val item = getEngineItem(itemStack) ?: return
-        writeable.contents = pages
+        writable.contents = pages
         client.handler.onWriteableContentsUpdate(item.uuid, pages)
     }
 
@@ -52,11 +52,12 @@ object ClientMixinAccess {
         val inventory = enginePlayer.require<PlayerInventory>()
         val extends = enginePlayer.require<ArmStatus>().extend
 
-       playerEntityRenderState.setMainArmPose(
-           armPoseOf(true, extends, isGun(inventory.mainHandItem), isGunWithSelector(inventory.mainHandItem))
+        val selectorLeft = isGunWithSelector(inventory.offHandItem)
+        playerEntityRenderState.setMainArmPose(
+           armPoseOf(true, extends, isGun(inventory.mainHandItem), isGunWithSelector(inventory.mainHandItem), selectorLeft)
        )
         playerEntityRenderState.setMinorArmPose(
-            armPoseOf(false, extends, isGun(inventory.offHandItem), isGunWithSelector(inventory.offHandItem))
+            armPoseOf(false, extends, isGun(inventory.offHandItem), isGunWithSelector(inventory.offHandItem), false)
         )
     }
 
@@ -85,7 +86,7 @@ object ClientMixinAccess {
     }
 
     fun onCursorStackSet(itemStack: ItemStack?) {
-        val engineItem = itemStack?.engine()?.getClientItem()
+        val engineItem = if (itemStack?.isEmpty == true) null else itemStack?.engine()?.getClientItem()
         client.handler.onCursorItem(engineItem)
     }
 

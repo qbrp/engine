@@ -1,12 +1,10 @@
-package org.lain.engine.util
+package org.lain.engine.mc
 
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.util.math.Vec3d
-import org.lain.engine.mc.ServerPlayerTable
-import org.lain.engine.mc.toMinecraft
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.RaycastProvider
@@ -14,6 +12,8 @@ import org.lain.engine.player.Username
 import org.lain.engine.util.math.MutableVec3
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.asVec3
+import org.lain.engine.world.EngineChunkPos
+import org.lain.engine.world.VoxelPos
 
 fun MinecraftUsername(player: PlayerEntity) = Username(player.name.string)
 
@@ -52,3 +52,7 @@ fun MutableVec3.set(vec3: Vec3d) {
 }
 
 fun MinecraftServer.getPlayer(id: PlayerId) = playerManager.getPlayer(id.value)
+
+fun ChunkPos.engine() = EngineChunkPos(x, z)
+
+fun BlockPos.engine() = VoxelPos(this.x, this.y, this.z)

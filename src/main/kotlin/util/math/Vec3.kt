@@ -1,6 +1,7 @@
 package org.lain.engine.util.math
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.world.VoxelPos
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -17,6 +18,15 @@ interface Pos {
 }
 
 fun Pos.asVec3() = Vec3(this.x, this.y, this.z)
+
+fun squaredDistanceTo(
+    x1: Int, y1: Int,
+    x2: Int, y2: Int
+): Int {
+    val dx = x1 - x2
+    val dy = y1 - y2
+    return dx * dx + dy * dy
+}
 
 interface Vec3 : Pos {
     fun length(): Float {
@@ -95,6 +105,13 @@ interface Vec3 : Pos {
         return dx * dx + dy * dy + dz * dz
     }
 
+    fun squaredDistanceTo(to: VoxelPos): Float {
+        val dx = x - to.x
+        val dy = y - to.y
+        val dz = z - to.z
+        return dx * dx + dy * dy + dz * dz
+    }
+
     fun distance(vec: Pos): Float {
         val d = vec.x - this.x;
         val e = vec.y - this.y;
@@ -158,6 +175,12 @@ data class MutableVec3(
         this.x = x
         this.y = y
         this.z = z
+    }
+
+    fun mutateDiv(x: Float = this.x, y: Float = this.y, z: Float = this.z) {
+        this.x /= x
+        this.y /= y
+        this.z /= z
     }
 
     fun mutateAdd(x: Float = this.x, y: Float = this.y, z: Float = this.z) {

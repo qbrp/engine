@@ -2,7 +2,6 @@ package org.lain.engine.item
 
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.items
-import org.lain.engine.util.set
 import org.lain.engine.world.location
 import org.lain.engine.world.world
 

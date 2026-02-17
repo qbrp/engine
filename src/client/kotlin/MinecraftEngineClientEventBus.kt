@@ -2,7 +2,6 @@ package org.lain.engine.client
 
 import net.minecraft.client.MinecraftClient
 import net.minecraft.util.math.BlockPos
-import net.minecraft.world.chunk.Chunk
 import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.render.ChunkDecalsStorage
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
@@ -12,14 +11,15 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.util.Injector
+import org.lain.engine.world.EngineChunk
+import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.VoxelPos
 import java.util.*
 
 class MinecraftEngineClientEventBus(
     private val minecraft: MinecraftClient,
     private val table: ClientPlayerTable,
-    private val decalsStorage: ChunkDecalsStorage,
-    private val chunks: MutableList<Chunk>
+    private val chunkDecalsStorage: ChunkDecalsStorage
 ) : ClientEventBus {
     private data class PendingFullPlayerData(val player: EnginePlayer, val data: FullPlayerData)
     private val pendingFullPlayerData: MutableList<PendingFullPlayerData> = LinkedList()
@@ -69,7 +69,6 @@ class MinecraftEngineClientEventBus(
         if (!minecraft.isInSingleplayer) {
             Injector.register<ItemAccess>(gameSession.itemStorage)
         }
-        chunks.forEach { decalsStorage.survey(it) }
     }
 
     override fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession) {
@@ -78,5 +77,9 @@ class MinecraftEngineClientEventBus(
 
     override fun onContentsUpdate() {
         updateEngineItemGroupEntries()
+    }
+
+    override fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk) {
+        chunkDecalsStorage.loadTextures(pos, chunk)
     }
 }
