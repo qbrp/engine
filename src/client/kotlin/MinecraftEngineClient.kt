@@ -13,14 +13,11 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
-import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.gui.screen.ingame.BookEditScreen
 import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.component.type.WritableBookContentComponent
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.text.RawFilteredPair
@@ -30,8 +27,10 @@ import net.minecraft.util.Hand
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.*
 import org.lain.engine.client.mc.*
-import org.lain.engine.client.mc.ClientMixinAccess.renderChatBubbles
-import org.lain.engine.client.mc.render.*
+import org.lain.engine.client.mc.render.ChunkDecalsStorage
+import org.lain.engine.client.mc.render.EngineUiRenderPipeline
+import org.lain.engine.client.mc.render.MinecraftFontRenderer
+import org.lain.engine.client.mc.render.MinecraftPainter
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.server.ClientSingleplayerTransport
@@ -46,8 +45,8 @@ import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.OrientationTranslation
 import org.lain.engine.player.handItem
 import org.lain.engine.util.*
-import org.lain.engine.util.math.randomInteger
-import org.lain.engine.world.*
+import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.world.handleDecalsAttaches
 import org.slf4j.LoggerFactory
 import java.util.*
 
@@ -91,6 +90,8 @@ class MinecraftEngineClient : ClientModInitializer {
         engineClient.options = config
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent()
+        registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
+        registerWorldRenderEvents(client, engineClient, eventBus, decalsStorage)
 
         Injector.register(keybindManager)
 
@@ -114,8 +115,6 @@ class MinecraftEngineClient : ClientModInitializer {
         }
 
         ClientPlayConnectionEvents.JOIN.register { handler, _, _ ->
-            val entity = client.player!!
-
             if (engineClient.gameSessionActive) {
                 connectionLogger.warn("Сброс активной игровой сессии. Это баг, который не должен возникать в обычных условиях")
                 onDisconnect()
@@ -222,75 +221,6 @@ class MinecraftEngineClient : ClientModInitializer {
                     connectionLogger.warn("Игрок отключен от несуществующего сервера")
                 }
             }
-        }
-
-        WorldRenderEvents.END_MAIN.register { context ->
-            val gameRenderer = context.gameRenderer()
-            val camera = gameRenderer.camera
-            val cameraPos = camera.pos
-            val matrices = context.matrices()
-            val queue = context.commandQueue()
-
-            val gameSession = engineClient.gameSession
-            val acousticDebugVolumes = gameSession?.acousticDebugVolumes
-            val playerBlockPos = client.player?.blockPos ?: return@register
-            if (engineClient.developerMode && engineClient.acousticDebug && gameSession != null && acousticDebugVolumes?.isNotEmpty() == true) {
-                renderAcousticDebugLabels(
-                    eventBus.acousticDebugVolumesBlockPosCache,
-                    listOf(playerBlockPos, playerBlockPos.add(0, 1, 0)),
-                    gameSession.vocalRegulator.volume.base,
-                    gameSession.vocalRegulator.volume.max,
-                    queue,
-                    matrices,
-                    gameRenderer.entityRenderStates.cameraRenderState
-                )
-            }
-
-            val vertexConsumers = context.consumers()
-            if (vertexConsumers !is VertexConsumerProvider.Immediate) return@register
-            renderChatBubbles(matrices, camera, vertexConsumers, cameraPos.x, cameraPos.y, cameraPos.z)
-        }
-
-        WorldRenderEvents.BEFORE_ENTITIES.register { context ->
-            val matrices = context.matrices()
-            val queue = context.commandQueue()
-            val camera = context.gameRenderer().camera
-            val images = decalsStorage.getBlockImages(
-                engineClient.gameSession?.mainPlayer?.pos ?: return@register,
-                MinecraftClient.options.viewDistance.value
-            )
-
-            matrices.push()
-            matrices.translate(camera.pos.negate())
-            for ((pos, image) in images) {
-                renderBlockDecals(image.gameTexture, pos, matrices, queue)
-            }
-            matrices.pop()
-        }
-
-        var debugDecalsVersion = 0
-        UseBlockCallback.EVENT.register { entity, world, hand, result ->
-            if (world.isClient && engineClient.developerMode && isControlDown()) {
-                val pos = result.blockPos
-                val decals = List(10) {
-                    Decal(
-                        randomInteger(16),
-                        randomInteger(16),
-                        0f,
-                        DecalContents.Chip(1, 1f)
-                    )
-                }
-                decalsStorage.updateTexture(
-                    BlockDecals(
-                        debugDecalsVersion++,
-                        mapOf(
-                            BULLET_DAMAGE_DECALS_LAYER to DecalsLayer(Direction.entries.associateWith { decals })
-                        )
-                    ),
-                    ImmutableVoxelPos(pos.engine())
-                )
-            }
-            ActionResult.PASS
         }
 
         ClientChunkEvents.CHUNK_UNLOAD.register { world, chunk ->

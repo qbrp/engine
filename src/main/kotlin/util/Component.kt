@@ -154,8 +154,8 @@ inline fun <reified T : Component> ComponentManager.apply(todo: T.() -> Unit): T
     return require<T>().apply(todo)
 }
 
-inline fun <reified T : Component> ComponentManager.handle(todo: T.() -> Unit): T? {
-    return get<T>()?.apply(todo)
+inline fun <reified T : Component> ComponentManager.handle(todo: T.() -> Unit): Unit? {
+    return get<T>()?.let(todo)
 }
 
 inline fun <reified T : Component, R> ComponentManager.let(todo: T.() -> R): R {
