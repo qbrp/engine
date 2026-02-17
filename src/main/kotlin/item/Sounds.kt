@@ -59,12 +59,10 @@ data class SoundSource(
 @JvmInline
 @Serializable
 value class SoundId(val value: String) {
-    override fun toString(): String = value.toString()
+    override fun toString(): String = value
 }
 
-typealias SoundEventStorage = NamespacedStorage<SoundEventId, SoundEvent>
-
-fun SoundEventStorage.getOrSingleSound(id: SoundEventId) = this.entries[id] ?: SoundEvent(
+fun NamespacedStorage.getOrSingleSound(id: SoundEventId) = this.sounds[id] ?: SoundEvent(
     id,
     listOf(
         SoundSource(

@@ -9,6 +9,7 @@ import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.entity.PlayerLikeEntity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
+import net.minecraft.util.Identifier
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
 import org.lain.engine.client.mc.render.setMainArmPose
@@ -19,6 +20,7 @@ import org.lain.engine.client.resources.findAssets
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Gun
 import org.lain.engine.item.Writable
+import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.engine
 import org.lain.engine.player.*
 import org.lain.engine.util.*
@@ -59,6 +61,16 @@ object ClientMixinAccess {
         playerEntityRenderState.setMinorArmPose(
             armPoseOf(false, extends, isGun(inventory.offHandItem), isGunWithSelector(inventory.offHandItem), false)
         )
+    }
+
+    private val identifierCache = mutableMapOf<String, Identifier>()
+
+    fun getEngineItemModel(itemStack: ItemStack): Identifier? {
+        if (!client.gameSessionActive) return null
+        val engineItem = itemStack.engine()?.getClientItem() ?: return null
+        return resolveItemAsset(engineItem)?.let { path ->
+            identifierCache.computeIfAbsent(path) { EngineId(path) }
+        }
     }
 
     private fun isGun(item: EngineItem?) = item?.has<Gun>() == true

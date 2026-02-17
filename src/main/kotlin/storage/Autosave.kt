@@ -13,6 +13,7 @@ import org.lain.engine.item.HoldsBy
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.mc.engine
+import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.has
@@ -87,7 +88,10 @@ suspend fun EngineMinecraftServer.loadItemStack(itemStack: ItemStack, owner: Eng
     val reference = itemStack.engine() ?: return null
     val uuid = reference.uuid
     return database.loadItem(owner.location, uuid)
-        ?.also { engine.itemStorage.add(it.uuid, it) }
+        ?.also {
+            dataFixItem(it, engine.namespacedStorage)
+            engine.itemStorage.add(it.uuid, it)
+        }
 }
 
 class ItemLoader(private val server: EngineMinecraftServer, ) {
@@ -110,7 +114,7 @@ class ItemLoader(private val server: EngineMinecraftServer, ) {
                     notFound.add(uuid)
                     return@launch
                 }
-                server.engine.execute { server.wrapItemStack(owner, item, itemStack) }
+                server.engine.execute { wrapEngineItemStack(item, itemStack) }
             }
         }
     }

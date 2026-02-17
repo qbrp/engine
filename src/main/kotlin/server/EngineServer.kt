@@ -30,8 +30,7 @@ class EngineServer(
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val playerService = PlayerService(playerStorage, this)
     val itemStorage = ItemStorage()
-    val itemPrefabStorage = NamespacedStorage<ItemId, ItemPrefab>()
-    var soundEventStorage = NamespacedStorage<SoundEventId, SoundEvent>()
+    val namespacedStorage = NamespacedStorage()
     val defaultWorld
         get() = worlds.toList().first().second
 
@@ -66,7 +65,7 @@ class EngineServer(
 
         tickTimes.add(start.timeElapsed().toInt())
         worlds.values.forEach { world ->
-            processWorldSounds(handler, soundEventStorage, globals.defaultItemSounds, world)
+            processWorldSounds(handler, namespacedStorage, globals.defaultItemSounds, world)
             handleDecalsAttaches(world)
             broadcastDecalsAttachments(handler, world)
             world.events<DecalEvent>().clear()
@@ -98,7 +97,7 @@ class EngineServer(
     }
 
     fun createItem(location: Location, id: ItemId): EngineItem {
-        val prefab = itemPrefabStorage.get(id)
+        val prefab = namespacedStorage.items[id] ?: error("Item with id $id not found")
         val item = bakeItem(location, prefab)
         itemStorage.add(item.uuid, item)
         return item

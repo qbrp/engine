@@ -3,6 +3,7 @@ package org.lain.engine.world
 import org.lain.engine.item.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
+import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.flush
 import org.lain.engine.util.math.Vec3
 
@@ -27,7 +28,7 @@ sealed class WorldSoundPlayRequest {
 
 fun processWorldSounds(
     handler: ServerHandler,
-    soundEventStorage: SoundEventStorage,
+    storage: NamespacedStorage,
     defaultItemSounds: Map<String, SoundEventId>,
     world: World
 ) {
@@ -35,7 +36,7 @@ fun processWorldSounds(
         var players = world.players.toList()
         val play = when(request) {
             is WorldSoundPlayRequest.Positioned -> SoundPlay(
-                soundEventStorage.getOrSingleSound(request.eventId),
+                storage.getOrSingleSound(request.eventId),
                 request.pos,
                 request.category,
                 request.volume,
@@ -46,7 +47,7 @@ fun processWorldSounds(
                     players = listOf(request.player)
                 }
                 SoundPlay(
-                    soundEventStorage.getOrSingleSound(
+                    storage.getOrSingleSound(
                         request.item.sound?.get(request.key) ?: defaultItemSounds[request.key] ?: SoundEventId.MISSING,
                     ),
                     request.item.pos,

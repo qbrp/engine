@@ -43,35 +43,3 @@ value class NamespaceId(val value: String) {
         return value
     }
 }
-
-data class Namespace<K, V>(
-    val id: NamespaceId,
-    val entries: Map<K, V>
-)
-
-class NamespacedStorage<K, V> {
-    var entries: Map<K, V> = mapOf()
-        private set
-    var namespaces: Map<NamespaceId, Namespace<K, V>> = mapOf()
-        private set
-    var identifiers: List<String> = listOf()
-        private set
-
-    fun upload(namespaces: List<Namespace<K, V>>) {
-        val identifiers2 = mutableListOf<String>()
-        val entries2 = mutableMapOf<K, V>()
-        val namespaces2 = mutableMapOf<NamespaceId, Namespace<K, V>>()
-        for (namespace in namespaces) {
-            namespaces2[namespace.id] = namespace
-            entries2 += namespace.entries
-            identifiers2 += (namespace.entries.keys.map { it.toString() } + namespace.id.value)
-        }
-        this.identifiers = identifiers2
-        this.namespaces = namespaces2
-        this.entries = entries2
-    }
-
-    operator fun get(index: K): V {
-        return entries[index] ?: error("Element $index not found")
-    }
-}

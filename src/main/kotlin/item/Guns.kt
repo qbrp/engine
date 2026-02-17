@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.items
 import org.lain.engine.player.translateRotation
+import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.Component
 import org.lain.engine.util.get
 import org.lain.engine.util.handle
@@ -23,7 +24,7 @@ data class Gun(
     var selector: Boolean = true,
     var clicked: Boolean = false,
     val ammunition: ItemId?,
-) : Component {
+) : ItemComponent {
     fun copy(): Gun {
         return Gun(Barrel(barrel.bullets, barrel.maxBullets), selector, clicked, ammunition)
     }
@@ -33,7 +34,7 @@ data class Gun(
 data class GunDisplay(
     val ammunition: String? = null,
     @SerialName("selector_status") val selectorStatus: Boolean = true,
-) : Component
+) : ItemComponent
 
 /**
  * @return Уменьшение количества принимаемого как патрон предмета для предмета-оружия

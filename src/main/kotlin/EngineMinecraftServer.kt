@@ -45,7 +45,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     protected val acousticSceneBank = dependencies.acousticSceneBank
     protected val config = loadOrCreateServerConfig()
     val entityTable = dependencies.entityTable.server
-    val itemContext = EngineItemContext()
     val acousticSimulator = dependencies.acousticSimulator
     val engine = EngineServer(
         config.server,
@@ -62,20 +61,14 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     protected abstract val transportContext: ServerTransportContext
 
-    open fun wrapItemStack(owner: EnginePlayer, item: EngineItem, itemStack: ItemStack): EngineItem {
-        val properties = itemContext.itemPropertiesStorage[item.id]
-        wrapEngineItemStack(properties, item, itemStack)
+    open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
+        val item = engine.createItem(owner.location, itemId)
+        wrapEngineItemStack(item, itemStack)
         return item
     }
 
-    open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
-        val item = engine.createItem(owner.location, itemId)
-        return wrapItemStack(owner, item, itemStack)
-    }
-
     open fun createItemStack(owner: EnginePlayer, itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> Unit): EngineItem {
-        val properties = itemContext.itemPropertiesStorage[itemId]
-        val itemStack = properties.getMaterialStack()
+        val itemStack = ITEM_STACK_MATERIAL.copy()
         return wrapItemStack(owner, itemId, itemStack)
             .also { itemStackHandler(itemStack, it) }
     }
@@ -93,7 +86,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         Injector.register(MinecraftRaycastProvider(minecraftServer, entityTable))
         Injector.register<PlayerPermissionsProvider>(MinecraftPermissionProvider(entityTable))
         Injector.register<ServerTransportContext>(transportContext)
-        Injector.register(itemContext)
         Injector.register(engine.itemStorage)
         Injector.register<ItemAccess>(engine.itemStorage)
         Injector.register(engine.globals.movementSettings)

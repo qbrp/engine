@@ -2,15 +2,7 @@ package org.lain.engine.util.file
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import net.minecraft.entity.EquipmentSlot
-import net.minecraft.util.Identifier
-import org.lain.engine.item.Barrel
-import org.lain.engine.item.Gun
-import org.lain.engine.item.GunDisplay
-import org.lain.engine.item.ItemId
-import org.lain.engine.mc.ItemEquipment
-import org.lain.engine.mc.ItemProperties
-import org.lain.engine.util.EngineId
+import org.lain.engine.item.*
 
 @Serializable
 data class GunConfig(
@@ -41,48 +33,62 @@ data class ItemConfig(
     @SerialName("display_name") val displayName: String,
     val material: String = "stick",
     val model: String? = null,
-    val texture: String? = null,
-    @SerialName("asset") val assetType: AssetType = AssetType.FILE,
     val stackable: Boolean? = null,
-    @SerialName("stack_size") val maxStackSize: Int = 16,
-    val equip: ItemEquipment? = null,
+    @SerialName("stack_size") val maxStackSize: Int? = null,
     val hat: Boolean? = null,
     val gun: GunConfig? = null,
     val tooltip: String? = null,
-    val sounds: Map<String, String>? = null,
+    val sounds: Map<String, SoundEventId>? = null,
     val mass: Float? = null,
     val writable: WritableConfig? = null,
-) {
-    enum class AssetType {
-        GENERATED, FILE
-    }
-}
+    val assets: Map<String, String>? = null,
+)
 
 @Serializable
 data class WritableConfig(val pages: Int, val texture: String? = null)
 
-fun compileItemProperties(id: String, item: ItemConfig, namespace: NamespaceContents, namespaceConfig: NamespaceConfig): ItemProperties {
-    val namespacedId = NamespaceItemId(namespace.id, id)
-    val material = Identifier.ofVanilla(item.material.lowercase())
-    val cfgMaxStackSize = item.maxStackSize
-    val cfgStackable = item.stackable ?: namespaceConfig.stackable ?: false
-    val stackSize = if (cfgStackable) cfgMaxStackSize else 1
-    val asset = when(item.assetType) {
-        ItemConfig.AssetType.FILE -> item.model?.replaceToRelative(namespace) ?: namespaceConfig.model
-            .replaceToRelative(namespace)
-            .replace("{id}", id)
-        ItemConfig.AssetType.GENERATED -> item.texture ?: id
+context(ctx: ContentCompileContext)
+internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileNamespace): List<CompiledNamespace.Item> {
+    val namespaceConfig = namespace.config
+    return itemConfigs.map { (id, config) ->
+        // Экипировка
+        val hat = config.hat ?: namespaceConfig.computeInheritable { it.hat } ?: false
+
+        // Ассеты
+        var assets = (config.assets ?: mapOf("default" to config.model)) + namespaceConfig.accumulateInheritable { it.assets }
+        assets = assets.mapValues { (_, path) ->
+            (path ?: namespaceConfig.model)
+                .replaceToRelative(namespace)
+                .replace("{id}", id)
+        }
+
+        // Звуки
+        var sounds = (config.sounds ?: emptyMap()) + namespaceConfig.accumulateInheritable { it.sounds }
+        sounds = sounds.mapValues { (_, path) -> SoundEventId(path.value.replaceToRelative(namespace)) }
+
+        // Физические хар-ки
+        val stackable = config.stackable ?: namespaceConfig.computeInheritable { it.stackable } ?: false
+        var maxStackSize = config.maxStackSize ?: namespaceConfig.computeInheritable { it.maxStackSize } ?: 16
+        if (!stackable) maxStackSize = 1
+        val mass = config.mass ?: namespaceConfig.computeInheritable { it.mass }
+
+        CompiledNamespace.Item(
+            config,
+            ItemPrefab(
+                ItemInstantiationSettings(
+                    ItemId(namespacedId(namespace.id, id)),
+                    maxStackSize,
+                    ItemName(config.displayName),
+                    config.gun?.gunComponent(),
+                    config.gun?.gunDisplayComponent(),
+                    config.tooltip?.let { ItemTooltip(it) },
+                    mass?.let { Mass(it) },
+                    config.writable?.let { Writable(it.pages, listOf(), it.texture) },
+                    hat,
+                    ItemAssets(assets),
+                    sounds = ItemSounds(sounds)
+                )
+            )
+        )
     }
-    val assetId = EngineId(asset)
-
-    val hat = (item.hat ?: namespaceConfig.hat)?.let { if (it) ItemEquipment(EquipmentSlot.HEAD) else null }
-    val equip = (item.equip ?: namespaceConfig.equip) ?: hat
-
-    return ItemProperties(
-        namespacedId,
-        material,
-        assetId,
-        stackSize,
-        equip
-    )
 }

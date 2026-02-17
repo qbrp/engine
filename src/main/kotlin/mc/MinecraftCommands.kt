@@ -105,6 +105,8 @@ fun List<ServerPlayerEntity>.formatPlayerList() = joinToString(separator = ", ")
 
 private class FriendlyException(message: String) : RuntimeException(message)
 
+fun friendlyError(message: String): Nothing = throw FriendlyException(message)
+
 data class Context(
     val player: EnginePlayer?,
     val source: ServerCommandSource,
@@ -216,10 +218,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                         val player = ctx.requirePlayer()
 
                         val parts = raw.split(" ")
-                        if (parts.isEmpty()) {
-                            ctx.sendError("Использование: /setname <имя> <цвет1> [цвет2]")
-                            return@executeCatching
-                        }
+                        if (parts.isEmpty()) friendlyError("Использование: /setname <имя> <цвет1> [цвет2]")
 
                         val name = parts[0]
                         val color1 = parts.getOrNull(1)?.replace("#", "")
@@ -361,34 +360,31 @@ fun ServerCommandDispatcher.registerEngineCommands() {
         )
     )
 
-    fun <K, V> collectElements(storage: NamespacedStorage<K, V>, id: K): List<V> {
-        val items = mutableListOf<K>()
-
-        val namespace = storage.namespaces[NamespaceId(id.toString())]
-        if (namespace != null) {
-            items += namespace.entries.keys.toList()
-        } else {
-            items += id
-        }
-
-        return items.mapNotNull { storage.entries[it] }
-    }
-
     register(
         CommandManager.literal("engineitem")
             .requires { it.hasPermission("engineitem") }
             .then(
                 CommandManager.argument("id", StringArgumentType.string())
-                    .suggests(NamespacedIdProvider({ server.engine.itemPrefabStorage }))
+                    .suggests(
+                        NamespacedIdProvider { it.itemIdentifiers }
+                    )
                     .executeCatching { ctx ->
-                        val itemContext by injectItemContext()
                         val argument = ctx.command.getString("id")
                         val id = ItemId(argument)
-                        val player = ctx.source.player ?: error("Команда доступна только игроку")
+                        val player = ctx.source.player ?: friendlyError("Команда доступна только игроку")
 
-                        val prefabs = collectElements(itemContext.itemPropertiesStorage, id)
+                        val storage = server.engine.namespacedStorage
+                        val items = mutableListOf<ItemId>()
+                        val namespace = storage.namespaces[NamespaceId(id.toString())]
+                        if (namespace != null) {
+                            items += namespace.items.keys.toList()
+                        } else {
+                            items += id
+                        }
+
+                        val prefabs = items.mapNotNull { storage.items[it] }
                         if (prefabs.isEmpty()) {
-                            error("Предметы по идентификатору $id не найдены")
+                            friendlyError("Предметы по идентификатору $id не найдены")
                         }
 
                         prefabs.forEach { prefab ->
@@ -421,10 +417,10 @@ fun ServerCommandDispatcher.registerEngineCommands() {
     )
 
     fun executeEngineSoundCommand(ctx: Context, id: String, pos: Vec3d? = null, volume: Float = 1f) {
-        val soundEventStorage = server.engine.soundEventStorage
+        val storage = server.engine.namespacedStorage
         val id = SoundEventId(id)
         val player = ctx.requirePlayer()
-        val event = soundEventStorage.entries[id] ?: error("Звуковое событие по идентификатору $id не найдено")
+        val event = storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
         val pos = pos?.engine() ?: player.pos.copy()
 
         player.world.emitPlaySoundEvent(
@@ -444,7 +440,9 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             .requires { it.hasPermission("enginesound") }
             .then(
                 CommandManager.argument("id", StringArgumentType.string())
-                    .suggests(NamespacedIdProvider({ server.engine.soundEventStorage }, false))
+                    .suggests(
+                        NamespacedIdProvider { it.soundIdentifiers }
+                    )
                     .executeCatching { ctx ->
                         val argument = ctx.command.getString("id")
                         executeEngineSoundCommand(ctx, argument)
@@ -534,19 +532,19 @@ fun ServerCommandDispatcher.registerEngineCommands() {
     registerServerPmCommand()
 }
 
-class NamespacedIdProvider<K, V>(
-    val storageProvider: () -> NamespacedStorage<K, V>,
-    val includeNamespaces: Boolean = true
+class NamespacedIdProvider(
+    val provider: (NamespacedStorage) -> List<String>,
 ) : SuggestionProvider<ServerCommandSource> {
-    val identifiers get() = if (includeNamespaces) storageProvider().identifiers else storageProvider().entries.keys
+    private val server by injectEngineServer()
+    private val storage get() = server.namespacedStorage
 
     override fun getSuggestions(
         context: CommandContext<ServerCommandSource>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
         val input = builder.remainingLowerCase.replace(""""""", "")
+        val identifiers = provider(storage)
         identifiers
-            .map { it.toString() }
             .filter {
                 it.startsWith(input) || it.split("/").any { it.startsWith(input) }
             }

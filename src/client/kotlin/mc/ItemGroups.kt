@@ -11,7 +11,7 @@ import net.minecraft.registry.RegistryKey
 import net.minecraft.text.Text
 import org.lain.engine.client.mixin.ItemGroupAccessor
 import org.lain.engine.mc.ENGINE_ITEM_INSTANTIATE_COMPONENT
-import org.lain.engine.mc.wrapEngineItemStackBase
+import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.wrapEngineItemStackVisual
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.file.compileContents
@@ -47,14 +47,13 @@ fun registerEngineItemGroupEvent() {
     Registry.register(Registries.ITEM_GROUP, KEY, ITEM_GROUP);
     ItemGroupEvents.modifyEntriesEvent(KEY).register { entries ->
         val results = compileContents()
-        results.items.forEach { (namespace, items) ->
-            items.forEach { item ->
-                val stack = item.properties.getMaterialStack()
-                val properties = item.properties
+        results.namespaces.forEach { (_, namespace) ->
+            namespace.items.forEach { (id, item) ->
+                val stack = ITEM_STACK_MATERIAL
                 val prefab = item.prefab.properties
-                wrapEngineItemStackBase(stack, properties.maxStackSize, properties.equipment)
-                wrapEngineItemStackVisual(stack, prefab.name?.text ?: "Предмет", properties.asset)
-                stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, properties.id.value)
+
+                wrapEngineItemStackVisual(stack, prefab.name?.text ?: "Предмет")
+                stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, id.value)
                 entries.add(stack)
             }
         }

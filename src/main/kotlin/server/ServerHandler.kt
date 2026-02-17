@@ -150,7 +150,7 @@ class ServerHandler(
 
     private fun onPlayerVolume(player: PlayerId, volume: Float) = updatePlayer(player) {
         val settings = require<DefaultPlayerAttributes>()
-        if (volume > settings.maxVolume || volume < settings.minVolume) {
+        if (volume > settings.maxVolume || volume < 0) {
             desync("Недопустимый уровень громкости")
         }
         require<VoiceApparatus>().inputVolume = volume

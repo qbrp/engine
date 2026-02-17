@@ -5,202 +5,166 @@ import com.charleskorn.kaml.decodeFromStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.EngineMinecraftServer
-import org.lain.engine.item.*
-import org.lain.engine.mc.ItemEquipment
-import org.lain.engine.mc.ItemListTab
-import org.lain.engine.mc.ItemProperties
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemPrefab
+import org.lain.engine.item.SoundEvent
+import org.lain.engine.item.SoundEventId
 import org.lain.engine.util.Namespace
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.util.Timestamp
 
 val CONTENTS_DIR = ENGINE_DIR.resolve("contents")
-private val INVENTORY_TABS = CONTENTS_DIR.resolve(INVENTORY_TABS_FILENAME)
-private val NAMESPACES = CONTENTS_DIR.resolve(NAMESPACES_FILENAME)
-private const val INVENTORY_TABS_FILENAME = "tabs.yml"
+val DEFAULT_NAMESPACE = NamespaceId("default")
 private const val NAMESPACES_FILENAME = "namespaces.yml"
 
 @Serializable
-data class NamespaceConfig(
-    val stackable: Boolean? = null,
-    val hat: Boolean? = null,
-    val equip: ItemEquipment? = null,
-    val model: String = "~/{id}",
-    val sounds: Map<String, SoundEventId> = mapOf()
-)
-
-@Serializable
-data class NamespaceContents(
+internal data class NamespaceContents(
     @SerialName("namespace") val id: NamespaceId,
     val items: Map<String, ItemConfig> = mapOf(),
     val sounds: Map<String, SoundEventConfig> = mapOf()
 )
 
 @Serializable
-data class InventoryTabsConfig(val tabs: Map<String, Entry>) {
-    @Serializable
-    data class Entry(
-        val name: String,
-        val icon: String,
-        val contents: List<String>
-    )
+internal data class NamespaceConfig(
+    val inherit: NamespaceId? = null,
+    val stackable: Boolean? = null,
+    @SerialName("stack_size") val maxStackSize: Int? = null,
+    val hat: Boolean? = null,
+    val model: String = "~/{id}",
+    val sounds: Map<String, SoundEventId> = mapOf(),
+    val assets: Map<String, String> = mapOf(),
+    val mass: Float? = null,
+)
+
+internal data class FileNamespace(
+    val id: NamespaceId,
+    val contents: NamespaceContents,
+    val config: NamespaceConfig,
+)
+
+context(ctx: ContentCompileContext)
+internal fun <T> NamespaceConfig?.computeInheritable(getter: (NamespaceConfig) -> T): T? {
+    if (this == null) return null
+    val configs = ctx.namespaces
+    return getter(this) ?: inherit?.let { (configs[it] ?: configs[DEFAULT_NAMESPACE])?.config?.computeInheritable(getter) }
 }
 
-fun NamespaceItemId(namespace: NamespaceId, id: String) = ItemId("$namespace/$id")
-
-fun NamespaceSoundEventId(namespace: NamespaceId, id: String) = SoundEventId("$namespace/$id")
-
-fun loadNamespaces(): Map<NamespaceId, NamespaceContents> {
-    val namespaceConfigs = mutableMapOf<NamespaceId, NamespaceContents>()
-    CONTENTS_DIR.ensureExists()
-    CONTENTS_DIR.walk().forEach { dir ->
-        if (dir.isFile && dir.extension == "yml" && dir.name != INVENTORY_TABS_FILENAME && dir.name != NAMESPACES_FILENAME) {
-            val namespace = Yaml.default.decodeFromStream<NamespaceContents>(dir.inputStream())
-            val id = namespace.id
-            val upserted = namespaceConfigs[id]?.let {
-                it.copy(
-                    items = it.items + namespace.items,
-                )
-            }
-            namespaceConfigs[id] = upserted ?: namespace
+context(ctx: ContentCompileContext)
+internal fun <K, V> NamespaceConfig.accumulateInheritable(
+    getter: (NamespaceConfig) -> Map<K, V>,
+    output: MutableMap<K, V> = mutableMapOf(),
+) {
+    val configs = ctx.namespaces
+    if (inherit != null) {
+        configs[inherit]?.config?.accumulateInheritable(getter, output) ?: run {
+            error("Наследуемая родительская конфигурация не найдена: $inherit")
         }
     }
-    return namespaceConfigs
+    output += getter(this)
 }
 
-fun compileInventoryTabsConfig(namespaces: Map<String, List<ItemProperties>>, items: List<ItemId>): List<ItemListTab> {
-    if (!INVENTORY_TABS.exists()) return emptyList()
-    val config = Yaml.default.decodeFromStream<InventoryTabsConfig>(INVENTORY_TABS.inputStream())
-    return config.tabs.map { (id, entry) ->
-        ItemListTab(
-            id,
-            entry.name,
-            entry.contents.flatMap { line ->
-                if (line.startsWith("namespace:")) {
-                    val namespaceName = line.split(":").getOrNull(1) ?: error("Не указано пространство имён")
-                    val namespaceItems = namespaces[namespaceName] ?: error("Пространство имён $namespaceName не найдено")
-                    namespaceItems.map { it.id }
-                } else {
-                    val id = ItemId(line)
-                    if (id !in items) {
-                        error("Предмет $id не существует")
-                    }
-                    listOf(id)
-                }
+
+context(ctx: ContentCompileContext)
+internal fun <K, V> NamespaceConfig.accumulateInheritable(getter: (NamespaceConfig) -> Map<K, V>): Map<K, V> {
+    val output = mutableMapOf<K, V>()
+    accumulateInheritable(getter, output)
+    return output
+}
+
+fun namespacedId(namespace: NamespaceId, id: String) = "$namespace/$id"
+
+internal fun String.replaceToRelative(namespace: FileNamespace): String {
+    return replaceFirst("~", namespace.id.value)
+}
+
+private fun loadNamespaces(): Map<NamespaceId, FileNamespace> {
+    val namespaces = mutableSetOf<NamespaceId>()
+    val contents = mutableMapOf<NamespaceId, NamespaceContents>()
+    val configs = mutableMapOf<NamespaceId, NamespaceConfig>()
+    CONTENTS_DIR.ensureExists()
+    CONTENTS_DIR.walk().forEach { dir ->
+        if (!dir.isFile && dir.extension != "yml") return@forEach
+        if (dir.name == NAMESPACES_FILENAME) {
+            val config = Yaml.default.decodeFromStream<Map<NamespaceId, NamespaceConfig>>(dir.inputStream())
+            configs.putAll(config)
+        } else {
+            val namespace = Yaml.default.decodeFromStream<NamespaceContents>(dir.inputStream())
+            val id = namespace.id
+            val upserted = contents[id]?.let {
+                it.copy(items = it.items + namespace.items)
             }
+            contents[id] = upserted ?: namespace
+            namespaces.add(id)
+        }
+    }
+    return namespaces.associateWith {
+        FileNamespace(
+            it,
+            contents[it]!!,
+            configs[it] ?: configs[NamespaceId("default")] ?: NamespaceConfig(),
         )
     }
 }
 
-fun String.replaceToRelative(namespace: NamespaceContents): String {
-    return replaceFirst("~", namespace.id.value)
+fun compileContents(): ContentsCompileResult = with(ContentCompileContext(loadNamespaces())) {
+    val start = Timestamp()
+    var items = 0
+    var sounds = 0
+    val namespaces = namespaces.mapValues { (_, namespace) ->
+        val contents = namespace.contents
+
+        CompiledNamespace(
+            compileItems(contents.items, namespace)
+                .associateBy { it.id }
+                .also { items += it.count() },
+            compileSoundEvents(contents.sounds, namespace)
+                .associateBy { it.id }
+                .also { sounds += it.count() }
+        )
+    }
+
+    CONFIG_LOGGER.info(
+        "Скомпилировано {} предметов, {} звуковых событий в пространствах имён {} за {} мл.",
+        items,
+        sounds,
+        namespaces.keys.joinToString(separator = ", "),
+        start.timeElapsed()
+    )
+
+    return ContentsCompileResult(namespaces)
 }
 
-fun String.replaceToRelative(namespace: String): String {
-    return replaceFirst("~", namespace)
-}
+data class ContentsCompileResult(val namespaces: Map<NamespaceId, CompiledNamespace>)
 
-data class ContentsCompileResult(
-    val items: Map<NamespaceId, List<Item>>,
-    val sounds: Map<NamespaceId, List<SoundEvent>>
+data class CompiledNamespace(
+    val items: Map<ItemId, Item>,
+    val sounds: Map<SoundEventId, SoundEvent>
 ) {
     data class Item(
         val config: ItemConfig,
-        val properties: ItemProperties,
         val prefab: ItemPrefab,
     ) {
         val id get() = prefab.id
     }
 }
 
+internal data class ContentCompileContext(val namespaces: Map<NamespaceId, FileNamespace>)
+
 fun EngineMinecraftServer.applyContentsCompileResult(result: ContentsCompileResult) {
-    engine.soundEventStorage.upload(
-        result.sounds.map { (namespace, sounds) ->
+    engine.namespacedStorage.upload(
+        result.namespaces.map { (id, namespace) ->
             Namespace(
-                namespace,
-                sounds.associateBy { it.id }
+                id,
+                namespace.items.mapValues { it.value.prefab },
+                namespace.sounds
             )
         }
     )
-
-    engine.itemPrefabStorage.upload(
-        result.items.map { (namespace, entries) ->
-            Namespace(
-                namespace,
-                entries.associate { it.id to it.prefab }
-            )
-        }
-    )
-
-    itemContext.itemPropertiesStorage.upload(
-        result.items.map { (namespace, entries) ->
-            Namespace(
-                namespace,
-                entries.associate { it.id to it.properties }
-            )
-        }
-    )
-
     engine.handler.onContentsUpdate()
 }
 
-fun compileContents(namespaces: Map<NamespaceId, NamespaceContents> = loadNamespaces()): ContentsCompileResult {
-    val start = Timestamp()
-    val namespaceConfigs = if (NAMESPACES.exists()) {
-        Yaml.default.decodeFromStream<MutableMap<NamespaceId, NamespaceConfig>>(NAMESPACES.inputStream())
-    } else {
-        mutableMapOf()
-    }
-    val defaultNamespace = namespaceConfigs[NamespaceId("default")] ?: NamespaceConfig()
-
-    val sounds = mutableMapOf<NamespaceId, MutableList<SoundEvent>>()
-    val items = mutableMapOf<NamespaceId, MutableList<ContentsCompileResult.Item>>()
-
-    for (namespace in namespaces.values) {
-        val namespaceConfig = namespaceConfigs.getOrPut(namespace.id) { defaultNamespace }
-        for ((itemId, config) in namespace.items) {
-            val properties = compileItemProperties(itemId, config, namespace, namespaceConfig)
-            items.getOrPut(namespace.id) { mutableListOf() }.add(
-                ContentsCompileResult.Item(
-                    config,
-                    properties,
-                    ItemPrefab(
-                        ItemInstantiationSettings(
-                            properties.id,
-                            ItemName(config.displayName),
-                            config.gun?.gunComponent(),
-                            config.gun?.gunDisplayComponent(),
-                            config.tooltip?.let { ItemTooltip(it) },
-                            if (config.stackable == true) properties.maxStackSize else null,
-                            config.mass?.let { Mass(it) },
-                            config.writable?.let { Writable(it.pages, listOf(), it.texture) },
-                            sounds = config.sounds?.let { component ->
-                                ItemSounds(
-                                    component.mapValues { SoundEventId(it.value.replaceToRelative(namespace)) }
-                                )
-                            }
-                        )
-                    )
-                )
-            )
-        }
-        for ((soundId, config) in namespace.sounds) {
-            val soundEvent = compileSoundEventConfig(soundId, config, namespace)
-            sounds.getOrPut(namespace.id) { mutableListOf() }.add(soundEvent)
-        }
-    }
-
-    CONFIG_LOGGER.info(
-        "Скомпилировано {} предметов, {} звуковых событий в пространствах имён {} за {} мл.",
-        items.flatMap { it.value }.count(),
-        sounds.flatMap { it.value }.count(),
-        namespaces.keys.joinToString(separator = ", "),
-        start.timeElapsed()
-    )
-
-    return ContentsCompileResult(items.toMap(), sounds.toMap())
-}
 
 fun EngineMinecraftServer.loadContents() {
-    val results = compileContents(loadNamespaces())
+    val results = compileContents()
     applyContentsCompileResult(results)
 }

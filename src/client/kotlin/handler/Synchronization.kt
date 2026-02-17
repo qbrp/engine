@@ -1,6 +1,7 @@
 package org.lain.engine.client.handler
 
-import org.lain.engine.item.ItemInstantiationSettings
+import org.lain.engine.item.Count
+import org.lain.engine.item.EngineItem
 import org.lain.engine.item.itemInstance
 import org.lain.engine.player.*
 import org.lain.engine.transport.packet.ClientboundItemData
@@ -8,6 +9,7 @@ import org.lain.engine.transport.packet.ClientboundWorldData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.Component
+import org.lain.engine.util.ComponentState
 import org.lain.engine.util.getOrSet
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.set
@@ -64,20 +66,16 @@ fun mainClientPlayerInstance(
     ).also { it.isLowDetailed = false }
 }
 
-fun clientItem(world: World, item: ClientboundItemData) = itemInstance(
-    item.uuid,
-    Location(world, item.position),
-    ItemInstantiationSettings(
+fun clientItem(world: World, item: ClientboundItemData): EngineItem {
+    val state = ComponentState(item.components)
+    return itemInstance(
+        item.uuid,
         item.id,
-        item.name,
-        item.gun,
-        item.gunDisplay,
-        item.tooltip,
-        item.count,
-        item.mass,
-        item.writable
-    ),
-)
+        Location(world, item.pos),
+        Count(item.count, item.maxCount),
+        state
+    )
+}
 
 fun clientWorld(data: ClientboundWorldData, chunkStorage: ChunkStorage) = World(data.id, chunkStorage).apply {
     set(WorldEvents())

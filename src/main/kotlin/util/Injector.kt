@@ -3,7 +3,6 @@ package org.lain.engine.util
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.item.ItemStorage
-import org.lain.engine.mc.EngineItemContext
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.MovementSettings
 import org.lain.engine.server.EngineServer
@@ -53,8 +52,6 @@ fun injectEngineServer() = inject<EngineServer>()
 fun injectMinecraftEngineServer() = inject<EngineMinecraftServer>()
 
 fun injectEntityTable() = inject<EntityTable>()
-
-fun injectItemContext() = inject<EngineItemContext>()
 
 fun injectItemStorage() = inject<ItemStorage>()
 

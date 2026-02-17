@@ -8,8 +8,7 @@ import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.lain.engine.item.*
-import org.lain.engine.util.Component
-import org.lain.engine.util.ComponentState
+import org.lain.engine.util.*
 import org.lain.engine.world.Location
 
 fun connectDatabase(server: MinecraftServer): Database {
@@ -36,34 +35,50 @@ suspend fun Database.saveItem(item: EngineItem) {
 
 suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
     val (id, data) = loadPersistentItemData(uuid) ?: return null
-    val components = mutableListOf<Component>()
+    val components = mutableSetOf<Component>()
+    var count: Count? = null
 
     for (component in data.components) {
         when(component) {
             is ItemData.Display -> {
                 components.addIfNotNull(component.name)
                 components.addIfNotNull(component.tooltip)
+                components.addIfNotNull(component.assets)
             }
             is ItemData.Guns -> {
                 components.addIfNotNull(component.data)
                 components.addIfNotNull(component.display)
             }
-            is ItemData.Sounds -> {
-                components.addIfNotNull(component.data)
+            is ItemData.PhysicalParameters -> {
+                count = component.count
+                components.addIfNotNull(component.mass)
             }
+            is ItemData.Equipment -> {
+                if (component.hat) components += Hat
+            }
+            is ItemData.Sounds ->
+                components.addIfNotNull(component.data)
+            is ItemData.Book ->
+                components.add(component.writable)
             is ItemData.Count -> {
-                components.add(Count(component.value))
+                count = Count(component.value, 16)
             }
             is ItemData.Mass ->
                 components.add(Mass(component.value))
-            is ItemData.Book ->
-                components.add(component.writable)
         }
     }
 
-    val state = ComponentState(components)
+    val state = ComponentState(components.toList())
 
-    return itemInstance(uuid, id, location, state)
+    return itemInstance(uuid, id, location, count!!, state)
+}
+
+fun dataFixItem(item: EngineItem, storage: NamespacedStorage) {
+    if (!item.has<ItemAssets>()) {
+        val prefab = storage.items[item.id] ?: return
+        val assets = prefab.properties.assets
+        item.setNullable(assets)
+    }
 }
 
 suspend fun Database.saveItemPersistentDataBatch(items: List<Pair<EngineItem, PersistentItemData>>) {

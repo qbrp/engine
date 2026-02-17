@@ -30,12 +30,13 @@ class PlayerVocalRegulator(
     fun set(value: Float) {
         val old = volume.value
         if (old == value) return
-        volume.updateVolume(value)
+        val value = volume.updateVolume(value)
         gameSession.chatEventBus.onMessageVolumeUpdate(old, value)
         gameSession.handler.onVolumeUpdate(value)
     }
 }
 
-fun PlayerVolume.updateVolume(vol: Float) {
+fun PlayerVolume.updateVolume(vol: Float): Float {
     value = vol.coerceIn(0f, max)
+    return value
 }

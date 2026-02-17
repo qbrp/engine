@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.storage.addIfNotNull
 import org.lain.engine.util.Component
 import org.lain.engine.util.get
+import org.lain.engine.util.require
 
 const val WRITEABLE_WRITTEN_ASSET = "writable_written"
 const val WRITEABLE_EMPTY_ASSET = "writable_written"
@@ -11,8 +12,8 @@ const val WRITEABLE_EMPTY_ASSET = "writable_written"
 @Serializable
 data class ItemAssets(val assets: Map<String, String>) : Component
 
-fun resolveItemAsset(item: EngineItem): String? {
-    val assets = item.get<ItemAssets>()?.assets ?: return null
+fun resolveItemAsset(item: EngineItem): String {
+    val assets = item.require<ItemAssets>().assets
     val variants = mutableListOf<String>()
 
     variants.addIfNotNull(
@@ -25,6 +26,5 @@ fun resolveItemAsset(item: EngineItem): String? {
         }
     )
 
-    return assets
-        .filterKeys { variants.contains(it) }.keys.firstOrNull()
+    return assets.filterKeys { variants.contains(it) }.keys.firstOrNull() ?: assets["default"] ?: "missingno"
 }

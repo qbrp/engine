@@ -2,14 +2,17 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.Component
-import org.lain.engine.util.get
 import org.lain.engine.util.has
+import org.lain.engine.util.require
 
 @Serializable
-data class Count(var value: Int) : Component
+data class Count(var value: Int, val max: Int) : Component
 
 val EngineItem.count
-    get() = this.get<Count>()?.value ?: 1
+    get() = this.require<Count>().value
+
+val EngineItem.maxCount
+    get() = this.require<Count>().max
 
 /**
  * Попробовать совместить предметы - наслоить `mergeItem` на `baseItem`.

@@ -4,9 +4,12 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.util.Component
 import org.lain.engine.util.get
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.pos
+
+interface ItemComponent : Component
 
 @Serializable
 data class ItemPacket(val item: ClientboundItemData) : Packet
@@ -15,27 +18,26 @@ data class ItemPacket(val item: ClientboundItemData) : Packet
 data class ClientboundItemData(
     val id: ItemId,
     val uuid: ItemUuid,
-    val position: ImmutableVec3,
-    val name: ItemName? = null,
-    val gun: Gun?,
-    val gunDisplay: GunDisplay?,
-    val tooltip: ItemTooltip?,
-    val count: Int?,
-    val mass: Mass?,
-    val writable: Writable?,
+    val pos: ImmutableVec3,
+    val maxCount: Int,
+    val count: Int,
+    val components: List<ItemComponent>,
 ) {
     companion object {
         fun from(item: EngineItem) = ClientboundItemData(
             item.id,
             item.uuid,
             ImmutableVec3(item.pos),
-            item.get<ItemName>()?.copy(),
-            item.get<Gun>()?.copy(),
-            item.get<GunDisplay>()?.copy(),
-            item.get<ItemTooltip>()?.copy(),
-            item.get<Count>()?.value,
-            item.get<Mass>()?.copy(),
-            item.get<Writable>()?.copy()
+            item.maxCount,
+            item.count,
+            listOfNotNull(
+                item.get<ItemName>()?.copy(),
+                item.get<Gun>()?.copy(),
+                item.get<GunDisplay>()?.copy(),
+                item.get<ItemTooltip>()?.copy(),
+                item.get<Mass>()?.copy(),
+                item.get<Writable>()?.copy()
+            )
         )
     }
 }

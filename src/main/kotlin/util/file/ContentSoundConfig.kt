@@ -4,7 +4,6 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlNode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import org.lain.engine.item.SoundEvent
 import org.lain.engine.item.SoundEventId
 import org.lain.engine.item.SoundId
@@ -18,9 +17,9 @@ data class SoundEventConfig(
     val distance: Int? = null,
     @SerialName("pitch_random") val pitchRandom: Float? = null
 ) {
-    fun getSoundEvent(
+    internal fun getSoundEvent(
         id: SoundEventId,
-        namespace: NamespaceContents,
+        namespace: FileNamespace,
         entries: List<SoundEntry> = deserializeSoundEntries(sounds)
     ): SoundEvent {
         return SoundEvent(
@@ -56,7 +55,11 @@ fun deserializeSoundEntries(entries: YamlNode): List<SoundEntry> {
 }
 
 
-fun compileSoundEventConfig(id: String, event: SoundEventConfig, namespace: NamespaceContents): SoundEvent {
-    val eventId = NamespaceSoundEventId(namespace.id, id)
-    return event.getSoundEvent(eventId, namespace)
+internal fun compileSoundEvents(soundEvents: Map<String, SoundEventConfig>, namespace: FileNamespace): List<SoundEvent> {
+    return soundEvents.map { (id, event) ->
+        event.getSoundEvent(
+            SoundEventId(namespacedId(namespace.id, id)),
+            namespace
+        )
+    }
 }

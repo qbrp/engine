@@ -6,9 +6,7 @@ import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import org.lain.engine.item.*
-import org.lain.engine.util.Component
-import org.lain.engine.util.ComponentManager
-import org.lain.engine.util.get
+import org.lain.engine.util.*
 
 @Serializable
 data class PersistentItemData(val components: List<ItemData>)
@@ -16,25 +14,33 @@ data class PersistentItemData(val components: List<ItemData>)
 @Serializable
 sealed class ItemData {
     @Serializable
-    data class Display(val name: ItemName?, val tooltip: ItemTooltip?) : ItemData()
+    data class Display(val name: ItemName?, val tooltip: ItemTooltip?, val assets: ItemAssets? = null) : ItemData()
     @Serializable
     data class Guns(val data: Gun, val display: GunDisplay?) : ItemData()
     @Serializable
     data class Sounds(val data: ItemSounds) : ItemData()
 
     @Serializable
-    data class Count(val value: Int) : ItemData()
-    @Serializable
-    data class Mass(val value: Float) : ItemData()
+    data class PhysicalParameters(val count: org.lain.engine.item.Count, val mass: org.lain.engine.item.Mass?) : ItemData()
     @Serializable
     data class Book(val writable: Writable) : ItemData()
+
+    @Serializable
+    data class Equipment(val hat: Boolean) : ItemData()
+
+    @Serializable
+    @Deprecated("Использовать PhysicalParameters")
+    data class Mass(val value: Float) : ItemData()
+    @Serializable
+    @Deprecated("Использовать PhysicalParameters")
+    data class Count(val value: Int) : ItemData()
 }
 
 fun <T : ItemData> MutableList<ItemData>.addIf(statement: () -> Boolean, component: () -> T) {
     if (statement()) this += component()
 }
 
-fun <T : Any> MutableList<T>.addIfNotNull(component: T?) {
+fun <T : Any> MutableCollection<T>.addIfNotNull(component: T?) {
     if (component != null) this += component
 }
 
@@ -54,9 +60,18 @@ fun itemPersistentData(item: EngineItem): PersistentItemData {
 
     components.addIfNotNull(item.wrap<ItemSounds> { ItemData.Sounds(it.copy()) })
     components.addIfNotNull(item.wrap<Gun> { ItemData.Guns(it.copy(), item.get<GunDisplay>()?.copy()) })
-    components.addIfNotNull(item.wrap<Count> { ItemData.Count(it.value)  })
-    components.addIfNotNull(item.wrap<Mass> { ItemData.Mass(it.mass)  })
+    components.add(
+        ItemData.PhysicalParameters(
+            item.require<Count>().copy(),
+            item.get<Mass>()
+        )
+    )
     components.addIfNotNull(item.wrap<Writable> { ItemData.Book(it.copy())  })
+    components.addIfNotNull(
+        ItemData.Equipment(
+            item.has<Hat>()
+        ).takeIf { it.hat }
+    )
 
     return PersistentItemData(components)
 }

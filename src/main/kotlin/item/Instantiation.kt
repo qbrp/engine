@@ -19,19 +19,20 @@ fun bakeItem(location: Location, prefab: ItemPrefab): EngineItem {
 
 data class ItemInstantiationSettings(
     val id: ItemId,
+    val maxCount: Int,
     val name: ItemName? = null,
     val gun: Gun? = null,
     val gunDisplay: GunDisplay? = null,
     val tooltip: ItemTooltip? = null,
-    val count: Int? = null, // null значит всегда 1
     val mass: Mass? = null,
     val writable: Writable? = null,
+    val hat: Boolean = false,
+    val assets: ItemAssets? = null,
     val sounds: ItemSounds? = null,
 )
 
 fun itemInstance(uuid: ItemUuid, location: Location, properties: ItemInstantiationSettings): EngineItem {
     val state = ComponentState().apply {
-        if (properties.count != null) set(Count(properties.count))
         setNullable(properties.name?.copy())
         setNullable(properties.gun?.copy())
         setNullable(properties.gunDisplay?.copy())
@@ -39,13 +40,22 @@ fun itemInstance(uuid: ItemUuid, location: Location, properties: ItemInstantiati
         setNullable(properties.sounds?.copy())
         setNullable(properties.mass?.copy())
         setNullable(properties.writable?.copy())
+        setNullable(properties.assets?.copy())
+        if (properties.hat) set(Hat)
     }
-    return itemInstance(uuid, properties.id, location, state)
+    return itemInstance(uuid, properties.id, location, Count(1, properties.maxCount), state)
 }
 
-fun itemInstance(uuid: ItemUuid, id: ItemId, location: Location, state: ComponentState): EngineItem {
+fun itemInstance(
+    uuid: ItemUuid,
+    id: ItemId,
+    location: Location,
+    count: Count,
+    state: ComponentState
+): EngineItem {
     return EngineItem(id, uuid, state).apply {
         set(location.copy())
+        set(count.copy())
         if (has<Writable>()) {
             set(Synchronizations<EngineItem>(mutableMapOf()))
                 .also { it.initializeSynchronizers() }

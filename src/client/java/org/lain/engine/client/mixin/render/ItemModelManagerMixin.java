@@ -1,17 +1,16 @@
 package org.lain.engine.client.mixin.render;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.item.ItemModelManager;
 import net.minecraft.client.render.item.ItemRenderState;
-import net.minecraft.client.render.item.model.BasicItemModel;
 import net.minecraft.client.render.item.model.ItemModel;
-import net.minecraft.client.world.ClientWorld;
+import net.minecraft.component.ComponentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.HeldItemContext;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
+import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.render.AdditionalTransformationsBank;
 import org.lain.engine.client.mc.render.Transformations;
 import org.lain.engine.client.mc.render.TransformationsEditorScreenKt;
@@ -43,6 +42,22 @@ public class ItemModelManagerMixin {
             for (ItemRenderState.LayerRenderState layer : layers) {
                 TransformationsEditorScreenKt.setAdditionalTransformations(layer, transformations, displayContext);
             }
+        }
+    }
+
+    @Redirect(
+            method = "update",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/item/ItemStack;get(Lnet/minecraft/component/ComponentType;)Ljava/lang/Object;"
+            )
+    )
+    public Object engine$updateRenderModel(ItemStack instance, ComponentType componentType) {
+        Identifier engineItemModel = ClientMixinAccess.INSTANCE.getEngineItemModel(instance);
+        if (engineItemModel != null) {
+            return engineItemModel;
+        } else {
+            return instance.get(componentType);
         }
     }
 }

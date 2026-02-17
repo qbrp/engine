@@ -2,7 +2,6 @@ package org.lain.engine.mc
 
 import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
-import kotlinx.serialization.Serializable
 import net.minecraft.component.ComponentType
 import net.minecraft.component.DataComponentTypes
 import net.minecraft.component.type.EquippableComponent
@@ -10,47 +9,20 @@ import net.minecraft.component.type.LoreComponent
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.EquipmentSlot
 import net.minecraft.item.ItemStack
+import net.minecraft.item.Items
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
 import net.minecraft.text.Text
-import net.minecraft.util.Identifier
 import net.minecraft.util.Unit
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.name
+import org.lain.engine.item.*
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.has
 import org.lain.engine.util.injectItemAccess
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
 
-data class ItemListTab(
-    val id: String,
-    val name: String,
-    val items: List<ItemId>
-)
-
-data class EngineItemContext(
-    val itemPropertiesStorage: NamespacedStorage<ItemId, ItemProperties> = NamespacedStorage(),
-    var tabs: List<ItemListTab> = mutableListOf(),
-)
-
-data class ItemProperties(
-    val id: ItemId,
-    val material: Identifier,
-    val asset: Identifier,
-    val maxStackSize: Int,
-    val equipment: ItemEquipment? = null
-) {
-    fun getMaterialStack(): ItemStack {
-        return Registries.ITEM.get(material).defaultStack ?: error("Illegal material id")
-    }
-}
-
-@Serializable
-data class ItemEquipment(val slot: EquipmentSlot)
+val ITEM_STACK_MATERIAL = ItemStack(Items.STICK)
 
 fun detachEngineItemStack(itemStack: ItemStack) {
     itemStack.remove(ENGINE_ITEM_REFERENCE_COMPONENT)
@@ -71,8 +43,7 @@ fun updateEngineItemStack(itemStack: ItemStack, item: EngineItem) {
 
 fun wrapEngineItemStackVisual(
     itemStack: ItemStack,
-    name: String,
-    asset: Identifier? = null
+    name: String
 ) {
     val currentName = itemStack.get(DataComponentTypes.ITEM_NAME)
     if (currentName?.string != name) {
@@ -81,15 +52,9 @@ fun wrapEngineItemStackVisual(
             Text.of(name)
         )
     }
-    if (asset != null) {
-        itemStack.set(
-            DataComponentTypes.ITEM_MODEL,
-            asset
-        )
-    }
 }
 
-fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int, equipment: ItemEquipment?) {
+fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int, hat: Boolean) {
     itemStack.set(
         DataComponentTypes.UNBREAKABLE,
         Unit.INSTANCE
@@ -98,10 +63,10 @@ fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int, equipment: 
         DataComponentTypes.MAX_STACK_SIZE,
         maxStackSize
     )
-    equipment?.let {
+    if (hat) {
         itemStack.set(
             DataComponentTypes.EQUIPPABLE,
-            EquippableComponent.builder(it.slot)
+            EquippableComponent.builder(EquipmentSlot.HEAD)
                 .allowedEntities(EntityType.PLAYER)
                 .build()
         )
@@ -109,12 +74,11 @@ fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int, equipment: 
 }
 
 fun wrapEngineItemStack(
-    properties: ItemProperties,
     item: EngineItem,
     itemStack: ItemStack
 ): ItemStack {
-    wrapEngineItemStackVisual(itemStack, item.name, properties.asset)
-    wrapEngineItemStackBase(itemStack, properties.maxStackSize, properties.equipment)
+    wrapEngineItemStackVisual(itemStack, item.name)
+    wrapEngineItemStackBase(itemStack, item.maxCount, item.has<Hat>())
 
     itemStack.set(
         ENGINE_ITEM_REFERENCE_COMPONENT,
