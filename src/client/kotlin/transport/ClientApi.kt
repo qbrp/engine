@@ -1,6 +1,7 @@
 package org.lain.engine.client.transport
 
 import org.lain.engine.client.EngineClient
+import org.lain.engine.debugPacket
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketContext
@@ -23,7 +24,10 @@ interface ClientTransportContext {
 }
 
 fun <P : Packet> Endpoint<P>.registerClientReceiver(handler: ClientPacketHandler<P>) {
-    injectValue<ClientTransportContext>().registerEndpoint(this, handler)
+    injectValue<ClientTransportContext>().registerEndpoint(this) {
+        handler(this, it)
+        debugPacket("[Клиент] Принят пакет $this")
+    }
 }
 
 fun <P : Packet> Endpoint<P>.sendC2SPacket(packet: P) {

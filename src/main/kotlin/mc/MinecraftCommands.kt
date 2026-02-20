@@ -16,6 +16,7 @@ import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.util.Colors
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.chunk.WorldChunk
@@ -528,6 +529,49 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                     }
             )
     )
+
+    register(
+        CommandManager.literal("interactions")
+            .executeCatching { ctx ->
+                val player = ctx.requirePlayer()
+                val actions = mutableSetOf(InputAction.Base, InputAction.Attack)
+                val cursorItem = player.cursorItem
+                val handItem = player.handItem
+                if (cursorItem != null && handItem != null) {
+                    actions += InputAction.SlotClick(cursorItem, handItem)
+                }
+                val input = PlayerInput(actions, setOf())
+                updatePlayerVerbLookup(player, true, input)
+                appendVerbs(player)
+                val lookup = player.remove<VerbLookup>()!!
+                val text = Text.empty()
+                text.append(
+                    Text.literal("Список доступных взаимодействий:")
+                        .withColor(Colors.GREEN)
+                )
+                for (variant in lookup.verbs.sortedBy { it.verb.priority }) {
+                    val action = when(variant.action) {
+                        InputAction.Attack -> "Атаковать"
+                        InputAction.Base -> "Взаимодействовать"
+                        is InputAction.SlotClick -> "Нажать на слот"
+                    }
+                    val verb = variant.verb
+                    val name = verb.name
+                    val time = when(verb.time) {
+                        0 -> ""
+                        else -> {
+                            val formattedTime = (verb.time / 20).toString().format("$.2f")
+                            "(~$formattedTime секунд)"
+                        }
+                    }
+                    text.append("\n")
+                    text.append("- ").withColor(Colors.GRAY)
+                    text.append("$action: $name $time").withColor(Colors.WHITE)
+                }
+                ctx.command.source.sendFeedback({ text }, false)
+            }
+    )
+
 
     registerServerPmCommand()
 }

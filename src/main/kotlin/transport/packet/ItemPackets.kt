@@ -1,15 +1,36 @@
 package org.lain.engine.transport.packet
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
+import kotlinx.serialization.protobuf.ProtoBuf
 import org.lain.engine.item.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.Component
 import org.lain.engine.util.get
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.pos
 
 interface ItemComponent : Component
+
+@OptIn(ExperimentalSerializationApi::class)
+internal val ItemProtobuf = ProtoBuf {
+    serializersModule = SerializersModule {
+        polymorphic(ItemComponent::class) {
+            subclass(ItemAssets::class)
+            subclass(ItemName::class)
+            subclass(Gun::class)
+            subclass(GunDisplay::class)
+            subclass(ItemTooltip::class)
+            subclass(Mass::class)
+            subclass(Writable::class)
+        }
+    }
+}
 
 @Serializable
 data class ItemPacket(val item: ClientboundItemData) : Packet
@@ -31,6 +52,7 @@ data class ClientboundItemData(
             item.maxCount,
             item.count,
             listOfNotNull(
+                item.get<ItemAssets>()?.copy(),
                 item.get<ItemName>()?.copy(),
                 item.get<Gun>()?.copy(),
                 item.get<GunDisplay>()?.copy(),
@@ -42,7 +64,12 @@ data class ClientboundItemData(
     }
 }
 
-val CLIENTBOUND_ITEM_ENDPOINT = Endpoint<ItemPacket>()
+val CLIENTBOUND_ITEM_ENDPOINT = Endpoint<ItemPacket>(
+    PacketCodec.Kotlinx(
+        ItemPacket.serializer(),
+        ItemProtobuf
+    ),
+)
 
 @Serializable
 data class WriteableUpdatePacket(val item: ItemUuid, val contents: List<String>) : Packet

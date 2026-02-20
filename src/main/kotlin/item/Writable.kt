@@ -1,8 +1,12 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.player.*
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.Component
+import org.lain.engine.util.handle
+import org.lain.engine.util.has
+import org.lain.engine.util.set
 
 @Serializable
 /**
@@ -20,5 +24,26 @@ data class Writable(
 ) : ItemComponent
 
 const val WRITEABLE_OPEN_SOUND = "writable_open"
+
+val WRITEABLE_OPEN_VERB = ItemVerb(
+    VerbId("writable_open"),
+    "Открыть для чтения",
+)
+
+fun appendWriteableVerbs(player: EnginePlayer) {
+    player.handle<VerbLookup> {
+        if (handItem?.has<Writable>() == true && InputAction.Base in actions) {
+            verbs += VerbVariant(WRITEABLE_OPEN_VERB, InputAction.Base)
+        }
+    }
+}
+
+fun handleWriteableInteractions(player: EnginePlayer) {
+    val handItem = player.handItem ?: return
+    player.handleInteraction(WRITEABLE_OPEN_VERB.id) {
+        handItem.emitPlaySoundEvent(WRITEABLE_OPEN_SOUND, EngineSoundCategory.AMBIENT, player = player)
+        player.set(OpenBookTag)
+    }
+}
 
 object OpenBookTag : Component

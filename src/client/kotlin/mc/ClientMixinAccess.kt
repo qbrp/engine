@@ -1,6 +1,5 @@
 package org.lain.engine.client.mc
 
-import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
@@ -22,7 +21,10 @@ import org.lain.engine.item.Gun
 import org.lain.engine.item.Writable
 import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.engine
-import org.lain.engine.player.*
+import org.lain.engine.player.ArmStatus
+import org.lain.engine.player.PlayerInventory
+import org.lain.engine.player.armPoseOf
+import org.lain.engine.player.processLeftClickInteraction
 import org.lain.engine.util.*
 
 object ClientMixinAccess {
@@ -68,8 +70,8 @@ object ClientMixinAccess {
     fun getEngineItemModel(itemStack: ItemStack): Identifier? {
         if (!client.gameSessionActive) return null
         val engineItem = itemStack.engine()?.getClientItem() ?: return null
-        return resolveItemAsset(engineItem)?.let { path ->
-            identifierCache.computeIfAbsent(path) { EngineId(path) }
+        return resolveItemAsset(engineItem).let { path ->
+            identifierCache.computeIfAbsent(resolveItemAsset(engineItem)) { EngineId(path) }
         }
     }
 
@@ -93,19 +95,9 @@ object ClientMixinAccess {
         return !processLeftClickInteraction(player)
     }
 
-    fun onLeftMouseClick() {
-        mainPlayer?.setInteraction(Interaction.LeftClick)
-    }
-
     fun onCursorStackSet(itemStack: ItemStack?) {
         val engineItem = if (itemStack?.isEmpty == true) null else itemStack?.engine()?.getClientItem()
         client.handler.onCursorItem(engineItem)
-    }
-
-    fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem) {
-        if (MinecraftClient.currentScreen is CreativeInventoryScreen) {
-            client.handler.onInteraction(Interaction.SlotClick(cursorItem, item))
-        }
     }
 
     fun isEngineLoaded(): Boolean {

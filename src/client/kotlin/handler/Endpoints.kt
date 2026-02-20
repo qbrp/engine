@@ -6,7 +6,7 @@ import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
-import org.lain.engine.server.ITEM_Writable_SYNCHRONIZER
+import org.lain.engine.server.ITEM_WRITABLE_SYNCHRONIZER
 import org.lain.engine.server.PLAYER_ARM_STATUS_SYNCHRONIZER
 import org.lain.engine.server.PLAYER_CUSTOM_NAME_SYNCHRONIZER
 import org.lain.engine.transport.packet.*
@@ -24,10 +24,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT) {
         updatePlayer(id) { applyPlayerAttributeUpdate(it, speed, jumpStrength) }
-    }
-
-    registerGameSessionReceiver(CLIENTBOUND_SPEED_INTENTION_PACKET) {
-        updatePlayerDetailed(id) { applyPlayerSpeedIntention(it, speedIntention) }
     }
 
     registerGameSessionReceiver(CLIENTBOUND_FULL_PLAYER_ENDPOINT) {
@@ -99,11 +95,14 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_PACKET) { gameSession ->
-        updatePlayer(playerId) {
-            applyInteractionPacket(
-                it,
-                interaction.toDomain(gameSession.itemStorage, { error("Рассинхронизация: предмет $it") })!!
-            )
+        updatePlayerDetailed(playerId) {
+            applyInteractionPacket(it, interaction)
+        }
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INPUT_PACKET) { gameSession ->
+        updatePlayerDetailed(playerId) {
+            applyPlayerInputPacket(it, actions)
         }
     }
 
@@ -129,5 +128,5 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
-    registerItemSynchronizerEndpoint(ITEM_Writable_SYNCHRONIZER)
+    registerItemSynchronizerEndpoint(ITEM_WRITABLE_SYNCHRONIZER)
 }

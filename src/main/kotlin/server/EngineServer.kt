@@ -47,29 +47,40 @@ class EngineServer(
         val start = Timestamp()
         val players = playerStorage.getAll()
         val vocalSettings = globals.vocalSettings
+
+        taskQueue.flush { it.run() }
+
         for (player in players) {
+            val playerItems = player.items
             updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
+            supplyPlayerInventoryItemsLocation(player, playerItems)
             flushPlayerMessages(player, chat, vocalSettings)
             updatePlayerVoice(player, chat, globals.vocalSettings)
+
+            updatePlayerVerbLookup(player)
+            appendVerbs(player)
+
             updatePlayerInteractions(player, handler=handler)
-            val playerItems = player.items
-            updateGunState(playerItems)
-            handleGunShotTags(player, playerItems)
-            supplyPlayerInventoryItemsLocation(player, playerItems)
+            handlePlayerInventoryInteractions(player)
+            handleWriteableInteractions(player)
+            handleGunInteractions(player)
+            finishPlayerInteraction(player)
+
+            handleItemRecoil(player, playerItems)
+            player.input.clear()
         }
 
         players.forEach { flushPlayerUpdates(it, handler) }
 
         handler.tick()
-        taskQueue.flush { it.run() }
 
-        tickTimes.add(start.timeElapsed().toInt())
         worlds.values.forEach { world ->
-            processWorldSounds(handler, namespacedStorage, globals.defaultItemSounds, world)
             handleDecalsAttaches(world)
             broadcastDecalsAttachments(handler, world)
             world.events<DecalEvent>().clear()
+            processWorldSounds(handler, namespacedStorage, globals.defaultItemSounds, world)
         }
+        tickTimes.add(start.timeElapsed().toInt())
     }
 
     fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {

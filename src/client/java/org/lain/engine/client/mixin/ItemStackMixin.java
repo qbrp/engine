@@ -22,6 +22,7 @@ import org.lain.engine.item.EngineItem;
 import org.lain.engine.item.TooltipKt;
 import org.lain.engine.mc.EngineItemReferenceComponent;
 import org.lain.engine.mc.ItemsKt;
+import org.lain.engine.mc.ServerMixinAccess;
 import org.lain.engine.util.text.TextAdaptersKt;
 import org.lain.engine.util.text.TextKt;
 import org.lain.engine.util.text.TextSerializationKt;
@@ -96,15 +97,15 @@ public abstract class ItemStackMixin {
             method = "onStackClicked",
             at = @At(
                     value = "HEAD"
-            )
-    )
+            ),
+            cancellable = true)
     public void engine$onClicked(Slot slot, ClickType clickType, PlayerEntity player, CallbackInfoReturnable<Boolean> cir) {
         if (!player.getEntityWorld().isClient()) return;
         ItemStack slotStack = slot.getStack();
         EngineItem slotItem = getEngineItem(slotStack);
         EngineItem item = getEngineItem((ItemStack) (Object)this);
         if (slotItem != null && item != null) {
-            ClientMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem);
+            cir.setReturnValue(ServerMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object)this, player));
         }
     }
 

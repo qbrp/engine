@@ -1,6 +1,7 @@
 package org.lain.engine.util.math
 
 import kotlinx.serialization.Serializable
+import org.joml.Math
 import org.lain.engine.world.VoxelPos
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -54,12 +55,17 @@ interface Vec3 : Pos {
         )
     }
 
-    fun mul(pos: Vec3): Vec3 {
+    fun mul(scaleX: Float, scaleY: Float, scaleZ: Float): Vec3 {
         return Vec3(
-            x * pos.x,
-            y * pos.y,
-            z * pos.z
+            x * scaleX,
+            y * scaleY,
+            z * scaleZ
         )
+    }
+
+
+    fun mul(pos: Vec3): Vec3 {
+        return mul(pos.x, pos.y, pos.z)
     }
 
     fun mul(scale: Float): Vec3 {
@@ -132,6 +138,13 @@ interface Vec3 : Pos {
 
     fun div(scalar: Float): Vec3 {
         return Vec3(this.x / scalar, this.y / scalar, this.z / scalar)
+    }
+
+    fun cross(v: Vec3): Vec3 {
+        val rx = Math.fma(y, v.z, -z * v.y)
+        val ry = Math.fma(z, v.x, -x * v.z)
+        val rz = Math.fma(x, v.y, -y * v.x)
+        return Vec3(rx, ry, rz)
     }
 }
 

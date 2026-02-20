@@ -2,16 +2,12 @@ package org.lain.engine.item
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.items
-import org.lain.engine.player.translateRotation
+import org.lain.engine.player.*
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.Component
-import org.lain.engine.util.get
-import org.lain.engine.util.handle
+import org.lain.engine.util.*
+import org.lain.engine.util.math.ImmutableVec3
+import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.set
-import org.lain.engine.world.World
 import org.lain.engine.world.events
 import org.lain.engine.world.world
 
@@ -24,9 +20,11 @@ data class Gun(
     var selector: Boolean = true,
     var clicked: Boolean = false,
     val ammunition: ItemId?,
+    val smoke: ImmutableVec3? = null,
+    val rate: Int = 10
 ) : ItemComponent {
     fun copy(): Gun {
-        return Gun(Barrel(barrel.bullets, barrel.maxBullets), selector, clicked, ammunition)
+        return Gun(Barrel(barrel.bullets, barrel.maxBullets), selector, clicked, ammunition, smoke, rate)
     }
 }
 
@@ -47,17 +45,13 @@ fun EngineItem.gunAmmoConsumeCount(item: EngineItem): Int {
     return count.coerceAtMost(barrel.maxBullets - barrel.bullets)
 }
 
-data class GunEventComponent(val event: GunEvent) : Component
-
-sealed class GunEvent {
-    data class BarrelAmmoLoad(val count: Int) : GunEvent()
-    data class Shoot(val shoot: GunShoot) : GunEvent()
-    object SelectorToggle : GunEvent()
-}
-
 data class GunShoot(val start: Vec3, val vector: Vec3) : Component
 
-data class ShootTag(
+data class BulletFire(val shoot: GunShoot, val bullet: BulletParameters, val smoke: Smoke) : Component
+
+data class Smoke(val offset: Vec3, val velocity: Vec3)
+
+data class Recoil(
     val shoot: GunShoot,
     val bullet: BulletParameters
 ) : Component
@@ -67,10 +61,6 @@ data class BulletParameters(
     val bulletSpeed: Float
 )
 
-fun EngineItem.setGunEvent(event: GunEvent) {
-    this.set(GunEventComponent(event))
-}
-
 const val BULLET_FIRE_RADIUS = 64
 
 private const val ROUND_BARREL_SOUND = "round_barrel"
@@ -78,39 +68,94 @@ private const val CLICK_EMPTY_SOUND = "click_empty"
 private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
 
-// Вызывается на клиенте (для предсказания) и сервере
-fun updateGunState(items: Collection<EngineItem>) {
-    for (item in items) { // Кейс 1: загрузка боеприпасов в оружие
-        val gun = item.get<Gun>() ?: continue
-        val barrel = gun.barrel
-        item.handle<GunEventComponent> {
-            when(val event = this.event) {
-                is GunEvent.BarrelAmmoLoad -> {
-                    barrel.bullets = (barrel.bullets + event.count).coerceAtMost(barrel.maxBullets)
-                    item.emitPlaySoundEvent(ROUND_BARREL_SOUND, EngineSoundCategory.NEUTRAL)
-                    gun.clicked = false
-                }
-                is GunEvent.Shoot -> {
-                    if (!gun.selector) {
-                        val shoot = event.shoot
-                        if (barrel.bullets > 0) {
-                            barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
-                            item.emitPlaySoundEvent(GUNFIRE_SOUND, EngineSoundCategory.NEUTRAL)
-                            item.set(ShootTag(shoot, BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)))
-                            item.world.events<GunShoot>() += shoot
-                        } else if (!gun.clicked) {
-                            item.emitPlaySoundEvent(CLICK_EMPTY_SOUND, EngineSoundCategory.NEUTRAL)
-                            gun.clicked = true
-                        }
-                    }
-                }
-                is GunEvent.SelectorToggle -> {
-                    gun.selector = !gun.selector
-                    item.emitPlaySoundEvent(SELECTOR_TOGGLE_SOUND, EngineSoundCategory.NEUTRAL)
-                }
+private val GUN_SHOOT_VERB = ItemVerb(
+    VerbId("shoot"),
+    "Одиночный выстрел",
+)
+
+private val GUN_SELECTOR_TOGGLE_VERB = ItemVerb(
+    VerbId("selector_toggle"),
+    "Сменить предохранитель",
+)
+
+private val GUN_BARREL_AMMO_LOAD_VERB = VerbId("barrel_ammo_load")
+
+fun appendGunVerbs(player: EnginePlayer) {
+    val lookup = player.get<VerbLookup>() ?: return
+    val handItem = player.handItem
+    val verbs = lookup.verbs
+    for (action in lookup.actions) {
+        if (action is InputAction.Attack) {
+            if (handItem?.has<Gun>() == true) {
+                lookup.verbs += VerbVariant(GUN_SHOOT_VERB, action)
             }
-            item.removeComponent(this)
+        } else if (action is InputAction.Base) {
+            if (handItem?.has<Gun>() == true) {
+                lookup.verbs += VerbVariant(GUN_SELECTOR_TOGGLE_VERB, action)
+            }
+        } else if (action is InputAction.SlotClick) {
+            val count = action.item.gunAmmoConsumeCount(action.cursorItem)
+            if (count > 0) {
+                verbs += VerbVariant(
+                    ItemVerb(
+                        GUN_BARREL_AMMO_LOAD_VERB,
+                        "Загрузить патроны в патронник",
+                    ),
+                    action
+                )
+            }
         }
+    }
+}
+
+fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
+    player.handleInteraction(GUN_SHOOT_VERB.id) {
+        val gun = handItem!!.require<Gun>()
+        val barrel = gun.barrel
+
+        if (gun.selector || timeElapsed % gun.rate != 0) return@handleInteraction
+        val rotationVector = player.require<Orientation>().rotationVector
+        val start = player.eyePos
+        val shoot = GunShoot(start, rotationVector)
+        if (barrel.bullets > 0) {
+            barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
+            handItem.emitPlaySoundEvent(GUNFIRE_SOUND, EngineSoundCategory.NEUTRAL)
+            val parameters = BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)
+            handItem.set(Recoil(shoot, parameters))
+            handItem.world.events<BulletFire>() += BulletFire(
+                shoot,
+                parameters,
+                Smoke(gun.smoke ?: VEC3_ZERO, player.velocity)
+            )
+        } else {
+            if (!gun.clicked) {
+                handItem.emitPlaySoundEvent(CLICK_EMPTY_SOUND, EngineSoundCategory.NEUTRAL)
+                gun.clicked = true
+            }
+            player.finishInteraction()
+        }
+    }
+
+    player.handleInteraction(GUN_SELECTOR_TOGGLE_VERB.id) {
+        val gun = handItem!!.require<Gun>()
+        gun.selector = !gun.selector
+        handItem.emitPlaySoundEvent(SELECTOR_TOGGLE_SOUND, EngineSoundCategory.NEUTRAL)
+        player.finishInteraction()
+    }
+
+    player.handleInteraction(GUN_BARREL_AMMO_LOAD_VERB) {
+        val gun = slotAction.item.require<Gun>()
+        val barrel = gun.barrel
+
+        val cursorItem = slotAction.cursorItem
+        val count = slotAction.item.gunAmmoConsumeCount(slotAction.cursorItem)
+        if (count > 0) {
+            barrel.bullets = (barrel.bullets + count).coerceAtMost(barrel.maxBullets)
+            gun.clicked = false
+            slotAction.item.emitPlaySoundEvent(ROUND_BARREL_SOUND, EngineSoundCategory.NEUTRAL)
+            player.set(DestroyItemSignal(cursorItem.uuid, count))
+        }
+        player.finishInteraction()
     }
 }
 
@@ -120,14 +165,16 @@ val DEFAULT_BULLET_SPEED = 800f
 
 val BulletParameters.recoilSpeed get() = bulletMass * bulletSpeed / DEFAULT_WEAPON_MASS
 
-fun handleGunShotTags(
+fun handleItemRecoil(
     player: EnginePlayer,
     items: Collection<EngineItem> = player.items,
-    world: World = player.world,
+    remove: Boolean = true
 ) {
     items.forEach { item ->
-        val shootTag = item.get<ShootTag>() ?: return@forEach
+        val shootTag = item.get<Recoil>() ?: return@forEach
         player.translateRotation(pitch = -(shootTag.bullet.recoilSpeed * 3f))
-        item.removeComponent(shootTag)
+        if (remove) {
+            item.removeComponent(shootTag)
+        }
     }
 }

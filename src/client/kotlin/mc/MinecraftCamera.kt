@@ -99,8 +99,8 @@ class MinecraftCamera(
         positionConsumer(finalPosition)
         rotationConsumer(finalRotation)
 
-        impulseX = lerp(impulseX, 0f, 1f - 0.62f.pow(dt))
-        impulseY = lerp(impulseY, 0f, 1f - 0.62f.pow(dt))
+        impulseX = lerp(impulseX, 0f, 1f - 0.6f.pow(dt))
+        impulseY = lerp(impulseY, 0f, 1f - 0.6f.pow(dt))
         if (impulseX.absoluteValue < 0.001f) impulseX = 0f
         if (impulseY.absoluteValue < 0.001f) impulseY = 0f
     }

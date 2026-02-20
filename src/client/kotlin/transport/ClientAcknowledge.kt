@@ -16,7 +16,6 @@ class ClientAcknowledgeHandler() {
         } else {
             ACKNOWLEDGE_CONFIRM_CHANNEL
                 .sendC2SPacket(AcknowledgePacket(id))
-            println("Отправлено подтверждение $id")
             true
         }
     }

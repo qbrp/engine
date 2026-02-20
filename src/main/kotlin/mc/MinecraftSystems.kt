@@ -212,15 +212,20 @@ fun updatePlayerMinecraftSystems(
 
         updateEngineItemStack(itemStack, item)
 
+        if (destroyItemSignal != null && destroyItemSignal.item == item.uuid) {
+            itemStack.decrement(destroyItemSignal.count)
+        }
+
         val countComponent = item.get<Count>()
         if (countComponent == null) {
-            itemStack.count = 1
+            if (itemStack.count != 0) {
+                itemStack.count = 1
+            }
         } else {
             countComponent.value = itemStack.count
         }
-
-        if (destroyItemSignal != null && destroyItemSignal.item == item.uuid) {
-            itemStack.decrement(destroyItemSignal.count)
+        if (itemStack.count == 0 && playerInventory.cursorItem?.uuid == item.uuid) {
+            playerInventory.cursorItem = null
         }
     }
 
@@ -228,8 +233,10 @@ fun updatePlayerMinecraftSystems(
     playerInventory.offHandItem = offHandItem
 
     for (removedItem in playerInventoryItems) {
-        playerInventory.items.remove(removedItem)
-        removedItem.remove<HoldsBy>()
+        if (removedItem != playerInventory.cursorItem) {
+            playerInventory.items.remove(removedItem)
+            removedItem.remove<HoldsBy>()
+        }
     }
 
     player.remove<DestroyItemSignal>()

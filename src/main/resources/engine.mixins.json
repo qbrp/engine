@@ -5,7 +5,6 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BlockItemMixin",
-    "BlockMixin",
     "ChunkDataSenderMixin",
     "ItemFrameEntityMixin",
     "ItemStackMixin",
@@ -17,7 +16,8 @@
     "ServerPlayerEntityMixin",
     "ServerPlayNetworkHandlerMixin",
     "StyleAccessor",
-    "WhisperCommandMixin"
+    "WhisperCommandMixin",
+    "WorldMixin"
   ],
   "injectors": {
     "defaultRequire": 1

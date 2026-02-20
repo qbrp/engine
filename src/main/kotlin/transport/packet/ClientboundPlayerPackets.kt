@@ -12,21 +12,6 @@ import org.lain.engine.util.readPlayerId
 import org.lain.engine.util.writePlayerId
 import org.lain.engine.world.ImmutableVoxelPos
 
-///// Movement
-
-// Speed Intention
-
-@Serializable
-data class PlayerSpeedIntentionPacket(
-    val id: PlayerId,
-    val speedIntention: Float
-) : Packet
-
-val CLIENTBOUND_SPEED_INTENTION_PACKET =
-    Endpoint<PlayerSpeedIntentionPacket>()
-
-///// Other
-
 // Custom Name
 
 @Serializable
@@ -103,9 +88,14 @@ data class AcousticDebugVolumesPacket(val volumes: List<Pair<ImmutableVoxelPos, 
 
 val CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET = Endpoint<AcousticDebugVolumesPacket>()
 
-// Interaction
+// Controls
 
 @Serializable
-data class PlayerInteractionPacket(val playerId: PlayerId, val interaction: PacketInteractionData) : Packet
+data class PlayerInteractionPacket(val playerId: PlayerId, val interaction: InteractionDto) : Packet
 
 val CLIENTBOUND_PLAYER_INTERACTION_PACKET = Endpoint<PlayerInteractionPacket>()
+
+@Serializable
+data class PlayerInputPacket(val playerId: PlayerId, val actions: Set<InputActionDto>) : Packet
+
+val CLIENTBOUND_PLAYER_INPUT_PACKET = Endpoint<PlayerInputPacket>()

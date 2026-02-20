@@ -8,16 +8,19 @@ import org.lain.engine.util.get
 import org.lain.engine.util.require
 import java.util.concurrent.ConcurrentLinkedQueue
 
+@Deprecated("Использовать Synchronization API")
 sealed class PlayerUpdate {
     data class CustomSpeedAttribute(val value: AttributeUpdate) : PlayerUpdate()
     data class CustomJumpStrengthAttribute(val value: AttributeUpdate) : PlayerUpdate()
-    data class SpeedIntention(val value: Float) : PlayerUpdate()
 }
 
+@Deprecated("Использовать Synchronization API")
 data class PlayerUpdates(
     val updates: ConcurrentLinkedQueue<PlayerUpdate> = ConcurrentLinkedQueue()
 ) : Component
 
+
+@Deprecated("Использовать Synchronization API")
 fun EnginePlayer.markUpdate(update: PlayerUpdate) {
     get<PlayerUpdates>()?.updates += update
 }
@@ -35,7 +38,6 @@ fun flushPlayerUpdates(
             when(it) {
                 is PlayerUpdate.CustomJumpStrengthAttribute -> onPlayerJumpStrengthUpdate(player, it.value)
                 is PlayerUpdate.CustomSpeedAttribute -> onPlayerCustomSpeedUpdate(player, it.value)
-                is PlayerUpdate.SpeedIntention -> onPlayerSpeedIntention(player, it.value)
             }
         }
     }

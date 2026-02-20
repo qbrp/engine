@@ -12,7 +12,6 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.get
-import org.lain.engine.util.has
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.filterNearestPlayers
@@ -67,8 +66,13 @@ class ServerHandler(
         }
     }
 
-    private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) {
-        server.playerStorage.get(id)?.update() ?: desync("Игрок не находится на сервере")
+    private fun updatePlayer(id: PlayerId, tick: Long? = null, update: EnginePlayer.() -> Unit) {
+        val player = server.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
+        if (tick != null) {
+            player.network.tasks[tick] = { player.update() }
+        } else {
+            player.update()
+        }
     }
 
     private fun getPlayer(id: PlayerId): EnginePlayer? {
@@ -85,12 +89,18 @@ class ServerHandler(
         SERVERBOUND_DEVELOPER_MODE_PACKET.registerReceiver { ctx -> onDeveloperModeEnabled(ctx.sender, enabled, acoustic) }
         SERVERBOUND_VOLUME_PACKET.registerReceiver { ctx -> onPlayerVolume(ctx.sender, volume) }
         SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessageDelete(ctx.sender, message) }
-        SERVERBOUND_INTERACTION_ENDPOINT.registerReceiver { ctx -> onPlayerInteraction(ctx.sender, interaction) }
-        SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT.registerReceiver { ctx -> onPlayerCursorItem(ctx.sender, item) }
+        SERVERBOUND_CURSOR_ITEM_ENDPOINT.registerReceiver { ctx -> onPlayerCursorItem(ctx.sender, item) }
         SERVERBOUND_CHAT_TYPING_START_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingStart(ctx.sender, channel) }
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingEnd(ctx.sender) }
-        SERVERBOUND_PLAYER_ARM_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
+        SERVERBOUND_ARM_STATUS_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.registerReceiver { ctx -> onWriteableContentsUpdate(ctx.sender, item, contents) }
+        SERVERBOUND_INPUT_PACKET.registerReceiver { ctx ->
+            //println("Действия на тик $tick : $actions")
+            onPlayerInput(ctx.sender, tick, actions)
+        }
+        SERVERBOUND_CLIENT_TICK_END_ENDPOINT.registerReceiver { ctx ->
+            updatePlayer(ctx.sender) { network.tick++ }
+        }
     }
 
     fun invalidate() {
@@ -98,9 +108,34 @@ class ServerHandler(
         destroy = true
     }
 
+    fun onPlayerInteraction(player: EnginePlayer, component: InteractionComponent) {
+        CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastInRadius(
+            player.location,
+            playerSynchronizationRadius,
+            packet = PlayerInteractionPacket(
+                player.id,
+                component.toDto()
+            )
+        )
+    }
+
+    private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputActionDto>) = updatePlayer(playerId, tick) {
+        //println("Выполнено действие $input тика $tick")
+        val actions = input.map { it.toDomain(itemStorage) }
+        val input = require<PlayerInput>()
+        input.actions.addAll(actions)
+
+        CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
+            location,
+            playerSynchronizationRadius,
+            exclude = listOf(this),
+            packet = PlayerInputPacket(id, actions.map { it.toDto() }.toSet())
+        )
+    }
+
     private fun onWriteableContentsUpdate(playerId: PlayerId, itemUuid: ItemUuid, contents: List<String>) = updatePlayer(playerId) {
-        val item = handItem
-        val writable = handItem?.get<Writable>()
+        val item = this.handItem
+        val writable = this.handItem?.get<Writable>()
         if (item?.uuid != itemUuid || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
         if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
 
@@ -171,14 +206,6 @@ class ServerHandler(
         acousticDebug = acoustic
     }
 
-    private fun onPlayerInteraction(playerId: PlayerId, interaction: PacketInteractionData) = updatePlayer(playerId) {
-        val interaction = interaction.toDomain(itemStorage) ?: return@updatePlayer
-        if (has<InteractionComponent>()) {
-            desync("Слишком частая отправка пакетов взаимодействия")
-        }
-        setInteraction(interaction)
-    }
-
     // FIXME: Искать предметы по инвентарю игрока, а не глобально
     private fun onPlayerCursorItem(playerId: PlayerId, itemId: ItemUuid?) = updatePlayer(playerId) {
         val item = itemId?.let {
@@ -205,9 +232,13 @@ class ServerHandler(
     }
 
     fun tick() {
-        val players = playerStorage.filter { it.synchronization.authorized }
+        val players = playerStorage
+            .filter { it.network.authorized }
+
         for (player in players) {
-            val state = player.synchronization
+            val state = player.network
+            state.tasks.remove(state.tick)?.invoke()
+
             val location = player.location
             val playersInRadius = filterNearestPlayers(location, globals.playerSynchronizationRadius, players)
 
@@ -274,19 +305,7 @@ class ServerHandler(
             ),
             player.id
         )
-        player.synchronization.chunks += pos
-    }
-
-    fun onPlayerInteraction(player: EnginePlayer, interaction: Interaction) {
-        val packet = PlayerInteractionPacket(
-            player.id,
-            PacketInteractionData.from(interaction)
-        )
-        CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastInRadius(
-            player.location,
-            playerSynchronizationRadius,
-            exclude = listOf(player)
-        ) { packet }
+        player.network.chunks += pos
     }
 
     fun onContentsUpdate() {
@@ -317,17 +336,6 @@ class ServerHandler(
                 player.id,
                 jumpStrength = jumpStrength
             )
-        )
-    }
-
-    fun onPlayerSpeedIntention(player: EnginePlayer, intention: Float) {
-        CLIENTBOUND_SPEED_INTENTION_PACKET.broadcastInRadius(
-            player,
-            PlayerSpeedIntentionPacket(
-                player.id,
-                intention
-            ),
-            excludeSelf = true
         )
     }
 
@@ -381,7 +389,7 @@ class ServerHandler(
         }
 
         coroutineScope.launch {
-            val synchronization = player.synchronization
+            val synchronization = player.network
             CLIENTBOUND_JOIN_GAME_ENDPOINT
                 .taskS2C(
                     JoinGamePacket(
@@ -396,7 +404,6 @@ class ServerHandler(
                 .onTimeoutServerThread { synchronization.disconnect = true }
                 .run()
             server.execute {
-                synchronization.items.addAll(player.items.map { it.uuid })
                 synchronization.authorized = true
             }
         }
@@ -406,15 +413,15 @@ class ServerHandler(
         CLIENTBOUND_PLAYER_DESTROY_ENDPOINT.broadcast(
             PlayerDestroyPacket(player.id)
         )
-        playerStorage.forEach { it.synchronization.players.remove(player) }
+        playerStorage.forEach { it.network.players.remove(player) }
     }
 
     fun onItemsBatchDestroy(item: List<ItemUuid>) {
-        playerStorage.forEach { it.synchronization.items.removeAll(item) }
+        playerStorage.forEach { it.network.items.removeAll(item) }
     }
 
     fun onChunkUnload(chunk: EngineChunkPos) {
-        playerStorage.forEach { it.synchronization.chunks.remove(chunk) }
+        playerStorage.forEach { it.network.chunks.remove(chunk) }
     }
 
     fun onServerSettingsUpdate() {
@@ -473,11 +480,11 @@ class ServerHandler(
         center: Location,
         radius: Int,
         exclude: List<EnginePlayer> = emptyList(),
-        packet: (EnginePlayer) -> P
+        packet: P
     ) {
         for (player in playerStorage) {
             if (player !in exclude && player.world == center.world && player.pos.squaredDistanceTo(center.position) <= radius * radius) {
-                sendS2C(packet(player), player.id)
+                sendS2C(packet, player.id)
             }
         }
     }
@@ -485,7 +492,7 @@ class ServerHandler(
     fun <P : Packet> Endpoint<P>.broadcastInRadius(
         player: EnginePlayer,
         radius: Int = playerSynchronizationRadius,
-        packet: (EnginePlayer) -> P
+        packet: P
     ) {
         broadcastInRadius(player.location, radius, packet=packet)
     }
@@ -496,6 +503,6 @@ class ServerHandler(
         excludeSelf: Boolean = false,
         radius: Int = playerSynchronizationRadius
     ) {
-        broadcastInRadius(player.location, radius, exclude=if (excludeSelf) listOf(player) else emptyList(), packet={ packet })
+        broadcastInRadius(player.location, radius, exclude=if (excludeSelf) listOf(player) else emptyList(), packet=packet)
     }
 }

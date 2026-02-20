@@ -1,6 +1,6 @@
 package org.lain.engine.item
 
-import org.lain.engine.server.ITEM_Writable_SYNCHRONIZER
+import org.lain.engine.server.ITEM_WRITABLE_SYNCHRONIZER
 import org.lain.engine.server.Synchronizations
 import org.lain.engine.server.submit
 import org.lain.engine.util.ComponentState
@@ -64,5 +64,5 @@ fun itemInstance(
 }
 
 private fun Synchronizations<EngineItem>.initializeSynchronizers() {
-    submit(ITEM_Writable_SYNCHRONIZER)
+    submit(ITEM_WRITABLE_SYNCHRONIZER)
 }

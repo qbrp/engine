@@ -3,12 +3,15 @@ package org.lain.engine.util.file
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
+import org.lain.engine.util.math.Vec3
 
 @Serializable
 data class GunConfig(
     val barrel: BarrelConfig = BarrelConfig(1, 0),
     val ammunition: AmmunitionConfig? = null,
     val display: GunDisplay? = null,
+    val smoke: List<Float>? = null,
+    val rate: Int = 15
 ) {
     @Serializable
     data class BarrelConfig(val bullets: Int, val initial: Int = 0)
@@ -19,7 +22,9 @@ data class GunConfig(
         barrel.let { Barrel(it.initial, it.bullets) },
         true,
         false,
-        ammunition?.item
+        ammunition?.item,
+        smoke?.let { Vec3(it[0], it[1], it[2]) },
+        rate
     )
 
     fun gunDisplayComponent(): GunDisplay? {
@@ -68,8 +73,8 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
 
         // Физические хар-ки
         val stackable = config.stackable ?: namespaceConfig.computeInheritable { it.stackable } ?: false
-        var maxStackSize = config.maxStackSize ?: namespaceConfig.computeInheritable { it.maxStackSize } ?: 16
-        if (!stackable) maxStackSize = 1
+        var maxStackSize = config.maxStackSize ?: namespaceConfig.computeInheritable { it.maxStackSize }
+        if (maxStackSize == null && !stackable) maxStackSize = 1
         val mass = config.mass ?: namespaceConfig.computeInheritable { it.mass }
 
         CompiledNamespace.Item(
@@ -77,7 +82,7 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
             ItemPrefab(
                 ItemInstantiationSettings(
                     ItemId(namespacedId(namespace.id, id)),
-                    maxStackSize,
+                    maxStackSize ?: 16,
                     ItemName(config.displayName),
                     config.gun?.gunComponent(),
                     config.gun?.gunDisplayComponent(),

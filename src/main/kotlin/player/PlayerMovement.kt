@@ -1,6 +1,7 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.server.markDirty
 import org.lain.engine.util.Component
 import org.lain.engine.util.apply
 import org.lain.engine.util.math.lerp
@@ -63,7 +64,7 @@ fun canPlayerJump(player: EnginePlayer, settings: MovementSettings): Boolean {
 
 fun EnginePlayer.intentSpeed(value: Float) {
     require<MovementStatus>().intention = value
-    markUpdate(PlayerUpdate.SpeedIntention(value))
+    markDirty<MovementStatus>()
 }
 
 val EnginePlayer.stamina

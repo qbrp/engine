@@ -2,8 +2,11 @@ package org.lain.engine.client.mc.render
 
 import net.minecraft.client.gui.Click
 import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.Selectable
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder
 import net.minecraft.client.gui.widget.ClickableWidget
+import net.minecraft.client.input.CharInput
+import net.minecraft.client.input.KeyInput
 import net.minecraft.text.Text
 import net.minecraft.util.Colors
 import net.minecraft.util.math.ColorHelper
@@ -12,6 +15,7 @@ import org.lain.engine.client.chat.ChatBarSection
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
+import org.lain.engine.client.mixin.chat.ChatScreenAccessor
 import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.HAND
 import org.lain.engine.client.render.MENTION
@@ -46,6 +50,22 @@ class HandStatusButtonWidget(val client: EngineClient, x: Int, y: Int, width: In
 
     override fun onClick(click: Click, doubled: Boolean) {
         client.gameSession?.apply { extendArm = !extendArm }
+    }
+
+    override fun charTyped(input: CharInput): Boolean {
+        return (MinecraftClient.currentScreen as? ChatScreenAccessor)?.`engine$getChatField`()?.charTyped(input) ?: false
+    }
+
+    override fun keyPressed(input: KeyInput?): Boolean {
+        return (MinecraftClient.currentScreen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyPressed(input) ?: false
+    }
+
+    override fun keyReleased(input: KeyInput?): Boolean {
+        return (MinecraftClient.currentScreen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyReleased(input) ?: false
+    }
+
+    override fun getType(): Selectable.SelectionType {
+        return Selectable.SelectionType.NONE
     }
 
     override fun appendClickableNarrations(builder: NarrationMessageBuilder?) {}

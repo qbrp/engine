@@ -1,8 +1,6 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.mc.BULLET_DAMAGE_DECALS_LAYER
-import org.lain.engine.mc.MINIMUM_BULLET_DECAL_OPACITY
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
@@ -79,12 +77,8 @@ data class BlockDecals(val version: Int = 0, val layers: Map<DecalsLayerType, De
     }
 }
 
-data class DecalEvent(val pos: VoxelPos, val chunk: EngineChunkPos, val type: Type) {
-    sealed class Type {
-        data class Attach(val direction: Direction, val pos: Pos, val decal: Decal, val layer: DecalsLayerType) : Type()
-        data class Set(val decals: BlockDecals?) : Type()
-    }
-}
+val BULLET_DAMAGE_DECALS_LAYER = DecalsLayerType("bullet-damage", 16)
+const val MINIMUM_BULLET_DECAL_OPACITY = 0.7f
 
 fun World.attachBulletDamageDecal(direction: Direction, pos: Pos, voxelPos: VoxelPos) {
     attachDecal(
@@ -97,6 +91,13 @@ fun World.attachBulletDamageDecal(direction: Direction, pos: Pos, voxelPos: Voxe
         pos,
         voxelPos,
     )
+}
+
+data class DecalEvent(val pos: VoxelPos, val chunk: EngineChunkPos, val type: Type) {
+    sealed class Type {
+        data class Attach(val direction: Direction, val pos: Pos, val decal: Decal, val layer: DecalsLayerType) : Type()
+        data class Set(val decals: BlockDecals?) : Type()
+    }
 }
 
 fun World.attachDecal(

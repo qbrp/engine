@@ -59,6 +59,16 @@ public abstract class ChatScreenMixin {
     )
     public Element engine$init(Element par1) {
         Screen screen = (Screen)((Object)this);
+        ((ScreenAccessor) screen).engine$addDrawableChild(
+                new HandStatusButtonWidget(
+                        ClientMixinAccess.INSTANCE.getEngineClient(),
+                        screen.width - 32 - 2,
+                        screen.height - 32 - 14 - 2,
+                        32,
+                        32,
+                        Text.of("Выставить руку")
+                )
+        );
         ChatInputSuggestor chatInputSuggestor = this.chatInputSuggestor;
         this.chatField = new ShakingTextFieldWidget(
                 MinecraftClient.getInstance().advanceValidatingTextRenderer,
@@ -79,17 +89,6 @@ public abstract class ChatScreenMixin {
         this.chatField.setChangedListener(this::onChatFieldUpdate);
         this.chatField.addFormatter(this::format);
         this.chatField.setFocusUnlocked(false);
-
-        ((ScreenAccessor) screen).engine$addDrawableChild(
-                new HandStatusButtonWidget(
-                        ClientMixinAccess.INSTANCE.getEngineClient(),
-                        screen.width - 32 - 2,
-                        screen.height - 32 - 14 - 2,
-                        32,
-                        32,
-                        Text.of("Выставить руку")
-                )
-        );
 
         return this.chatField;
     }
@@ -203,6 +202,14 @@ public abstract class ChatScreenMixin {
                 MinecraftChat.INSTANCE.onCloseChatInput();
             }
         }
+    }
+
+    @Inject(
+            method = "setChatFromHistory",
+            at = @At("HEAD")
+    )
+    public void engine$focus(int offset, CallbackInfo ci) {
+        this.chatField.setFocused(true);
     }
 
     @Inject(

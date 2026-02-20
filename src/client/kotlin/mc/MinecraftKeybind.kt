@@ -7,6 +7,8 @@ import net.minecraft.client.option.KeyBinding
 import net.minecraft.client.util.InputUtil
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.control.*
+import org.lain.engine.player.InputAction
+import org.lain.engine.player.input
 import org.lain.engine.util.EngineId
 import org.lwjgl.glfw.GLFW
 
@@ -22,6 +24,8 @@ class KeybindManager(
     val adjustChatVolume = ADJUST_CHAT_VOLUME.register()
     val decreaseChatVolume = DECREASE_CHAT_VOLUME.register()
     val resetChatVolume = RESET_CHAT_VOLUME.register()
+    val base = BASE.register()
+    val attack = ATTACK.register()
 
     init {
         DEVELOPER_MODE.register()
@@ -85,6 +89,15 @@ class KeybindManager(
             }
 
             keybind.wasPressed = keybind.isPressed
+        }
+
+        engineClient.gameSession?.apply {
+            if (base.isPressed) {
+                mainPlayer.input.add(InputAction.Base)
+            }
+            if (attack.isPressed) {
+                mainPlayer.input.add(InputAction.Attack)
+            }
         }
     }
 

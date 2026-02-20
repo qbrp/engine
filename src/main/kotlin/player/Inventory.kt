@@ -2,7 +2,9 @@ package org.lain.engine.player
 
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
+import org.lain.engine.item.merge
 import org.lain.engine.util.Component
+import org.lain.engine.util.handle
 import org.lain.engine.util.require
 
 /**
@@ -27,3 +29,26 @@ val EnginePlayer.handItem
 
 val EnginePlayer.cursorItem
     get() = this.require<PlayerInventory>().cursorItem
+
+private val SLOT_MERGE_VERB = VerbId("slot_merge")
+
+fun appendPlayerInventoryVerbs(player: EnginePlayer) {
+    player.handle<VerbLookup> {
+        val slotClick = slotClick ?: return@handle
+        if (merge(slotClick.item, slotClick.cursorItem)) {
+            verbs += VerbVariant(
+                ItemVerb(
+                    SLOT_MERGE_VERB,
+                    "Объединить предметы",
+                ),
+                slotClick
+            )
+        }
+    }
+}
+
+fun handlePlayerInventoryInteractions(player: EnginePlayer) {
+    player.handleInteraction(SLOT_MERGE_VERB) {
+        player.require<PlayerInventory>().cursorItem = null
+    }
+}

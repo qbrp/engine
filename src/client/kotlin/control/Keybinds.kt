@@ -82,3 +82,20 @@ val EXTEND_HAND = KeybindSettings(
         client.gameSession?.apply { extendArm = !extendArm }
     }
 )
+
+
+val ATTACK = KeybindSettings(
+    name = "Атаковать",
+    id = KeybindId("attack"),
+    key = GLFW.GLFW_MOUSE_BUTTON_1,
+    isMouse = true,
+    onPress = { client -> }
+)
+
+val BASE = KeybindSettings(
+    name = "Взаимодействие",
+    id = KeybindId("base_interaction"),
+    key = GLFW.GLFW_MOUSE_BUTTON_2,
+    isMouse = true,
+    onPress = { client -> }
+)

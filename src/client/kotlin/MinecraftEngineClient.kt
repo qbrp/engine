@@ -14,7 +14,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
-import net.fabricmc.fabric.api.event.player.UseItemCallback
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.gui.screen.ingame.BookEditScreen
 import net.minecraft.client.network.ClientPlayerEntity
@@ -22,7 +21,6 @@ import net.minecraft.component.type.WritableBookContentComponent
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.text.RawFilteredPair
 import net.minecraft.text.Text
-import net.minecraft.util.ActionResult
 import net.minecraft.util.Hand
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.*
@@ -37,13 +35,13 @@ import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
+import org.lain.engine.client.util.PlayerTickException
 import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
-import org.lain.engine.player.Interaction
-import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.OrientationTranslation
 import org.lain.engine.player.handItem
+import org.lain.engine.player.username
 import org.lain.engine.util.*
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.handleDecalsAttaches
@@ -168,6 +166,12 @@ class MinecraftEngineClient : ClientModInitializer {
                             item to itemStack
                         }.toSet()
 
+                        gameSession.mainPlayer.apply<OrientationTranslation> {
+                            if (yaw != 0f || pitch != 0f) {
+                                camera.impulse(-yaw, -pitch)
+                            }
+                        }
+
                         updatePlayerMinecraftSystems(player, items, entity, world)
 
                         player.remove<OpenBookTag>()?.let {
@@ -191,12 +195,6 @@ class MinecraftEngineClient : ClientModInitializer {
                         }
                     }
 
-                    gameSession.mainPlayer.apply<OrientationTranslation> {
-                        if (yaw != 0f || pitch != 0f) {
-                            camera.impulse(-yaw, -pitch)
-                        }
-                    }
-
                     renderer.tick()
                     if (mcWorld != null) {
                         updateBulletsVisual(session.world, mcWorld)
@@ -217,7 +215,13 @@ class MinecraftEngineClient : ClientModInitializer {
 
             } catch (e: Throwable) {
                 connectionLogger.error("При тике Engine возникла ошибка: ", e)
-                client.networkHandler?.connection?.disconnect(DisconnectText(e.message ?: "Unknown error")) ?: run {
+
+                val text = when (e) {
+                    is PlayerTickException -> "Ошибка при обновлении игрока ${e.player.username} (${e.player.id}): ${e.message}"
+                    else -> e.message ?: "Неизвестная ошибка"
+                }
+
+                client.networkHandler?.connection?.disconnect(DisconnectText(text)) ?: run {
                     connectionLogger.warn("Игрок отключен от несуществующего сервера")
                 }
             }
@@ -226,15 +230,6 @@ class MinecraftEngineClient : ClientModInitializer {
         ClientChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
             chunks -= chunk
             decalsStorage.unloadTextures(chunk.pos.engine())
-        }
-
-        UseItemCallback.EVENT.register { player, world, hand ->
-            if (world.isClient) {
-                if (player.isMainPlayer) {
-                    engineClient.gameSession?.mainPlayer?.getOrSet { InteractionComponent(Interaction.RightClick) }
-                }
-            }
-            ActionResult.PASS
         }
 
         HudElementRegistry.addLast(

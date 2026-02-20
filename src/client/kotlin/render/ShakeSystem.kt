@@ -2,7 +2,7 @@ package org.lain.engine.client.render
 
 import org.lain.engine.client.mc.BulletHit
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ShootTag
+import org.lain.engine.item.Recoil
 import org.lain.engine.item.owner
 import org.lain.engine.item.recoilSpeed
 import org.lain.engine.player.EnginePlayer
@@ -17,7 +17,7 @@ const val SHOOT_SHAKE_FREQ = 0.5f
 
 fun handleBulletFireShakes(mainPlayer: EnginePlayer, camera: Camera, world: World, items: Collection<EngineItem>) {
     items.forEach { item ->
-        val shootTag = item.get<ShootTag>() ?: return@forEach
+        val shootTag = item.get<Recoil>() ?: return@forEach
         if (item.owner == mainPlayer.id) {
             camera.shake(
                 ShakeEffect(
@@ -27,6 +27,7 @@ fun handleBulletFireShakes(mainPlayer: EnginePlayer, camera: Camera, world: Worl
                 )
             )
         }
+        item.removeComponent(shootTag)
     }
 
     world.events<BulletHit>().flush { hit ->

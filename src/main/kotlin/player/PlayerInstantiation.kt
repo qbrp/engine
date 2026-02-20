@@ -41,6 +41,7 @@ fun commonPlayerInstance(
         set(DeveloperMode(false))
         set(PlayerInventory(settings.items.toMutableSet()))
         set(ArmStatus(false))
+        set(PlayerInput(mutableSetOf(), setOf()))
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)
@@ -58,13 +59,14 @@ fun serverPlayerInstance(
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
 
     return commonPlayerInstance(settings, id).apply {
+        set(ServerPlayerInputMeta(false))
         set(MessageQueue())
         set(voiceApparatus)
         setNullable(persistent?.voiceLoose)
         set(PlayerUpdates())
         set(defaults)
         set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
-        set(PlayerSynchronizationComponent(false))
+        set(PlayerNetworkState(false))
         set(Synchronizations<EnginePlayer>(mutableMapOf()))
             .also { it.initializeSynchronizers() }
     }
@@ -73,4 +75,5 @@ fun serverPlayerInstance(
 private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_ARM_STATUS_SYNCHRONIZER)
     submit(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
+    submit(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
 }

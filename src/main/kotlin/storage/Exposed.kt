@@ -70,7 +70,7 @@ suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
 
     val state = ComponentState(components.toList())
 
-    return itemInstance(uuid, id, location, count!!, state)
+    return itemInstance(uuid, id, location, count ?: Count(1, 1), state)
 }
 
 fun dataFixItem(item: EngineItem, storage: NamespacedStorage) {

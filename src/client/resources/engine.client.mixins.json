@@ -21,6 +21,7 @@
     "chat.ChatHudLineMixin",
     "chat.ChatHudLineVisibleMixin",
     "chat.ChatHudMixin",
+    "chat.ChatScreenAccessor",
     "chat.ChatScreenMixin",
     "render.BasicItemModelAccessor",
     "render.BipedEntityModelMixin",

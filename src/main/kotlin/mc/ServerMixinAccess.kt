@@ -12,7 +12,10 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.gunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
-import org.lain.engine.util.*
+import org.lain.engine.util.getOrSet
+import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.injectMinecraftEngineServer
+import org.lain.engine.util.injectMovementSettings
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessageLegacy
 import org.lain.engine.world.world
@@ -48,7 +51,9 @@ object ServerMixinAccess {
         }
 
         val enginePlayer = table.getGeneralPlayer(player) ?: return success
-        enginePlayer.set(InteractionComponent(Interaction.SlotClick(cursorItem, item)))
+        enginePlayer.input.add(
+            InputAction.SlotClick(cursorItem, item)
+        )
 
         return success
     }

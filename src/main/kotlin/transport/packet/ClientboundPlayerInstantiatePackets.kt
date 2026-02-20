@@ -1,20 +1,12 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.ArmStatus
-import org.lain.engine.player.DefaultPlayerAttributes
-import org.lain.engine.player.DisplayName
-import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerAttributes
-import org.lain.engine.player.PlayerId
-import org.lain.engine.player.VoiceApparatus
-import org.lain.engine.player.items
-import org.lain.engine.player.playerBaseInputVolume
+import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.require
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -105,7 +97,12 @@ data class JoinGamePacket(
     val setupData: ClientboundSetupData
 ) : Packet
 
-val CLIENTBOUND_JOIN_GAME_ENDPOINT = Endpoint<JoinGamePacket>()
+val CLIENTBOUND_JOIN_GAME_ENDPOINT = Endpoint<JoinGamePacket>(
+    PacketCodec.Kotlinx(
+        JoinGamePacket.serializer(),
+        ItemProtobuf
+    ),
+)
 
 // Full player data (for synchronization)
 

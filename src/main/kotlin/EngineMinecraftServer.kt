@@ -76,8 +76,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     open fun tick() {
         val players = engine.playerStorage.getAll()
         updateServerMinecraftSystems(this, entityTable, players, itemLoader)
-        updateBullets(engine.defaultWorld, minecraftServer.overworld)
         engine.update()
+        updateBullets(engine.defaultWorld, minecraftServer.overworld)
         autosaveTimer.tick()
         unloadTimer.tick()
     }

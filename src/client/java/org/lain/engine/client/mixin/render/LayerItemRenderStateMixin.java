@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(targets = "net.minecraft.client.render.item.ItemRenderState$LayerRenderState")
+@Mixin(targets = "net.minecraft.client.render.handItem.ItemRenderState$LayerRenderState")
 public class LayerItemRenderStateMixin {
     @Redirect(
             method = "render",

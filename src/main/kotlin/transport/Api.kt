@@ -1,11 +1,18 @@
 package org.lain.engine.transport
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.serializer
+import org.lain.engine.SharedConstants
+import org.lain.engine.debugPacket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.ServerAcknowledgeTask
 import org.lain.engine.util.injectServerTransportContext
+import org.lain.engine.util.math.randomLong
 import org.lain.engine.util.nextId
 import kotlin.reflect.KClass
 
@@ -24,7 +31,15 @@ class Endpoint<P : Packet>(
     }
 
     fun sendS2C(packet: P, player: PlayerId, id: Long = nextId()) = executeOnThread {
-        transport.sendClientboundPacket(this, packet, player, id)
+        if (SharedConstants.SIMULATE_LATENCY) {
+            val endpoint = this
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(randomLong(250))
+                transport.sendClientboundPacket(endpoint, packet, player, id)
+            }
+        } else {
+            transport.sendClientboundPacket(this, packet, player, id)
+        }
     }
 
     fun sendAllS2C(packets: List<P>, player: PlayerId) = executeOnThread {
@@ -36,7 +51,10 @@ class Endpoint<P : Packet>(
     }
 
     fun registerReceiver(handler: ServerPacketHandler<P>) = executeOnThread {
-        transport.registerServerReceiver(this, handler)
+        transport.registerServerReceiver(this) {
+            handler(this, it)
+            debugPacket("[Сервер] Принят пакет $this")
+        }
     }
 
     fun broadcast(packet: P) = executeOnThread {

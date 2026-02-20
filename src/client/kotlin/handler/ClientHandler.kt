@@ -1,6 +1,7 @@
 package org.lain.engine.client.handler
 
 import kotlinx.coroutines.runBlocking
+import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
@@ -10,6 +11,7 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.chat.acceptOutcomingMessage
+import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.ClientTransportContext
@@ -29,10 +31,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
 
-typealias Update = EnginePlayer.() -> Unit
-
-typealias PendingUpdates = MutableList<Update>
-
 class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val gameSession get() = client.gameSession
     private val handledNotifications = mutableSetOf<Notification>()
@@ -48,18 +46,58 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun tick() {
-        gameSession?.playerStorage?.forEach {
-            if (!it.has<InteractionComponent>()) {
-                val interaction = it.get<InteractionQueueComponent>()?.interactions?.poll() ?: return@forEach
-                it.setInteraction(interaction)
+        val gameSession = gameSession
+        if (gameSession != null) {
+            SERVERBOUND_CLIENT_TICK_END_ENDPOINT.sendC2SPacket(ClientTickEndPacket)
+            val input = gameSession.mainPlayer.require<PlayerInput>()
+            val actions = input.actions.toMutableSet()
+
+            if (MinecraftClient.currentScreen !is CreativeInventoryScreen) {
+                actions.removeIf { it is InputAction.SlotClick }
+            }
+
+            SERVERBOUND_INPUT_PACKET.sendC2SPacket(
+                InputPacket(
+                    gameSession.ticks,
+                    actions.map { it.toDto() }.toSet()
+                )
+            )
+
+            for (player in gameSession.playerStorage) {
+                if (player.has<InteractionComponent>()) continue
+                player.get<InteractionQueueComponent>()?.interactions?.poll()?.let {
+                    player.set(it)
+                }
             }
         }
         taskExecutor.flush()
         clientAcknowledgeHandler.tick()
     }
 
+    fun postTick() {
+        val gameSession = gameSession
+        if (gameSession != null) {
+            val input = gameSession.mainPlayer.require<PlayerInput>()
+            input.actions.clear()
+        }
+    }
+
+    data class InteractionQueueComponent(val interactions: Queue<InteractionComponent>) : Component
+
+    fun applyInteractionPacket(player: EnginePlayer, interaction: InteractionDto): Unit = with(gameSession!!) {
+        println("Принято взаимодействие $interaction")
+        player.getOrSet { InteractionQueueComponent(LinkedList()) }.interactions.add(
+            interaction.toDomain(itemStorage)
+        )
+    }
+
+    fun applyPlayerInputPacket(player: EnginePlayer, actions: Set<InputActionDto>) = with(gameSession!!) {
+        player.input.clear()
+        player.input.addAll(actions.map { it.toDomain(itemStorage) })
+    }
+
     fun onArmStatusUpdate(extend: Boolean) {
-        SERVERBOUND_PLAYER_ARM_ENDPOINT.sendC2SPacket(PlayerArmPacket(extend))
+        SERVERBOUND_ARM_STATUS_ENDPOINT.sendC2SPacket(ArmStatusPacket(extend))
     }
 
     fun onChatMessageSend(content: String, channelId: ChannelId) {
@@ -82,16 +120,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(DeveloperModePacket(boolean, acoustic))
     }
 
-    fun onInteraction(interaction: Interaction) {
-        SERVERBOUND_INTERACTION_ENDPOINT.sendC2SPacket(
-            InteractionPacket(
-                PacketInteractionData.from(interaction)
-            )
-        )
-    }
-
     fun onCursorItem(item: EngineItem?) {
-        SERVERBOUND_PLAYER_CURSOR_ITEM_ENDPOINT.sendC2SPacket(PlayerCursorItemPacket(item?.uuid))
+        SERVERBOUND_CURSOR_ITEM_ENDPOINT.sendC2SPacket(CursorItemPacket(item?.uuid))
     }
 
     fun onChatStartTyping(channelId: ChannelId) {
@@ -126,10 +156,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             is AttributeUpdate.Value -> setter(update.value)
             else -> {}
         }
-    }
-
-    fun applyPlayerSpeedIntention(player: EnginePlayer, intention: Float) = with(player) {
-        this.require<MovementStatus>().intention = intention
     }
 
     fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) = with(player) {
@@ -239,17 +265,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             add()
 
             LOGGER.warn("Предмет ${item.id} (${item.uuid}) был перезаписан")
-        }
-    }
-
-    data class InteractionQueueComponent(val interactions: Queue<Interaction>) : Component
-
-    fun applyInteractionPacket(player: EnginePlayer, interaction: Interaction): Unit = with(gameSession!!) {
-        player.getOrSet { InteractionQueueComponent(LinkedList()) }.apply {
-            interactions.add(interaction)
-            if (interactions.count() > 1) {
-                LOGGER.warn("Взаимодействия присылаются слишком быстро! $interaction для $player отложено")
-            }
         }
     }
 

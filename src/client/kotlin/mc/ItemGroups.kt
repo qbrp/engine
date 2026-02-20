@@ -2,6 +2,7 @@ package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
+import net.minecraft.component.DataComponentTypes
 import net.minecraft.item.ItemGroup
 import net.minecraft.item.ItemStack
 import net.minecraft.item.Items
@@ -12,6 +13,7 @@ import net.minecraft.text.Text
 import org.lain.engine.client.mixin.ItemGroupAccessor
 import org.lain.engine.mc.ENGINE_ITEM_INSTANTIATE_COMPONENT
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.wrapEngineItemStackBase
 import org.lain.engine.mc.wrapEngineItemStackVisual
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.file.compileContents
@@ -49,10 +51,16 @@ fun registerEngineItemGroupEvent() {
         val results = compileContents()
         results.namespaces.forEach { (_, namespace) ->
             namespace.items.forEach { (id, item) ->
-                val stack = ITEM_STACK_MATERIAL
+                val stack = ITEM_STACK_MATERIAL.copy()
                 val prefab = item.prefab.properties
+                val assets = prefab.assets?.assets ?: return@forEach
 
                 wrapEngineItemStackVisual(stack, prefab.name?.text ?: "Предмет")
+                wrapEngineItemStackBase(stack, prefab.maxCount, prefab.hat)
+                stack.set(
+                    DataComponentTypes.ITEM_MODEL,
+                    EngineId(assets["default"] ?: assets.toList().firstOrNull()?.second ?: "missingno")
+                )
                 stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, id.value)
                 entries.add(stack)
             }

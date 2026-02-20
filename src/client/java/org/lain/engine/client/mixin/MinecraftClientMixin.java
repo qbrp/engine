@@ -37,7 +37,6 @@ public abstract class MinecraftClientMixin {
     public void engine$doAttack(CallbackInfoReturnable<Boolean> cir) {
         ClientMixinAccess mixinAccess = ClientMixinAccess.INSTANCE;
         if (mixinAccess.predictItemLeftClickInteraction()) {
-            mixinAccess.onLeftMouseClick();
             cir.cancel();
             cir.setReturnValue(true);
         }

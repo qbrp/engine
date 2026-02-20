@@ -220,7 +220,7 @@ fun parseEngineItemAssets(
                         item.json
                     )
                         .ifError { error ->
-                            LOGGER.error("Couldn't parse item item: {}", error.message())
+                            LOGGER.error("Couldn't parse handItem handItem: {}", error.message())
                         }
                         .result()
                         .orElse(null)

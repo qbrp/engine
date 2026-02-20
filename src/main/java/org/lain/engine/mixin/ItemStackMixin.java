@@ -42,7 +42,7 @@ public abstract class ItemStackMixin {
         ItemStack slotStack = slot.getStack();
         EngineItem slotItem = getEngineItem(slotStack);
         EngineItem item = getEngineItem((ItemStack) (Object)this);
-        if (slotItem != null && item != null) {
+        if (slotItem != null && item != null && !player.getEntityWorld().isClient()) {
             cir.setReturnValue(ServerMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object)this, player));
         }
     }

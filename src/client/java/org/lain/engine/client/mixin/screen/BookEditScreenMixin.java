@@ -1,6 +1,7 @@
 package org.lain.engine.client.mixin.screen;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.screen.ingame.BookEditScreen;
@@ -8,6 +9,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.component.type.WritableBookContentComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableTextContent;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
@@ -21,6 +23,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 import java.util.Objects;
@@ -88,6 +91,19 @@ public class BookEditScreenMixin {
             instance.drawGuiTexture(pipeline, backgroundTextureId, textureWidth, textureHeight, Math.round(u * textureWidth), Math.round(v * textureHeight), x, y, width, height);
         } else {
             instance.drawTexture(pipeline, sprite, x, y, u, v, width, height, textureWidth, textureHeight);
+        }
+    }
+
+    @Redirect(
+            method = "render",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/DrawContext;drawText(Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/text/Text;IIIZ)V"
+            )
+    )
+    public void engine$redirectRenderBackground(DrawContext instance, TextRenderer textRenderer, Text text, int x, int y, int color, boolean shadow) {
+        if (writable == null) {
+            instance.drawText(textRenderer, text, x, y, color, shadow);
         }
     }
 

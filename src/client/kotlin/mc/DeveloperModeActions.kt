@@ -10,7 +10,6 @@ import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.*
-import org.lain.engine.mc.BULLET_DAMAGE_DECALS_LAYER
 import org.lain.engine.mc.engine
 import org.lain.engine.player.ArmStatus
 import org.lain.engine.util.Timestamp

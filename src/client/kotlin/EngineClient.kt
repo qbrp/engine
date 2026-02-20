@@ -64,8 +64,9 @@ class EngineClient(
 
     fun tick() {
         ticks += 1
-        gameSession?.tick()
         handler.tick()
+        gameSession?.tick()
+        handler.postTick()
         eventBus.tick()
     }
 

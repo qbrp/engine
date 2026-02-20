@@ -18,16 +18,18 @@ import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.reflect.KClass
 
-data class PlayerSynchronizationComponent(
+data class PlayerNetworkState(
     var authorized: Boolean,
     val players: MutableList<EnginePlayer> = mutableListOf(),
     val items: MutableList<ItemUuid> = Collections.synchronizedList(mutableListOf()),
     val chunks: MutableList<EngineChunkPos> = mutableListOf(),
     var disconnect: Boolean = false,
+    var tick: Long = 0,
+    var tasks: MutableMap<Long, () -> Unit> = mutableMapOf(),
 ) : Component
 
-val EnginePlayer.synchronization
-    get() = this.require<PlayerSynchronizationComponent>()
+val EnginePlayer.network
+    get() = this.require<PlayerNetworkState>()
 
 // Common synchronizers
 
@@ -130,7 +132,8 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
                     } else {
                         emptyList()
                     },
-                ) { packet }
+                    packet
+                )
             }
 
             when (synchronizer.target) {
@@ -161,7 +164,8 @@ class ComponentSynchronizationPacket<C : Component>(val id: String, val componen
 
 val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>()
 val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(true) { player, name -> player.customName = name.custom }
+val PLAYER_SPEED_INTENTION_SYNCHRONIZER = PlayerComponentSynchronizer<MovementStatus> { player, status -> player.require<MovementStatus>().intention = status.intention }
 
 // Item
 
-val ITEM_Writable_SYNCHRONIZER = ItemComponentSynchronizer<Writable>()
+val ITEM_WRITABLE_SYNCHRONIZER = ItemComponentSynchronizer<Writable>()

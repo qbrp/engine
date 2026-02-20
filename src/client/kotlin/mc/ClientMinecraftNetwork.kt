@@ -32,7 +32,6 @@ class ClientMinecraftNetwork : ClientTransportContext {
             packetHistory.add(payload.packetId)
             val client = context.client()
             val packet = payload.packet
-            println("Принят пакет $packet, ID: ${payload.packetId}")
 
             client.execute {
                 if (client.world == null) return@execute

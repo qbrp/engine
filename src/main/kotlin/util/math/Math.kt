@@ -102,3 +102,5 @@ fun randomFloat() = Random.nextFloat()
 fun randomFloat(end: Float) = Random.nextFloat() * end
 
 fun randomInteger(end: Int) = Random.nextInt(end)
+
+fun randomLong(end: Long) = Random.nextLong(end)

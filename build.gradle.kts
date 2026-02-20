@@ -156,7 +156,7 @@ tasks.withType<KotlinCompile>().configureEach {
     compilerOptions.jvmTarget.set(JvmTarget.fromTarget(targetJavaVersion.toString()))
 }
 
-tasks.withType<KotlinCompile>().configureEach {
+tasks.withType<KotlinCompile> {
     compilerOptions {
         freeCompilerArgs.add("-Xcontext-parameters")
     }
