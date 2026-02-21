@@ -16,10 +16,7 @@ import org.lain.engine.client.mc.render.setMinorArmPose
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.Gun
-import org.lain.engine.item.Writable
-import org.lain.engine.item.resolveItemAsset
+import org.lain.engine.item.*
 import org.lain.engine.mc.engine
 import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.PlayerInventory
@@ -56,12 +53,12 @@ object ClientMixinAccess {
         val inventory = enginePlayer.require<PlayerInventory>()
         val extends = enginePlayer.require<ArmStatus>().extend
 
-        val selectorLeft = isGunWithSelector(inventory.offHandItem)
+        val selectorLeft = isGunWithoutSelector(inventory.offHandItem)
         playerEntityRenderState.setMainArmPose(
-           armPoseOf(true, extends, isGun(inventory.mainHandItem), isGunWithSelector(inventory.mainHandItem), selectorLeft)
+           armPoseOf(true, extends, isGun(inventory.mainHandItem), isGunWithoutSelector(inventory.mainHandItem), selectorLeft)
        )
         playerEntityRenderState.setMinorArmPose(
-            armPoseOf(false, extends, isGun(inventory.offHandItem), isGunWithSelector(inventory.offHandItem), false)
+            armPoseOf(false, extends, isGun(inventory.offHandItem), selectorLeft, false)
         )
     }
 
@@ -77,7 +74,9 @@ object ClientMixinAccess {
 
     private fun isGun(item: EngineItem?) = item?.has<Gun>() == true
 
-    private fun isGunWithSelector(item: EngineItem?) = item?.get<Gun>()?.selector == false
+    private fun isGunWithoutSelector(item: EngineItem?): Boolean {
+        return (item?.get<Gun>() ?: return false).mode != FireMode.SELECTOR
+    }
 
     fun getEngineItem(itemStack: ItemStack): EngineItem? {
         return client.gameSession?.let {

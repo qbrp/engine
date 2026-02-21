@@ -65,6 +65,7 @@ class EngineServer(
             handleWriteableInteractions(player)
             handleGunInteractions(player)
             finishPlayerInteraction(player)
+            tickInventoryGun(playerItems)
 
             handleItemRecoil(player, playerItems)
             player.input.clear()
@@ -78,7 +79,8 @@ class EngineServer(
             handleDecalsAttaches(world)
             broadcastDecalsAttachments(handler, world)
             world.events<DecalEvent>().clear()
-            processWorldSounds(handler, namespacedStorage, globals.defaultItemSounds, world)
+            val sounds = processWorldSounds(namespacedStorage, world)
+            broadcastWorldSounds(sounds, handler)
         }
         tickTimes.add(start.timeElapsed().toInt())
     }

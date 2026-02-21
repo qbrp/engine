@@ -1,11 +1,20 @@
 package org.lain.engine.util
 
 import java.util.Queue
+import kotlin.collections.ArrayDeque
 
 fun <T : Any> Queue<T>.flush(todo: (T) -> Unit) {
     while (isNotEmpty()) {
         todo(poll())
     }
+}
+
+fun <T : Any, R : Any> Queue<T>.flushMap(todo: (T) -> R): List<R> {
+    val output = mutableListOf<R>()
+    while (isNotEmpty()) {
+        output += todo(poll())
+    }
+    return output
 }
 
 class FixedSizeList<T>(private val maxSize: Int) {

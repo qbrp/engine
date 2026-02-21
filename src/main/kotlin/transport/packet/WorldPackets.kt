@@ -8,9 +8,13 @@ import org.lain.engine.transport.Packet
 import org.lain.engine.world.BlockDecals
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.world.SoundContext
 
 @Serializable
-data class SoundPlayPacket(val play: SoundPlay) : Packet
+data class SoundPlayPacket(
+    val play: SoundPlay,
+    val context: SoundContext? = null,
+) : Packet
 
 val CLIENTBOUND_SOUND_PLAY_ENDPOINT = Endpoint<SoundPlayPacket>()
 

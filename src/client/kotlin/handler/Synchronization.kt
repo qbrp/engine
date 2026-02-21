@@ -13,10 +13,7 @@ import org.lain.engine.util.ComponentState
 import org.lain.engine.util.getOrSet
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.set
-import org.lain.engine.world.ChunkStorage
-import org.lain.engine.world.Location
-import org.lain.engine.world.World
-import org.lain.engine.world.WorldEvents
+import org.lain.engine.world.*
 
 /**
  * Объект находится за пределами видимости игрока и не синхронизируется точно.
@@ -79,4 +76,5 @@ fun clientItem(world: World, item: ClientboundItemData): EngineItem {
 
 fun clientWorld(data: ClientboundWorldData, chunkStorage: ChunkStorage) = World(data.id, chunkStorage).apply {
     set(WorldEvents())
+    set(ScenePlayers())
 }

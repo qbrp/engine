@@ -4,14 +4,16 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.item.SoundEvent
 import org.lain.engine.item.SoundEventId
+import org.lain.engine.server.EngineServer
 import org.lain.engine.util.Namespace
 import org.lain.engine.util.NamespaceId
+import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
+import java.io.File
 
 val CONTENTS_DIR = ENGINE_DIR.resolve("contents")
 val DEFAULT_NAMESPACE = NamespaceId("default")
@@ -77,12 +79,12 @@ internal fun String.replaceToRelative(namespace: FileNamespace): String {
     return replaceFirst("~", namespace.id.value)
 }
 
-private fun loadNamespaces(): Map<NamespaceId, FileNamespace> {
+private fun loadNamespaces(directory: File = CONTENTS_DIR): Map<NamespaceId, FileNamespace> {
     val namespaces = mutableSetOf<NamespaceId>()
     val contents = mutableMapOf<NamespaceId, NamespaceContents>()
     val configs = mutableMapOf<NamespaceId, NamespaceConfig>()
-    CONTENTS_DIR.ensureExists()
-    CONTENTS_DIR.walk().forEach { dir ->
+    directory.ensureExists()
+    directory.walk().forEach { dir ->
         if (!dir.isFile && dir.extension != "yml") return@forEach
         if (dir.name == NAMESPACES_FILENAME) {
             val config = Yaml.default.decodeFromStream<Map<NamespaceId, NamespaceConfig>>(dir.inputStream())
@@ -106,7 +108,9 @@ private fun loadNamespaces(): Map<NamespaceId, FileNamespace> {
     }
 }
 
-fun compileContents(): ContentsCompileResult = with(ContentCompileContext(loadNamespaces())) {
+fun compileContents(directory: File = CONTENTS_DIR): ContentsCompileResult = with(
+    ContentCompileContext(loadNamespaces(directory))
+) {
     val start = Timestamp()
     var items = 0
     var sounds = 0
@@ -150,8 +154,8 @@ data class CompiledNamespace(
 
 internal data class ContentCompileContext(val namespaces: Map<NamespaceId, FileNamespace>)
 
-fun EngineMinecraftServer.applyContentsCompileResult(result: ContentsCompileResult) {
-    engine.namespacedStorage.upload(
+fun NamespacedStorage.loadContentsCompileResult(result: ContentsCompileResult) {
+    upload(
         result.namespaces.map { (id, namespace) ->
             Namespace(
                 id,
@@ -160,11 +164,14 @@ fun EngineMinecraftServer.applyContentsCompileResult(result: ContentsCompileResu
             )
         }
     )
-    engine.handler.onContentsUpdate()
 }
 
+fun EngineServer.applyContentsCompileResult(result: ContentsCompileResult) {
+    namespacedStorage.loadContentsCompileResult(result)
+    handler.onContentsUpdate()
+}
 
-fun EngineMinecraftServer.loadContents() {
+fun EngineServer.loadContents() {
     val results = compileContents()
     applyContentsCompileResult(results)
 }

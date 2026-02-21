@@ -29,7 +29,6 @@ import org.lain.engine.player.*
 import org.lain.engine.server.markDirty
 import org.lain.engine.util.*
 import org.lain.engine.util.file.applyConfig
-import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessage
@@ -406,15 +405,6 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                         ctx.source.sendFeedback({ Text.of(text) }, true)
                     }
             )
-    )
-
-    register(
-        CommandManager.literal("reloadenginecontents")
-            .requires { it.hasPermission("reloadenginecontents") }
-            .executeCatching {
-                server.loadContents()
-                it.sendFeedback("Контент перезагружен", true)
-            }
     )
 
     fun executeEngineSoundCommand(ctx: Context, id: String, pos: Vec3d? = null, volume: Float = 1f) {

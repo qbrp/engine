@@ -20,16 +20,17 @@ fun EngineItem.getTooltip(debug: Boolean): List<String> {
         val ammunitionName = display?.ammunition ?: ammunition?.value
 
         if (ammunitionName != null) {
-            lines += "<aqua>■</aqua> <gray>Боеприпасы $ammunition"
+            lines += "<aqua>■</aqua> <gray>Боеприпасы $ammunitionName"
         }
 
         val showSelector = display?.selectorStatus ?: true
         if (showSelector) {
-            val selector = when (gun.selector) {
-                true -> "<red>поставлен"
-                false -> "<green>снят"
+            val selector = when (gun.mode) {
+                FireMode.SELECTOR -> "<red>предохранитель"
+                FireMode.SINGLE -> "<green>одиночный"
+                FireMode.AUTO -> "<yellow>автоматический"
             }
-            lines += "<aqua>■</aqua> <gray>Предохранитель <aqua>$selector</aqua>"
+            lines += "<aqua>■</aqua> <gray>Режим огня:</gray> $selector"
         }
 
         if (ammunition != null && gun.barrel.maxBullets > 0) {

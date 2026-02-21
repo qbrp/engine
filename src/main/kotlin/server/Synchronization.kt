@@ -2,10 +2,7 @@ package org.lain.engine.server
 
 import kotlinx.serialization.*
 import kotlinx.serialization.protobuf.ProtoBuf
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.HoldsBy
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.Writable
+import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -25,7 +22,8 @@ data class PlayerNetworkState(
     val chunks: MutableList<EngineChunkPos> = mutableListOf(),
     var disconnect: Boolean = false,
     var tick: Long = 0,
-    var tasks: MutableMap<Long, () -> Unit> = mutableMapOf(),
+    val actionTasks: MutableMap<Long, List<InputAction>> = mutableMapOf(),
+    val lastActions: FixedSizeList<List<InputAction>> = FixedSizeList(3),
 ) : Component
 
 val EnginePlayer.network
@@ -84,8 +82,8 @@ inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
     target,
     radius,
     resolver,
+    excludeEntity
 )
-
 
 inline fun <reified C : Component> PlayerComponentSynchronizer(
     global: Boolean = false,
@@ -168,4 +166,7 @@ val PLAYER_SPEED_INTENTION_SYNCHRONIZER = PlayerComponentSynchronizer<MovementSt
 
 // Item
 
+interface ItemSynchronizable
+
 val ITEM_WRITABLE_SYNCHRONIZER = ItemComponentSynchronizer<Writable>()
+val ITEM_GUN_SYNCHRONIZER = ItemComponentSynchronizer<Gun>()

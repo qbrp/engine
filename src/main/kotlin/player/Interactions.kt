@@ -1,12 +1,11 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.Gun
-import org.lain.engine.item.appendGunVerbs
-import org.lain.engine.item.appendWriteableVerbs
+import org.lain.engine.item.*
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.*
+import org.lain.engine.world.SoundContext
+import kotlin.reflect.KClass
 
 data class PlayerInput(
     val actions: MutableSet<InputAction>,
@@ -34,6 +33,24 @@ data class VerbLookup(
 ) : Component {
     val slotClick
         get() = actions.find { it is InputAction.SlotClick } as InputAction.SlotClick?
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T : InputAction> forAction(actionClass: KClass<T>, statement: (T) -> VerbType?) {
+        for (action in actions) {
+            if (actionClass.isInstance(action)) {
+                val verbType = statement(action as T) ?: continue
+                verbs += VerbVariant(verbType, action)
+            }
+        }
+    }
+
+    inline fun <reified T : InputAction> forAction(noinline statement: (T) -> VerbType?) {
+        forAction(T::class, statement)
+    }
+
+    inline fun <reified T : InputAction> forAction(verbType: VerbType) {
+        forAction<T> { verbType }
+    }
 }
 
 data class VerbVariant(
@@ -42,14 +59,16 @@ data class VerbVariant(
 ) : Component {}
 
 data class InteractionComponent(
+    val id: InteractionId,
     val type: VerbType,
     val handItem: EngineItem?,
     val action: InputAction,
     var timeElapsed: Int = 0,
-    var occupied: Boolean = false,
 ) : Component {
-    fun occupy() {
-        occupied = true
+    private var localSoundId = 0
+
+    fun emitItemInteractionSoundEvent(item: EngineItem, key: String, player: EnginePlayer? = null) {
+        item.emitPlaySoundEvent(key, player = player, context = SoundContext(localSoundId++, id))
     }
 
     val slotAction get() = action as InputAction.SlotClick
@@ -58,9 +77,9 @@ data class InteractionComponent(
         get() = timeElapsed > type.time
 }
 
-fun EnginePlayer.handleInteraction(id: VerbId, statement: InteractionComponent.() -> Unit) {
+fun EnginePlayer.handleInteraction(verb: VerbType, statement: InteractionComponent.() -> Unit) {
     handle<InteractionComponent> {
-        if (type.id == id) {
+        if (type.id == verb.id) {
             statement(this)
         }
     }
@@ -90,6 +109,14 @@ data class VerbType(
 @Serializable
 @JvmInline
 value class VerbId(val value: String)
+
+@Serializable
+@JvmInline
+value class InteractionId(val value: Long) {
+    companion object {
+        fun next(): InteractionId = InteractionId(nextId())
+    }
+}
 
 /** @return Отменить стандартное взаимодействие */
 fun processLeftClickInteraction(player: EnginePlayer, handItem: EngineItem? = player.handItem): Boolean {
@@ -150,6 +177,7 @@ fun updatePlayerInteractions(player: EnginePlayer, handler: ServerHandler? = nul
     player.remove<VerbLookup>()
     if (interaction == null && invoke != null) {
         val component = InteractionComponent(
+            InteractionId.next(),
             invoke.verb,
             if (invoke.verb.target == VerbType.Target.ITEM) {
                 handItem

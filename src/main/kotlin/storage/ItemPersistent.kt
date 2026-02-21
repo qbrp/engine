@@ -1,10 +1,7 @@
 package org.lain.engine.storage
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
 import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.encodeToByteArray
 import org.lain.engine.item.*
 import org.lain.engine.util.*
 
@@ -23,7 +20,10 @@ sealed class ItemData {
     @Serializable
     data class PhysicalParameters(val count: org.lain.engine.item.Count, val mass: org.lain.engine.item.Mass?) : ItemData()
     @Serializable
-    data class Book(val writable: Writable) : ItemData()
+    data class Book(
+        @SerialName("writeable") val writableLegacy: Writable? = null,
+        val writable: Writable? = null
+    ) : ItemData()
 
     @Serializable
     data class Equipment(val hat: Boolean) : ItemData()
@@ -66,7 +66,7 @@ fun itemPersistentData(item: EngineItem): PersistentItemData {
             item.get<Mass>()
         )
     )
-    components.addIfNotNull(item.wrap<Writable> { ItemData.Book(it.copy())  })
+    components.addIfNotNull(item.wrap<Writable> { ItemData.Book(writable=it.copy())  })
     components.addIfNotNull(
         ItemData.Equipment(
             item.has<Hat>()

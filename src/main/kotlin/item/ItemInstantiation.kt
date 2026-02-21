@@ -1,10 +1,7 @@
 package org.lain.engine.item
 
-import org.lain.engine.server.ITEM_WRITABLE_SYNCHRONIZER
-import org.lain.engine.server.Synchronizations
-import org.lain.engine.server.submit
+import org.lain.engine.server.*
 import org.lain.engine.util.ComponentState
-import org.lain.engine.util.has
 import org.lain.engine.util.set
 import org.lain.engine.util.setNullable
 import org.lain.engine.world.Location
@@ -56,7 +53,7 @@ fun itemInstance(
     return EngineItem(id, uuid, state).apply {
         set(location.copy())
         set(count.copy())
-        if (has<Writable>()) {
+        if (any { it is ItemSynchronizable }) {
             set(Synchronizations<EngineItem>(mutableMapOf()))
                 .also { it.initializeSynchronizers() }
         }
@@ -65,4 +62,5 @@ fun itemInstance(
 
 private fun Synchronizations<EngineItem>.initializeSynchronizers() {
     submit(ITEM_WRITABLE_SYNCHRONIZER)
+    submit(ITEM_GUN_SYNCHRONIZER)
 }

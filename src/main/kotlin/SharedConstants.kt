@@ -4,7 +4,7 @@ import org.lain.engine.SharedConstants.DEBUG_PACKETS
 import org.slf4j.LoggerFactory
 
 object SharedConstants {
-    const val DEBUG_PACKETS = false
+    const val DEBUG_PACKETS = true
     const val SIMULATE_LATENCY = false
 }
 

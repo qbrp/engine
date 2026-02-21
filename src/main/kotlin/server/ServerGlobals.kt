@@ -16,5 +16,4 @@ data class ServerGlobals(
     var vocalSettings: VocalSettings = VocalSettings(),
     var movementSettings: MovementSettings = MovementSettings(),
     var chatSettings: EngineChatSettings = EngineChatSettings(),
-    var defaultItemSounds: Map<String, SoundEventId> = mapOf()
 )

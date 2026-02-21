@@ -11,6 +11,7 @@ data class GunConfig(
     val ammunition: AmmunitionConfig? = null,
     val display: GunDisplay? = null,
     val smoke: List<Float>? = null,
+    val modes: List<FireMode>? = null,
     val rate: Int = 15
 ) {
     @Serializable
@@ -18,14 +19,19 @@ data class GunConfig(
     @Serializable
     data class AmmunitionConfig(val item: ItemId, val display: String? = null)
 
-    fun gunComponent() = Gun(
-        barrel.let { Barrel(it.initial, it.bullets) },
-        true,
-        false,
-        ammunition?.item,
-        smoke?.let { Vec3(it[0], it[1], it[2]) },
-        rate
-    )
+    fun gunComponent(): Gun {
+        val modes = modes?.takeIf { it.isNotEmpty() } ?: listOf(FireMode.SELECTOR, FireMode.SINGLE, FireMode.AUTO)
+        return Gun(
+            barrel.let { Barrel(it.initial, it.bullets) },
+            true,
+            ammunition?.item,
+            smoke?.let { Vec3(it[0], it[1], it[2]) },
+            rate,
+            0,
+            modes.first(),
+            modes
+        )
+    }
 
     fun gunDisplayComponent(): GunDisplay? {
         val ammunitionDisplay = ammunition?.display

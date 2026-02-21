@@ -105,7 +105,7 @@ public abstract class ItemStackMixin {
         EngineItem slotItem = getEngineItem(slotStack);
         EngineItem item = getEngineItem((ItemStack) (Object)this);
         if (slotItem != null && item != null) {
-            cir.setReturnValue(ServerMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object)this, player));
+            cir.setReturnValue(ServerMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object)this, player, clickType));
         }
     }
 

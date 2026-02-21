@@ -28,6 +28,7 @@ internal val ItemProtobuf = ProtoBuf {
             subclass(ItemTooltip::class)
             subclass(Mass::class)
             subclass(Writable::class)
+            subclass(ItemSounds::class)
         }
     }
 }
@@ -58,7 +59,8 @@ data class ClientboundItemData(
                 item.get<GunDisplay>()?.copy(),
                 item.get<ItemTooltip>()?.copy(),
                 item.get<Mass>()?.copy(),
-                item.get<Writable>()?.copy()
+                item.get<Writable>()?.copy(),
+                item.get<ItemSounds>()?.copy(),
             )
         )
     }

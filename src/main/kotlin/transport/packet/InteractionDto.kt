@@ -3,10 +3,7 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
-import org.lain.engine.player.InputAction
-import org.lain.engine.player.InteractionComponent
-import org.lain.engine.player.VerbId
-import org.lain.engine.player.VerbType
+import org.lain.engine.player.*
 import org.lain.engine.transport.packet.InputActionDto.*
 import org.lain.engine.util.Storage
 
@@ -22,6 +19,7 @@ sealed class InputActionDto {
 
 @Serializable
 data class InteractionDto(
+    val id: InteractionId,
     val type: VerbTypeDto,
     val item: ItemUuid? = null,
     val action: InputActionDto,
@@ -54,6 +52,7 @@ fun InputActionDto.toDomain(itemStorage: Storage<ItemUuid, EngineItem>, ): Input
 }
 
 fun InteractionComponent.toDto(): InteractionDto = InteractionDto(
+    id = id,
     type = type.toDto(),
     item = handItem?.uuid,
     action = action.toDto(),
@@ -62,6 +61,7 @@ fun InteractionComponent.toDto(): InteractionDto = InteractionDto(
 
 fun InteractionDto.toDomain(itemStorage: Storage<ItemUuid, EngineItem>): InteractionComponent {
     return InteractionComponent(
+        id = id,
         type = type.toDomain(itemStorage),
         handItem = item?.let { itemStorage.get(it) ?: throw InvalidItemUuidException(it) },
         action = action.toDomain(itemStorage),

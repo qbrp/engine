@@ -6,6 +6,7 @@ import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.server.ITEM_GUN_SYNCHRONIZER
 import org.lain.engine.server.ITEM_WRITABLE_SYNCHRONIZER
 import org.lain.engine.server.PLAYER_ARM_STATUS_SYNCHRONIZER
 import org.lain.engine.server.PLAYER_CUSTOM_NAME_SYNCHRONIZER
@@ -107,7 +108,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { gameSession ->
-        applyPlaySoundPacket(play)
+        applyPlaySoundPacket(play, context)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT) { gameSession ->
@@ -129,4 +130,5 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_WRITABLE_SYNCHRONIZER)
+    registerItemSynchronizerEndpoint(ITEM_GUN_SYNCHRONIZER)
 }

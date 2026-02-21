@@ -8,17 +8,20 @@ import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.handleBulletFireShakes
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.item.handleGunInteractions
-import org.lain.engine.item.handleItemRecoil
-import org.lain.engine.item.handleWriteableInteractions
-import org.lain.engine.item.supplyPlayerInventoryItemsLocation
+import org.lain.engine.client.util.processSoundPlayKeys
+import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.ClientboundSetupData
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
+import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.apply
+import org.lain.engine.util.file.compileContents
+import org.lain.engine.util.file.loadContentsCompileResult
 import org.lain.engine.util.has
 import org.lain.engine.world.*
+import java.util.*
 
 class GameSession(
     val server: ServerId,
@@ -61,6 +64,8 @@ class GameSession(
     val mainPlayer = mainClientPlayerInstance(player.id, world, player)
     var ticks = 0L
         private set
+    val namespacedStorage = NamespacedStorage()
+    var soundsToBroadcast = LinkedList<SoundBroadcast>()
 
     init {
         instantiatePlayer(mainPlayer)
@@ -68,12 +73,17 @@ class GameSession(
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
         player.items.forEach { itemStorage.add(it.uuid, clientItem(world, it)) }
+        namespacedStorage.loadContentsCompileResult(compileContents(client.resources.contents.file))
     }
 
     fun tick() {
         ticks++
         chatManager.tick()
         val players = playerStorage.getAll()
+        world.apply<ScenePlayers> {
+            this.players.clear()
+            this.players.addAll(players)
+        }
 
         movementManager.stamina = mainPlayer.stamina
         if (mainPlayer.has<SpawnMark>()) {
@@ -99,6 +109,7 @@ class GameSession(
             handleWriteableInteractions(player)
             handleGunInteractions(player, true)
             finishPlayerInteraction(player)
+            tickInventoryGun(playerItems)
 
             handleItemRecoil(player, playerItems, false)
         }
@@ -107,7 +118,10 @@ class GameSession(
         handleBulletFireShakes(mainPlayer, client.camera, world, items)
 
         chatBubbleList.cleanup()
-        world.events<WorldSoundPlayRequest>().clear()
+        val sounds = processWorldSounds(namespacedStorage, world)
+        sounds.forEach { sound -> println("Просимулирован звук $sound") }
+        processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
+        soundsToBroadcast.clear()
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {

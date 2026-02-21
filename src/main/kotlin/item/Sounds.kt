@@ -2,17 +2,18 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.Component
+import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.get
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.world.SoundContext
 import org.lain.engine.world.WorldSoundPlayRequest
 import org.lain.engine.world.emitPlaySoundEvent
 import org.lain.engine.world.world
 
 @Serializable
-data class ItemSounds(val sounds: Map<String, SoundEventId>) : Component
+data class ItemSounds(val sounds: Map<String, SoundEventId>) : ItemComponent
 
 val EngineItem.sound
     get() = this.get<ItemSounds>()?.sounds
@@ -29,7 +30,7 @@ data class SoundPlay(
     val pitch: Float = 1f,
 )
 
-fun SoundPlay(sound: SoundEvent, pos: Vec3, category: EngineSoundCategory, volume: Float = 1f, pitch: Float = 1f) =
+fun SoundPlay(sound: SoundEvent, pos: Vec3, category: EngineSoundCategory = EngineSoundCategory.AMBIENT, volume: Float = 1f, pitch: Float = 1f) =
     SoundPlay(sound, ImmutableVec3(pos), category, volume, pitch)
 
 enum class EngineSoundCategory {
@@ -73,12 +74,13 @@ fun NamespacedStorage.getOrSingleSound(id: SoundEventId) = this.sounds[id] ?: So
 
 fun EngineItem.emitPlaySoundEvent(
     key: String,
-    category: EngineSoundCategory,
+    category: EngineSoundCategory = EngineSoundCategory.AMBIENT,
     volume: Float = 1f,
     pitch: Float = 1f,
     player: EnginePlayer? = null,
+    context: SoundContext? = null
 ) {
     this.world.emitPlaySoundEvent(
-        WorldSoundPlayRequest.Item(this, key, category, volume, pitch, player)
+        WorldSoundPlayRequest.Item(this, key, category, volume, pitch, player, context)
     )
 }

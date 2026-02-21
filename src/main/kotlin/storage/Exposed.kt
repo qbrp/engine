@@ -59,7 +59,7 @@ suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
             is ItemData.Sounds ->
                 components.addIfNotNull(component.data)
             is ItemData.Book ->
-                components.add(component.writable)
+                components.add(component.writable ?: component.writableLegacy ?: error("Writeable component doesn't exist"))
             is ItemData.Count -> {
                 count = Count(component.value, 16)
             }

@@ -5,12 +5,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.lain.engine.chat.*
+import org.lain.engine.debugPacket
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.storage.backupBookContent
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.get
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.ImmutableVec3
@@ -66,13 +68,9 @@ class ServerHandler(
         }
     }
 
-    private fun updatePlayer(id: PlayerId, tick: Long? = null, update: EnginePlayer.() -> Unit) {
+    private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) {
         val player = server.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
-        if (tick != null) {
-            player.network.tasks[tick] = { player.update() }
-        } else {
-            player.update()
-        }
+        player.update()
     }
 
     private fun getPlayer(id: PlayerId): EnginePlayer? {
@@ -94,18 +92,24 @@ class ServerHandler(
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingEnd(ctx.sender) }
         SERVERBOUND_ARM_STATUS_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.registerReceiver { ctx -> onWriteableContentsUpdate(ctx.sender, item, contents) }
-        SERVERBOUND_INPUT_PACKET.registerReceiver { ctx ->
-            //println("Действия на тик $tick : $actions")
-            onPlayerInput(ctx.sender, tick, actions)
-        }
+        SERVERBOUND_INPUT_PACKET.registerReceiver { ctx -> onPlayerInput(ctx.sender, tick + 2, actions) }
         SERVERBOUND_CLIENT_TICK_END_ENDPOINT.registerReceiver { ctx ->
-            updatePlayer(ctx.sender) { network.tick++ }
+            val player = getPlayer(ctx.sender) ?: return@registerReceiver
+            player.network.tick++
         }
+        SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.registerReceiver { ctx -> onRequestReloadContents(ctx.sender) }
     }
 
     fun invalidate() {
         transportContext.unregisterAll()
         destroy = true
+    }
+
+    fun onRequestReloadContents(playerId: PlayerId) = updatePlayer(playerId) {
+        if (hasPermission("reloadenginecontents")) {
+            server.loadContents()
+        }
+        CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT.sendS2C(ContentsUpdatePacket, playerId)
     }
 
     fun onPlayerInteraction(player: EnginePlayer, component: InteractionComponent) {
@@ -119,18 +123,11 @@ class ServerHandler(
         )
     }
 
-    private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputActionDto>) = updatePlayer(playerId, tick) {
+    private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputActionDto>) = updatePlayer(playerId) {
         //println("Выполнено действие $input тика $tick")
         val actions = input.map { it.toDomain(itemStorage) }
-        val input = require<PlayerInput>()
-        input.actions.addAll(actions)
-
-        CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
-            location,
-            playerSynchronizationRadius,
-            exclude = listOf(this),
-            packet = PlayerInputPacket(id, actions.map { it.toDto() }.toSet())
-        )
+        val network = network
+        network.actionTasks[tick] = actions
     }
 
     private fun onWriteableContentsUpdate(playerId: PlayerId, itemUuid: ItemUuid, contents: List<String>) = updatePlayer(playerId) {
@@ -236,10 +233,47 @@ class ServerHandler(
             .filter { it.network.authorized }
 
         for (player in players) {
+            val input = player.require<PlayerInput>()
             val state = player.network
-            state.tasks.remove(state.tick)?.invoke()
-
             val location = player.location
+            val actionTasks = state.actionTasks
+
+            val actionTask = actionTasks.remove(state.tick) ?: run {
+                val last = state.lastActions.toList()
+                for (actions in last.reversed()) {
+                    if (actions.isNotEmpty()) {
+                        return@run actions
+                    }
+                }
+                null
+            }
+
+            if (actionTask != null) {
+                input.actions.clear()
+                input.actions.addAll(actionTask)
+
+                CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
+                    location,
+                    playerSynchronizationRadius,
+                    exclude = listOf(player),
+                    packet = PlayerInputPacket(player.id, actionTask.map { action -> action.toDto() }.toSet())
+                )
+
+                state.lastActions.add(actionTask)
+            }
+
+            debugPacket("Действия тика ${state.tick}: $actionTask")
+
+            val toRemove = mutableListOf<Long>()
+            if (actionTasks.size > 100) {
+                for ((tick, _) in actionTasks) {
+                    if (tick < state.tick) {
+                        toRemove.add(tick)
+                    }
+                }
+            }
+            toRemove.forEach { actionTasks.remove(it) }
+
             val playersInRadius = filterNearestPlayers(location, globals.playerSynchronizationRadius, players)
 
             tickSynchronizationComponent(playerStorage, player)
@@ -312,8 +346,8 @@ class ServerHandler(
         CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT.broadcast(ContentsUpdatePacket)
     }
 
-    fun onSoundEvent(play: SoundPlay, receivers: List<EnginePlayer>) {
-        val packet = SoundPlayPacket(play)
+    fun onSoundEvent(play: SoundPlay, context: SoundContext?, receivers: List<EnginePlayer>) {
+        val packet = SoundPlayPacket(play, context)
         receivers.forEach {
             CLIENTBOUND_SOUND_PLAY_ENDPOINT.sendS2C(packet, it.id)
         }

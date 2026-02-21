@@ -55,3 +55,10 @@ val SERVERBOUND_CURSOR_ITEM_ENDPOINT = Endpoint<CursorItemPacket>()
 data class ArmStatusPacket(val extend: Boolean) : Packet
 
 val SERVERBOUND_ARM_STATUS_ENDPOINT = Endpoint<ArmStatusPacket>()
+
+// Contents
+
+@Serializable
+object ReloadContentsRequestPacket : Packet
+
+val SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT = Endpoint<ReloadContentsRequestPacket>()

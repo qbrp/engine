@@ -5,6 +5,7 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.util.ClickType
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.WorldChunk
@@ -31,17 +32,28 @@ object ServerMixinAccess {
 
     fun inEnginePlayer(player: ServerPlayerEntity) = table.server.getPlayer(player) != null
 
-    fun onSlotEngineItemClicked(cursorItem: EngineItem, item: EngineItem, slotStack: ItemStack, cursorStack: ItemStack, player: PlayerEntity): Boolean {
-        if (merge(item, cursorItem)) {
-            val space = slotStack.maxCount - slotStack.count
-            return if (space > 0) {
-                val toMove = minOf(cursorStack.count, space)
-                slotStack.increment(toMove)
-                cursorStack.decrement(toMove)
-                true
-            } else {
-                false
+    fun onSlotEngineItemClicked(
+        cursorItem: EngineItem,
+        item: EngineItem,
+        slotStack: ItemStack,
+        cursorStack: ItemStack,
+        player: PlayerEntity,
+        clickType: ClickType
+    ): Boolean {
+        val space = slotStack.maxCount - slotStack.count
+        if (merge(item, cursorItem) && space > 0) {
+            when (clickType) {
+                ClickType.LEFT -> {
+                    val toMove = minOf(cursorStack.count, space)
+                    slotStack.increment(toMove)
+                    cursorStack.decrement(toMove)
+                }
+                ClickType.RIGHT -> {
+                    slotStack.increment(1)
+                    cursorStack.decrement(1)
+                }
             }
+            return true
         }
 
         var success = false

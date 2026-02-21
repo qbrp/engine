@@ -218,14 +218,9 @@ fun updatePlayerMinecraftSystems(
 
         val countComponent = item.get<Count>()
         if (countComponent == null) {
-            if (itemStack.count != 0) {
-                itemStack.count = 1
-            }
+            itemStack.count = 1
         } else {
             countComponent.value = itemStack.count
-        }
-        if (itemStack.count == 0 && playerInventory.cursorItem?.uuid == item.uuid) {
-            playerInventory.cursorItem = null
         }
     }
 

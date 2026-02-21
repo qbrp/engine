@@ -42,6 +42,8 @@ import org.lain.engine.mc.*
 import org.lain.engine.player.OrientationTranslation
 import org.lain.engine.player.handItem
 import org.lain.engine.player.username
+import org.lain.engine.transport.packet.ReloadContentsRequestPacket
+import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.*
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.handleDecalsAttaches
@@ -87,7 +89,7 @@ class MinecraftEngineClient : ClientModInitializer {
     override fun onInitializeClient() {
         engineClient.options = config
         keybindManager = KeybindManager(config = config.config)
-        registerEngineItemGroupEvent()
+        registerEngineItemGroupEvent(engineClient)
         registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
         registerWorldRenderEvents(client, engineClient, eventBus, decalsStorage)
 
@@ -105,7 +107,7 @@ class MinecraftEngineClient : ClientModInitializer {
             dispatcher.register(
                 ClientCommandManager.literal("reloadclientenginecontents")
                     .executes { ctx ->
-                        updateEngineItemGroupEntries()
+                        SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.sendC2SPacket(ReloadContentsRequestPacket)
                         ctx.source.sendFeedback(Text.of("Контен скомпилирован"))
                         1
                     }

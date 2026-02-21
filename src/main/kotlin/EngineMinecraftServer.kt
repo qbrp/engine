@@ -90,7 +90,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         Injector.register<ItemAccess>(engine.itemStorage)
         Injector.register(engine.globals.movementSettings)
         applyConfigCatching(config)
-        loadContents()
+        engine.loadContents()
         minecraftServer.worlds.forEach {
             val id = it.engine
             engine.addWorld(world(id))

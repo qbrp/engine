@@ -36,6 +36,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val handledNotifications = mutableSetOf<Notification>()
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
     val taskExecutor = TaskExecutor()
+    val processedSounds = mutableSetOf<SoundBroadcast>()
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
@@ -43,6 +44,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun disable() {
         injectValue<ClientTransportContext>().unregisterAll()
+        handledNotifications.clear()
+        processedSounds.clear()
     }
 
     fun tick() {
@@ -268,8 +271,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
     }
 
-    fun applyPlaySoundPacket(play: SoundPlay) {
-        client.audioManager.playSound(play)
+    fun applyPlaySoundPacket(play: SoundPlay, context: SoundContext?): Unit = with(gameSession!!) {
+        soundsToBroadcast += SoundBroadcast(play, listOf(), context)
     }
 
     fun applyContentsUpdatePacket() {

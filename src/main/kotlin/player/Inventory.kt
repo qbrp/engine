@@ -30,17 +30,17 @@ val EnginePlayer.handItem
 val EnginePlayer.cursorItem
     get() = this.require<PlayerInventory>().cursorItem
 
-private val SLOT_MERGE_VERB = VerbId("slot_merge")
+private val SLOT_MERGE_VERB = ItemVerb(
+    VerbId("slot_merge"),
+    "Объединить предметы",
+)
 
 fun appendPlayerInventoryVerbs(player: EnginePlayer) {
     player.handle<VerbLookup> {
         val slotClick = slotClick ?: return@handle
         if (merge(slotClick.item, slotClick.cursorItem)) {
             verbs += VerbVariant(
-                ItemVerb(
-                    SLOT_MERGE_VERB,
-                    "Объединить предметы",
-                ),
+                SLOT_MERGE_VERB,
                 slotClick
             )
         }
