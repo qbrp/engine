@@ -109,17 +109,18 @@ class GameSession(
             handleWriteableInteractions(player)
             handleGunInteractions(player, true)
             finishPlayerInteraction(player)
-            tickInventoryGun(playerItems)
 
+            tickInventoryGun(playerItems)
             handleItemRecoil(player, playerItems, false)
         }
+
+        tickNarrations(mainPlayer)
 
         val items = itemStorage.getAll()
         handleBulletFireShakes(mainPlayer, client.camera, world, items)
 
         chatBubbleList.cleanup()
         val sounds = processWorldSounds(namespacedStorage, world)
-        sounds.forEach { sound -> println("Просимулирован звук $sound") }
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()
     }

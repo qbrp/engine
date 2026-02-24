@@ -3,10 +3,10 @@ package org.lain.engine.player
 import org.lain.engine.util.inject
 
 interface RaycastProvider {
-    fun isPlayerSeeOther(player: EnginePlayer, seen: EnginePlayer): Boolean
+    fun whoSee(player: EnginePlayer, distance: Int, isClient: Boolean): EnginePlayer?
 }
 
-fun EnginePlayer.canSee(player: EnginePlayer): Boolean {
+fun EnginePlayer.whoSee(distance: Int, isClient: Boolean = false): EnginePlayer? {
      val raycastProvider by inject<RaycastProvider>()
-    return raycastProvider.isPlayerSeeOther(this, player)
+    return raycastProvider.whoSee(this, distance, isClient)
 }

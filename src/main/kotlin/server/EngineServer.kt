@@ -26,6 +26,7 @@ class EngineServer(
     private val taskQueue = ConcurrentLinkedQueue<Runnable>()
     private val worlds: MutableMap<WorldId, World> = mutableMapOf()
 
+    var stopped = false
     val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val playerService = PlayerService(playerStorage, this)
@@ -40,6 +41,7 @@ class EngineServer(
     }
 
     fun stop() {
+        stopped = true
         handler.invalidate()
     }
 
@@ -64,11 +66,14 @@ class EngineServer(
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)
             handleGunInteractions(player)
+            handleSocialInteractions(player)
             finishPlayerInteraction(player)
             tickInventoryGun(playerItems)
 
             handleItemRecoil(player, playerItems)
             player.input.clear()
+
+            tickNarrations(player)
         }
 
         players.forEach { flushPlayerUpdates(it, handler) }

@@ -42,6 +42,7 @@ fun commonPlayerInstance(
         set(PlayerInventory(settings.items.toMutableSet()))
         set(ArmStatus(false))
         set(PlayerInput(mutableSetOf(), setOf()))
+        set(Narration(mutableListOf()))
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)
@@ -76,4 +77,5 @@ private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_ARM_STATUS_SYNCHRONIZER)
     submit(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     submit(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
+    submit(PLAYER_NARRATION_SYNCHRONIZER)
 }

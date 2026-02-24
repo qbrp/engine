@@ -80,6 +80,7 @@ class ServerSingleplayerTransport(
         handler: ServerPacketHandler<P>
     ) {
         CommonSingleplayerEndpointRegistry.register(endpoint, Side.SERVER) { packet, id ->
+            if (server.stopped) return@register
             executeOnThread {
                 val plr = mainPlayer ?: return@executeOnThread
                 val context = ServerPacketContext(plr.id)

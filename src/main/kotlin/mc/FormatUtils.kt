@@ -1,6 +1,8 @@
 package org.lain.engine.mc
 
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.entity.projectile.ProjectileUtil
+import net.minecraft.predicate.entity.EntityPredicates
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
@@ -34,14 +36,23 @@ fun minecraftChunkSectionCoord(value: Int): Int {
     return value shr 4
 }
 
-class MinecraftRaycastProvider(
-    private val server: MinecraftServer,
-    private val entityTable: ServerPlayerTable
-) : RaycastProvider {
-    override fun isPlayerSeeOther(player: EnginePlayer, seen: EnginePlayer): Boolean {
-        val entity1 = entityTable.getEntity(player) ?: return false
-        val entity2 = entityTable.getEntity(player) ?: return false
-        return entity1.canSee(entity2)
+class MinecraftRaycastProvider(private val playerTable: EntityTable) : RaycastProvider {
+    override fun whoSee(player: EnginePlayer, distance: Int, isClient: Boolean): EnginePlayer? {
+        val table = if (isClient) playerTable.client else playerTable.server
+        val entity1 = table.getEntity(player) ?: return null
+        val results = ProjectileUtil.raycast(
+            entity1,
+            entity1.eyePos,
+            entity1.eyePos.add(entity1.rotationVector.multiply(distance.toDouble())),
+            entity1.boundingBox
+                .stretch(entity1.rotationVector.multiply(distance.toDouble()))
+                .expand(1.0),
+            EntityPredicates.CAN_HIT,
+            distance.toDouble(),
+        );
+        return (results?.entity as? PlayerEntity?)?.let {
+            (table as EntityTable.Entity2PlayerTable<PlayerEntity>).getPlayer(it)
+        }
     }
 }
 

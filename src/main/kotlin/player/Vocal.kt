@@ -145,9 +145,9 @@ fun EnginePlayer.updateVoiceApparatus(
             (regenerationTime * (1 - regenerationTimeRandom * Random.nextFloat())).toInt())
         set(component)
         VOICE_BREAK_LOGGER.info("$username сломал голос! | VoiceApparatus: $this | VoiceLoose: $component")
-        chat.sendSystemMessage(
+        serverNarration(
             "<yellow>Ой, кажется, вы сорвали голос! Следует быть поаккуратнее с криками.</yellow>",
-            this@updateVoiceApparatus
+            150
         )
     }
     return@with breakVoice
@@ -183,9 +183,9 @@ fun updatePlayerVoice(
     if (tiredness > breakWarningThreshold && voiceApparatus.lastNotificationTick > 6000) {
         voiceApparatus.lastNotificationTick = 0
         if (voiceLoose == null) {
-            chat.sendSystemMessage(
+            player.serverNarration(
                 "<yellow>Аккуратнее! Кажется, вы вот-вот сорвёте голос.</yellow>",
-                player
+                150
             )
         }
     }

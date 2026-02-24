@@ -22,6 +22,7 @@ data class InteractionDto(
     val id: InteractionId,
     val type: VerbTypeDto,
     val item: ItemUuid? = null,
+    val raycastPlayer: PlayerId? = null,
     val action: InputActionDto,
     val timeElapsed: Int = 0
 )
@@ -55,15 +56,20 @@ fun InteractionComponent.toDto(): InteractionDto = InteractionDto(
     id = id,
     type = type.toDto(),
     item = handItem?.uuid,
+    raycastPlayer = raycastPlayer?.id,
     action = action.toDto(),
     timeElapsed = timeElapsed
 )
 
-fun InteractionDto.toDomain(itemStorage: Storage<ItemUuid, EngineItem>): InteractionComponent {
+fun InteractionDto.toDomain(
+    itemStorage: Storage<ItemUuid, EngineItem>,
+    playerStorage: Storage<PlayerId, EnginePlayer>,
+): InteractionComponent {
     return InteractionComponent(
         id = id,
-        type = type.toDomain(itemStorage),
+        type = type.toDomain(),
         handItem = item?.let { itemStorage.get(it) ?: throw InvalidItemUuidException(it) },
+        raycastPlayer = raycastPlayer?.let { playerStorage.get(it) ?: error("Player $raycastPlayer not found") },
         action = action.toDomain(itemStorage),
         timeElapsed = timeElapsed
     )
@@ -76,7 +82,7 @@ fun VerbType.toDto(): VerbTypeDto = VerbTypeDto(
     target = target
 )
 
-fun VerbTypeDto.toDomain(itemStorage: Storage<ItemUuid, EngineItem>): VerbType {
+fun VerbTypeDto.toDomain(): VerbType {
     return VerbType(
         id = id,
         name = name,

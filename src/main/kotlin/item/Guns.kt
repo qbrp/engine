@@ -133,7 +133,6 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
 
         if (barrel.bullets > 0) {
             barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
-            println("Патроны: ${barrel.bullets}")
             emitItemInteractionSoundEvent(handItem, GUNFIRE_SOUND)
 
             val rotationVector = player.require<Orientation>().rotationVector
@@ -149,6 +148,8 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
 
             if (gun.mode != FireMode.AUTO) {
                 player.finishInteraction()
+            } else {
+                occupy()
             }
         } else {
             if (!gun.clicked) {
@@ -168,8 +169,6 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             val nextIndex = (currentIndex + 1) % modes.size
             gun.mode = modes[nextIndex]
             emitItemInteractionSoundEvent(handItem, SELECTOR_TOGGLE_SOUND)
-            val text = if (isClient) "Client" else "Server"
-            println("[$text] Режим стрельбы: ${gun.mode}")
         }
 
         player.finishInteraction()

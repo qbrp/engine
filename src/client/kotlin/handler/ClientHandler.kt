@@ -88,9 +88,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     data class InteractionQueueComponent(val interactions: Queue<InteractionComponent>) : Component
 
     fun applyInteractionPacket(player: EnginePlayer, interaction: InteractionDto): Unit = with(gameSession!!) {
-        println("Принято взаимодействие $interaction")
         player.getOrSet { InteractionQueueComponent(LinkedList()) }.interactions.add(
-            interaction.toDomain(itemStorage)
+            interaction.toDomain(itemStorage, playerStorage)
         )
     }
 

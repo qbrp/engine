@@ -24,6 +24,7 @@ import org.lain.engine.util.Injector
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
+import org.lain.engine.util.injectValue
 import org.lain.engine.util.require
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.location
@@ -83,7 +84,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     open fun run() {
-        Injector.register(MinecraftRaycastProvider(minecraftServer, entityTable))
+        Injector.register<RaycastProvider>(MinecraftRaycastProvider(injectValue()))
         Injector.register<PlayerPermissionsProvider>(MinecraftPermissionProvider(entityTable))
         Injector.register<ServerTransportContext>(transportContext)
         Injector.register(engine.itemStorage)

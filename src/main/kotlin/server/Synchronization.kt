@@ -48,13 +48,17 @@ inline fun <reified C : Component> Entity.markDirty() {
     markDirty(C::class)
 }
 
+enum class PlayerPredicate {
+    ALL, SELF, OTHERS
+}
+
 class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerializationApi::class) constructor(
     val componentClass: KClass<C>,
     val serializer: KSerializer<C>,
     val target: SynchronizationTarget,
     val radius: Int,
     val resolver: (T, C) -> Unit,
-    val excludeEntity: Boolean = true,
+    val predicate: PlayerPredicate,
     val endpoint: Endpoint<ComponentSynchronizationPacket<C>> = Endpoint(
         componentClass.simpleName!!.lowercase(),
         PacketCodec.Binary(
@@ -74,7 +78,7 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
 inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
     target: SynchronizationTarget,
     radius: Int,
-    excludeEntity: Boolean = false,
+    predicate: PlayerPredicate,
     noinline resolver: (T, C) -> Unit,
 ) = ComponentSynchronizer<T, C>(
     C::class,
@@ -82,28 +86,28 @@ inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
     target,
     radius,
     resolver,
-    excludeEntity
+    predicate
 )
 
 inline fun <reified C : Component> PlayerComponentSynchronizer(
+    predicate: PlayerPredicate,
     global: Boolean = false,
-    exclude: Boolean = false,
     noinline resolver: (EnginePlayer, C) -> Unit = { player, component -> player.replace(component) },
 ) = ComponentSynchronizer(
     SynchronizationTarget.PLAYER,
     if (!global) 48 else Int.MAX_VALUE,
-    exclude,
+    predicate,
     resolver,
 )
 
 inline fun <reified C : Component> ItemComponentSynchronizer(
+    predicate: PlayerPredicate,
     global: Boolean = false,
-    exclude: Boolean = false,
     noinline resolver: (EngineItem, C) -> Unit = { item, component -> item.replace(component) },
 ) = ComponentSynchronizer(
     SynchronizationTarget.ITEM,
     if (!global) 48 else Int.MAX_VALUE,
-    exclude,
+    predicate,
     resolver,
 )
 
@@ -121,15 +125,17 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
             val component = entity.getComponent(synchronizer.componentClass) ?: error("Dirty component ${synchronizer.componentClass} not found")
             val packet = ComponentSynchronizationPacket(entity.stringId, component)
 
-            fun broadcast(location: Location, exclude: EnginePlayer? = null) {
-                endpoint.broadcastInRadius(
+            fun broadcast(location: Location, player: EnginePlayer?) {
+                val players = when (synchronizer.predicate) {
+                    PlayerPredicate.ALL -> players
+                    PlayerPredicate.SELF -> listOf(player)
+                    PlayerPredicate.OTHERS -> players - player
+                }.toList().filterNotNull()
+
+                endpoint.broadcastInRadiusFor(
                     location,
                     synchronizer.radius,
-                    if (synchronizer.excludeEntity) {
-                        listOfNotNull(exclude)
-                    } else {
-                        emptyList()
-                    },
+                    players,
                     packet
                 )
             }
@@ -160,13 +166,22 @@ class ComponentSynchronizationPacket<C : Component>(val id: String, val componen
 
 // Player
 
-val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>()
-val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(true) { player, name -> player.customName = name.custom }
-val PLAYER_SPEED_INTENTION_SYNCHRONIZER = PlayerComponentSynchronizer<MovementStatus> { player, status -> player.require<MovementStatus>().intention = status.intention }
+val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>(PlayerPredicate.OTHERS)
+val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(PlayerPredicate.ALL) { player, name -> player.customName = name.custom }
+val PLAYER_SPEED_INTENTION_SYNCHRONIZER = PlayerComponentSynchronizer<MovementStatus>(PlayerPredicate.OTHERS) { player, status ->
+    player.require<MovementStatus>().intention = status.intention
+}
+val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(PlayerPredicate.SELF) { player, narration ->
+    val clientNarration = player.require<Narration>().messages
+    if (clientNarration != narration.messages) {
+        clientNarration.clear()
+        clientNarration.addAll(narration.messages)
+    }
+}
 
 // Item
 
 interface ItemSynchronizable
 
-val ITEM_WRITABLE_SYNCHRONIZER = ItemComponentSynchronizer<Writable>()
-val ITEM_GUN_SYNCHRONIZER = ItemComponentSynchronizer<Gun>()
+val ITEM_WRITABLE_SYNCHRONIZER = ItemComponentSynchronizer<Writable>(PlayerPredicate.ALL)
+val ITEM_GUN_SYNCHRONIZER = ItemComponentSynchronizer<Gun>(PlayerPredicate.OTHERS)

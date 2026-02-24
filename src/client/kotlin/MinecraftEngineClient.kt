@@ -25,10 +25,7 @@ import net.minecraft.util.Hand
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.*
 import org.lain.engine.client.mc.*
-import org.lain.engine.client.mc.render.ChunkDecalsStorage
-import org.lain.engine.client.mc.render.EngineUiRenderPipeline
-import org.lain.engine.client.mc.render.MinecraftFontRenderer
-import org.lain.engine.client.mc.render.MinecraftPainter
+import org.lain.engine.client.mc.render.*
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.server.ClientSingleplayerTransport
@@ -39,6 +36,7 @@ import org.lain.engine.client.util.PlayerTickException
 import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
+import org.lain.engine.player.Narration
 import org.lain.engine.player.OrientationTranslation
 import org.lain.engine.player.handItem
 import org.lain.engine.player.username
@@ -245,6 +243,12 @@ class MinecraftEngineClient : ClientModInitializer {
             )
             context.matrices.pushMatrix()
             renderer.isFirstPerson = !client.gameRenderer.camera.isThirdPerson
+            renderNarrations(
+                context,
+                renderer.narrations,
+                engineClient.gameSession?.mainPlayer?.require<Narration>()?.messages ?: emptyList(),
+                deltaTick
+            )
             renderer.renderScreen(painter)
             val window = MinecraftClient.window
             val mouse = MinecraftClient.mouse

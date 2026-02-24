@@ -33,23 +33,40 @@ data class VerbLookup(
 ) : Component {
     val slotClick
         get() = actions.find { it is InputAction.SlotClick } as InputAction.SlotClick?
+    var raycastPlayer: EnginePlayer? = null
+
+    fun raycastPlayer(player: EnginePlayer, distance: Int): EnginePlayer? {
+        raycastPlayer = player.whoSee(distance)
+        return raycastPlayer
+    }
 
     @Suppress("UNCHECKED_CAST")
-    fun <T : InputAction> forAction(actionClass: KClass<T>, statement: (T) -> VerbType?) {
+    fun <T : InputAction> forAction(
+        actionClass: KClass<T>,
+        override: Boolean = false,
+        statement: (T) -> VerbType?
+    ) {
         for (action in actions) {
             if (actionClass.isInstance(action)) {
+                if (!override && verbs.any { it.action == action }) continue
                 val verbType = statement(action as T) ?: continue
                 verbs += VerbVariant(verbType, action)
             }
         }
     }
 
-    inline fun <reified T : InputAction> forAction(noinline statement: (T) -> VerbType?) {
-        forAction(T::class, statement)
+    inline fun <reified T : InputAction> forAction(
+        override: Boolean = false,
+        noinline statement: (T) -> VerbType?,
+    ) {
+        forAction(T::class, override, statement)
     }
 
-    inline fun <reified T : InputAction> forAction(verbType: VerbType) {
-        forAction<T> { verbType }
+    inline fun <reified T : InputAction> forAction(
+        verbType: VerbType,
+        override: Boolean = false,
+    ) {
+        forAction<T>(override) { verbType }
     }
 }
 
@@ -62,10 +79,16 @@ data class InteractionComponent(
     val id: InteractionId,
     val type: VerbType,
     val handItem: EngineItem?,
+    val raycastPlayer: EnginePlayer?,
     val action: InputAction,
     var timeElapsed: Int = 0,
+    var occupied: Boolean = false,
 ) : Component {
     private var localSoundId = 0
+
+    fun occupy() {
+        occupied = true
+    }
 
     fun emitItemInteractionSoundEvent(item: EngineItem, key: String, player: EnginePlayer? = null) {
         item.emitPlaySoundEvent(key, player = player, context = SoundContext(localSoundId++, id))
@@ -130,10 +153,18 @@ fun ItemVerb(
     time: Int = 0,
 ) = VerbType(id, name, time, VerbType.Target.ITEM)
 
+fun PlayerVerb(
+    id: VerbId,
+    name: String,
+    time: Int = 0,
+    priority: Int = 0
+) = VerbType(id, name, time, VerbType.Target.PLAYER)
+
 fun appendVerbs(player: EnginePlayer) {
     appendWriteableVerbs(player)
     appendGunVerbs(player)
     appendPlayerInventoryVerbs(player)
+    appendSocialVerbs(player)
 }
 
 fun updatePlayerVerbLookup(
@@ -160,7 +191,7 @@ fun finishPlayerInteraction(player: EnginePlayer) {
         val item = interaction.handItem
         val actionSimilar = interaction.action in actions
         val itemsSimilar = item == null || item.uuid == player.handItem?.uuid
-        if (!actionSimilar || !itemsSimilar) {
+        if (!actionSimilar || !itemsSimilar || !interaction.occupied) {
             player.removeComponent(interaction)
         }
 
@@ -179,11 +210,8 @@ fun updatePlayerInteractions(player: EnginePlayer, handler: ServerHandler? = nul
         val component = InteractionComponent(
             InteractionId.next(),
             invoke.verb,
-            if (invoke.verb.target == VerbType.Target.ITEM) {
-                handItem
-            } else {
-                null
-            },
+            handItem,
+            lookup.raycastPlayer,
             invoke.action,
             0
         )

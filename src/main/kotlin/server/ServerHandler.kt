@@ -510,6 +510,19 @@ class ServerHandler(
         }
     }
 
+    fun <P : Packet> Endpoint<P>.broadcastInRadiusFor(
+        center: Location,
+        radius: Int,
+        players: List<EnginePlayer>,
+        packet: P
+    ) {
+        for (player in players) {
+            if (player.world == center.world && player.pos.squaredDistanceTo(center.position) <= radius * radius) {
+                sendS2C(packet, player.id)
+            }
+        }
+    }
+
     fun <P : Packet> Endpoint<P>.broadcastInRadius(
         center: Location,
         radius: Int,
