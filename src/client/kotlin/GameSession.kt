@@ -147,7 +147,4 @@ class GameSession(
     }
 
     fun getPlayer(id: PlayerId) = playerStorage.get(id)
-    fun aap() {
-        TODO("Not yet implemented")
-    }
 }

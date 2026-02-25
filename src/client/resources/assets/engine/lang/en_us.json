@@ -4,6 +4,7 @@
   "yamlconfig.engine.engine-config.crosshair": "Курсор",
   "yamlconfig.engine.engine-config.crosshair.indicator-visible": "Показывать ванильный индикатор атаки",
   "yamlconfig.engine.engine-config.chat-bubbles": "Сообщения над игроком",
+  "yamlconfig.engine.engine-config.chat-bubbles.enabled": "Показывать",
   "yamlconfig.engine.engine-config.chat-bubbles.scale": "Масштаб",
   "yamlconfig.engine.engine-config.chat-bubbles.height": "Высота",
   "yamlconfig.engine.engine-config.chat-bubbles.line-width": "Ширина текста",

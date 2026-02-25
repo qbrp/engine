@@ -20,13 +20,13 @@ class ScreenRenderer(private val client: EngineClient) {
         if (!hudHidden && gameSession != null) {
             littleNotificationsRenderer.update(painter.tickDelta)
 
-            val narrationMessages = gameSession.mainPlayer.require<Narration>().messages
-            narrationMessages.forEachIndexed { index, message ->
-                if (narrations.none { narrationMessages[it.index].content == message.content }) {
-                    narrations += NarrationMessageRenderState(index, 0f)
+            val narrationMessages = gameSession.mainPlayer.require<Narration>()
+            narrationMessages.messages.forEach { message ->
+                if (narrations.none { message.id == it.id }) {
+                    narrations += NarrationMessageRenderState(message.id)
                 }
             }
-            narrations.removeIf { it.time >= narrationMessages[it.index].content.duration }
+            narrations.removeIf { narrationMessages.get(it.id) == null }
         }
     }
 
