@@ -1,7 +1,7 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.server.AttributeUpdate
+import org.lain.engine.server.markDirty
 import org.lain.engine.util.Component
 import org.lain.engine.util.require
 
@@ -17,8 +17,13 @@ data class AttributeValue(var default: Float, var custom: Float? = null) {
 @Serializable
 data class PlayerAttributes(
     val speed: AttributeValue = AttributeValue(0.055f),
-    var jumpStrength: AttributeValue = AttributeValue(0.37f)
-) : Component
+    var jumpStrength: AttributeValue = AttributeValue(0.37f),
+    var gravity: AttributeValue = AttributeValue(0.055f),
+) : Component {
+    companion object {
+        val DEFAULT = PlayerAttributes()
+    }
+}
 
 @Serializable
 data class MovementDefaultAttributes(
@@ -72,14 +77,22 @@ val EnginePlayer.attributes
 val EnginePlayer.speed: Float
     get() = attributes.speed.get()
 
+fun EnginePlayer.setCustomGravity(gravity: Float) {
+    attributes.gravity.custom = gravity
+}
+
+fun EnginePlayer.resetCustomGravity() {
+    attributes.gravity.resetCustom()
+}
+
 fun EnginePlayer.setCustomSpeed(speed: Float) {
     attributes.speed.custom = speed
-    markCustomSpeedUpdated(speed)
+    markDirty<PlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomSpeed() {
     attributes.speed.resetCustom()
-    markCustomSpeedUpdated(null)
+    markDirty<PlayerAttributes>()
 }
 
 val EnginePlayer.jumpStrength: Float
@@ -87,26 +100,10 @@ val EnginePlayer.jumpStrength: Float
 
 fun EnginePlayer.setCustomJumpStrength(value: Float) {
     attributes.jumpStrength.custom = value
-    markCustomJumpStrengthUpdated(value)
+    markDirty<PlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomJumpStrength() {
     attributes.jumpStrength.resetCustom()
-    markCustomJumpStrengthUpdated(null)
-}
-
-private fun EnginePlayer.markCustomSpeedUpdated(value: Float? = null) {
-    markUpdate(
-        PlayerUpdate.CustomSpeedAttribute(
-            value?.let { AttributeUpdate.Value(it) } ?: AttributeUpdate.Reset
-        )
-    )
-}
-
-private fun EnginePlayer.markCustomJumpStrengthUpdated(value: Float? = null) {
-    markUpdate(
-        PlayerUpdate.CustomJumpStrengthAttribute(
-            value?.let { AttributeUpdate.Value(it) } ?: AttributeUpdate.Reset
-        )
-    )
+    markDirty<PlayerAttributes>()
 }

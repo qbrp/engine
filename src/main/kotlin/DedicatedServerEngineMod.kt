@@ -135,7 +135,7 @@ class ServerAuthorizationListener(
         coroutineScope.launch {
             prepareServerMinecraftPlayer(server, entity, player)
             engine.execute {
-                engine.playerService.instantiate(player)
+                engine.instantiatePlayer(player)
                 notifications.forEach { engine.handler.onServerNotification(player, it, false) }
             }
         }

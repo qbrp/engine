@@ -164,6 +164,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
             minVolume = volume.min
             maxVolume = volume.max
             baseVolume = volume.base
+            gravity = config.player.gravity
         }
         val vocal = config.vocal
         it.vocalSettings = VocalSettings(
@@ -187,7 +188,6 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
             if (movement.enableStamina) movement.jumpStaminaConsume else 0f
         )
         it.chatSettings = chatSettings
-
     }
 
     ServerMixinAccess.isDamageEnabled = config.player.damage

@@ -22,15 +22,8 @@ import org.lain.engine.world.*
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
 
-sealed class AttributeUpdate() {
-    object Reset : AttributeUpdate()
-    class Value(val value: Float) : AttributeUpdate()
-}
-
 enum class Notification {
     INVALID_SOURCE_POS,
-    VOICE_BREAK,
-    VOICE_TIREDNESS,
     FREECAM,
 }
 
@@ -249,18 +242,21 @@ class ServerHandler(
             }
 
             if (actionTask != null) {
+                val lastActions = input.actions.toList()
                 input.actions.clear()
                 input.actions.addAll(actionTask)
 
-                CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
-                    location,
-                    playerSynchronizationRadius,
-                    exclude = listOf(player),
-                    packet = PlayerInputPacket(player.id, actionTask.map { action -> action.toDto() }.toSet())
-                )
-
-                state.lastActions.add(actionTask)
+                if (lastActions != input.actions) {
+                    CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
+                        location,
+                        playerSynchronizationRadius,
+                        exclude = listOf(player),
+                        packet = PlayerInputPacket(player.id, actionTask.map { action -> action.toDto() }.toSet())
+                    )
+                }
             }
+
+            state.lastActions.add(actionTask ?: emptyList())
 
             debugPacket("Действия тика ${state.tick}: $actionTask")
 
@@ -276,11 +272,11 @@ class ServerHandler(
 
             val playersInRadius = filterNearestPlayers(location, globals.playerSynchronizationRadius, players)
 
-            tickSynchronizationComponent(playerStorage, player)
+            tickSynchronizationComponent(playerStorage, player, globals)
             player.items.forEach { item ->
                 val component = item.get<Synchronizations<EngineItem>>()
                 if (component != null) {
-                    tickSynchronizationComponent(playerStorage, item, component)
+                    tickSynchronizationComponent(playerStorage, item, globals, component)
                 }
             }
 
@@ -351,26 +347,6 @@ class ServerHandler(
         receivers.forEach {
             CLIENTBOUND_SOUND_PLAY_ENDPOINT.sendS2C(packet, it.id)
         }
-    }
-
-    fun onPlayerCustomSpeedUpdate(player: EnginePlayer, speed: AttributeUpdate) {
-        CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT.broadcastInRadius(
-            player,
-            PlayerAttributeUpdatePacket(
-                player.id,
-                speed = speed
-            )
-        )
-    }
-
-    fun onPlayerJumpStrengthUpdate(player: EnginePlayer, jumpStrength: AttributeUpdate) {
-        CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT.broadcastInRadius(
-            player,
-            PlayerAttributeUpdatePacket(
-                player.id,
-                jumpStrength = jumpStrength
-            )
-        )
     }
 
     fun onOutcomingMessage(player: EnginePlayer, message: OutcomingMessage) {

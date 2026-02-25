@@ -75,8 +75,10 @@ fun updateServerMinecraftSystems(
     server: EngineMinecraftServer,
     table: ServerPlayerTable,
     players: List<EnginePlayer>,
+    itemStorage: ItemStorage,
     itemLoader: ItemLoader
 ) {
+    removeHoldsByMarks(itemStorage.getAll())
     val engine = server.engine
     for (player in players) {
         val entity = table.getEntity(player) ?: return
@@ -118,6 +120,10 @@ fun updateServerMinecraftSystems(
             excludeEngineItemDuplicates(server, entity, player)
         }
     }
+}
+
+fun removeHoldsByMarks(items: List<EngineItem>) {
+    items.forEach { it.remove<HoldsBy>() }
 }
 
 fun updatePlayerMinecraftSystems(
@@ -206,7 +212,6 @@ fun updatePlayerMinecraftSystems(
             offHandItem = item
         }
 
-        item.getOrSet { HoldsBy(player.id) }
         playerInventory.items += item
         playerInventoryItems -= item
 
@@ -230,8 +235,12 @@ fun updatePlayerMinecraftSystems(
     for (removedItem in playerInventoryItems) {
         if (removedItem != playerInventory.cursorItem) {
             playerInventory.items.remove(removedItem)
-            removedItem.remove<HoldsBy>()
         }
+    }
+
+    if (playerInventory.items.isNotEmpty()) {
+        val component = HoldsBy(player.id)
+        playerInventory.items.forEach { it.set(component) }
     }
 
     player.remove<DestroyItemSignal>()

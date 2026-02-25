@@ -1,11 +1,7 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.DefaultPlayerAttributes
-import org.lain.engine.player.MovementDefaultAttributes
-import org.lain.engine.player.MovementSettings
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.playerBaseInputVolume
+import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
 
 @Serializable
@@ -31,14 +27,16 @@ data class ClientboundServerSettings(
 data class ClientDefaultAttributes(
     val movement: MovementDefaultAttributes,
     val maxVolume: Float,
-    val baseVolume: Float
+    val baseVolume: Float,
+    val gravity: Float,
 ) {
     companion object {
         fun of(defaults: DefaultPlayerAttributes): ClientDefaultAttributes {
             return ClientDefaultAttributes(
                 defaults.movement,
                 defaults.maxVolume,
-                defaults.playerBaseInputVolume
+                defaults.playerBaseInputVolume,
+                defaults.gravity,
             )
         }
     }

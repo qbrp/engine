@@ -56,7 +56,6 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
     val componentClass: KClass<C>,
     val serializer: KSerializer<C>,
     val target: SynchronizationTarget,
-    val radius: Int,
     val resolver: (T, C) -> Unit,
     val predicate: PlayerPredicate,
     val endpoint: Endpoint<ComponentSynchronizationPacket<C>> = Endpoint(
@@ -77,36 +76,30 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
 @OptIn(InternalSerializationApi::class)
 inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
     target: SynchronizationTarget,
-    radius: Int,
     predicate: PlayerPredicate,
     noinline resolver: (T, C) -> Unit,
 ) = ComponentSynchronizer<T, C>(
     C::class,
     C::class.serializer(),
     target,
-    radius,
     resolver,
     predicate
 )
 
 inline fun <reified C : Component> PlayerComponentSynchronizer(
     predicate: PlayerPredicate,
-    global: Boolean = false,
     noinline resolver: (EnginePlayer, C) -> Unit = { player, component -> player.replace(component) },
 ) = ComponentSynchronizer(
     SynchronizationTarget.PLAYER,
-    if (!global) 48 else Int.MAX_VALUE,
     predicate,
     resolver,
 )
 
 inline fun <reified C : Component> ItemComponentSynchronizer(
     predicate: PlayerPredicate,
-    global: Boolean = false,
     noinline resolver: (EngineItem, C) -> Unit = { item, component -> item.replace(component) },
 ) = ComponentSynchronizer(
     SynchronizationTarget.ITEM,
-    if (!global) 48 else Int.MAX_VALUE,
     predicate,
     resolver,
 )
@@ -117,7 +110,12 @@ enum class SynchronizationTarget {
 
 private val LOGGER = LoggerFactory.getLogger("Engine Synchronization")
 
-fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStorage, entity: T, component: Synchronizations<T> = entity.require()) {
+fun <T : Entity> ServerHandler.tickSynchronizationComponent(
+    players: PlayerStorage,
+    entity: T,
+    settings: ServerGlobals,
+    component: Synchronizations<T> = entity.require(),
+) {
     component.state.forEach { (id, state) ->
         if (state.dirty) {
             val synchronizer = state.synchronizer as ComponentSynchronizer<T, Component>
@@ -134,7 +132,7 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
 
                 endpoint.broadcastInRadiusFor(
                     location,
-                    synchronizer.radius,
+                    settings.playerSynchronizationRadius,
                     players,
                     packet
                 )
@@ -169,7 +167,7 @@ class ComponentSynchronizationPacket<C : Component>(val id: String, val componen
 val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>(PlayerPredicate.OTHERS)
 val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(PlayerPredicate.ALL) { player, name -> player.customName = name.custom }
 val PLAYER_SPEED_INTENTION_SYNCHRONIZER = PlayerComponentSynchronizer<MovementStatus>(PlayerPredicate.OTHERS) { player, status ->
-    player.require<MovementStatus>().intention = status.intention
+    player.require<MovementStatus>().apply { intention = status.intention }
 }
 val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(PlayerPredicate.SELF) { player, narration ->
     val clientNarration = player.require<Narration>().messages
@@ -178,6 +176,7 @@ val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(Playe
         clientNarration.addAll(narration.messages)
     }
 }
+val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.OTHERS)
 
 // Item
 

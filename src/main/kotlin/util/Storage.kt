@@ -30,6 +30,8 @@ open class Storage<K : Any, T : Any> : Iterable<T> {
         map.clear()
     }
 
+    fun count() = map.size
+
     override fun iterator(): Iterator<T> = getAll().iterator()
     override fun spliterator(): Spliterator<T> = getAll().spliterator()
 }

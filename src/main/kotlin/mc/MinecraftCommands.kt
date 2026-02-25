@@ -137,76 +137,63 @@ fun ServerCommandDispatcher.registerEngineCommands() {
     val playerTable = injectValue<EntityTable>().server
     val server by injectMinecraftEngineServer()
 
-    register(
-        CommandManager.literal("speed")
-            .requires { it.hasPermission("attributecommand.speed") }
-            .then(
-                CommandManager.argument("players", EntityArgumentType.players())
-                    .then(
-                        CommandManager.literal("reset")
-                            .executeCatching { ctx ->
-                                val players = ctx.command.getPlayers("players")
-                                val playerNameList = players.formatPlayerList()
-                                players.forEach { player ->
-                                    val enginePlayer = playerTable.requirePlayer(player)
-                                    enginePlayer.resetCustomSpeed()
-                                }
-                                ctx.sendFeedback("Сброшена скорость для игроков $playerNameList", true)
-                            }
-                    )
-                    .then(
-                        CommandManager.literal("set")
-                            .then(
-                                CommandManager.argument("value", FloatArgumentType.floatArg())
-                                    .executeCatching { ctx ->
-                                        val players = ctx.command.getPlayers("players")
-                                        val speed = ctx.command.getFloat("value")
-                                        val playerNameList = players.formatPlayerList()
-                                        players.forEach { player ->
-                                            val enginePlayer = playerTable.requirePlayer(player)
-                                            enginePlayer.setCustomSpeed(speed)
+    fun attributeCommand(name: String, text: String, setter: (EnginePlayer, Float) -> Unit, reset: (EnginePlayer) -> Unit) {
+        register(
+            CommandManager.literal(name)
+                .requires { it.hasPermission("attributecommand.$name") }
+                .then(
+                    CommandManager.argument("players", EntityArgumentType.players())
+                        .then(
+                            CommandManager.literal("set")
+                                .then(
+                                    CommandManager.argument("value", FloatArgumentType.floatArg())
+                                        .executeCatching { ctx ->
+                                            val players = ctx.command.getPlayers("players")
+                                            val value = ctx.command.getFloat("value")
+                                            val playerNameList = players.formatPlayerList()
+                                            players.forEach { player ->
+                                                val enginePlayer = playerTable.requirePlayer(player)
+                                                setter(enginePlayer, value)
+                                            }
+                                            ctx.sendFeedback("Установлена $text $value для игроков $playerNameList", true)
                                         }
-                                        ctx.sendFeedback("Установлена скорость $speed для игроков $playerNameList", true)
+                                )
+                        )
+                        .then(
+                            CommandManager.literal("reset")
+                                .executeCatching { ctx ->
+                                    val players = ctx.command.getPlayers("players")
+                                    val playerNameList = players.formatPlayerList()
+                                    players.forEach { player ->
+                                        val enginePlayer = playerTable.requirePlayer(player)
+                                        reset(enginePlayer)
                                     }
-                            )
-                    )
-            )
+                                    ctx.sendFeedback("Сброшена $text для игроков $playerNameList", true)
+                                }
+                        )
+                )
+        )
+    }
+
+    attributeCommand(
+        "jumpstrength",
+        "сила прыжка",
+        { player, value -> player.setCustomJumpStrength(value) },
+        { player -> player.resetCustomJumpStrength() }
     )
 
-    register(
-        CommandManager.literal("jumpstrength")
-            .requires { it.hasPermission("attributecommand.jumpstrength") }
-            .then(
-                CommandManager.argument("players", EntityArgumentType.players())
-                    .then(
-                        CommandManager.literal("set")
-                            .then(
-                                CommandManager.argument("value", FloatArgumentType.floatArg())
-                                    .executeCatching { ctx ->
-                                        val players = ctx.command.getPlayers("players")
-                                        val speed = ctx.command.getFloat("value")
-                                        val playerNameList = players.formatPlayerList()
-                                        players.forEach { player ->
-                                            val enginePlayer = playerTable.requirePlayer(player)
-                                            enginePlayer.setCustomJumpStrength(speed)
-                                        }
-                                        ctx.sendFeedback("Установлена сила прыжка $speed для игроков $playerNameList", true)
-                                    }
-                            )
-                    )
-                    .then(
-                        CommandManager.literal("reset")
-                            .executeCatching { ctx ->
-                                val players = ctx.command.getPlayers("players")
-                                val playerNameList = players.formatPlayerList()
-                                players.forEach { player ->
-                                    val enginePlayer = playerTable.requirePlayer(player)
-                                    enginePlayer.resetCustomJumpStrength()
-                                }
-                                ctx.sendFeedback("Сброшена сила прыжка для игроков $playerNameList", true)
-                            }
-                    )
-            )
+    attributeCommand(
+        "speed",
+        "скорость",
+        { player, value -> player.setCustomSpeed(value) },
+        { player -> player.resetCustomSpeed() }
+    )
+
+    attributeCommand(
+        "gravity",
+        "гравитация",
+        { player, value -> player.setCustomGravity(value) },
+        { player -> player.resetCustomGravity() }
     )
 
     register(

@@ -33,9 +33,11 @@ public class LivingEntityMixin {
             ServerMixinAccess engine = ServerMixinAccess.INSTANCE;
 
             if (is(attribute, EntityAttributes.MOVEMENT_SPEED)) {
-                cir.setReturnValue(engine.getSpeed(player));
+                cir.setReturnValue((double)engine.getAttributes(player).getSpeed().get());
             } else if (is(attribute, EntityAttributes.JUMP_STRENGTH)) {
-                cir.setReturnValue(engine.getJumpStrength(player));
+                cir.setReturnValue((double)engine.getAttributes(player).getJumpStrength().get());
+            } else if (is(attribute, EntityAttributes.GRAVITY)) {
+                cir.setReturnValue((double)engine.getAttributes(player).getGravity().get());
             }
         }
     }
