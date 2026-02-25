@@ -24,6 +24,7 @@ class EngineYamlConfig(
 
     init { builder.push("chat-bubbles") }
 
+    private val chatBubblesEnabledProperty = builder.defineBoolean("enabled", true)
     private val chatBubbleScaleProperty = builder.defineFloat("scale", 1f, 0.01f, 3f)
     private val chatBubbleHeightProperty = builder.defineFloat("height", 1.9f, 1f, 10f)
     private val chatBubbleLineWidthProperty = builder.defineInteger("line-width", 200, 50, 1000)
@@ -64,6 +65,8 @@ class EngineYamlConfig(
         get() = chatInputClosingProperty.get()
     override val chatBubbleBackgroundOpacity: Float
         get() = chatBubbleBackgroundOpacityProperty.get().toFloat() / 100f
+    override val chatBubbles: Boolean
+        get() = chatBubblesEnabledProperty.get()
     override val hideChatBubblesWithUi: Boolean
         get() = hideChatBubblesWithUiProperty.get()
     override val chatBubbleIgnoreLightLevel: Boolean

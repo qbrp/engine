@@ -161,6 +161,7 @@ object ClientMixinAccess {
         cameraZ: Double,
     ) {
         if (client.options.hideChatBubblesWithUi && client.renderer.hudHidden) return
+        if (!client.options.chatBubbles) return
         org.lain.engine.client.mc.render.renderChatBubbles(
             matrices,
             camera,
