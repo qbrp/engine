@@ -40,7 +40,7 @@ class ObjGeometry(
         val spriteGetter = baker.spriteGetter
         val materialGroups = ObjSplitting.splitByMaterialGroups(obj)
 
-        materialGroups.forEach { (name: String, objModel: Obj) ->
+        materialGroups.forEach { (name, objModel) ->
             for (i in 0..<objModel.numFaces) {
                 emitFace(
                     emitter,

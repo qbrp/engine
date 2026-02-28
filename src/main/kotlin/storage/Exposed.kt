@@ -8,6 +8,9 @@ import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.lain.engine.item.*
+import org.lain.engine.player.Outfit
+import org.lain.engine.player.OutfitDisplay
+import org.lain.engine.player.PlayerPart
 import org.lain.engine.util.*
 import org.lain.engine.world.Location
 
@@ -54,7 +57,17 @@ suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
                 components.addIfNotNull(component.mass)
             }
             is ItemData.Equipment -> {
-                if (component.hat) components += Hat
+                components.addIfNotNull(
+                    component.outfit
+                        ?: if (component.hat) {
+                            Outfit(
+                                OutfitDisplay.Separated,
+                                listOf(PlayerPart.HEAD)
+                            )
+                        } else {
+                            null
+                        }
+                )
             }
             is ItemData.Sounds ->
                 components.addIfNotNull(component.data)

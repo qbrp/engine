@@ -7,6 +7,7 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.lain.engine.item.*
+import org.lain.engine.player.Outfit
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
@@ -29,6 +30,8 @@ internal val ItemProtobuf = ProtoBuf {
             subclass(Mass::class)
             subclass(Writable::class)
             subclass(ItemSounds::class)
+            subclass(Outfit::class)
+            subclass(ItemProgressionAnimations::class)
         }
     }
 }
@@ -61,6 +64,8 @@ data class ClientboundItemData(
                 item.get<Mass>()?.copy(),
                 item.get<Writable>()?.copy(),
                 item.get<ItemSounds>()?.copy(),
+                item.get<Outfit>()?.copy(),
+                item.get<ItemProgressionAnimations>()?.copy(),
             )
         )
     }

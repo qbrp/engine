@@ -54,7 +54,7 @@ fun registerEngineItemGroupEvent(client: EngineClient) {
             val assets = prefab.assets?.assets ?: return@forEach
 
             wrapEngineItemStackVisual(stack, prefab.name?.text ?: "Предмет")
-            wrapEngineItemStackBase(stack, prefab.maxCount, prefab.hat)
+            wrapEngineItemStackBase(stack, prefab.maxCount)
             stack.set(
                 DataComponentTypes.ITEM_MODEL,
                 EngineId(assets["default"] ?: assets.toList().firstOrNull()?.second ?: "missingno")

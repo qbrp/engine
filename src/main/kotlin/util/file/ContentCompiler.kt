@@ -1,18 +1,21 @@
 package org.lain.engine.util.file
 
 import com.charleskorn.kaml.Yaml
+import com.charleskorn.kaml.YamlNode
 import com.charleskorn.kaml.decodeFromStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
-import org.lain.engine.item.SoundEvent
-import org.lain.engine.item.SoundEventId
+import org.lain.engine.player.ProgressionAnimation
+import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.Namespace
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
+import org.lain.engine.world.SoundEvent
+import org.lain.engine.world.SoundEventId
 import java.io.File
 
 val CONTENTS_DIR = ENGINE_DIR.resolve("contents")
@@ -20,10 +23,21 @@ val DEFAULT_NAMESPACE = NamespaceId("default")
 private const val NAMESPACES_FILENAME = "namespaces.yml"
 
 @Serializable
+data class ProgressionAnimationConfig(
+    val frames: YamlNode,
+    val text: String,
+    val success: String = text
+)
+
+@Serializable
+data class FrameIdGeneratorConfig(val name: String, val count: Int)
+
+@Serializable
 internal data class NamespaceContents(
     @SerialName("namespace") val id: NamespaceId,
     val items: Map<String, ItemConfig> = mapOf(),
-    val sounds: Map<String, SoundEventConfig> = mapOf()
+    val sounds: Map<String, SoundEventConfig> = mapOf(),
+    @SerialName("progression_animations") val progressionAnimations: Map<String, ProgressionAnimationConfig> = mapOf(),
 )
 
 @Serializable
@@ -36,6 +50,7 @@ internal data class NamespaceConfig(
     val sounds: Map<String, SoundEventId> = mapOf(),
     val assets: Map<String, String> = mapOf(),
     val mass: Float? = null,
+    @SerialName("progression_animations") val progressionAnimations: Map<String, ProgressionAnimationId> = mapOf(),
 )
 
 internal data class FileNamespace(
@@ -123,7 +138,15 @@ fun compileContents(directory: File = CONTENTS_DIR): ContentsCompileResult = wit
                 .also { items += it.count() },
             compileSoundEvents(contents.sounds, namespace)
                 .associateBy { it.id }
-                .also { sounds += it.count() }
+                .also { sounds += it.count() },
+            contents.progressionAnimations.map { (id, animation) ->
+                val framesList = runCatching { Yaml.default.decodeFromYamlNode<List<String>>(animation.frames) }
+                val frames = framesList.getOrNull() ?: run {
+                    val (baseName, count) = Yaml.default.decodeFromYamlNode<FrameIdGeneratorConfig>(animation.frames)
+                    List(count) { id -> "$baseName${id + 1}" }
+                }
+                ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(frames, animation.text, animation.success)
+            }.toMap()
         )
     }
 
@@ -142,7 +165,8 @@ data class ContentsCompileResult(val namespaces: Map<NamespaceId, CompiledNamesp
 
 data class CompiledNamespace(
     val items: Map<ItemId, Item>,
-    val sounds: Map<SoundEventId, SoundEvent>
+    val sounds: Map<SoundEventId, SoundEvent>,
+    val progressionAnimations: Map<ProgressionAnimationId, ProgressionAnimation>
 ) {
     data class Item(
         val config: ItemConfig,
@@ -159,8 +183,9 @@ fun NamespacedStorage.loadContentsCompileResult(result: ContentsCompileResult) {
         result.namespaces.map { (id, namespace) ->
             Namespace(
                 id,
-                namespace.items.mapValues { it.value.prefab },
-                namespace.sounds
+                Namespace.Holder(namespace.items.mapValues { it.value.prefab }),
+                Namespace.Holder(namespace.sounds),
+                Namespace.Holder(namespace.progressionAnimations)
             )
         }
     )

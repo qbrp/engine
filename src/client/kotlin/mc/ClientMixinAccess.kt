@@ -1,33 +1,36 @@
 package org.lain.engine.client.mc
 
+import net.minecraft.client.model.ModelPart
 import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.client.render.Camera
-import net.minecraft.client.render.VertexConsumerProvider
+import net.minecraft.client.render.entity.model.PlayerEntityModel
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState
-import net.minecraft.client.util.math.MatrixStack
+import net.minecraft.client.render.item.ItemRenderState
+import net.minecraft.component.DataComponentTypes
 import net.minecraft.entity.PlayerLikeEntity
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.item.ItemDisplayContext
 import net.minecraft.item.ItemStack
 import net.minecraft.util.Identifier
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
+import org.lain.engine.client.mc.render.EquipmentRenderState
+import org.lain.engine.client.mc.render.setEquipment
 import org.lain.engine.client.mc.render.setMainArmPose
 import org.lain.engine.client.mc.render.setMinorArmPose
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.item.*
+import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.engine
-import org.lain.engine.player.ArmStatus
-import org.lain.engine.player.PlayerInventory
-import org.lain.engine.player.armPoseOf
-import org.lain.engine.player.processLeftClickInteraction
+import org.lain.engine.player.*
 import org.lain.engine.util.*
 
 object ClientMixinAccess {
     private val client by injectClient()
     private val mainPlayer get() = client.gameSession?.mainPlayer
     private var resources: ResourceList? = null
+    private val outfitItemStacksCache = mutableMapOf<Identifier, Outfit>()
     var chatClipboardCopyTicksElapsed = 0
 
     fun getEngineClient() = client
@@ -46,7 +49,59 @@ object ClientMixinAccess {
         client.handler.onWriteableContentsUpdate(item.uuid, pages)
     }
 
-    fun updatePlayerRenderState(playerLikeEntity: PlayerLikeEntity, playerEntityRenderState: PlayerEntityRenderState, f: Float) {
+    data class PlayerEquipmentItemStacks(val stacks: MutableMap<EquippedItem, ItemStack>) : Component
+
+    fun modelPartOf(part: PlayerPart, model: PlayerEntityModel) = when(part) {
+        PlayerPart.HEAD -> model.head
+        PlayerPart.LEFT_ARM -> model.leftArm
+        PlayerPart.RIGHT_ARM -> model.rightArm
+        PlayerPart.LEFT_PALM -> model.leftArm
+        PlayerPart.RIGHT_PALM -> model.rightArm
+        PlayerPart.BODY -> model.body
+        PlayerPart.LEFT_LEG -> model.leftLeg
+        PlayerPart.RIGHT_LEG -> model.rightLeg
+        PlayerPart.LEFT_FEET -> model.leftLeg
+        PlayerPart.RIGHT_FEET -> model.rightLeg
+    }
+
+    fun transformationOf(part: PlayerPart, model: PlayerEntityModel) = when(part) {
+        PlayerPart.HEAD -> model.head
+        PlayerPart.LEFT_ARM -> model.leftArm
+        PlayerPart.RIGHT_ARM -> model.rightArm
+        PlayerPart.LEFT_PALM -> model.leftArm
+        PlayerPart.RIGHT_PALM -> model.rightArm
+        PlayerPart.BODY -> model.body
+        PlayerPart.LEFT_LEG -> model.leftLeg
+        PlayerPart.RIGHT_LEG -> model.rightLeg
+        PlayerPart.LEFT_FEET -> model.leftLeg
+        PlayerPart.RIGHT_FEET -> model.rightLeg
+    }
+
+    fun createModelPartEquipmentRenderStates(entity: PlayerEntity, player: EnginePlayer, playerModelPart: PlayerEntityModel, modelPart: ModelPart): List<EquipmentRenderState> {
+        return player.outfit
+            .filter { (outfit, assets) -> outfit.display is OutfitDisplay.Separated && modelPartOf(outfit.parts.first(), playerModelPart) == modelPart }
+            .map {
+                val state = ItemRenderState()
+                val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
+                val itemStack = equipmentStacks.computeIfAbsent(it) { (_, model) ->
+                    val stack = ITEM_STACK_MATERIAL.copy()
+                    stack.set(
+                        DataComponentTypes.ITEM_MODEL,
+                        EngineId(model.assets["default"] ?: "missingno")
+                    )
+                    stack
+                }
+                MinecraftClient.itemModelManager.updateForLivingEntity(
+                    state,
+                    itemStack,
+                    ItemDisplayContext.HEAD,
+                    entity,
+                )
+                EquipmentRenderState(state, modelPart)
+            }
+    }
+
+    fun updatePlayerRenderState(playerLikeEntity: PlayerLikeEntity, playerEntityRenderState: PlayerEntityRenderState, model: PlayerEntityModel) {
         if (playerLikeEntity !is PlayerEntity) return
         val entityTable by injectEntityTable()
         val enginePlayer = entityTable.client.getPlayer(playerLikeEntity) ?: return
@@ -59,6 +114,9 @@ object ClientMixinAccess {
        )
         playerEntityRenderState.setMinorArmPose(
             armPoseOf(false, extends, isGun(inventory.offHandItem), selectorLeft, false)
+        )
+        playerEntityRenderState.setEquipment(
+            model.parts.flatMap { createModelPartEquipmentRenderStates(playerLikeEntity, enginePlayer, model, it) }
         )
     }
 
@@ -151,31 +209,4 @@ object ClientMixinAccess {
     fun deleteChatMessage(message: AcceptedMessage) = client.gameSession?.chatManager?.deleteMessage(message.id)
 
     fun sendingMessageClosesChat() = client.options.chatInputSendClosesChat
-
-    fun renderChatBubbles(
-        matrices: MatrixStack,
-        camera: Camera,
-        vertexConsumers: VertexConsumerProvider.Immediate,
-        cameraX: Double,
-        cameraY: Double,
-        cameraZ: Double,
-    ) {
-        if (client.options.hideChatBubblesWithUi && client.renderer.hudHidden) return
-        if (!client.options.chatBubbles) return
-        org.lain.engine.client.mc.render.renderChatBubbles(
-            matrices,
-            camera,
-            vertexConsumers,
-            MinecraftClient.textRenderer,
-            cameraX,
-            cameraY,
-            cameraZ,
-            client.options.chatBubbleScale,
-            client.options.chatBubbleHeight,
-            client.options.chatBubbleBackgroundOpacity,
-            client.gameSession?.chatBubbleList?.bubbles ?: emptyList(),
-            client.options.chatBubbleIgnoreLightLevel,
-            MinecraftClient.renderTickCounter.fixedDeltaTicks
-        )
-    }
 }

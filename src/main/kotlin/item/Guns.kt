@@ -80,18 +80,18 @@ private const val GUN_TRIGGER_SOUND = "gun_trigger"
 private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
 
-private val GUN_SHOOT_VERB = ItemVerb(
-    VerbId("shoot"),
+private val GUN_SHOOT_VERB = VerbType(
+    "shoot",
     "Нажать на спусковой крючок",
 )
 
-private val GUN_TOGGLE_MODE_VERB = ItemVerb(
-    VerbId("gun_toggle_mode"),
+private val GUN_TOGGLE_MODE_VERB = VerbType(
+    "gun_toggle_mode",
     "Сменить режим огня",
 )
 
-private val GUN_BARREL_AMMO_LOAD_VERB = ItemVerb(
-    VerbId("barrel_ammo_load"),
+private val GUN_BARREL_AMMO_LOAD_VERB = VerbType(
+    "barrel_ammo_load",
     "Загрузить патроны в патронник",
 )
 
@@ -147,16 +147,18 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             )
 
             if (gun.mode != FireMode.AUTO) {
-                player.finishInteraction()
+                player.completeInteraction()
             } else {
                 occupy()
+                println("Occupied")
             }
         } else {
             if (!gun.clicked) {
                 emitItemInteractionSoundEvent(handItem, CLICK_EMPTY_SOUND)
                 gun.clicked = true
             }
-            player.finishInteraction()
+            player.completeInteraction()
+            println("Finished")
         }
     }
 
@@ -171,7 +173,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             emitItemInteractionSoundEvent(handItem, SELECTOR_TOGGLE_SOUND)
         }
 
-        player.finishInteraction()
+        player.completeInteraction()
     }
 
     player.handleInteraction(GUN_BARREL_AMMO_LOAD_VERB) {
@@ -187,7 +189,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             emitItemInteractionSoundEvent(slotItem, ROUND_BARREL_SOUND)
             player.set(DestroyItemSignal(cursorItem.uuid, count))
         }
-        player.finishInteraction()
+        player.completeInteraction()
     }
 }
 

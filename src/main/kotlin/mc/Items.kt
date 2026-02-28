@@ -4,10 +4,7 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.minecraft.component.ComponentType
 import net.minecraft.component.DataComponentTypes
-import net.minecraft.component.type.EquippableComponent
 import net.minecraft.component.type.LoreComponent
-import net.minecraft.entity.EntityType
-import net.minecraft.entity.EquipmentSlot
 import net.minecraft.item.ItemStack
 import net.minecraft.item.Items
 import net.minecraft.registry.Registries
@@ -16,7 +13,6 @@ import net.minecraft.text.Text
 import net.minecraft.util.Unit
 import org.lain.engine.item.*
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.has
 import org.lain.engine.util.injectItemAccess
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.*
@@ -43,7 +39,7 @@ fun updateEngineItemStack(itemStack: ItemStack, item: EngineItem) {
 
 fun wrapEngineItemStackVisual(
     itemStack: ItemStack,
-    name: String
+    name: String? = null
 ) {
     val currentName = itemStack.get(DataComponentTypes.ITEM_NAME)
     if (currentName?.string != name) {
@@ -54,7 +50,7 @@ fun wrapEngineItemStackVisual(
     }
 }
 
-fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int, hat: Boolean) {
+fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int) {
     itemStack.set(
         DataComponentTypes.UNBREAKABLE,
         Unit.INSTANCE
@@ -63,14 +59,6 @@ fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int, hat: Boolea
         DataComponentTypes.MAX_STACK_SIZE,
         maxStackSize
     )
-    if (hat) {
-        itemStack.set(
-            DataComponentTypes.EQUIPPABLE,
-            EquippableComponent.builder(EquipmentSlot.HEAD)
-                .allowedEntities(EntityType.PLAYER)
-                .build()
-        )
-    }
 }
 
 fun wrapEngineItemStack(
@@ -78,7 +66,7 @@ fun wrapEngineItemStack(
     itemStack: ItemStack
 ): ItemStack {
     wrapEngineItemStackVisual(itemStack, item.name)
-    wrapEngineItemStackBase(itemStack, item.maxCount, item.has<Hat>())
+    wrapEngineItemStackBase(itemStack, item.maxCount)
 
     itemStack.set(
         ENGINE_ITEM_REFERENCE_COMPONENT,

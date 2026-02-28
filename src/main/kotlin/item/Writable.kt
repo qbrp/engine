@@ -26,9 +26,9 @@ data class Writable(
 
 const val WRITEABLE_OPEN_SOUND = "writable_open"
 
-val WRITEABLE_OPEN_VERB = ItemVerb(
-    VerbId("writable_open"),
-    "Открыть для чтения",
+val WRITEABLE_OPEN_VERB = VerbType(
+    "writable_open",
+    "Открыть для чтения"
 )
 
 fun appendWriteableVerbs(player: EnginePlayer) {

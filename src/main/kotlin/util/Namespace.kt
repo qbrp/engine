@@ -2,8 +2,10 @@ package org.lain.engine.util
 
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
-import org.lain.engine.item.SoundEvent
-import org.lain.engine.item.SoundEventId
+import org.lain.engine.player.ProgressionAnimation
+import org.lain.engine.player.ProgressionAnimationId
+import org.lain.engine.world.SoundEvent
+import org.lain.engine.world.SoundEventId
 
 /**
  * # Пространство имён
@@ -12,47 +14,40 @@ import org.lain.engine.item.SoundEventId
  */
 data class Namespace(
     val id: NamespaceId,
-    val items: Map<ItemId, ItemPrefab>,
-    val sounds: Map<SoundEventId, SoundEvent>
+    val items: Holder<ItemId, ItemPrefab>,
+    val sounds: Holder<SoundEventId, SoundEvent>,
+    val progressionAnimations: Holder<ProgressionAnimationId, ProgressionAnimation>,
 ) {
-    val itemIdentifiers: List<String>
-        get() = items.map { it.key.toString() }
-    val soundIdentifiers: List<String>
-        get() = sounds.map { it.key.toString() }
+    class Holder<K, V>(private val map: Map<K, V> = mapOf()) : Map<K, V> by map {
+        val ids: List<String> by lazy { map.keys.map { it.toString() } }
+    }
 }
 
-class NamespacedStorage {
-    var sounds: Map<SoundEventId, SoundEvent> = emptyMap()
-        private set
-    var items: Map<ItemId, ItemPrefab> = mapOf()
-        private set
+interface ContentStorage {
+    val sounds: Namespace.Holder<SoundEventId, SoundEvent>
+    val items: Namespace.Holder<ItemId, ItemPrefab>
+    val progressionAnimations: Namespace.Holder<ProgressionAnimationId, ProgressionAnimation>
+}
+
+class NamespacedStorage : ContentStorage {
     var namespaces: Map<NamespaceId, Namespace> = mapOf()
         private set
-    var itemIdentifiers: List<String> = listOf()
-        private set
-    var soundIdentifiers: List<String> = listOf()
-        private set
+    override var sounds: Namespace.Holder<SoundEventId, SoundEvent> = Namespace.Holder()
+    override var items: Namespace.Holder<ItemId, ItemPrefab> = Namespace.Holder()
+    override var progressionAnimations: Namespace.Holder<ProgressionAnimationId, ProgressionAnimation> = Namespace.Holder()
 
     fun upload(namespaces: List<Namespace>) {
-        val itemIdentifiers2 = mutableListOf<String>()
-        val soundIdentifiers2 = mutableListOf<String>()
-        val namespaces2 = mutableMapOf<NamespaceId, Namespace>()
-        val items = mutableMapOf<ItemId, ItemPrefab>()
-        val sounds = mutableMapOf<SoundEventId, SoundEvent>()
+        this.namespaces = namespaces.associateBy { it.id }
+        items = collect { it.items }
+        sounds = collect { it.sounds }
+        progressionAnimations = collect { it.progressionAnimations }
+    }
 
-        for (namespace in namespaces) {
-            namespaces2[namespace.id] = namespace
-            items.putAll(namespace.items)
-            sounds.putAll(namespace.sounds)
-            itemIdentifiers2 += namespace.itemIdentifiers
-            itemIdentifiers2 += namespace.id.toString()
-            soundIdentifiers2 += namespace.soundIdentifiers
+    private fun <K, V> collect(property: (Namespace) -> Namespace.Holder<K, V>): Namespace.Holder<K, V> {
+        val entries = mutableMapOf<K, V>()
+        namespaces.forEach { (_, namespace) ->
+            entries.putAll(property(namespace))
         }
-
-        this.itemIdentifiers = itemIdentifiers2
-        this.soundIdentifiers = soundIdentifiers2
-        this.namespaces = namespaces2
-        this.items = items
-        this.sounds = sounds
+        return Namespace.Holder(entries)
     }
 }

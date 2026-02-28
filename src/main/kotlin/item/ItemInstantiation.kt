@@ -1,5 +1,6 @@
 package org.lain.engine.item
 
+import org.lain.engine.player.Outfit
 import org.lain.engine.server.*
 import org.lain.engine.util.ComponentState
 import org.lain.engine.util.set
@@ -23,9 +24,10 @@ data class ItemInstantiationSettings(
     val tooltip: ItemTooltip? = null,
     val mass: Mass? = null,
     val writable: Writable? = null,
-    val hat: Boolean = false,
     val assets: ItemAssets? = null,
+    val outfit: Outfit? = null,
     val sounds: ItemSounds? = null,
+    val progressionAnimations: ItemProgressionAnimations? = null,
 )
 
 fun itemInstance(uuid: ItemUuid, location: Location, properties: ItemInstantiationSettings): EngineItem {
@@ -38,7 +40,8 @@ fun itemInstance(uuid: ItemUuid, location: Location, properties: ItemInstantiati
         setNullable(properties.mass?.copy())
         setNullable(properties.writable?.copy())
         setNullable(properties.assets?.copy())
-        if (properties.hat) set(Hat)
+        setNullable(properties.progressionAnimations?.copy())
+        setNullable(properties.outfit?.copy())
     }
     return itemInstance(uuid, properties.id, location, Count(1, properties.maxCount), state)
 }

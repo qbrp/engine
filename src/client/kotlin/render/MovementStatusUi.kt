@@ -49,7 +49,7 @@ fun MovementBar(gameSession: GameSession): Fragment {
         ),
         pivot = Pivot.BOTTOM_LEFT,
         onRender = {
-            it.visible = !renderer.hudHidden && renderer.isFirstPerson && !gameSession.mainPlayer.isSpectating
+            it.visible = !renderer.hudHidden && renderer.isFirstPerson && !gameSession.mainPlayer.isSpectating && !renderer.chatOpen
         }
     )
 }

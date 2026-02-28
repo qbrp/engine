@@ -73,7 +73,32 @@ data class VerbLookup(
 data class VerbVariant(
     val verb: VerbType,
     val action: InputAction,
-) : Component {}
+) : Component
+
+data class ProgressionType(
+    val duration: Int,
+    val animation: ProgressionAnimation
+)
+
+data class ProgressionAnimation(
+    val frames: List<String>,
+    val progressionText: String,
+    val successText: String
+) {
+    companion object {
+        val DEFAULT = ProgressionAnimation(
+            listOf(),
+            "Выполнение действия...",
+            "Действие выполнено"
+        )
+    }
+}
+
+@JvmInline
+@Serializable
+value class ProgressionAnimationId(val value: String) {
+    override fun toString() = value
+}
 
 data class InteractionComponent(
     val id: InteractionId,
@@ -81,23 +106,49 @@ data class InteractionComponent(
     val handItem: EngineItem?,
     val raycastPlayer: EnginePlayer?,
     val action: InputAction,
-    var timeElapsed: Int = 0,
     var occupied: Boolean = false,
+    var timeElapsed: Int = 0
 ) : Component {
-    private var localSoundId = 0
+    var sounds = 0
+    var progression: ProgressionType? = null
+    val progress: Float
+        get() = (timeElapsed.toFloat() / (this.progression?.duration ?: error("Прогрессия не начата"))).coerceIn(0f, 1f)
+    val progressionFinished
+        get() = progress >= 1f
+    var text: String? = null
+
+    val slotAction
+        get() = action as InputAction.SlotClick
+
+    context(contents: ContentStorage)
+    fun attachProgression(
+        id: ProgressionAnimationId?,
+        duration: Int
+    ) {
+        if (progression != null) return
+        val animation = contents.progressionAnimations[id] ?: ProgressionAnimation.DEFAULT
+        progression = ProgressionType(duration, animation)
+    }
+
+    context(contents: ContentStorage)
+    fun attachHandItemProgression(
+        key: String,
+        duration: Int
+    ) {
+        attachProgression(handItem?.get<ItemProgressionAnimations>()?.animations[key], duration)
+    }
+
+    fun failureProgression(text: String) {
+        this.text = text
+    }
 
     fun occupy() {
         occupied = true
     }
 
     fun emitItemInteractionSoundEvent(item: EngineItem, key: String, player: EnginePlayer? = null) {
-        item.emitPlaySoundEvent(key, player = player, context = SoundContext(localSoundId++, id))
+        item.emitPlaySoundEvent(key, player = player, context = SoundContext(sounds++, id))
     }
-
-    val slotAction get() = action as InputAction.SlotClick
-
-    val isFinished: Boolean
-        get() = timeElapsed > type.time
 }
 
 fun EnginePlayer.handleInteraction(verb: VerbType, statement: InteractionComponent.() -> Unit) {
@@ -108,26 +159,28 @@ fun EnginePlayer.handleInteraction(verb: VerbType, statement: InteractionCompone
     }
 }
 
-fun EnginePlayer.finishInteraction() {
+fun EnginePlayer.completeInteraction() {
     this.remove<InteractionComponent>()
 }
 
+fun EnginePlayer.completeInteractionIfFinished() = this.handle<InteractionComponent>() {
+    val progression = progression
+    if (progression != null && timeElapsed <= progression.duration) return@handle
+    completeInteraction()
+}
+
+@Serializable
 data class VerbType(
     val id: VerbId,
     val name: String,
-    val time: Int, // в тиках,
-    val target: Target,
     val priority: Int = 0
 ) {
     override fun equals(other: Any?): Boolean {
         return other is VerbType && other.id == id
     }
-
-    @Serializable
-    enum class Target {
-        PLAYER, ITEM
-    }
 }
+
+fun VerbType(id: String, name: String, priority: Int = 0) = VerbType(VerbId(id), name, priority)
 
 @Serializable
 @JvmInline
@@ -147,23 +200,11 @@ fun processLeftClickInteraction(player: EnginePlayer, handItem: EngineItem? = pl
     return handItem?.has<Gun>() == true
 }
 
-fun ItemVerb(
-    id: VerbId,
-    name: String,
-    time: Int = 0,
-) = VerbType(id, name, time, VerbType.Target.ITEM)
-
-fun PlayerVerb(
-    id: VerbId,
-    name: String,
-    time: Int = 0,
-    priority: Int = 0
-) = VerbType(id, name, time, VerbType.Target.PLAYER)
-
 fun appendVerbs(player: EnginePlayer) {
     appendWriteableVerbs(player)
     appendGunVerbs(player)
     appendPlayerInventoryVerbs(player)
+    appendPlayerEquipmentVerbs(player)
     appendSocialVerbs(player)
 }
 
@@ -191,7 +232,7 @@ fun finishPlayerInteraction(player: EnginePlayer) {
         val item = interaction.handItem
         val actionSimilar = interaction.action in actions
         val itemsSimilar = item == null || item.uuid == player.handItem?.uuid
-        if (!actionSimilar || !itemsSimilar || !interaction.occupied) {
+        if (!actionSimilar || !itemsSimilar || (!interaction.occupied && interaction.progression == null)) {
             player.removeComponent(interaction)
         }
 
@@ -212,8 +253,7 @@ fun updatePlayerInteractions(player: EnginePlayer, handler: ServerHandler? = nul
             invoke.verb,
             handItem,
             lookup.raycastPlayer,
-            invoke.action,
-            0
+            invoke.action
         )
         player.set(component)
         handler?.onPlayerInteraction(player, component)

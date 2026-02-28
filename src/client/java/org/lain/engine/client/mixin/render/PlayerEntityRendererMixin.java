@@ -1,7 +1,10 @@
 package org.lain.engine.client.mixin.render;
 
+import net.minecraft.client.model.Model;
+import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.entity.PlayerLikeEntity;
 import net.minecraft.item.ItemStack;
@@ -22,6 +25,10 @@ public class PlayerEntityRendererMixin {
             at = @At("TAIL")
     )
     public void engine$updateRenderState(PlayerLikeEntity playerLikeEntity, PlayerEntityRenderState playerEntityRenderState, float f, CallbackInfo ci) {
-        ClientMixinAccess.INSTANCE.updatePlayerRenderState(playerLikeEntity, playerEntityRenderState, f);
+        ClientMixinAccess.INSTANCE.updatePlayerRenderState(
+                playerLikeEntity,
+                playerEntityRenderState,
+                ((LivingEntityRenderer<PlayerLikeEntity, PlayerEntityRenderState, PlayerEntityModel>)(Object)this).getModel()
+        );
     }
 }

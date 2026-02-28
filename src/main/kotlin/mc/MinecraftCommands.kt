@@ -21,10 +21,7 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.chunk.WorldChunk
 import org.lain.engine.chat.*
-import org.lain.engine.item.EngineSoundCategory
 import org.lain.engine.item.ItemId
-import org.lain.engine.item.SoundEventId
-import org.lain.engine.item.SoundPlay
 import org.lain.engine.player.*
 import org.lain.engine.server.markDirty
 import org.lain.engine.util.*
@@ -32,9 +29,7 @@ import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessage
-import org.lain.engine.world.emitPlaySoundEvent
-import org.lain.engine.world.pos
-import org.lain.engine.world.world
+import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 
@@ -353,7 +348,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             .then(
                 CommandManager.argument("id", StringArgumentType.string())
                     .suggests(
-                        NamespacedIdProvider { it.itemIdentifiers }
+                        NamespacedIdProvider { it.items.ids }
                     )
                     .executeCatching { ctx ->
                         val argument = ctx.command.getString("id")
@@ -419,7 +414,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             .then(
                 CommandManager.argument("id", StringArgumentType.string())
                     .suggests(
-                        NamespacedIdProvider { it.soundIdentifiers }
+                        NamespacedIdProvider { it.sounds.ids }
                     )
                     .executeCatching { ctx ->
                         val argument = ctx.command.getString("id")
@@ -534,16 +529,9 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                     }
                     val verb = variant.verb
                     val name = verb.name
-                    val time = when(verb.time) {
-                        0 -> ""
-                        else -> {
-                            val formattedTime = (verb.time / 20).toString().format("$.2f")
-                            "(~$formattedTime секунд)"
-                        }
-                    }
                     text.append("\n")
                     text.append("- ").withColor(Colors.GRAY)
-                    text.append("$action: $name $time").withColor(Colors.WHITE)
+                    text.append("$action: $name").withColor(Colors.WHITE)
                 }
                 ctx.command.source.sendFeedback({ text }, false)
             }

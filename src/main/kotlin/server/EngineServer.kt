@@ -44,7 +44,7 @@ class EngineServer(
         handler.invalidate()
     }
 
-    fun update() {
+    fun update() = with(namespacedStorage) {
         if (stopped) return
         val start = Timestamp()
         val players = playerStorage.getAll()
@@ -67,6 +67,7 @@ class EngineServer(
             handleWriteableInteractions(player)
             handleGunInteractions(player)
             handleSocialInteractions(player)
+            handlePlayerEquipmentInteraction(player)
             finishPlayerInteraction(player)
             tickInventoryGun(playerItems)
 

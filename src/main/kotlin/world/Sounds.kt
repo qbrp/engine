@@ -1,13 +1,69 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.*
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.sound
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.flushMap
+import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.Vec3
+
+@Serializable
+data class SoundEvent(val id: SoundEventId, val sources: List<SoundSource>)
+
+@Serializable
+data class SoundPlay(
+    val sound: SoundEvent,
+    val pos: ImmutableVec3,
+    val category: EngineSoundCategory,
+    val volume: Float = 1f,
+    val pitch: Float = 1f,
+)
+
+fun SoundPlay(sound: SoundEvent, pos: Vec3, category: EngineSoundCategory = EngineSoundCategory.AMBIENT, volume: Float = 1f, pitch: Float = 1f) =
+    SoundPlay(sound, ImmutableVec3(pos), category, volume, pitch)
+
+enum class EngineSoundCategory {
+    MASTER, WEATHER, BLOCKS, HOSTILE, NEUTRAL, PLAYERS, AMBIENT, VOICE
+}
+
+@JvmInline
+@Serializable
+value class SoundEventId(val value: String) {
+    override fun toString(): String = value
+
+    companion object {
+        val MISSING = SoundEventId("missing")
+    }
+}
+
+@Serializable
+data class SoundSource(
+    val id: SoundId,
+    val volume: Float = 1f,
+    val pitch: Float = 1f,
+    val weight: Int = 1,
+    val distance: Int = 16,
+    val pitchRandom: Float = 0f
+)
+
+@JvmInline
+@Serializable
+value class SoundId(val value: String) {
+    override fun toString(): String = value
+}
+
+fun NamespacedStorage.getOrSingleSound(id: SoundEventId) = this.sounds[id] ?: SoundEvent(
+    id,
+    listOf(
+        SoundSource(
+            SoundId(id.value)
+        )
+    )
+)
 
 sealed class WorldSoundPlayRequest {
     data class Simple(val play: SoundPlay) : WorldSoundPlayRequest()

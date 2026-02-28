@@ -3,7 +3,17 @@ package org.lain.engine.util.file
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
+import org.lain.engine.player.*
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.world.SoundEventId
+
+@Serializable
+data class OutfitConfig(
+    val layer: SkinLayerId? = null,
+    val part: PlayerPart? = null,
+    val parts: List<PlayerPart>? = null,
+    val separated: Boolean = false
+)
 
 @Serializable
 data class GunConfig(
@@ -52,7 +62,9 @@ data class ItemConfig(
     val sounds: Map<String, SoundEventId>? = null,
     val mass: Float? = null,
     val writable: WritableConfig? = null,
+    val outfit: OutfitConfig? = null,
     val assets: Map<String, String>? = null,
+    @SerialName("progression_animations") val progressionAnimations: Map<String, ProgressionAnimationId>? = null,
 )
 
 @Serializable
@@ -77,11 +89,22 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
         var sounds = (config.sounds ?: emptyMap()) + namespaceConfig.accumulateInheritable { it.sounds }
         sounds = sounds.mapValues { (_, path) -> SoundEventId(path.value.replaceToRelative(namespace)) }
 
+        // Анимации прогрессии
+        var progressionAnimations = (config.progressionAnimations ?: emptyMap()) + namespaceConfig.accumulateInheritable { it.progressionAnimations }
+        progressionAnimations = progressionAnimations.mapValues { (_, path) -> ProgressionAnimationId(path.value.replaceToRelative(namespace)) }
+
         // Физические хар-ки
         val stackable = config.stackable ?: namespaceConfig.computeInheritable { it.stackable } ?: false
         var maxStackSize = config.maxStackSize ?: namespaceConfig.computeInheritable { it.maxStackSize }
         if (maxStackSize == null && !stackable) maxStackSize = 1
         val mass = config.mass ?: namespaceConfig.computeInheritable { it.mass }
+
+        // Экипировка
+        val outfit = config.outfit?.let { (layer, part, parts, separated) ->
+            val parts = part?.let { listOf(it) } ?: parts ?: error("Не указана часть тела, покрываемая экипировкой. Доступные варианты: part, parts")
+            val display = layer?.let { OutfitDisplay.Texture(it) } ?: OutfitDisplay.Separated.takeIf { separated } ?: error("Не указан способ отображения экипировки")
+            Outfit(display, parts)
+        } ?: config.hat?.let { Outfit(OutfitDisplay.Separated, listOf(PlayerPart.HEAD)) }
 
         CompiledNamespace.Item(
             config,
@@ -95,9 +118,10 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
                     config.tooltip?.let { ItemTooltip(it) },
                     mass?.let { Mass(it) },
                     config.writable?.let { Writable(it.pages, listOf(), it.texture) },
-                    hat,
-                    ItemAssets(assets),
-                    sounds = ItemSounds(sounds)
+                    assets.let { if (it.isNotEmpty()) ItemAssets(it) else null },
+                    outfit,
+                    sounds = sounds.let { if (it.isNotEmpty()) ItemSounds(it) else null },
+                    progressionAnimations = progressionAnimations.let { if (it.isNotEmpty()) ItemProgressionAnimations(it) else null }
                 )
             )
         )

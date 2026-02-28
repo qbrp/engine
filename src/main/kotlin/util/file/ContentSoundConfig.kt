@@ -4,10 +4,10 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlNode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.SoundEvent
-import org.lain.engine.item.SoundEventId
-import org.lain.engine.item.SoundId
-import org.lain.engine.item.SoundSource
+import org.lain.engine.world.SoundEvent
+import org.lain.engine.world.SoundEventId
+import org.lain.engine.world.SoundId
+import org.lain.engine.world.SoundSource
 
 @Serializable
 data class SoundEventConfig(

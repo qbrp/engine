@@ -47,6 +47,7 @@ fun commonPlayerInstance(
         set(ArmStatus(false))
         set(PlayerInput(mutableSetOf(), setOf()))
         set(Narration(mutableListOf()))
+        set(Equipment())
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)

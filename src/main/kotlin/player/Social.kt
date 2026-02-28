@@ -4,8 +4,8 @@ import org.lain.engine.util.handle
 
 const val SOCIAL_INTERACTION_DISTANCE = 15
 
-val HAIL_VERB = PlayerVerb(
-    VerbId("hail"),
+val HAIL_VERB = VerbType(
+    "hail",
     "Окликнуть",
     priority = 10
 )
@@ -22,6 +22,6 @@ fun handleSocialInteractions(player: EnginePlayer) {
             "${player.displayName} окликнул вас!",
             40
         )
-        player.finishInteraction()
+        player.completeInteraction()
     }
 }

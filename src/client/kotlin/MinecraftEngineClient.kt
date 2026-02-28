@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.client.gui.screen.ChatScreen
 import net.minecraft.client.gui.screen.ingame.BookEditScreen
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.component.type.WritableBookContentComponent
@@ -36,10 +37,7 @@ import org.lain.engine.client.util.PlayerTickException
 import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
-import org.lain.engine.player.Narration
-import org.lain.engine.player.OrientationTranslation
-import org.lain.engine.player.handItem
-import org.lain.engine.player.username
+import org.lain.engine.player.*
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.*
@@ -140,6 +138,7 @@ class MinecraftEngineClient : ClientModInitializer {
 
             ClientMixinAccess.tick()
             window.handleResize()
+            engineClient.renderer.chatOpen = client.currentScreen is ChatScreen
             try {
                 if (readyToAuthorize && entity != null && !inAuthorization) {
                     authorize(entity)
@@ -238,6 +237,7 @@ class MinecraftEngineClient : ClientModInitializer {
         HudElementRegistry.addLast(
             EngineId("ui")
         ) { context, tickCounter ->
+            val mainPlayer = engineClient.gameSession?.mainPlayer
             val deltaTick = tickCounter.fixedDeltaTicks
             val painter = MinecraftPainter(
                 deltaTick,
@@ -246,11 +246,20 @@ class MinecraftEngineClient : ClientModInitializer {
             )
             context.matrices.pushMatrix()
             renderer.isFirstPerson = !client.gameRenderer.camera.isThirdPerson
-            engineClient.gameSession?.mainPlayer?.handle<Narration> {
-                renderNarrations(
+
+            if (mainPlayer != null) {
+                mainPlayer.handle<Narration> {
+                    renderNarrations(
+                        context,
+                        renderer.narrations,
+                        this,
+                        deltaTick
+                    )
+                }
+                renderInteractionProgression(
                     context,
-                    renderer.narrations,
-                    this,
+                    renderer.interactionProgression,
+                    mainPlayer.get<InteractionComponent>(),
                     deltaTick
                 )
             }

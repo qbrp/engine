@@ -20,19 +20,11 @@ sealed class InputActionDto {
 @Serializable
 data class InteractionDto(
     val id: InteractionId,
-    val type: VerbTypeDto,
+    val type: VerbType,
     val item: ItemUuid? = null,
     val raycastPlayer: PlayerId? = null,
     val action: InputActionDto,
     val timeElapsed: Int = 0
-)
-
-@Serializable
-data class VerbTypeDto(
-    val id: VerbId,
-    val name: String,
-    val time: Int,
-    val target: VerbType.Target
 )
 
 fun InputAction.toDto(): InputActionDto = when(this) {
@@ -54,7 +46,7 @@ fun InputActionDto.toDomain(itemStorage: Storage<ItemUuid, EngineItem>, ): Input
 
 fun InteractionComponent.toDto(): InteractionDto = InteractionDto(
     id = id,
-    type = type.toDto(),
+    type = type,
     item = handItem?.uuid,
     raycastPlayer = raycastPlayer?.id,
     action = action.toDto(),
@@ -67,27 +59,11 @@ fun InteractionDto.toDomain(
 ): InteractionComponent {
     return InteractionComponent(
         id = id,
-        type = type.toDomain(),
+        type = type,
         handItem = item?.let { itemStorage.get(it) ?: throw InvalidItemUuidException(it) },
         raycastPlayer = raycastPlayer?.let { playerStorage.get(it) ?: error("Player $raycastPlayer not found") },
         action = action.toDomain(itemStorage),
         timeElapsed = timeElapsed
-    )
-}
-
-fun VerbType.toDto(): VerbTypeDto = VerbTypeDto(
-    id = id,
-    name = name,
-    time = time,
-    target = target
-)
-
-fun VerbTypeDto.toDomain(): VerbType {
-    return VerbType(
-        id = id,
-        name = name,
-        time = time,
-        target = target
     )
 }
 

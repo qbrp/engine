@@ -2,6 +2,7 @@ package org.lain.engine.client.render
 
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
+import org.lain.engine.client.mc.render.InteractionProgressionRenderState
 import org.lain.engine.client.mc.render.NarrationMessageRenderState
 import org.lain.engine.player.Narration
 import org.lain.engine.util.require
@@ -13,7 +14,9 @@ class ScreenRenderer(private val client: EngineClient) {
     var hudHidden = false
     var isFirstPerson = false
     val littleNotificationsRenderer = LittleNotificationsRenderManager(window, client.ui)
-    var narrations = mutableListOf<NarrationMessageRenderState>()
+    val narrations = mutableListOf<NarrationMessageRenderState>()
+    val interactionProgression = InteractionProgressionRenderState(0f)
+    var chatOpen = false
 
     fun renderScreen(painter: Painter) {
         val gameSession = client.gameSession

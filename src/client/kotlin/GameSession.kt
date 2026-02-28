@@ -76,7 +76,7 @@ class GameSession(
         namespacedStorage.loadContentsCompileResult(compileContents(client.resources.contents.file))
     }
 
-    fun tick() {
+    fun tick() = with(namespacedStorage) {
         ticks++
         chatManager.tick()
         val players = playerStorage.getAll()
@@ -108,6 +108,7 @@ class GameSession(
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)
             handleGunInteractions(player, true)
+            handlePlayerEquipmentInteraction(player)
             finishPlayerInteraction(player)
 
             tickInventoryGun(playerItems)

@@ -3,7 +3,11 @@ package org.lain.engine.storage
 import kotlinx.serialization.*
 import kotlinx.serialization.cbor.Cbor
 import org.lain.engine.item.*
-import org.lain.engine.util.*
+import org.lain.engine.player.Outfit
+import org.lain.engine.util.Component
+import org.lain.engine.util.ComponentManager
+import org.lain.engine.util.get
+import org.lain.engine.util.require
 
 @Serializable
 data class PersistentItemData(val components: List<ItemData>)
@@ -26,7 +30,7 @@ sealed class ItemData {
     ) : ItemData()
 
     @Serializable
-    data class Equipment(val hat: Boolean) : ItemData()
+    data class Equipment(val hat: Boolean, val outfit: Outfit? = null) : ItemData()
 
     @Serializable
     @Deprecated("Использовать PhysicalParameters")
@@ -69,8 +73,9 @@ fun itemPersistentData(item: EngineItem): PersistentItemData {
     components.addIfNotNull(item.wrap<Writable> { ItemData.Book(writable=it.copy())  })
     components.addIfNotNull(
         ItemData.Equipment(
-            item.has<Hat>()
-        ).takeIf { it.hat }
+            false,
+            item.get<Outfit>()
+        ).takeIf { it.hat || it.outfit != null }
     )
 
     return PersistentItemData(components)
