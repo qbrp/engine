@@ -36,8 +36,9 @@ import kotlin.math.min
 class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Message source is too high or low")
 
 const val SEGMENT_SIZE = 64f
+const val SEGMENT_EXTEND = 24
 
-fun World.segmentOf(y: Int) = ceil((y - bottomY) / SEGMENT_SIZE).toInt() - 1
+fun World.segmentOf(y: Int) = ceil((y - bottomY) / SEGMENT_SIZE).toInt().coerceAtMost(segmentCount) - 1
 
 val World.segmentCount get() = ceil(height / SEGMENT_SIZE).toInt()
 
@@ -324,7 +325,15 @@ class ConcurrentAcousticSceneBank {
                 break
             }
 
-            scenes.add(MinecraftChunkAcousticScene.create(world, chunk, acousticBlockData, y0 = y0, y1 = y1))
+            scenes.add(
+                MinecraftChunkAcousticScene.create(
+                    world,
+                    chunk,
+                    acousticBlockData,
+                    y0 = y0 - SEGMENT_EXTEND,
+                    y1 = y1 + SEGMENT_EXTEND
+                )
+            )
         }
 
         val worldId = world.engine

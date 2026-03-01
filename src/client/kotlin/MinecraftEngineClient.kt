@@ -172,7 +172,7 @@ class MinecraftEngineClient : ClientModInitializer {
                             }
                         }
 
-                        updatePlayerMinecraftSystems(player, items, entity, world)
+                        updatePlayerMinecraftSystems(player, items, entity, world, gameSession.itemStorage)
 
                         player.remove<OpenBookTag>()?.let {
                             if (player == gameSession.mainPlayer) {
@@ -223,6 +223,7 @@ class MinecraftEngineClient : ClientModInitializer {
 
                 client.networkHandler?.connection?.disconnect(DisconnectText(text)) ?: run {
                     connectionLogger.warn("Игрок отключен от несуществующего сервера")
+                    onDisconnect()
                 }
             }
         }

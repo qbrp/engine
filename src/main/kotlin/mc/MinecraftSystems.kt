@@ -10,6 +10,7 @@ import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
+import org.lain.engine.server.desync
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.util.*
 import org.lain.engine.util.math.Vec3
@@ -59,14 +60,14 @@ fun updateLegacyEngineItems(server: EngineMinecraftServer, player: EnginePlayer,
     }
 }
 
-private val ITEM_LOGGER = LoggerFactory.getLogger("Engine Itemstacks")
+private val LOGGER = LoggerFactory.getLogger("Engine Minecraft Adapter")
 
 private fun EngineMinecraftServer.wrapItemStackCatching(player: EnginePlayer, itemId: ItemId, stack: ItemStack): EngineItem? {
     return try {
         wrapItemStack(player, itemId, stack)
     } catch (t: Throwable) {
         detachEngineItemStack(stack)
-        ITEM_LOGGER.error("Не удалось создать engine-предмет $itemId", t)
+        LOGGER.error("Не удалось создать engine-предмет $itemId", t)
         null
     }
 }
@@ -78,9 +79,11 @@ fun updateServerMinecraftSystems(
     itemLoader: ItemLoader
 ) {
     val engine = server.engine
+    val notUpdatedPlayers = players.toMutableList()
     for (player in players) {
-        val entity = table.getEntity(player) ?: return
+        val entity = table.getEntity(player) ?: continue
         val world = engine.getWorld(entity.entityWorld)
+        notUpdatedPlayers.remove(player)
 
         val screenHandler = entity.currentScreenHandler
         val itemStacks = entity.inventory + screenHandler.stacks + screenHandler.cursorStack
@@ -111,12 +114,14 @@ fun updateServerMinecraftSystems(
                 items.add(item to itemStack)
             }
         }
-
-        updatePlayerMinecraftSystems(player, items.toSet(), entity, world)
+        updatePlayerMinecraftSystems(player, items.toSet(), entity, world, engine.itemStorage)
         player.remove<OpenBookTag>()
         if (entity is ServerPlayerEntity) {
             excludeEngineItemDuplicates(server, entity, player)
         }
+    }
+    if (notUpdatedPlayers.isNotEmpty()) {
+        LOGGER.warn("Состояние Minecraft не обновлено для игроков: {}", notUpdatedPlayers.joinToString())
     }
 }
 
@@ -124,7 +129,8 @@ fun updatePlayerMinecraftSystems(
     player: EnginePlayer,
     items: Set<Pair<EngineItem, ItemStack>>,
     entity: PlayerEntity,
-    world: World
+    world: World,
+    itemStorage: Storage<ItemUuid, EngineItem>
 ) {
     val location = player.require<Location>()
     val velocity = player.require<Velocity>()
@@ -191,12 +197,21 @@ fun updatePlayerMinecraftSystems(
     val playerInventory = player.require<PlayerInventory>()
     val playerInventoryItems = playerInventory.items.toMutableList()
     val destroyItemSignal = player.get<DestroyItemSignal>()
+    val moveItemSignal = player.get<MoveItemSignal>()
 
     val mainItemStack = entity.mainHandStack
     val mainHandStackId = mainItemStack.engine()?.uuid
     val offHandStackId = entity.offHandStack.engine()?.uuid
     var mainHandItem: EngineItem? = null
     var offHandItem: EngineItem? = null
+
+    if (moveItemSignal != null) {
+        val item = itemStorage.get(moveItemSignal.item) ?: desync("Предмет для передачи ${moveItemSignal.item} не найден")
+        entity.inventory.insertStack(
+            moveItemSignal.slot,
+            wrapEngineItemStack(item, ITEM_STACK_MATERIAL.copy())
+        )
+    }
 
     for ((item, itemStack) in items) {
         if (mainHandStackId == item.uuid) {
@@ -226,6 +241,7 @@ fun updatePlayerMinecraftSystems(
 
     playerInventory.mainHandItem = mainHandItem
     playerInventory.offHandItem = offHandItem
+    playerInventory.selectedSlot = entity.inventory.selectedSlot
 
     for (removedItem in playerInventoryItems) {
         if (removedItem != playerInventory.cursorItem) {
@@ -235,6 +251,7 @@ fun updatePlayerMinecraftSystems(
     }
 
     player.remove<DestroyItemSignal>()
+    player.remove<MoveItemSignal>()
 }
 
 private fun ServerPlayerEntity.resolveGameMode() = if (this.hasPermissionLevel(4)) {
