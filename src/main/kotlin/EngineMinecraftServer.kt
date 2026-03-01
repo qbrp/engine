@@ -154,6 +154,7 @@ fun serverMinecraftPlayerInstance(
     server: EngineMinecraftServer,
     entity: PlayerEntity,
     playerId: PlayerId,
+    developerModeStatus: DeveloperModeStatus
 ): EnginePlayer {
     val engine = server.engine
     val persistentPlayerData = parsePersistentPlayerData(playerId)
@@ -181,6 +182,7 @@ fun serverMinecraftPlayerInstance(
         ),
         persistentPlayerData,
         defaults,
+        developerModeStatus,
         playerId
     )
 }

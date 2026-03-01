@@ -9,12 +9,12 @@ import org.lain.engine.client.mc.render.TransformationsEditorScreen
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.item.*
 import org.lain.engine.mc.engine
-import org.lain.engine.player.ArmStatus
+import org.lain.engine.mc.engineId
+import org.lain.engine.player.displayName
+import org.lain.engine.player.items
+import org.lain.engine.player.username
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.handle
-import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.randomInteger
 import org.lain.engine.util.math.roundToInt
 import org.lain.engine.world.*
@@ -54,24 +54,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
         if (ticks - developerModeKeyPressedTick > 20) {
             developerModeKeyPressedTick = ticks
             if (key == GLFW.GLFW_KEY_1) {
-                audioManager.playSound(
-                    SoundPlay(
-                        SoundEvent(
-                            SoundEventId("debug_pig_scream"),
-                            listOf(
-                                SoundSource(
-                                    SoundId("funny/pig-scream"),
-                                    1f,
-                                    1f,
-                                    1,
-                                    16
-                                )
-                            )
-                        ),
-                        VEC3_ZERO,
-                        EngineSoundCategory.MASTER,
-                    )
-                )
+                audioManager.playUiNotificationSound()
                 applyLittleNotification(
                     LittleNotification(
                         "Проигран звук",
@@ -97,7 +80,6 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                 }
 
                 val end = start.timeElapsed()
-                audioManager.playUiNotificationSound()
                 applyLittleNotification(
                     LittleNotification(
                         "Добавлено 100 случайных сообщений",
@@ -108,10 +90,34 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
             } else if (key == GLFW.GLFW_KEY_4) {
                 acousticDebug = !acousticDebug
             } else if (key == GLFW.GLFW_KEY_5) {
-                gameSession?.mainPlayer?.handle<ArmStatus> {
-                    extend = !extend
+                val gameSession = gameSession ?: return@with true
+                val enginePlayers = gameSession.playerStorage.getAll()
+                val minecraftPlayers = MinecraftClient.world?.players?.toList() ?: emptyList()
+                for (mcPlayer in minecraftPlayers) {
+                    val enginePlayer = enginePlayers.find { it.id == mcPlayer.engineId }
+                    if (enginePlayer != null) {
+                        val enginePosFormatted = "%.2f, %.2f, %.2f".format(
+                            enginePlayer.pos.x,
+                            enginePlayer.pos.y,
+                            enginePlayer.pos.z
+                        )
+
+                        val minecraftPosFormatted = "%.2f, %.2f, %.2f".format(
+                            mcPlayer.entityPos.x,
+                            mcPlayer.entityPos.y,
+                            mcPlayer.entityPos.z
+                        )
+
+                        gameSession.chatManager.addMessage(
+                            LiteralSystemEngineChatMessage(
+                                gameSession,
+                                "<aqua>-<reset> ${enginePlayer.displayName} (${enginePlayer.username})<newline>" +
+                                        "<aqua>Координаты:</aqua><newline>  <red>Engine:</red> ${enginePosFormatted}<newline>  <green>Minecraft:</green> ${minecraftPosFormatted}<newline>" +
+                                        "<aqua>Предметы:</aqua> ${enginePlayer.items.joinToString { it.shortString() }}"
+                            )
+                        )
+                    }
                 }
-                audioManager.playUiNotificationSound()
             } else {
                 return@with false
             }

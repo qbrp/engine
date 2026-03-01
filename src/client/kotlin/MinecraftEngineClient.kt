@@ -40,6 +40,7 @@ import org.lain.engine.player.Narration
 import org.lain.engine.player.OrientationTranslation
 import org.lain.engine.player.handItem
 import org.lain.engine.player.username
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.*
@@ -305,10 +306,11 @@ class MinecraftEngineClient : ClientModInitializer {
     }
 
     private fun authorize(entity: ClientPlayerEntity) {
+        val developerMode = DeveloperModeStatus(engineClient.developerMode, engineClient.acousticDebug)
         if (client.isInSingleplayer) {
             val server = server ?: throw RuntimeException("Server not started")
             val engine = server.engine
-            val player = serverMinecraftPlayerInstance(server, entity, entity.engineId)
+            val player = serverMinecraftPlayerInstance(server, entity, entity.engineId, developerMode)
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
                 prepareServerMinecraftPlayer(server, entity, player)
                 engine.execute {
@@ -320,7 +322,8 @@ class MinecraftEngineClient : ClientModInitializer {
             .sendC2SPacket(
                 AuthPacket(
                     MinecraftUsername(entity),
-                    fabricLoader.allMods.map { it.metadata.id }
+                    fabricLoader.allMods.map { it.metadata.id },
+                    developerMode
                 )
             )
         }

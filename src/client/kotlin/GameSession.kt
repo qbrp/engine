@@ -19,6 +19,7 @@ import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.apply
 import org.lain.engine.util.file.compileContents
 import org.lain.engine.util.file.loadContentsCompileResult
+import org.lain.engine.util.get
 import org.lain.engine.util.has
 import org.lain.engine.world.*
 import java.util.*
@@ -110,6 +111,10 @@ class GameSession(
             handleWriteableInteractions(player)
             handleGunInteractions(player, true)
             finishPlayerInteraction(player)
+            val processedInteraction = player.get<InteractionComponent>()
+            if (interaction != processedInteraction && interaction != null) {
+                handler.processedInteractions.add(interaction.id)
+            }
 
             tickInventoryGun(playerItems)
             handleItemRecoil(player, playerItems, false)

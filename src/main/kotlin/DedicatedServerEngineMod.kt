@@ -24,6 +24,7 @@ import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.network.ServerNetworkTransport
 import org.lain.engine.transport.network.SessionId
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.registerMinecraftServer
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.*
@@ -91,7 +92,8 @@ class DedicatedEngineMinecraftServer(
 @Serializable
 data class AuthPacket(
     val username: Username,
-    val mods: List<String>
+    val mods: List<String>,
+    val developerMode: DeveloperModeStatus,
 ) : Packet
 
 val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
@@ -131,7 +133,7 @@ class ServerAuthorizationListener(
             notifications += Notification.FREECAM
         }
 
-        val player = newAuthorizedPlayerInstance(connection, entity)
+        val player = newAuthorizedPlayerInstance(connection, entity, packet.developerMode)
         coroutineScope.launch {
             prepareServerMinecraftPlayer(server, entity, player)
             engine.execute {
@@ -152,8 +154,9 @@ class ServerAuthorizationListener(
     private fun newAuthorizedPlayerInstance(
         connectionSession: ConnectionSession,
         entity: ServerPlayerEntity,
+        developerModeStatus: DeveloperModeStatus
     ): EnginePlayer {
-        return serverMinecraftPlayerInstance(server, entity, connectionSession.playerId)
+        return serverMinecraftPlayerInstance(server, entity, connectionSession.playerId, developerModeStatus)
     }
 
     companion object {

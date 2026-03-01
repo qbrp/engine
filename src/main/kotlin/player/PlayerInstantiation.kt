@@ -3,6 +3,7 @@ package org.lain.engine.player
 import org.lain.engine.item.EngineItem
 import org.lain.engine.server.*
 import org.lain.engine.storage.PersistentPlayerData
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Component
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.set
@@ -38,7 +39,6 @@ fun commonPlayerInstance(
         set(Orientation())
         set(PlayerModel())
         set(OrientationTranslation(0f, 0f))
-        set(DeveloperMode(false))
         set(PlayerInventory(settings.items.toMutableSet()))
         set(ArmStatus(false))
         set(PlayerInput(mutableSetOf(), setOf()))
@@ -55,12 +55,14 @@ fun serverPlayerInstance(
     settings: PlayerInstantiateSettings,
     persistent: PersistentPlayerData? = null,
     defaults: DefaultPlayerAttributes,
+    developerModeStatus: DeveloperModeStatus,
     id: PlayerId,
 ): EnginePlayer {
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
 
     return commonPlayerInstance(settings, id).apply {
         set(ServerPlayerInputMeta(false))
+        set(DeveloperMode(developerModeStatus.enabled, developerModeStatus.acoustic))
         set(MessageQueue())
         set(voiceApparatus)
         setNullable(persistent?.voiceLoose)
