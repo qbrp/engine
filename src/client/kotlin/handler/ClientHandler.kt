@@ -1,5 +1,6 @@
 package org.lain.engine.client.handler
 
+import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.runBlocking
 import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
 import org.lain.engine.chat.ChannelId
@@ -37,6 +38,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
     val taskExecutor = TaskExecutor()
     val processedSounds = mutableSetOf<SoundBroadcast>()
+    val processedInteractions = FixedSizeList<InteractionId>(40)
+    val pendingSnapshots = mutableListOf<Pair<InteractionId, Runnable>>()
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
@@ -85,6 +88,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             val input = gameSession.mainPlayer.require<PlayerInput>()
             input.actions.clear()
         }
+        val snapshotsToRemove = pendingSnapshots
+            .filter { (interactionId, _) -> interactionId in processedInteractions }
+            .alsoForEach { (id, task) ->
+                println("Принят снапшот $task для $id")
+                task.run()
+            }
+        pendingSnapshots.removeAll(snapshotsToRemove)
     }
 
     data class InteractionQueueComponent(val interactions: Queue<InteractionComponent>) : Component
@@ -121,7 +131,9 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun onDeveloperModeUpdate(boolean: Boolean, acoustic: Boolean) {
-        SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(DeveloperModePacket(boolean, acoustic))
+        SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(
+            DeveloperModePacket(DeveloperModeStatus(boolean, acoustic))
+        )
     }
 
     fun onCursorItem(item: EngineItem?) {
