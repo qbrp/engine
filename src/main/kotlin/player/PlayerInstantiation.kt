@@ -4,14 +4,11 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.server.*
 import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.util.Component
-import org.lain.engine.util.Storage
 import org.lain.engine.util.math.Pos
-import org.lain.engine.util.require
 import org.lain.engine.util.set
 import org.lain.engine.util.setNullable
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
-import kotlin.apply
 
 data class PlayerInstantiateSettings(
     val world: World,
@@ -29,7 +26,6 @@ data class DefaultPlayerAttributes(
     var minVolume: Float = 0.2f,
     var maxVolume: Float = 1.3f,
     var baseVolume: Float = 5f,
-    var gravity: Float = 0.087f
 ) : Component
 
 fun commonPlayerInstance(
@@ -68,12 +64,12 @@ fun serverPlayerInstance(
         set(MessageQueue())
         set(voiceApparatus)
         setNullable(persistent?.voiceLoose)
+        set(PlayerUpdates())
         set(defaults)
         set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
         set(PlayerNetworkState(false))
         set(Synchronizations<EnginePlayer>(mutableMapOf()))
             .also { it.initializeSynchronizers() }
-        require<PlayerAttributes>().gravity.default = defaults.gravity
     }
 }
 
@@ -82,7 +78,4 @@ private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     submit(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     submit(PLAYER_NARRATION_SYNCHRONIZER)
-    submit(PLAYER_ATTRIBUTES_SYNCHRONIZER)
 }
-
-typealias PlayerStorage = Storage<PlayerId, EnginePlayer>

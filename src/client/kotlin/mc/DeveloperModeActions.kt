@@ -11,11 +11,7 @@ import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.*
 import org.lain.engine.mc.engine
-import org.lain.engine.mc.engineId
 import org.lain.engine.player.ArmStatus
-import org.lain.engine.player.displayName
-import org.lain.engine.player.items
-import org.lain.engine.player.username
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.handle
 import org.lain.engine.util.math.VEC3_ZERO
@@ -116,35 +112,6 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                     extend = !extend
                 }
                 audioManager.playUiNotificationSound()
-            } else if (key == GLFW.GLFW_KEY_6) {
-                val gameSession = gameSession ?: return@with true
-                val enginePlayers = gameSession.playerStorage.getAll()
-                val minecraftPlayers = MinecraftClient.world?.players?.toList() ?: emptyList()
-                for (mcPlayer in minecraftPlayers) {
-                    val enginePlayer = enginePlayers.find { it.id == mcPlayer.engineId }
-                    if (enginePlayer != null) {
-                        val enginePosFormatted = "%.2f, %.2f, %.2f".format(
-                            enginePlayer.pos.x,
-                            enginePlayer.pos.y,
-                            enginePlayer.pos.z
-                        )
-
-                        val minecraftPosFormatted = "%.2f, %.2f, %.2f".format(
-                            mcPlayer.entityPos.x,
-                            mcPlayer.entityPos.y,
-                            mcPlayer.entityPos.z
-                        )
-
-                        gameSession.chatManager.addMessage(
-                            LiteralSystemEngineChatMessage(
-                                gameSession,
-                                "<aqua>-<reset> ${enginePlayer.displayName} (${enginePlayer.username})<newline>" +
-                                "<aqua>Координаты:</aqua><newline>  <red>Engine:</red> ${enginePosFormatted}<newline>  <green>Minecraft:</green> ${minecraftPosFormatted}<newline>" +
-                                "<aqua>Предметы:</aqua> ${enginePlayer.items.joinToString { it.shortString() }}"
-                            )
-                        )
-                    }
-                }
             } else {
                 return@with false
             }

@@ -76,8 +76,12 @@ object ServerMixinAccess {
         return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name
     }
 
-    fun getAttributes(player: PlayerEntity): PlayerAttributes {
-        return player.engine?.attributes ?: PlayerAttributes.DEFAULT
+    fun getSpeed(player: PlayerEntity): Double {
+        return player.engine?.speed?.toDouble() ?: 0.1
+    }
+
+    fun getJumpStrength(player: PlayerEntity): Double {
+        return player.engine?.jumpStrength?.toDouble() ?: 0.1
     }
 
     fun onServerPlayerEntityInitialized(entity: ServerPlayerEntity) {

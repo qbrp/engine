@@ -34,6 +34,7 @@ class GameSession(
     val renderer = client.renderer
     val chatEventBus = client.chatEventBus
     var playerSynchronizationRadius: Int = setup.settings.playerSynchronizationRadius
+    var playerDesynchronizationThreshold: Int = setup.settings.playerDesynchronizationThreshold
 
     var extendArm = false
     set(value) {

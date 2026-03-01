@@ -20,6 +20,10 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     // Players
 
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT) {
+        updatePlayer(id) { applyPlayerAttributeUpdate(it, speed, jumpStrength) }
+    }
+
     registerGameSessionReceiver(CLIENTBOUND_FULL_PLAYER_ENDPOINT) {
         updatePlayer(id) { applyFullPlayerData(it, data) }
     }
@@ -124,7 +128,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_NARRATION_SYNCHRONIZER)
-    registerPlayerSynchronizerEndpoint(PLAYER_ATTRIBUTES_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_WRITABLE_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_GUN_SYNCHRONIZER)
 }

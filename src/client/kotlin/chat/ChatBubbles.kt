@@ -74,7 +74,8 @@ fun updateChatBubble(bubble: ChatBubble, dt: Float, height: Float) {
 
     val playerPos = bubble.player.pos
     val t = (lifetime / bubble.expiration).coerceIn(0f, 1f)
-    val t2 = (lifetime - bubble.expiration).coerceIn(0f, 1f) / FADE_OUT_TIME
+    val t2 = ((lifetime - bubble.expiration) / FADE_OUT_TIME)
+        .coerceIn(0f, 1f)
     val lift1 = t * LIFTING_Y * 0.15f
     val lift2 = sin(t2 * (Math.PI / 2)).toFloat() * LIFTING_Y * 0.85f
     val lift = lift1 + lift2

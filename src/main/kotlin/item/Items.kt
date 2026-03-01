@@ -1,7 +1,10 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.*
+import org.lain.engine.util.ComponentManager
+import org.lain.engine.util.ComponentState
+import org.lain.engine.util.Entity
+import org.lain.engine.util.Storage
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -16,11 +19,6 @@ data class EngineItem(
     val uuid: ItemUuid,
     val state: ComponentState
 ) : Entity, ComponentManager by state {
-    fun shortString(): String {
-        val name = get<ItemName>()?.text.let { if (it != null) ", $it" else "" }
-        return "$uuid($id$name)"
-    }
-
     override val stringId: String
         get() = this.uuid.toString()
 }

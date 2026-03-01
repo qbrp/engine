@@ -21,9 +21,17 @@ import org.lain.engine.util.require
 import org.lain.engine.world.*
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
+import kotlin.math.pow
+
+sealed class AttributeUpdate() {
+    object Reset : AttributeUpdate()
+    class Value(val value: Float) : AttributeUpdate()
+}
 
 enum class Notification {
     INVALID_SOURCE_POS,
+    VOICE_BREAK,
+    VOICE_TIREDNESS,
     FREECAM,
 }
 
@@ -44,6 +52,8 @@ class ServerHandler(
         get() = server.globals
     private val playerSynchronizationRadius
         get() = globals.playerSynchronizationRadius
+    private val playerDesynchronizationThreshold
+        get() = globals.playerDesynchronizationThreshold
 
     private var destroy = false
     private val queue = LinkedBlockingQueue<Runnable>()
@@ -117,10 +127,17 @@ class ServerHandler(
     }
 
     private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputActionDto>) = updatePlayer(playerId) {
-        //println("Выполнено действие $input тика $tick")
+        val playerInput = this.require<PlayerInput>()
         val actions = input.map { it.toDomain(itemStorage) }
-        val network = network
-        network.actionTasks[tick] = actions
+        playerInput.actions.clear()
+        playerInput.actions.addAll(actions)
+
+        CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
+            location,
+            playerSynchronizationRadius,
+            exclude = listOf(this),
+            packet = PlayerInputPacket(this.id, actions.map { action -> action.toDto() }.toSet())
+        )
     }
 
     private fun onWriteableContentsUpdate(playerId: PlayerId, itemUuid: ItemUuid, contents: List<String>) = updatePlayer(playerId) {
@@ -229,80 +246,45 @@ class ServerHandler(
             val input = player.require<PlayerInput>()
             val state = player.network
             val location = player.location
-            val actionTasks = state.actionTasks
 
-            val actionTask = actionTasks.remove(state.tick) ?: run {
-                val last = state.lastActions.toList()
-                for (actions in last.reversed()) {
-                    if (actions.isNotEmpty()) {
-                        return@run actions
-                    }
-                }
-                null
-            }
+            debugPacket("Действия тика ${state.tick}: ${input.actions}")
 
-            if (actionTask != null) {
-                val lastActions = input.actions.toList()
-                input.actions.clear()
-                input.actions.addAll(actionTask)
+            val playersToSynchronize = filterNearestPlayers(location, playerSynchronizationRadius, players).toMutableList()
+            val playersToDesynchronize = state.players.filter { it.pos.squaredDistanceTo(player.pos) > (playerSynchronizationRadius + playerDesynchronizationThreshold).toFloat().pow(2) }
+            state.players.removeAll(playersToDesynchronize)
+            playersToSynchronize.removeAll(playersToDesynchronize)
 
-                if (lastActions != input.actions) {
-                    CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
-                        location,
-                        playerSynchronizationRadius,
-                        exclude = listOf(player),
-                        packet = PlayerInputPacket(player.id, actionTask.map { action -> action.toDto() }.toSet())
-                    )
-                }
-            }
-
-            state.lastActions.add(actionTask ?: emptyList())
-
-            debugPacket("Действия тика ${state.tick}: $actionTask")
-
-            val toRemove = mutableListOf<Long>()
-            if (actionTasks.size > 100) {
-                for ((tick, _) in actionTasks) {
-                    if (tick < state.tick) {
-                        toRemove.add(tick)
-                    }
-                }
-            }
-            toRemove.forEach { actionTasks.remove(it) }
-
-            val playersInRadius = filterNearestPlayers(location, globals.playerSynchronizationRadius, players)
-
-            tickSynchronizationComponent(playerStorage, player, globals)
+            tickSynchronizationComponent(playerStorage, player)
             player.items.forEach { item ->
                 val component = item.get<Synchronizations<EngineItem>>()
                 if (component != null) {
-                    tickSynchronizationComponent(playerStorage, item, globals, component)
+                    tickSynchronizationComponent(playerStorage, item, component)
                 }
             }
 
             val items: MutableList<ItemUuid> = mutableListOf()
-            for (playerInRadius in playersInRadius) {
-                if (playerInRadius !in state.players && playerInRadius.id != player.id) {
-                    state.players += playerInRadius
+            for (playerToSynchronize in playersToSynchronize) {
+                if (playerToSynchronize !in state.players && playerToSynchronize.id != player.id) {
+                    state.players += playerToSynchronize
 
                     // Игрок будет кикнут, если состояние синхронизации не придёт
                     coroutineScope.launch {
                         CLIENTBOUND_FULL_PLAYER_ENDPOINT
                             .taskS2C(
                                 FullPlayerPacket(
-                                    playerInRadius.id,
-                                    FullPlayerData.of(playerInRadius)
+                                    playerToSynchronize.id,
+                                    FullPlayerData.of(playerToSynchronize)
                                 ),
                                 player.id
                             )
                             .send()
                             .withAcknowledge()
-                            .onTimeoutServerThread { state.players -= playerInRadius }
+                            .onTimeoutServerThread { state.players -= playerToSynchronize }
                             .run()
                     }
                 }
 
-                for (item in playerInRadius.items) {
+                for (item in playerToSynchronize.items) {
                     items.add(item.uuid)
                     if (item.uuid !in state.items) {
                         state.items += item.uuid
@@ -321,7 +303,6 @@ class ServerHandler(
                 }
             }
 
-            state.players.removeIf { it !in playersInRadius }
             state.items.removeIf { it !in items }
         }
     }
@@ -347,6 +328,26 @@ class ServerHandler(
         receivers.forEach {
             CLIENTBOUND_SOUND_PLAY_ENDPOINT.sendS2C(packet, it.id)
         }
+    }
+
+    fun onPlayerCustomSpeedUpdate(player: EnginePlayer, speed: AttributeUpdate) {
+        CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT.broadcastInRadius(
+            player,
+            PlayerAttributeUpdatePacket(
+                player.id,
+                speed = speed
+            )
+        )
+    }
+
+    fun onPlayerJumpStrengthUpdate(player: EnginePlayer, jumpStrength: AttributeUpdate) {
+        CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT.broadcastInRadius(
+            player,
+            PlayerAttributeUpdatePacket(
+                player.id,
+                jumpStrength = jumpStrength
+            )
+        )
     }
 
     fun onOutcomingMessage(player: EnginePlayer, message: OutcomingMessage) {

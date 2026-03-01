@@ -2,12 +2,12 @@ package org.lain.engine.server
 
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
-import org.lain.engine.chat.trySendJoinMessage
-import org.lain.engine.chat.trySendLeaveMessage
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.storage.savePersistentPlayerData
-import org.lain.engine.util.*
+import org.lain.engine.util.FixedSizeList
+import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.Timestamp
+import org.lain.engine.util.flush
 import org.lain.engine.world.*
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -29,6 +29,7 @@ class EngineServer(
     var stopped = false
     val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
+    val playerService = PlayerService(playerStorage, this)
     val itemStorage = ItemStorage()
     val namespacedStorage = NamespacedStorage()
     val defaultWorld
@@ -45,7 +46,6 @@ class EngineServer(
     }
 
     fun update() {
-        if (stopped) return
         val start = Timestamp()
         val players = playerStorage.getAll()
         val vocalSettings = globals.vocalSettings
@@ -71,10 +71,11 @@ class EngineServer(
             tickInventoryGun(playerItems)
 
             handleItemRecoil(player, playerItems)
-            player.input.clear()
 
             tickNarrations(player)
         }
+
+        players.forEach { flushPlayerUpdates(it, handler) }
 
         handler.tick()
 
@@ -92,29 +93,6 @@ class EngineServer(
         update(globals)
         chat.onSettingsUpdated(globals.chatSettings)
         handler.onServerSettingsUpdate()
-    }
-
-    fun instantiatePlayer(player: EnginePlayer) {
-        val world = player.world
-        eventListener.onPlayerInstantiated(player)
-
-        player.startSpectating()
-        playerStorage.add(player.id, player)
-        world.require<ScenePlayers>().add(player)
-        handler.onPlayerInstantiation(player)
-
-        chat.trySendJoinMessage(player)
-    }
-
-    fun destroyPlayer(player: EnginePlayer) {
-        playerStorage.remove(player.id)
-        player.world.require<ScenePlayers>().remove(player)
-
-        player.items.forEach { item -> item.remove<HoldsBy>() }
-
-        chat.trySendLeaveMessage(player)
-        handler.onPlayerDestroy(player)
-        savePersistentPlayerData(player)
     }
 
     fun execute(r: Runnable) {

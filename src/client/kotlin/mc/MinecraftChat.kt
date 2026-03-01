@@ -22,7 +22,6 @@ import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.text.EngineText
 import org.lain.engine.util.text.displayNameMiniMessage
-import org.lain.engine.util.text.parseMiniMessageLegacy
 import java.util.*
 import kotlin.math.pow
 import kotlin.random.Random
@@ -62,35 +61,30 @@ object MinecraftChat : ChatEventBus {
     var isWritingCommand = false
     val typingPlayers = mutableSetOf<TypingPlayer>()
 
-    data class TypingPlayer(val id: PlayerId, val skinTextures: SkinTextures, val fallbackName: () -> Text)
+    data class TypingPlayer(val id: PlayerId, val skinTextures: SkinTextures, val name: Text)
 
     fun registerEndpoints() {
         CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.registerClientReceiver {
+            val gameSession = client.gameSession ?: return@registerClientReceiver
             val playerListEntry = getPlayerListEntry(player) ?: return@registerClientReceiver
-            if (playerListEntry.profile.id != MinecraftClient.networkHandler?.profile?.id || client.developerMode) {
-                typingPlayers.add(
-                    TypingPlayer(player, playerListEntry.skinTextures) {
-                        playerListEntry.displayName ?: Text.of(playerListEntry.profile.name)
-                    }
-                )
+            val enginePlayer = gameSession.playerStorage.get(player) ?: return@registerClientReceiver
+
+            if (enginePlayer != gameSession.mainPlayer || client.developerMode) {
+                typingPlayers.add(TypingPlayer(player, playerListEntry.skinTextures, enginePlayer.displayNameMiniMessage.parseMiniMessageClient()))
             }
         }
 
         CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.registerClientReceiver {
-            val player = getPlayerListEntry(player) ?: run {
+            if (client.gameSession?.playerStorage?.get(player) == null) {
                 typingPlayers.clear() // Если что-то сломалось
                 return@registerClientReceiver
             }
-            typingPlayers.removeIf { player.profile.id == it.id.value }
+            typingPlayers.removeIf { player == it.id }
         }
     }
 
     private fun getPlayerListEntry(id: PlayerId): PlayerListEntry? {
         return MinecraftClient.networkHandler?.playerList?.find { it.profile.id == id.value }
-    }
-
-    fun getDisplayName(player: TypingPlayer): Text {
-        return client.gameSession?.getPlayer(player.id).let { it?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.fallbackName() }
     }
 
     data class ChatMessageData(

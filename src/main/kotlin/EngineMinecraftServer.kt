@@ -76,7 +76,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     open fun tick() {
         val players = engine.playerStorage.getAll()
-        updateServerMinecraftSystems(this, entityTable, players, engine.itemStorage, itemLoader)
+        updateServerMinecraftSystems(this, entityTable, players, itemLoader)
         engine.update()
         updateBullets(engine.defaultWorld, minecraftServer.overworld)
         autosaveTimer.tick()
@@ -112,7 +112,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             return
         }
         val player = entityTable.getPlayer(entity) ?: return
-        engine.destroyPlayer(player)
+        engine.playerService.destroy(player)
         entityTable.removePlayer(entity)
         unloadTimer.activate()
     }

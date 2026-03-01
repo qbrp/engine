@@ -22,6 +22,7 @@ import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.SoundPlay
 import org.lain.engine.mc.BlockHint
 import org.lain.engine.player.*
+import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
@@ -35,7 +36,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val handledNotifications = mutableSetOf<Notification>()
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
     val taskExecutor = TaskExecutor()
-    val processedSounds = LinkedHashSet<SoundBroadcast>()
+    val processedSounds = mutableSetOf<SoundBroadcast>()
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
@@ -58,12 +59,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 actions.removeIf { it is InputAction.SlotClick }
             }
 
-            SERVERBOUND_INPUT_PACKET.sendC2SPacket(
-                InputPacket(
-                    gameSession.ticks,
-                    actions.map { it.toDto() }.toSet()
+            if (input.actions != input.lastActions) {
+                SERVERBOUND_INPUT_PACKET.sendC2SPacket(
+                    InputPacket(
+                        gameSession.ticks,
+                        actions.map { it.toDto() }.toSet()
+                    )
                 )
-            )
+            }
 
             for (player in gameSession.playerStorage) {
                 if (player.has<InteractionComponent>()) continue
@@ -81,9 +84,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         if (gameSession != null) {
             val input = gameSession.mainPlayer.require<PlayerInput>()
             input.actions.clear()
-        }
-        if (processedSounds.size > 200) {
-            processedSounds.removeAll(processedSounds.take(100).toSet())
         }
     }
 
@@ -140,6 +140,28 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.sendC2SPacket(WriteableUpdatePacket(item, contents))
     }
 
+    fun applyPlayerAttributeUpdate(
+        player: EnginePlayer,
+        speed: AttributeUpdate? = null,
+        jumpStrength: AttributeUpdate? = null
+    ) = with(player) {
+        val attributes = require<PlayerAttributes>()
+
+        applyAttribute(speed) { attributes.speed.custom = it }
+        applyAttribute(jumpStrength) { attributes.jumpStrength.custom = it }
+    }
+
+    fun applyAttribute(
+        update: AttributeUpdate?,
+        setter: (Float?) -> Unit
+    ) {
+        when (update) {
+            AttributeUpdate.Reset -> setter(null)
+            is AttributeUpdate.Value -> setter(update.value)
+            else -> {}
+        }
+    }
+
     fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) = with(player) {
         replaceOrSet(data.movementStatus)
         replaceOrSet(data.attributes)
@@ -188,6 +210,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         movementDefaultAttributes = defaultAttributes.movement
         movementSettings = settings.movement
         playerSynchronizationRadius = settings.playerSynchronizationRadius
+        playerDesynchronizationThreshold = settings.playerDesynchronizationThreshold
         chatManager.updateSettings(settings.chat)
     }
 
@@ -220,6 +243,9 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                     sprite = WARNING,
                     lifeTime = 300
                 )
+
+            Notification.VOICE_BREAK -> TODO()
+            Notification.VOICE_TIREDNESS -> TODO()
             Notification.FREECAM ->
                 LittleNotification(
                     "Вы используете мод Freecam",

@@ -2,6 +2,7 @@ package org.lain.engine.client.chat
 
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
+import org.lain.engine.chat.chatChannelOf
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.EXCLAMATION
@@ -107,27 +108,8 @@ class ClientEngineChatManager(
     }
 
     fun sendMessage(text: String) {
-        val prefix = text.take(1)
-        var content = text
-
-        // Определяем канал
         val channels = availableChannels.values
-
-        val channel: ClientChatChannel = channels.firstOrNull { ch ->
-            val channelSelectors = ch.selectors
-            val regexSelector = channelSelectors.regex.firstOrNull { Regex(it.expression).matches(text) }
-            val prefixSelector = channelSelectors.prefixes.firstOrNull { prefix == it.value }
-
-            val regexRemove = regexSelector?.remove
-            if (regexSelector != null && regexRemove != null) {
-                content = content.replace(regexRemove.toRegex(), "")
-            } else if (prefixSelector != null) {
-                content = text.drop(1)
-            }
-
-            prefixSelector != null || regexSelector != null
-        } ?: defaultChannel
-
+        val (channel, content) = chatChannelOf(text, channels.toList(), defaultChannel)
         gameSession.handler.onChatMessageSend(content, channel.id)
     }
 

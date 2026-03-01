@@ -1,11 +1,6 @@
 package org.lain.engine.player
 
-import org.lain.engine.chat.Acoustic
-import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.ChatChannel
-import org.lain.engine.chat.EngineChat
-import org.lain.engine.chat.IncomingMessage
-import org.lain.engine.chat.MessageSource
+import org.lain.engine.chat.*
 import org.lain.engine.util.Component
 import org.lain.engine.util.flush
 import org.lain.engine.util.get
@@ -14,15 +9,16 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 data class Speak(
     val content: String,
-    val channel: ChannelId
+    val channel: ChannelId,
+    val volume: Float? = null
 )
 
 data class MessageQueue(
     val messages: ConcurrentLinkedQueue<Speak> = ConcurrentLinkedQueue()
 ) : Component
 
-fun EnginePlayer.speak(text: String, channel: ChannelId = ChatChannel.DEFAULT) {
-    require<MessageQueue>().messages += Speak(text, channel)
+fun EnginePlayer.speak(text: String, channel: ChannelId = ChatChannel.DEFAULT, volume: Float? = null) {
+    require<MessageQueue>().messages += Speak(text, channel, volume)
 }
 
 fun EnginePlayer.flushMessages(todo: (Speak) -> Unit) {
@@ -36,7 +32,7 @@ fun flushPlayerMessages(
 ) {
     player.flushMessages { message ->
         val channel = chat.getChannel(message.channel)
-        val volume = player.volume
+        val volume = message.volume ?: player.volume
         var content = message.content
 
         if (channel.speech) {

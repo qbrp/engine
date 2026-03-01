@@ -31,14 +31,13 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.min
 
 class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Message source is too high or low")
 
 const val SEGMENT_SIZE = 64f
 
-fun World.segmentOf(y: Int) = floor((y - bottomY) / SEGMENT_SIZE).toInt()
+fun World.segmentOf(y: Int) = ceil((y - bottomY) / SEGMENT_SIZE).toInt() - 1
 
 val World.segmentCount get() = ceil(height / SEGMENT_SIZE).toInt()
 
@@ -336,8 +335,16 @@ class ConcurrentAcousticSceneBank {
         return compound
     }
 
+    fun removeAll() {
+        chunkMap.forEach { (key, compound) -> removeChunk(key) }
+    }
+
     fun removeChunk(world: WorldId, chunk: ChunkPos) {
-        chunkMap.remove(WorldChunkKey(world, chunk))
+        removeChunk(WorldChunkKey(world, chunk))
+    }
+
+    private fun removeChunk(key: WorldChunkKey) {
+        chunkMap.remove(key)
             ?.also {
                 it.scenes.forEach { scene ->
                     scene.destroy()
@@ -438,12 +445,17 @@ class MinecraftAcousticManager(
         acousticSceneBank.removeChunk(world, chunk.pos)
     }
 
+    fun invalidate() {
+        acousticSceneBank.removeAll()
+    }
+
     override suspend fun simulateSingleSource(
         world: WorldId,
         pos: Pos,
         volume: Float,
         maxVolume: Float,
         attenuation: Float,
+        exceptionHandler: (Throwable) -> Unit
     ): AcousticSimulationResult {
         val timestamp = Timestamp()
         val mcWorld = entityTable.getMcWorld(world) ?: throw IllegalArgumentException("World $world")
@@ -451,7 +463,7 @@ class MinecraftAcousticManager(
 
         val blockPos = pos.toBlockPos()
         val y = blockPos.y
-        if (y > mcWorld.height || y < mcWorld.bottomY) {
+        if (y > mcWorld.topYInclusive || y < mcWorld.bottomY) {
             throw InvalidMessageSourcePositionException(pos.y.toInt())
         }
         val x = blockPos.x
@@ -462,7 +474,21 @@ class MinecraftAcousticManager(
         val z0 = z - range
         val x1 = x + range
         val z1 = z + range
-        val scene = acousticSceneBank.getChunkedView(mcWorld, acousticBlockData, x0, z0, x1, z1, y)
+        val scene = try {
+            acousticSceneBank.getChunkedView(mcWorld, acousticBlockData, x0, z0, x1, z1, y)
+        } catch (e: Throwable) {
+            logger.error("Во время получения акустической сцены возникла ошибка", e)
+            exceptionHandler(e)
+            return object : AcousticSimulationResult {
+                override fun debug(
+                    player: EnginePlayer,
+                    handler: ServerHandler,
+                    radius: Float
+                ) {}
+                override fun getVolume(pos: Pos): Float? = null
+                override fun finish() {}
+            }
+        }
         val size = scene.totalSize
         val generation = AcousticGeneration(
             PrimitiveArrayPool.getGrid3f(
@@ -509,8 +535,9 @@ class MinecraftAcousticManager(
                 maxVolume,
                 timestamp.timeElapsed()
             )
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (e: Throwable) {
+            logger.error("Во время обработки акустики возникла ошибка", e)
+            exceptionHandler(e)
             _finish()
         }
 

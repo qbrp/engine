@@ -156,9 +156,7 @@ class MinecraftEngineClient : ClientModInitializer {
                         val world = session.world
 
                         val player = clientPlayerTable.getPlayer(entity) ?: run {
-                            if (entity.squaredDistanceTo(entity) < session.playerSynchronizationRadius * session.playerSynchronizationRadius) {
-                                skippedPlayers += entity
-                            }
+                            skippedPlayers += entity
                             return@forEach
                         }
                         val itemStacks = (entity.inventory + entity.currentScreenHandler.cursorStack).toSet()
@@ -174,7 +172,6 @@ class MinecraftEngineClient : ClientModInitializer {
                             }
                         }
 
-                        removeHoldsByMarks(session.itemStorage.getAll())
                         updatePlayerMinecraftSystems(player, items, entity, world)
 
                         player.remove<OpenBookTag>()?.let {
@@ -246,15 +243,16 @@ class MinecraftEngineClient : ClientModInitializer {
             )
             context.matrices.pushMatrix()
             renderer.isFirstPerson = !client.gameRenderer.camera.isThirdPerson
-            engineClient.gameSession?.mainPlayer?.handle<Narration> {
+            val mainPlayer = engineClient.gameSession?.mainPlayer
+            if (mainPlayer != null) {
                 renderNarrations(
                     context,
                     renderer.narrations,
-                    this,
+                    mainPlayer.require<Narration>(),
                     deltaTick
                 )
+                renderer.renderScreen(painter)
             }
-            renderer.renderScreen(painter)
             val window = MinecraftClient.window
             val mouse = MinecraftClient.mouse
             uiRenderPipeline.render(
@@ -313,7 +311,7 @@ class MinecraftEngineClient : ClientModInitializer {
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
                 prepareServerMinecraftPlayer(server, entity, player)
                 engine.execute {
-                    engine.instantiatePlayer(player)
+                    engine.playerService.instantiate(player)
                 }
             }
         } else {

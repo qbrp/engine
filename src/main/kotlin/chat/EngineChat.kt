@@ -348,7 +348,11 @@ class EngineChat(
         val acousticLevel = settings.realisticAcousticFormatting.getLevel(volume)
         val multiplier = acousticLevel.multiplier * settings.acousticAttenuation
 
-        val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, multiplier)
+        val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, multiplier) { exception ->
+            if (author != null) {
+                sendSystemMessage("<red>При обработке сообщения акустической системой возникла ошибка. Ваше сообщения не будет видно другим игрокам", author)
+            }
+        }
 
         val recipients = players
             .mapNotNull {

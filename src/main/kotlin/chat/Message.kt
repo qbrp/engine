@@ -8,6 +8,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.Pos
@@ -130,6 +131,29 @@ data class ChatChannel(
             Acoustic.Global
         )
     }
+}
+
+data class ChatChannelFindModifyResult(val channel: ClientChatChannel, val modifiedInput: String)
+
+fun chatChannelOf(input: String, channels: List<ClientChatChannel>, defaultChannel: ClientChatChannel): ChatChannelFindModifyResult {
+    val prefix = input.take(1)
+    var content = input
+
+    val channel: ClientChatChannel = channels.firstOrNull { ch ->
+        val channelSelectors = ch.selectors
+        val regexSelector = channelSelectors.regex.firstOrNull { Regex(it.expression).matches(content) }
+        val prefixSelector = channelSelectors.prefixes.firstOrNull { prefix == it.value }
+
+        val regexRemove = regexSelector?.remove
+        if (regexSelector != null && regexRemove != null) {
+            content = content.replace(regexRemove.toRegex(), "")
+        } else if (prefixSelector != null) {
+            content = content.drop(prefixSelector.value.count())
+        }
+
+        prefixSelector != null || regexSelector != null
+    } ?: defaultChannel
+    return ChatChannelFindModifyResult(channel, content)
 }
 
 data class OutcomingMessage(

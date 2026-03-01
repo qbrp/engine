@@ -77,11 +77,16 @@ fun itemPersistentData(item: EngineItem): PersistentItemData {
 }
 
 @OptIn(ExperimentalSerializationApi::class)
+val ITEM_CBOR = Cbor {
+    ignoreUnknownKeys = true
+}
+
+@OptIn(ExperimentalSerializationApi::class)
 fun serializeItemPersistentComponents(item: PersistentItemData): ByteArray {
-    return Cbor.encodeToByteArray(item.components)
+    return ITEM_CBOR.encodeToByteArray(item.components)
 }
 
 @OptIn(ExperimentalSerializationApi::class)
 fun deserializeItemPersistentComponents(array: ByteArray): List<ItemData> {
-    return Cbor.decodeFromByteArray(array)
+    return ITEM_CBOR.decodeFromByteArray(array)
 }

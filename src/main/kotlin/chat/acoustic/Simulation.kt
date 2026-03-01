@@ -5,7 +5,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.WorldId
-import java.util.PriorityQueue
+import java.util.*
 
 interface AcousticSimulator {
     suspend fun simulateSingleSource(
@@ -14,6 +14,7 @@ interface AcousticSimulator {
         volume: Float,
         maxVolume: Float,
         attenuation: Float,
+        exceptionHandler: (Throwable) -> Unit
     ): AcousticSimulationResult
 }
 
