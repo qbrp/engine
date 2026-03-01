@@ -104,8 +104,11 @@ class GameSession(
             updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
             supplyPlayerInventoryItemsLocation(player, playerItems)
 
-            updatePlayerVerbLookup(player)
-            updatePlayerInteractions(player)
+            updatePlayerVerbLookup(player, false)
+            val interaction = player.get<InteractionComponent>()
+            if (interaction != null) {
+                println("Взаимодействие: $interaction")
+            }
 
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)

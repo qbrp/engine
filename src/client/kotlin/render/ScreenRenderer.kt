@@ -24,6 +24,7 @@ class ScreenRenderer(private val client: EngineClient) {
             narrationMessages.messages.forEach { message ->
                 if (narrations.none { message.id == it.id }) {
                     narrations += NarrationMessageRenderState(message.id)
+                    if (message.kick) client.audioManager.playKickSound()
                 }
             }
             narrations.removeIf { narrationMessages.get(it.id) == null }

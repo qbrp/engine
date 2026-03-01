@@ -4,10 +4,7 @@ import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.util.FixedSizeList
-import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.Timestamp
-import org.lain.engine.util.flush
+import org.lain.engine.util.*
 import org.lain.engine.world.*
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -63,6 +60,12 @@ class EngineServer(
             appendVerbs(player)
 
             updatePlayerInteractions(player, handler=handler)
+
+            val interaction = player.get<InteractionComponent>()
+            if (interaction != null) {
+                println("Взаимодействие: $interaction")
+            }
+
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)
             handleGunInteractions(player)

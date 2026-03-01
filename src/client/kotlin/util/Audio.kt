@@ -9,6 +9,7 @@ import java.util.*
 interface EngineAudioManager {
     fun playUiNotificationSound()
     fun playPigScreamSound()
+    fun playKickSound()
     fun playSound(player: SoundPlay)
     fun invalidateCache()
 }

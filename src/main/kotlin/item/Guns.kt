@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.*
 import org.lain.engine.server.ItemSynchronizable
+import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.*
 import org.lain.engine.util.math.ImmutableVec3
@@ -131,6 +132,15 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             gun.fireTime = gun.rate
         }
 
+        fun finish() {
+            player.finishInteraction()
+            handItem.markDirty<Gun>(id)
+        }
+
+        if (occupied && !player.actionsSimilar()) {
+            finish()
+        }
+
         if (barrel.bullets > 0) {
             barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
             emitItemInteractionSoundEvent(handItem, GUNFIRE_SOUND)
@@ -147,7 +157,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             )
 
             if (gun.mode != FireMode.AUTO) {
-                player.finishInteraction()
+                finish()
             } else {
                 occupy()
             }
@@ -156,7 +166,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
                 emitItemInteractionSoundEvent(handItem, CLICK_EMPTY_SOUND)
                 gun.clicked = true
             }
-            player.finishInteraction()
+            finish()
         }
     }
 
@@ -169,6 +179,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             val nextIndex = (currentIndex + 1) % modes.size
             gun.mode = modes[nextIndex]
             emitItemInteractionSoundEvent(handItem, SELECTOR_TOGGLE_SOUND)
+            handItem.markDirty<Gun>(id)
         }
 
         player.finishInteraction()
@@ -186,6 +197,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             gun.clicked = false
             emitItemInteractionSoundEvent(slotItem, ROUND_BARREL_SOUND)
             player.set(DestroyItemSignal(cursorItem.uuid, count))
+            slotItem.markDirty<Gun>(id)
         }
         player.finishInteraction()
     }

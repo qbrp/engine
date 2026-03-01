@@ -15,11 +15,15 @@ data class PlayerInventory(
     val items: MutableSet<EngineItem>,
     var cursorItem: EngineItem? = null,
     var mainHandItem: EngineItem? = null,
-    var offHandItem: EngineItem? = null
+    var offHandItem: EngineItem? = null,
+    var selectedSlot: Int = 0
 ) : Component
 
 // Уничтожить предмет в инвентаре игрока, обработать игрой
 data class DestroyItemSignal(val item: ItemUuid, val count: Int = 1) : Component
+
+// Уничтожить предмет в инвентаре игрока, обработать игрой
+data class MoveItemSignal(val item: ItemUuid, val slot: Int) : Component
 
 val EnginePlayer.items: Set<EngineItem>
     get() = this.require<PlayerInventory>().let { it.items + listOfNotNull(it.cursorItem) }
@@ -29,6 +33,9 @@ val EnginePlayer.handItem
 
 val EnginePlayer.cursorItem
     get() = this.require<PlayerInventory>().cursorItem
+
+val EnginePlayer.selectedSlot
+    get() = this.require<PlayerInventory>().selectedSlot
 
 private val SLOT_MERGE_VERB = ItemVerb(
     VerbId("slot_merge"),

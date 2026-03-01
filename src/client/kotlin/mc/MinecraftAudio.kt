@@ -2,7 +2,6 @@ package org.lain.engine.client.mc
 
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.sound.*
-import net.minecraft.client.sound.SoundInstance
 import net.minecraft.client.sound.SoundInstance.AttenuationType
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
@@ -159,6 +158,10 @@ class MinecraftAudioManager(
         playMaster(PIG_SCREAM, 1f - Random.nextFloat() / 8f, 2f)
     }
 
+    override fun playKickSound() {
+        playMaster(KICK, 1f - Random.nextFloat() / 8f, 2f)
+    }
+
     override fun invalidateCache() {
         soundSetCache.invalidate()
     }
@@ -188,6 +191,7 @@ class MinecraftAudioManager(
 
     companion object {
         val PIG_SCREAM = register("pig-scream")
+        val KICK = register("kick")
 
         private fun register(id: String): net.minecraft.sound.SoundEvent {
             return Registry.register(Registries.SOUND_EVENT, EngineId(id), net.minecraft.sound.SoundEvent.of(EngineId(id)))
