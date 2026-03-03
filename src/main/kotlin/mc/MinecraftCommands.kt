@@ -505,41 +505,6 @@ fun ServerCommandDispatcher.registerEngineCommands() {
     }
 
     register(
-        CommandManager.literal("sethint")
-            .requires { it.hasPermission("sethint") }
-            .then(
-                CommandManager.argument("text", StringArgumentType.greedyString())
-                    .executeCatching { ctx ->
-                        val entity = ctx.requireEntity()
-                        val (blockPos, chunk) = getLookedBlock(entity)
-                        val text = ctx.command.getString("text")
-                        val number = text.split(" ").lastOrNull()?.let {
-                            if (it.all { char -> char.isDigit() }) it else null
-                        }?.toInt()
-
-                        val hint = chunk.setBlockHint(blockPos, text, number)
-                        ctx.sendFeedback(hint.displayText(hint.texts.indexOf(text)), true)
-                    }
-            )
-    )
-
-    register(
-        CommandManager.literal("detachhint")
-            .requires { it.hasPermission("detachhint") }
-            .then(
-                CommandManager.argument("index", IntegerArgumentType.integer())
-                    .executeCatching { ctx ->
-                        val entity = ctx.requireEntity()
-                        val (blockPos, chunk) = getLookedBlock(entity)
-                        val index = ctx.command.getInt("index")
-
-                        chunk.detachBlockHint(blockPos, index)
-                        ctx.sendFeedback("Удален текст под индексом $index", true)
-                    }
-            )
-    )
-
-    register(
         CommandManager.literal("interactions")
             .executeCatching { ctx ->
                 val player = ctx.requirePlayer()
