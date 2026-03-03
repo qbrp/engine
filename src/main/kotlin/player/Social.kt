@@ -17,7 +17,7 @@ val HAIL_VERB = PlayerVerb(
 val GIVE_AWAY = PlayerVerb(
     VerbId("give_away"),
     "Передать предмет",
-    priority = 10
+    priority = 5
 )
 
 fun appendSocialVerbs(player: EnginePlayer) = player.handle<VerbLookup> {

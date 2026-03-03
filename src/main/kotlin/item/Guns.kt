@@ -74,9 +74,9 @@ data class BulletParameters(
 )
 
 const val BULLET_FIRE_RADIUS = 64
+const val CLICK_SOUND = "click"
 
 private const val ROUND_BARREL_SOUND = "round_barrel"
-private const val CLICK_EMPTY_SOUND = "click_empty"
 private const val GUN_TRIGGER_SOUND = "gun_trigger"
 private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
@@ -163,7 +163,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             }
         } else {
             if (!gun.clicked) {
-                emitItemInteractionSoundEvent(handItem, CLICK_EMPTY_SOUND)
+                emitItemInteractionSoundEvent(handItem, CLICK_SOUND)
                 gun.clicked = true
             }
             finish()

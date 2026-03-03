@@ -450,18 +450,14 @@ class ServerHandler(
         )
     }
 
-    fun onVoxelDestroy(world: World, voxelPos: ImmutableVoxelPos) {
-//        val packet = DestroyVoxelPacket(voxelPos)
-//        CLIENTBOUND_VOXEL_DESTROY_ENDPOINT.broadcastOutSimulationRadius(world, voxelPos) { packet }
-    }
-
+    //TODO: Сделать трекинг чанков
     fun onVoxelDecalsUpdate(world: World, voxelPos: VoxelPos) {
         val packet = VoxelUpdatePacket(
             ImmutableVoxelPos(voxelPos),
             world.chunkStorage.getDecals(voxelPos),
             null
         )
-        CLIENTBOUND_VOXEL_UPDATE_ENDPOINT.broadcastOutSimulationRadius(world, voxelPos) { packet }
+        CLIENTBOUND_VOXEL_UPDATE_ENDPOINT.broadcast(packet)
     }
 
     fun <P : Packet> Endpoint<P>.broadcastExcluding(

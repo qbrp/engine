@@ -97,8 +97,31 @@ data class DecalEvent(val pos: VoxelPos, val chunk: EngineChunkPos, val type: Ty
     sealed class Type {
         data class Attach(val direction: Direction, val pos: Pos, val decal: Decal, val layer: DecalsLayerType) : Type()
         data class Set(val decals: BlockDecals?) : Type()
+        data class Remove(val layers: List<DecalsLayerType>) : Type()
+    }
+    sealed class Selector {
+        data class Single(val pos: VoxelPos, val chunk: EngineChunkPos) : Selector()
+        data class Multi(val positions: List<VoxelPos>) : Selector()
     }
 }
+
+
+fun World.removeDecals(
+    layers: List<DecalsLayerType>,
+    positions: List<VoxelPos>
+) {
+    val events = this.events<DecalEvent>()
+    positions.forEach { pos ->
+        events.add(
+            DecalEvent(
+                pos,
+                EngineChunkPos(pos),
+                DecalEvent.Type.Remove(layers)
+            )
+        )
+    }
+}
+
 
 fun World.attachDecal(
     layer: DecalsLayerType,
@@ -147,6 +170,9 @@ fun handleDecalsAttaches(world: World) = world.events<DecalEvent>().forEach { ev
                 null -> chunk.removeDecals(event.pos)
                 else -> chunk.setDecals(decals, event.pos)
             }
+        }
+        is DecalEvent.Type.Remove -> {
+            chunk.removeDecals(event.pos)
         }
     }
 }

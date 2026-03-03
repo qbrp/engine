@@ -1,6 +1,7 @@
 package org.lain.engine.mc
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -44,7 +45,7 @@ typealias ServerCommandDispatcher = CommandDispatcher<ServerCommandSource>
 
 typealias ServerCommandContext = CommandContext<ServerCommandSource>
 
-private val logger = LoggerFactory.getLogger("Engine Fabric Commands")
+private val LOGGER = LoggerFactory.getLogger("Engine Fabric Commands")
 
 fun ServerCommandContext.getPlayers(id: String): List<ServerPlayerEntity> {
     return EntityArgumentType.getPlayers(this, id).toList()
@@ -91,7 +92,7 @@ fun <T : ArgumentBuilder<ServerCommandSource, T>> ArgumentBuilder<ServerCommandS
             source.sendError(e.message!!.parseMiniMessage())
         } catch (e: Throwable) {
             source.sendError(Text.of { e.message ?: "Неизвестная ошибка" })
-            logger.error("Возникла ошибка при выполнении команды ${e.message}", e)
+            LOGGER.error("Возникла ошибка при выполнении команды ${e.message}", e)
         }
         1
     }
@@ -103,11 +104,11 @@ fun ServerCommandSource.hasPermission(text: String): Boolean {
     return false
 }
 
-fun List<ServerPlayerEntity>.formatPlayerList() = joinToString(separator = ", ") { it.name.string }
-
 private class FriendlyException(message: String) : RuntimeException(message)
 
 fun friendlyError(message: String): Nothing = throw FriendlyException(message)
+
+fun List<ServerPlayerEntity>.formatPlayerList() = joinToString(separator = ", ") { it.name.string }
 
 data class Context(
     val player: EnginePlayer?,
@@ -135,12 +136,35 @@ data class Context(
     }
 }
 
+fun literal(name: String) = CommandManager.literal(name)
+
+fun <T> argument(name: String, argumentType: ArgumentType<T>) = CommandManager.argument(name, argumentType)
+
+fun floatArgument(name: String) = argument(name, FloatArgumentType.floatArg())
+
+fun floatArgument(name: String, min: Float, max: Float) = argument(name, FloatArgumentType.floatArg(min, max))
+
+fun selection(name: String, variants: List<String>) = argument(name, StringArgumentType.word())
+    .suggests(StringListSuggestionProvider(variants))
+
+class StringListSuggestionProvider(val variants: List<String>) : SuggestionProvider<ServerCommandSource> {
+    override fun getSuggestions(
+        context: CommandContext<ServerCommandSource>,
+        builder: SuggestionsBuilder
+    ): CompletableFuture<Suggestions> {
+        variants
+            .filter { it.startsWith(builder.remainingLowerCase) }
+            .forEach { variant -> builder.suggest(variant) }
+        return builder.buildFuture()
+    }
+}
+
 fun ServerCommandDispatcher.registerEngineCommands() {
     val playerTable = injectValue<EntityTable>().server
     val server by injectMinecraftEngineServer()
 
     register(
-        CommandManager.literal("speed")
+        literal("speed")
             .requires { it.hasPermission("attributecommand.speed") }
             .then(
                 CommandManager.argument("players", EntityArgumentType.players())
@@ -157,7 +181,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                             }
                     )
                     .then(
-                        CommandManager.literal("set")
+                        literal("set")
                             .then(
                                 CommandManager.argument("value", FloatArgumentType.floatArg())
                                     .executeCatching { ctx ->
