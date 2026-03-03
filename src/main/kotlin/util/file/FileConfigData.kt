@@ -139,10 +139,7 @@ data class MovementConfig(
     @SerialName("stamina_regen") val staminaRegenMinutes: Float,
     @SerialName("jump_stamina_consume") val jumpStaminaConsume: Float,
     @SerialName("intention_effect") val intentionEffect: Float
-) {
-    companion object {
-    }
-}
+)
 
 //// PLAYER CONFIG
 
@@ -158,5 +155,6 @@ data class PlayerConfig(
 data class VocalVolumeConfig(
     val base: Float,
     val min: Float,
-    val max: Float
+    val max: Float,
+    @SerialName("tiredness_multiplier") val tirednessMultiplier: Float = 1f,
 )

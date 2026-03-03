@@ -35,12 +35,11 @@ import kotlin.math.min
 
 class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Message source is too high or low")
 
-const val SEGMENT_SIZE = 64f
-const val SEGMENT_EXTEND = 24
+const val SEGMENT_SIZE = 16
 
-fun World.segmentOf(y: Int) = ceil((y - bottomY) / SEGMENT_SIZE).toInt().coerceAtMost(segmentCount) - 1
+fun World.segmentOf(y: Int) = ceil((y - bottomY.toFloat()) / SEGMENT_SIZE).toInt().coerceAtMost(segmentCount) - 1
 
-val World.segmentCount get() = ceil(height / SEGMENT_SIZE).toInt()
+val World.segmentCount get() = ceil(height / SEGMENT_SIZE.toFloat()).toInt()
 
 data class AcousticBlockData(
     val solid: Float,
@@ -186,8 +185,9 @@ class MinecraftChunkAcousticScene private constructor(
  */
 class ChunkedAcousticView(
     val chunkSize: ChunkSize,
-    private val scenes: List<MinecraftChunkAcousticScene>
+    val scenes: List<MinecraftChunkAcousticScene>
 ) {
+
     data class ChunkSize(val w: Int, val h: Int, val d: Int) {
         init {
             require(isPowerOfTwo(w))
@@ -255,48 +255,9 @@ class ChunkedAcousticView(
             z - baseZ
         ]
     }
-
-    inline fun forEachCell(
-        range: Grid3Range,
-        block: (idx: Int, passability: Float, x: Int, y: Int, z: Int) -> Unit
-    ) {
-        var idx = 0
-        val chunkPos = ChunkPos(0, 0, 0)
-
-        for (x in range.x0 until range.x1) {
-            chunkPos.x = chunkSize.chunkX(x)
-
-            for (y in range.y0 until range.y1) {
-                chunkPos.y = chunkSize.chunkY(y)
-
-                for (z in range.z0 until range.z1) {
-                    try {
-                        chunkPos.z = chunkSize.chunkZ(z)
-                        val chunk = chunkMap[chunkPos] ?: error("Координаты выходят за пределы чанка")
-
-                        val baseX = chunk.x - minX
-                        val baseY = chunk.y - minY
-                        val baseZ = chunk.z - minZ
-
-                        val pass = chunk.passability[
-                            x - baseX,
-                            y - baseY,
-                            z - baseZ
-                        ]
-
-                        block(idx++, pass, x, y, z)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        throw e
-                    }
-                }
-            }
-        }
-    }
 }
 
 class ConcurrentAcousticSceneBank {
-    // Упакованные сцены высотой в 64 блока
     data class AcousticSceneSegmentCompound(
         val scenes: MutableList<MinecraftChunkAcousticScene> = Collections.synchronizedList(mutableListOf())
     ) {
@@ -313,7 +274,7 @@ class ConcurrentAcousticSceneBank {
         val topY = chunk.topYInclusive
         val bottomY = chunk.bottomY
         val segments = world.segmentCount
-        val segmentSize = SEGMENT_SIZE.toInt()
+        val segmentSize = SEGMENT_SIZE
 
         val scenes = mutableListOf<MinecraftChunkAcousticScene>()
 
@@ -330,8 +291,8 @@ class ConcurrentAcousticSceneBank {
                     world,
                     chunk,
                     acousticBlockData,
-                    y0 = y0 - SEGMENT_EXTEND,
-                    y1 = y1 + SEGMENT_EXTEND
+                    y0 = y0,
+                    y1 = y1
                 )
             )
         }
@@ -393,25 +354,30 @@ class ConcurrentAcousticSceneBank {
         val chunkZ0 = minecraftChunkSectionCoord(z0)
         val chunkZ1 = minecraftChunkSectionCoord(z1)
 
+        val extend = 1
         val segment = world.segmentOf(y)
+        val segments = world.segmentCount
+        val bottomSegment = segment - extend
         val chunks = mutableListOf<MinecraftChunkAcousticScene>()
         for (x in chunkX0..chunkX1) {
             for (z in chunkZ0..chunkZ1) {
-                chunks.add(
-                    getChunkSegment(
-                        world,
-                        ChunkPos(x, z),
-                        y
-                    ) ?: addChunk(
-                        world,
-                        world.getChunk(x, z),
-                        acousticBlockData
-                    ).getScene(segment)
+                val chunkPos = ChunkPos(x, z)
+                val compound = getChunk(world.engine, chunkPos) ?: addChunk(
+                    world,
+                    world.getChunk(x, z),
+                    acousticBlockData
                 )
+
+                repeat(1 + extend * 2) { i ->
+                    val segmentIndex = bottomSegment + i
+                    if (segmentIndex < segments - 1) {
+                        chunks.add(compound.getScene(segmentIndex))
+                    }
+                }
             }
         }
         return ChunkedAcousticView(
-            ChunkedAcousticView.ChunkSize(16, 64, 16),
+            ChunkedAcousticView.ChunkSize(16, SEGMENT_SIZE, 16),
             chunks
         )
     }

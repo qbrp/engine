@@ -164,6 +164,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
             minVolume = volume.min
             maxVolume = volume.max
             baseVolume = volume.base
+            tirednessMultiplier = volume.tirednessMultiplier
         }
         val vocal = config.vocal
         it.vocalSettings = VocalSettings(

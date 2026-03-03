@@ -14,6 +14,7 @@ data class VoiceApparatus(
     val baseVolume: Float? = null, // Стандартное значение громкости, которое считается ОБЫЧНОЙ речью. Выше - ГРОМКАЯ, ниже - ТИХАЯ
     val maxVolume: Float? = null, // Эти значения изначально хранятся в engineServer
     val minVolume: Float? = null,
+    val tirednessMultiplier: Float? = null,
 ) : Component
 
 val EnginePlayer.volume: Float
@@ -26,6 +27,7 @@ val EnginePlayer.volume: Float
             voiceApparatus.minVolume ?: defaults.minVolume,
             voiceApparatus.maxVolume ?: defaults.maxVolume,
             voiceApparatus.inputVolume,
+            voiceApparatus.tirednessMultiplier ?: defaults.tirednessMultiplier,
             has<VoiceLoose>()
         )
     }
@@ -36,13 +38,14 @@ fun getRealVolume(
     minVolume: Float,
     maxVolume: Float,
     inputVolume: Float,
-    loosen: Boolean
+    tirednessMultiplier: Float,
+    loosen: Boolean,
 ): Float {
     val tirednessMultiplier = if (!loosen) {
         0.8f
     } else {
         0.9f
-    }
+    } * tirednessMultiplier
 
     val max = ((1 - tiredness * tirednessMultiplier) * maxVolume)
     val outputVolume = (maxVolume - minVolume) * inputVolume + minVolume
