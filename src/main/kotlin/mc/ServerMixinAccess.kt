@@ -85,9 +85,13 @@ object ServerMixinAccess {
     }
 
     fun onServerPlayerEntityInitialized(entity: ServerPlayerEntity) {
-        val table = table.server
-        val player = table.getPlayer(entity)
-        if (player != null) {
+        onPlayerEntityInstantiated(entity, table.server)
+    }
+
+    fun <P : PlayerEntity> onPlayerEntityInstantiated(entity: P, table: EntityTable.Entity2PlayerTable<P>) {
+        val oldEntity = table.getEntity(entity.engineId) as? P
+        if (oldEntity != null && oldEntity !== entity) {
+            val player = table.getPlayer(oldEntity) ?: error("Игрок не существует")
             table.removePlayer(entity)
             table.setPlayer(entity, player)
         }

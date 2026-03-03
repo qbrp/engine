@@ -13,6 +13,7 @@ import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.ClientboundSetupData
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.NamespacedStorage
@@ -63,7 +64,7 @@ class GameSession(
         PlayerVolume(player.volume, player.maxVolume, player.baseVolume),
         this
     )
-    val mainPlayer = mainClientPlayerInstance(player.id, world, player)
+    val mainPlayer = mainClientPlayerInstance(player.id, world, player, DeveloperModeStatus(client.developerMode, client.acousticDebug))
     var ticks = 0L
         private set
     val namespacedStorage = NamespacedStorage()
@@ -113,6 +114,7 @@ class GameSession(
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)
             handleGunInteractions(player, true)
+            handleFlashlightInteractions(player)
             finishPlayerInteraction(player)
             val processedInteraction = player.get<InteractionComponent>()
             if (interaction != processedInteraction && interaction != null) {

@@ -17,6 +17,7 @@ import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.item.*
+import org.lain.engine.mc.ServerMixinAccess.onPlayerEntityInstantiated
 import org.lain.engine.mc.engine
 import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.PlayerInventory
@@ -114,12 +115,7 @@ object ClientMixinAccess {
 
     fun onClientPlayerEntityInitialized(entity: ClientPlayerEntity) {
         val entityTable by injectEntityTable()
-        val table = entityTable.client
-        val player = table.getPlayer(entity)
-        if (player != null) {
-            table.removePlayer(entity)
-            table.setPlayer(entity, player)
-        }
+        onPlayerEntityInstantiated(entity, entityTable.client)
     }
 
     fun sendChatMessage(content: String) {

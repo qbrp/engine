@@ -20,6 +20,7 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerEventListener
 import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
+import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
 import org.lain.engine.util.file.applyConfigCatching
@@ -62,6 +63,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     protected val itemLoader = ItemLoader(this)
 
     protected abstract val transportContext: ServerTransportContext
+    protected open val connectionManager: ServerConnectionManager? = null
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
         val item = engine.createItem(owner.location, itemId)
@@ -77,7 +79,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     open fun tick() {
         val players = engine.playerStorage.getAll()
-        updateServerMinecraftSystems(this, entityTable, players, itemLoader)
+        updateServerMinecraftSystems(this, entityTable, players, itemLoader, connectionManager)
         engine.update()
         updateBullets(engine.defaultWorld, minecraftServer.overworld)
         autosaveTimer.tick()
@@ -130,7 +132,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val world = engine.getWorld(world.engine)
         val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
         world.chunkStorage.removeVoxel(voxelPos)
-        engine.handler.onVoxelDestroy(world, voxelPos)
+        //engine.handler.onVoxelDestroy(world, voxelPos)
     }
 
     fun onBlockAdd(block: BlockState, pos: BlockPos, world: World) {
@@ -176,13 +178,13 @@ fun serverMinecraftPlayerInstance(
             PlayerAttributes(),
             Spectating(),
             GameMaster(),
+            developerModeStatus,
             stacks
                 .mapNotNull { it.engineItem() }
                 .toSet()
         ),
         persistentPlayerData,
         defaults,
-        developerModeStatus,
         playerId
     )
 }

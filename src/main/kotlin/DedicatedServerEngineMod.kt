@@ -44,7 +44,7 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
 
 class DedicatedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,
-    val connectionManager: ServerConnectionManager = ServerConnectionManager(),
+    override val connectionManager: ServerConnectionManager = ServerConnectionManager(),
     override val transportContext: ServerTransportContext = ServerNetworkTransport(dependencies.minecraftServer, connectionManager, dependencies.playerStorage),
 ) : EngineMinecraftServer(dependencies) {
     val authorizationListener = ServerAuthorizationListener(
@@ -94,6 +94,7 @@ data class AuthPacket(
     val username: Username,
     val mods: List<String>,
     val developerMode: DeveloperModeStatus,
+    val version: String
 ) : Packet
 
 val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
@@ -114,6 +115,15 @@ class ServerAuthorizationListener(
     }
 
     private fun onAuth(packet: AuthPacket, entity: ServerPlayerEntity, id: PlayerId) {
+        if (packet.version !in SharedConstants.ALLOWED_VERSIONS) {
+            val versionsText = if (SharedConstants.ALLOWED_VERSIONS.size == 1) {
+                SharedConstants.ALLOWED_VERSIONS.first()
+            } else {
+                "одна из следующих: ${SharedConstants.ALLOWED_VERSIONS.map { "<newline>$it" }}"
+            }
+            error("Несовместимая версия. Установлена ${packet.version}, в то время как требуется $versionsText")
+        }
+
         val engine = server.engine
         val connection = connectionManager.getSession(id)
         val username = packet.username

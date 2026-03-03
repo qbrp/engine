@@ -323,7 +323,8 @@ class MinecraftEngineClient : ClientModInitializer {
                 AuthPacket(
                     MinecraftUsername(entity),
                     fabricLoader.allMods.map { it.metadata.id },
-                    developerMode
+                    developerMode,
+                    ENGINE_MOD_VERSION
                 )
             )
         }

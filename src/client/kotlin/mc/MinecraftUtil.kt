@@ -3,7 +3,6 @@ package org.lain.engine.client.mc
 import com.google.gson.JsonParser
 import com.mojang.serialization.JsonOps
 import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
-import net.kyori.adventure.platform.modcommon.MinecraftServerAudiences
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import net.minecraft.text.Text
