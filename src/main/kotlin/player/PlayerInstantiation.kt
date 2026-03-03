@@ -19,6 +19,7 @@ data class PlayerInstantiateSettings(
     val attributes: PlayerAttributes = PlayerAttributes(),
     val spectating: Spectating = Spectating(),
     val gameMaster: GameMaster = GameMaster(),
+    val developerModeStatus: DeveloperModeStatus,
     val items: Set<EngineItem> = setOf()
 )
 
@@ -27,6 +28,7 @@ data class DefaultPlayerAttributes(
     var minVolume: Float = 0.2f,
     var maxVolume: Float = 1.3f,
     var baseVolume: Float = 5f,
+    var tirednessMultiplier: Float = 1f,
 ) : Component
 
 fun commonPlayerInstance(
@@ -43,6 +45,7 @@ fun commonPlayerInstance(
         set(ArmStatus(false))
         set(PlayerInput(mutableSetOf(), setOf()))
         set(Narration(mutableListOf()))
+        set(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)
@@ -55,14 +58,12 @@ fun serverPlayerInstance(
     settings: PlayerInstantiateSettings,
     persistent: PersistentPlayerData? = null,
     defaults: DefaultPlayerAttributes,
-    developerModeStatus: DeveloperModeStatus,
     id: PlayerId,
 ): EnginePlayer {
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
 
     return commonPlayerInstance(settings, id).apply {
         set(ServerPlayerInputMeta(false))
-        set(DeveloperMode(developerModeStatus.enabled, developerModeStatus.acoustic))
         set(MessageQueue())
         set(voiceApparatus)
         setNullable(persistent?.voiceLoose)

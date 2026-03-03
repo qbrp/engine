@@ -25,6 +25,7 @@ data class ItemInstantiationSettings(
     val writable: Writable? = null,
     val hat: Boolean = false,
     val assets: ItemAssets? = null,
+    val flashlight: Flashlight? = null,
     val sounds: ItemSounds? = null,
 )
 
@@ -38,6 +39,7 @@ fun itemInstance(uuid: ItemUuid, location: Location, properties: ItemInstantiati
         setNullable(properties.mass?.copy())
         setNullable(properties.writable?.copy())
         setNullable(properties.assets?.copy())
+        setNullable(properties.flashlight?.copy())
         if (properties.hat) set(Hat)
     }
     return itemInstance(uuid, properties.id, location, Count(1, properties.maxCount), state)
@@ -63,4 +65,5 @@ fun itemInstance(
 private fun Synchronizations<EngineItem>.initializeSynchronizers() {
     submit(ITEM_WRITABLE_SYNCHRONIZER)
     submit(ITEM_GUN_SYNCHRONIZER)
+    submit(ITEM_FLASHLIGHT_SYNCHRONIZER)
 }

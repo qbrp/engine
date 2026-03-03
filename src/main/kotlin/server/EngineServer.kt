@@ -70,6 +70,7 @@ class EngineServer(
             handleWriteableInteractions(player)
             handleGunInteractions(player)
             handleSocialInteractions(player)
+            handleFlashlightInteractions(player)
             finishPlayerInteraction(player)
             tickInventoryGun(playerItems)
 

@@ -40,6 +40,12 @@ data class GunConfig(
 }
 
 @Serializable
+data class FlashlightConfig(
+    val radius: Float = 8f,
+    val distance: Float = 20f
+)
+
+@Serializable
 data class ItemConfig(
     @SerialName("display_name") val displayName: String,
     val material: String = "stick",
@@ -53,6 +59,7 @@ data class ItemConfig(
     val mass: Float? = null,
     val writable: WritableConfig? = null,
     val assets: Map<String, String>? = null,
+    val flashlight: FlashlightConfig? = null,
 )
 
 @Serializable
@@ -97,6 +104,7 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
                     config.writable?.let { Writable(it.pages, listOf(), it.texture) },
                     hat,
                     ItemAssets(assets),
+                    config.flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance)) },
                     sounds = ItemSounds(sounds)
                 )
             )

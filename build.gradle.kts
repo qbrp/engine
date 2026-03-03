@@ -56,7 +56,14 @@ repositories {
             password = findProperty("gpr.key") as String?
         }
     }
-
+    maven {
+        name = "Gegy"
+        url = uri("https://maven.gegy.dev")
+    }
+    maven {
+        name = "EngineHub"
+        url = uri("https://maven.enginehub.org/repo/")
+    }
 }
 
 val transitive by configurations.creating
@@ -109,6 +116,14 @@ dependencies {
 
     // Camera Overhaul совместимость
     modCompileOnly("maven.modrinth:cameraoverhaul:y8OOuYdV")
+
+    // API Lamb Dynamic Lights
+    modImplementation("maven.modrinth:lambdynamiclights:${project.property("lambdynamiclights_version")}")
+    modImplementation("dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime:${project.property("lambdynamiclights_version")}")
+
+    // API WorldEdit
+    modCompileOnly("com.sk89q.worldedit:worldedit-core:${project.property("worldedit_version")}")
+    modCompileOnly("com.sk89q.worldedit:worldedit-fabric-mc$minecraft_version:${project.property("worldedit_version")}")
 }
 
 tasks.test {

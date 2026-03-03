@@ -29,6 +29,7 @@ internal val ItemProtobuf = ProtoBuf {
             subclass(Mass::class)
             subclass(Writable::class)
             subclass(ItemSounds::class)
+            subclass(Flashlight::class)
         }
     }
 }
@@ -61,6 +62,7 @@ data class ClientboundItemData(
                 item.get<Mass>()?.copy(),
                 item.get<Writable>()?.copy(),
                 item.get<ItemSounds>()?.copy(),
+                item.get<Flashlight>()?.copy(),
             )
         )
     }

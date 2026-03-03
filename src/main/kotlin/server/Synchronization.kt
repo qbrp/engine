@@ -197,3 +197,4 @@ interface ItemSynchronizable
 
 val ITEM_WRITABLE_SYNCHRONIZER = ItemComponentSynchronizer<Writable>(PlayerPredicate.ALL) { item, component -> item.replace(component.copy()) }
 val ITEM_GUN_SYNCHRONIZER = ItemComponentSynchronizer<Gun>(PlayerPredicate.OTHERS) { item, component -> item.replace(component.copy()) }
+val ITEM_FLASHLIGHT_SYNCHRONIZER = ItemComponentSynchronizer<Flashlight>(PlayerPredicate.OTHERS) { item, component -> item.get<Flashlight>()?.enabled = component.enabled }

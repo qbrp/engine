@@ -1,5 +1,6 @@
 package org.lain.engine.client
 
+import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,6 +54,9 @@ class MinecraftEngineClient : ClientModInitializer {
     private val client = MinecraftClient
     private val fabricLoader = FabricLoader.getInstance()
     private val entityTable by injectEntityTable()
+    private val dynamicLights by injectDynamicLightsContext()
+    private val dynamicLightSources = mutableSetOf<LightSource>()
+    private val dynamicLightBehaviours = mutableMapOf<LightSource, DynamicLightBehavior>()
     private val clientPlayerTable by lazy { entityTable.client }
     private var chunks = mutableListOf<Chunk>()
 
@@ -212,6 +216,7 @@ class MinecraftEngineClient : ClientModInitializer {
                 if (gameSession != null) {
                     handleDecalsAttaches(gameSession.world)
                     decalsStorage.handleDecalsEvent(gameSession.world)
+                    updateLights(gameSession, dynamicLights, entityTable, dynamicLightSources, dynamicLightBehaviours)
                 }
 
             } catch (e: Throwable) {

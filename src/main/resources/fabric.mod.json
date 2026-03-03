@@ -20,6 +20,9 @@
     ],
     "main": [
       "org.lain.engine.CommonEngineServerMod"
+    ],
+    "lambdynlights:initializer": [
+      "org.lain.engine.client.mc.LambDynamicLights"
     ]
   },
   "mixins": [
@@ -34,6 +37,7 @@
     "fabric-language-kotlin": ">=${kotlin_loader_version}",
     "fabric": "*",
     "minecraft": "${minecraft_version}",
-    "cyberia": "*"
+    "cyberia": "*",
+    "lambdynlights": ">=4.8.7"
   }
 }

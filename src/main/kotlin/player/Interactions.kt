@@ -170,6 +170,7 @@ fun appendVerbs(player: EnginePlayer) {
     appendWriteableVerbs(player)
     appendGunVerbs(player)
     appendPlayerInventoryVerbs(player)
+    appendFlashlightVerbs(player)
     appendSocialVerbs(player)
 }
 

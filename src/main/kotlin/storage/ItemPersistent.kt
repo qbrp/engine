@@ -29,6 +29,9 @@ sealed class ItemData {
     data class Equipment(val hat: Boolean) : ItemData()
 
     @Serializable
+    data class Lights(val flashlight: Flashlight) : ItemData()
+
+    @Serializable
     @Deprecated("Использовать PhysicalParameters")
     data class Mass(val value: Float) : ItemData()
     @Serializable
@@ -72,6 +75,10 @@ fun itemPersistentData(item: EngineItem): PersistentItemData {
             item.has<Hat>()
         ).takeIf { it.hat }
     )
+
+    item.handle<Flashlight> {
+        components.add(ItemData.Lights(this.copy()))
+    }
 
     return PersistentItemData(components)
 }

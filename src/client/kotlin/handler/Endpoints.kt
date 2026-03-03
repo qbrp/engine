@@ -130,4 +130,5 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     registerPlayerSynchronizerEndpoint(PLAYER_NARRATION_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_WRITABLE_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_GUN_SYNCHRONIZER)
+    registerItemSynchronizerEndpoint(ITEM_FLASHLIGHT_SYNCHRONIZER)
 }

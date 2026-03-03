@@ -4,10 +4,7 @@ import org.lain.engine.item.Count
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.itemInstance
 import org.lain.engine.player.*
-import org.lain.engine.transport.packet.ClientboundItemData
-import org.lain.engine.transport.packet.ClientboundWorldData
-import org.lain.engine.transport.packet.GeneralPlayerData
-import org.lain.engine.transport.packet.ServerPlayerData
+import org.lain.engine.transport.packet.*
 import org.lain.engine.util.Component
 import org.lain.engine.util.ComponentState
 import org.lain.engine.util.getOrSet
@@ -38,6 +35,7 @@ fun lowDetailedClientPlayerInstance(
             world,
             LOD_POS,
             data.displayName,
+            developerModeStatus = DeveloperModeStatus()
         ),
         id
     ).also { it.isLowDetailed = true }
@@ -46,7 +44,8 @@ fun lowDetailedClientPlayerInstance(
 fun mainClientPlayerInstance(
     id: PlayerId,
     world: World,
-    data: ServerPlayerData
+    data: ServerPlayerData,
+    developerModeStatus: DeveloperModeStatus
 ): EnginePlayer {
     return commonPlayerInstance(
         PlayerInstantiateSettings(
@@ -57,7 +56,8 @@ fun mainClientPlayerInstance(
                 intention = data.speedIntention,
                 stamina = data.stamina
             ),
-            data.attributes
+            data.attributes,
+            developerModeStatus = developerModeStatus
         ),
         id
     ).also { it.isLowDetailed = false }

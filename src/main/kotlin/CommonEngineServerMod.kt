@@ -2,7 +2,6 @@ package org.lain.engine
 
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
-import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
@@ -40,7 +39,6 @@ class CommonEngineServerMod : ModInitializer {
         }
         updateOldFileNaming()
         initializeEngineItemComponents()
-        registerBlockHintAttachment()
 
         ServerLifecycleEvents.SERVER_STARTED.register {
             engineServer.run()
@@ -67,11 +65,6 @@ class CommonEngineServerMod : ModInitializer {
 
         ServerChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
             engineServer.onChunkUnload(world, chunk)
-        }
-
-        ServerChunkEvents.CHUNK_LOAD.register { world, chunk ->
-            val attachmentTarget = chunk as AttachmentTarget
-            attachmentTarget.getAttachedOrCreate(BLOCK_HINT_ATTACHMENT_TYPE, { mutableMapOf() })
         }
 
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
@@ -101,6 +94,7 @@ class CommonEngineServerMod : ModInitializer {
 
         CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
             dispatcher.registerEngineCommands()
+            if (isWorldEditAvailable()) dispatcher.registerWorldEditCommands()
         }
 
         Injector.register(environment)

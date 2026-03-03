@@ -34,6 +34,11 @@ fun smoothstep(t: Float): Float {
     return 3*t*t - 2*t*t*t
 }
 
+fun smoothstepSDF(sdf: Double, range: Double = 1.0): Float {
+    val t = (0.5 + sdf / range).coerceIn(0.0, 1.0)
+    return (3*t*t - 2*t*t*t).toFloat()
+}
+
 fun lerp(start: Float, end: Float, t: Float): Float {
     return start * (1 - t) + end * t
 }
