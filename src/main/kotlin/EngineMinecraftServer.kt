@@ -27,7 +27,7 @@ import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.injectValue
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.location
 import org.lain.engine.world.world

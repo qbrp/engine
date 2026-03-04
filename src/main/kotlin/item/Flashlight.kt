@@ -5,9 +5,9 @@ import org.lain.engine.player.*
 import org.lain.engine.server.ItemSynchronizable
 import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.apply
-import org.lain.engine.util.get
-import org.lain.engine.util.handle
+import org.lain.engine.util.component.apply
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.handle
 
 @Serializable
 data class Flashlight(

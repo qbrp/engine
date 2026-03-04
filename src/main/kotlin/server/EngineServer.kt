@@ -5,6 +5,7 @@ import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.util.*
+import org.lain.engine.util.component.get
 import org.lain.engine.world.*
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue

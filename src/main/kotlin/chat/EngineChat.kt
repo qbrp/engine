@@ -18,7 +18,6 @@ import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.util.math.roundToInt
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
-import org.lain.engine.world.players
 import org.lain.engine.world.world
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference

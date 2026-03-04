@@ -149,7 +149,7 @@ class MinecraftAudioManager(
 
     override fun playUiNotificationSound() {
         playMaster(SoundEvents.UI_BUTTON_CLICK, 1f - Random.nextFloat() / 7f)
-        if (Random.nextFloat() > 0.99f) {
+        if (Random.nextFloat() > 0.98f) {
             playPigScreamSound()
         }
     }

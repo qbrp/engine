@@ -2,10 +2,10 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.markDirty
-import org.lain.engine.util.Component
-import org.lain.engine.util.apply
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.apply
 import org.lain.engine.util.nextId
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 import kotlin.math.max
 
 /**

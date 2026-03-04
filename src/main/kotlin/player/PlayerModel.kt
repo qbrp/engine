@@ -1,9 +1,9 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.Component
+import org.lain.engine.util.component.Component
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 import org.lain.engine.world.Location
 
 data class PlayerModel(

@@ -38,6 +38,7 @@
     "fabric": "*",
     "minecraft": "${minecraft_version}",
     "cyberia": "*",
-    "lambdynlights": ">=4.8.7"
+    "lambdynlights": ">=4.8.7",
+    "yamlconfig": "*"
   }
 }

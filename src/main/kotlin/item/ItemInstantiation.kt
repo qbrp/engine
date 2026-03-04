@@ -1,9 +1,9 @@
 package org.lain.engine.item
 
 import org.lain.engine.server.*
-import org.lain.engine.util.ComponentState
-import org.lain.engine.util.set
-import org.lain.engine.util.setNullable
+import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.set
+import org.lain.engine.util.component.setNullable
 import org.lain.engine.world.Location
 
 data class ItemPrefab(val properties: ItemInstantiationSettings) {

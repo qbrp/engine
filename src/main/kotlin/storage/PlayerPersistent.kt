@@ -7,8 +7,8 @@ import org.lain.engine.player.*
 import org.lain.engine.util.Color
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.ensureExists
-import org.lain.engine.util.get
-import org.lain.engine.util.require
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.require
 import org.slf4j.LoggerFactory
 
 val STORAGE_DIR = ENGINE_DIR.resolve("storage")

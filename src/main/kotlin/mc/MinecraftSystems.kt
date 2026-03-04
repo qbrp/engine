@@ -17,6 +17,12 @@ import org.lain.engine.server.desync
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.util.*
+import org.lain.engine.util.component.apply
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.getOrSet
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.require
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World

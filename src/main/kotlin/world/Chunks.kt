@@ -3,6 +3,7 @@ package org.lain.engine.world
 import kotlinx.serialization.Serializable
 import org.lain.engine.mc.BlockHint
 import org.lain.engine.storage.loadChunk
+import org.lain.engine.util.component.Component
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt
@@ -126,4 +127,27 @@ class ChunkStorage {
     companion object {
         private val LOGGER = LoggerFactory.getLogger("Engine Chunks")
     }
+}
+
+data class VoxelUpdates(
+    val decals: VoxelUpdate<BlockDecals>? = null,
+    val hint: VoxelUpdate<BlockHint>? = null,
+)
+
+data class VoxelUpdate<T>(val value: T?, val remove: Boolean) {
+    companion object {
+        fun <T> Set(value: T) = VoxelUpdate(value, false)
+        fun <T> Remove() = VoxelUpdate(null, true)
+    }
+}
+
+data class VoxelEvent(val updates: VoxelUpdates, val selector: Selector) : Component {
+    sealed class Selector {
+        data class Single(val pos: VoxelPos) : Selector()
+        data class Multi(val positions: List<VoxelPos>) : Selector()
+    }
+}
+
+fun World.voxelEvent(updates: VoxelUpdates, selector: VoxelEvent.Selector) {
+    emitEvent(VoxelEvent(updates, selector))
 }

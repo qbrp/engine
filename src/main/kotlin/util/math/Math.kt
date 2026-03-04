@@ -1,10 +1,9 @@
 package org.lain.engine.util.math
 
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.get
+import org.lain.engine.util.component.get
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
-import org.lain.engine.world.players
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round

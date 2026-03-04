@@ -7,7 +7,7 @@ import org.lain.engine.item.owner
 import org.lain.engine.item.recoilSpeed
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.flush
-import org.lain.engine.util.get
+import org.lain.engine.util.component.get
 import org.lain.engine.world.World
 import org.lain.engine.world.events
 

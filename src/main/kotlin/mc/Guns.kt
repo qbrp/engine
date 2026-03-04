@@ -7,11 +7,10 @@ import net.minecraft.world.RaycastContext
 import org.lain.engine.item.BULLET_FIRE_RADIUS
 import org.lain.engine.item.BulletFire
 import org.lain.engine.item.GunShoot
-import org.lain.engine.util.flush
+import org.lain.engine.util.component.iterate
 import org.lain.engine.world.Direction
 import org.lain.engine.world.World
 import org.lain.engine.world.attachBulletDamageDecal
-import org.lain.engine.world.events
 
 fun raycastBulletEvent(world: net.minecraft.world.World, event: GunShoot): BlockHitResult? {
     val start = event.start
@@ -44,8 +43,8 @@ fun net.minecraft.util.math.Direction.engine() = when(this) {
 fun updateBullets(
     world: World,
     mcWorld: ServerWorld,
-) = world.events<BulletFire>().flush { event ->
-    val hitResult = raycastBulletEvent(mcWorld, event.shoot) ?: return@flush
+) = world.iterate<BulletFire> { _, event ->
+    val hitResult = raycastBulletEvent(mcWorld, event.shoot) ?: return@iterate
     val blockPos = hitResult.blockPos
     val pos = hitResult.pos
     val dir = hitResult.side.engine()

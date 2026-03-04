@@ -1,38 +1,36 @@
 package org.lain.engine.world
 
-import org.lain.engine.util.Component
-import org.lain.engine.util.ComponentManager
-import org.lain.engine.util.ComponentState
-import org.lain.engine.util.require
-import org.lain.engine.util.set
-import java.util.*
-import kotlin.apply
-import kotlin.reflect.KClass
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.util.component.*
+
+object Event : Component
 
 class World(
     val id: WorldId,
     val chunkStorage: ChunkStorage = ChunkStorage(),
-    private val state: ComponentState = ComponentState()
-) : ComponentManager by state
+    val players: MutableList<EnginePlayer> = mutableListOf(),
+    val componentManager: ComponentWorld = ComponentWorld()
+) : ComponentAccess by componentManager {
+    init {
+        componentManager.registerComponents()
+    }
+
+    /**
+     * Создает сущность с компонентами `event` и Event. Следует использовать как альтернативу очередям событий.
+     * Последний сигнализирует о том, что сущность нужно уничтожить в конце тика
+     */
+    fun emitEvent(event: Component) {
+        val entity = componentManager.addEntity()
+        componentManager.setComponent(entity,event)
+        componentManager.setComponent(entity, Event)
+    }
+
+    fun clearEvents() {
+        componentManager.iterate<Event> { entity, _ -> entity.destroy() }
+    }
+}
 
 fun world(id: WorldId): World {
-    return World(id).apply {
-        set(ScenePlayers())
-        set(WorldEvents())
-    }
+    return World(id)
 }
-
-data class WorldEvents(
-    private val queues: MutableMap<KClass<*>, Queue<*>> = mutableMapOf()
-) : Component {
-
-    @Suppress("UNCHECKED_CAST")
-    fun <T : Any> getQueue(eventClass: KClass<T>): Queue<T> {
-        return queues.getOrPut(eventClass) { LinkedList<T>() } as Queue<T>
-    }
-}
-
-inline fun <reified T : Any> World.events(): Queue<T> = this.require<WorldEvents>().getQueue(T::class)
-
-val World.events get() = this.require<WorldEvents>()
 

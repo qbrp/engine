@@ -10,8 +10,8 @@ import org.lain.engine.item.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.Component
-import org.lain.engine.util.get
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.get
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.pos
 

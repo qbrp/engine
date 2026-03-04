@@ -2,8 +2,8 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.AttributeUpdate
-import org.lain.engine.util.Component
-import org.lain.engine.util.require
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.require
 
 @Serializable
 data class AttributeValue(var default: Float, var custom: Float? = null) {

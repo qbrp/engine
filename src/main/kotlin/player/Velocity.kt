@@ -1,8 +1,8 @@
 package org.lain.engine.player
 
-import org.lain.engine.util.Component
+import org.lain.engine.util.component.Component
 import org.lain.engine.util.math.MutableVec3
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 
 data class Velocity(
     val motion: MutableVec3 = MutableVec3(),

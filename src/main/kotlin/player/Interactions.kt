@@ -4,6 +4,13 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.handle
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.require
+import org.lain.engine.util.component.set
 import org.lain.engine.world.SoundContext
 import kotlin.reflect.KClass
 

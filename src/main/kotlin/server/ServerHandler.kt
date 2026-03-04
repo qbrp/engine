@@ -13,11 +13,11 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.file.loadContents
-import org.lain.engine.util.get
+import org.lain.engine.util.component.get
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.filterNearestPlayers
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 import org.lain.engine.world.*
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread

@@ -3,9 +3,9 @@ package org.lain.engine.player
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.merge
-import org.lain.engine.util.Component
-import org.lain.engine.util.handle
-import org.lain.engine.util.require
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.handle
+import org.lain.engine.util.component.require
 
 /**
  * # Инвентарь игрока

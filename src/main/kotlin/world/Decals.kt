@@ -2,6 +2,8 @@ package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.ServerHandler
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.iterate
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.randomFloat
@@ -93,7 +95,7 @@ fun World.attachBulletDamageDecal(direction: Direction, pos: Pos, voxelPos: Voxe
     )
 }
 
-data class DecalEvent(val pos: VoxelPos, val chunk: EngineChunkPos, val type: Type) {
+data class DecalEvent(val pos: VoxelPos, val chunk: EngineChunkPos, val type: Type) : Component {
     sealed class Type {
         data class Attach(val direction: Direction, val pos: Pos, val decal: Decal, val layer: DecalsLayerType) : Type()
         data class Set(val decals: BlockDecals?) : Type()
@@ -105,14 +107,12 @@ data class DecalEvent(val pos: VoxelPos, val chunk: EngineChunkPos, val type: Ty
     }
 }
 
-
 fun World.removeDecals(
     layers: List<DecalsLayerType>,
     positions: List<VoxelPos>
 ) {
-    val events = this.events<DecalEvent>()
     positions.forEach { pos ->
-        events.add(
+        emitEvent(
             DecalEvent(
                 pos,
                 EngineChunkPos(pos),
@@ -130,7 +130,7 @@ fun World.attachDecal(
     pos: Pos,
     voxelPos: VoxelPos
 )  {
-    this.events<DecalEvent>().add(
+    emitEvent(
         DecalEvent(
             voxelPos,
             EngineChunkPos(voxelPos),
@@ -145,7 +145,7 @@ fun World.attachDecal(
 }
 
 fun World.setDecals(voxelPos: VoxelPos, decals: BlockDecals?) {
-    this.events<DecalEvent>().add(
+    emitEvent(
         DecalEvent(
             voxelPos,
             EngineChunkPos(voxelPos),
@@ -154,15 +154,19 @@ fun World.setDecals(voxelPos: VoxelPos, decals: BlockDecals?) {
     )
 }
 
-fun handleDecalsAttaches(world: World) = world.events<DecalEvent>().forEach { event ->
+fun handleDecalsAttaches(world: World) = world.iterate<DecalEvent> { i, event ->
     val chunk = world.chunkStorage.requireChunk(event.chunk)
     when (val type = event.type) {
         is DecalEvent.Type.Attach -> {
-            chunk.attachDecal(
-                type.layer,
-                type.decal,
-                type.direction,
-                event.pos
+            val voxelPos = event.pos
+            val layer = type.layer
+            val decals = chunk.decals[voxelPos] ?: BlockDecals.withLayer(layer)
+
+            world.voxelEvent(
+                VoxelUpdates(
+                    decals = VoxelUpdate.Set(decals.withDecalAtLayer(layer, type.direction, type.decal))
+                ),
+                VoxelEvent.Selector.Single(voxelPos)
             )
         }
         is DecalEvent.Type.Set -> {
@@ -177,7 +181,7 @@ fun handleDecalsAttaches(world: World) = world.events<DecalEvent>().forEach { ev
     }
 }
 
-fun broadcastDecalsAttachments(handler: ServerHandler, world: World) = world.events<DecalEvent>().forEach { event ->
+fun broadcastDecalsAttachments(handler: ServerHandler, world: World) = world.iterate<DecalEvent> { i, event ->
     handler.onVoxelDecalsUpdate(world, event.pos)
 }
 
@@ -219,16 +223,6 @@ fun projectedDecal(
         depth,
         contents
     )
-}
-
-fun EngineChunk.attachDecal(
-    layer: DecalsLayerType,
-    decal: Decal,
-    direction: Direction,
-    voxelPos: VoxelPos,
-) {
-    val decals = decals[voxelPos] ?: BlockDecals.withLayer(layer)
-    this.decals[voxelPos] = decals.withDecalAtLayer(layer, direction, decal)
 }
 
 fun EngineChunk.setDecals(

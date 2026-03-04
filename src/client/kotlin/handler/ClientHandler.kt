@@ -27,6 +27,13 @@ import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.getOrSet
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.replaceOrSet
+import org.lain.engine.util.component.require
+import org.lain.engine.util.component.set
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

@@ -2,8 +2,8 @@ package org.lain.engine.player
 
 import org.lain.engine.item.count
 import org.lain.engine.item.name
-import org.lain.engine.util.handle
-import org.lain.engine.util.set
+import org.lain.engine.util.component.handle
+import org.lain.engine.util.component.set
 import org.lain.engine.util.text.displayNameMiniMessage
 
 const val SOCIAL_INTERACTION_DISTANCE = 15

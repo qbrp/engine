@@ -4,7 +4,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.render.NarrationMessageRenderState
 import org.lain.engine.player.Narration
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 
 class ScreenRenderer(private val client: EngineClient) {
     private val window = client.window
