@@ -54,7 +54,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
         if (ticks - developerModeKeyPressedTick > 20) {
             developerModeKeyPressedTick = ticks
             if (key == GLFW.GLFW_KEY_1) {
-                audioManager.playUiNotificationSound()
+                audioManager.playPigScreamSound()
                 applyLittleNotification(
                     LittleNotification(
                         "Проигран звук",

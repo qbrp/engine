@@ -8,7 +8,7 @@ import org.lain.engine.player.CustomName
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.Color
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 import java.util.Optional
 
 val EnginePlayer.displayNameMiniMessage

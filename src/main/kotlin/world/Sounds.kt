@@ -6,10 +6,11 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.component.Component
 import org.lain.engine.util.flushMap
 import org.lain.engine.util.math.Vec3
 
-sealed class WorldSoundPlayRequest {
+sealed class WorldSoundPlayRequest : Component {
     data class Simple(val play: SoundPlay) : WorldSoundPlayRequest()
     data class Positioned(
         val eventId: SoundEventId,
@@ -91,7 +92,7 @@ fun World.emitPlaySoundEvent(
     category: EngineSoundCategory,
     volume: Float = 1f,
     pitch: Float = 1f
-) = events<WorldSoundPlayRequest>().add(
+) = emitEvent<WorldSoundPlayRequest>(
     WorldSoundPlayRequest.Positioned(
         event,
         pos,

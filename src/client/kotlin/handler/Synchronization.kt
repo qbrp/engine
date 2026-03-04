@@ -5,11 +5,11 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.itemInstance
 import org.lain.engine.player.*
 import org.lain.engine.transport.packet.*
-import org.lain.engine.util.Component
-import org.lain.engine.util.ComponentState
-import org.lain.engine.util.getOrSet
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.getOrSet
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.set
+import org.lain.engine.util.component.set
 import org.lain.engine.world.*
 
 /**

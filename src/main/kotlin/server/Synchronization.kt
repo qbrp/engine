@@ -10,7 +10,11 @@ import org.lain.engine.player.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.Entity
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.replace
+import org.lain.engine.util.component.require
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.Location
 import org.lain.engine.world.location
@@ -32,7 +36,8 @@ val EnginePlayer.network
 
 // Common synchronizers
 
-data class Synchronizations<T : Entity>(val state: MutableMap<KClass<out Component>, State<T>> = mutableMapOf()) : Component {
+data class Synchronizations<T : Entity>(val state: MutableMap<KClass<out Component>, State<T>> = mutableMapOf()) :
+    Component {
     data class State<T : Entity>(var dirty: DirtyState? = null, val synchronizer: ComponentSynchronizer<T, *>)
 }
 

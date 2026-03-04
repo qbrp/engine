@@ -2,7 +2,12 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.chat.EngineChat
-import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.require
+import org.lain.engine.util.component.set
 import org.slf4j.LoggerFactory
 import kotlin.random.Random
 

@@ -1,13 +1,8 @@
-package org.lain.engine.util
+package org.lain.engine.util.component
 
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
-
-/**
- * Вспомогательный интерфейс для определения компонентов
- */
-interface Component
 
 //// Exception
 

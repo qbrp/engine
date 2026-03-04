@@ -24,6 +24,9 @@ import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.armPoseOf
 import org.lain.engine.player.processLeftClickInteraction
 import org.lain.engine.util.*
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.require
 
 object ClientMixinAccess {
     private val client by injectClient()

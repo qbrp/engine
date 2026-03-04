@@ -9,6 +9,10 @@ import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.lain.engine.item.*
 import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.setNullable
 import org.lain.engine.world.Location
 
 fun connectDatabase(server: MinecraftServer): Database {

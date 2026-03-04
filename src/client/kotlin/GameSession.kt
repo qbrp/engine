@@ -17,11 +17,11 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.apply
+import org.lain.engine.util.component.apply
 import org.lain.engine.util.file.compileContents
 import org.lain.engine.util.file.loadContentsCompileResult
-import org.lain.engine.util.get
-import org.lain.engine.util.has
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.has
 import org.lain.engine.world.*
 import java.util.*
 

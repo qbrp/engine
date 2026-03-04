@@ -3,7 +3,12 @@ package org.lain.engine.storage
 import kotlinx.serialization.*
 import kotlinx.serialization.cbor.Cbor
 import org.lain.engine.item.*
-import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.ComponentManager
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.handle
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.require
 
 @Serializable
 data class PersistentItemData(val components: List<ItemData>)

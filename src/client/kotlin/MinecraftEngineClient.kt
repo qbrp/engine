@@ -45,6 +45,10 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.*
+import org.lain.engine.util.component.apply
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.require
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.handleDecalsAttaches
 import org.slf4j.LoggerFactory

@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.get
+import org.lain.engine.util.component.get
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.SoundContext

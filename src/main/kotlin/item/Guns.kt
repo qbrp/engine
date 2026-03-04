@@ -6,11 +6,10 @@ import org.lain.engine.player.*
 import org.lain.engine.server.ItemSynchronizable
 import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.*
+import org.lain.engine.util.component.*
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.world.events
 import org.lain.engine.world.world
 
 @Serializable
@@ -150,10 +149,12 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             val shoot = GunShoot(start, rotationVector)
             val parameters = BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)
             handItem.set(Recoil(shoot, parameters))
-            handItem.world.events<BulletFire>() += BulletFire(
-                shoot,
-                parameters,
-                Smoke(gun.smoke ?: VEC3_ZERO, player.velocity)
+            handItem.world.emitEvent(
+                BulletFire(
+                    shoot,
+                    parameters,
+                    Smoke(gun.smoke ?: VEC3_ZERO, player.velocity)
+                )
             )
 
             if (gun.mode != FireMode.AUTO) {

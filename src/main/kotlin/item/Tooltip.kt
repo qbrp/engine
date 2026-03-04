@@ -2,7 +2,7 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.get
+import org.lain.engine.util.component.get
 
 @Serializable
 data class ItemTooltip(val text: String) : ItemComponent

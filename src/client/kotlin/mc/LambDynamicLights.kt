@@ -16,7 +16,7 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.handItem
 import org.lain.engine.util.Injector
-import org.lain.engine.util.get
+import org.lain.engine.util.component.get
 import org.lain.engine.util.inject
 import org.lain.engine.util.math.smoothstepSDF
 import kotlin.math.*
