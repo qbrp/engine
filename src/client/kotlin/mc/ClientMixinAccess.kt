@@ -54,12 +54,11 @@ object ClientMixinAccess {
         val inventory = enginePlayer.require<PlayerInventory>()
         val extends = enginePlayer.require<ArmStatus>().extend
 
-        val selectorLeft = isGunWithoutSelector(inventory.offHandItem)
         playerEntityRenderState.setMainArmPose(
-           armPoseOf(true, extends, isGun(inventory.mainHandItem), isGunWithoutSelector(inventory.mainHandItem), selectorLeft)
+           armPoseOf(extends, inventory.mainHandItem != null, true, isGun(inventory.mainHandItem), isGunWithoutSelector(inventory.mainHandItem), isGun(inventory.offHandItem))
        )
         playerEntityRenderState.setMinorArmPose(
-            armPoseOf(false, extends, isGun(inventory.offHandItem), selectorLeft, false)
+            armPoseOf(extends, inventory.offHandItem != null, false, isGun(inventory.offHandItem), isGunWithoutSelector(inventory.offHandItem), isGun(inventory.mainHandItem))
         )
     }
 

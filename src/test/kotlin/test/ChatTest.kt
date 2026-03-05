@@ -3,13 +3,9 @@ package org.lain.engine.test
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
-import org.lain.engine.client.chat.ChatBar
-import org.lain.engine.client.chat.ChatBarSection
-import org.lain.engine.client.chat.ChatFormatSettings
-import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
-import org.lain.engine.client.chat.SYSTEM_CHANNEL
-import org.lain.engine.client.chat.acceptOutcomingMessage
-import org.lain.engine.client.chat.isMessageVisible
+import org.lain.engine.client.chat.*
+import org.lain.engine.util.set
+import org.lain.engine.world.ScenePlayers
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import kotlin.test.BeforeTest
@@ -34,7 +30,9 @@ class ChatTest {
     fun testMessageFiltering() {
         // Кейс #1: Подслушанное сообщение в отключенном системном канале
         val message = LiteralSystemEngineChatMessage(
-            World(WorldId("dummy")),
+            World(WorldId("dummy")).apply {
+                set(ScenePlayers())
+            },
             "Dummy message",
             isSpy = true
         )
@@ -43,7 +41,9 @@ class ChatTest {
 
         assert(!isMessageVisible(message, true, chatBar)) { "Не должно быть видно" }
         val message2 = LiteralSystemEngineChatMessage(
-            World(WorldId("dummy")),
+            World(WorldId("dummy")).apply {
+                set(ScenePlayers())
+            },
             "Dummy message",
         )
 
@@ -56,7 +56,9 @@ class ChatTest {
 
     @Test
     fun testMentions() {
-        val world = World(WorldId("dummy"))
+        val world = World(WorldId("dummy")).apply {
+            set(ScenePlayers())
+        }
         val nickname = "Menti123on"
         val message = OutcomingMessage(
             "Test message with @$nickname<>",

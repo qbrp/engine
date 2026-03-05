@@ -15,7 +15,6 @@ import org.lain.engine.transport.packet.*
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.get
 import org.lain.engine.util.injectServerTransportContext
-import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.util.require
 import org.lain.engine.world.*
@@ -30,8 +29,7 @@ sealed class AttributeUpdate() {
 
 enum class Notification {
     INVALID_SOURCE_POS,
-    VOICE_BREAK,
-    VOICE_TIREDNESS,
+    ACOUSTIC_ERROR,
     FREECAM,
 }
 
@@ -350,27 +348,11 @@ class ServerHandler(
         )
     }
 
-    fun onOutcomingMessage(player: EnginePlayer, message: OutcomingMessage) {
+    fun onOutcomingMessage(player: MessageSource.Player, message: OutcomingMessage) {
         val source = message.source
         CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
             .sendS2C(
-                OutcomingChatMessagePacket(
-                    source.position?.let { ImmutableVec3(it) },
-                    source.world.id,
-                    source.author.player?.id,
-                    source.author.name,
-                    message.text,
-                    message.channel,
-                    message.mentioned,
-                    message.speech,
-                    message.volumes,
-                    message.isSpy,
-                    message.placeholders,
-                    message.head,
-                    message.notify,
-                    message.color,
-                    message.id
-                ),
+                OutcomingChatMessagePacket(message),
                 player.id
             )
     }
@@ -384,6 +366,10 @@ class ServerHandler(
                 ),
                 player.id
             )
+    }
+
+    fun onServerNotification(player: PlayerId, notification: Notification, once: Boolean) {
+        server.playerStorage.get(player)?.let { onServerNotification(it, notification, once) }
     }
 
     fun onPlayerInstantiation(player: EnginePlayer) {

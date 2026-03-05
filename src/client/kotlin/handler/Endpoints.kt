@@ -1,14 +1,10 @@
 package org.lain.engine.client.handler
 
-import org.lain.engine.chat.MessageAuthor
-import org.lain.engine.chat.MessageSource
-import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.server.*
 import org.lain.engine.transport.packet.*
-import org.lain.engine.util.Timestamp
 import org.lain.engine.world.EngineChunk
 
 fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler, ) {
@@ -52,36 +48,12 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerGameSessionReceiver(CLIENTBOUND_CHAT_MESSAGE_ENDPOINT) { gameSession ->
         val world = gameSession.world
+        val sourceWorld = message.source.world.id
         if (world.id != sourceWorld) {
             LOGGER.error("Пропущено сообщение из-за отсутствия мира источника сообщения $sourceWorld")
             return@registerGameSessionReceiver
         }
-        val player = sourcePlayer?.let { gameSession.getPlayer(it) }
-        applyChatMessage(
-            OutcomingMessage(
-                text,
-                MessageSource(
-                    world,
-                    MessageAuthor(
-                        sourceAuthorName,
-                        player
-                    ),
-                    // FIXME: Передавать в пакете время таймстамп
-                    Timestamp(),
-                    sourcePosition,
-                ),
-                channel,
-                mentioned,
-                notify,
-                speech,
-                volume,
-                placeholders,
-                isSpy,
-                heads,
-                color,
-                id
-            )
-        )
+        applyChatMessage(message)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) { gameSession ->

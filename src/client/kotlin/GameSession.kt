@@ -96,7 +96,7 @@ class GameSession(
         for (player in players) {
             if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
                 player.isLowDetailed = true
-                return
+                continue
             } else {
                 player.isLowDetailed = false
             }

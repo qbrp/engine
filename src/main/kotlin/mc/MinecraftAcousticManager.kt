@@ -12,6 +12,7 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
+import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.chat.acoustic.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
@@ -388,6 +389,7 @@ class ConcurrentAcousticSceneBank {
 }
 
 class MinecraftAcousticManager(
+    private val server: EngineMinecraftServer,
     private val entityTable: EntityTable,
     private val acousticSceneBank: ConcurrentAcousticSceneBank,
     acousticBlockData: AcousticBlockData,
@@ -518,7 +520,7 @@ class MinecraftAcousticManager(
 
         return object : AcousticSimulationResult {
             // Максимально не оптимизировано, но кому какое дело?
-            override fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float) {
+            override fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float) = server.engine.execute {
                 use.set(true)
                 val minX = scene.minX.toFloat()
                 val minY = scene.minY.toFloat()

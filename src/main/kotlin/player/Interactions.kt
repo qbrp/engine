@@ -104,7 +104,7 @@ data class InteractionComponent(
         get() = timeElapsed > type.time
 }
 
-data class InteractionResult(val id: InteractionId, val result: Any) : Component
+
 
 fun EnginePlayer.handleInteraction(verb: VerbType, statement: InteractionComponent.() -> Unit) {
     handle<InteractionComponent> {
@@ -164,7 +164,7 @@ fun PlayerVerb(
     name: String,
     time: Int = 0,
     priority: Int = 0
-) = VerbType(id, name, time, VerbType.Target.PLAYER)
+) = VerbType(id, name, time, VerbType.Target.PLAYER, priority)
 
 fun appendVerbs(player: EnginePlayer) {
     appendWriteableVerbs(player)

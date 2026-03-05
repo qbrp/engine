@@ -256,8 +256,15 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                     lifeTime = 300
                 )
 
-            Notification.VOICE_BREAK -> TODO()
-            Notification.VOICE_TIREDNESS -> TODO()
+            Notification.ACOUSTIC_ERROR -> {
+                LittleNotification(
+                    "Акустика сломалась",
+                    "<red>При обработке сообщения акустической системой возникла ошибка. Ваше сообщения не будет видно другим игрокам.",
+                    color = WARNING_COLOR,
+                    sprite = WARNING,
+                    lifeTime = 240
+                )
+            }
             Notification.FREECAM ->
                 LittleNotification(
                     "Вы используете мод Freecam",

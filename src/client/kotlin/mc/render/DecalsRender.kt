@@ -16,6 +16,7 @@ import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
 import org.lain.engine.util.math.squaredDistanceTo
 import org.lain.engine.world.*
+import org.slf4j.LoggerFactory
 import kotlin.math.max
 import kotlin.math.min
 
@@ -26,6 +27,7 @@ data class BlockDecalImageData(
 class ChunkDecalsStorage {
     lateinit var textureManager: TextureManager
     private val images: MutableMap<EngineChunkPos, MutableMap<ImmutableVoxelPos, BlockDecalImageData>> = mutableMapOf()
+    private val logger = LoggerFactory.getLogger("Engine Decals")
 
     fun unloadTextures(chunkPos: EngineChunkPos) {
         images.remove(chunkPos)?.forEach { (pos, image) -> unloadTexture(pos, chunkPos) }
@@ -55,7 +57,11 @@ class ChunkDecalsStorage {
             textures(chunk)[voxelPos] = image
         }
 
-        image.gameTexture.compile(decalLayers)
+        try {
+            image.gameTexture.compile(decalLayers)
+        } catch (e: Throwable) {
+            logger.error("Не удалось скомпилировать декали блока ${voxelPos.toShortString()} (${decalLayers.map { it.key.name }})", e)
+        }
     }
 
     private fun textures(chunk: EngineChunkPos) = images.computeIfAbsent(chunk) { mutableMapOf() }

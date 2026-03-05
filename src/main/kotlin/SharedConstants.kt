@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 object SharedConstants {
     const val DEBUG_PACKETS = false
     const val SIMULATE_LATENCY = false
+    val DEVELOPER_TEST_ENVIRONMENT = System.getenv("OP").toBoolean()
     val ALLOWED_VERSIONS = listOf(ENGINE_MOD_VERSION)
 }
 

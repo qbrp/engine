@@ -36,7 +36,6 @@ fun flushPlayerMessages(
         var content = message.content
 
         if (channel.speech) {
-            //val voiceApparatus = player.require<VoiceApparatus>()
             val voiceLoosed = !player.canSpeakUnlimited
 
             if (voiceLoosed) {
@@ -56,7 +55,7 @@ fun flushPlayerMessages(
                 content,
                 player.volume,
                 message.channel,
-                MessageSource.getPlayer(player)
+                MessageSource.getPlayer(player, channel)
             )
         )
     }

@@ -33,6 +33,7 @@ import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.*
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadOrCreateServerConfig
+import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.world.emitPlaySoundEvent
@@ -310,15 +311,16 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                                                 val pos = Vec3ArgumentType.getPosArgument(ctx.command, "pos").getPos(source)
                                                 val chat = engine.chat
 
+                                                val channel = chat.settings.defaultChannel
                                                 val message = IncomingMessage(
                                                     text,
                                                     volume,
-                                                    chat.settings.defaultChannel.id,
-                                                    MessageSource(
+                                                    channel.id,
+                                                    MessageSource.getWorld(
                                                         world,
-                                                        MessageAuthor(author),
-                                                        Timestamp(),
-                                                        pos.engine()
+                                                        author,
+                                                        channel,
+                                                        ImmutableVec3(pos.engine())
                                                     )
                                                 )
 
@@ -611,7 +613,7 @@ fun ServerCommandDispatcher.registerServerChatCommand(name: String, channel: Cha
                     .executeCatching { ctx ->
                         val text = ctx.command.getString(argument)
                         val player = ctx.requirePlayer()
-                        engine.chat.processMessage(channel, MessageSource.getPlayer(player), text)
+                        engine.chat.processMessage(channel, MessageSource.getPlayer(player, channel), text)
                     }
             )
     )
@@ -638,11 +640,12 @@ fun ServerCommandDispatcher.registerServerPmCommand() {
                                     return@executeCatching
                                 }
 
+                                val channel = engine.chat.settings.pmChannel
                                 engine.chat.sendMessage(
                                     text,
-                                    MessageSource.getPlayer(authorPlayer),
-                                    engine.chat.settings.pmChannel,
-                                    recipientPlayer,
+                                    MessageSource.getPlayer(authorPlayer, channel),
+                                    channel,
+                                    recipientPlayer.messageSource(channel),
                                     boomerang = true,
                                     placeholders = mapOf(
                                         "pm_receiver_username" to recipientPlayer.username,

@@ -148,16 +148,20 @@ class ClientEngineChatManager(
             chatBar.markMentioned(channel.id)
         }
 
+        val authorId = message.source.player?.id
+        val mainPlayerId = gameSession.mainPlayer.id
         if (isMessageVisible(message, spy, chatBar)) {
-            val author = message.source.player
-            val showSelf = author != gameSession.mainPlayer || client.developerMode
-            if (author != null && message.isSpeech && showSelf && client.options.chatBubbles) {
-                gameSession.chatBubbleList.setChatBubble(author, eventBus.getChatBubbleText(message.text))
+            val showSelf = authorId != mainPlayerId || client.developerMode
+            if (authorId != null && message.isSpeech && showSelf && client.options.chatBubbles) {
+                val authorPlayer = gameSession.playerStorage.get(authorId)
+                if (authorPlayer != null) {
+                    gameSession.chatBubbleList.setChatBubble(authorPlayer, eventBus.getChatBubbleText(message.text))
+                }
             }
             if (isMentioned || isNotify) {
                 client.audioManager.playUiNotificationSound()
             }
-        } else if ((!message.isSpy || spy) && author.player != gameSession.mainPlayer) {
+        } else if ((!message.isSpy || spy) && authorId != mainPlayerId) {
             chatBar.markUnread(channel.id)
         }
     }
@@ -175,31 +179,15 @@ class ClientEngineChatManager(
     }
 
     fun updateSettings(new: ClientChatSettings) {
-        val channelsMap = new.channels.toMutableMap()
-        channelsMap[SYSTEM_CHANNEL.id] = SYSTEM_CHANNEL
-        val channels = channelsMap.values
-
-        this.channels = channelsMap
-        this.availableChannels = channels.filter { it.isAvailable }.associateBy { it.id }
-        this.defaultChannel = settings.channels[settings.default] ?: error("Invalid default channel")
-
-        val configuration = client.resources.chatBarConfiguration
-        val chatBarSections = configuration?.sections ?: channels.map { it.toChatBarSection() }
-        val chatBarSections2 = chatBarSections.filter { section ->
-            section.channels.any { channel ->
-                if (!availableChannels.contains(channel)) {
-                    logger.warn("Канал $channel в секции панели чата ${section.name} не существует")
-                    false
-                } else {
-                    true
-                }
-            }
+        val result = updateChatSettings(new, client.resources.chatBarConfiguration, chatBar)
+        this.channels = result.channels
+        this.availableChannels = result.availableChannels
+        this.defaultChannel = result.defaultChannel
+        this.chatBar = result.chatBar
+        this.settings = new
+        eventBus.onSettingsUpdate(new, result.chatBar)
+        result.unavailableChannels.forEach { (channel, section) ->
+            logger.warn("Канал $channel в секции панели чата ${section.name} не существует")
         }
-
-        val cfg = ChatBarConfiguration(chatBarSections2)
-        chatBar = chatBar?.copy(this, cfg) ?: ChatBar(cfg)
-        settings = new
-
-        eventBus.onSettingsUpdate(settings, chatBar!!)
     }
 }

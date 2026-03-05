@@ -38,7 +38,6 @@ data class EngineMinecraftServerDependencies(
     val entityTable: EntityTable = Injector.resolve(EntityTable::class),
     val acousticSceneBank: ConcurrentAcousticSceneBank = ConcurrentAcousticSceneBank(),
     val acousticBlockData: AcousticBlockData = AcousticBlockData.BUILTIN,
-    val acousticSimulator: MinecraftAcousticManager = MinecraftAcousticManager(entityTable, acousticSceneBank, acousticBlockData),
 )
 
 abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies) : ServerEventListener {
@@ -46,9 +45,10 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     val database = connectDatabase(minecraftServer)
     protected val playerStorage = dependencies.playerStorage
     protected val acousticSceneBank = dependencies.acousticSceneBank
+    protected val acousticBlockData = dependencies.acousticBlockData
     protected val config = loadOrCreateServerConfig()
     val entityTable = dependencies.entityTable.server
-    val acousticSimulator = dependencies.acousticSimulator
+    val acousticSimulator = MinecraftAcousticManager(this, dependencies.entityTable, acousticSceneBank, acousticBlockData)
     val engine = EngineServer(
         config.server,
         playerStorage,

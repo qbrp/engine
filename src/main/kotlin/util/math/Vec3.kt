@@ -20,6 +20,8 @@ interface Pos {
 
 fun Pos.asVec3() = Vec3(this.x, this.y, this.z)
 
+fun Pos.snapshot() = ImmutableVec3(this)
+
 fun squaredDistanceTo(
     x1: Int, y1: Int,
     x2: Int, y2: Int

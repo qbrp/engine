@@ -1,7 +1,10 @@
 package org.lain.engine.player
 
+import org.lain.engine.item.FireMode
+import org.lain.engine.item.Gun
 import org.lain.engine.item.count
 import org.lain.engine.item.name
+import org.lain.engine.util.get
 import org.lain.engine.util.handle
 import org.lain.engine.util.set
 import org.lain.engine.util.text.displayNameMiniMessage
@@ -17,15 +20,19 @@ val HAIL_VERB = PlayerVerb(
 val GIVE_AWAY = PlayerVerb(
     VerbId("give_away"),
     "Передать предмет",
-    priority = 5
+    priority = -5
 )
 
 fun appendSocialVerbs(player: EnginePlayer) = player.handle<VerbLookup> {
     forAction<InputAction.Attack>() {
         HAIL_VERB.takeIf { raycastPlayerNotNull(player, SOCIAL_INTERACTION_DISTANCE) }
     }
-    forAction<InputAction.Base>() {
-        GIVE_AWAY.takeIf { handItem != null && player.extendArm && raycastPlayerNotNull(player, SOCIAL_INTERACTION_DISTANCE) }
+    forAction<InputAction.Base>(override = true) {
+        GIVE_AWAY.takeIf {
+            val lookOnPlayer = raycastPlayerNotNull(player, SOCIAL_INTERACTION_DISTANCE)
+            val gunSafety = (handItem?.get<Gun>()?.mode ?: FireMode.SELECTOR) == FireMode.SELECTOR
+            handItem != null && player.extendArm && lookOnPlayer && gunSafety
+        }
     }
 }
 

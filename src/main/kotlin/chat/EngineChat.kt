@@ -8,18 +8,15 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.acoustic.NEIGHBOURS_26
 import org.lain.engine.mc.InvalidMessageSourcePositionException
-import org.lain.engine.player.*
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.acousticDebug
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.Pos
-import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.util.math.roundToInt
-import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
-import org.lain.engine.world.players
-import org.lain.engine.world.world
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
@@ -54,10 +51,11 @@ class EngineChat(
 
     fun processMessage(message: IncomingMessage) {
         incomingMessageHistory += message
+        val acousticDebug = message.source.player?.let { players.get(it.id) }?.acousticDebug ?: false
         coroutineScope.launch {
             val time = Timestamp()
             val channel = getChannel(message.channel)
-            channel.processMessage(message.content, message.volume, message.source)
+            channel.processMessage(message.content, message.volume, message.source, acousticDebug)
             message.log(time.timeElapsed())
         }
     }
@@ -66,37 +64,24 @@ class EngineChat(
         channel: ChatChannel,
         source: MessageSource,
         content: String,
-        volume: Float = 0.5f
+        volume: Float = 0.5f,
     ) = coroutineScope.launch {
         val start = System.currentTimeMillis()
-        channel.processMessage(content, volume, source)
+        channel.processMessage(content, volume, source, false)
         val end = System.currentTimeMillis()
         logMessage(source, content, end - start)
     }
 
-    fun processMessage(channel: ChatChannel, player: EnginePlayer, content: String) {
-        processMessage(channel, MessageSource.getPlayer(player), content)
-    }
-
-    fun processWorldMessage(
-        content: String,
-        world: World,
+    private fun filterNearestPlayers(
+        world: MessageSource.World,
         pos: Pos,
-        author: String,
-        channel: ChatChannel = settings.defaultChannel
-    ) {
-        processMessage(channel, MessageSource(world, MessageAuthor(author), Timestamp(), pos), content)
+        radius: Int,
+        players: List<MessageSource.Player> = world.players.values.toList(),
+    ): List<MessageSource.Player> {
+        return players.filter { it.pos.squaredDistanceTo(pos) <= radius*radius }
     }
 
-    fun processSystemMessage(content: String, source: MessageSource) {
-        processMessage(ChatChannel.SYSTEM, source, content)
-    }
-
-    fun processSystemMessage(content: String, world: World) {
-        processMessage(ChatChannel.SYSTEM, MessageSource.getSystem(world), content)
-    }
-
-    private suspend fun ChatChannel.processMessage(content: String, volume: Float, source: MessageSource) {
+    suspend fun ChatChannel.processMessage(content: String, volume: Float, source: MessageSource, debugAcoustic: Boolean) {
         val sourceWorld = source.world
         val sourcePos = source.position
 
@@ -106,12 +91,12 @@ class EngineChat(
         // Акустики нет - сообщение нельзя обработать
         val acoustic = acoustic ?: return
         var dontSendMessageToAuthor = false
-        val volumes = mutableMapOf<EnginePlayer, Volumes>()
-        val recipients = mutableListOf<EnginePlayer>()
+        val volumes = mutableMapOf<MessageSource.Player, Volumes>()
+        val recipients = mutableListOf<MessageSource.Player>()
         if (sourcePos != null) {
             val toAdd = when (acoustic) {
                 is Acoustic.Distance -> {
-                    filterNearestPlayers(sourceWorld, sourcePos, acoustic.radius)
+                    filterNearestPlayers(source.world, sourcePos, acoustic.radius)
                 }
 
                 is Acoustic.Realistic -> {
@@ -127,12 +112,13 @@ class EngineChat(
                             sourceWorld,
                             sourcePos,
                             volume,
+                            debugAcoustic
                         ).also {
                             it.forEach { (player, volume) -> volumes[player] = volume }
                         }.keys
                     } catch (e: InvalidMessageSourcePositionException) {
                         if (writtenByPlayer) {
-                            server.handler.onServerNotification(author, Notification.INVALID_SOURCE_POS, once = true)
+                            server.handler.onServerNotification(author.id, Notification.INVALID_SOURCE_POS, once = true)
                         }
                         filterNearestPlayers(sourceWorld, sourcePos, 16)
                     }
@@ -143,48 +129,37 @@ class EngineChat(
         }
 
         if (acoustic == Acoustic.Global) {
-            recipients.addAll(sourceWorld.players)
+            recipients.addAll(sourceWorld.players.values)
         }
+
+        val mustBeSpectator = modifiers.contains(Modifier.Spectator)
 
         // Рассылаем сообщение получателям и следящим игрокам, до которых сообщение не дошло
         recipients
             .distinct()
-            .filter { it == source.player || it.isChannelAvailableToRead(this) || (mentions && hasMention(it, content)) }
+            .filter { it == source.player || it.readPermission || (mentions && hasMention(it, content)) && (!mustBeSpectator || it.isSpectating) }
             .forEach {
                 if (dontSendMessageToAuthor && it == source.player) return@forEach
                 val volume = volumes[it]
                 sendMessage(content, source, this, it, volumes = volume, id = id)
             }
 
-        players
-            .filter { it !in recipients && it.isChatOperator && it != source.player }
+        source.world.players.values
+            .filter { it !in recipients && it.chatOperator && it != source.player }
             .forEach { sendSpyMessage(content, source, this, it, id = id) }
-    }
-
-    fun sendSystemMessage(content: String, recipient: EnginePlayer) {
-        sendMessage(
-            content,
-            source = MessageSource.getSystem(recipient.world),
-            channel = ChatChannel.SYSTEM,
-            recipient = recipient,
-            id = MessageId.next()
-        )
     }
 
     fun sendMessage(
         content: String,
         source: MessageSource,
         channel: ChatChannel,
-        recipient: EnginePlayer,
+        recipient: MessageSource.Player,
         boomerang: Boolean = false,
         volumes: Volumes? = null,
         placeholders: Map<String, String> = mapOf(),
         id: MessageId = MessageId.next()
     ) {
         var content = content
-        val mustBeSpectator = channel.modifiers.contains(Modifier.Spectator)
-        if (mustBeSpectator && !recipient.isSpectating) return
-
         val acoustic = channel.acoustic
 
         if (volumes != null) {
@@ -204,19 +179,19 @@ class EngineChat(
         }
 
         receivers.forEach { receiver ->
-           sendMessageInternal(
-               receiver,
-               content,
-               source,
-               channel,
-               mention = hasMention(recipient, content),
-               speech = isSpeech,
-               volumes = volumes,
-               notify = channel.notify,
-               placeholders = getDefaultPlaceholders(recipient, source, volumes) + placeholders,
-               background = channel.background,
-               id = id
-           )
+            sendMessageInternal(
+                receiver,
+                content,
+                source,
+                channel,
+                mention = hasMention(recipient, content),
+                speech = isSpeech,
+                volumes = volumes,
+                notify = channel.notify,
+                placeholders = getDefaultPlaceholders(recipient, source, volumes) + placeholders,
+                background = channel.background,
+                id = id
+            )
         }
     }
 
@@ -224,7 +199,7 @@ class EngineChat(
         content: String,
         source: MessageSource,
         originalChannel: ChatChannel,
-        recipient: EnginePlayer,
+        recipient: MessageSource.Player,
         id: MessageId
     ) {
         sendMessageInternal(
@@ -240,7 +215,7 @@ class EngineChat(
     }
 
     private fun sendMessageInternal(
-        recipient: EnginePlayer,
+        recipient: MessageSource.Player,
         text: String,
         source: MessageSource,
         channel: ChatChannel,
@@ -275,11 +250,11 @@ class EngineChat(
         )
     }
 
-    private fun hasMention(ofPlayer: EnginePlayer, text: String): Boolean {
-        return text.contains("@${ofPlayer.username}")
+    private fun hasMention(ofPlayer: MessageSource.Player, text: String): Boolean {
+        return text.contains("@${ofPlayer.userName}")
     }
 
-    private fun showHeads(player: EnginePlayer?, channel: ChatChannel): Boolean {
+    private fun showHeads(player: MessageSource.Player?, channel: ChatChannel): Boolean {
         return (player?.chatHeadsEnabled ?: true) && channel.heads
     }
 
@@ -300,16 +275,16 @@ class EngineChat(
     }
 
     private fun getDefaultPlaceholders(
-        recipient: EnginePlayer,
+        recipient: MessageSource.Player,
         source: MessageSource,
         volumes: Volumes?
     ): Map<String, String> {
         val player = source.player
         val author = source.author
         val placeholders = mutableMapOf(
-            "author_username" to (player?.username ?: ""),
+            "author_username" to (player?.userName ?: ""),
             "author_name" to author.name,
-            "recipient_username" to recipient.username,
+            "recipient_username" to recipient.userName,
             "recipient_name" to recipient.displayNameMiniMessage,
             "random-100" to roundToInt(Random(source.time.timeMillis).nextFloat() * 100f).toString()
         )
@@ -339,22 +314,22 @@ class EngineChat(
     }
 
     private suspend fun runAcousticSpreadSimulation(
-        author: EnginePlayer?,
-        world: World,
+        author: MessageSource.Player?,
+        world: MessageSource.World,
         pos: Pos,
-        volume: Float
-    ): Map<EnginePlayer, Volumes> {
+        volume: Float,
+        debug: Boolean
+    ): Map<MessageSource.Player, Volumes> {
         val players = world.players
         val acousticLevel = settings.realisticAcousticFormatting.getLevel(volume)
         val multiplier = acousticLevel.multiplier * settings.acousticAttenuation
 
         val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, multiplier) { exception ->
-            if (author != null) {
-                sendSystemMessage("<red>При обработке сообщения акустической системой возникла ошибка. Ваше сообщения не будет видно другим игрокам", author)
-            }
+            if (author != null) server.handler.onServerNotification(author.id, Notification.ACOUSTIC_ERROR, false)
+            exception.printStackTrace()
         }
 
-        val recipients = players
+        val recipients = players.values
             .mapNotNull {
                 val pos = it.eyePos
                 val volume =
@@ -371,8 +346,11 @@ class EngineChat(
             } // получаем уровни шума
             .map { (player, resultVolume) -> player to Volumes(volume, resultVolume) }
 
-        if (author?.acousticDebug == true) {
-            results.debug(author, server.handler, 16f)
+        if (debug && author?.id != null) {
+            val authorPlayer = server.playerStorage.get(author.id)
+            if (authorPlayer != null) {
+                results.debug(authorPlayer, server.handler, 16f)
+            }
         }
 
         results.finish()
@@ -388,7 +366,7 @@ class EngineChat(
             ?.let { player ->
                 val builder = StringBuilder()
                 val displayName = player.displayName
-                val username = player.username
+                val username = player.userName
                 builder.append(displayName)
                 if (displayName != username) builder.append(" ($username)")
                 builder.toString()
@@ -402,5 +380,27 @@ class EngineChat(
             }
         val time = time?.let { " ($it мл.)" } ?: ""
         CHAT_LOGGER.info("[$author] $content$time")
+    }
+
+    fun processMessage(channel: ChatChannel, player: EnginePlayer, content: String) {
+        processMessage(channel, MessageSource.getPlayer(player, channel), content)
+    }
+
+    fun processWorldMessage(
+        content: String,
+        world: World,
+        pos: Pos,
+        author: String,
+        channel: ChatChannel = settings.defaultChannel
+    ) {
+        processMessage(channel, MessageSource.getWorld(world, author, channel), content)
+    }
+
+    fun processSystemMessage(content: String, source: MessageSource) {
+        processMessage(ChatChannel.SYSTEM, source, content)
+    }
+
+    fun processSystemMessage(content: String, world: World) {
+        processMessage(ChatChannel.SYSTEM, MessageSource.getSystem(world), content)
     }
 }

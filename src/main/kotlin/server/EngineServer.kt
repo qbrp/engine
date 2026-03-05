@@ -58,7 +58,6 @@ class EngineServer(
 
             updatePlayerVerbLookup(player)
             appendVerbs(player)
-
             updatePlayerInteractions(player, handler=handler)
 
             val interaction = player.get<InteractionComponent>()
