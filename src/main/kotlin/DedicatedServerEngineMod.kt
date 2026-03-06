@@ -24,6 +24,7 @@ import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.network.ServerNetworkTransport
 import org.lain.engine.transport.network.SessionId
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.registerMinecraftServer
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.*
@@ -43,7 +44,7 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
 
 class DedicatedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,
-    val connectionManager: ServerConnectionManager = ServerConnectionManager(),
+    override val connectionManager: ServerConnectionManager = ServerConnectionManager(),
     override val transportContext: ServerTransportContext = ServerNetworkTransport(dependencies.minecraftServer, connectionManager, dependencies.playerStorage),
 ) : EngineMinecraftServer(dependencies) {
     val authorizationListener = ServerAuthorizationListener(
@@ -91,7 +92,9 @@ class DedicatedEngineMinecraftServer(
 @Serializable
 data class AuthPacket(
     val username: Username,
-    val mods: List<String>
+    val mods: List<String>,
+    val developerMode: DeveloperModeStatus,
+    val version: String
 ) : Packet
 
 val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
@@ -112,6 +115,15 @@ class ServerAuthorizationListener(
     }
 
     private fun onAuth(packet: AuthPacket, entity: ServerPlayerEntity, id: PlayerId) {
+        if (packet.version !in SharedConstants.ALLOWED_VERSIONS) {
+            val versionsText = if (SharedConstants.ALLOWED_VERSIONS.size == 1) {
+                SharedConstants.ALLOWED_VERSIONS.first()
+            } else {
+                "одна из следующих: ${SharedConstants.ALLOWED_VERSIONS.map { "<newline>$it" }}"
+            }
+            error("Несовместимая версия. Установлена ${packet.version}, в то время как требуется $versionsText")
+        }
+
         val engine = server.engine
         val connection = connectionManager.getSession(id)
         val username = packet.username
@@ -131,11 +143,11 @@ class ServerAuthorizationListener(
             notifications += Notification.FREECAM
         }
 
-        val player = newAuthorizedPlayerInstance(connection, entity)
+        val player = newAuthorizedPlayerInstance(connection, entity, packet.developerMode)
         coroutineScope.launch {
             prepareServerMinecraftPlayer(server, entity, player)
             engine.execute {
-                engine.instantiatePlayer(player)
+                engine.playerService.instantiate(player)
                 notifications.forEach { engine.handler.onServerNotification(player, it, false) }
             }
         }
@@ -152,8 +164,9 @@ class ServerAuthorizationListener(
     private fun newAuthorizedPlayerInstance(
         connectionSession: ConnectionSession,
         entity: ServerPlayerEntity,
+        developerModeStatus: DeveloperModeStatus
     ): EnginePlayer {
-        return serverMinecraftPlayerInstance(server, entity, connectionSession.playerId)
+        return serverMinecraftPlayerInstance(server, entity, connectionSession.playerId, developerModeStatus)
     }
 
     companion object {

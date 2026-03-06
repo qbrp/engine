@@ -1,14 +1,13 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.sound
+import org.lain.engine.item.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.flushMap
-import org.lain.engine.util.math.ImmutableVec3
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.iterate
 import org.lain.engine.util.math.Vec3
 
 @Serializable
@@ -65,7 +64,7 @@ fun NamespacedStorage.getOrSingleSound(id: SoundEventId) = this.sounds[id] ?: So
     )
 )
 
-sealed class WorldSoundPlayRequest {
+sealed class WorldSoundPlayRequest : Component {
     data class Simple(val play: SoundPlay) : WorldSoundPlayRequest()
     data class Positioned(
         val eventId: SoundEventId,
@@ -97,7 +96,8 @@ fun processWorldSounds(
     storage: NamespacedStorage,
     world: World
 ): List<SoundBroadcast> {
-    return world.events<WorldSoundPlayRequest>().flushMap { request ->
+    val broadcasts = mutableListOf<SoundBroadcast>()
+    world.iterate<WorldSoundPlayRequest> { _, request ->
         var players = world.players.toList()
         var context: SoundContext? = null
         val play = when(request) {
@@ -127,19 +127,16 @@ fun processWorldSounds(
         }
         val distance = play.volume * play.sound.sources.maxOf { it.distance }
         val receivers = players.filter { player -> player.pos.squaredDistanceTo(play.pos) <= distance * distance }
-        SoundBroadcast(play, receivers, context)
+        broadcasts += SoundBroadcast(play, receivers, context)
     }
+    return broadcasts
 }
 
 fun broadcastWorldSounds(sounds: List<SoundBroadcast>, handler: ServerHandler) = sounds.forEach { (play, listeners, context) ->
     handler.onSoundEvent(play, context, listeners)
 }
 
-fun World.emitPlaySoundEvent(request: WorldSoundPlayRequest) {
-    events<WorldSoundPlayRequest>().add(request)
-}
-
-fun World.emitPlaySoundEvent(play: SoundPlay) = emitPlaySoundEvent(WorldSoundPlayRequest.Simple(play))
+fun World.emitPlaySoundEvent(play: SoundPlay) = emitEvent<WorldSoundPlayRequest>(WorldSoundPlayRequest.Simple(play))
 
 fun World.emitPlaySoundEvent(
     event: SoundEventId,
@@ -147,7 +144,7 @@ fun World.emitPlaySoundEvent(
     category: EngineSoundCategory,
     volume: Float = 1f,
     pitch: Float = 1f
-) = events<WorldSoundPlayRequest>().add(
+) = emitEvent<WorldSoundPlayRequest>(
     WorldSoundPlayRequest.Positioned(
         event,
         pos,

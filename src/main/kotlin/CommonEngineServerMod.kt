@@ -2,11 +2,11 @@ package org.lain.engine
 
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
-import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
@@ -15,6 +15,9 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.ActionResult
 import net.minecraft.util.Formatting
+import net.minecraft.world.Difficulty
+import net.minecraft.world.GameRules
+import org.lain.engine.SharedConstants.DEVELOPER_TEST_ENVIRONMENT
 import org.lain.engine.mc.*
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
@@ -40,10 +43,19 @@ class CommonEngineServerMod : ModInitializer {
         }
         updateOldFileNaming()
         initializeEngineItemComponents()
-        registerBlockHintAttachment()
 
-        ServerLifecycleEvents.SERVER_STARTED.register {
+        ServerLifecycleEvents.SERVER_STARTED.register { server ->
             engineServer.run()
+            if (DEVELOPER_TEST_ENVIRONMENT) {
+                server.gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(false, server)
+                server.setDifficulty(Difficulty.PEACEFUL, true)
+            }
+        }
+
+        ServerWorldEvents.LOAD.register { server, world ->
+            if (DEVELOPER_TEST_ENVIRONMENT) {
+                world.timeOfDay = 0
+            }
         }
 
         ServerLifecycleEvents.SERVER_STOPPED.register { server ->
@@ -51,7 +63,7 @@ class CommonEngineServerMod : ModInitializer {
         }
 
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
-            if (System.getenv("OP").toBoolean()) {
+            if (DEVELOPER_TEST_ENVIRONMENT) {
                 server.playerManager.addToOperators(PlayerConfigEntry(handler.player.gameProfile))
             }
             engineServer.onJoinPlayer(handler.player)
@@ -67,11 +79,6 @@ class CommonEngineServerMod : ModInitializer {
 
         ServerChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
             engineServer.onChunkUnload(world, chunk)
-        }
-
-        ServerChunkEvents.CHUNK_LOAD.register { world, chunk ->
-            val attachmentTarget = chunk as AttachmentTarget
-            attachmentTarget.getAttachedOrCreate(BLOCK_HINT_ATTACHMENT_TYPE, { mutableMapOf() })
         }
 
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
@@ -101,6 +108,7 @@ class CommonEngineServerMod : ModInitializer {
 
         CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
             dispatcher.registerEngineCommands()
+            if (isWorldEditAvailable()) dispatcher.registerWorldEditCommands()
         }
 
         Injector.register(environment)

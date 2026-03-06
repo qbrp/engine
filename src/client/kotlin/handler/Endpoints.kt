@@ -1,14 +1,10 @@
 package org.lain.engine.client.handler
 
-import org.lain.engine.chat.MessageAuthor
-import org.lain.engine.chat.MessageSource
-import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.server.*
 import org.lain.engine.transport.packet.*
-import org.lain.engine.util.Timestamp
 import org.lain.engine.world.EngineChunk
 
 fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler, ) {
@@ -19,6 +15,10 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     // Players
+
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT) {
+        updatePlayer(id) { applyPlayerAttributeUpdate(it, speed, jumpStrength) }
+    }
 
     registerGameSessionReceiver(CLIENTBOUND_FULL_PLAYER_ENDPOINT) {
         updatePlayer(id) { applyFullPlayerData(it, data) }
@@ -48,36 +48,12 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerGameSessionReceiver(CLIENTBOUND_CHAT_MESSAGE_ENDPOINT) { gameSession ->
         val world = gameSession.world
+        val sourceWorld = message.source.world.id
         if (world.id != sourceWorld) {
             LOGGER.error("Пропущено сообщение из-за отсутствия мира источника сообщения $sourceWorld")
             return@registerGameSessionReceiver
         }
-        val player = sourcePlayer?.let { gameSession.getPlayer(it) }
-        applyChatMessage(
-            OutcomingMessage(
-                text,
-                MessageSource(
-                    world,
-                    MessageAuthor(
-                        sourceAuthorName,
-                        player
-                    ),
-                    // FIXME: Передавать в пакете время таймстамп
-                    Timestamp(),
-                    sourcePosition,
-                ),
-                channel,
-                mentioned,
-                notify,
-                speech,
-                volume,
-                placeholders,
-                isSpy,
-                heads,
-                color,
-                id
-            )
-        )
+        applyChatMessage(message)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) { gameSession ->
@@ -112,8 +88,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyAcousticDebugVolumePacket(volumes)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_VOXEL_UPDATE_ENDPOINT) { gameSession ->
-        applyVoxelUpdate(voxelPos, decals, hint)
+    registerGameSessionReceiver(CLIENTBOUND_VOXEL_EVENT_PACKET) { gameSession ->
+        applyVoxelEvent(event)
     }
 
     CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { ctx ->
@@ -124,7 +100,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_NARRATION_SYNCHRONIZER)
-    registerPlayerSynchronizerEndpoint(PLAYER_ATTRIBUTES_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_WRITABLE_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_GUN_SYNCHRONIZER)
+    registerItemSynchronizerEndpoint(ITEM_FLASHLIGHT_SYNCHRONIZER)
 }

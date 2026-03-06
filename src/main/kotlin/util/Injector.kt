@@ -65,3 +65,12 @@ fun registerMinecraftServer(
     Injector.register<EngineServer>(server.engine)
     Injector.register<EngineMinecraftServer>(server)
 }
+
+fun isClassAvailable(className: String): Boolean {
+    return try {
+        Class.forName(className)
+        true
+    } catch (e: ClassNotFoundException) {
+        false
+    }
+}

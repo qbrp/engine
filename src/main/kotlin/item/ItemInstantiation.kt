@@ -2,9 +2,9 @@ package org.lain.engine.item
 
 import org.lain.engine.player.Outfit
 import org.lain.engine.server.*
-import org.lain.engine.util.ComponentState
-import org.lain.engine.util.set
-import org.lain.engine.util.setNullable
+import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.set
+import org.lain.engine.util.component.setNullable
 import org.lain.engine.world.Location
 
 data class ItemPrefab(val properties: ItemInstantiationSettings) {
@@ -26,6 +26,7 @@ data class ItemInstantiationSettings(
     val writable: Writable? = null,
     val assets: ItemAssets? = null,
     val outfit: Outfit? = null,
+    val flashlight: Flashlight? = null,
     val sounds: ItemSounds? = null,
     val progressionAnimations: ItemProgressionAnimations? = null,
 )
@@ -40,6 +41,7 @@ fun itemInstance(uuid: ItemUuid, location: Location, properties: ItemInstantiati
         setNullable(properties.mass?.copy())
         setNullable(properties.writable?.copy())
         setNullable(properties.assets?.copy())
+        setNullable(properties.flashlight?.copy())
         setNullable(properties.progressionAnimations?.copy())
         setNullable(properties.outfit?.copy())
     }
@@ -66,4 +68,5 @@ fun itemInstance(
 private fun Synchronizations<EngineItem>.initializeSynchronizers() {
     submit(ITEM_WRITABLE_SYNCHRONIZER)
     submit(ITEM_GUN_SYNCHRONIZER)
+    submit(ITEM_FLASHLIGHT_SYNCHRONIZER)
 }

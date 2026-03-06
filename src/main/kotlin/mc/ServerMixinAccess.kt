@@ -13,7 +13,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.gunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
-import org.lain.engine.util.getOrSet
+import org.lain.engine.util.component.getOrSet
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectMovementSettings
@@ -76,14 +76,22 @@ object ServerMixinAccess {
         return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name
     }
 
-    fun getAttributes(player: PlayerEntity): PlayerAttributes {
-        return player.engine?.attributes ?: PlayerAttributes.DEFAULT
+    fun getSpeed(player: PlayerEntity): Double {
+        return player.engine?.speed?.toDouble() ?: 0.1
+    }
+
+    fun getJumpStrength(player: PlayerEntity): Double {
+        return player.engine?.jumpStrength?.toDouble() ?: 0.1
     }
 
     fun onServerPlayerEntityInitialized(entity: ServerPlayerEntity) {
-        val table = table.server
-        val player = table.getPlayer(entity)
-        if (player != null) {
+        onPlayerEntityInstantiated(entity, table.server)
+    }
+
+    fun <P : PlayerEntity> onPlayerEntityInstantiated(entity: P, table: EntityTable.Entity2PlayerTable<P>) {
+        val oldEntity = table.getEntity(entity.engineId) as? P
+        if (oldEntity != null && oldEntity !== entity) {
+            val player = table.getPlayer(oldEntity) ?: error("Игрок не существует")
             table.removePlayer(entity)
             table.setPlayer(entity, player)
         }

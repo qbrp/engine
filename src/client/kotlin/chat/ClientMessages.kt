@@ -3,7 +3,9 @@ package org.lain.engine.client.chat
 import org.lain.engine.chat.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.transport.packet.ClientChatChannel
+import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.Color
+import org.lain.engine.util.Timestamp
 import org.lain.engine.world.World
 
 data class AcceptedMessage(
@@ -119,11 +121,17 @@ fun acceptOutcomingMessage(
     )
 }
 
+fun MessageSource.Companion.getSystemClient(world: World) = MessageSource(
+    MessageSource.World(world.id, mapOf()),
+    MessageAuthor(SYSTEM_CHANNEL.name),
+    Timestamp()
+)
+
 fun LiteralSystemEngineChatMessage(gameSession: GameSession, content: String) = AcceptedMessage(
     content,
     content,
     SYSTEM_CHANNEL,
-    MessageSource.getSystem(gameSession.world),
+    MessageSource.getSystemClient(gameSession.world),
     id = MessageId.next()
 )
 
@@ -132,7 +140,52 @@ fun LiteralSystemEngineChatMessage(world: World, content: String, isSpy: Boolean
     content,
     content,
     SYSTEM_CHANNEL,
-    MessageSource.getSystem(world),
+    MessageSource.getSystemClient(world),
     id = MessageId.next(),
     isSpy = isSpy
 )
+
+data class ChatSettingsUpdateResult(
+    val channels: Map<ChannelId, ClientChatChannel>,
+    val availableChannels: Map<ChannelId, ClientChatChannel>,
+    val defaultChannel: ClientChatChannel,
+    val chatBar: ChatBar,
+    val unavailableChannels: List<Unavailable>,
+) {
+    data class Unavailable(val channel: ChannelId, val section: ChatBarSection)
+}
+
+fun updateChatSettings(
+    settings: ClientChatSettings,
+    chatBarConfiguration: ChatBarConfiguration?,
+    chatBar: ChatBar?,
+): ChatSettingsUpdateResult {
+    val channelsMap = settings.channels.toMutableMap()
+    channelsMap[SYSTEM_CHANNEL.id] = SYSTEM_CHANNEL
+    val unavailable = mutableSetOf<ChatSettingsUpdateResult.Unavailable>()
+    val channels = channelsMap.values
+    val availableChannels = channels.filter { it.isAvailable }.associateBy { it.id }
+    val defaultChannel = settings.channels[settings.default] ?: error("Invalid default channel")
+
+    val unvalidatedChatBarSections = chatBarConfiguration?.sections ?: channelsMap.values.map { it.toChatBarSection() }
+    val validatedChatBarSections = unvalidatedChatBarSections.filter { section ->
+        section.channels.any { channel ->
+            if (!availableChannels.contains(channel)) {
+                unavailable += ChatSettingsUpdateResult.Unavailable(channel, section)
+                false
+            } else {
+                true
+            }
+        }
+    }
+
+    val validatedChatBarConfiguration = ChatBarConfiguration(validatedChatBarSections)
+    val newChatBar = ChatBar(validatedChatBarConfiguration, chatBar)
+    return ChatSettingsUpdateResult(
+        channelsMap,
+        availableChannels,
+        defaultChannel,
+        newChatBar,
+        unavailable.toList()
+    )
+}

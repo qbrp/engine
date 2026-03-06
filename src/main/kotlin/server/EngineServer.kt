@@ -2,12 +2,13 @@ package org.lain.engine.server
 
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
-import org.lain.engine.chat.trySendJoinMessage
-import org.lain.engine.chat.trySendLeaveMessage
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.storage.savePersistentPlayerData
-import org.lain.engine.util.*
+import org.lain.engine.util.FixedSizeList
+import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.Timestamp
+import org.lain.engine.util.component.get
+import org.lain.engine.util.flush
 import org.lain.engine.world.*
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -33,6 +34,8 @@ class EngineServer(
     val namespacedStorage = NamespacedStorage()
     val defaultWorld
         get() = worlds.toList().first().second
+
+    fun listWorlds() = worlds.values
 
     fun run() {
         handler.run()
@@ -61,28 +64,32 @@ class EngineServer(
 
             updatePlayerVerbLookup(player)
             appendVerbs(player)
-
             updatePlayerInteractions(player, handler=handler)
+
+            val interaction = player.get<InteractionComponent>()
+            if (interaction != null) {
+                println("Взаимодействие: $interaction")
+            }
+
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)
             handleGunInteractions(player)
             handleSocialInteractions(player)
+            handleFlashlightInteractions(player)
             handlePlayerEquipmentInteraction(player)
             finishPlayerInteraction(player)
             tickInventoryGun(playerItems)
 
             handleItemRecoil(player, playerItems)
-            player.input.clear()
 
             tickNarrations(player)
         }
 
+        players.forEach { flushPlayerUpdates(it, handler) }
+
         handler.tick()
 
         worlds.values.forEach { world ->
-            handleDecalsAttaches(world)
-            broadcastDecalsAttachments(handler, world)
-            world.events<DecalEvent>().clear()
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
         }
@@ -101,15 +108,16 @@ class EngineServer(
 
         player.startSpectating()
         playerStorage.add(player.id, player)
-        world.require<ScenePlayers>().add(player)
+        world.players += player
         handler.onPlayerInstantiation(player)
 
         chat.trySendJoinMessage(player)
     }
 
     fun destroyPlayer(player: EnginePlayer) {
+        val world = player.world
         playerStorage.remove(player.id)
-        player.world.require<ScenePlayers>().remove(player)
+        world.players -= player
 
         player.items.forEach { item -> item.remove<HoldsBy>() }
 

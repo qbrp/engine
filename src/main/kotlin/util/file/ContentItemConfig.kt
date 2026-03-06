@@ -50,6 +50,12 @@ data class GunConfig(
 }
 
 @Serializable
+data class FlashlightConfig(
+    val radius: Float = 8f,
+    val distance: Float = 20f
+)
+
+@Serializable
 data class ItemConfig(
     @SerialName("display_name") val displayName: String,
     val material: String = "stick",
@@ -65,6 +71,7 @@ data class ItemConfig(
     val outfit: OutfitConfig? = null,
     val assets: Map<String, String>? = null,
     @SerialName("progression_animations") val progressionAnimations: Map<String, ProgressionAnimationId>? = null,
+    val flashlight: FlashlightConfig? = null,
 )
 
 @Serializable
@@ -122,6 +129,10 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
                     outfit,
                     sounds = sounds.let { if (it.isNotEmpty()) ItemSounds(it) else null },
                     progressionAnimations = progressionAnimations.let { if (it.isNotEmpty()) ItemProgressionAnimations(it) else null }
+                    hat,
+                    ItemAssets(assets),
+                    config.flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance)) },
+                    sounds = ItemSounds(sounds)
                 )
             )
         )

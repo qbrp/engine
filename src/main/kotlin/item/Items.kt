@@ -2,6 +2,10 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.*
+import org.lain.engine.util.component.ComponentManager
+import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.Entity
+import org.lain.engine.util.component.get
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 

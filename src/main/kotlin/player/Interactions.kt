@@ -4,6 +4,13 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.handle
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.require
+import org.lain.engine.util.component.set
 import org.lain.engine.world.SoundContext
 import kotlin.reflect.KClass
 
@@ -16,6 +23,8 @@ data class ServerPlayerInputMeta(var updatedThisTick: Boolean, ) : Component
 
 val EnginePlayer.input
     get() = this.require<PlayerInput>().actions
+
+fun EnginePlayer.actionsSimilar() = require<PlayerInput>().let { it.actions == it.lastActions }
 
 sealed class InputAction {
     object Base : InputAction()
@@ -39,6 +48,8 @@ data class VerbLookup(
         raycastPlayer = player.whoSee(distance)
         return raycastPlayer
     }
+
+    fun raycastPlayerNotNull(player: EnginePlayer, distance: Int): Boolean = raycastPlayer(player, distance) != null
 
     @Suppress("UNCHECKED_CAST")
     fun <T : InputAction> forAction(
@@ -151,6 +162,8 @@ data class InteractionComponent(
     }
 }
 
+
+
 fun EnginePlayer.handleInteraction(verb: VerbType, statement: InteractionComponent.() -> Unit) {
     handle<InteractionComponent> {
         if (type.id == verb.id) {
@@ -205,6 +218,7 @@ fun appendVerbs(player: EnginePlayer) {
     appendGunVerbs(player)
     appendPlayerInventoryVerbs(player)
     appendPlayerEquipmentVerbs(player)
+    appendFlashlightVerbs(player)
     appendSocialVerbs(player)
 }
 
@@ -215,7 +229,7 @@ fun updatePlayerVerbLookup(
 ) {
     val actions = input.actions
     val lastActions = input.lastActions.toSet()
-    if (actions != lastActions) {
+    if (actions != lastActions && player.get<InteractionComponent>()?.occupied != true) {
         if (lookup) {
             player.set(VerbLookup(player.handItem, actions, mutableSetOf()))
         }

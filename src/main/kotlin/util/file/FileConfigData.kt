@@ -148,7 +148,6 @@ data class MovementConfig(
 data class PlayerConfig(
     val attributes: Map<String, Map<String, Float>>,
     val volume: VocalVolumeConfig,
-    val gravity: Float = 0.087f,
     val damage: Boolean
 )
 
@@ -156,5 +155,6 @@ data class PlayerConfig(
 data class VocalVolumeConfig(
     val base: Float,
     val min: Float,
-    val max: Float
+    val max: Float,
+    @SerialName("tiredness_multiplier") val tirednessMultiplier: Float = 1f,
 )

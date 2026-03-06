@@ -5,7 +5,7 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.render.InteractionProgressionRenderState
 import org.lain.engine.client.mc.render.NarrationMessageRenderState
 import org.lain.engine.player.Narration
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 
 class ScreenRenderer(private val client: EngineClient) {
     private val window = client.window
@@ -27,6 +27,7 @@ class ScreenRenderer(private val client: EngineClient) {
             narrationMessages.messages.forEach { message ->
                 if (narrations.none { message.id == it.id }) {
                     narrations += NarrationMessageRenderState(message.id)
+                    if (message.kick) client.audioManager.playKickSound()
                 }
             }
             narrations.removeIf { narrationMessages.get(it.id) == null }

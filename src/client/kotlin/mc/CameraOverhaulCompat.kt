@@ -1,16 +1,8 @@
 package org.lain.engine.client.mc
 
 import mirsario.cameraoverhaul.ScreenShakes
+import org.lain.engine.util.isClassAvailable
 import org.lain.engine.util.math.Pos
-
-fun isClassAvailable(className: String): Boolean {
-    return try {
-        Class.forName(className)
-        true
-    } catch (e: ClassNotFoundException) {
-        false
-    }
-}
 
 fun isCameraOverhaulAvailable(): Boolean = isClassAvailable("mirsario.cameraoverhaul.CameraOverhaul")
 

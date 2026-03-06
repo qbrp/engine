@@ -7,7 +7,7 @@ import org.lain.engine.server.ServerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 

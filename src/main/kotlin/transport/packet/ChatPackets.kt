@@ -6,28 +6,9 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.util.Color
-import org.lain.engine.util.math.ImmutableVec3
-import org.lain.engine.world.WorldId
 
 @Serializable
-data class OutcomingChatMessagePacket(
-    val sourcePosition: ImmutableVec3?,
-    val sourceWorld: WorldId,
-    val sourcePlayer: PlayerId?,
-    val sourceAuthorName: String,
-    val text: String,
-    val channel: ChannelId,
-    val mentioned: Boolean,
-    val speech: Boolean,
-    val volume: EngineChat.Volumes?,
-    val isSpy: Boolean,
-    val placeholders: Map<String, String>,
-    val heads: Boolean,
-    val notify: Boolean,
-    val color: Color? = null,
-    val id: MessageId
-) : Packet
+data class OutcomingChatMessagePacket(val message: OutcomingMessage) : Packet
 
 val CLIENTBOUND_CHAT_MESSAGE_ENDPOINT = Endpoint<OutcomingChatMessagePacket>()
 
@@ -55,13 +36,13 @@ data class ClientChatSettings(
     companion object {
         fun of(settings: EngineChatSettings, player: EnginePlayer): ClientChatSettings {
             return ClientChatSettings(
-                (settings.channels + settings.pmChannel).associate {
-                    it.id to ClientChatChannel.of(it, player)
-                },
+                channelsOf(settings, player),
                 settings.defaultChannel.id,
                 settings.placeholders,
             )
         }
+        fun channelsOf(settings: EngineChatSettings, player: EnginePlayer) = (settings.channels + settings.pmChannel)
+            .associate { it.id to ClientChatChannel.of(it, player) }
     }
 }
 

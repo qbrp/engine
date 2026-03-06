@@ -13,6 +13,7 @@ import net.minecraft.text.Text
 import net.minecraft.util.Unit
 import org.lain.engine.item.*
 import org.lain.engine.util.EngineId
+import org.lain.engine.util.component.has
 import org.lain.engine.util.injectItemAccess
 import org.lain.engine.util.text.parseMiniMessage
 import java.util.*

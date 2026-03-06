@@ -3,15 +3,13 @@ package org.lain.engine.player
 import org.lain.engine.item.EngineItem
 import org.lain.engine.server.*
 import org.lain.engine.storage.PersistentPlayerData
-import org.lain.engine.util.Component
-import org.lain.engine.util.Storage
+import org.lain.engine.transport.packet.DeveloperModeStatus
+import org.lain.engine.util.component.Component
 import org.lain.engine.util.math.Pos
-import org.lain.engine.util.require
-import org.lain.engine.util.set
-import org.lain.engine.util.setNullable
+import org.lain.engine.util.component.set
+import org.lain.engine.util.component.setNullable
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
-import kotlin.apply
 
 data class PlayerInstantiateSettings(
     val world: World,
@@ -21,6 +19,7 @@ data class PlayerInstantiateSettings(
     val attributes: PlayerAttributes = PlayerAttributes(),
     val spectating: Spectating = Spectating(),
     val gameMaster: GameMaster = GameMaster(),
+    val developerModeStatus: DeveloperModeStatus,
     val items: Set<EngineItem> = setOf()
 )
 
@@ -29,7 +28,8 @@ data class DefaultPlayerAttributes(
     var minVolume: Float = 0.2f,
     var maxVolume: Float = 1.3f,
     var baseVolume: Float = 5f,
-    var gravity: Float = 0.087f
+    var gravity: Float = 0.087f,
+    var tirednessMultiplier: Float = 1f,
 ) : Component
 
 fun commonPlayerInstance(
@@ -42,11 +42,11 @@ fun commonPlayerInstance(
         set(Orientation())
         set(PlayerModel())
         set(OrientationTranslation(0f, 0f))
-        set(DeveloperMode(false))
         set(PlayerInventory(settings.items.toMutableSet()))
         set(ArmStatus(false))
         set(PlayerInput(mutableSetOf(), setOf()))
         set(Narration(mutableListOf()))
+        set(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
         set(Equipment())
         set(settings.displayName)
         set(settings.movementStatus)

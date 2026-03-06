@@ -1,5 +1,6 @@
 package org.lain.engine.client.handler
 
+import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.runBlocking
 import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
 import org.lain.engine.chat.ChannelId
@@ -19,11 +20,14 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
+import org.lain.engine.item.SoundPlay
 import org.lain.engine.mc.BlockHint
 import org.lain.engine.player.*
+import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
+import org.lain.engine.util.component.*
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -34,7 +38,9 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val handledNotifications = mutableSetOf<Notification>()
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
     val taskExecutor = TaskExecutor()
-    val processedSounds = LinkedHashSet<SoundBroadcast>()
+    val processedSounds = mutableSetOf<SoundBroadcast>()
+    val processedInteractions = FixedSizeList<InteractionId>(40)
+    val pendingSnapshots = mutableListOf<Pair<InteractionId, Runnable>>()
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
@@ -57,12 +63,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 actions.removeIf { it is InputAction.SlotClick }
             }
 
-            SERVERBOUND_INPUT_PACKET.sendC2SPacket(
-                InputPacket(
-                    gameSession.ticks,
-                    actions.map { it.toDto() }.toSet()
+            if (input.actions != input.lastActions) {
+                SERVERBOUND_INPUT_PACKET.sendC2SPacket(
+                    InputPacket(
+                        gameSession.ticks,
+                        actions.map { it.toDto() }.toSet()
+                    )
                 )
-            )
+            }
 
             for (player in gameSession.playerStorage) {
                 if (player.has<InteractionComponent>()) continue
@@ -81,9 +89,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             val input = gameSession.mainPlayer.require<PlayerInput>()
             input.actions.clear()
         }
-        if (processedSounds.size > 200) {
-            processedSounds.removeAll(processedSounds.take(100).toSet())
-        }
+        val snapshotsToRemove = pendingSnapshots
+            .filter { (interactionId, _) -> interactionId in processedInteractions }
+            .alsoForEach { (id, task) ->
+                println("Принят снапшот $task для $id")
+                task.run()
+            }
+        pendingSnapshots.removeAll(snapshotsToRemove)
     }
 
     data class InteractionQueueComponent(val interactions: Queue<InteractionComponent>) : Component
@@ -120,7 +132,9 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun onDeveloperModeUpdate(boolean: Boolean, acoustic: Boolean) {
-        SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(DeveloperModePacket(boolean, acoustic))
+        SERVERBOUND_DEVELOPER_MODE_PACKET.sendC2SPacket(
+            DeveloperModePacket(DeveloperModeStatus(boolean, acoustic))
+        )
     }
 
     fun onCursorItem(item: EngineItem?) {
@@ -164,7 +178,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         if (client.gameSession != null) {
             error("Игровая сессия уже запущена!")
         }
-        val world = clientWorld(worldData, ChunkStorage())
+        val world = clientWorld(worldData)
         val gameSession = GameSession(
             data.serverId,
             world,
@@ -187,6 +201,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         movementDefaultAttributes = defaultAttributes.movement
         movementSettings = settings.movement
         playerSynchronizationRadius = settings.playerSynchronizationRadius
+        playerDesynchronizationThreshold = settings.playerDesynchronizationThreshold
         chatManager.updateSettings(settings.chat)
     }
 
@@ -219,6 +234,16 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                     sprite = WARNING,
                     lifeTime = 300
                 )
+
+            Notification.ACOUSTIC_ERROR -> {
+                LittleNotification(
+                    "Акустика сломалась",
+                    "<red>При обработке сообщения акустической системой возникла ошибка. Ваше сообщения не будет видно другим игрокам.",
+                    color = WARNING_COLOR,
+                    sprite = WARNING,
+                    lifeTime = 240
+                )
+            }
             Notification.FREECAM ->
                 LittleNotification(
                     "Вы используете мод Freecam",
@@ -274,8 +299,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
     }
 
-    fun applyVoxelUpdate(pos: VoxelPos, decals: BlockDecals? = null, hint: BlockHint?) = with(gameSession!!) {
-        world.setDecals(pos, decals)
+    fun applyVoxelEvent(event: VoxelEvent) = with(gameSession!!) {
+        world.emitEvent(event)
     }
 
     companion object {

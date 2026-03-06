@@ -1,8 +1,8 @@
 package org.lain.engine.player
 
-import org.lain.engine.util.ComponentManager
-import org.lain.engine.util.ComponentState
-import org.lain.engine.util.Entity
+import org.lain.engine.util.component.ComponentManager
+import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.Entity
 import org.lain.engine.world.pos
 
 class EnginePlayer(

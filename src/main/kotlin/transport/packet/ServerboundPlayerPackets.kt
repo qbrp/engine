@@ -13,10 +13,10 @@ data class SetSpeedIntentionPacket(
 val SERVERBOUND_SPEED_INTENTION_PACKET = Endpoint<SetSpeedIntentionPacket>()
 
 @Serializable
-data class DeveloperModePacket(
-    val enabled: Boolean,
-    val acoustic: Boolean
-) : Packet
+data class DeveloperModePacket(val status: DeveloperModeStatus) : Packet
+
+@Serializable
+data class DeveloperModeStatus(val enabled: Boolean = false, val acoustic: Boolean = false)
 
 val SERVERBOUND_DEVELOPER_MODE_PACKET = Endpoint<DeveloperModePacket>()
 

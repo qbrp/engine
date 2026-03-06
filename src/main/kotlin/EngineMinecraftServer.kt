@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.WorldSavePath
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.chat.IncomingMessage
@@ -20,14 +21,17 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerEventListener
 import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
+import org.lain.engine.transport.network.ServerConnectionManager
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
+import org.lain.engine.util.component.require
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.injectValue
-import org.lain.engine.util.require
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.location
+import org.lain.engine.world.updateVoxelEvents
 import org.lain.engine.world.world
 
 data class EngineMinecraftServerDependencies(
@@ -36,7 +40,6 @@ data class EngineMinecraftServerDependencies(
     val entityTable: EntityTable = Injector.resolve(EntityTable::class),
     val acousticSceneBank: ConcurrentAcousticSceneBank = ConcurrentAcousticSceneBank(),
     val acousticBlockData: AcousticBlockData = AcousticBlockData.BUILTIN,
-    val acousticSimulator: MinecraftAcousticManager = MinecraftAcousticManager(entityTable, acousticSceneBank, acousticBlockData),
 )
 
 abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies) : ServerEventListener {
@@ -44,9 +47,10 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     val database = connectDatabase(minecraftServer)
     protected val playerStorage = dependencies.playerStorage
     protected val acousticSceneBank = dependencies.acousticSceneBank
+    protected val acousticBlockData = dependencies.acousticBlockData
     protected val config = loadOrCreateServerConfig()
     val entityTable = dependencies.entityTable.server
-    val acousticSimulator = dependencies.acousticSimulator
+    val acousticSimulator = MinecraftAcousticManager(this, dependencies.entityTable, acousticSceneBank, acousticBlockData)
     val engine = EngineServer(
         config.server,
         playerStorage,
@@ -61,6 +65,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     protected val itemLoader = ItemLoader(this)
 
     protected abstract val transportContext: ServerTransportContext
+    protected open val connectionManager: ServerConnectionManager? = null
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
         val item = engine.createItem(owner.location, itemId)
@@ -76,9 +81,13 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     open fun tick() {
         val players = engine.playerStorage.getAll()
-        updateServerMinecraftSystems(this, entityTable, players, engine.itemStorage, itemLoader)
+        updateServerMinecraftSystems(this, entityTable, players, itemLoader, connectionManager)
         engine.update()
         updateBullets(engine.defaultWorld, minecraftServer.overworld)
+        engine.listWorlds().forEach { world ->
+            world.updateVoxelEvents(engine.handler)
+            world.clearEvents()
+        }
         autosaveTimer.tick()
         unloadTimer.tick()
     }
@@ -94,7 +103,12 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.loadContents()
         minecraftServer.worlds.forEach {
             val id = it.engine
-            engine.addWorld(world(id))
+            engine.addWorld(
+                world(id) { chunkPos ->
+                    it.chunkManager.chunkLoadingManager.getPlayersWatchingChunk(ChunkPos(chunkPos.x, chunkPos.z), false)
+                        .mapNotNull { entity -> entityTable.getPlayer(entity) }
+                }
+            )
             dependencies.entityTable.setWorld(id, it)
         }
         engine.run()
@@ -112,7 +126,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             return
         }
         val player = entityTable.getPlayer(entity) ?: return
-        engine.destroyPlayer(player)
+        engine.playerService.destroy(player)
         entityTable.removePlayer(entity)
         unloadTimer.activate()
     }
@@ -129,7 +143,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val world = engine.getWorld(world.engine)
         val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
         world.chunkStorage.removeVoxel(voxelPos)
-        engine.handler.onVoxelDestroy(world, voxelPos)
+        //engine.handler.onVoxelDestroy(world, voxelPos)
     }
 
     fun onBlockAdd(block: BlockState, pos: BlockPos, world: World) {
@@ -145,6 +159,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         acousticSimulator.onChunkUnload(world.engine, chunk)
         engine.handler.onChunkUnload(pos)
         val engineChunk = engine.getWorld(world).chunkStorage.getChunk(pos) ?: return
+        engine.getWorld(world).chunkStorage.removeChunk(pos)
         saveChunk(engine, pos, engineChunk.decals.toMap(), engineChunk.hints.toMap())
     }
 }
@@ -153,6 +168,7 @@ fun serverMinecraftPlayerInstance(
     server: EngineMinecraftServer,
     entity: PlayerEntity,
     playerId: PlayerId,
+    developerModeStatus: DeveloperModeStatus
 ): EnginePlayer {
     val engine = server.engine
     val persistentPlayerData = parsePersistentPlayerData(playerId)
@@ -174,6 +190,7 @@ fun serverMinecraftPlayerInstance(
             PlayerAttributes(),
             Spectating(),
             GameMaster(),
+            developerModeStatus,
             stacks
                 .mapNotNull { it.engineItem() }
                 .toSet()

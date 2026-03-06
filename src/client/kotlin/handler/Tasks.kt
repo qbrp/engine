@@ -10,16 +10,17 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.server.ComponentSynchronizer
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.util.Component
-import org.lain.engine.util.Entity
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.Entity
 import org.lain.engine.util.Storage
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class TaskExecutor(
-    private val tasks: ArrayDeque<Task> = ArrayDeque()
+    private val tasks: ConcurrentLinkedQueue<Task> = ConcurrentLinkedQueue()
 ) {
     fun flush() {
         while (tasks.isNotEmpty()) {
-            val task = tasks.removeFirst()
+            val task = tasks.poll() ?: continue
             task.executor()
         }
     }
@@ -79,7 +80,11 @@ fun <T : Entity, I : Any, C : Component> ClientHandler.registerSynchronizerEndpo
     registerGameSessionReceiver(synchronizer.endpoint) { gameSession ->
         val id = idGetter(id)
         val entity = storageGetter(gameSession).get(id) ?: return@registerGameSessionReceiver
-        synchronizer.resolver(entity, component)
+        if (interaction != null) {
+            pendingSnapshots.add(interaction!! to Runnable { synchronizer.resolver(entity, component) })
+        } else {
+            synchronizer.resolver(entity, component)
+        }
     }
 }
 

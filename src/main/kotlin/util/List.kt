@@ -17,19 +17,13 @@ fun <T : Any, R : Any> Queue<T>.flushMap(todo: (T) -> R): List<R> {
     return output
 }
 
-class FixedSizeList<T>(private val maxSize: Int) {
-    private val list = ArrayDeque<T>()
-
+class FixedSizeList<T>(private val maxSize: Int, private val list: ArrayDeque<T> = ArrayDeque()) : List<T> by list {
     fun add(item: T) {
         if (list.size >= maxSize) {
             list.removeFirst()
         }
         list.addLast(item)
     }
-
-    fun contains(item: T) = list.contains(item)
-
-    fun toList(): List<T> = list.toList()
 }
 
 fun <T : Any> List<T>.alsoForEach(block: (T) -> Unit): List<T> {

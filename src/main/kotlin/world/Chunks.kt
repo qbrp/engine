@@ -2,7 +2,11 @@ package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.mc.BlockHint
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.server.ServerHandler
 import org.lain.engine.storage.loadChunk
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.iterate
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt
@@ -72,10 +76,8 @@ fun getBlockCoord(sectionCoord: Int): Int {
     return sectionCoord shl 4
 }
 
-class ChunkStorage {
+class ChunkStorage(private val world: World) {
     private val chunks = mutableMapOf<Long, EngineChunk>()
-
-    fun getChunks() = chunks.toMap()
 
     fun setChunk(pos: EngineChunkPos, chunk: EngineChunk) {
         chunks[pos.toLong()] = chunk
@@ -98,8 +100,11 @@ class ChunkStorage {
     fun getChunk(pos: EngineChunkPos): EngineChunk? = getChunk(pos.x, pos.z)
 
     fun requireChunk(pos: EngineChunkPos): EngineChunk {
-        return getChunk(pos) ?: (loadChunk(pos) ?: EngineChunk())
-            .also { setChunk(pos, it) }
+        return getChunk(pos) ?: run {
+            val loadedChunk = loadChunk(pos) ?: EngineChunk()
+            setChunk(pos, loadedChunk)
+            loadedChunk
+        }
     }
 
     private fun loadChunk(pos: EngineChunkPos): EngineChunk? {
@@ -126,4 +131,88 @@ class ChunkStorage {
     companion object {
         private val LOGGER = LoggerFactory.getLogger("Engine Chunks")
     }
+}
+
+fun interface EnginePlayersWatchingChunkProvider  {
+    fun getPlayersWatchingChunk(pos: EngineChunkPos): Collection<EnginePlayer>
+}
+
+@Serializable
+data class Setter<T>(val value: T?, val remove: Boolean) {
+    fun apply(pos: VoxelPos, map: MutableMap<VoxelPos, T>) {
+        if (remove) map.remove(pos)
+        if (value != null) map[pos] = value
+    }
+
+    companion object {
+        fun <T> Set(value: T) = Setter(value, false)
+        fun <T> Remove() = Setter<T>(null, true)
+    }
+}
+
+@Serializable
+sealed class VoxelUpdate {
+    @Serializable
+    data class AttachDecal(val direction: Direction, val decal: Decal, val layer: DecalsLayerType) : VoxelUpdate()
+    @Serializable
+    data class DetachDecal(val layers: List<DecalsLayerType>) : VoxelUpdate()
+    @Serializable
+    data class Set(val decals: Setter<BlockDecals>? = null, val hint: Setter<BlockHint>? = null) : VoxelUpdate()
+}
+
+@Serializable
+data class VoxelEvent(val chunkPos: EngineChunkPos, val updates: VoxelUpdate, val selector: Selector) : Component {
+    val positions: List<ImmutableVoxelPos> by lazy {
+        when(selector) {
+            is Selector.Single -> listOf(selector.pos)
+            is Selector.Multi -> selector.positions
+        }
+    }
+    @Serializable
+    sealed class Selector {
+        @Serializable
+        data class Single(val pos: ImmutableVoxelPos) : Selector()
+        @Serializable
+        data class Multi(val positions: List<ImmutableVoxelPos>) : Selector()
+    }
+}
+
+fun World.voxelEvent(chunkPos: EngineChunkPos, updates: VoxelUpdate, selector: VoxelEvent.Selector) {
+    emitEvent(VoxelEvent(chunkPos, updates, selector))
+}
+
+fun World.singleBlockVoxelEvent(voxelPos: VoxelPos, updates: VoxelUpdate) {
+    voxelEvent(EngineChunkPos(voxelPos), updates, VoxelEvent.Selector.Single(ImmutableVoxelPos(voxelPos)))
+}
+
+fun World.updateVoxelEvents(handler: ServerHandler?) = iterate<VoxelEvent> { _, event ->
+    val chunkPos = event.chunkPos
+    val chunk = chunkStorage.requireChunk(chunkPos)
+    val positions = event.positions
+    val chunkDecals = chunk.decals
+    val chunkHints = chunk.hints
+    positions.forEach { voxelPos ->
+        when (val update = event.updates) {
+            is VoxelUpdate.AttachDecal -> {
+                val decals = chunkDecals[voxelPos] ?: BlockDecals.withLayer(update.layer)
+                val newDecals = decals.withDecalAtLayer(update.layer, update.direction, update.decal)
+                chunkDecals[voxelPos] = newDecals
+            }
+            is VoxelUpdate.DetachDecal -> {
+                val decals = chunkDecals[voxelPos] ?: return@forEach
+                val newDecals = decals.withoutLayers(update.layers)
+                chunkDecals[voxelPos] = newDecals
+            }
+            is VoxelUpdate.Set -> {
+                update.decals?.apply(voxelPos, chunkDecals)
+                update.hint?.apply(voxelPos, chunkHints)
+            }
+        }
+    }
+
+    handler?.onVoxelEvent(
+        this@updateVoxelEvents,
+        event,
+        playersWatchingChunkProvider!!.getPlayersWatchingChunk(chunkPos)
+    )
 }

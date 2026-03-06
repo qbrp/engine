@@ -3,6 +3,12 @@ package org.lain.engine.storage
 import kotlinx.serialization.*
 import kotlinx.serialization.cbor.Cbor
 import org.lain.engine.item.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.ComponentManager
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.handle
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.require
 import org.lain.engine.player.Outfit
 import org.lain.engine.util.Component
 import org.lain.engine.util.ComponentManager
@@ -31,6 +37,9 @@ sealed class ItemData {
 
     @Serializable
     data class Equipment(val hat: Boolean, val outfit: Outfit? = null) : ItemData()
+
+    @Serializable
+    data class Lights(val flashlight: Flashlight) : ItemData()
 
     @Serializable
     @Deprecated("Использовать PhysicalParameters")
@@ -78,15 +87,24 @@ fun itemPersistentData(item: EngineItem): PersistentItemData {
         ).takeIf { it.hat || it.outfit != null }
     )
 
+    item.handle<Flashlight> {
+        components.add(ItemData.Lights(this.copy()))
+    }
+
     return PersistentItemData(components)
 }
 
 @OptIn(ExperimentalSerializationApi::class)
+val ITEM_CBOR = Cbor {
+    ignoreUnknownKeys = true
+}
+
+@OptIn(ExperimentalSerializationApi::class)
 fun serializeItemPersistentComponents(item: PersistentItemData): ByteArray {
-    return Cbor.encodeToByteArray(item.components)
+    return ITEM_CBOR.encodeToByteArray(item.components)
 }
 
 @OptIn(ExperimentalSerializationApi::class)
 fun deserializeItemPersistentComponents(array: ByteArray): List<ItemData> {
-    return Cbor.decodeFromByteArray(array)
+    return ITEM_CBOR.decodeFromByteArray(array)
 }

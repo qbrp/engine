@@ -130,7 +130,8 @@ fun compileContents(directory: File = CONTENTS_DIR): ContentsCompileResult = wit
     var items = 0
     var sounds = 0
     val namespaces = namespaces.mapValues { (_, namespace) ->
-        val contents = namespace.contents
+        try {
+            val contents = namespace.contents
 
         CompiledNamespace(
             compileItems(contents.items, namespace)
@@ -148,7 +149,11 @@ fun compileContents(directory: File = CONTENTS_DIR): ContentsCompileResult = wit
                 ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(frames, animation.text, animation.success)
             }.toMap()
         )
-    }
+    } catch (e: Throwable) {
+            CONFIG_LOGGER.error("При компиляции пространства имён ${namespace.id} возникла ошибка", e)
+            null
+        }
+    }.filterValues { it != null }
 
     CONFIG_LOGGER.info(
         "Скомпилировано {} предметов, {} звуковых событий в пространствах имён {} за {} мл.",
@@ -158,7 +163,7 @@ fun compileContents(directory: File = CONTENTS_DIR): ContentsCompileResult = wit
         start.timeElapsed()
     )
 
-    return ContentsCompileResult(namespaces)
+    return ContentsCompileResult(namespaces as Map<NamespaceId, CompiledNamespace>)
 }
 
 data class ContentsCompileResult(val namespaces: Map<NamespaceId, CompiledNamespace>)

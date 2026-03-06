@@ -1,28 +1,24 @@
 package org.lain.engine.player
 
-import org.lain.engine.chat.Acoustic
-import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.ChatChannel
-import org.lain.engine.chat.EngineChat
-import org.lain.engine.chat.IncomingMessage
-import org.lain.engine.chat.MessageSource
-import org.lain.engine.util.Component
+import org.lain.engine.chat.*
+import org.lain.engine.util.component.Component
 import org.lain.engine.util.flush
-import org.lain.engine.util.get
-import org.lain.engine.util.require
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.require
 import java.util.concurrent.ConcurrentLinkedQueue
 
 data class Speak(
     val content: String,
-    val channel: ChannelId
+    val channel: ChannelId,
+    val volume: Float? = null
 )
 
 data class MessageQueue(
     val messages: ConcurrentLinkedQueue<Speak> = ConcurrentLinkedQueue()
 ) : Component
 
-fun EnginePlayer.speak(text: String, channel: ChannelId = ChatChannel.DEFAULT) {
-    require<MessageQueue>().messages += Speak(text, channel)
+fun EnginePlayer.speak(text: String, channel: ChannelId = ChatChannel.DEFAULT, volume: Float? = null) {
+    require<MessageQueue>().messages += Speak(text, channel, volume)
 }
 
 fun EnginePlayer.flushMessages(todo: (Speak) -> Unit) {
@@ -36,11 +32,10 @@ fun flushPlayerMessages(
 ) {
     player.flushMessages { message ->
         val channel = chat.getChannel(message.channel)
-        val volume = player.volume
+        val volume = message.volume ?: player.volume
         var content = message.content
 
         if (channel.speech) {
-            //val voiceApparatus = player.require<VoiceApparatus>()
             val voiceLoosed = !player.canSpeakUnlimited
 
             if (voiceLoosed) {
@@ -60,7 +55,7 @@ fun flushPlayerMessages(
                 content,
                 player.volume,
                 message.channel,
-                MessageSource.getPlayer(player)
+                MessageSource.getPlayer(player, channel)
             )
         )
     }

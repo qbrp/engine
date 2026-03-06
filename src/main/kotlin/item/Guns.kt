@@ -4,12 +4,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.*
 import org.lain.engine.server.ItemSynchronizable
+import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.*
+import org.lain.engine.util.component.*
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.world.events
 import org.lain.engine.world.world
 
 @Serializable
@@ -73,9 +73,9 @@ data class BulletParameters(
 )
 
 const val BULLET_FIRE_RADIUS = 64
+const val CLICK_SOUND = "click"
 
 private const val ROUND_BARREL_SOUND = "round_barrel"
-private const val CLICK_EMPTY_SOUND = "click_empty"
 private const val GUN_TRIGGER_SOUND = "gun_trigger"
 private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
@@ -131,6 +131,15 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             gun.fireTime = gun.rate
         }
 
+        fun finish() {
+            player.finishInteraction()
+            handItem.markDirty<Gun>(id)
+        }
+
+        if (occupied && !player.actionsSimilar()) {
+            finish()
+        }
+
         if (barrel.bullets > 0) {
             barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
             emitItemInteractionSoundEvent(handItem, GUNFIRE_SOUND)
@@ -140,25 +149,25 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             val shoot = GunShoot(start, rotationVector)
             val parameters = BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)
             handItem.set(Recoil(shoot, parameters))
-            handItem.world.events<BulletFire>() += BulletFire(
-                shoot,
-                parameters,
-                Smoke(gun.smoke ?: VEC3_ZERO, player.velocity)
+            handItem.world.emitEvent(
+                BulletFire(
+                    shoot,
+                    parameters,
+                    Smoke(gun.smoke ?: VEC3_ZERO, player.velocity)
+                )
             )
 
             if (gun.mode != FireMode.AUTO) {
-                player.completeInteraction()
+                finish()
             } else {
                 occupy()
-                println("Occupied")
             }
         } else {
             if (!gun.clicked) {
-                emitItemInteractionSoundEvent(handItem, CLICK_EMPTY_SOUND)
+                emitItemInteractionSoundEvent(handItem, CLICK_SOUND)
                 gun.clicked = true
             }
-            player.completeInteraction()
-            println("Finished")
+            finish()
         }
     }
 
@@ -171,6 +180,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             val nextIndex = (currentIndex + 1) % modes.size
             gun.mode = modes[nextIndex]
             emitItemInteractionSoundEvent(handItem, SELECTOR_TOGGLE_SOUND)
+            handItem.markDirty<Gun>(id)
         }
 
         player.completeInteraction()
@@ -188,6 +198,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             gun.clicked = false
             emitItemInteractionSoundEvent(slotItem, ROUND_BARREL_SOUND)
             player.set(DestroyItemSignal(cursorItem.uuid, count))
+            slotItem.markDirty<Gun>(id)
         }
         player.completeInteraction()
     }

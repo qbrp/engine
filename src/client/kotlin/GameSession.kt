@@ -13,13 +13,14 @@ import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.ClientboundSetupData
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.apply
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.has
 import org.lain.engine.util.file.compileContents
 import org.lain.engine.util.file.loadContentsCompileResult
-import org.lain.engine.util.has
 import org.lain.engine.world.*
 import java.util.*
 
@@ -34,6 +35,7 @@ class GameSession(
     val renderer = client.renderer
     val chatEventBus = client.chatEventBus
     var playerSynchronizationRadius: Int = setup.settings.playerSynchronizationRadius
+    var playerDesynchronizationThreshold: Int = setup.settings.playerDesynchronizationThreshold
 
     var extendArm = false
     set(value) {
@@ -61,7 +63,7 @@ class GameSession(
         PlayerVolume(player.volume, player.maxVolume, player.baseVolume),
         this
     )
-    val mainPlayer = mainClientPlayerInstance(player.id, world, player)
+    val mainPlayer = mainClientPlayerInstance(player.id, world, player, DeveloperModeStatus(client.developerMode, client.acousticDebug))
     var ticks = 0L
         private set
     val namespacedStorage = NamespacedStorage()
@@ -79,8 +81,9 @@ class GameSession(
     fun tick() = with(namespacedStorage) {
         ticks++
         chatManager.tick()
+
         val players = playerStorage.getAll()
-        world.apply<ScenePlayers> {
+        world.apply {
             this.players.clear()
             this.players.addAll(players)
         }
@@ -93,7 +96,7 @@ class GameSession(
         for (player in players) {
             if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
                 player.isLowDetailed = true
-                return
+                continue
             } else {
                 player.isLowDetailed = false
             }
@@ -102,14 +105,22 @@ class GameSession(
             updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
             supplyPlayerInventoryItemsLocation(player, playerItems)
 
-            updatePlayerVerbLookup(player)
-            updatePlayerInteractions(player)
+            updatePlayerVerbLookup(player, false)
+            val interaction = player.get<InteractionComponent>()
+            if (interaction != null) {
+                println("Взаимодействие: $interaction")
+            }
 
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)
             handleGunInteractions(player, true)
+            handleFlashlightInteractions(player)
             handlePlayerEquipmentInteraction(player)
             finishPlayerInteraction(player)
+            val processedInteraction = player.get<InteractionComponent>()
+            if (interaction != processedInteraction && interaction != null) {
+                handler.processedInteractions.add(interaction.id)
+            }
 
             tickInventoryGun(playerItems)
             handleItemRecoil(player, playerItems, false)
@@ -124,6 +135,7 @@ class GameSession(
         val sounds = processWorldSounds(namespacedStorage, world)
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()
+        world.updateVoxelEvents(null)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {

@@ -12,6 +12,10 @@ import org.lain.engine.player.Outfit
 import org.lain.engine.player.OutfitDisplay
 import org.lain.engine.player.PlayerPart
 import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.setNullable
 import org.lain.engine.world.Location
 
 fun connectDatabase(server: MinecraftServer): Database {
@@ -73,6 +77,8 @@ suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
                 components.addIfNotNull(component.data)
             is ItemData.Book ->
                 components.add(component.writable ?: component.writableLegacy ?: error("Writeable component doesn't exist"))
+            is ItemData.Lights ->
+                components.add(component.flashlight)
             is ItemData.Count -> {
                 count = Count(component.value, 16)
             }

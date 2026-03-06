@@ -11,8 +11,8 @@ import org.lain.engine.player.Outfit
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.Component
-import org.lain.engine.util.get
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.get
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.pos
 
@@ -32,6 +32,7 @@ internal val ItemProtobuf = ProtoBuf {
             subclass(ItemSounds::class)
             subclass(Outfit::class)
             subclass(ItemProgressionAnimations::class)
+            subclass(Flashlight::class)
         }
     }
 }
@@ -64,6 +65,7 @@ data class ClientboundItemData(
                 item.get<Mass>()?.copy(),
                 item.get<Writable>()?.copy(),
                 item.get<ItemSounds>()?.copy(),
+                item.get<Flashlight>()?.copy(),
                 item.get<Outfit>()?.copy(),
                 item.get<ItemProgressionAnimations>()?.copy(),
             )

@@ -1,10 +1,10 @@
 package org.lain.engine.world
 
-import org.lain.engine.util.Component
-import org.lain.engine.util.ComponentManager
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.ComponentManager
 import org.lain.engine.util.math.MutableVec3
 import org.lain.engine.util.math.Pos
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 
 data class Location(
     var world: World,

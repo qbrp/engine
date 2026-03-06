@@ -1,38 +1,43 @@
 package org.lain.engine.world
 
-import org.lain.engine.util.Component
-import org.lain.engine.util.ComponentManager
-import org.lain.engine.util.ComponentState
-import org.lain.engine.util.require
-import org.lain.engine.util.set
-import java.util.*
-import kotlin.apply
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.util.component.*
 import kotlin.reflect.KClass
+
+object Event : Component
 
 class World(
     val id: WorldId,
-    val chunkStorage: ChunkStorage = ChunkStorage(),
-    private val state: ComponentState = ComponentState()
-) : ComponentManager by state
+    val players: MutableList<EnginePlayer> = mutableListOf(),
+    val componentManager: ComponentWorld = ComponentWorld(),
+    val playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null,
+) : ComponentAccess by componentManager {
+    val chunkStorage: ChunkStorage = ChunkStorage(this)
 
-fun world(id: WorldId): World {
-    return World(id).apply {
-        set(ScenePlayers())
-        set(WorldEvents())
+    init {
+        componentManager.registerComponents()
+    }
+
+    /**
+     * Создает сущность с компонентами `event` и Event. Следует использовать как альтернативу очередям событий.
+     * Последний сигнализирует о том, что сущность нужно уничтожить в конце тика
+     */
+    fun <T : Component> emitEvent(event: T, kclass: KClass<T>) {
+        val entity = componentManager.addEntity()
+        componentManager.setComponentWithType(entity,event, kclass)
+        componentManager.setComponent(entity, Event)
+    }
+
+    inline fun <reified T : Component> emitEvent(event: T) {
+        emitEvent(event, T::class)
+    }
+
+    fun clearEvents() {
+        componentManager.iterate<Event> { entity, _ -> entity.destroy() }
     }
 }
 
-data class WorldEvents(
-    private val queues: MutableMap<KClass<*>, Queue<*>> = mutableMapOf()
-) : Component {
-
-    @Suppress("UNCHECKED_CAST")
-    fun <T : Any> getQueue(eventClass: KClass<T>): Queue<T> {
-        return queues.getOrPut(eventClass) { LinkedList<T>() } as Queue<T>
-    }
+fun world(id: WorldId, playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null): World {
+    return World(id, playersWatchingChunkProvider=playersWatchingChunkProvider)
 }
-
-inline fun <reified T : Any> World.events(): Queue<T> = this.require<WorldEvents>().getQueue(T::class)
-
-val World.events get() = this.require<WorldEvents>()
 

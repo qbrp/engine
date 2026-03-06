@@ -1,5 +1,6 @@
 package org.lain.engine.client
 
+import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,11 +39,18 @@ import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
-import org.lain.engine.util.*
+import org.lain.engine.util.EngineId
+import org.lain.engine.util.Injector
+import org.lain.engine.util.component.apply
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.require
+import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.registerMinecraftServer
 import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.handleDecalsAttaches
 import org.slf4j.LoggerFactory
 import java.util.*
 
@@ -50,6 +58,9 @@ class MinecraftEngineClient : ClientModInitializer {
     private val client = MinecraftClient
     private val fabricLoader = FabricLoader.getInstance()
     private val entityTable by injectEntityTable()
+    private val dynamicLights by injectDynamicLightsContext()
+    private val dynamicLightSources = mutableSetOf<LightSource>()
+    private val dynamicLightBehaviours = mutableMapOf<LightSource, DynamicLightBehavior>()
     private val clientPlayerTable by lazy { entityTable.client }
     private var chunks = mutableListOf<Chunk>()
 
@@ -155,9 +166,7 @@ class MinecraftEngineClient : ClientModInitializer {
                         val world = session.world
 
                         val player = clientPlayerTable.getPlayer(entity) ?: run {
-                            if (entity.squaredDistanceTo(entity) < session.playerSynchronizationRadius * session.playerSynchronizationRadius) {
-                                skippedPlayers += entity
-                            }
+                            skippedPlayers += entity
                             return@forEach
                         }
                         val itemStacks = (entity.inventory + entity.currentScreenHandler.cursorStack).toSet()
@@ -174,7 +183,7 @@ class MinecraftEngineClient : ClientModInitializer {
                         }
 
                         removeHoldsByMarks(session.itemStorage.getAll())
-                        updatePlayerMinecraftSystems(player, items, entity, world)
+                        updatePlayerMinecraftSystems(player, items, entity, world, gameSession.itemStorage)
 
                         player.remove<OpenBookTag>()?.let {
                             if (player == gameSession.mainPlayer) {
@@ -211,8 +220,9 @@ class MinecraftEngineClient : ClientModInitializer {
                 keybindManager.tick(engineClient)
 
                 if (gameSession != null) {
-                    handleDecalsAttaches(gameSession.world)
                     decalsStorage.handleDecalsEvent(gameSession.world)
+                    updateLights(gameSession, dynamicLights, entityTable, dynamicLightSources, dynamicLightBehaviours)
+                    gameSession.world.clearEvents()
                 }
 
             } catch (e: Throwable) {
@@ -225,6 +235,7 @@ class MinecraftEngineClient : ClientModInitializer {
 
                 client.networkHandler?.connection?.disconnect(DisconnectText(text)) ?: run {
                     connectionLogger.warn("Игрок отключен от несуществующего сервера")
+                    onDisconnect()
                 }
             }
         }
@@ -246,7 +257,7 @@ class MinecraftEngineClient : ClientModInitializer {
             )
             context.matrices.pushMatrix()
             renderer.isFirstPerson = !client.gameRenderer.camera.isThirdPerson
-
+            val mainPlayer = engineClient.gameSession?.mainPlayer
             if (mainPlayer != null) {
                 mainPlayer.handle<Narration> {
                     renderNarrations(
@@ -262,8 +273,8 @@ class MinecraftEngineClient : ClientModInitializer {
                     mainPlayer.get<InteractionComponent>(),
                     deltaTick
                 )
+                renderer.renderScreen(painter)
             }
-            renderer.renderScreen(painter)
             val window = MinecraftClient.window
             val mouse = MinecraftClient.mouse
             uiRenderPipeline.render(
@@ -315,10 +326,11 @@ class MinecraftEngineClient : ClientModInitializer {
     }
 
     private fun authorize(entity: ClientPlayerEntity) {
+        val developerMode = DeveloperModeStatus(engineClient.developerMode, engineClient.acousticDebug)
         if (client.isInSingleplayer) {
             val server = server ?: throw RuntimeException("Server not started")
             val engine = server.engine
-            val player = serverMinecraftPlayerInstance(server, entity, entity.engineId)
+            val player = serverMinecraftPlayerInstance(server, entity, entity.engineId, developerMode)
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
                 prepareServerMinecraftPlayer(server, entity, player)
                 engine.execute {
@@ -330,7 +342,9 @@ class MinecraftEngineClient : ClientModInitializer {
             .sendC2SPacket(
                 AuthPacket(
                     MinecraftUsername(entity),
-                    fabricLoader.allMods.map { it.metadata.id }
+                    fabricLoader.allMods.map { it.metadata.id },
+                    developerMode,
+                    ENGINE_MOD_VERSION
                 )
             )
         }

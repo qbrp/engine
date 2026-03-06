@@ -1,10 +1,9 @@
 package org.lain.engine.util.math
 
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.get
+import org.lain.engine.util.component.get
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
-import org.lain.engine.world.players
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round
@@ -32,6 +31,11 @@ fun smootherstep(t: Float): Float {
 
 fun smoothstep(t: Float): Float {
     return 3*t*t - 2*t*t*t
+}
+
+fun smoothstepSDF(sdf: Double, range: Double = 1.0): Float {
+    val t = (0.5 + sdf / range).coerceIn(0.0, 1.0)
+    return (3*t*t - 2*t*t*t).toFloat()
 }
 
 fun lerp(start: Float, end: Float, t: Float): Float {

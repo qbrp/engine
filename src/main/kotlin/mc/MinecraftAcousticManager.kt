@@ -12,6 +12,7 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
+import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.chat.acoustic.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
@@ -31,16 +32,15 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.min
 
 class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Message source is too high or low")
 
-const val SEGMENT_SIZE = 64f
+const val SEGMENT_SIZE = 16
 
-fun World.segmentOf(y: Int) = floor((y - bottomY) / SEGMENT_SIZE).toInt()
+fun World.segmentOf(y: Int) = ceil((y - bottomY.toFloat()) / SEGMENT_SIZE).toInt().coerceAtMost(segmentCount) - 1
 
-val World.segmentCount get() = ceil(height / SEGMENT_SIZE).toInt()
+val World.segmentCount get() = ceil(height / SEGMENT_SIZE.toFloat()).toInt()
 
 data class AcousticBlockData(
     val solid: Float,
@@ -186,8 +186,9 @@ class MinecraftChunkAcousticScene private constructor(
  */
 class ChunkedAcousticView(
     val chunkSize: ChunkSize,
-    private val scenes: List<MinecraftChunkAcousticScene>
+    val scenes: List<MinecraftChunkAcousticScene>
 ) {
+
     data class ChunkSize(val w: Int, val h: Int, val d: Int) {
         init {
             require(isPowerOfTwo(w))
@@ -255,48 +256,9 @@ class ChunkedAcousticView(
             z - baseZ
         ]
     }
-
-    inline fun forEachCell(
-        range: Grid3Range,
-        block: (idx: Int, passability: Float, x: Int, y: Int, z: Int) -> Unit
-    ) {
-        var idx = 0
-        val chunkPos = ChunkPos(0, 0, 0)
-
-        for (x in range.x0 until range.x1) {
-            chunkPos.x = chunkSize.chunkX(x)
-
-            for (y in range.y0 until range.y1) {
-                chunkPos.y = chunkSize.chunkY(y)
-
-                for (z in range.z0 until range.z1) {
-                    try {
-                        chunkPos.z = chunkSize.chunkZ(z)
-                        val chunk = chunkMap[chunkPos] ?: error("Координаты выходят за пределы чанка")
-
-                        val baseX = chunk.x - minX
-                        val baseY = chunk.y - minY
-                        val baseZ = chunk.z - minZ
-
-                        val pass = chunk.passability[
-                            x - baseX,
-                            y - baseY,
-                            z - baseZ
-                        ]
-
-                        block(idx++, pass, x, y, z)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        throw e
-                    }
-                }
-            }
-        }
-    }
 }
 
 class ConcurrentAcousticSceneBank {
-    // Упакованные сцены высотой в 64 блока
     data class AcousticSceneSegmentCompound(
         val scenes: MutableList<MinecraftChunkAcousticScene> = Collections.synchronizedList(mutableListOf())
     ) {
@@ -313,7 +275,7 @@ class ConcurrentAcousticSceneBank {
         val topY = chunk.topYInclusive
         val bottomY = chunk.bottomY
         val segments = world.segmentCount
-        val segmentSize = SEGMENT_SIZE.toInt()
+        val segmentSize = SEGMENT_SIZE
 
         val scenes = mutableListOf<MinecraftChunkAcousticScene>()
 
@@ -325,7 +287,15 @@ class ConcurrentAcousticSceneBank {
                 break
             }
 
-            scenes.add(MinecraftChunkAcousticScene.create(world, chunk, acousticBlockData, y0 = y0, y1 = y1))
+            scenes.add(
+                MinecraftChunkAcousticScene.create(
+                    world,
+                    chunk,
+                    acousticBlockData,
+                    y0 = y0,
+                    y1 = y1
+                )
+            )
         }
 
         val worldId = world.engine
@@ -336,8 +306,16 @@ class ConcurrentAcousticSceneBank {
         return compound
     }
 
+    fun removeAll() {
+        chunkMap.forEach { (key, compound) -> removeChunk(key) }
+    }
+
     fun removeChunk(world: WorldId, chunk: ChunkPos) {
-        chunkMap.remove(WorldChunkKey(world, chunk))
+        removeChunk(WorldChunkKey(world, chunk))
+    }
+
+    private fun removeChunk(key: WorldChunkKey) {
+        chunkMap.remove(key)
             ?.also {
                 it.scenes.forEach { scene ->
                     scene.destroy()
@@ -377,25 +355,30 @@ class ConcurrentAcousticSceneBank {
         val chunkZ0 = minecraftChunkSectionCoord(z0)
         val chunkZ1 = minecraftChunkSectionCoord(z1)
 
+        val extend = 1
         val segment = world.segmentOf(y)
+        val segments = world.segmentCount
+        val bottomSegment = segment - extend
         val chunks = mutableListOf<MinecraftChunkAcousticScene>()
         for (x in chunkX0..chunkX1) {
             for (z in chunkZ0..chunkZ1) {
-                chunks.add(
-                    getChunkSegment(
-                        world,
-                        ChunkPos(x, z),
-                        y
-                    ) ?: addChunk(
-                        world,
-                        world.getChunk(x, z),
-                        acousticBlockData
-                    ).getScene(segment)
+                val chunkPos = ChunkPos(x, z)
+                val compound = getChunk(world.engine, chunkPos) ?: addChunk(
+                    world,
+                    world.getChunk(x, z),
+                    acousticBlockData
                 )
+
+                repeat(1 + extend * 2) { i ->
+                    val segmentIndex = bottomSegment + i
+                    if (segmentIndex < segments - 1) {
+                        chunks.add(compound.getScene(segmentIndex))
+                    }
+                }
             }
         }
         return ChunkedAcousticView(
-            ChunkedAcousticView.ChunkSize(16, 64, 16),
+            ChunkedAcousticView.ChunkSize(16, SEGMENT_SIZE, 16),
             chunks
         )
     }
@@ -406,6 +389,7 @@ class ConcurrentAcousticSceneBank {
 }
 
 class MinecraftAcousticManager(
+    private val server: EngineMinecraftServer,
     private val entityTable: EntityTable,
     private val acousticSceneBank: ConcurrentAcousticSceneBank,
     acousticBlockData: AcousticBlockData,
@@ -438,12 +422,17 @@ class MinecraftAcousticManager(
         acousticSceneBank.removeChunk(world, chunk.pos)
     }
 
+    fun invalidate() {
+        acousticSceneBank.removeAll()
+    }
+
     override suspend fun simulateSingleSource(
         world: WorldId,
         pos: Pos,
         volume: Float,
         maxVolume: Float,
         attenuation: Float,
+        exceptionHandler: (Throwable) -> Unit
     ): AcousticSimulationResult {
         val timestamp = Timestamp()
         val mcWorld = entityTable.getMcWorld(world) ?: throw IllegalArgumentException("World $world")
@@ -451,7 +440,7 @@ class MinecraftAcousticManager(
 
         val blockPos = pos.toBlockPos()
         val y = blockPos.y
-        if (y > mcWorld.height || y < mcWorld.bottomY) {
+        if (y > mcWorld.topYInclusive || y < mcWorld.bottomY) {
             throw InvalidMessageSourcePositionException(pos.y.toInt())
         }
         val x = blockPos.x
@@ -462,7 +451,21 @@ class MinecraftAcousticManager(
         val z0 = z - range
         val x1 = x + range
         val z1 = z + range
-        val scene = acousticSceneBank.getChunkedView(mcWorld, acousticBlockData, x0, z0, x1, z1, y)
+        val scene = try {
+            acousticSceneBank.getChunkedView(mcWorld, acousticBlockData, x0, z0, x1, z1, y)
+        } catch (e: Throwable) {
+            logger.error("Во время получения акустической сцены возникла ошибка", e)
+            exceptionHandler(e)
+            return object : AcousticSimulationResult {
+                override fun debug(
+                    player: EnginePlayer,
+                    handler: ServerHandler,
+                    radius: Float
+                ) {}
+                override fun getVolume(pos: Pos): Float? = null
+                override fun finish() {}
+            }
+        }
         val size = scene.totalSize
         val generation = AcousticGeneration(
             PrimitiveArrayPool.getGrid3f(
@@ -509,8 +512,9 @@ class MinecraftAcousticManager(
                 maxVolume,
                 timestamp.timeElapsed()
             )
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (e: Throwable) {
+            logger.error("Во время обработки акустики возникла ошибка", e)
+            exceptionHandler(e)
             _finish()
         }
 
@@ -518,21 +522,23 @@ class MinecraftAcousticManager(
             // Максимально не оптимизировано, но кому какое дело?
             override fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float) {
                 use.set(true)
-                val minX = scene.minX.toFloat()
-                val minY = scene.minY.toFloat()
-                val minZ = scene.minZ.toFloat()
-                val playerPos = player.pos
-                    .sub(minX, minY, minZ)
-                coroutineScope.launch {
-                    val volumes = generation.volume.array
-                        .mapIndexed { i, _ -> generation.volume.posOf(i) }
-                        .filter { (x, y, z) -> abs(x - playerPos.x) <= radius && abs(y - playerPos.y) <= radius && abs(z - playerPos.z) <= radius }
-                        .map { (x, y, z) ->
-                            ImmutableVoxelPos(x + scene.minX, y + scene.minY, z + scene.minZ) to generation.volume[x, y, z]
-                        }
-                    handler.onPersonalVolumeAcousticDebug(player, volumes)
-                    use.set(false)
-                    finish()
+                server.engine.execute {
+                    val minX = scene.minX.toFloat()
+                    val minY = scene.minY.toFloat()
+                    val minZ = scene.minZ.toFloat()
+                    val playerPos = player.pos
+                        .sub(minX, minY, minZ)
+                    coroutineScope.launch {
+                        val volumes = generation.volume.array
+                            .mapIndexed { i, _ -> generation.volume.posOf(i) }
+                            .filter { (x, y, z) -> abs(x - playerPos.x) <= radius && abs(y - playerPos.y) <= radius && abs(z - playerPos.z) <= radius }
+                            .map { (x, y, z) ->
+                                ImmutableVoxelPos(x + scene.minX, y + scene.minY, z + scene.minZ) to generation.volume[x, y, z]
+                            }
+                        handler.onPersonalVolumeAcousticDebug(player, volumes)
+                        use.set(false)
+                        finish()
+                    }
                 }
             }
 

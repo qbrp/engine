@@ -24,12 +24,6 @@ data class EngineChunkPacket(
 val CLIENTBOUND_CHUNK_ENDPOINT = Endpoint<EngineChunkPacket>()
 
 @Serializable
-data class VoxelUpdatePacket(val voxelPos: ImmutableVoxelPos, val decals: BlockDecals?, val hint: BlockHint?) : Packet
+data class VoxelEventPacket(val event: VoxelEvent) : Packet
 
-val CLIENTBOUND_VOXEL_UPDATE_ENDPOINT = Endpoint<VoxelUpdatePacket>()
-
-@Serializable
-data class DestroyVoxelPacket(val voxelPos: ImmutableVoxelPos) : Packet
-
-val CLIENTBOUND_VOXEL_DESTROY_ENDPOINT = Endpoint<DestroyVoxelPacket>()
-
+val CLIENTBOUND_VOXEL_EVENT_PACKET = Endpoint<VoxelEventPacket>()

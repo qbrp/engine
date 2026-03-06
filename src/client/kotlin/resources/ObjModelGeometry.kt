@@ -23,6 +23,8 @@ class ObjGeometry(
     val mtl: Map<String, Mtl>,
     val flipV: Boolean
 ) : Geometry {
+    private val flg = if (flipV) MutableQuadView.BAKE_NORMALIZED or MutableQuadView.BAKE_FLIP_V else MutableQuadView.BAKE_NORMALIZED
+
     override fun bake(
         textures: ModelTextures,
         baker: Baker,
@@ -40,14 +42,19 @@ class ObjGeometry(
         val spriteGetter = baker.spriteGetter
         val materialGroups = ObjSplitting.splitByMaterialGroups(obj)
 
-        materialGroups.forEach { (name, objModel) ->
+        materialGroups.forEach { (name: String, objModel: Obj) ->
+            val mtl = mtl[name]
+            val sprite = mtl?.mapKd?.let { SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, EngineId(it)) } ?: MISSING_SPRITE
+            val emissive = name == "emissive"
+
             for (i in 0..<objModel.numFaces) {
                 emitFace(
                     emitter,
                     settings,
                     spriteGetter,
                     model,
-                    name,
+                    sprite,
+                    emissive,
                     objModel,
                     objModel.getFace(i)
                 )
@@ -62,24 +69,16 @@ class ObjGeometry(
         settings: ModelBakeSettings,
         spriteGetter: ErrorCollectingSpriteGetter,
         model: SimpleModel,
-        materialName: String?,
+        sprite: SpriteIdentifier,
+        emissive: Boolean,
         fObj: Obj,
         face: ObjFace
     ) {
         for (i in 0..<face.numVertices) {
-            emitVertex(i, i, emitter, settings, fObj, face)
+            emitVertex(i, i, emitter, settings, emissive, fObj, face)
         }
 
-        if (face.numVertices == 3) emitVertex(3, 2, emitter, settings, fObj, face)
-
-        val smtl = mtl.get(materialName)
-        var flg = MutableQuadView.BAKE_NORMALIZED
-        if (flipV) flg = flg or MutableQuadView.BAKE_FLIP_V
-
-        val textureId: Identifier? = smtl?.mapKd?.let { EngineId(it) }
-
-        val sprite = textureId?.let { SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, textureId) } ?: MISSING_SPRITE
-
+        if (face.numVertices == 3) emitVertex(3, 2, emitter, settings, emissive, fObj, face)
         emitter.spriteBake(spriteGetter.get(sprite, model), flg)
         emitter.color(-1, -1, -1, -1)
         emitter.emit()
@@ -90,6 +89,7 @@ class ObjGeometry(
         vertexNum: Int,
         emitter: QuadEmitter,
         settings: ModelBakeSettings,
+        emissive: Boolean,
         fObj: Obj,
         face: ObjFace
     ) {
@@ -107,6 +107,7 @@ class ObjGeometry(
             .pos(index, vertex.x, vertex.y, vertex.z)
             .normal(index, normal.x, normal.y, normal.z)
             .uv(index, tex.x, tex.y)
+            .emissive(emissive)
     }
 }
 

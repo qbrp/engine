@@ -189,7 +189,7 @@ public abstract class ChatHudMixin {
 
             int textX = 0;
             for (MinecraftChat.TypingPlayer player : entities) {
-                Text name = MinecraftChat.INSTANCE.getDisplayName(player);
+                Text name = player.getName();
                 PlayerSkinDrawer.draw(context, player.getSkinTextures(), textX + 1, bottomY + 1, 8, ColorHelper.withAlpha(Colors.WHITE, ColorHelper.getArgb(80, 80, 80)));
                 PlayerSkinDrawer.draw(context, player.getSkinTextures(), textX, bottomY, 8, Colors.WHITE);
                 textX += 10;

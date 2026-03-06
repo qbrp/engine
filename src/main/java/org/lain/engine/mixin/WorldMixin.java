@@ -8,7 +8,6 @@ import org.lain.engine.mc.ServerMixinAccess;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(World.class)
@@ -18,7 +17,7 @@ public class WorldMixin {
             at = @At("RETURN")
     )
     public void engine$setBlockState(BlockPos pos, BlockState state, int flags, int maxUpdateDepth, CallbackInfoReturnable<Boolean> cir) {
-        if (state.isAir()) {
+        if (cir.getReturnValue() == true && state.isAir()) {
             ServerMixinAccess.INSTANCE.onBlockRemoved((World) (Object)this, pos);
         }
     }

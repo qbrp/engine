@@ -3,13 +3,7 @@ package org.lain.engine.test
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
-import org.lain.engine.client.chat.ChatBar
-import org.lain.engine.client.chat.ChatBarSection
-import org.lain.engine.client.chat.ChatFormatSettings
-import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
-import org.lain.engine.client.chat.SYSTEM_CHANNEL
-import org.lain.engine.client.chat.acceptOutcomingMessage
-import org.lain.engine.client.chat.isMessageVisible
+import org.lain.engine.client.chat.*
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import kotlin.test.BeforeTest

@@ -2,10 +2,10 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.markDirty
-import org.lain.engine.util.Component
-import org.lain.engine.util.apply
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.apply
 import org.lain.engine.util.nextId
-import org.lain.engine.util.require
+import org.lain.engine.util.component.require
 import kotlin.math.max
 
 /**
@@ -25,19 +25,24 @@ data class NarrationContent(
 )
 
 @Serializable
-data class NarrationMessage(val content: NarrationContent, var time: Int, val id: Long = nextId())
+data class NarrationMessage(
+    val content: NarrationContent,
+    var time: Int,
+    val kick: Boolean,
+    val id: Long = nextId()
+)
 
-fun EnginePlayer.narration(message: String, time: Int) = this.apply<Narration>() {
+fun EnginePlayer.narration(message: String, time: Int, kick: Boolean = false) = this.apply<Narration>() {
     val identical = messages.find { it.content.text == message }
     if (identical != null) {
         identical.time = max(0, identical.time - time)
     } else {
-        messages += NarrationMessage(NarrationContent(message, time), 0)
+        messages += NarrationMessage(NarrationContent(message, time), 0, kick)
     }
 }
 
-fun EnginePlayer.serverNarration(message: String, time: Int) {
-    narration(message, time)
+fun EnginePlayer.serverNarration(message: String, time: Int, kick: Boolean = false) {
+    narration(message, time, kick)
     markDirty<Narration>()
 }
 

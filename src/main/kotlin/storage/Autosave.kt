@@ -16,7 +16,7 @@ import org.lain.engine.mc.engine
 import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.has
+import org.lain.engine.util.component.has
 import org.lain.engine.world.location
 import org.slf4j.LoggerFactory
 

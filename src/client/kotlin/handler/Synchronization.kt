@@ -1,19 +1,17 @@
 package org.lain.engine.client.handler
 
+import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.Count
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.itemInstance
 import org.lain.engine.player.*
-import org.lain.engine.transport.packet.ClientboundItemData
-import org.lain.engine.transport.packet.ClientboundWorldData
-import org.lain.engine.transport.packet.GeneralPlayerData
-import org.lain.engine.transport.packet.ServerPlayerData
-import org.lain.engine.util.Component
-import org.lain.engine.util.ComponentState
-import org.lain.engine.util.getOrSet
+import org.lain.engine.transport.packet.*
+import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.getOrSet
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.set
-import org.lain.engine.world.*
+import org.lain.engine.world.Location
+import org.lain.engine.world.World
 
 /**
  * Объект находится за пределами видимости игрока и не синхронизируется точно.
@@ -38,6 +36,7 @@ fun lowDetailedClientPlayerInstance(
             world,
             LOD_POS,
             data.displayName,
+            developerModeStatus = DeveloperModeStatus()
         ),
         id
     ).also { it.isLowDetailed = true }
@@ -46,7 +45,8 @@ fun lowDetailedClientPlayerInstance(
 fun mainClientPlayerInstance(
     id: PlayerId,
     world: World,
-    data: ServerPlayerData
+    data: ServerPlayerData,
+    developerModeStatus: DeveloperModeStatus
 ): EnginePlayer {
     return commonPlayerInstance(
         PlayerInstantiateSettings(
@@ -57,7 +57,8 @@ fun mainClientPlayerInstance(
                 intention = data.speedIntention,
                 stamina = data.stamina
             ),
-            data.attributes
+            data.attributes,
+            developerModeStatus = developerModeStatus
         ),
         id
     ).also { it.isLowDetailed = false }
@@ -74,7 +75,6 @@ fun clientItem(world: World, item: ClientboundItemData): EngineItem {
     )
 }
 
-fun clientWorld(data: ClientboundWorldData, chunkStorage: ChunkStorage) = World(data.id, chunkStorage).apply {
-    set(WorldEvents())
-    set(ScenePlayers())
+fun clientWorld(data: ClientboundWorldData) = World(data.id).apply {
+    componentManager.registerComponentsClient()
 }

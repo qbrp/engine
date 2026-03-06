@@ -25,6 +25,9 @@ import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.engine
 import org.lain.engine.player.*
 import org.lain.engine.util.*
+import org.lain.engine.util.component.get
+import org.lain.engine.util.component.has
+import org.lain.engine.util.component.require
 
 object ClientMixinAccess {
     private val client by injectClient()
@@ -108,15 +111,11 @@ object ClientMixinAccess {
         val inventory = enginePlayer.require<PlayerInventory>()
         val extends = enginePlayer.require<ArmStatus>().extend
 
-        val selectorLeft = isGunWithoutSelector(inventory.offHandItem)
         playerEntityRenderState.setMainArmPose(
-           armPoseOf(true, extends, isGun(inventory.mainHandItem), isGunWithoutSelector(inventory.mainHandItem), selectorLeft)
+           armPoseOf(extends, inventory.mainHandItem != null, true, isGun(inventory.mainHandItem), isGunWithoutSelector(inventory.mainHandItem), isGun(inventory.offHandItem))
        )
         playerEntityRenderState.setMinorArmPose(
-            armPoseOf(false, extends, isGun(inventory.offHandItem), selectorLeft, false)
-        )
-        playerEntityRenderState.setEquipment(
-            model.parts.flatMap { createModelPartEquipmentRenderStates(playerLikeEntity, enginePlayer, model, it) }
+            armPoseOf(extends, inventory.offHandItem != null, false, isGun(inventory.offHandItem), isGunWithoutSelector(inventory.offHandItem), isGun(inventory.mainHandItem))
         )
     }
 
