@@ -44,13 +44,15 @@ import org.lain.engine.player.username
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
-import org.lain.engine.util.*
+import org.lain.engine.util.EngineId
+import org.lain.engine.util.Injector
 import org.lain.engine.util.component.apply
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.remove
 import org.lain.engine.util.component.require
+import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.registerMinecraftServer
 import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.handleDecalsAttaches
 import org.slf4j.LoggerFactory
 import java.util.*
 
@@ -218,9 +220,9 @@ class MinecraftEngineClient : ClientModInitializer {
                 keybindManager.tick(engineClient)
 
                 if (gameSession != null) {
-                    handleDecalsAttaches(gameSession.world)
                     decalsStorage.handleDecalsEvent(gameSession.world)
                     updateLights(gameSession, dynamicLights, entityTable, dynamicLightSources, dynamicLightBehaviours)
+                    gameSession.world.clearEvents()
                 }
 
             } catch (e: Throwable) {

@@ -520,23 +520,25 @@ class MinecraftAcousticManager(
 
         return object : AcousticSimulationResult {
             // Максимально не оптимизировано, но кому какое дело?
-            override fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float) = server.engine.execute {
+            override fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float) {
                 use.set(true)
-                val minX = scene.minX.toFloat()
-                val minY = scene.minY.toFloat()
-                val minZ = scene.minZ.toFloat()
-                val playerPos = player.pos
-                    .sub(minX, minY, minZ)
-                coroutineScope.launch {
-                    val volumes = generation.volume.array
-                        .mapIndexed { i, _ -> generation.volume.posOf(i) }
-                        .filter { (x, y, z) -> abs(x - playerPos.x) <= radius && abs(y - playerPos.y) <= radius && abs(z - playerPos.z) <= radius }
-                        .map { (x, y, z) ->
-                            ImmutableVoxelPos(x + scene.minX, y + scene.minY, z + scene.minZ) to generation.volume[x, y, z]
-                        }
-                    handler.onPersonalVolumeAcousticDebug(player, volumes)
-                    use.set(false)
-                    finish()
+                server.engine.execute {
+                    val minX = scene.minX.toFloat()
+                    val minY = scene.minY.toFloat()
+                    val minZ = scene.minZ.toFloat()
+                    val playerPos = player.pos
+                        .sub(minX, minY, minZ)
+                    coroutineScope.launch {
+                        val volumes = generation.volume.array
+                            .mapIndexed { i, _ -> generation.volume.posOf(i) }
+                            .filter { (x, y, z) -> abs(x - playerPos.x) <= radius && abs(y - playerPos.y) <= radius && abs(z - playerPos.z) <= radius }
+                            .map { (x, y, z) ->
+                                ImmutableVoxelPos(x + scene.minX, y + scene.minY, z + scene.minZ) to generation.volume[x, y, z]
+                            }
+                        handler.onPersonalVolumeAcousticDebug(player, volumes)
+                        use.set(false)
+                        finish()
+                    }
                 }
             }
 

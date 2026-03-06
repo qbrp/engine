@@ -9,7 +9,6 @@ import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.SoundContext
 import org.lain.engine.world.WorldSoundPlayRequest
-import org.lain.engine.world.emitPlaySoundEvent
 import org.lain.engine.world.world
 
 @Serializable
@@ -80,7 +79,7 @@ fun EngineItem.emitPlaySoundEvent(
     player: EnginePlayer? = null,
     context: SoundContext? = null
 ) {
-    this.world.emitPlaySoundEvent(
+    this.world.emitEvent<WorldSoundPlayRequest>(
         WorldSoundPlayRequest.Item(this, key, category, volume, pitch, player, context)
     )
 }

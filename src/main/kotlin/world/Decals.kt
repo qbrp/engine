@@ -1,11 +1,9 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.iterate
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.floorToInt
 import org.lain.engine.util.math.randomFloat
 
 /**
@@ -72,6 +70,12 @@ data class BlockDecals(val version: Int = 0, val layers: Map<DecalsLayerType, De
         return BlockDecals(version + 1, layers)
     }
 
+    fun withoutLayers(toRemove: List<DecalsLayerType>): BlockDecals {
+        val layers = this.layers.toMutableMap()
+        toRemove.forEach { layers.remove(it) }
+        return BlockDecals(version + 1, layers)
+    }
+
     companion object {
         fun withLayer(layer: DecalsLayerType) = BlockDecals(
             0, mapOf(layer to DecalsLayer())
@@ -95,29 +99,17 @@ fun World.attachBulletDamageDecal(direction: Direction, pos: Pos, voxelPos: Voxe
     )
 }
 
-data class DecalEvent(val pos: VoxelPos, val chunk: EngineChunkPos, val type: Type) : Component {
-    sealed class Type {
-        data class Attach(val direction: Direction, val pos: Pos, val decal: Decal, val layer: DecalsLayerType) : Type()
-        data class Set(val decals: BlockDecals?) : Type()
-        data class Remove(val layers: List<DecalsLayerType>) : Type()
-    }
-    sealed class Selector {
-        data class Single(val pos: VoxelPos, val chunk: EngineChunkPos) : Selector()
-        data class Multi(val positions: List<VoxelPos>) : Selector()
-    }
-}
 
 fun World.removeDecals(
     layers: List<DecalsLayerType>,
-    positions: List<VoxelPos>
+    positions: List<ImmutableVoxelPos>
 ) {
-    positions.forEach { pos ->
-        emitEvent(
-            DecalEvent(
-                pos,
-                EngineChunkPos(pos),
-                DecalEvent.Type.Remove(layers)
-            )
+    val chunks = positions.groupBy { position -> EngineChunkPos(position) }
+    chunks.forEach { (chunkPos, voxelPositions) ->
+        voxelEvent(
+            chunkPos,
+            VoxelUpdate.DetachDecal(layers),
+            VoxelEvent.Selector.Multi(voxelPositions)
         )
     }
 }
@@ -130,59 +122,23 @@ fun World.attachDecal(
     pos: Pos,
     voxelPos: VoxelPos
 )  {
-    emitEvent(
-        DecalEvent(
-            voxelPos,
-            EngineChunkPos(voxelPos),
-            DecalEvent.Type.Attach(
-                direction,
-                pos,
-                projectedDecal(contents, direction, pos, voxelPos),
-                layer
-            )
+    singleBlockVoxelEvent(
+        voxelPos,
+        VoxelUpdate.AttachDecal(
+            direction,
+            projectedDecal(contents, direction, pos, voxelPos),
+            layer
         )
     )
 }
 
 fun World.setDecals(voxelPos: VoxelPos, decals: BlockDecals?) {
-    emitEvent(
-        DecalEvent(
-            voxelPos,
-            EngineChunkPos(voxelPos),
-            DecalEvent.Type.Set(decals)
+    singleBlockVoxelEvent(
+        voxelPos,
+        VoxelUpdate.Set(
+            decals = decals?.let { Setter.Set(it) } ?: Setter.Remove()
         )
     )
-}
-
-fun handleDecalsAttaches(world: World) = world.iterate<DecalEvent> { i, event ->
-    val chunk = world.chunkStorage.requireChunk(event.chunk)
-    when (val type = event.type) {
-        is DecalEvent.Type.Attach -> {
-            val voxelPos = event.pos
-            val layer = type.layer
-            val decals = chunk.decals[voxelPos] ?: BlockDecals.withLayer(layer)
-
-            world.voxelEvent(
-                VoxelUpdates(
-                    decals = VoxelUpdate.Set(decals.withDecalAtLayer(layer, type.direction, type.decal))
-                ),
-                VoxelEvent.Selector.Single(voxelPos)
-            )
-        }
-        is DecalEvent.Type.Set -> {
-            when (val decals = type.decals) {
-                null -> chunk.removeDecals(event.pos)
-                else -> chunk.setDecals(decals, event.pos)
-            }
-        }
-        is DecalEvent.Type.Remove -> {
-            chunk.removeDecals(event.pos)
-        }
-    }
-}
-
-fun broadcastDecalsAttachments(handler: ServerHandler, world: World) = world.iterate<DecalEvent> { i, event ->
-    handler.onVoxelDecalsUpdate(world, event.pos)
 }
 
 fun projectedDecal(
@@ -218,22 +174,9 @@ fun projectedDecal(
     }
 
     return Decal(
-        (u * 16).toInt(),
-        (v * 16).toInt(),
+        floorToInt(u * 16),
+        floorToInt(v * 16),
         depth,
         contents
     )
-}
-
-fun EngineChunk.setDecals(
-    decals: BlockDecals,
-    voxelPos: VoxelPos,
-) {
-    this.decals[voxelPos] = decals
-}
-
-fun EngineChunk.removeDecals(
-    voxelPos: VoxelPos,
-) {
-    this.decals.remove(voxelPos)
 }

@@ -6,7 +6,6 @@ import net.minecraft.client.util.ChatMessages
 import net.minecraft.entity.player.SkinTextures
 import net.minecraft.text.OrderedText
 import net.minecraft.text.Text
-import org.lain.engine.chat.MessageAuthor
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
@@ -20,7 +19,6 @@ import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.HIGH_VOLUME_COLOR
 import org.lain.engine.util.LOW_VOLUME_COLOR
-import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.text.EngineText
 import org.lain.engine.util.text.displayNameMiniMessage
@@ -146,11 +144,7 @@ object MinecraftChat : ChatEventBus {
                 content,
                 content,
                 SYSTEM_CHANNEL,
-                MessageSource(
-                    MessageSource.World(client.gameSession?.world?.id ?: return true, mapOf()),
-                    MessageAuthor(SYSTEM_CHANNEL.name),
-                    Timestamp()
-                ),
+                MessageSource.getSystemClient(client.gameSession?.world ?: return true),
                 id = MessageId.next(),
                 isVanilla = true
             ).also {

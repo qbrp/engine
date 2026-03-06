@@ -88,8 +88,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyAcousticDebugVolumePacket(volumes)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_VOXEL_UPDATE_ENDPOINT) { gameSession ->
-        applyVoxelUpdate(voxelPos, decals, hint)
+    registerGameSessionReceiver(CLIENTBOUND_VOXEL_EVENT_PACKET) { gameSession ->
+        applyVoxelEvent(event)
     }
 
     CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { ctx ->

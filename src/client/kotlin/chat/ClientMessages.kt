@@ -5,6 +5,7 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.Color
+import org.lain.engine.util.Timestamp
 import org.lain.engine.world.World
 
 data class AcceptedMessage(
@@ -120,11 +121,17 @@ fun acceptOutcomingMessage(
     )
 }
 
+fun MessageSource.Companion.getSystemClient(world: World) = MessageSource(
+    MessageSource.World(world.id, mapOf()),
+    MessageAuthor(SYSTEM_CHANNEL.name),
+    Timestamp()
+)
+
 fun LiteralSystemEngineChatMessage(gameSession: GameSession, content: String) = AcceptedMessage(
     content,
     content,
     SYSTEM_CHANNEL,
-    MessageSource.getSystem(gameSession.world),
+    MessageSource.getSystemClient(gameSession.world),
     id = MessageId.next()
 )
 
@@ -133,7 +140,7 @@ fun LiteralSystemEngineChatMessage(world: World, content: String, isSpy: Boolean
     content,
     content,
     SYSTEM_CHANNEL,
-    MessageSource.getSystem(world),
+    MessageSource.getSystemClient(world),
     id = MessageId.next(),
     isSpy = isSpy
 )

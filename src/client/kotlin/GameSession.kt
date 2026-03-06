@@ -17,11 +17,10 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.component.apply
-import org.lain.engine.util.file.compileContents
-import org.lain.engine.util.file.loadContentsCompileResult
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.has
+import org.lain.engine.util.file.compileContents
+import org.lain.engine.util.file.loadContentsCompileResult
 import org.lain.engine.world.*
 import java.util.*
 
@@ -82,8 +81,9 @@ class GameSession(
     fun tick() {
         ticks++
         chatManager.tick()
+
         val players = playerStorage.getAll()
-        world.apply<ScenePlayers> {
+        world.apply {
             this.players.clear()
             this.players.addAll(players)
         }
@@ -134,6 +134,7 @@ class GameSession(
         val sounds = processWorldSounds(namespacedStorage, world)
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()
+        world.updateVoxelEvents(null)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {

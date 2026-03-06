@@ -5,7 +5,7 @@ import com.sk89q.worldedit.fabric.FabricAdapter
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.isClassAvailable
 import org.lain.engine.world.BULLET_DAMAGE_DECALS_LAYER
-import org.lain.engine.world.VoxelPos
+import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.removeDecals
 
 fun isWorldEditAvailable() = isClassAvailable("com.sk89q.worldedit.WorldEdit")
@@ -27,6 +27,7 @@ fun ServerCommandDispatcher.registerWorldEditCommands() {
                         val session = sessionManager.get(actor)
                         val blockPoses = session.selection
                         val world = blockPoses.world
+                        blockPoses.chunks
                         val engineWorld = FabricAdapter.adapt(world).let { server.engine.getWorld(it) }
                         val layers = ctx.command.getString("layer").let {
                             if (it == "all") {
@@ -35,7 +36,7 @@ fun ServerCommandDispatcher.registerWorldEditCommands() {
                                 listOf(decalLayers[it] ?: friendlyError("Слой $decalLayers не существует"))
                             }
                         }
-                        engineWorld.removeDecals(layers, blockPoses.map { VoxelPos(it.x(), it.y(), it.z()) })
+                        engineWorld.removeDecals(layers, blockPoses.map { ImmutableVoxelPos(it.x(), it.y(), it.z()) })
                         ctx.sendFeedback(
                             "Удалены декали ${layers.joinToString { it.name }} на ${blockPoses.volume} блоках",
                             true

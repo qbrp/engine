@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.WorldSavePath
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.chat.IncomingMessage
@@ -23,13 +24,14 @@ import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
+import org.lain.engine.util.component.require
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.injectValue
-import org.lain.engine.util.component.require
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.location
+import org.lain.engine.world.updateVoxelEvents
 import org.lain.engine.world.world
 
 data class EngineMinecraftServerDependencies(
@@ -82,6 +84,10 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         updateServerMinecraftSystems(this, entityTable, players, itemLoader, connectionManager)
         engine.update()
         updateBullets(engine.defaultWorld, minecraftServer.overworld)
+        engine.listWorlds().forEach { world ->
+            world.updateVoxelEvents(engine.handler)
+            world.clearEvents()
+        }
         autosaveTimer.tick()
         unloadTimer.tick()
     }
@@ -97,7 +103,12 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.loadContents()
         minecraftServer.worlds.forEach {
             val id = it.engine
-            engine.addWorld(world(id))
+            engine.addWorld(
+                world(id) { chunkPos ->
+                    it.chunkManager.chunkLoadingManager.getPlayersWatchingChunk(ChunkPos(chunkPos.x, chunkPos.z), false)
+                        .mapNotNull { entity -> entityTable.getPlayer(entity) }
+                }
+            )
             dependencies.entityTable.setWorld(id, it)
         }
         engine.run()
@@ -148,6 +159,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         acousticSimulator.onChunkUnload(world.engine, chunk)
         engine.handler.onChunkUnload(pos)
         val engineChunk = engine.getWorld(world).chunkStorage.getChunk(pos) ?: return
+        engine.getWorld(world).chunkStorage.removeChunk(pos)
         saveChunk(engine, pos, engineChunk.decals.toMap(), engineChunk.hints.toMap())
     }
 }

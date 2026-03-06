@@ -1,5 +1,6 @@
 package org.lain.engine.client.handler
 
+import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.Count
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.itemInstance
@@ -9,8 +10,8 @@ import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.getOrSet
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.component.set
-import org.lain.engine.world.*
+import org.lain.engine.world.Location
+import org.lain.engine.world.World
 
 /**
  * Объект находится за пределами видимости игрока и не синхронизируется точно.
@@ -74,7 +75,6 @@ fun clientItem(world: World, item: ClientboundItemData): EngineItem {
     )
 }
 
-fun clientWorld(data: ClientboundWorldData, chunkStorage: ChunkStorage) = World(data.id, chunkStorage).apply {
-    set(WorldEvents())
-    set(ScenePlayers())
+fun clientWorld(data: ClientboundWorldData) = World(data.id).apply {
+    componentManager.registerComponentsClient()
 }

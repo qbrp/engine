@@ -1,12 +1,18 @@
 package org.lain.engine.util.component
 
+import org.lain.engine.item.BulletFire
+import org.lain.engine.world.Event
 import org.lain.engine.world.VoxelEvent
+import org.lain.engine.world.WorldSoundPlayRequest
 import kotlin.reflect.KClass
 
 typealias EntityId = Int
 
 fun ComponentWorld.registerComponents() {
     registerComponent<VoxelEvent>()
+    registerComponent<BulletFire>()
+    registerComponent<WorldSoundPlayRequest>()
+    registerComponent<Event>()
 }
 
 interface ComponentAccess {
@@ -43,6 +49,7 @@ interface ComponentAccess {
     )
 
     fun setComponent(entity: EntityId, component: Component)
+    fun <T : Component> setComponentWithType(entity: EntityId, component: T, kclass: KClass<T>)
     fun destroy(entity: EntityId)
 }
 
@@ -56,7 +63,7 @@ inline fun <reified A : Component, reified B : Component> ComponentAccess.iterat
 
 context(world: ComponentAccess)
 inline fun <reified T : Component> EntityId.setComponent(component: T) {
-    world.setComponent(this, component)
+    world.setComponentWithType(this, component, T::class)
 }
 
 context(world: ComponentAccess)
@@ -84,13 +91,17 @@ class ComponentWorld : ComponentAccess {
         getComponentArray(component::class as KClass<Component>).setComponent(entity, component)
     }
 
+    override fun <T : Component> setComponentWithType(entity: EntityId, component: T, kclass: KClass<T>) {
+        getComponentArray(kclass).setComponent(entity, component)
+    }
+
     override fun destroy(entity: EntityId) {
         arrays.forEach { (_, array) -> array.removeComponent(entity) }
     }
 
     override fun <A : Component> iterate1(kclass1: KClass<A>, action: ComponentAccess.(EntityId, A) -> Unit) {
         val arr1 = getComponentArray(kclass1)
-        for (i in arr1.components.indices) {
+        for (i in arr1.denseEntities.lastIndex downTo 0) {
             val entity = arr1.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             action(entity, componentA)
@@ -106,7 +117,7 @@ class ComponentWorld : ComponentAccess {
         val arr2 = getComponentArray(kclass2)
         val smallerArr = listOf(arr1, arr2).minBy { it.components.size }
 
-        for (i in smallerArr.components.indices) {
+        for (i in smallerArr.denseEntities.lastIndex downTo 0) {
             val entity = smallerArr.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             val componentB = arr2.componentOf(entity) ?: continue
@@ -125,7 +136,7 @@ class ComponentWorld : ComponentAccess {
         val arr3 = getComponentArray(kclass3)
         val smallerArr = listOf(arr1, arr2, arr3).minBy { it.components.size }
 
-        for (i in smallerArr.components.indices) {
+        for (i in smallerArr.denseEntities.lastIndex downTo 0) {
             val entity = smallerArr.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             val componentB = arr2.componentOf(entity) ?: continue
@@ -147,7 +158,7 @@ class ComponentWorld : ComponentAccess {
         val arr4 = getComponentArray(kclass4)
         val smallerArr = listOf(arr1, arr2, arr3, arr4).minBy { it.components.size }
 
-        for (i in smallerArr.components.indices) {
+        for (i in smallerArr.denseEntities.lastIndex downTo 0) {
             val entity = smallerArr.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             val componentB = arr2.componentOf(entity) ?: continue
@@ -172,7 +183,7 @@ class ComponentWorld : ComponentAccess {
         val arr5 = getComponentArray(kclass5)
         val smallerArr = listOf(arr1, arr2, arr3, arr4, arr5).minBy { it.components.size }
 
-        for (i in smallerArr.components.indices) {
+        for (i in smallerArr.denseEntities.lastIndex downTo 0) {
             val entity = smallerArr.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             val componentB = arr2.componentOf(entity) ?: continue

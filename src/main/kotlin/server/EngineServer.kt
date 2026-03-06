@@ -4,8 +4,11 @@ import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.util.*
+import org.lain.engine.util.FixedSizeList
+import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.Timestamp
 import org.lain.engine.util.component.get
+import org.lain.engine.util.flush
 import org.lain.engine.world.*
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -32,6 +35,8 @@ class EngineServer(
     val namespacedStorage = NamespacedStorage()
     val defaultWorld
         get() = worlds.toList().first().second
+
+    fun listWorlds() = worlds.values
 
     fun run() {
         handler.run()
@@ -84,9 +89,6 @@ class EngineServer(
         handler.tick()
 
         worlds.values.forEach { world ->
-            handleDecalsAttaches(world)
-            broadcastDecalsAttachments(handler, world)
-            world.events<DecalEvent>().clear()
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
         }

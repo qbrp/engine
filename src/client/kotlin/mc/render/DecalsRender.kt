@@ -11,7 +11,7 @@ import net.minecraft.util.Colors
 import net.minecraft.util.math.ColorHelper
 import org.joml.Vector3f
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.flush
+import org.lain.engine.util.component.iterate
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
 import org.lain.engine.util.math.squaredDistanceTo
@@ -83,12 +83,18 @@ class ChunkDecalsStorage {
             .flatMap { it.value.toList() }
     }
 
-    fun handleDecalsEvent(world: World) = world.events<DecalEvent>().flush { event ->
-        val decals = world.chunkStorage.getDecals(event.pos) ?: run {
-            unloadTexture(event.pos, event.chunk)
-            return@flush
+    fun handleDecalsEvent(world: World) = world.iterate<VoxelEvent> { _, event ->
+        val updates = event.updates
+        if (updates is VoxelUpdate.AttachDecal || updates is VoxelUpdate.DetachDecal || (updates is VoxelUpdate.Set && updates.decals != null)) {
+            event.positions.forEach { pos ->
+                val decals = world.chunkStorage.getDecals(pos)
+                if (decals != null) {
+                    updateTexture(decals, pos, event.chunkPos)
+                } else {
+                    unloadTexture(pos, event.chunkPos)
+                }
+            }
         }
-        updateTexture(decals, ImmutableVoxelPos(event.pos), event.chunk)
     }
 }
 
@@ -154,7 +160,7 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
                                 repeat(radius) { j ->
                                     val px = decal.x - halfRadius + i
                                     val py = decal.y - halfRadius + j
-                                    if (px in 0 until width && py in 0 until height) {
+                                    if (px in 0 until resolution && py in 0 until resolution) {
                                         image.setColorArgb(
                                             x0 + px,
                                             y0 + py,
@@ -219,10 +225,10 @@ private fun OrderedRenderCommandQueue.drawSide(
         val u1 = (x0 + area.x2) / width
         val v1 = (y0 + area.y2) / height
 
-        val px0 = area.x1 / resolution
-        val py0 = area.y1 / resolution
-        val px1 = area.x2 / resolution
-        val py1 = area.y2 / resolution
+        val px0 = (area.x1) / resolution
+        val py0 = (area.y1) / resolution
+        val px1 = (area.x2 + 1) / resolution
+        val py1 = (area.y2 + 1) / resolution
 
         submitCustom(matrices, RenderLayer.getEntityTranslucent(layerTexture.id)) { entry, vc ->
             fun submitVertex(x: Float, y: Float, z: Float, u: Float, v: Float) {

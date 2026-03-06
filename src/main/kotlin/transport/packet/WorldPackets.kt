@@ -5,10 +5,7 @@ import org.lain.engine.item.SoundPlay
 import org.lain.engine.mc.BlockHint
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.world.BlockDecals
-import org.lain.engine.world.EngineChunkPos
-import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.SoundContext
+import org.lain.engine.world.*
 
 @Serializable
 data class SoundPlayPacket(
@@ -28,12 +25,6 @@ data class EngineChunkPacket(
 val CLIENTBOUND_CHUNK_ENDPOINT = Endpoint<EngineChunkPacket>()
 
 @Serializable
-data class VoxelUpdatePacket(val voxelPos: ImmutableVoxelPos, val decals: BlockDecals?, val hint: BlockHint?) : Packet
+data class VoxelEventPacket(val event: VoxelEvent) : Packet
 
-val CLIENTBOUND_VOXEL_UPDATE_ENDPOINT = Endpoint<VoxelUpdatePacket>()
-
-@Serializable
-data class DestroyVoxelPacket(val voxelPos: ImmutableVoxelPos) : Packet
-
-val CLIENTBOUND_VOXEL_DESTROY_ENDPOINT = Endpoint<DestroyVoxelPacket>()
-
+val CLIENTBOUND_VOXEL_EVENT_PACKET = Endpoint<VoxelEventPacket>()

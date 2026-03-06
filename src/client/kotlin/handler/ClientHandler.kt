@@ -21,19 +21,12 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.SoundPlay
-import org.lain.engine.mc.BlockHint
 import org.lain.engine.player.*
 import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.getOrSet
-import org.lain.engine.util.component.has
-import org.lain.engine.util.component.replaceOrSet
-import org.lain.engine.util.component.require
-import org.lain.engine.util.component.set
+import org.lain.engine.util.component.*
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -206,7 +199,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         if (client.gameSession != null) {
             error("Игровая сессия уже запущена!")
         }
-        val world = clientWorld(worldData, ChunkStorage())
+        val world = clientWorld(worldData)
         val gameSession = GameSession(
             data.serverId,
             world,
@@ -327,8 +320,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
     }
 
-    fun applyVoxelUpdate(pos: VoxelPos, decals: BlockDecals? = null, hint: BlockHint?) = with(gameSession!!) {
-        world.setDecals(pos, decals)
+    fun applyVoxelEvent(event: VoxelEvent) = with(gameSession!!) {
+        world.emitEvent(event)
     }
 
     companion object {

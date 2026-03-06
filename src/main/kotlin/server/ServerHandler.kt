@@ -12,11 +12,11 @@ import org.lain.engine.storage.backupBookContent
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
-import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.component.get
+import org.lain.engine.util.component.require
+import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
-import org.lain.engine.util.component.require
 import org.lain.engine.world.*
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
@@ -436,14 +436,14 @@ class ServerHandler(
         )
     }
 
-    //TODO: Сделать трекинг чанков
-    fun onVoxelDecalsUpdate(world: World, voxelPos: VoxelPos) {
-        val packet = VoxelUpdatePacket(
-            ImmutableVoxelPos(voxelPos),
-            world.chunkStorage.getDecals(voxelPos),
-            null
-        )
-        CLIENTBOUND_VOXEL_UPDATE_ENDPOINT.broadcast(packet)
+    fun onVoxelEvent(world: World, event: VoxelEvent, players: Collection<EnginePlayer>) {
+        players.forEach {
+            if (it.world != world) return@forEach
+            CLIENTBOUND_VOXEL_EVENT_PACKET.sendS2C(
+                VoxelEventPacket(event),
+                it.id
+            )
+        }
     }
 
     fun <P : Packet> Endpoint<P>.broadcastExcluding(
