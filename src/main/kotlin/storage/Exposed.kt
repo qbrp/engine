@@ -11,7 +11,7 @@ import org.lain.engine.item.*
 import org.lain.engine.player.Outfit
 import org.lain.engine.player.OutfitDisplay
 import org.lain.engine.player.PlayerPart
-import org.lain.engine.util.*
+import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.has
@@ -97,6 +97,11 @@ fun dataFixItem(item: EngineItem, storage: NamespacedStorage) {
         val prefab = storage.items[item.id] ?: return
         val assets = prefab.properties.assets
         item.setNullable(assets)
+    }
+    if (!item.has<ItemProgressionAnimations>()) {
+        val prefab = storage.items[item.id] ?: return
+        val animations = prefab.properties.progressionAnimations
+        item.setNullable(animations)
     }
 }
 

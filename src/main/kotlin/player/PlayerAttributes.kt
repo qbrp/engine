@@ -1,7 +1,7 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.server.AttributeUpdate
+import org.lain.engine.server.markDirty
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.require
 
@@ -17,7 +17,8 @@ data class AttributeValue(var default: Float, var custom: Float? = null) {
 @Serializable
 data class PlayerAttributes(
     val speed: AttributeValue = AttributeValue(0.055f),
-    var jumpStrength: AttributeValue = AttributeValue(0.37f)
+    var jumpStrength: AttributeValue = AttributeValue(0.37f),
+    var gravity: AttributeValue = AttributeValue(0.98f),
 ) : Component
 
 @Serializable
@@ -74,12 +75,12 @@ val EnginePlayer.speed: Float
 
 fun EnginePlayer.setCustomSpeed(speed: Float) {
     attributes.speed.custom = speed
-    markCustomSpeedUpdated(speed)
+    markDirty<PlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomSpeed() {
     attributes.speed.resetCustom()
-    markCustomSpeedUpdated(null)
+    markDirty<PlayerAttributes>()
 }
 
 val EnginePlayer.jumpStrength: Float
@@ -87,26 +88,10 @@ val EnginePlayer.jumpStrength: Float
 
 fun EnginePlayer.setCustomJumpStrength(value: Float) {
     attributes.jumpStrength.custom = value
-    markCustomJumpStrengthUpdated(value)
+    markDirty<PlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomJumpStrength() {
     attributes.jumpStrength.resetCustom()
-    markCustomJumpStrengthUpdated(null)
-}
-
-private fun EnginePlayer.markCustomSpeedUpdated(value: Float? = null) {
-    markUpdate(
-        PlayerUpdate.CustomSpeedAttribute(
-            value?.let { AttributeUpdate.Value(it) } ?: AttributeUpdate.Reset
-        )
-    )
-}
-
-private fun EnginePlayer.markCustomJumpStrengthUpdated(value: Float? = null) {
-    markUpdate(
-        PlayerUpdate.CustomJumpStrengthAttribute(
-            value?.let { AttributeUpdate.Value(it) } ?: AttributeUpdate.Reset
-        )
-    )
+    markDirty<PlayerAttributes>()
 }

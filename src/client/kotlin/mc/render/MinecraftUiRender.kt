@@ -6,21 +6,22 @@ import com.mojang.blaze3d.platform.DepthTestFunction
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.gl.RenderPipelines
 import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.render.state.ItemGuiElementRenderState
 import net.minecraft.client.render.VertexFormats
+import net.minecraft.client.render.item.KeyedItemRenderState
 import net.minecraft.client.texture.TextureSetup
 import net.minecraft.util.Identifier
+import net.minecraft.util.crash.CrashException
+import net.minecraft.util.crash.CrashReport
 import org.joml.Matrix3x2f
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.render.Painter
-import org.lain.engine.util.*
+import org.lain.engine.util.Color
+import org.lain.engine.util.EngineId
 import org.lain.engine.util.math.sumOf
-import org.lain.engine.util.text.EngineTextSpan
-import org.lain.engine.util.text.EngineOrderedText
-import org.lain.engine.util.text.EngineText
-import org.lain.engine.util.text.splitEngineTextLinear
-import org.lain.engine.util.text.toMinecraft
+import org.lain.engine.util.text.*
 
 // А почему бы и нет?
 private val ENGINE_SPRITE_CACHE = mutableMapOf<String, Identifier>()
@@ -214,5 +215,26 @@ class MinecraftPainter(
             .build()
 
         fun RenderPipeline.Builder.withEngineLocation(id: String) = withLocation(EngineId(id))
+    }
+}
+
+fun DrawContext.drawFakeEngineItem(model: Identifier, name: String, x: Int, y: Int) {
+    val keyedItemRenderState = KeyedItemRenderState()
+    updateItemRenderState(keyedItemRenderState, model, false, EngineItemDisplayContext.GUI, null, null, 0)
+    try {
+        this.state.addItem(
+            ItemGuiElementRenderState(
+                name,
+                Matrix3x2f(this.matrices),
+                keyedItemRenderState,
+                x,
+                y,
+                this.scissorStack.peekLast()
+            )
+        )
+    } catch (throwable: Throwable) {
+        val crashReport = CrashReport.create(throwable, "Rendering fake enigine item")
+        crashReport.addElement("Item being rendered")
+        throw CrashException(crashReport)
     }
 }

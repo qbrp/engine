@@ -22,7 +22,6 @@ data class PlayerInventory(
 // Уничтожить предмет в инвентаре игрока, обработать игрой
 data class DestroyItemSignal(val item: ItemUuid, val count: Int = 1) : Component
 
-// Уничтожить предмет в инвентаре игрока, обработать игрой
 data class MoveItemSignal(val item: ItemUuid, val slot: Int) : Component
 
 val EnginePlayer.items: Set<EngineItem>

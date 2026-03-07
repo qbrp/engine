@@ -30,6 +30,11 @@ val SERVERBOUND_VOLUME_PACKET = Endpoint<VolumePacket>()
 // Interactions
 
 @Serializable
+data class InteractionSelectionSelectPacket(val variantId: String?) : Packet
+
+val SERVERBOUND_INTERACTION_SELECTION_SELECT_ENDPOINT = Endpoint<InteractionSelectionSelectPacket>()
+
+@Serializable
 data class InputPacket(
     val tick: Long,
     val actions: Set<InputActionDto>

@@ -1,13 +1,15 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.*
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.sound
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.iterate
+import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.Vec3
 
 @Serializable
@@ -136,7 +138,9 @@ fun broadcastWorldSounds(sounds: List<SoundBroadcast>, handler: ServerHandler) =
     handler.onSoundEvent(play, context, listeners)
 }
 
-fun World.emitPlaySoundEvent(play: SoundPlay) = emitEvent<WorldSoundPlayRequest>(WorldSoundPlayRequest.Simple(play))
+fun World.emitPlaySoundEvent(sound: WorldSoundPlayRequest) = emitEvent<WorldSoundPlayRequest>(sound)
+
+fun World.emitPlaySoundEvent(sound: SoundPlay) = emitEvent<WorldSoundPlayRequest>(WorldSoundPlayRequest.Simple(sound))
 
 fun World.emitPlaySoundEvent(
     event: SoundEventId,

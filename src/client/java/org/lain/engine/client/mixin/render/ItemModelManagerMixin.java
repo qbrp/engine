@@ -36,13 +36,7 @@ public class ItemModelManagerMixin {
             )
     )
     public void engine$setTransformations(ItemRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, World world, HeldItemContext heldItemContext, int seed, CallbackInfo ci) {
-        Transformations transformations = AdditionalTransformationsBank.INSTANCE.get(Objects.requireNonNull(stack.get(DataComponentTypes.ITEM_MODEL)));
-        if (transformations != null) {
-            ItemRenderState.LayerRenderState[] layers = ((ItemRenderStateAccessor)renderState).engine$getLayers();
-            for (ItemRenderState.LayerRenderState layer : layers) {
-                TransformationsEditorScreenKt.setAdditionalTransformations(layer, transformations, displayContext);
-            }
-        }
+        TransformationsEditorScreenKt.setupAdditionalTransformationsVanilla(renderState, stack, displayContext);
     }
 
     @Redirect(

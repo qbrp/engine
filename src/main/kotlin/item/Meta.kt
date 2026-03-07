@@ -2,9 +2,10 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.get
+import org.lain.engine.util.component.get
 import org.lain.engine.world.*
 
 @Serializable
@@ -28,8 +29,13 @@ fun EngineItem.emitPlaySoundEvent(
 
 @Serializable
 data class ItemAssets(val assets: Map<String, String>) : ItemComponent {
+    val default = assets["default"] ?: "missingno"
     fun copy() = ItemAssets(assets.toMap())
 }
 
 @Serializable
 data class ItemProgressionAnimations(val animations: Map<String, ProgressionAnimationId>) : ItemComponent
+
+fun EngineItem.getProgressionAnimation(key: String): ProgressionAnimationId? {
+    return this.get<ItemProgressionAnimations>()?.animations[key]
+}

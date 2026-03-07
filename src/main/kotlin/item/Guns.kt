@@ -132,7 +132,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
         }
 
         fun finish() {
-            player.finishInteraction()
+            player.completeInteraction()
             handItem.markDirty<Gun>(id)
         }
 

@@ -47,10 +47,11 @@ fun renderInteractionProgression(
         progress = interaction.progress
         val (duration, animation) = progression
         val frames = animation.frames
-        val index = (frames.size * progress)
+        val size = frames.size.coerceAtLeast(1)
+        val index = (size * progress)
             .toInt()
-            .coerceIn(0, frames.size - 1)
-        renderState.texture = EngineId(frames[index])
+            .coerceIn(0, size - 1)
+        renderState.texture = if (frames.isEmpty()) null else EngineId(frames[index])
         renderState.opacity = lerp(renderState.opacity, 1f, 1f - 0.7f.pow(dt))
         var text: String
         if (progress < 1f) {

@@ -15,6 +15,7 @@ import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.item.ItemId
+import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
@@ -68,7 +69,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     protected open val connectionManager: ServerConnectionManager? = null
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
-        val item = engine.createItem(owner.location, itemId)
+        val item = createItem(owner.location, engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден"), engine.itemStorage)
         wrapEngineItemStack(item, itemStack)
         return item
     }
@@ -81,7 +82,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     open fun tick() {
         val players = engine.playerStorage.getAll()
-        updateServerMinecraftSystems(this, entityTable, players, itemLoader, connectionManager)
+        updateServerMinecraftSystems(this, entityTable, players, engine.itemStorage, itemLoader, connectionManager)
         engine.update()
         updateBullets(engine.defaultWorld, minecraftServer.overworld)
         engine.listWorlds().forEach { world ->
@@ -126,7 +127,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             return
         }
         val player = entityTable.getPlayer(entity) ?: return
-        engine.playerService.destroy(player)
+        engine.destroyPlayer(player)
         entityTable.removePlayer(entity)
         unloadTimer.activate()
     }
@@ -143,7 +144,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val world = engine.getWorld(world.engine)
         val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
         world.chunkStorage.removeVoxel(voxelPos)
-        //engine.handler.onVoxelDestroy(world, voxelPos)
     }
 
     fun onBlockAdd(block: BlockState, pos: BlockPos, world: World) {

@@ -16,13 +16,8 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.desync
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.transport.network.ServerConnectionManager
-import org.lain.engine.util.*
-import org.lain.engine.util.component.apply
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.getOrSet
-import org.lain.engine.util.component.has
-import org.lain.engine.util.component.remove
-import org.lain.engine.util.component.require
+import org.lain.engine.util.Storage
+import org.lain.engine.util.component.*
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -93,12 +88,14 @@ fun updateServerMinecraftSystems(
     server: EngineMinecraftServer,
     table: ServerPlayerTable,
     players: List<EnginePlayer>,
+    itemStorage: ItemStorage,
     itemLoader: ItemLoader,
     connectionManager: ServerConnectionManager?
 ) {
     val engine = server.engine
     val notUpdatedPlayers = players.toMutableList()
 
+    removeHoldsByMarks(itemStorage.getAll())
     for (player in players) {
         val entity = table.getEntity(player)
         if (entity == null || checkIsAliveDuplicate(player, entity, server.minecraftServer)) {
@@ -149,6 +146,10 @@ fun updateServerMinecraftSystems(
     if (notUpdatedPlayers.isNotEmpty()) {
         LOGGER.warn("Состояние Minecraft не обновлено для игроков: {}", notUpdatedPlayers.joinToString())
     }
+}
+
+fun removeHoldsByMarks(items: List<EngineItem>) {
+    items.forEach { it.remove<HoldsBy>() }
 }
 
 fun updatePlayerMinecraftSystems(
@@ -247,7 +248,6 @@ fun updatePlayerMinecraftSystems(
             offHandItem = item
         }
 
-        item.getOrSet { HoldsBy(player.id) }
         playerInventory.items += item
         playerInventoryItems -= item
 
@@ -272,8 +272,12 @@ fun updatePlayerMinecraftSystems(
     for (removedItem in playerInventoryItems) {
         if (removedItem != playerInventory.cursorItem) {
             playerInventory.items.remove(removedItem)
-            removedItem.remove<HoldsBy>()
         }
+    }
+
+    if (playerInventory.items.isNotEmpty()) {
+        val component = HoldsBy(player.id)
+        playerInventory.items.forEach { it.set(component) }
     }
 
     player.remove<DestroyItemSignal>()

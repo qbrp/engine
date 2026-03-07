@@ -7,6 +7,7 @@ import net.minecraft.client.option.KeyBinding
 import net.minecraft.client.util.InputUtil
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.control.*
+import org.lain.engine.client.mc.render.InteractionSelectionScreen
 import org.lain.engine.player.InputAction
 import org.lain.engine.player.input
 import org.lain.engine.util.EngineId
@@ -26,6 +27,7 @@ class KeybindManager(
     val resetChatVolume = RESET_CHAT_VOLUME.register()
     val base = BASE.register()
     val attack = ATTACK.register()
+    val takeOffEquip = TAKE_OFF_EQUIP.register()
 
     init {
         DEVELOPER_MODE.register()
@@ -84,7 +86,7 @@ class KeybindManager(
             if (isPressed && wasPressed) {
                 settings.onHold(engineClient)
             }
-            if (!isPressed && wasPressed) {
+            if (!isPressed && wasPressed && MinecraftClient.currentScreen !is InteractionSelectionScreen) {
                 settings.onRelease(engineClient)
             }
 
@@ -92,12 +94,10 @@ class KeybindManager(
         }
 
         engineClient.gameSession?.apply {
-            if (base.isPressed) {
-                mainPlayer.input.add(InputAction.Base)
-            }
-            if (attack.isPressed) {
-                mainPlayer.input.add(InputAction.Attack)
-            }
+            val input = mainPlayer.input
+            if (base.isPressed) input.add(InputAction.Base)
+            if (attack.isPressed) input.add(InputAction.Attack)
+            if (takeOffEquip.isPressed) input.add(InputAction.TakeOff)
         }
     }
 

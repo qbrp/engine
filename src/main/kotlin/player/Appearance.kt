@@ -1,10 +1,15 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.ItemAssets
+import org.lain.engine.item.*
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.*
+import org.lain.engine.util.Color
+import org.lain.engine.util.ContentStorage
+import org.lain.engine.util.Storage
+import org.lain.engine.util.component.*
 import org.lain.engine.util.math.Vec2
+import org.lain.engine.util.nextId
+import org.lain.engine.world.location
 
 /**
  * # Снаряжение
@@ -18,15 +23,21 @@ data class Equipment(
 
 // TODO: Заменить позже на нормальную систему инвентарей
 @Serializable
-data class EquippedItem(val outfit: Outfit, val model: ItemAssets)
+data class EquippedItem(
+    val outfit: Outfit,
+    val model: ItemAssets,
+    val name: String,
+    val progressionAnimation: ProgressionAnimationId?,
+    val itemId: ItemId,
+)
 
 val EnginePlayer.outfit
     get() = this.require<Equipment>().outfits
 
 @Serializable
 data class Outfit(
-    val display: OutfitDisplay,
-    val parts: List<PlayerPart>,
+    val display: OutfitDisplay = OutfitDisplay.Separated,
+    val parts: List<PlayerPart> = emptyList(),
     val purity: Purity = Purity(nextId()),
 ) : ItemComponent
 
@@ -82,22 +93,67 @@ data class SkinElement(val x: Int, val y: Int) {
 data class PlayerPurity(val parts: MutableMap<PlayerPart, List<SkinElement>>) : Component
 
 private val EQUIP_VERB = VerbType("equip", "Одеть")
+private val TAKE_OFF_EQUIP_VERB = VerbType("take_off_equip", "Снять")
 private val EQUIP_PROGRESSION_ANIMATION = "equip"
+private val TAKE_OFF_PROGRESSION_ANIMATION = "take_off"
 
 fun appendPlayerEquipmentVerbs(player: EnginePlayer) = player.handle<VerbLookup> {
-    if (handItem == null || !handItem.has<Outfit>() || !handItem.has<ItemAssets>()) return@handle
-    forAction<InputAction.Base>(EQUIP_VERB)
+    forAction<InputAction.Base> {
+        EQUIP_VERB.takeIf { handItem != null && handItem.has<Outfit>() && handItem.has<ItemAssets>() }
+    }
+    forAction<InputAction.TakeOff>() {
+        TAKE_OFF_EQUIP_VERB.takeIf { handItem == null }
+    }
 }
 
 context(contents: ContentStorage)
-fun handlePlayerEquipmentInteraction(player: EnginePlayer) = player.handleInteraction(EQUIP_VERB) {
-    val handItem = handItem ?: return@handleInteraction
-    val outfit = handItem.require<Outfit>()
-    attachHandItemProgression(EQUIP_PROGRESSION_ANIMATION, 40)
+fun handlePlayerEquipmentInteraction(
+    player: EnginePlayer,
+    itemStorage: Storage<ItemUuid, EngineItem>
+) {
+    player.handleInteraction(EQUIP_VERB) {
+        val handItem = handItem ?: return@handleInteraction
+        val outfit = handItem.require<Outfit>()
+        attachHandItemProgression(EQUIP_PROGRESSION_ANIMATION, 40)
 
-    if (progressionFinished) {
-        player.set(DestroyItemSignal(handItem.uuid))
-        player.outfit += EquippedItem(outfit, handItem.require())
-        player.completeInteraction()
+        if (progressionFinished) {
+            player.set(DestroyItemSignal(handItem.uuid))
+            player.outfit += EquippedItem(
+                outfit,
+                handItem.require(),
+                handItem.name,
+                handItem.getProgressionAnimation(TAKE_OFF_PROGRESSION_ANIMATION),
+                handItem.id
+            )
+            player.completeInteraction()
+        }
+    }
+
+    player.handleInteraction(TAKE_OFF_EQUIP_VERB) {
+        val outfit = player.outfit
+        attachSelection(
+            "Снять экипировку",
+            outfit.mapIndexed { index, item ->
+                InteractionSelection.Variant(
+                    index.toString(),
+                    item.name,
+                    item.model.default,
+                    true
+                )
+            }
+        )
+
+        val variant = selectionVariant
+        if (variant != null) {
+            val item = outfit[variant.id.toInt()]
+            attachProgression(item.progressionAnimation, 60)
+            placeholders["lowercased_outfit_name"] = item.name.replaceFirstChar { it.lowercase() }
+
+            if (progressionFinished) {
+                val engineItem = createItem(player.location, contents.items[item.itemId] ?: error("Предмета экипировки не существует"), itemStorage)
+                player.set(MoveItemSignal(engineItem.uuid, player.selectedSlot))
+                player.completeInteraction()
+            }
+        }
     }
 }

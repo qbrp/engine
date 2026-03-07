@@ -2,6 +2,7 @@ package org.lain.engine.item
 
 import org.lain.engine.player.Outfit
 import org.lain.engine.server.*
+import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.set
 import org.lain.engine.util.component.setNullable
@@ -69,4 +70,14 @@ private fun Synchronizations<EngineItem>.initializeSynchronizers() {
     submit(ITEM_WRITABLE_SYNCHRONIZER)
     submit(ITEM_GUN_SYNCHRONIZER)
     submit(ITEM_FLASHLIGHT_SYNCHRONIZER)
+}
+
+fun createItem(
+    location: Location,
+    prefab: ItemPrefab,
+    itemStorage: Storage<ItemUuid, EngineItem>
+): EngineItem {
+    val item = bakeItem(location, prefab)
+    itemStorage.add(item.uuid, item)
+    return item
 }

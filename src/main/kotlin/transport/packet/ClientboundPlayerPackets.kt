@@ -1,15 +1,11 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import net.minecraft.network.PacketByteBuf
+import org.lain.engine.player.InteractionSelection
 import org.lain.engine.player.PlayerId
-import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.readPlayerId
-import org.lain.engine.util.writePlayerId
 import org.lain.engine.world.ImmutableVoxelPos
 
 // Custom Name
@@ -30,49 +26,6 @@ data class ServerSettingsUpdatePacket(
 ) : Packet
 
 val CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT = Endpoint<ServerSettingsUpdatePacket>()
-
-// Attribute Update
-
-data class PlayerAttributeUpdatePacket(
-    val id: PlayerId,
-    val speed: AttributeUpdate? = null,
-    val jumpStrength: AttributeUpdate? = null
-) : Packet
-
-val CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT = Endpoint<PlayerAttributeUpdatePacket>(
-    codec = PacketCodec.Binary(
-        {
-            PlayerAttributeUpdatePacket(
-                readPlayerId(),
-                readNullable { buf -> buf.readAttributeUpdate() },
-                readNullable { buf -> buf.readAttributeUpdate() }
-            )
-        },
-        {
-            writePlayerId(it.id)
-            writeNullable(it.speed) { buf, value -> buf.writeAttributeUpdate(value) }
-            writeNullable(it.jumpStrength) { buf, value -> buf.writeAttributeUpdate(value) }
-        }
-    )
-)
-
-fun PacketByteBuf.writeAttributeUpdate(update: AttributeUpdate) {
-    when(update) {
-        AttributeUpdate.Reset -> writeString("RESET")
-        is AttributeUpdate.Value -> {
-            writeString("VALUE")
-            writeFloat(update.value)
-        }
-    }
-}
-
-fun PacketByteBuf.readAttributeUpdate(): AttributeUpdate {
-    return when(val str = readString()) {
-        "RESET" -> AttributeUpdate.Reset
-        "VALUE" -> AttributeUpdate.Value(readFloat())
-        else -> throw IllegalStateException("Invalid attribute update value: $str")
-    }
-}
 
 // Contents update
 
@@ -99,3 +52,8 @@ val CLIENTBOUND_PLAYER_INTERACTION_PACKET = Endpoint<PlayerInteractionPacket>()
 data class PlayerInputPacket(val playerId: PlayerId, val actions: Set<InputActionDto>) : Packet
 
 val CLIENTBOUND_PLAYER_INPUT_PACKET = Endpoint<PlayerInputPacket>()
+
+@Serializable
+data class InteractionSelectionPacket(val selection: InteractionSelection) : Packet
+
+val CLIENTBOUND_INTERACTION_SELECTION_ENDPOINT = Endpoint<InteractionSelectionPacket>()

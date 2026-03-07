@@ -115,7 +115,7 @@ class GameSession(
             handleWriteableInteractions(player)
             handleGunInteractions(player, true)
             handleFlashlightInteractions(player)
-            handlePlayerEquipmentInteraction(player)
+            handlePlayerEquipmentInteraction(player, itemStorage)
             finishPlayerInteraction(player)
             val processedInteraction = player.get<InteractionComponent>()
             if (interaction != processedInteraction && interaction != null) {

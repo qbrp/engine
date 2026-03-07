@@ -2,12 +2,16 @@ package org.lain.engine.server
 
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
+import org.lain.engine.chat.trySendJoinMessage
+import org.lain.engine.chat.trySendLeaveMessage
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.storage.savePersistentPlayerData
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.component.get
+import org.lain.engine.util.component.remove
 import org.lain.engine.util.flush
 import org.lain.engine.world.*
 import java.io.File
@@ -76,7 +80,7 @@ class EngineServer(
             handleGunInteractions(player)
             handleSocialInteractions(player)
             handleFlashlightInteractions(player)
-            handlePlayerEquipmentInteraction(player)
+            handlePlayerEquipmentInteraction(player, itemStorage)
             finishPlayerInteraction(player)
             tickInventoryGun(playerItems)
 
@@ -84,8 +88,6 @@ class EngineServer(
 
             tickNarrations(player)
         }
-
-        players.forEach { flushPlayerUpdates(it, handler) }
 
         handler.tick()
 
@@ -142,13 +144,6 @@ class EngineServer(
 
     fun getWorld(id: WorldId): World {
         return worlds[id] ?: throw IllegalArgumentException("World with id $id not found")
-    }
-
-    fun createItem(location: Location, id: ItemId): EngineItem {
-        val prefab = namespacedStorage.items[id] ?: error("Item with id $id not found")
-        val item = bakeItem(location, prefab)
-        itemStorage.add(item.uuid, item)
-        return item
     }
 
     fun allWorlds() = worlds.values

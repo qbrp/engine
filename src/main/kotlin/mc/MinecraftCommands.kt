@@ -551,6 +551,7 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                     val action = when(variant.action) {
                         InputAction.Attack -> "Атаковать"
                         InputAction.Base -> "Взаимодействовать"
+                        InputAction.TakeOff -> "Снять экипировку"
                         is InputAction.SlotClick -> "Нажать на слот"
                     }
                     val verb = variant.verb

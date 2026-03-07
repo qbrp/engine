@@ -30,3 +30,13 @@ fun <T : Any> List<T>.alsoForEach(block: (T) -> Unit): List<T> {
     forEach { block(it) }
     return this
 }
+
+fun <T : Any> List<T>.findIndexed(block: (Int, T) -> Boolean): T? {
+    var index = 0
+    for (elem in this) {
+        if (block(index++, elem)) {
+            return elem
+        }
+    }
+    return null
+}

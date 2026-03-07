@@ -1,9 +1,6 @@
 package org.lain.engine.client.control
 
-import org.lain.engine.client.mc.KeyBindModifier
-import org.lain.engine.client.mc.KeybindId
-import org.lain.engine.client.mc.KeybindSettings
-import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.mc.*
 import org.lwjgl.glfw.GLFW
 
 val ADJUST_CHAT_VOLUME = KeybindSettings(
@@ -98,4 +95,14 @@ val BASE = KeybindSettings(
     key = GLFW.GLFW_MOUSE_BUTTON_2,
     isMouse = true,
     onPress = { client -> }
+)
+
+
+val TAKE_OFF_EQUIP = KeybindSettings(
+    name = "Снять экипировку",
+    id = KeybindId("unequip"),
+    key = GLFW.GLFW_KEY_U,
+    isMouse = true,
+    onPress = { client -> ClientMixinAccess.takeOffEquipPressed = true },
+    onRelease = { client -> ClientMixinAccess.takeOffEquipPressed = false }
 )

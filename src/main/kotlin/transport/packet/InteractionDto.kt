@@ -15,6 +15,8 @@ sealed class InputActionDto {
     object Base : InputActionDto()
     @Serializable
     object Attack : InputActionDto()
+    @Serializable
+    object TakeOff : InputActionDto()
 }
 
 @Serializable
@@ -31,6 +33,7 @@ fun InputAction.toDto(): InputActionDto = when(this) {
     is InputAction.SlotClick -> SlotClick(cursorItem.uuid, item.uuid)
     is InputAction.Attack -> Attack
     is InputAction.Base -> Base
+    is InputAction.TakeOff -> TakeOff
 }
 
 fun InputActionDto.toDomain(itemStorage: Storage<ItemUuid, EngineItem>, ): InputAction {
@@ -41,6 +44,7 @@ fun InputActionDto.toDomain(itemStorage: Storage<ItemUuid, EngineItem>, ): Input
         )
         is Base -> InputAction.Base
         is Attack -> InputAction.Attack
+        is TakeOff -> InputAction.TakeOff
     }
 }
 

@@ -8,6 +8,7 @@ import de.javagl.obj.Mtl
 import de.javagl.obj.Obj
 import net.minecraft.client.item.ItemAsset
 import net.minecraft.client.render.item.model.BasicItemModel
+import net.minecraft.client.render.model.json.Transformation
 import net.minecraft.client.texture.MissingSprite
 import net.minecraft.client.texture.SpriteAtlasTexture
 import net.minecraft.client.util.SpriteIdentifier
@@ -236,8 +237,18 @@ fun parseEngineItemAssets(
                                 markers[key] = deserializeVec3f(value.asJsonArray)
                             }
                     }
+                    var transformationOutfit: Transformation? = null
+                    if (item.json.has("transformation_outfit")) {
+                        transformationOutfit = parseTransformation(item.json.get("transformation_outfit"))
+                    }
                     contents[item.registrationId] = ItemAsset(
-                        EngineItemModel.Unbaked(asset, itemAsset.model, disableCulling, markers),
+                        EngineItemModel.Unbaked(
+                            asset,
+                            itemAsset.model,
+                            disableCulling,
+                            markers,
+                            transformationOutfit
+                        ),
                         itemAsset.properties,
                         itemAsset.registrySwapper
                     )

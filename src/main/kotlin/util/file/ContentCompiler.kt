@@ -24,7 +24,7 @@ private const val NAMESPACES_FILENAME = "namespaces.yml"
 
 @Serializable
 data class ProgressionAnimationConfig(
-    val frames: YamlNode,
+    val frames: YamlNode? = null,
     val text: String,
     val success: String = text
 )
@@ -141,9 +141,9 @@ fun compileContents(directory: File = CONTENTS_DIR): ContentsCompileResult = wit
                 .associateBy { it.id }
                 .also { sounds += it.count() },
             contents.progressionAnimations.map { (id, animation) ->
-                val framesList = runCatching { Yaml.default.decodeFromYamlNode<List<String>>(animation.frames) }
+                val framesList = runCatching { Yaml.default.decodeFromYamlNode<List<String>>(animation.frames ?: return@runCatching emptyList()) }
                 val frames = framesList.getOrNull() ?: run {
-                    val (baseName, count) = Yaml.default.decodeFromYamlNode<FrameIdGeneratorConfig>(animation.frames)
+                    val (baseName, count) = Yaml.default.decodeFromYamlNode<FrameIdGeneratorConfig>(animation.frames!!)
                     List(count) { id -> "$baseName${id + 1}" }
                 }
                 ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(frames, animation.text, animation.success)

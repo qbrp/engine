@@ -20,10 +20,7 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.SoundPlay
-import org.lain.engine.mc.BlockHint
 import org.lain.engine.player.*
-import org.lain.engine.server.AttributeUpdate
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
@@ -109,6 +106,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     fun applyPlayerInputPacket(player: EnginePlayer, actions: Set<InputActionDto>) = with(gameSession!!) {
         player.input.clear()
         player.input.addAll(actions.map { it.toDomain(itemStorage) })
+    }
+
+    fun applyInteractionSelectionPacket(selection: InteractionSelection) = with(gameSession!!) {
+        mainPlayer.require<InteractionComponent>().selection = selection
+    }
+
+    fun onInteractionSelectionSelect(variantId: String?) {
+        SERVERBOUND_INTERACTION_SELECTION_SELECT_ENDPOINT.sendC2SPacket(InteractionSelectionSelectPacket(variantId))
     }
 
     fun onArmStatusUpdate(extend: Boolean) {

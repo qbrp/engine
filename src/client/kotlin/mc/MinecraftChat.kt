@@ -93,7 +93,10 @@ object MinecraftChat : ChatEventBus {
         val brokenChatBubbleLines: List<OrderedText>,
         val engineMessage: AcceptedMessage
     ) {
-        val debugText = Text.of(" [volume ${engineMessage.volume}]")
+        val debugText: Text? by lazy {
+            val volume = engineMessage.volume
+            volume?.let { (input, result) -> Text.of(" [input $input, result $result]")  }
+        }
     }
 
     data class ChatLineData(val line: ChatHudLine.Visible, val isFirst: Boolean, val isLast: Boolean, val message: ChatMessageData) {

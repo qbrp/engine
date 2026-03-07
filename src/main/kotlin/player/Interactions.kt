@@ -3,20 +3,16 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.*
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.handle
-import org.lain.engine.util.component.has
-import org.lain.engine.util.component.remove
-import org.lain.engine.util.component.require
-import org.lain.engine.util.component.set
+import org.lain.engine.util.ContentStorage
+import org.lain.engine.util.component.*
+import org.lain.engine.util.nextId
 import org.lain.engine.world.SoundContext
 import kotlin.reflect.KClass
 
 data class PlayerInput(
     val actions: MutableSet<InputAction>,
-    var lastActions: Set<InputAction>
+    var lastActions: Set<InputAction>,
+    var lastInteraction: VerbId? = null,
 ) : Component
 
 data class ServerPlayerInputMeta(var updatedThisTick: Boolean, ) : Component
@@ -29,6 +25,7 @@ fun EnginePlayer.actionsSimilar() = require<PlayerInput>().let { it.actions == i
 sealed class InputAction {
     object Base : InputAction()
     object Attack : InputAction()
+    object TakeOff : InputAction()
     data class SlotClick(
         val cursorItem: EngineItem,
         val item: EngineItem
@@ -121,15 +118,27 @@ data class InteractionComponent(
     var timeElapsed: Int = 0
 ) : Component {
     var sounds = 0
+
+    var progressionTimeStart: Int = 0
     var progression: ProgressionType? = null
     val progress: Float
-        get() = (timeElapsed.toFloat() / (this.progression?.duration ?: error("Прогрессия не начата"))).coerceIn(0f, 1f)
+        get() = ((timeElapsed.toFloat() - progressionTimeStart) / (this.progression?.duration ?: error("Прогрессия не начата"))).coerceIn(0f, 1f)
     val progressionFinished
         get() = progress >= 1f
     var text: String? = null
 
+    var selectionCancelled = false
+    var selection: InteractionSelection? = null
+    var selectionVariant: InteractionSelection.Variant? = null
+    var placeholders = mutableMapOf<String, String>()
+
     val slotAction
         get() = action as InputAction.SlotClick
+
+    fun attachSelection(title: String, variants: List<InteractionSelection.Variant>) {
+        if (selection != null || selectionVariant != null || selectionCancelled) return
+        selection = InteractionSelection(title, variants)
+    }
 
     context(contents: ContentStorage)
     fun attachProgression(
@@ -139,6 +148,16 @@ data class InteractionComponent(
         if (progression != null) return
         val animation = contents.progressionAnimations[id] ?: ProgressionAnimation.DEFAULT
         progression = ProgressionType(duration, animation)
+        progressionTimeStart = timeElapsed
+    }
+
+    context(contents: ContentStorage)
+    fun attachItemProgression(
+        item: EngineItem,
+        key: String,
+        duration: Int
+    ) {
+        attachProgression(item.get<ItemProgressionAnimations>()?.animations[key], duration)
     }
 
     context(contents: ContentStorage)
@@ -146,7 +165,7 @@ data class InteractionComponent(
         key: String,
         duration: Int
     ) {
-        attachProgression(handItem?.get<ItemProgressionAnimations>()?.animations[key], duration)
+        handItem?.let { handItem -> attachItemProgression(handItem, key, duration) }
     }
 
     fun failureProgression(text: String) {
@@ -162,7 +181,19 @@ data class InteractionComponent(
     }
 }
 
-
+@Serializable
+data class InteractionSelection(
+    val title: String,
+    val variants: List<InteractionSelection.Variant>
+) {
+    @Serializable
+    data class Variant(
+        val id: String,
+        val name: String,
+        val asset: String,
+        var isItem: Boolean = false
+    )
+}
 
 fun EnginePlayer.handleInteraction(verb: VerbType, statement: InteractionComponent.() -> Unit) {
     handle<InteractionComponent> {
@@ -229,11 +260,12 @@ fun updatePlayerVerbLookup(
 ) {
     val actions = input.actions
     val lastActions = input.lastActions.toSet()
-    if (actions != lastActions && player.get<InteractionComponent>()?.occupied != true) {
-        if (lookup) {
-            player.set(VerbLookup(player.handItem, actions, mutableSetOf()))
+    val interaction = player.get<InteractionComponent>()
+    if (actions != lastActions && interaction?.let { it.selection != null } ?: true) {
+        if (interaction?.occupied != true) {
+            if (lookup) player.set(VerbLookup(player.handItem, actions, mutableSetOf()))
+            input.lastActions = actions.toSet()
         }
-        input.lastActions = actions.toSet()
     }
 }
 
@@ -246,7 +278,7 @@ fun finishPlayerInteraction(player: EnginePlayer) {
         val item = interaction.handItem
         val actionSimilar = interaction.action in actions
         val itemsSimilar = item == null || item.uuid == player.handItem?.uuid
-        if (!actionSimilar || !itemsSimilar || (!interaction.occupied && interaction.progression == null)) {
+        if (((interaction.selection == null && !actionSimilar) || !itemsSimilar) && ((!interaction.occupied && interaction.progression == null) || !actionSimilar)) {
             player.removeComponent(interaction)
         }
 
@@ -258,18 +290,24 @@ fun updatePlayerInteractions(player: EnginePlayer, handler: ServerHandler? = nul
     val handItem = player.handItem
     val interaction = player.get<InteractionComponent>()
     val lookup = player.get<VerbLookup>()
+    val input = player.require<PlayerInput>()
 
     val invoke = lookup?.verbs?.minByOrNull { it.verb.priority }
     player.remove<VerbLookup>()
-    if (interaction == null && invoke != null) {
-        val component = InteractionComponent(
-            InteractionId.next(),
-            invoke.verb,
-            handItem,
-            lookup.raycastPlayer,
-            invoke.action
-        )
-        player.set(component)
-        handler?.onPlayerInteraction(player, component)
+    if (interaction == null) {
+        if (invoke != null && input.lastInteraction != invoke.verb.id) {
+            val component = InteractionComponent(
+                InteractionId.next(),
+                invoke.verb,
+                handItem,
+                lookup.raycastPlayer,
+                invoke.action
+            )
+            input.lastInteraction = invoke.verb.id
+            player.set(component)
+            handler?.onPlayerInteraction(player, component)
+        } else {
+            input.lastInteraction = null
+        }
     }
 }

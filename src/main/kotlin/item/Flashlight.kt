@@ -24,7 +24,10 @@ data class ConeLightEmitterSettings(
 val EngineItem.lights: Boolean
     get() = this.get<Flashlight>()?.enabled == true
 
-val LIGHT_TOGGLE = ItemVerb(VerbId("light_toggle"), "Переключить фонарик")
+val LIGHT_TOGGLE = VerbType(
+    "light_toggle",
+    "Переключить фонарик"
+)
 
 fun appendFlashlightVerbs(player: EnginePlayer) = player.handle<VerbLookup>() {
     if (player.handItem?.get<Flashlight>() == null) return@handle

@@ -81,9 +81,6 @@ context(ctx: ContentCompileContext)
 internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileNamespace): List<CompiledNamespace.Item> {
     val namespaceConfig = namespace.config
     return itemConfigs.map { (id, config) ->
-        // Экипировка
-        val hat = config.hat ?: namespaceConfig.computeInheritable { it.hat } ?: false
-
         // Ассеты
         var assets = (config.assets ?: mapOf("default" to config.model)) + namespaceConfig.accumulateInheritable { it.assets }
         assets = assets.mapValues { (_, path) ->
@@ -127,12 +124,9 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
                     config.writable?.let { Writable(it.pages, listOf(), it.texture) },
                     assets.let { if (it.isNotEmpty()) ItemAssets(it) else null },
                     outfit,
+                    config.flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance)) },
                     sounds = sounds.let { if (it.isNotEmpty()) ItemSounds(it) else null },
                     progressionAnimations = progressionAnimations.let { if (it.isNotEmpty()) ItemProgressionAnimations(it) else null }
-                    hat,
-                    ItemAssets(assets),
-                    config.flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance)) },
-                    sounds = ItemSounds(sounds)
                 )
             )
         )

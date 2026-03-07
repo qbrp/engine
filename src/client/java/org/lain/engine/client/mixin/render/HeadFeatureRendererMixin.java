@@ -54,6 +54,7 @@ public class HeadFeatureRendererMixin {
                     HeadFeatureRenderer.translate(matrixStack, headTransformation);
                 } else {
                     equip.getModelPart().applyTransform(matrixStack);
+                    matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0f));
                 }
                 equip.getItemRenderState().render(matrixStack, orderedRenderCommandQueue, i, OverlayTexture.DEFAULT_UV, livingEntityRenderState.outlineColor);
                 matrixStack.pop();

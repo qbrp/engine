@@ -14,6 +14,7 @@ import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.require
+import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
@@ -94,6 +95,7 @@ class ServerHandler(
         SERVERBOUND_ARM_STATUS_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.registerReceiver { ctx -> onWriteableContentsUpdate(ctx.sender, item, contents) }
         SERVERBOUND_INPUT_PACKET.registerReceiver { ctx -> onPlayerInput(ctx.sender, tick + 2, actions) }
+        SERVERBOUND_INTERACTION_SELECTION_SELECT_ENDPOINT.registerReceiver { ctx -> onInteractionSelectionSelect(ctx.sender, variantId) }
         SERVERBOUND_CLIENT_TICK_END_ENDPOINT.registerReceiver { ctx ->
             val player = getPlayer(ctx.sender) ?: return@registerReceiver
             player.network.tick++
@@ -108,9 +110,13 @@ class ServerHandler(
 
     fun onRequestReloadContents(playerId: PlayerId) = updatePlayer(playerId) {
         if (hasPermission("reloadenginecontents")) {
-            server.loadContents()
+            try {
+                server.loadContents()
+                CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT.sendS2C(ContentsUpdatePacket, playerId)
+            } catch (e: Throwable) {
+                CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
+            }
         }
-        CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT.sendS2C(ContentsUpdatePacket, playerId)
     }
 
     fun onPlayerInteraction(player: EnginePlayer, component: InteractionComponent) {
@@ -122,6 +128,16 @@ class ServerHandler(
                 component.toDto()
             )
         )
+    }
+
+    private fun onInteractionSelectionSelect(playerId: PlayerId, variantId: String?) = updatePlayer(playerId) {
+        val interaction = get<InteractionComponent>() ?: desync("Взаимодействие не выполняется")
+        val variant = variantId?.let { interaction.selection?.variants?.firstOrNull { it.id == variantId } ?: desync("Вариант взаимодействия $variantId не существует") }
+        interaction.selection = null
+        interaction.selectionVariant = variant
+        if (variant == null) {
+            interaction.selectionCancelled = true
+        }
     }
 
     private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputActionDto>) = updatePlayer(playerId) {
@@ -326,26 +342,6 @@ class ServerHandler(
         receivers.forEach {
             CLIENTBOUND_SOUND_PLAY_ENDPOINT.sendS2C(packet, it.id)
         }
-    }
-
-    fun onPlayerCustomSpeedUpdate(player: EnginePlayer, speed: AttributeUpdate) {
-        CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT.broadcastInRadius(
-            player,
-            PlayerAttributeUpdatePacket(
-                player.id,
-                speed = speed
-            )
-        )
-    }
-
-    fun onPlayerJumpStrengthUpdate(player: EnginePlayer, jumpStrength: AttributeUpdate) {
-        CLIENTBOUND_PLAYER_ATTRIBUTE_UPDATE_ENDPOINT.broadcastInRadius(
-            player,
-            PlayerAttributeUpdatePacket(
-                player.id,
-                jumpStrength = jumpStrength
-            )
-        )
     }
 
     fun onOutcomingMessage(player: MessageSource.Player, message: OutcomingMessage) {

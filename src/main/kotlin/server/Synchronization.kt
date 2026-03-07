@@ -10,11 +10,7 @@ import org.lain.engine.player.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.Entity
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.replace
-import org.lain.engine.util.component.require
+import org.lain.engine.util.component.*
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.Location
 import org.lain.engine.world.location
@@ -195,6 +191,7 @@ val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(Playe
         clientNarration.addAll(narration.messages)
     }
 }
+val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.OTHERS) { player, component -> player.replace(component.copy()) }
 
 // Item
 
