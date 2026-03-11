@@ -4,7 +4,6 @@ import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.util.Color
 import org.lain.engine.util.DEFAULT_TEXT_COLOR
 import org.lain.engine.util.text.EngineText
-import org.lain.engine.util.text.EngineTextStyle
 import org.lain.engine.util.text.TextColor
 
 data class LittleNotification(
@@ -25,4 +24,3 @@ data class LittleNotification(
 }
 
 const val SPECTATOR_NOTIFICATION = "spectator"
-

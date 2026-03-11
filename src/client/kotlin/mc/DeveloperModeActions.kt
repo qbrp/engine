@@ -4,7 +4,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.minecraft.util.ActionResult
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
-import org.lain.engine.client.mc.render.ChunkDecalsStorage
+import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
 import org.lain.engine.client.mc.render.TransformationsEditorScreen
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING

@@ -132,6 +132,7 @@ class GameSession(
         handleBulletFireShakes(mainPlayer, client.camera, world, items)
 
         chatBubbleList.cleanup()
+        chatBubbleList.tick()
         val sounds = processWorldSounds(namespacedStorage, world)
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()

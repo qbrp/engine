@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.mc.render.world
 
 import net.minecraft.client.render.LightmapTextureManager
 import net.minecraft.client.render.OverlayTexture

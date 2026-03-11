@@ -1,31 +1,34 @@
 package org.lain.engine.client.chat
 
+import org.lain.engine.client.mc.render.world.LabelRenderState
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.canSee
+import org.lain.engine.player.eyePos
 import org.lain.engine.util.math.MutableVec3
-import org.lain.engine.util.text.EngineOrderedText
 import org.lain.engine.util.text.EngineText
+import org.lain.engine.util.text.toMinecraft
+import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.pos
 import kotlin.math.pow
 import kotlin.math.sin
 
 data class ChatBubble(
-    val lines: List<Line>,
+    val lines: MutableList<LabelRenderState.Line>,
     val height: Float,
     val player: EnginePlayer,
     var offsetY: Float,
-    var pos: MutableVec3,
+    val pos: MutableVec3,
+    val targetPos: MutableVec3,
     var opacity: Float,
     val expiration: Int,
     var lifetime: Float,
-    var remove: Boolean = false
-) {
-    data class Line(
-        val text: EngineOrderedText,
-        val width: Float
-    )
-}
+    var remove: Boolean = false,
+    var canSee: Boolean = false,
+    var tick: Int = 0,
+    var squaredDistanceToCamera: Float = 0f,
+)
 
 class ChatBubbleList(
     private val options: EngineOptions,
@@ -47,17 +50,23 @@ class ChatBubbleList(
         _bubbles.add(
             ChatBubble(
                 lines
-                    .map { ChatBubble.Line(it, fontRenderer.getWidth(it)) }
-                    .reversed(),
+                    .map { LabelRenderState.Line(it.toMinecraft(), fontRenderer.getWidth(it).toInt()) }
+                    .reversed()
+                    .toMutableList(),
                 height,
                 player,
                 0f,
+                MutableVec3(player.eyePos),
                 MutableVec3(player.pos),
                 0f,
                 options.chatBubbleLifeTime,
                 0f
             )
         )
+    }
+
+    fun tick() {
+        bubbles.forEach { if (it.tick++ % 20 == 0) updateChatBubbleCanSee(it) }
     }
 
     fun cleanup() {
@@ -79,12 +88,15 @@ fun updateChatBubble(bubble: ChatBubble, dt: Float, height: Float) {
     val lift1 = t * LIFTING_Y * 0.15f
     val lift2 = sin(t2 * (Math.PI / 2)).toFloat() * LIFTING_Y * 0.85f
     val lift = lift1 + lift2
-    bubble.pos.mutateLerp(
-        playerPos.x,
-        playerPos.y + height + lift + bubble.offsetY,
-        playerPos.z,
-        1f - 0.8f.pow(dt)
-    )
+
+    if (bubble.canSee) {
+        bubble.targetPos.set(
+            playerPos.x,
+            playerPos.y + height + lift + bubble.offsetY,
+            playerPos.z
+        )
+    }
+    bubble.pos.mutateLerp(bubble.targetPos, 1f - 0.8f.pow(dt))
     val opacity = 1 - sin(t2 * (Math.PI / 2)).toFloat()
     bubble.opacity = opacity
     bubble.lifetime += dt
@@ -92,4 +104,8 @@ fun updateChatBubble(bubble: ChatBubble, dt: Float, height: Float) {
     if (opacity <= 0.03f && fadeout) {
         bubble.remove = true
     }
+}
+
+fun updateChatBubbleCanSee(bubble: ChatBubble) {
+    bubble.canSee = bubble.player.canSee(VoxelPos(bubble.pos), true)
 }

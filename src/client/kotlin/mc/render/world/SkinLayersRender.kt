@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.mc.render.world
 
 import net.minecraft.client.texture.NativeImageBackedTexture
 import org.lain.engine.player.Outfit

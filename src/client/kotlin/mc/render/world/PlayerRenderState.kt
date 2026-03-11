@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.mc.render.world
 
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
 import net.minecraft.client.model.ModelPart

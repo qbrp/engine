@@ -12,6 +12,10 @@ import net.minecraft.util.Identifier
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
 import org.lain.engine.client.mc.render.*
+import org.lain.engine.client.mc.render.world.EquipmentRenderState
+import org.lain.engine.client.mc.render.world.setEquipment
+import org.lain.engine.client.mc.render.world.setMainArmPose
+import org.lain.engine.client.mc.render.world.setMinorArmPose
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.OutfitTag
 import org.lain.engine.client.resources.ResourceList

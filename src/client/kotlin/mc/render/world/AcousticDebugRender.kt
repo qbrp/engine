@@ -1,17 +1,16 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.mc.render.world
 
 import net.minecraft.client.render.LightmapTextureManager
 import net.minecraft.client.render.command.RenderCommandQueue
-import net.minecraft.client.render.entity.EntityRenderManager
 import net.minecraft.client.render.state.CameraRenderState
 import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.text.Text
 import net.minecraft.util.Colors
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ColorHelper
-import org.lain.engine.world.Direction
 import kotlin.math.abs
 import kotlin.math.max
+
 
 fun renderAcousticDebugLabels(
     volumes: List<Pair<BlockPos, Float>>,
