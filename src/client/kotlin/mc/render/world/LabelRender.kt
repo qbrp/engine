@@ -28,7 +28,7 @@ data class LabelRenderState(
     data class Line(val text: OrderedText, val width: Int)
 }
 
-data class LabelEasing(val squaredDistanceToCamera: Float, val squaredDistance: Int)
+data class LabelEasing(val squaredDistanceToCamera: Float, val squaredDistance: Float)
 
 context(ctx: ImmediateWorldRenderContext)
 fun renderLabel(
@@ -55,7 +55,14 @@ fun renderLabel(
 
     var alpha = labelAlpha
     if (easing != null) {
-        alpha = (1f - easing.squaredDistanceToCamera / easing.squaredDistance).coerceIn(0f, 1f)
+        val startFade = easing.squaredDistance * 0.7f
+        val endFade = easing.squaredDistance
+        val current = easing.squaredDistanceToCamera
+
+        if (current > startFade) {
+            val t = (current - startFade) / (endFade - startFade)
+            alpha *= (1f - t).coerceIn(0f, 1f)
+        }
     }
 
     var y = 0f

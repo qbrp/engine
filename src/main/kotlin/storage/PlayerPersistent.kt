@@ -48,6 +48,7 @@ data class PersistentPlayerData(
     val voiceLoose: VoiceLoose?,
     @SerialName("chat_heads") val chatHeads: Boolean = true,
     val equipment: Equipment? = null,
+    val skinEyeY: Float = 2f,
 )
 
 fun savePersistentPlayerData(player: EnginePlayer) {
@@ -70,6 +71,7 @@ fun savePersistentPlayerData(player: EnginePlayer) {
                 player.get<VoiceLoose>()?.copy(),
                 player.chatHeadsEnabled,
                 player.require<Equipment>().copy(),
+                player.require<PlayerModel>().skinEyeY,
             )
         )
     )

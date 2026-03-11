@@ -63,6 +63,10 @@ class HeadEquipmentFeatureRenderer(
                 matrixStack.push()
                 if (equip.modelPart == (contextModel as ModelWithHead).head) {
                     (contextModel as ModelWithHead).applyTransform(matrixStack)
+                    val skinEyeY = livingEntityRenderState.getSkinEyeY()
+                    if (equip.dependsEyeY && skinEyeY != null) {
+                        matrixStack.translate(0f, -skinEyeY.toFloat(), 0f)
+                    }
                     translate(matrixStack, headTransformation)
                     equip.itemRenderState.render(matrixStack, orderedRenderCommandQueue, i, OverlayTexture.DEFAULT_UV, livingEntityRenderState.outlineColor)
                 }

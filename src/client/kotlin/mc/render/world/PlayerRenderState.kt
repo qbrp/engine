@@ -24,10 +24,18 @@ fun PlayerEntityRenderState.getMinorArmPose() = getData(ENGINE_MINOR_ARM_POSE_KE
 
 private val ENGINE_HEAD_EQUIPMENT_KEY = RenderStateDataKey<List<EquipmentRenderState>>.create<List<EquipmentRenderState>> { "Engine head equipment" }
 
-data class EquipmentRenderState(val itemRenderState: ItemRenderState, val modelPart: ModelPart)
+data class EquipmentRenderState(val itemRenderState: ItemRenderState, val modelPart: ModelPart, val dependsEyeY: Boolean)
 
 fun PlayerEntityRenderState.setEquipment(eq: List<EquipmentRenderState>) {
     setData(ENGINE_HEAD_EQUIPMENT_KEY, eq)
 }
 
 fun PlayerEntityRenderState.getEquipment() = getData(ENGINE_HEAD_EQUIPMENT_KEY)
+
+private val ENGINE_SKIN_EYE_Y_KEY = RenderStateDataKey<Float>.create<Float> { "Engine skin eye Y" }
+
+fun PlayerEntityRenderState.setSkinEyeY(value: Float) {
+    setData(ENGINE_SKIN_EYE_Y_KEY, value)
+}
+
+fun PlayerEntityRenderState.getSkinEyeY() = getData(ENGINE_SKIN_EYE_Y_KEY)

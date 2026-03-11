@@ -326,6 +326,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
 
         addClipboardButton("Paste full", "Pasted!", PADDING + SLIDER_WIDTH * 2, PADDING + LINE_HEIGHT) {
             transformations = AdditionalTransformationsBank.clipboardFullTransform?.copy() ?: return@addClipboardButton false
+            AdditionalTransformationsBank.set(modelId, transformations)
             sliders.forEach { it.refresh() }
             true
         }
@@ -407,7 +408,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         private val model: ItemModel,
     ): SliderWidget(PADDING, y, SLIDER_WIDTH, LINE_HEIGHT, Text.of(option), getter().toDouble()) {
         private var lastValue: Float = getter()
-        private val epsilon = 0.01f
+        private val epsilon = 0.001f
         var tick = 0
         init { refresh() }
 
@@ -418,7 +419,9 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         override fun applyValue() {
             val value = validatedValue()
             setter(validatedValue())
-            if (tick % 10 == 0 && abs(lastValue - value) > epsilon) {
+            if (tick > 10 && abs(lastValue - value) > epsilon) {
+                lastValue = value
+                tick = 0
                 (model as? EngineItemModel).let {
                     guiRenderer.`engine$onItemAtlasChanged`()
                 }

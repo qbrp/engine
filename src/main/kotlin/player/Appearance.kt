@@ -44,6 +44,7 @@ data class Outfit(
     val display: OutfitDisplay = OutfitDisplay.Separated,
     val parts: List<PlayerPart> = emptyList(),
     val purity: Purity = Purity(nextId()),
+    val dependsEyeY: Boolean = false,
 ) : ItemComponent
 
 @Serializable

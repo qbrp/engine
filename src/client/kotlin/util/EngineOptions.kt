@@ -15,4 +15,5 @@ interface EngineOptions {
     val chatFieldWidth: Int
     val chatFieldSize: Int
     val crosshairIndicatorVisible: Boolean
+    val labelEasingDistance: Int
 }

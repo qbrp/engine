@@ -173,6 +173,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         replaceOrSet(data.attributes)
         replaceOrSet(data.armStatus)
         replaceOrSet(data.equipment)
+        require<PlayerModel>().skinEyeY = data.skinEyeY
         isLowDetailed = false
         client.eventBus.onFullPlayerData(client, id, data)
     }

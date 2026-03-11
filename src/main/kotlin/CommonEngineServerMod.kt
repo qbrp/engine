@@ -19,9 +19,11 @@ import net.minecraft.world.Difficulty
 import net.minecraft.world.GameRules
 import org.lain.engine.SharedConstants.DEVELOPER_TEST_ENVIRONMENT
 import org.lain.engine.mc.*
+import org.lain.engine.player.RaycastProvider
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
 import org.lain.engine.util.file.updateOldFileNaming
+import org.lain.engine.util.injectValue
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -45,6 +47,7 @@ class CommonEngineServerMod : ModInitializer {
         initializeEngineItemComponents()
 
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
+            Injector.register<RaycastProvider>(MinecraftRaycastProvider(injectValue()))
             engineServer.run()
             if (DEVELOPER_TEST_ENVIRONMENT) {
                 server.gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(false, server)

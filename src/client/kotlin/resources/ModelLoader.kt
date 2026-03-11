@@ -4,8 +4,8 @@ import net.minecraft.client.render.model.Geometry
 import net.minecraft.client.render.model.ModelTextures
 import net.minecraft.client.render.model.UnbakedModel
 import net.minecraft.client.render.model.json.JsonUnbakedModel
-import net.minecraft.client.texture.SpriteAtlasTexture
 import net.minecraft.client.util.SpriteIdentifier
+import net.minecraft.util.Atlases
 import net.minecraft.util.Identifier
 import net.minecraft.util.JsonHelper
 import org.lain.engine.client.mixin.resource.JsonUnbakedModelAccessor
@@ -56,7 +56,7 @@ fun autogenerateModels(
     return models.associate { model ->
         val id = model.registrationId
         val textureId = model.texture.registrationId
-        val sprite = SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, textureId)
+        val sprite = SpriteIdentifier(Atlases.BLOCKS, textureId)
         id to JsonUnbakedModel(
             Geometry.EMPTY,
             UnbakedModel.GuiLight.ITEM,

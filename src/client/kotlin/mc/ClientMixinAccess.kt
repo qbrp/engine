@@ -11,11 +11,9 @@ import net.minecraft.item.ItemStack
 import net.minecraft.util.Identifier
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
-import org.lain.engine.client.mc.render.*
-import org.lain.engine.client.mc.render.world.EquipmentRenderState
-import org.lain.engine.client.mc.render.world.setEquipment
-import org.lain.engine.client.mc.render.world.setMainArmPose
-import org.lain.engine.client.mc.render.world.setMinorArmPose
+import org.lain.engine.client.mc.render.EngineItemDisplayContext
+import org.lain.engine.client.mc.render.updateForLivingEntity
+import org.lain.engine.client.mc.render.world.*
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.OutfitTag
 import org.lain.engine.client.resources.ResourceList
@@ -33,7 +31,6 @@ object ClientMixinAccess {
     private val client by injectClient()
     private val mainPlayer get() = client.gameSession?.mainPlayer
     private var resources: ResourceList? = null
-    private val outfitItemStacksCache = mutableMapOf<Identifier, Outfit>()
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
@@ -93,7 +90,7 @@ object ClientMixinAccess {
                     if (playerModel.head === modelPart) EngineItemDisplayContext.HEAD else EngineItemDisplayContext.OUTFIT,
                     entity,
                 )
-                EquipmentRenderState(state, modelPart)
+                EquipmentRenderState(state, modelPart, it.outfit.dependsEyeY)
             }
     }
 
@@ -111,6 +108,7 @@ object ClientMixinAccess {
             armPoseOf(extends, inventory.offHandItem != null, false, isGun(inventory.offHandItem), isGunWithoutSelector(inventory.offHandItem), isGun(inventory.mainHandItem))
         )
         playerEntityRenderState.setEquipment(createModelPartEquipmentRenderStates(playerLikeEntity, enginePlayer, model))
+        playerEntityRenderState.setSkinEyeY(enginePlayer.skinEyeY)
     }
 
     private val identifierCache = mutableMapOf<String, Identifier>()

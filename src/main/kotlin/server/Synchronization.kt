@@ -198,6 +198,7 @@ val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(Playe
 }
 val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.ALL) { player, component -> player.replace(component.copy()) }
 val PLAYER_EQUIPMENT_SYNCHRONIZER = PlayerComponentSynchronizer<Equipment>(PlayerPredicate.ALL) { player, component -> player.replace(component.copy()) }
+val PLAYER_MODEL_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerModel>(PlayerPredicate.ALL) { player, component -> player.require<PlayerModel>().skinEyeY = component.skinEyeY }
 
 // Item
 

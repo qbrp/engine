@@ -24,6 +24,7 @@ data class PlayerInstantiateSettings(
     val developerModeStatus: DeveloperModeStatus,
     val equipment: Equipment = Equipment(),
     val items: Set<EngineItem> = setOf(),
+    val skinEyeY: Float = 0f,
 )
 
 data class DefaultPlayerAttributes(
@@ -43,7 +44,7 @@ fun commonPlayerInstance(
         set(Location(settings.world, settings.pos))
         set(Velocity())
         set(Orientation())
-        set(PlayerModel())
+        set(PlayerModel(skinEyeY = settings.skinEyeY))
         set(OrientationTranslation(0f, 0f))
         set(PlayerInventory(settings.items.toMutableSet()))
         set(ArmStatus(false))
@@ -88,6 +89,7 @@ private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_NARRATION_SYNCHRONIZER)
     submit(PLAYER_ATTRIBUTES_SYNCHRONIZER)
     submit(PLAYER_EQUIPMENT_SYNCHRONIZER)
+    submit(PLAYER_MODEL_SYNCHRONIZER)
 }
 
 typealias PlayerStorage = Storage<PlayerId, EnginePlayer>

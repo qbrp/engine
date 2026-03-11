@@ -95,7 +95,7 @@ class InteractionSelectionScreen(
             j,
             0.0f,
             0.0f,
-            125,
+            (variants.size * 31).coerceAtLeast(uiWidth) + 1,
             75,
             128,
             128

@@ -119,7 +119,8 @@ data class FullPlayerData(
     val movementStatus: MovementStatus,
     val attributes: PlayerAttributes,
     val armStatus: ArmStatus,
-    val equipment: Equipment
+    val equipment: Equipment,
+    val skinEyeY: Float
 ) {
     companion object {
         fun of(player: EnginePlayer) = FullPlayerData(
@@ -127,6 +128,7 @@ data class FullPlayerData(
             player.require<PlayerAttributes>().copy(),
             player.require<ArmStatus>().copy(),
             player.require<Equipment>().copy(),
+            player.skinEyeY
         )
     }
 }

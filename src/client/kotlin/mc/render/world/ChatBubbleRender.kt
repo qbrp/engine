@@ -7,10 +7,12 @@ import org.lain.engine.client.chat.updateChatBubble
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.mc.engine
 import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.then
 
 context(ctx: ImmediateWorldRenderContext)
 fun renderChatBubbles(
     camera: Camera,
+    easingDistance: Float,
     scale: Float,
     height: Float,
     backgroundOpacity: Float,
@@ -27,6 +29,7 @@ fun renderChatBubbles(
     for (bubble in bubbles) {
         updateChatBubble(bubble, dt, height)
         bubble.squaredDistanceToCamera = bubble.pos.squaredDistanceTo(camera.pos.engine())
+        val easing = { bubble.canSee }.then { LabelEasing(bubble.squaredDistanceToCamera, easingDistance*easingDistance) }
         val player = entityTable.client.getEntity(bubble.player)
         val bubblePos = bubble.pos
         val alpha = bubble.opacity
@@ -43,7 +46,8 @@ fun renderChatBubbles(
                 )
             } else {
                 LightmapTextureManager.MAX_LIGHT_COORDINATE
-            }
+            },
+            easing
         )
     }
 }

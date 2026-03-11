@@ -597,6 +597,18 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             }
     )
 
+    register(
+        literal("eye")
+            .then(
+                floatArgument("y", -16f, 16f)
+                    .executeCatching { ctx ->
+                        val player = ctx.requirePlayer()
+                        val value = ctx.command.getFloat("y") * 0.01f
+                        player.skinEyeY = value
+                        ctx.sendFeedback("Установлена высота глаз на $value пикселей", false)
+                    }
+            )
+    )
 
     registerServerPmCommand()
 }

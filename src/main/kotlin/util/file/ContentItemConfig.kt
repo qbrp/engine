@@ -13,7 +13,8 @@ data class OutfitConfig(
     val layer: SkinLayerId? = null,
     val part: PlayerPart? = null,
     val parts: List<PlayerPart>? = null,
-    val separated: Boolean = false
+    val separated: Boolean = false,
+    val eyes: Boolean = false
 )
 
 @Serializable
@@ -106,10 +107,10 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
         val mass = config.mass ?: namespaceConfig.computeInheritable { it.mass }
 
         // Экипировка
-        val outfit = config.outfit?.let { (layer, part, parts, separated) ->
+        val outfit = config.outfit?.let { (layer, part, parts, separated, dependsEyeY) ->
             val parts = part?.let { listOf(it) } ?: parts ?: error("Не указана часть тела, покрываемая экипировкой. Доступные варианты: part, parts")
             val display = layer?.let { OutfitDisplay.Texture(it) } ?: OutfitDisplay.Separated.takeIf { separated } ?: error("Не указан способ отображения экипировки")
-            Outfit(display, parts)
+            Outfit(display, parts, dependsEyeY = dependsEyeY)
         } ?: config.hat?.let { Outfit(OutfitDisplay.Separated, listOf(PlayerPart.HEAD)) }
 
         val assetsProperty = { assets.isNotEmpty() }.then { ItemAssets(assets) }

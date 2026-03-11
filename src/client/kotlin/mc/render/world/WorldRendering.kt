@@ -42,6 +42,7 @@ fun registerWorldRenderEvents(client: MinecraftClient, engineClient: EngineClien
             if (!(options.hideChatBubblesWithUi && engineClient.renderer.hudHidden) && options.chatBubbles) {
                 renderChatBubbles(
                     camera,
+                    options.labelEasingDistance.toFloat(),
                     options.chatBubbleScale,
                     options.chatBubbleHeight,
                     options.chatBubbleBackgroundOpacity,

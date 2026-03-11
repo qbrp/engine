@@ -10,8 +10,8 @@ import net.minecraft.client.item.ItemAsset
 import net.minecraft.client.render.item.model.BasicItemModel
 import net.minecraft.client.render.model.json.Transformation
 import net.minecraft.client.texture.MissingSprite
-import net.minecraft.client.texture.SpriteAtlasTexture
 import net.minecraft.client.util.SpriteIdentifier
+import net.minecraft.util.Atlases
 import net.minecraft.util.Identifier
 import net.minecraft.util.JsonHelper
 import org.joml.Vector3f
@@ -77,7 +77,7 @@ enum class ModelType {
 }
 
 internal val LOGGER = LoggerFactory.getLogger("Engine Model Loader")
-internal val MISSING_SPRITE = SpriteIdentifier(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE, MissingSprite.getMissingSpriteId())
+internal val MISSING_SPRITE = SpriteIdentifier(Atlases.BLOCKS, MissingSprite.getMissingSpriteId())
 
 data class ResourceList(
     // Спрайт атлас -> текстуры

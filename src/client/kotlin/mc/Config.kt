@@ -49,6 +49,12 @@ class EngineYamlConfig(
 
     init { builder.pop() }
 
+    init { builder.push("visual") }
+
+    private val labelEasingDistanceProperty = builder.defineInteger("easing-distance", 6, 4, 16)
+
+    init { builder.pop() }
+
     override val chatBubbleScale: Float
         get() = chatBubbleScaleProperty.get() / 50f
     override val chatBubbleHeight: Float
@@ -75,6 +81,8 @@ class EngineYamlConfig(
         get() = chatFieldWidthProperty.get()
     override val chatFieldSize: Int
         get() = chatFieldSizeProperty.get()
+    override val labelEasingDistance: Int
+        get() = labelEasingDistanceProperty.get()
 
     override val crosshairIndicatorVisible: Boolean
         get() = crosshairIndicatorVisibleProperty.get()
