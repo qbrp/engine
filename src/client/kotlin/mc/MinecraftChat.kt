@@ -61,7 +61,11 @@ object MinecraftChat : ChatEventBus {
     var isWritingCommand = false
     val typingPlayers = mutableSetOf<TypingPlayer>()
 
-    data class TypingPlayer(val id: PlayerId, val skinTextures: SkinTextures, val name: Text)
+    data class TypingPlayer(val id: PlayerId, val skinTextures: SkinTextures, val name: Text) {
+        override fun equals(other: Any?): Boolean {
+            return other is TypingPlayer && id == other.id
+        }
+    }
 
     fun registerEndpoints() {
         CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.registerClientReceiver {

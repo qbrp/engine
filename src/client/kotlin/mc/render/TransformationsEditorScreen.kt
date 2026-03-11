@@ -33,6 +33,7 @@ import org.lain.engine.client.mixin.render.ItemRenderStateAccessor
 import org.lain.engine.client.resources.EngineItemModel
 import org.lain.engine.client.resources.exportEngineModelTransformations
 import org.lain.engine.util.math.MutableVec3
+import kotlin.math.abs
 import kotlin.math.max
 
 object AdditionalTransformationsBank {
@@ -212,12 +213,12 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
             }
         }
 
-    fun addSliderWithField(i: Int, option: String, maxValue: Float, getter: () -> Float, setter: (Float) -> Unit) {
+    fun addSliderWithField(i: Int, option: String, maxValue: Float, getter: (EngineTransformation) -> Float, setter: (Float) -> Unit) {
         val slider = TransformationSliderWidget(
             getWidgetY(i),
             option,
             maxValue,
-            getter,
+            { getter(transformations.getTransformation(context)) },
             setter,
             model
         )
@@ -226,15 +227,19 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         textField.setChangedListener { _ ->
             val text = textField.text
             if (text.isNotEmpty()) {
-                runCatching { text.toFloat() }
-                    .onFailure { it.printStackTrace() }
-                    .onSuccess {
-                        slider.updateValue(it)
-                    }
+                runCatching { text.toFloat() }.onSuccess { slider.updateValue(it) }
             }
         }
         textField.setMaxLength(16)
         addDrawableChild(textField)
+        addDrawableChild(
+            ButtonWidget.builder(Text.of("R")) {
+                slider.updateValue(getter(computeTransformations(model).getTransformation(context)))
+            }
+                .position(PADDING * 3 + SLIDER_WIDTH + textField.width, getWidgetY(i))
+                .size(16, LINE_HEIGHT)
+                .build()
+        )
     }
 
     fun addClipboardButton(text: String, callback: String, x: Int, y: Int, setter: () -> Boolean) {
@@ -257,19 +262,19 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
     }
 
     override fun init() {
-        addSliderWithField(1, "Scale Z", MAX_SCALE,{ scale.z }, { scale.z = it })
-        addSliderWithField(2, "Scale Y", MAX_SCALE,{ scale.y }, { scale.y = it })
-        addSliderWithField(3, "Scale X", MAX_SCALE,{ scale.x }, { scale.x = it })
+        addSliderWithField(1, "Scale Z", MAX_SCALE,{ it.scale.z }, { scale.z = it })
+        addSliderWithField(2, "Scale Y", MAX_SCALE,{ it.scale.y }, { scale.y = it })
+        addSliderWithField(3, "Scale X", MAX_SCALE,{ it.scale.x }, { scale.x = it })
         addText(4, "Scale")
 
-        addSliderWithField(5, "Rotation Z", MAX_ROTATION, { rotation.z }, { rotation.z = it })
-        addSliderWithField(6, "Rotation Y", MAX_ROTATION, { rotation.y }, { rotation.y = it })
-        addSliderWithField(7, "Rotation X", MAX_ROTATION, { rotation.x }, { rotation.x = it })
+        addSliderWithField(5, "Rotation Z", MAX_ROTATION, { it.rotation.z }, { rotation.z = it })
+        addSliderWithField(6, "Rotation Y", MAX_ROTATION, { it.rotation.y }, { rotation.y = it })
+        addSliderWithField(7, "Rotation X", MAX_ROTATION, { it.rotation.x }, { rotation.x = it })
         addText(8, "Rotation")
 
-        addSliderWithField(9, "Translation Z", MAX_TRANSLATION, { translation.z }, { translation.z = it })
-        addSliderWithField(10, "Translation Y", MAX_TRANSLATION, { translation.y }, { translation.y = it })
-        addSliderWithField(11, "Translation X", MAX_TRANSLATION, { translation.x }, { translation.x = it })
+        addSliderWithField(9, "Translation Z", MAX_TRANSLATION, { it.translation.z }, { translation.z = it })
+        addSliderWithField(10, "Translation Y", MAX_TRANSLATION, { it.translation.y }, { translation.y = it })
+        addSliderWithField(11, "Translation X", MAX_TRANSLATION, { it.translation.x }, { translation.x = it })
         addText(12, "Translation")
 
         addDrawableChild(
@@ -352,6 +357,11 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         contextList.setSelectedByValue(context)
     }
 
+    override fun tick() {
+        super.tick()
+        sliders.forEach { it.tick++ }
+    }
+
     override fun mouseClicked(click: Click, doubled: Boolean): Boolean {
         super.mouseClicked(click, doubled)
         return contextList.mouseClicked(click, doubled)
@@ -396,7 +406,9 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         private val setter: (Float) -> Unit,
         private val model: ItemModel,
     ): SliderWidget(PADDING, y, SLIDER_WIDTH, LINE_HEIGHT, Text.of(option), getter().toDouble()) {
-        private var tick = 0
+        private var lastValue: Float = getter()
+        private val epsilon = 0.01f
+        var tick = 0
         init { refresh() }
 
         override fun updateMessage() {
@@ -404,8 +416,9 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         }
 
         override fun applyValue() {
+            val value = validatedValue()
             setter(validatedValue())
-            if (tick++ % 10 == 0) {
+            if (tick % 10 == 0 && abs(lastValue - value) > epsilon) {
                 (model as? EngineItemModel).let {
                     guiRenderer.`engine$onItemAtlasChanged`()
                 }
@@ -428,7 +441,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
 
     private class TransformationTextFieldWidget(y: Int) : TextFieldWidget(MinecraftClient.textRenderer, PADDING * 2 + SLIDER_WIDTH, y, 60, LINE_HEIGHT, Text.empty()) {
         override fun getText(): String {
-            return super.getText().replace(Regex("[^0-9.]"), "")
+            return super.getText().replace(Regex("[^0-9.-]"), "")
         }
     }
 

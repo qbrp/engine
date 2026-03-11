@@ -36,7 +36,7 @@ fun registerWorldRenderEvents(client: MinecraftClient, engineClient: EngineClien
 
 
         val options = engineClient.options
-        if (!options.hideChatBubblesWithUi && !engineClient.renderer.hudHidden && options.chatBubbles) {
+        if (!(options.hideChatBubblesWithUi && engineClient.renderer.hudHidden) && options.chatBubbles) {
             renderChatBubbles(
                 matrices,
                 camera,
