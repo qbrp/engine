@@ -201,7 +201,11 @@ fun World.updateVoxelEvents(handler: ServerHandler?) = iterate<VoxelEvent> { _, 
             is VoxelUpdate.DetachDecal -> {
                 val decals = chunkDecals[voxelPos] ?: return@forEach
                 val newDecals = decals.withoutLayers(update.layers)
-                chunkDecals[voxelPos] = newDecals
+                if (newDecals.isEmpty()) {
+                    chunkDecals.remove(voxelPos)
+                } else {
+                    chunkDecals[voxelPos] = newDecals
+                }
             }
             is VoxelUpdate.Set -> {
                 update.decals?.apply(voxelPos, chunkDecals)

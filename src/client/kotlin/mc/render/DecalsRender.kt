@@ -46,18 +46,18 @@ class ChunkDecalsStorage {
     }
 
     fun updateTexture(decals: BlockDecals, voxelPos: ImmutableVoxelPos, chunk: EngineChunkPos = EngineChunkPos(voxelPos)) {
-        var image = textures(chunk)[voxelPos]
         val decalLayers = decals.layers
-        val maxResolution = decalLayers.maxOf { layer -> layer.key.resolution }
-
-        if (image == null) {
-            val texture = DecalsTexture(voxelPos, maxResolution)
-            texture.register(textureManager)
-            image = BlockDecalImageData(texture)
-            textures(chunk)[voxelPos] = image
-        }
-
         try {
+            var image = textures(chunk)[voxelPos]
+            val maxResolution = decalLayers.maxOf { layer -> layer.key.resolution }
+
+            if (image == null) {
+                val texture = DecalsTexture(voxelPos, maxResolution)
+                texture.register(textureManager)
+                image = BlockDecalImageData(texture)
+                textures(chunk)[voxelPos] = image
+            }
+
             image.gameTexture.compile(decalLayers)
         } catch (e: Throwable) {
             logger.error("Не удалось скомпилировать декали блока ${voxelPos.toShortString()} (${decalLayers.map { it.key.name }})", e)
@@ -89,7 +89,11 @@ class ChunkDecalsStorage {
             event.positions.forEach { pos ->
                 val decals = world.chunkStorage.getDecals(pos)
                 if (decals != null) {
-                    updateTexture(decals, pos, event.chunkPos)
+                    if (updates is VoxelUpdate.DetachDecal || decals.layers.isEmpty() || decals.layers.all { it.value.directions.isEmpty() }) {
+                        unloadTexture(pos, event.chunkPos)
+                    } else {
+                        updateTexture(decals, pos, event.chunkPos)
+                    }
                 } else {
                     unloadTexture(pos, event.chunkPos)
                 }

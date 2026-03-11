@@ -35,6 +35,8 @@ data class DecalsLayer(val directions: Map<Direction, Decals> = mapOf()) {
         map[direction] = list
         return DecalsLayer(map)
     }
+
+    fun isEmpty() = directions.isEmpty() || directions.all { it.value.isEmpty() }
 }
 
 @Serializable
@@ -75,6 +77,8 @@ data class BlockDecals(val version: Int = 0, val layers: Map<DecalsLayerType, De
         toRemove.forEach { layers.remove(it) }
         return BlockDecals(version + 1, layers)
     }
+
+    fun isEmpty() = layers.isEmpty() || layers.all { it.value.isEmpty() }
 
     companion object {
         fun withLayer(layer: DecalsLayerType) = BlockDecals(
