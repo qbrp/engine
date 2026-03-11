@@ -129,36 +129,39 @@ fun compileContents(directory: File = CONTENTS_DIR): ContentsCompileResult = wit
     val start = Timestamp()
     var items = 0
     var sounds = 0
+    var progressionAnimations = 0
     val namespaces = namespaces.mapValues { (_, namespace) ->
         try {
             val contents = namespace.contents
-
-        CompiledNamespace(
-            compileItems(contents.items, namespace)
-                .associateBy { it.id }
-                .also { items += it.count() },
-            compileSoundEvents(contents.sounds, namespace)
-                .associateBy { it.id }
-                .also { sounds += it.count() },
-            contents.progressionAnimations.map { (id, animation) ->
-                val framesList = runCatching { Yaml.default.decodeFromYamlNode<List<String>>(animation.frames ?: return@runCatching emptyList()) }
-                val frames = framesList.getOrNull() ?: run {
-                    val (baseName, count) = Yaml.default.decodeFromYamlNode<FrameIdGeneratorConfig>(animation.frames!!)
-                    List(count) { id -> "$baseName${id + 1}" }
+            CompiledNamespace(
+                compileItems(contents.items, namespace)
+                    .associateBy { it.id }
+                    .also { items += it.count() },
+                compileSoundEvents(contents.sounds, namespace)
+                    .associateBy { it.id }
+                    .also { sounds += it.count() },
+                contents.progressionAnimations.map { (id, animation) ->
+                    val framesList = runCatching { Yaml.default.decodeFromYamlNode<List<String>>(animation.frames ?: return@runCatching emptyList()) }
+                    val frames = framesList.getOrNull() ?: run {
+                        val (baseName, count) = Yaml.default.decodeFromYamlNode<FrameIdGeneratorConfig>(animation.frames!!)
+                        List(count) { id -> "$baseName${id + 1}" }
+                    }
+                    ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(frames, animation.text, animation.success)
                 }
-                ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(frames, animation.text, animation.success)
-            }.toMap()
-        )
-    } catch (e: Throwable) {
+                    .also { progressionAnimations += it.count() }
+                    .toMap()
+            )
+        } catch (e: Throwable) {
             CONFIG_LOGGER.error("При компиляции пространства имён ${namespace.id} возникла ошибка", e)
             null
         }
     }.filterValues { it != null }
 
     CONFIG_LOGGER.info(
-        "Скомпилировано {} предметов, {} звуковых событий в пространствах имён {} за {} мл.",
+        "Скомпилировано {} предметов, {} звуковых событий и {} прогрессий в пространствах имён {} за {} мл.",
         items,
         sounds,
+        progressionAnimations,
         namespaces.keys.joinToString(separator = ", "),
         start.timeElapsed()
     )

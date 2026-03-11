@@ -239,6 +239,40 @@ class Grid3b internal constructor(
     }
 }
 
+class Grid3byte internal constructor(
+    w: Int,
+    h: Int,
+    d: Int,
+    internal val array: ByteArray
+) : AbstractGrid3<Byte>(w, h, d)
+{
+    constructor(
+        w: Int,
+        h: Int,
+        d: Int,
+        factory: (Int) -> Byte = { 0 }
+    ): this(w, h, d, ByteArray(w * h * d, factory))
+
+    override fun get(idx: Int): Byte = array[idx]
+
+    override fun set(idx: Int, value: Byte) {
+        array[idx] = value
+    }
+
+    override fun fill(elem: Byte) {
+        array.fill(elem)
+    }
+
+    override fun forEachLinear(start: Int, end: Int, block: (Int, Int, Int, Int) -> Unit) {
+        array.forEachIndexed { i, elem ->
+            val (x, y, z) = posOf(i)
+            if (i == end) return@forEachIndexed
+            block(i, x, y, z)
+        }
+    }
+}
+
+
 fun PrimitiveArrayPool.getGrid3b(size: SceneSize) = getGrid3b(size.width, size.height, size.depth)
 
 fun PrimitiveArrayPool.getGrid3f(size: SceneSize) = getGrid3f(size.width, size.height, size.depth)

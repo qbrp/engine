@@ -29,6 +29,7 @@ sealed class AttributeUpdate() {
 enum class Notification {
     INVALID_SOURCE_POS,
     ACOUSTIC_ERROR,
+    COMPILATION_ERROR,
     FREECAM,
 }
 
@@ -93,9 +94,9 @@ class ServerHandler(
         if (hasPermission("reloadenginecontents")) {
             try {
                 server.loadContents()
-                CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT.sendS2C(ContentsUpdatePacket, playerId)
             } catch (e: Throwable) {
                 CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
+                onServerNotification(this, Notification.COMPILATION_ERROR, false)
             }
         }
     }

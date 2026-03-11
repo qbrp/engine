@@ -74,8 +74,18 @@ class GameSession(
         client.eventBus.onMainPlayerInstantiated(client, this, mainPlayer)
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
+        recompileContents()
         player.items.forEach { itemStorage.add(it.uuid, clientItem(world, it)) }
+    }
+
+    fun recompileContents() {
         namespacedStorage.loadContentsCompileResult(compileContents(client.resources.contents.file))
+        onContentsUpdated()
+    }
+
+    fun onContentsUpdated() {
+        client.audioManager.invalidateCache()
+        client.eventBus.onContentsUpdate()
     }
 
     fun tick() = with(namespacedStorage) {

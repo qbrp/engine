@@ -1,12 +1,15 @@
 package org.lain.engine.mc
 
+import net.minecraft.block.ShapeContext
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.entity.projectile.ProjectileUtil
 import net.minecraft.predicate.entity.EntityPredicates
 import net.minecraft.server.MinecraftServer
+import net.minecraft.util.hit.HitResult
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.RaycastContext
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.RaycastProvider
@@ -53,6 +56,21 @@ class MinecraftRaycastProvider(private val playerTable: EntityTable) : RaycastPr
         return (results?.entity as? PlayerEntity?)?.let {
             (table as EntityTable.Entity2PlayerTable<PlayerEntity>).getPlayer(it)
         }
+    }
+
+    override fun canSee(player: EnginePlayer, voxelPos: VoxelPos, isClient: Boolean): Boolean {
+        val table = if (isClient) playerTable.client else playerTable.server
+        val entity = table.getEntity(player) ?: return false
+        val blockPos =BlockPos(voxelPos.x, voxelPos.y, voxelPos.z)
+        val context = RaycastContext(
+            entity.eyePos,
+            blockPos.toCenterPos(),
+            RaycastContext.ShapeType.VISUAL,
+            RaycastContext.FluidHandling.WATER,
+            ShapeContext.absent()
+        )
+        val raycastResult = entity.entityWorld.raycast(context)
+        return raycastResult != null && (raycastResult.type == HitResult.Type.MISS || raycastResult.blockPos == blockPos)
     }
 }
 

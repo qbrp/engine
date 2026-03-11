@@ -29,7 +29,6 @@
     "render.EntityRendererMixin",
     "render.GameRendererAccessor",
     "render.GuiRendererAccessor",
-    "render.HeadFeatureRendererMixin",
     "render.ItemModelManagerMixin",
     "render.ItemRenderStateAccessor",
     "render.ItemRenderStateMixin",
@@ -43,6 +42,7 @@
     "resource.SimpleResourceReloadMixin",
     "resource.TransformationDeserializerMixin",
     "screen.BookEditScreenMixin",
+    "screen.CreativeInventoryScreenMixin",
     "ui.DownloadingTerrainScreenMixin",
     "ui.InGameHudAcessor",
     "ui.InGameHudMixin"
@@ -52,6 +52,5 @@
   },
   "overwrites": {
     "requireAnnotations": true
-  },
-  "mixins": []
+  }
 }

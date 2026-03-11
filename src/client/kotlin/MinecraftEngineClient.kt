@@ -29,13 +29,19 @@ import net.minecraft.world.chunk.Chunk
 import org.lain.engine.*
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.render.*
+import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
+import org.lain.engine.client.mc.render.world.EquipmentFeatureRenderer
+import org.lain.engine.client.mc.render.world.HeadEquipmentFeatureRenderer
+import org.lain.engine.client.mc.render.world.registerWorldRenderEvents
 import org.lain.engine.client.mixin.MinecraftClientAccessor
+import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.resources.OutfitTag
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
+import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.PlayerTickException
 import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
@@ -45,6 +51,7 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.Injector
+import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.component.apply
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.handle
@@ -115,9 +122,26 @@ class MinecraftEngineClient : ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, env ->
             dispatcher.register(
-                ClientCommandManager.literal("reloadclientenginecontents")
+                ClientCommandManager.literal("reloadenginecontents")
                     .executes { ctx ->
                         SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.sendC2SPacket(ReloadContentsRequestPacket)
+
+                        try {
+                            require(engineClient.gameSession != null) { friendlyError("Вы не находитесь на сервере") }
+                            engineClient.gameSession?.recompileContents()
+                        } catch (e: Exception) {
+                            engineClient.applyLittleNotification(
+                                LittleNotification(
+                                    "Ошибка компиляции клиента",
+                                    "${e.message ?: "Неизвестная ошибка"}<newline>Проверьте консоль для более подробной информации.",
+                                    WARNING_COLOR,
+                                    WARNING,
+                                    lifeTime = 240
+                                )
+                            )
+                            e.printStackTrace()
+                        }
+
                         ctx.source.sendFeedback(Text.of("Контен скомпилирован"))
                         1
                     }

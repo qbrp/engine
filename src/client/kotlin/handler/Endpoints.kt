@@ -87,7 +87,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     registerGameSessionReceiver(CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT) { gameSession ->
-        applyContentsUpdatePacket()
+        gameSession.onContentsUpdated()
     }
 
     registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { gameSession ->

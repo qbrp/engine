@@ -242,6 +242,16 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     fun applyNotification(type: Notification, once: Boolean) {
         if (!handledNotifications.add(type) && once) return
         val notification = when(type) {
+            Notification.COMPILATION_ERROR -> {
+                LittleNotification(
+                    "Ошибка компиляции сервера",
+                    "Проверьте консоль или логи для получения более подробной информации.",
+                    WARNING_COLOR,
+                    WARNING,
+                    lifeTime = 240
+                )
+            }
+
             Notification.INVALID_SOURCE_POS ->
                 LittleNotification(
                     "Выход за пределы мира",
@@ -289,11 +299,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun applyPlaySoundPacket(play: SoundPlay, context: SoundContext?): Unit = with(gameSession!!) {
         soundsToBroadcast += SoundBroadcast(play, listOf(), context)
-    }
-
-    fun applyContentsUpdatePacket() {
-        client.audioManager.invalidateCache()
-        client.eventBus.onContentsUpdate()
     }
 
     fun applyAcousticDebugVolumePacket(volumes: List<Pair<VoxelPos, Float>>) = with(gameSession!!) {
