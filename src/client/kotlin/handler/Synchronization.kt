@@ -58,6 +58,7 @@ fun mainClientPlayerInstance(
                 stamina = data.stamina
             ),
             data.attributes,
+            equipment = data.equipment,
             developerModeStatus = developerModeStatus
         ),
         id

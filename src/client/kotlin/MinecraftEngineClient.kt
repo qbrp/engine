@@ -13,15 +13,18 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.gui.screen.ingame.BookEditScreen
 import net.minecraft.client.network.ClientPlayerEntity
+import net.minecraft.client.render.entity.PlayerEntityRenderer
 import net.minecraft.component.type.WritableBookContentComponent
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.text.RawFilteredPair
 import net.minecraft.text.Text
 import net.minecraft.util.Hand
+import net.minecraft.util.profiler.Profilers
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.*
 import org.lain.engine.client.mc.*
@@ -168,9 +171,17 @@ class MinecraftEngineClient : ClientModInitializer {
         ServerLifecycleEvents.SERVER_STOPPED.register { server ->
             this.server = null
         }
+
+        LivingEntityFeatureRendererRegistrationCallback.EVENT.register { type, renderer, helper, context ->
+            if (renderer is PlayerEntityRenderer) {
+                helper.register(EquipmentFeatureRenderer(renderer))
+                helper.register(HeadEquipmentFeatureRenderer(renderer))
+            }
+        }
     }
 
     private fun tickClient() {
+        Profilers.get().push("engineClientTick")
         val entity = client.player
         val gameSession = engineClient.gameSession
 
@@ -210,9 +221,11 @@ class MinecraftEngineClient : ClientModInitializer {
 
             client.networkHandler?.connection?.disconnect(DisconnectText(text)) ?: run {
                 connectionLogger.warn("Игрок отключен от несуществующего сервера")
-                onDisconnect()
             }
+
+            onDisconnect()
         }
+        Profilers.get().pop()
     }
 
     private fun preEngineTick(players: Map<PlayerEntity, EnginePlayer>) {
@@ -220,6 +233,12 @@ class MinecraftEngineClient : ClientModInitializer {
         val gameSession = engineClient.gameSession ?: return
         val world = gameSession.world
         gameSession.admin = mainPlayerEntity?.permissionLevel == 4
+
+        gameSession.mainPlayer.apply<OrientationTranslation> {
+            if (yaw != 0f || pitch != 0f) {
+                camera.impulse(-yaw, -pitch)
+            }
+        }
 
         players.forEach { (entity, player) ->
             val itemStacks = (entity.inventory + entity.currentScreenHandler.cursorStack).toSet()
@@ -241,12 +260,6 @@ class MinecraftEngineClient : ClientModInitializer {
         val gameSession = engineClient.gameSession ?: return
         val minecraftWorld = client.world ?: return
         renderer.tick()
-
-        gameSession.mainPlayer.apply<OrientationTranslation> {
-            if (yaw != 0f || pitch != 0f) {
-                camera.impulse(-yaw, -pitch)
-            }
-        }
 
         players.forEach { (entity, player) ->
             player.remove<OpenBookTag>()?.let {
@@ -294,8 +307,8 @@ class MinecraftEngineClient : ClientModInitializer {
 
         if (engineClient.gameSessionActive) {
             engineClient.leaveGameSession()
-            MinecraftChat.clearChatData()
         }
+        MinecraftChat.clearChatData()
         readyToAuthorize = false
         inAuthorization = false
         connectionLogger.info("Игрок отключен от сервера Engine")

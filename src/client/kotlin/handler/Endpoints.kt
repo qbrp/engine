@@ -70,6 +70,12 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyInteractionSelectionPacket(selection)
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_SELECTION_SELECT_ENDPOINT) { gameSession ->
+        updatePlayerDetailed(player) {
+            applyPlayerInteractionSelectionSelectPacket(it, variantId)
+        }
+    }
+
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_INPUT_PACKET) { gameSession ->
         updatePlayerDetailed(playerId) {
             applyPlayerInputPacket(it, actions)
@@ -101,6 +107,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     registerPlayerSynchronizerEndpoint(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_NARRATION_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_ATTRIBUTES_SYNCHRONIZER)
+    registerPlayerSynchronizerEndpoint(PLAYER_EQUIPMENT_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_WRITABLE_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_GUN_SYNCHRONIZER)
     registerItemSynchronizerEndpoint(ITEM_FLASHLIGHT_SYNCHRONIZER)

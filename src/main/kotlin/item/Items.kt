@@ -2,6 +2,7 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.*
+import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentManager
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Entity
@@ -28,6 +29,8 @@ data class EngineItem(
     override val stringId: String
         get() = this.uuid.toString()
 }
+
+data class UpdateMeta(var adaptedThisTick: Boolean = false) : Component
 
 @JvmInline
 @Serializable

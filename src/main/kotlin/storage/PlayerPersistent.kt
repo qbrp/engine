@@ -5,10 +5,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.lain.engine.player.*
 import org.lain.engine.util.Color
-import org.lain.engine.util.file.ENGINE_DIR
-import org.lain.engine.util.file.ensureExists
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.require
+import org.lain.engine.util.file.ENGINE_DIR
+import org.lain.engine.util.file.ensureExists
 import org.slf4j.LoggerFactory
 
 val STORAGE_DIR = ENGINE_DIR.resolve("storage")
@@ -18,6 +18,7 @@ val PLAYERS_DATA_DIR = STORAGE_DIR.resolve("players")
     .also { it.mkdirs() }
 private val PLAYERS_JSON = Json {
     prettyPrint = true
+    ignoreUnknownKeys = true
 }
 
 private val PLAYER_DATA_LOGGER = LoggerFactory.getLogger("Engine Player Data")
@@ -45,7 +46,8 @@ data class PersistentPlayerData(
     val stamina: Float,
     val voiceApparatus: VoiceApparatus,
     val voiceLoose: VoiceLoose?,
-    @SerialName("chat_heads") val chatHeads: Boolean = true
+    @SerialName("chat_heads") val chatHeads: Boolean = true,
+    val equipment: Equipment? = null,
 )
 
 fun savePersistentPlayerData(player: EnginePlayer) {
@@ -64,9 +66,10 @@ fun savePersistentPlayerData(player: EnginePlayer) {
                 customName?.toPersistentData(),
                 speedIntention,
                 stamina,
-                player.require(),
-                player.get(),
-                player.chatHeadsEnabled
+                player.require<VoiceApparatus>().copy(),
+                player.get<VoiceLoose>()?.copy(),
+                player.chatHeadsEnabled,
+                player.require<Equipment>().copy(),
             )
         )
     )

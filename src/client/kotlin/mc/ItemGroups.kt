@@ -48,12 +48,11 @@ fun updateEngineItemGroupEntries() {
 fun registerEngineItemGroupEvent(client: EngineClient) {
     Registry.register(Registries.ITEM_GROUP, KEY, ITEM_GROUP);
     ItemGroupEvents.modifyEntriesEvent(KEY).register { entries ->
-        client.gameSession?.namespacedStorage?.items?.forEach { (id, item) ->
+        client.gameSession?.namespacedStorage?.items?.forEach { (id, prefab) ->
             val stack = ITEM_STACK_MATERIAL.copy()
-            val prefab = item.properties
             val assets = prefab.assets?.assets ?: return@forEach
 
-            wrapEngineItemStackVisual(stack, prefab.name?.text ?: "Предмет")
+            wrapEngineItemStackVisual(stack, prefab.name)
             wrapEngineItemStackBase(stack, prefab.maxCount)
             stack.set(
                 DataComponentTypes.ITEM_MODEL,

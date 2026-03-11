@@ -95,12 +95,12 @@ suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
 fun dataFixItem(item: EngineItem, storage: NamespacedStorage) {
     if (!item.has<ItemAssets>()) {
         val prefab = storage.items[item.id] ?: return
-        val assets = prefab.properties.assets
+        val assets = prefab.assets
         item.setNullable(assets)
     }
     if (!item.has<ItemProgressionAnimations>()) {
         val prefab = storage.items[item.id] ?: return
-        val animations = prefab.properties.progressionAnimations
+        val animations = prefab.progressionAnimations
         item.setNullable(animations)
     }
 }

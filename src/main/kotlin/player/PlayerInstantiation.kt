@@ -22,7 +22,8 @@ data class PlayerInstantiateSettings(
     val spectating: Spectating = Spectating(),
     val gameMaster: GameMaster = GameMaster(),
     val developerModeStatus: DeveloperModeStatus,
-    val items: Set<EngineItem> = setOf()
+    val equipment: Equipment = Equipment(),
+    val items: Set<EngineItem> = setOf(),
 )
 
 data class DefaultPlayerAttributes(
@@ -49,12 +50,14 @@ fun commonPlayerInstance(
         set(PlayerInput(mutableSetOf(), setOf()))
         set(Narration(mutableListOf()))
         set(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
-        set(Equipment())
+        set(settings.equipment)
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)
         set(settings.gameMaster)
         set(settings.attributes)
+        set(Synchronizations<EnginePlayer>(mutableMapOf()))
+            .also { it.initializeSynchronizers() }
     }
 }
 
@@ -74,8 +77,6 @@ fun serverPlayerInstance(
         set(defaults)
         set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
         set(PlayerNetworkState(false))
-        set(Synchronizations<EnginePlayer>(mutableMapOf()))
-            .also { it.initializeSynchronizers() }
         require<PlayerAttributes>().gravity.default = defaults.gravity
     }
 }
@@ -86,6 +87,7 @@ private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     submit(PLAYER_NARRATION_SYNCHRONIZER)
     submit(PLAYER_ATTRIBUTES_SYNCHRONIZER)
+    submit(PLAYER_EQUIPMENT_SYNCHRONIZER)
 }
 
 typealias PlayerStorage = Storage<PlayerId, EnginePlayer>

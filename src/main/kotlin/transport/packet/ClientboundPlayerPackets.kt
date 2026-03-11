@@ -57,3 +57,8 @@ val CLIENTBOUND_PLAYER_INPUT_PACKET = Endpoint<PlayerInputPacket>()
 data class InteractionSelectionPacket(val selection: InteractionSelection) : Packet
 
 val CLIENTBOUND_INTERACTION_SELECTION_ENDPOINT = Endpoint<InteractionSelectionPacket>()
+
+@Serializable
+data class PlayerInteractionSelectionSelectPacket(val player: PlayerId, val variantId: String?) : Packet
+
+val CLIENTBOUND_PLAYER_INTERACTION_SELECTION_SELECT_ENDPOINT = Endpoint<PlayerInteractionSelectionSelectPacket>()

@@ -14,7 +14,10 @@ import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.snapshot
 import org.lain.engine.util.text.displayNameMiniMessage
-import org.lain.engine.world.*
+import org.lain.engine.world.World
+import org.lain.engine.world.WorldId
+import org.lain.engine.world.pos
+import org.lain.engine.world.world
 import java.util.*
 
 fun EnginePlayer.messageSource(channel: ChatChannel) = MessageSource.Player(

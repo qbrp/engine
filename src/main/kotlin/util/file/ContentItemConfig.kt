@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.then
 import org.lain.engine.world.SoundEventId
 
 @Serializable
@@ -52,7 +53,8 @@ data class GunConfig(
 @Serializable
 data class FlashlightConfig(
     val radius: Float = 8f,
-    val distance: Float = 20f
+    val distance: Float = 20f,
+    val light: Float = 15f
 )
 
 @Serializable
@@ -110,24 +112,38 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
             Outfit(display, parts)
         } ?: config.hat?.let { Outfit(OutfitDisplay.Separated, listOf(PlayerPart.HEAD)) }
 
+        val assetsProperty = { assets.isNotEmpty() }.then { ItemAssets(assets) }
+        val progressionAnimationsProperty = { progressionAnimations.isNotEmpty() }.then { ItemProgressionAnimations(progressionAnimations) }
+
+        val nameComponent = ItemName(config.displayName)
+        val gunDisplayComponent = config.gun?.gunDisplayComponent()
+        val tooltipComponent = config.tooltip?.let { ItemTooltip(it) }
+        val massComponent = mass?.let { Mass(it) }
+        val soundComponent = sounds.let { if (it.isNotEmpty()) ItemSounds(it) else null }
+
         CompiledNamespace.Item(
             config,
             ItemPrefab(
-                ItemInstantiationSettings(
-                    ItemId(namespacedId(namespace.id, id)),
-                    maxStackSize ?: 16,
-                    ItemName(config.displayName),
-                    config.gun?.gunComponent(),
-                    config.gun?.gunDisplayComponent(),
-                    config.tooltip?.let { ItemTooltip(it) },
-                    mass?.let { Mass(it) },
-                    config.writable?.let { Writable(it.pages, listOf(), it.texture) },
-                    assets.let { if (it.isNotEmpty()) ItemAssets(it) else null },
-                    outfit,
-                    config.flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance)) },
-                    sounds = sounds.let { if (it.isNotEmpty()) ItemSounds(it) else null },
-                    progressionAnimations = progressionAnimations.let { if (it.isNotEmpty()) ItemProgressionAnimations(it) else null }
-                )
+                ItemId(namespacedId(namespace.id, id)),
+                maxStackSize ?: 16,
+                nameComponent.text,
+                assetsProperty,
+                progressionAnimationsProperty,
+                {
+                    listOfNotNull(
+                        nameComponent,
+                        config.gun?.gunComponent(),
+                        gunDisplayComponent,
+                        tooltipComponent,
+                        massComponent,
+                        config.writable?.let { Writable(it.pages, listOf(), it.texture) },
+                        assetsProperty,
+                        outfit,
+                        config.flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance, it.light)) },
+                        soundComponent,
+                        progressionAnimationsProperty
+                    )
+                }
             )
         )
     }

@@ -1,6 +1,7 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.debugPacket
 import org.lain.engine.item.*
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.ContentStorage
@@ -276,9 +277,12 @@ fun finishPlayerInteraction(player: EnginePlayer) {
 
     if (interaction != null) {
         val item = interaction.handItem
-        val actionSimilar = interaction.action in actions
-        val itemsSimilar = item == null || item.uuid == player.handItem?.uuid
-        if (((interaction.selection == null && !actionSimilar) || !itemsSimilar) && ((!interaction.occupied && interaction.progression == null) || !actionSimilar)) {
+        val inSelection = interaction.selection != null
+        val actionSimilar = interaction.action in actions || inSelection // условие всегда false во время открытой панели выбора
+        val itemsSimilar = item?.uuid == player.handItem?.uuid
+        val continueInteraction = (inSelection || interaction.occupied || interaction.progression != null) && itemsSimilar && actionSimilar
+
+        if (!continueInteraction) {
             player.removeComponent(interaction)
             debugPacket("Взаимодействие завершено $interaction")
         }

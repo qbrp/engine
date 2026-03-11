@@ -67,24 +67,26 @@ data class ServerPlayerData(
     val minVolume: Float,
     val maxVolume: Float,
     val baseVolume: Float,
-    val items: List<ClientboundItemData>
+    val items: List<ClientboundItemData>,
+    val equipment: Equipment
 ) {
     companion object {
         fun of(player: EnginePlayer): ServerPlayerData {
-            val movementStatus = player.require<MovementStatus>()
-            val voiceApparatus = player.require<VoiceApparatus>()
-            val defaults = player.require<DefaultPlayerAttributes>()
+            val movementStatus = player.require<MovementStatus>().copy()
+            val voiceApparatus = player.require<VoiceApparatus>().copy()
+            val defaults = player.require<DefaultPlayerAttributes>().copy()
             return ServerPlayerData(
                 player.id,
-                player.require(),
-                player.require(),
+                player.require<DisplayName>().copy(),
+                player.require<PlayerAttributes>().copy(),
                 movementStatus.intention,
                 movementStatus.stamina,
                 voiceApparatus.inputVolume,
                 voiceApparatus.minVolume ?: defaults.minVolume,
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
-                player.items.map { ClientboundItemData.from(it) }
+                player.items.map { ClientboundItemData.from(it) },
+                player.require<Equipment>().copy(),
             )
         }
     }
@@ -116,13 +118,15 @@ data class FullPlayerPacket(
 data class FullPlayerData(
     val movementStatus: MovementStatus,
     val attributes: PlayerAttributes,
-    val armStatus: ArmStatus
+    val armStatus: ArmStatus,
+    val equipment: Equipment
 ) {
     companion object {
         fun of(player: EnginePlayer) = FullPlayerData(
-            player.require(),
-            player.require(),
-            player.require()
+            player.require<MovementStatus>().copy(),
+            player.require<PlayerAttributes>().copy(),
+            player.require<ArmStatus>().copy(),
+            player.require<Equipment>().copy(),
         )
     }
 }

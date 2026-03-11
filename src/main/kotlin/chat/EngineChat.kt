@@ -1,9 +1,6 @@
 package org.lain.engine.chat
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.acoustic.NEIGHBOURS_26
@@ -28,9 +25,10 @@ class EngineChat(
     private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()) { r ->
         Thread(r, "Engine Chat Worker").apply { isDaemon = true }
     }
-    private val coroutineScope = CoroutineScope(executor.asCoroutineDispatcher() + SupervisorJob())
-    private val players
-        get() = server.playerStorage
+    private val handler = CoroutineExceptionHandler { context, throwable ->
+        CHAT_LOGGER.error("При обработке сообщения возникла ошибка", throwable)
+    }
+    private val coroutineScope = CoroutineScope(executor.asCoroutineDispatcher() + SupervisorJob() + handler)
 
     private val incomingMessageHistory = mutableListOf<IncomingMessage>()
     val outcomingMessageHistory = mutableMapOf<MessageId, OutcomingMessage>()
@@ -51,10 +49,10 @@ class EngineChat(
 
     fun processMessage(message: IncomingMessage) {
         incomingMessageHistory += message
-        val acousticDebug = message.source.player?.let { players.get(it.id) }?.acousticDebug ?: false
+        val acousticDebug = message.source.player?.let { server.playerStorage.get(it.id) }?.acousticDebug ?: false
+        val channel = getChannel(message.channel)
         coroutineScope.launch {
             val time = Timestamp()
-            val channel = getChannel(message.channel)
             channel.processMessage(message.content, message.volume, message.source, acousticDebug)
             message.log(time.timeElapsed())
         }
@@ -228,26 +226,28 @@ class EngineChat(
         placeholders: Map<String, String> = getDefaultPlaceholders(recipient, source, volumes),
         background: Color? = null,
         id: MessageId
-    ) {
-        server.handler.onOutcomingMessage(
-            recipient,
-            OutcomingMessage(
-                text,
-                source,
-                channel.id,
-                mention,
-                notify,
-                speech,
-                volumes,
-                placeholders,
-                isSpy,
-                head,
-                background,
-                id
-            ).also {
-                outcomingMessageHistory[it.id] = it
-            }
+    )  {
+        val message = OutcomingMessage(
+            text,
+            source,
+            channel.id,
+            mention,
+            notify,
+            speech,
+            volumes,
+            placeholders,
+            isSpy,
+            head,
+            background,
+            id
         )
+        server.execute {
+            server.handler.onOutcomingMessage(
+                recipient,
+                message
+            )
+            outcomingMessageHistory[message.id] = message
+        }
     }
 
     private fun hasMention(ofPlayer: MessageSource.Player, text: String): Boolean {

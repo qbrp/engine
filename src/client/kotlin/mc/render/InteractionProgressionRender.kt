@@ -61,6 +61,9 @@ fun renderInteractionProgression(
             text = animation.successText
         }
         interaction.text?.let { text = it }
+        interaction.placeholders.forEach { (placeholder, set) ->
+            text = text.replace("{$placeholder}", set)
+        }
         renderState.text = text.parseMiniMessageClient()
     } else {
         if (renderState.time - renderState.endTime > FADE_DELAY) {

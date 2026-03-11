@@ -2,6 +2,7 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
+import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.Color
 import org.lain.engine.util.ContentStorage
@@ -19,7 +20,11 @@ import org.lain.engine.world.location
 @Serializable
 data class Equipment(
     val outfits: MutableList<EquippedItem> = mutableListOf(),
-) : Component
+) : Component {
+    fun copy(): Equipment {
+        return Equipment(outfits.toMutableList())
+    }
+}
 
 // TODO: Заменить позже на нормальную систему инвентарей
 @Serializable
@@ -102,7 +107,7 @@ fun appendPlayerEquipmentVerbs(player: EnginePlayer) = player.handle<VerbLookup>
         EQUIP_VERB.takeIf { handItem != null && handItem.has<Outfit>() && handItem.has<ItemAssets>() }
     }
     forAction<InputAction.TakeOff>() {
-        TAKE_OFF_EQUIP_VERB.takeIf { handItem == null }
+        TAKE_OFF_EQUIP_VERB.takeIf { handItem == null && player.outfit.isNotEmpty() }
     }
 }
 
@@ -126,6 +131,7 @@ fun handlePlayerEquipmentInteraction(
                 handItem.id
             )
             player.completeInteraction()
+            player.markDirty<Equipment>(id)
         }
     }
 
@@ -145,15 +151,22 @@ fun handlePlayerEquipmentInteraction(
 
         val variant = selectionVariant
         if (variant != null) {
-            val item = outfit[variant.id.toInt()]
+            val idx = variant.id.toInt()
+            val item = outfit[idx]
             attachProgression(item.progressionAnimation, 60)
             placeholders["lowercased_outfit_name"] = item.name.replaceFirstChar { it.lowercase() }
 
             if (progressionFinished) {
                 val engineItem = createItem(player.location, contents.items[item.itemId] ?: error("Предмета экипировки не существует"), itemStorage)
                 player.set(MoveItemSignal(engineItem.uuid, player.selectedSlot))
+                outfit.removeAt(idx)
                 player.completeInteraction()
+                player.markDirty<Equipment>(id)
             }
+        }
+
+        if (handItem != null) {
+            player.completeInteraction()
         }
     }
 }

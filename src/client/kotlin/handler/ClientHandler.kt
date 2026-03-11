@@ -60,7 +60,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 actions.removeIf { it is InputAction.SlotClick }
             }
 
-            if (input.actions != input.lastActions) {
+            val interaction = gameSession.mainPlayer.get<InteractionComponent>()
+            if (input.actions != input.lastActions && interaction?.selection == null) {
                 SERVERBOUND_INPUT_PACKET.sendC2SPacket(
                     InputPacket(
                         gameSession.ticks,
@@ -88,10 +89,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
         val snapshotsToRemove = pendingSnapshots
             .filter { (interactionId, _) -> interactionId in processedInteractions }
-            .alsoForEach { (id, task) ->
-                println("Принят снапшот $task для $id")
-                task.run()
-            }
+            .alsoForEach { (id, task) -> task.run() }
         pendingSnapshots.removeAll(snapshotsToRemove)
     }
 
@@ -110,6 +108,18 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun applyInteractionSelectionPacket(selection: InteractionSelection) = with(gameSession!!) {
         mainPlayer.require<InteractionComponent>().selection = selection
+    }
+
+    fun applyPlayerInteractionSelectionSelectPacket(player: EnginePlayer, variant: String?) = with(gameSession!!) {
+        val interaction = player.get<InteractionComponent>() ?: run {
+            LOGGER.warn("Был принят выбор $variant взаимодействия игрока $player, однако взаимодействие завершено")
+            return
+        }
+        val variant = interaction.selection?.variants?.firstOrNull { it.id == variant }
+        interaction.selectionVariant = variant
+        if (variant == null) {
+            interaction.selectionCancelled = true
+        }
     }
 
     fun onInteractionSelectionSelect(variantId: String?) {
@@ -162,6 +172,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         replaceOrSet(data.movementStatus)
         replaceOrSet(data.attributes)
         replaceOrSet(data.armStatus)
+        replaceOrSet(data.equipment)
         isLowDetailed = false
         client.eventBus.onFullPlayerData(client, id, data)
     }

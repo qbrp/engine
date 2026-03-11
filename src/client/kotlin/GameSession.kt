@@ -107,9 +107,9 @@ class GameSession(
 
             updatePlayerVerbLookup(player, false)
             val interaction = player.get<InteractionComponent>()
-            if (interaction != null) {
-                println("Взаимодействие: $interaction")
-            }
+//            if (interaction != null) {
+//                println("Взаимодействие: $interaction")
+//            }
 
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)

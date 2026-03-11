@@ -5,6 +5,7 @@ import kotlinx.serialization.cbor.Cbor
 import org.lain.engine.item.*
 import org.lain.engine.player.Outfit
 import org.lain.engine.util.component.*
+import org.lain.engine.util.then
 
 @Serializable
 data class PersistentItemData(val components: List<ItemData>)
@@ -55,12 +56,11 @@ inline fun <reified T : Component> ComponentManager.wrap(statement: (T) -> ItemD
 fun itemPersistentData(item: EngineItem): PersistentItemData {
     val components = mutableListOf<ItemData>()
 
+    val name = item.get<ItemName>()
+    val tooltip = item.get<ItemTooltip>()
     components.addIfNotNull(
-        ItemData.Display(
-            name = item.get<ItemName>()?.copy(),
-            tooltip = item.get<ItemTooltip>()?.copy()
-        )
-            .takeIf { it.name != null || it.tooltip != null })
+        { name != null || tooltip != null }.then { ItemData.Display(name?.copy(), tooltip?.copy()) }
+    )
 
     components.addIfNotNull(item.wrap<ItemSounds> { ItemData.Sounds(it.copy()) })
     components.addIfNotNull(item.wrap<Gun> { ItemData.Guns(it.copy(), item.get<GunDisplay>()?.copy()) })
@@ -71,11 +71,9 @@ fun itemPersistentData(item: EngineItem): PersistentItemData {
         )
     )
     components.addIfNotNull(item.wrap<Writable> { ItemData.Book(writable=it.copy())  })
+    val outfit = item.get<Outfit>()
     components.addIfNotNull(
-        ItemData.Equipment(
-            false,
-            item.get<Outfit>()
-        ).takeIf { it.hat || it.outfit != null }
+        { outfit != null }.then { ItemData.Equipment(false, outfit) }
     )
 
     item.handle<Flashlight> {

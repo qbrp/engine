@@ -40,3 +40,9 @@ fun <T : Any> List<T>.findIndexed(block: (Int, T) -> Boolean): T? {
     }
     return null
 }
+
+typealias Predicate = () -> Boolean
+
+fun <T> Predicate.then(factory: () -> T): T? {
+    return if (this()) factory() else null
+}
