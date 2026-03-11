@@ -70,10 +70,10 @@ class EngineServer(
             appendVerbs(player)
             updatePlayerInteractions(player, handler=handler)
 
-            val interaction = player.get<InteractionComponent>()
-            if (interaction != null) {
-                println("Взаимодействие: $interaction")
-            }
+//            val interaction = player.get<InteractionComponent>()
+//            if (interaction != null) {
+//                println("Взаимодействие: $interaction")
+//            }
 
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)

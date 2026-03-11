@@ -11,6 +11,7 @@ import net.minecraft.client.util.InputUtil;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.DeveloperModeActionsKt;
 import org.lain.engine.client.mc.KeybindManager;
+import org.lain.engine.client.mc.render.InteractionSelectionScreen;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -43,18 +44,26 @@ public class KeyboardMixin {
     )
     public InputUtil.Key engine$invokeChatScreenKeybindings(KeyInput input) {
         InputUtil.Key key = InputUtil.fromKeyCode(input);
+        KeybindManager keybindManager = ClientMixinAccess.INSTANCE.getKeybindManager();
+        KeyBinding[] keybindings = new KeyBinding[] {};
         if (client.currentScreen instanceof ChatScreen) {
-            KeybindManager keybindManager = ClientMixinAccess.INSTANCE.getKeybindManager();
-            KeyBinding[] keybindings = new KeyBinding[] {
+            keybindings = new KeyBinding[]{
                     keybindManager.getAdjustChatVolume().getMinecraft(),
                     keybindManager.getDecreaseChatVolume().getMinecraft(),
                     keybindManager.getResetChatVolume().getMinecraft()
             };
-
-            for (KeyBinding keybinding : keybindings) {
-                keybinding.setPressed(KeyBindingHelper.getBoundKeyOf(keybinding) == key);
-            }
+        } else if (client.currentScreen instanceof InteractionSelectionScreen) {
+            keybindings = new KeyBinding[]{
+                    keybindManager.getBase().getMinecraft(),
+                    keybindManager.getAttack().getMinecraft(),
+                    keybindManager.getTakeOffEquip().getMinecraft()
+            };
         }
+
+        for (KeyBinding keybinding : keybindings) {
+            keybinding.setPressed(KeyBindingHelper.getBoundKeyOf(keybinding) == key);
+        }
+
         return key;
     }
 

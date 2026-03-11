@@ -32,8 +32,7 @@ val EnginePlayer.network
 
 // Common synchronizers
 
-data class Synchronizations<T : Entity>(val state: MutableMap<KClass<out Component>, State<T>> = mutableMapOf()) :
-    Component {
+data class Synchronizations<T : Entity>(val state: MutableMap<KClass<out Component>, State<T>> = mutableMapOf()) : Component {
     data class State<T : Entity>(var dirty: DirtyState? = null, val synchronizer: ComponentSynchronizer<T, *>)
 }
 

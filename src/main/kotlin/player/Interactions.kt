@@ -280,6 +280,7 @@ fun finishPlayerInteraction(player: EnginePlayer) {
         val itemsSimilar = item == null || item.uuid == player.handItem?.uuid
         if (((interaction.selection == null && !actionSimilar) || !itemsSimilar) && ((!interaction.occupied && interaction.progression == null) || !actionSimilar)) {
             player.removeComponent(interaction)
+            debugPacket("Взаимодействие завершено $interaction")
         }
 
         interaction.timeElapsed++
