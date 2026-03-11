@@ -20,6 +20,7 @@ import net.minecraft.text.Text
 import net.minecraft.util.Colors
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.World
 import net.minecraft.world.chunk.WorldChunk
 import org.lain.engine.chat.*
 import org.lain.engine.item.ItemId
@@ -39,6 +40,29 @@ import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
+
+fun playerPositionsMessage(playerStorage: PlayerStorage, world: World): List<String> {
+    val enginePlayers = playerStorage.getAll()
+    val minecraftPlayers = world.players.toList()
+    return minecraftPlayers.mapNotNull { mcPlayer ->
+        val enginePlayer = enginePlayers.find { it.id == mcPlayer.engineId } ?: return@mapNotNull null
+        val enginePosFormatted = "%.2f, %.2f, %.2f".format(
+            enginePlayer.pos.x,
+            enginePlayer.pos.y,
+            enginePlayer.pos.z
+        )
+
+        val minecraftPosFormatted = "%.2f, %.2f, %.2f".format(
+            mcPlayer.entityPos.x,
+            mcPlayer.entityPos.y,
+            mcPlayer.entityPos.z
+        )
+
+        "<aqua>-<reset> ${enginePlayer.displayName} (${enginePlayer.username})<newline>" +
+                "<aqua>Координаты:</aqua><newline>  <red>Engine:</red> ${enginePosFormatted}<newline>  <green>Minecraft:</green> ${minecraftPosFormatted}<newline>" +
+                "<aqua>Предметы:</aqua> ${enginePlayer.items.joinToString { it.shortString() }}"
+    }
+}
 
 typealias ServerCommandDispatcher = CommandDispatcher<ServerCommandSource>
 
@@ -284,6 +308,15 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                 } catch (e: Exception) {
                     ctx.sendError("Возникла ошибка при применении конфигурации: ${e.message ?: "Unknown"}")
                 }
+            }
+    )
+
+    register(
+        CommandManager.literal("debugpositions")
+            .requires { it.hasPermission("debugpositions") }
+            .executeCatching { ctx ->
+                val lines = playerPositionsMessage(server.engine.playerStorage, ctx.source.world)
+                lines.forEach { ctx.sendFeedback(it, false) }
             }
     )
 
