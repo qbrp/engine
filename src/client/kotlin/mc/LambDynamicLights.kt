@@ -3,11 +3,16 @@ package org.lain.engine.client.mc
 import dev.lambdaurora.lambdynlights.api.DynamicLightsContext
 import dev.lambdaurora.lambdynlights.api.DynamicLightsInitializer
 import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
+import net.minecraft.block.ShapeContext
+import net.minecraft.client.MinecraftClient
 import net.minecraft.entity.Entity
+import net.minecraft.util.hit.HitResult
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.MathHelper
+import net.minecraft.world.RaycastContext
 import org.joml.Matrix3d
 import org.joml.Vector3d
+import org.lain.engine.chat.acoustic.Grid3b
 import org.lain.engine.client.GameSession
 import org.lain.engine.item.ConeLightEmitterSettings
 import org.lain.engine.item.Flashlight
@@ -53,7 +58,7 @@ fun updateLights(
     val deletedSources = lastSources.filter { !sourceList.contains(it) }
     newSources.forEach {
         val owner = entityTable.client.getEntity(it.owner) ?: return@forEach
-        val behaviour = FlashlightLightBehavior(owner, 0.02f, it.settings)
+        val behaviour = FlashlightLightBehavior(owner, MinecraftClient, 0.02f, it.settings)
         context.dynamicLightBehaviorManager().add(behaviour)
         behaviours[it] = behaviour
     }
@@ -63,15 +68,24 @@ fun updateLights(
     }
     lastSources.clear()
     lastSources.addAll(sourceList)
+
+    behaviours.forEach { (source, behaviour) ->
+        if (behaviour is FlashlightLightBehavior) {
+            behaviour.tick()
+        }
+    }
 }
+
 
 class FlashlightLightBehavior(
     private val entity: Entity,
+    private val client: MinecraftClient,
     private val epsilon: Float,
     val settings: ConeLightEmitterSettings
 ) : DynamicLightBehavior {
     private val radius = settings.radius
     private val depth = settings.distance
+    private val light = settings.light
 
     private var prevX = 0.0
     private var prevY = 0.0
@@ -81,8 +95,58 @@ class FlashlightLightBehavior(
     private var rotationMatrix: Matrix3d? = null
     private var inverseRotationMatrix: Matrix3d? = null
 
+    private var updatePassability = false
+    @Volatile
+    private var passability = Grid3b(1, 1 ,1)
+    private var boundingBox = DynamicLightBehavior.BoundingBox(1, 1, 1, 1, 1, 1)
+
     init {
         this.computeMatrices()
+    }
+
+    fun tick() {
+        if (!updatePassability) return
+        updatePassability = false
+        passability = Grid3b(
+            abs(boundingBox.endX - boundingBox.startX),
+            abs(boundingBox.endY - boundingBox.startY),
+            abs(boundingBox.endZ - boundingBox.startZ)
+        ) { false }
+
+        val blockPos = BlockPos.Mutable()
+        val vector = Vector3d()
+        passability.forEach { idx, x, y, z ->
+            blockPos.set(x + boundingBox.startX, y + boundingBox.startY, z + boundingBox.startZ)
+            vector.set(0.5 + blockPos.x, 0.5 + blockPos.y, 0.5 + blockPos.z)
+            val coord = this.worldToEntitySpace(vector)
+            if (abs(coord.x()) > radius || coord.y() < 0 || coord.y() > depth) return@forEach
+            if (coord.x*coord.x + coord.z*coord.z > radius*radius) return@forEach
+            val sdf: Double = (radius * (0.5f - coord.y() / depth) - sqrt(coord.x() * coord.x() + coord.z() * coord.z())).coerceAtMost(depth * 0.5f - abs(coord.y()))
+            if (sdf < 0) return@forEach
+
+            val context = RaycastContext(
+                entity.eyePos,
+                blockPos.toCenterPos(),
+                RaycastContext.ShapeType.VISUAL,
+                RaycastContext.FluidHandling.WATER,
+                ShapeContext.absent()
+            )
+            val raycastResult = entity.entityWorld.raycast(context)
+            val result = raycastResult != null && (raycastResult.type == HitResult.Type.MISS || raycastResult.blockPos == blockPos)
+            passability[idx] = result
+        }
+    }
+
+    private fun computeRaycastArrayValue(pos: BlockPos): Boolean {
+        val lX = pos.x - boundingBox.startX
+        val lY = pos.y - boundingBox.startY
+        val lZ = pos.z - boundingBox.startZ
+        return try {
+            if (!passability.inBounds(lX, lY, lZ)) return false
+            passability[lX, lY, lZ]
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override fun lightAtPos(pos: BlockPos, falloffRatio: Double): Double {
@@ -98,9 +162,18 @@ class FlashlightLightBehavior(
 
         val distance: Double = depth / 2f - coord.y() - DISTANCE_DELTA
         val intensity = depth / distance.pow(1.2)
-        val light = intensity * 15f
 
-        return Math.clamp(smoothstepSDF(sdf), 0f, 1f) * light
+        val lightLevel = if (intensity > 0.01f) {
+           if (computeRaycastArrayValue(pos)) {
+               intensity * light
+           } else {
+               0.0
+           }
+        } else {
+            0.0
+        }
+
+        return Math.clamp(smoothstepSDF(sdf), 0f, 1f) * lightLevel
     }
 
     override fun getBoundingBox(): DynamicLightBehavior.BoundingBox {
@@ -113,7 +186,8 @@ class FlashlightLightBehavior(
         for (x in horizontalValues) {
             for (y in yValues) {
                 for (z in horizontalValues) {
-                    vectors.add(this.entityToWorldSpace(Vector3d(x, y, z)))
+                    val vector = this.entityToWorldSpace(Vector3d(x, y, z))
+                    vectors.add(vector)
                 }
             }
         }
@@ -153,23 +227,29 @@ class FlashlightLightBehavior(
             MathHelper.ceil(maxX),
             MathHelper.ceil(maxY),
             MathHelper.ceil(maxZ)
-        )
+        ).also { boundingBox = it }
     }
 
     override fun hasChanged(): Boolean {
+        val diffYaw = abs(entity.yaw - prevYaw)
+        val diffPitch = abs(entity.pitch - prevPitch)
+
         if (
             abs(entity.x - this.prevX) >= epsilon
             || abs(entity.y - this.prevY) >= epsilon
             || abs(entity.z - this.prevZ) >= epsilon
-            || abs(entity.yaw - this.prevYaw) >= epsilon
-            || abs(entity.pitch - this.prevPitch) >= epsilon
+            || diffYaw >= epsilon
+            || diffPitch >= epsilon
         ) {
+            this.updatePassability = true
+
             this.prevX = entity.x
             this.prevY = entity.y
             this.prevZ = entity.z
             this.prevYaw = entity.yaw
             this.prevPitch = entity.pitch
             this.computeMatrices()
+
             return true
         }
         return false
