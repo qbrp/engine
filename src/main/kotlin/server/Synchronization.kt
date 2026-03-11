@@ -11,6 +11,7 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.component.*
+import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.Location
 import org.lain.engine.world.location
@@ -55,11 +56,20 @@ enum class PlayerPredicate {
     ALL, SELF, OTHERS
 }
 
+
+enum class SynchronizationTarget {
+    PLAYER, ITEM
+}
+
+enum class Propagation {
+    DISTANCE, GLOBAL
+}
+
 class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerializationApi::class) constructor(
     val componentClass: KClass<C>,
     val serializer: KSerializer<C>,
     val target: SynchronizationTarget,
-    val radius: Int,
+    val propagation: Propagation,
     val resolver: (T, C) -> Unit,
     val predicate: PlayerPredicate,
     val endpoint: Endpoint<ComponentSynchronizationPacket<C>> = Endpoint(
@@ -86,43 +96,39 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
 @OptIn(InternalSerializationApi::class)
 inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
     target: SynchronizationTarget,
-    radius: Int,
+    propagation: Propagation,
     predicate: PlayerPredicate,
     noinline resolver: (T, C) -> Unit,
 ) = ComponentSynchronizer<T, C>(
     C::class,
     C::class.serializer(),
     target,
-    radius,
+    propagation,
     resolver,
     predicate
 )
 
 inline fun <reified C : Component> PlayerComponentSynchronizer(
     predicate: PlayerPredicate,
-    global: Boolean = false,
+    propagation: Propagation = Propagation.DISTANCE,
     noinline resolver: (EnginePlayer, C) -> Unit,
 ) = ComponentSynchronizer(
     SynchronizationTarget.PLAYER,
-    if (!global) 48 else Int.MAX_VALUE,
+    propagation,
     predicate,
     resolver,
 )
 
 inline fun <reified C : Component> ItemComponentSynchronizer(
     predicate: PlayerPredicate,
-    global: Boolean = false,
+    propagation: Propagation = Propagation.DISTANCE,
     noinline resolver: (EngineItem, C) -> Unit,
 ) = ComponentSynchronizer(
     SynchronizationTarget.ITEM,
-    if (!global) 48 else Int.MAX_VALUE,
+    propagation,
     predicate,
     resolver,
 )
-
-enum class SynchronizationTarget {
-    PLAYER, ITEM
-}
 
 private val LOGGER = LoggerFactory.getLogger("Engine Synchronization")
 
@@ -135,18 +141,18 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
             val packet = ComponentSynchronizationPacket(entity.stringId, state.dirty?.interaction, component)
 
             fun broadcast(location: Location, player: EnginePlayer?) {
-                val players = when (synchronizer.predicate) {
+                var players = when (synchronizer.predicate) {
                     PlayerPredicate.ALL -> players
                     PlayerPredicate.SELF -> listOf(player)
                     PlayerPredicate.OTHERS -> players - player
                 }.toList().filterNotNull()
 
-                endpoint.broadcastInRadiusFor(
-                    location,
-                    synchronizer.radius,
-                    players,
-                    packet
-                )
+                players = when(synchronizer.propagation) {
+                    Propagation.DISTANCE -> filterNearestPlayers(location, playerSynchronizationRadius, players)
+                    Propagation.GLOBAL -> players
+                }
+
+                players.forEach { endpoint.sendS2C(packet, it.id) }
             }
 
             when (synchronizer.target) {
@@ -179,7 +185,7 @@ class ComponentSynchronizationPacket<C : Component>(
 // Player
 
 val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>(PlayerPredicate.OTHERS) { player, component -> player.replace(component.copy()) }
-val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(PlayerPredicate.ALL) { player, name -> player.customName = name.custom }
+val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(PlayerPredicate.ALL, Propagation.GLOBAL) { player, name -> player.customName = name.custom }
 val PLAYER_SPEED_INTENTION_SYNCHRONIZER = PlayerComponentSynchronizer<MovementStatus>(PlayerPredicate.OTHERS) { player, status ->
     player.require<MovementStatus>().intention = status.intention
 }
@@ -190,7 +196,8 @@ val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(Playe
         clientNarration.addAll(narration.messages)
     }
 }
-val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.OTHERS) { player, component -> player.replace(component.copy()) }
+val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.ALL) { player, component -> player.replace(component.copy()) }
+val PLAYER_EQUIPMENT_SYNCHRONIZER = PlayerComponentSynchronizer<Equipment>(PlayerPredicate.ALL) { player, component -> player.replace(component.copy()) }
 
 // Item
 

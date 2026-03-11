@@ -24,6 +24,7 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
+import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.require
 import org.lain.engine.util.file.applyConfigCatching
@@ -37,7 +38,7 @@ import org.lain.engine.world.world
 
 data class EngineMinecraftServerDependencies(
     val minecraftServer: MinecraftServer,
-    val playerStorage: PlayerStorage = PlayerStorage(),
+    val playerStorage: PlayerStorage = ConcurrentStorage(),
     val entityTable: EntityTable = Injector.resolve(EntityTable::class),
     val acousticSceneBank: ConcurrentAcousticSceneBank = ConcurrentAcousticSceneBank(),
     val acousticBlockData: AcousticBlockData = AcousticBlockData.BUILTIN,
@@ -191,6 +192,7 @@ fun serverMinecraftPlayerInstance(
             Spectating(),
             GameMaster(),
             developerModeStatus,
+            persistentPlayerData?.equipment ?: Equipment(),
             stacks
                 .mapNotNull { it.engineItem() }
                 .toSet()

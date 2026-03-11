@@ -149,7 +149,10 @@ fun updateServerMinecraftSystems(
 }
 
 fun removeHoldsByMarks(items: List<EngineItem>) {
-    items.forEach { it.remove<HoldsBy>() }
+    items.forEach {
+        it.remove<HoldsBy>()
+        it.require<UpdateMeta>().adaptedThisTick = false
+    }
 }
 
 fun updatePlayerMinecraftSystems(
@@ -251,6 +254,10 @@ fun updatePlayerMinecraftSystems(
         playerInventory.items += item
         playerInventoryItems -= item
 
+        val updateMeta = item.require<UpdateMeta>()
+        if (updateMeta.adaptedThisTick) continue
+        updateMeta.adaptedThisTick = true
+
         updateEngineItemStack(itemStack, item)
 
         if (destroyItemSignal != null && destroyItemSignal.item == item.uuid) {
@@ -277,7 +284,9 @@ fun updatePlayerMinecraftSystems(
 
     if (playerInventory.items.isNotEmpty()) {
         val component = HoldsBy(player.id)
-        playerInventory.items.forEach { it.set(component) }
+        playerInventory.items.forEach {
+            it.getOrSet { component }
+        }
     }
 
     player.remove<DestroyItemSignal>()

@@ -184,11 +184,10 @@ class MinecraftChunkAcousticScene private constructor(
  * Предоставляет доступ к ним через единую локальную систему координат от самой первой сцены.
  * Для получения локальных координат из мировых использовать `worldToLocal`
  */
-class ChunkedAcousticView(
+data class ChunkedAcousticView(
     val chunkSize: ChunkSize,
     val scenes: List<MinecraftChunkAcousticScene>
 ) {
-
     data class ChunkSize(val w: Int, val h: Int, val d: Int) {
         init {
             require(isPowerOfTwo(w))
@@ -455,7 +454,7 @@ class MinecraftAcousticManager(
             acousticSceneBank.getChunkedView(mcWorld, acousticBlockData, x0, z0, x1, z1, y)
         } catch (e: Throwable) {
             logger.error("Во время получения акустической сцены возникла ошибка", e)
-            exceptionHandler(e)
+            server.minecraftServer.execute { exceptionHandler(e) }
             return object : AcousticSimulationResult {
                 override fun debug(
                     player: EnginePlayer,
@@ -514,7 +513,7 @@ class MinecraftAcousticManager(
             )
         } catch (e: Throwable) {
             logger.error("Во время обработки акустики возникла ошибка", e)
-            exceptionHandler(e)
+            server.minecraftServer.execute { exceptionHandler(e) }
             _finish()
         }
 
@@ -542,7 +541,7 @@ class MinecraftAcousticManager(
                 }
             }
 
-            override fun getVolume(pos: Pos): Float? {
+            override fun getVolume(pos: Pos): Float? = runCatching {
                 val x = pos.x.toInt()
                 val y = pos.y.toInt()
                 val z = pos.z.toInt()
@@ -550,8 +549,10 @@ class MinecraftAcousticManager(
                     return null
                 }
                 val (lx, ly, lz) = scene.worldToLocal(x, y, z)
-                return generation.volume[lx, ly, lz]
+                generation.volume[lx, ly, lz]
             }
+                .onFailure { logger.error("Вознила ошибка при получении уровня громкости на координатах $x, $y, $z ($scene)", it) }
+                .getOrDefault(0.0f)
 
             override fun finish() {
                 _finish()

@@ -2,6 +2,7 @@ package org.lain.engine.util
 
 import kotlinx.serialization.Serializable
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 class IdCollisionException(id: Any) : RuntimeException("Object with id $id already contained")
 
@@ -32,6 +33,10 @@ open class Storage<K : Any, T : Any> : Iterable<T> {
 
     override fun iterator(): Iterator<T> = getAll().iterator()
     override fun spliterator(): Spliterator<T> = getAll().spliterator()
+}
+
+class ConcurrentStorage<K : Any, T : Any> : Storage<K, T>() {
+    override val map = ConcurrentHashMap<K, T>()
 }
 
 @JvmInline

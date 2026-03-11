@@ -19,7 +19,9 @@ data class PlayerAttributes(
     val speed: AttributeValue = AttributeValue(0.055f),
     var jumpStrength: AttributeValue = AttributeValue(0.37f),
     var gravity: AttributeValue = AttributeValue(0.98f),
-) : Component
+) : Component {
+    fun copy() = PlayerAttributes(speed.copy(), jumpStrength.copy(), gravity.copy())
+}
 
 @Serializable
 data class MovementDefaultAttributes(

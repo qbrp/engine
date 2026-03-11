@@ -10,7 +10,6 @@ import org.lain.engine.storage.savePersistentPlayerData
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.component.get
 import org.lain.engine.util.component.remove
 import org.lain.engine.util.flush
 import org.lain.engine.world.*

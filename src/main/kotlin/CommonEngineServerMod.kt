@@ -69,8 +69,8 @@ class CommonEngineServerMod : ModInitializer {
             engineServer.onJoinPlayer(handler.player)
         }
 
-        ServerPlayConnectionEvents.DISCONNECT.register { handler, _ ->
-            engineServer.onLeavePlayer(handler.player)
+        ServerPlayConnectionEvents.DISCONNECT.register { handler, server ->
+            server.execute { engineServer.onLeavePlayer(handler.player) }
         }
 
         ServerTickEvents.START_SERVER_TICK.register {
