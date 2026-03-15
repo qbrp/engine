@@ -20,6 +20,7 @@
   "yamlconfig.engine.engine-config.chat": "Окно чата",
   "yamlconfig.engine.engine-config.chat.width": "Максимальная ширина",
   "yamlconfig.engine.engine-config.chat.size": "Вместимость",
+  "yamlconfig.engine.engine-config.visual": "Визуал",
   "yamlconfig.engine.engine-config.visual.easing-distance": "Дистанция отображения надписей",
   "key.category.engine.category": "Engine"
 }

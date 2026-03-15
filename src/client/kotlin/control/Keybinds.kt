@@ -1,6 +1,10 @@
 package org.lain.engine.client.control
 
+import net.minecraft.util.hit.BlockHitResult
 import org.lain.engine.client.mc.*
+import org.lain.engine.client.mc.render.BlockHintEditorScreen
+import org.lain.engine.mc.engine
+import org.lain.engine.world.BlockHint
 import org.lwjgl.glfw.GLFW
 
 val ADJUST_CHAT_VOLUME = KeybindSettings(
@@ -105,4 +109,21 @@ val TAKE_OFF_EQUIP = KeybindSettings(
     isMouse = true,
     onPress = { client -> ClientMixinAccess.takeOffEquipPressed = true },
     onRelease = { client -> ClientMixinAccess.takeOffEquipPressed = false }
+)
+
+val EDIT_BLOCK_HINT = KeybindSettings(
+    name = "Редактировать описание блока",
+    id = KeybindId("edit_block_hint"),
+    key = GLFW.GLFW_KEY_I,
+    onPress = { client ->
+        val player = MinecraftClient.player ?: return@KeybindSettings
+        val target = MinecraftClient.crosshairTarget ?: return@KeybindSettings
+
+        if (target is BlockHitResult) {
+            val blockPos = target.blockPos
+            if (player.entityWorld.getBlockState(blockPos).isAir) return@KeybindSettings
+            val blockHint = client.gameSession?.world?.chunkStorage?.getBlockHint(blockPos.engine()) ?: BlockHint(listOf())
+            MinecraftClient.setScreen(BlockHintEditorScreen(client, blockHint, blockPos))
+        }
+    },
 )

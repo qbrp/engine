@@ -1,7 +1,6 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.mc.BlockHint
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.storage.loadChunk
@@ -91,6 +90,10 @@ class ChunkStorage(private val world: World) {
         return getChunk(pos)?.decals[pos]
     }
 
+    fun getBlockHint(pos: VoxelPos): BlockHint? {
+        return getChunk(pos)?.hints[pos]
+    }
+
     fun removeVoxel(pos: VoxelPos) {
         val chunk = getChunkByVoxel(pos.x, pos.z) ?: return
         chunk.hints.remove(pos)
@@ -157,6 +160,10 @@ sealed class VoxelUpdate {
     @Serializable
     data class DetachDecal(val layers: List<DecalsLayerType>) : VoxelUpdate()
     @Serializable
+    data class AddHint(val text: String) : VoxelUpdate()
+    @Serializable
+    data class RemoveHint(val index: Int) : VoxelUpdate()
+    @Serializable
     data class Set(val decals: Setter<BlockDecals>? = null, val hint: Setter<BlockHint>? = null) : VoxelUpdate()
 }
 
@@ -205,6 +212,20 @@ fun World.updateVoxelEvents(handler: ServerHandler?) = iterate<VoxelEvent> { _, 
                     chunkDecals.remove(voxelPos)
                 } else {
                     chunkDecals[voxelPos] = newDecals
+                }
+            }
+            is VoxelUpdate.AddHint -> {
+                val hint = chunkHints[voxelPos] ?: return@forEach
+                val newHint = hint.withText(update.text)
+                chunkHints[voxelPos] = newHint
+            }
+            is VoxelUpdate.RemoveHint -> {
+                val hint = chunkHints[voxelPos] ?: return@forEach
+                val newHint = hint.without(update.index)
+                if (newHint.texts.isEmpty()) {
+                    chunkHints.remove(voxelPos)
+                } else {
+                    chunkHints[voxelPos] = newHint
                 }
             }
             is VoxelUpdate.Set -> {

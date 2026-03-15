@@ -67,3 +67,4 @@ val SERVERBOUND_ARM_STATUS_ENDPOINT = Endpoint<ArmStatusPacket>()
 object ReloadContentsRequestPacket : Packet
 
 val SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT = Endpoint<ReloadContentsRequestPacket>()
+

@@ -68,7 +68,8 @@ data class ServerPlayerData(
     val maxVolume: Float,
     val baseVolume: Float,
     val items: List<ClientboundItemData>,
-    val equipment: Equipment
+    val equipment: Equipment,
+    val skinEyeY: Float
 ) {
     companion object {
         fun of(player: EnginePlayer): ServerPlayerData {
@@ -87,6 +88,7 @@ data class ServerPlayerData(
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
                 player.items.map { ClientboundItemData.from(it) },
                 player.require<Equipment>().copy(),
+                player.skinEyeY,
             )
         }
     }

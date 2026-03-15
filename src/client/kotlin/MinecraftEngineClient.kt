@@ -28,7 +28,10 @@ import net.minecraft.util.profiler.Profilers
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.*
 import org.lain.engine.client.mc.*
-import org.lain.engine.client.mc.render.*
+import org.lain.engine.client.mc.render.EngineUiRenderPipeline
+import org.lain.engine.client.mc.render.InteractionSelectionScreen
+import org.lain.engine.client.mc.render.MinecraftFontRenderer
+import org.lain.engine.client.mc.render.registerHudRenderEvent
 import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
 import org.lain.engine.client.mc.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.mc.render.world.HeadEquipmentFeatureRenderer
@@ -50,14 +53,11 @@ import org.lain.engine.player.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
-import org.lain.engine.util.Injector
-import org.lain.engine.util.WARNING_COLOR
+import org.lain.engine.util.*
 import org.lain.engine.util.component.apply
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.handle
 import org.lain.engine.util.component.remove
-import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.registerMinecraftServer
 import org.lain.engine.world.ImmutableVoxelPos
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -125,7 +125,6 @@ class MinecraftEngineClient : ClientModInitializer {
                 ClientCommandManager.literal("reloadenginecontents")
                     .executes { ctx ->
                         SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.sendC2SPacket(ReloadContentsRequestPacket)
-
                         try {
                             require(engineClient.gameSession != null) { friendlyError("Вы не находитесь на сервере") }
                             engineClient.gameSession?.recompileContents()
@@ -156,6 +155,7 @@ class MinecraftEngineClient : ClientModInitializer {
 
             if (!client.isInSingleplayer) {
                 Injector.register<ClientTransportContext>(ClientMinecraftNetwork())
+                Injector.register<RaycastProvider>(MinecraftRaycastProvider(injectValue()))
             }
 
             engineClient.handler.run()

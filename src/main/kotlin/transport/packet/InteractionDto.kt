@@ -24,6 +24,7 @@ data class InteractionDto(
     val id: InteractionId,
     val type: VerbType,
     val item: ItemUuid? = null,
+    val handFree: Boolean,
     val raycastPlayer: PlayerId? = null,
     val action: InputActionDto,
     val timeElapsed: Int = 0
@@ -52,6 +53,7 @@ fun InteractionComponent.toDto(): InteractionDto = InteractionDto(
     id = id,
     type = type,
     item = handItem?.uuid,
+    handFree = handFree,
     raycastPlayer = raycastPlayer?.id,
     action = action.toDto(),
     timeElapsed = timeElapsed
@@ -65,9 +67,10 @@ fun InteractionDto.toDomain(
         id = id,
         type = type,
         handItem = item?.let { itemStorage.get(it) ?: throw InvalidItemUuidException(it) },
+        handFree = handFree,
         raycastPlayer = raycastPlayer?.let { playerStorage.get(it) ?: error("Player $raycastPlayer not found") },
         action = action.toDomain(itemStorage),
-        timeElapsed = timeElapsed
+        timeElapsed = timeElapsed,
     )
 }
 

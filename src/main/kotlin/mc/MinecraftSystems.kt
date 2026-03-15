@@ -162,6 +162,8 @@ fun updatePlayerMinecraftSystems(
     world: World,
     itemStorage: Storage<ItemUuid, EngineItem>
 ) {
+    val items = items.toMutableList()
+
     val location = player.require<Location>()
     val velocity = player.require<Velocity>()
     val pos = entity.entityPos
@@ -229,19 +231,21 @@ fun updatePlayerMinecraftSystems(
     val destroyItemSignal = player.get<DestroyItemSignal>()
     val moveItemSignal = player.get<MoveItemSignal>()
 
+    fun insertStack(item: EngineItem, itemStack: ItemStack, slot: Int) {
+        entity.inventory.insertStack(slot, itemStack)
+        items += item to itemStack
+    }
+
+    if (moveItemSignal != null && entity is ServerPlayerEntity) {
+        val item = itemStorage.get(moveItemSignal.item) ?: desync("Предмет для передачи ${moveItemSignal.item} не найден")
+        insertStack(item, wrapEngineItemStack(item, ITEM_STACK_MATERIAL.copy()), moveItemSignal.slot)
+    }
+
     val mainItemStack = entity.mainHandStack
     val mainHandStackId = mainItemStack.engine()?.uuid
     val offHandStackId = entity.offHandStack.engine()?.uuid
     var mainHandItem: EngineItem? = null
     var offHandItem: EngineItem? = null
-
-    if (moveItemSignal != null) {
-        val item = itemStorage.get(moveItemSignal.item) ?: desync("Предмет для передачи ${moveItemSignal.item} не найден")
-        entity.inventory.insertStack(
-            moveItemSignal.slot,
-            wrapEngineItemStack(item, ITEM_STACK_MATERIAL.copy())
-        )
-    }
 
     for ((item, itemStack) in items) {
         if (mainHandStackId == item.uuid) {
@@ -272,6 +276,7 @@ fun updatePlayerMinecraftSystems(
         }
     }
 
+    playerInventory.mainHandFree = entity.mainHandStack.isEmpty
     playerInventory.mainHandItem = mainHandItem
     playerInventory.offHandItem = offHandItem
     playerInventory.selectedSlot = entity.inventory.selectedSlot

@@ -35,6 +35,7 @@ class KeybindManager(
         ALLOW_SPEED_INTENTION_CHANGE.register()
         TOGGLE_CHAT_SPY.register()
         EXTEND_HAND.register()
+        EDIT_BLOCK_HINT.register()
 
         KeybindSettings(
             name = "Настройки",

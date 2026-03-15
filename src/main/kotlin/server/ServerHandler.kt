@@ -42,16 +42,12 @@ class ServerHandler(
 ) {
     private val transportContext by injectServerTransportContext()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val playerStorage: PlayerStorage
-        get() = server.playerStorage
-    private val itemStorage: ItemStorage
-        get() = server.itemStorage
-    private val globals: ServerGlobals
-        get() = server.globals
-    val playerSynchronizationRadius
-        get() = globals.playerSynchronizationRadius
-    private val playerDesynchronizationThreshold
-        get() = globals.playerDesynchronizationThreshold
+    private val playerStorage: PlayerStorage get() = server.playerStorage
+    private val itemStorage: ItemStorage get() = server.itemStorage
+    private val globals: ServerGlobals get() = server.globals
+    val playerSynchronizationRadius get() = globals.playerSynchronizationRadius
+    private val itemSynchronizationRadius get() = globals.itemSynchronizationRadius
+    private val playerDesynchronizationThreshold get() = globals.playerDesynchronizationThreshold
 
     private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) {
         val player = server.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
@@ -84,13 +80,29 @@ class ServerHandler(
             player.network.tick++
         }
         SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.registerReceiver { ctx -> onRequestReloadContents(ctx.sender) }
+        SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
     }
 
     fun invalidate() {
         transportContext.unregisterAll()
     }
 
-    fun onRequestReloadContents(playerId: PlayerId) = updatePlayer(playerId) {
+    private fun onVoxelBlockHint(player: PlayerId, pos: VoxelPos, action: VoxelBlockHintPacket.Action) = updatePlayer(player) {
+        when (action) {
+            is VoxelBlockHintPacket.Action.Add -> {
+                if (hasPermission("blockhint.set")) {
+                    world.singleBlockVoxelEvent(pos, VoxelUpdate.AddHint(action.text))
+                }
+            }
+            is VoxelBlockHintPacket.Action.Remove -> {
+                if (hasPermission("blockhint.remove")) {
+                    world.singleBlockVoxelEvent(pos, VoxelUpdate.RemoveHint(action.index))
+                }
+            }
+        }
+    }
+
+    private fun onRequestReloadContents(playerId: PlayerId) = updatePlayer(playerId) {
         if (hasPermission("reloadenginecontents")) {
             try {
                 server.loadContents()
@@ -99,17 +111,6 @@ class ServerHandler(
                 onServerNotification(this, Notification.COMPILATION_ERROR, false)
             }
         }
-    }
-
-    fun onPlayerInteraction(player: EnginePlayer, component: InteractionComponent) {
-        CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastInRadius(
-            player.location,
-            playerSynchronizationRadius,
-            packet = PlayerInteractionPacket(
-                player.id,
-                component.toDto()
-            )
-        )
     }
 
     private fun onInteractionSelectionSelect(playerId: PlayerId, variantId: String?) = updatePlayer(playerId) {
@@ -302,6 +303,17 @@ class ServerHandler(
 
             state.items.removeIf { it !in items }
         }
+    }
+
+    fun onPlayerInteraction(player: EnginePlayer, component: InteractionComponent) {
+        CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastInRadius(
+            player.location,
+            playerSynchronizationRadius,
+            packet = PlayerInteractionPacket(
+                player.id,
+                component.toDto()
+            )
+        )
     }
 
     fun onChunkSend(chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer) {

@@ -34,6 +34,7 @@ data class EquippedItem(
     val name: String,
     val progressionAnimation: ProgressionAnimationId?,
     val itemId: ItemId,
+    val itemUuid: ItemUuid,
 )
 
 val EnginePlayer.outfit
@@ -108,7 +109,7 @@ fun appendPlayerEquipmentVerbs(player: EnginePlayer) = player.handle<VerbLookup>
         EQUIP_VERB.takeIf { handItem != null && handItem.has<Outfit>() && handItem.has<ItemAssets>() }
     }
     forAction<InputAction.TakeOff>() {
-        TAKE_OFF_EQUIP_VERB.takeIf { handItem == null && player.outfit.isNotEmpty() }
+        TAKE_OFF_EQUIP_VERB.takeIf { player.handFree && player.outfit.isNotEmpty() }
     }
 }
 
@@ -129,7 +130,8 @@ fun handlePlayerEquipmentInteraction(
                 handItem.require(),
                 handItem.name,
                 handItem.getProgressionAnimation(TAKE_OFF_PROGRESSION_ANIMATION),
-                handItem.id
+                handItem.id,
+                handItem.uuid,
             )
             player.completeInteraction()
             player.markDirty<Equipment>(id)
@@ -161,13 +163,11 @@ fun handlePlayerEquipmentInteraction(
                 val engineItem = createItem(player.location, contents.items[item.itemId] ?: error("Предмета экипировки не существует"), itemStorage)
                 player.set(MoveItemSignal(engineItem.uuid, player.selectedSlot))
                 outfit.removeAt(idx)
-                player.completeInteraction()
                 player.markDirty<Equipment>(id)
+                player.completeInteraction()
             }
         }
 
-        if (handItem != null) {
-            player.completeInteraction()
-        }
+        if (!player.handFree) player.completeInteraction()
     }
 }

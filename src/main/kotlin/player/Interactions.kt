@@ -113,6 +113,7 @@ data class InteractionComponent(
     val id: InteractionId,
     val type: VerbType,
     val handItem: EngineItem?,
+    val handFree: Boolean,
     val raycastPlayer: EnginePlayer?,
     val action: InputAction,
     var occupied: Boolean = false,
@@ -305,6 +306,7 @@ fun updatePlayerInteractions(player: EnginePlayer, handler: ServerHandler? = nul
                 InteractionId.next(),
                 invoke.verb,
                 handItem,
+                player.handFree,
                 lookup.raycastPlayer,
                 invoke.action
             )

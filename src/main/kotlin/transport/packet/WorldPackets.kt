@@ -1,7 +1,6 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.mc.BlockHint
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.*
@@ -27,3 +26,16 @@ val CLIENTBOUND_CHUNK_ENDPOINT = Endpoint<EngineChunkPacket>()
 data class VoxelEventPacket(val event: VoxelEvent) : Packet
 
 val CLIENTBOUND_VOXEL_EVENT_PACKET = Endpoint<VoxelEventPacket>()
+
+@Serializable
+data class VoxelBlockHintPacket(val pos: VoxelPos, val action: Action) : Packet {
+    @Serializable
+    sealed class Action {
+        @Serializable
+        data class Add(val text: String) : Action()
+        @Serializable
+        data class Remove(val index: Int) : Action()
+    }
+}
+
+val SERVERBOUND_VOXEL_BLOCK_HINT_PACKET = Endpoint<VoxelBlockHintPacket>()

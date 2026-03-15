@@ -16,6 +16,7 @@ data class PlayerInventory(
     var cursorItem: EngineItem? = null,
     var mainHandItem: EngineItem? = null,
     var offHandItem: EngineItem? = null,
+    var mainHandFree: Boolean = false,
     var selectedSlot: Int = 0
 ) : Component
 
@@ -29,6 +30,9 @@ val EnginePlayer.items: Set<EngineItem>
 
 val EnginePlayer.handItem
     get() = this.require<PlayerInventory>().mainHandItem
+
+val EnginePlayer.handFree
+    get() = this.require<PlayerInventory>().mainHandFree
 
 val EnginePlayer.cursorItem
     get() = this.require<PlayerInventory>().cursorItem

@@ -47,6 +47,10 @@ fun easeInStep(current: Float, target: Float, deltaTick: Float, smoothing: Float
     return current + (target - current) * t
 }
 
+fun easeOutQuadratic(x: Float): Float {
+    return 1 - (1 - x).pow(3)
+}
+
 fun clampDelta(cur: Float, end: Float, threshold: Float): Float {
     return if (abs(end - cur) < threshold) {
         end

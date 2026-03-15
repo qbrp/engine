@@ -95,6 +95,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     data class InteractionQueueComponent(val interactions: Queue<InteractionComponent>) : Component
 
+    // Сделать ожидание предметов
     fun applyInteractionPacket(player: EnginePlayer, interaction: InteractionDto): Unit = with(gameSession!!) {
         player.getOrSet { InteractionQueueComponent(LinkedList()) }.interactions.add(
             interaction.toDomain(itemStorage, playerStorage)
@@ -120,6 +121,24 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         if (variant == null) {
             interaction.selectionCancelled = true
         }
+    }
+
+    fun onBlockHintAdd(voxelPos: VoxelPos, text: String) {
+        SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.sendC2SPacket(
+            VoxelBlockHintPacket(
+                voxelPos,
+                VoxelBlockHintPacket.Action.Add(text)
+            )
+        )
+    }
+
+    fun onBlockHintRemove(voxelPos: VoxelPos, index: Int) {
+        SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.sendC2SPacket(
+            VoxelBlockHintPacket(
+                voxelPos,
+                VoxelBlockHintPacket.Action.Remove(index)
+            )
+        )
     }
 
     fun onInteractionSelectionSelect(variantId: String?) {

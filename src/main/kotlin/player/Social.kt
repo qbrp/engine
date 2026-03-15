@@ -49,7 +49,7 @@ fun handleSocialInteractions(player: EnginePlayer) {
         val itemName = handItem.name
         var failure: String? = null
         if (raycastPlayer.extendArm) {
-            if (raycastPlayer.handItem == null) {
+            if (raycastPlayer.handFree) {
                 player.set(DestroyItemSignal(handItem.uuid, handItem.count))
                 raycastPlayer.set(MoveItemSignal(handItem.uuid, raycastPlayer.selectedSlot))
                 raycastPlayer.serverNarration("$playerName передал вам $itemName", 60)

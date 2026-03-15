@@ -59,7 +59,8 @@ fun mainClientPlayerInstance(
             ),
             data.attributes,
             equipment = data.equipment,
-            developerModeStatus = developerModeStatus
+            developerModeStatus = developerModeStatus,
+            skinEyeY = data.skinEyeY
         ),
         id
     ).also { it.isLowDetailed = false }

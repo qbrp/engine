@@ -13,7 +13,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
-import org.lain.engine.mc.BlockHint
+import org.lain.engine.world.BlockHint
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.*
