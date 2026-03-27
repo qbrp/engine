@@ -3,27 +3,25 @@ package org.lain.engine.client.mc
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.entity.model.PlayerEntityModel
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState
-import net.minecraft.client.render.item.ItemRenderState
-import net.minecraft.component.DataComponentTypes
 import net.minecraft.entity.PlayerLikeEntity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
 import net.minecraft.util.Identifier
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
-import org.lain.engine.client.mc.render.EngineItemDisplayContext
-import org.lain.engine.client.mc.render.updateForLivingEntity
-import org.lain.engine.client.mc.render.world.*
+import org.lain.engine.client.mc.render.world.RenderStateComponent
+import org.lain.engine.client.mc.render.world.modelPartOf
+import org.lain.engine.client.mc.render.world.setEngineState
 import org.lain.engine.client.resources.Assets
-import org.lain.engine.client.resources.OutfitTag
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
-import org.lain.engine.item.*
-import org.lain.engine.mc.ITEM_STACK_MATERIAL
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.Writable
+import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.engine
-import org.lain.engine.player.*
+import org.lain.engine.player.processLeftClickInteraction
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.component.*
+import org.lain.engine.util.component.get
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 
@@ -50,65 +48,13 @@ object ClientMixinAccess {
         client.handler.onWriteableContentsUpdate(item.uuid, pages)
     }
 
-    data class PlayerEquipmentItemStacks(val stacks: MutableMap<EquippedItem, ItemStack>) : Component
-
-    fun modelPartOf(part: PlayerPart, model: PlayerEntityModel) = when(part) {
-        PlayerPart.HEAD -> model.head
-        PlayerPart.LEFT_ARM -> model.leftArm
-        PlayerPart.RIGHT_ARM -> model.rightArm
-        PlayerPart.LEFT_PALM -> model.leftArm
-        PlayerPart.RIGHT_PALM -> model.rightArm
-        PlayerPart.BODY -> model.body
-        PlayerPart.LEFT_LEG -> model.leftLeg
-        PlayerPart.RIGHT_LEG -> model.rightLeg
-        PlayerPart.LEFT_FEET -> model.leftLeg
-        PlayerPart.RIGHT_FEET -> model.rightLeg
-    }
-
-    fun createModelPartEquipmentRenderStates(entity: PlayerEntity, player: EnginePlayer, playerModel: PlayerEntityModel): List<EquipmentRenderState> {
-        return player.outfit
-            .filter { (outfit, assets) -> outfit.display is OutfitDisplay.Separated }
-            .map {
-                val modelPart = modelPartOf(it.outfit.parts.first(), playerModel)
-                val state = ItemRenderState()
-                val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
-                val itemStack = equipmentStacks.computeIfAbsent(it) { (outfit, model) ->
-                    val stack = ITEM_STACK_MATERIAL.copy()
-                    stack.set(
-                        DataComponentTypes.ITEM_MODEL,
-                        EngineId(model.assets["default"] ?: "missingno")
-                    )
-                    stack.set(
-                        OutfitTag.TYPE,
-                        OutfitTag(outfit)
-                    )
-                    stack
-                }
-                updateForLivingEntity(
-                    state,
-                    itemStack,
-                    if (playerModel.head === modelPart) EngineItemDisplayContext.HEAD else EngineItemDisplayContext.OUTFIT,
-                    entity,
-                )
-                EquipmentRenderState(state, modelPart, it.outfit.dependsEyeY)
-            }
-    }
-
     fun updatePlayerRenderState(playerLikeEntity: PlayerLikeEntity, playerEntityRenderState: PlayerEntityRenderState, model: PlayerEntityModel) {
         if (playerLikeEntity !is PlayerEntity) return
         val entityTable by injectEntityTable()
         val enginePlayer = entityTable.client.getPlayer(playerLikeEntity) ?: return
-        val inventory = enginePlayer.require<PlayerInventory>()
-        val extends = enginePlayer.require<ArmStatus>().extend
-
-        playerEntityRenderState.setMainArmPose(
-           armPoseOf(extends, inventory.mainHandItem != null, true, isGun(inventory.mainHandItem), isGunWithoutSelector(inventory.mainHandItem), isGun(inventory.offHandItem))
-       )
-        playerEntityRenderState.setMinorArmPose(
-            armPoseOf(extends, inventory.offHandItem != null, false, isGun(inventory.offHandItem), isGunWithoutSelector(inventory.offHandItem), isGun(inventory.mainHandItem))
-        )
-        playerEntityRenderState.setEquipment(createModelPartEquipmentRenderStates(playerLikeEntity, enginePlayer, model))
-        playerEntityRenderState.setSkinEyeY(enginePlayer.skinEyeY)
+        val renderState = enginePlayer.get<RenderStateComponent>()?.renderState ?: return
+        renderState.detachedEquipment.forEach { it.playerModelPart = modelPartOf(it.playerPart, model) }
+        playerEntityRenderState.setEngineState(renderState)
     }
 
     private val identifierCache = mutableMapOf<String, Identifier>()
@@ -119,12 +65,6 @@ object ClientMixinAccess {
         return resolveItemAsset(engineItem).let { path ->
             identifierCache.computeIfAbsent(resolveItemAsset(engineItem)) { EngineId(path) }
         }
-    }
-
-    private fun isGun(item: EngineItem?) = item?.has<Gun>() == true
-
-    private fun isGunWithoutSelector(item: EngineItem?): Boolean {
-        return (item?.get<Gun>() ?: return false).mode != FireMode.SELECTOR
     }
 
     fun getEngineItem(itemStack: ItemStack): EngineItem? {

@@ -10,7 +10,6 @@ data class ServerGlobals(
     val serverId: ServerId,
     var savePath: File,
     var playerSynchronizationRadius: Int = 64,
-    var itemSynchronizationRadius: Int = 96,
     var playerDesynchronizationThreshold: Int = 8,
     val defaultPlayerAttributes: DefaultPlayerAttributes = DefaultPlayerAttributes(),
     var vocalSettings: VocalSettings = VocalSettings(),

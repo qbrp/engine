@@ -20,8 +20,10 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
+import org.lain.engine.item.instantiateItem
 import org.lain.engine.player.*
 import org.lain.engine.server.Notification
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
 import org.lain.engine.util.component.*
@@ -34,10 +36,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val gameSession get() = client.gameSession
     private val handledNotifications = mutableSetOf<Notification>()
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
+    private val synchronizedEntities = mutableMapOf<PersistentId, EntityId>()
     val taskExecutor = TaskExecutor()
     val processedSounds = mutableSetOf<SoundBroadcast>()
     val processedInteractions = FixedSizeList<InteractionId>(40)
     val pendingSnapshots = mutableListOf<Pair<InteractionId, Runnable>>()
+    val pendingFullPlayerData = mutableListOf<Pair<EnginePlayer, FullPlayerData>>()
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
@@ -47,11 +51,20 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         injectValue<ClientTransportContext>().unregisterAll()
         handledNotifications.clear()
         processedSounds.clear()
+        synchronizedEntities.clear()
+        pendingSnapshots.clear()
     }
 
     fun tick() {
         val gameSession = gameSession
         if (gameSession != null) {
+            gameSession.world.iterate<Networked, PersistentId>() { entity, _, persistentId ->
+                if (!synchronizedEntities.containsKey(persistentId)) {
+                    synchronizedEntities[persistentId] = entity
+                    entity.setComponent(persistentId)
+                }
+            }
+
             SERVERBOUND_CLIENT_TICK_END_ENDPOINT.sendC2SPacket(ClientTickEndPacket)
             val input = gameSession.mainPlayer.require<PlayerInput>()
             val actions = input.actions.toMutableSet()
@@ -74,6 +87,16 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 if (player.has<InteractionComponent>()) continue
                 player.get<InteractionQueueComponent>()?.interactions?.poll()?.let {
                     player.set(it)
+                }
+            }
+
+            for (i in pendingFullPlayerData.indices) {
+                val (player, pendingFullData) = pendingFullPlayerData[i]
+                if (pendingFullData.referencedItems.isPresent()) {
+                    pendingFullPlayerData.removeAt(i)
+                    applyFullPlayerDataInternal(player, pendingFullData)
+                } else {
+                    continue
                 }
             }
         }
@@ -187,15 +210,24 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.sendC2SPacket(WriteableUpdatePacket(item, contents))
     }
 
-    fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) = with(player) {
+    fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) {
+        if (!data.referencedItems.isPresent()) {
+            pendingFullPlayerData += player to data
+        } else {
+            applyFullPlayerDataInternal(player, data)
+        }
+    }
+
+    private fun applyFullPlayerDataInternal(player: EnginePlayer, data: FullPlayerData) = with(player) {
         replaceOrSet(data.movementStatus)
         replaceOrSet(data.attributes)
         replaceOrSet(data.armStatus)
-        replaceOrSet(data.equipment)
         require<PlayerModel>().skinEyeY = data.skinEyeY
         isLowDetailed = false
         client.eventBus.onFullPlayerData(client, id, data)
     }
+
+    private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.get(it) == null }
 
     fun applyPlayerJoined(data: GeneralPlayerData) {
         gameSession!!.instantiateLowDetailedPlayer(data)
@@ -305,7 +337,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun applyItemPacket(item: ClientboundItemData) = with(gameSession!!) {
         val item = clientItem(world, item)
-        fun add() = itemStorage.add(item.uuid, item)
+        fun add() = instantiateItem(item, itemStorage)
 
         try {
             add()
@@ -313,7 +345,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             itemStorage.remove(item.uuid)
             add()
 
-            LOGGER.warn("Предмет ${item.id} (${item.uuid}) был перезаписан")
+            LOGGER.warn("Предмет ${item.prefabId} (${item.uuid}) был перезаписан")
         }
     }
 
@@ -342,6 +374,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun applyVoxelEvent(event: VoxelEvent) = with(gameSession!!) {
         world.emitEvent(event)
+    }
+
+    fun applyEntity(persistentId: PersistentId, components: List<Component>) = with(gameSession!!.world) {
+        val entity = synchronizedEntities[persistentId] ?: addEntity { setComponent(persistentId) }.also { synchronizedEntities[persistentId] = it }
+        entity.copyState(components)
     }
 
     companion object {

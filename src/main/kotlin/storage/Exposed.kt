@@ -7,16 +7,11 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.lain.engine.item.*
-import org.lain.engine.player.Outfit
-import org.lain.engine.player.OutfitDisplay
-import org.lain.engine.player.PlayerPart
-import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemUuid
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
-import org.lain.engine.util.component.has
-import org.lain.engine.util.component.setNullable
-import org.lain.engine.world.Location
 
 fun connectDatabase(server: MinecraftServer): Database {
     val path = server.getSavePath(WorldSavePath.ROOT)
@@ -25,8 +20,13 @@ fun connectDatabase(server: MinecraftServer): Database {
         oldEngineDbFile.renameTo(path.toFile().resolve("engine-players.db"))
     }
     val database = Database.connect("jdbc:sqlite:$path/engine-players.db")
-    transaction { SchemaUtils.create(ItemsTable) }
+    transaction { SchemaUtils.create(ItemsTable, EcsEntityTable) }
     return database
+}
+
+object EcsEntityTable : Table() {
+    val uuid = varchar("uuid", 255).uniqueIndex()
+    val components = binary("components")
 }
 
 object ItemsTable : Table() {
@@ -35,73 +35,23 @@ object ItemsTable : Table() {
     val components = binary("components")
 }
 
-suspend fun Database.saveItem(item: EngineItem) {
-    val persistent = itemPersistentData(item)
-    saveItemPersistentData(item.uuid, item.id, persistent)
-}
-
-suspend fun Database.loadItem(location: Location, uuid: ItemUuid): EngineItem? {
-    val (id, data) = loadPersistentItemData(uuid) ?: return null
-    val components = mutableSetOf<Component>()
-    var count: Count? = null
-
-    for (component in data.components) {
-        when(component) {
-            is ItemData.Display -> {
-                components.addIfNotNull(component.name)
-                components.addIfNotNull(component.tooltip)
-                components.addIfNotNull(component.assets)
-            }
-            is ItemData.Guns -> {
-                components.addIfNotNull(component.data)
-                components.addIfNotNull(component.display)
-            }
-            is ItemData.PhysicalParameters -> {
-                count = component.count
-                components.addIfNotNull(component.mass)
-            }
-            is ItemData.Equipment -> {
-                components.addIfNotNull(
-                    component.outfit
-                        ?: if (component.hat) {
-                            Outfit(
-                                OutfitDisplay.Separated,
-                                listOf(PlayerPart.HEAD)
-                            )
-                        } else {
-                            null
-                        }
-                )
-            }
-            is ItemData.Sounds ->
-                components.addIfNotNull(component.data)
-            is ItemData.Book ->
-                components.add(component.writable ?: component.writableLegacy ?: error("Writeable component doesn't exist"))
-            is ItemData.Lights ->
-                components.add(component.flashlight)
-            is ItemData.Count -> {
-                count = Count(component.value, 16)
-            }
-            is ItemData.Mass ->
-                components.add(Mass(component.value))
+suspend fun Database.saveEntitiesBatch(entities: List<Pair<PersistentId, ComponentState>>) {
+    suspendTransaction(this) {
+        EcsEntityTable.batchUpsert(entities) { (uuid, data) ->
+            this[EcsEntityTable.uuid] = uuid.uuid
+            this[EcsEntityTable.components] = serializeEntityComponents(data.getComponents())
         }
     }
-
-    val state = ComponentState(components.toList())
-
-    return itemInstance(uuid, id, location, count ?: Count(1, 1), state)
 }
 
-fun dataFixItem(item: EngineItem, storage: NamespacedStorage) {
-    if (!item.has<ItemAssets>()) {
-        val prefab = storage.items[item.id] ?: return
-        val assets = prefab.assets
-        item.setNullable(assets)
-    }
-    if (!item.has<ItemProgressionAnimations>()) {
-        val prefab = storage.items[item.id] ?: return
-        val animations = prefab.progressionAnimations
-        item.setNullable(animations)
+suspend fun Database.loadEntity(id: PersistentId): List<Component>? {
+    return suspendTransaction(this) {
+        EcsEntityTable
+            .selectAll()
+            .where { EcsEntityTable.uuid eq id.uuid }
+            .firstOrNull()
+    }?.let {
+        deserializeEntityComponents(it[EcsEntityTable.components])
     }
 }
 

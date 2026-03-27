@@ -3,7 +3,8 @@ package org.lain.engine.transport.network
 import org.lain.engine.mc.disconnectInternal
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
-import java.util.UUID
+import org.lain.engine.server.DesynchronizationException
+import java.util.*
 
 @JvmInline
 value class SessionId(val id: UUID)
@@ -35,5 +36,13 @@ class ServerConnectionManager {
             connectionSession.playerId,
             reason
         )
+    }
+
+    fun disconnect(playerId: PlayerId, exception: Throwable) {
+        val message = when(exception) {
+            is DesynchronizationException -> "Рассинхронизация: ${exception.message!!}.<newline>Перезайдите в игру. В случае, если ошибка продолжает появляться, свяжитесь с администраторами"
+            else -> exception.message ?: "Неизвестная ошибка"
+        }
+        disconnect(getSession(playerId), message)
     }
 }

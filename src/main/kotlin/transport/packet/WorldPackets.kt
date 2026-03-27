@@ -1,8 +1,14 @@
 package org.lain.engine.transport.packet
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoBuf
+import org.lain.engine.storage.COMPONENT_SERIALIZERS_MODULE
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.transport.PacketCodec
+import org.lain.engine.util.component.Component
 import org.lain.engine.world.*
 
 @Serializable
@@ -39,3 +45,11 @@ data class VoxelBlockHintPacket(val pos: VoxelPos, val action: Action) : Packet 
 }
 
 val SERVERBOUND_VOXEL_BLOCK_HINT_PACKET = Endpoint<VoxelBlockHintPacket>()
+
+@Serializable
+data class EntityPacket(val persistentId: PersistentId, val components: List<Component>) : Packet
+
+@OptIn(ExperimentalSerializationApi::class)
+val CLIENTBOUND_ENTITY_ENDPOINT = Endpoint<EntityPacket>(
+    codec = PacketCodec.Kotlinx(EntityPacket.serializer(), ProtoBuf { serializersModule = COMPONENT_SERIALIZERS_MODULE }),
+)

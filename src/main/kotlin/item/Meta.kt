@@ -2,10 +2,10 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.component.get
+import org.lain.engine.util.component.require
 import org.lain.engine.world.*
 
 @Serializable
@@ -32,6 +32,9 @@ data class ItemAssets(val assets: Map<String, String>) : ItemComponent {
     val default = assets["default"] ?: "missingno"
     fun copy() = ItemAssets(assets.toMap())
 }
+
+val EngineItem.defaultModel
+    get() = this.require<ItemAssets>().default
 
 @Serializable
 data class ItemProgressionAnimations(val animations: Map<String, ProgressionAnimationId>) : ItemComponent

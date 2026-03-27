@@ -6,10 +6,17 @@ import net.minecraft.client.render.VertexConsumerProvider
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.MinecraftEngineClientEventBus
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.mc.EntityTable
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.world.pos
 
-fun registerWorldRenderEvents(client: MinecraftClient, engineClient: EngineClient, eventBus: MinecraftEngineClientEventBus, decalsStorage: ChunkDecalsStorage) {
+fun registerWorldRenderEvents(
+    client: MinecraftClient,
+    engineClient: EngineClient,
+    eventBus: MinecraftEngineClientEventBus,
+    decalsStorage: ChunkDecalsStorage,
+    playerTable: EntityTable,
+) {
     WorldRenderEvents.END_MAIN.register { context ->
         val gameRenderer = context.gameRenderer()
         val camera = gameRenderer.camera
@@ -58,16 +65,20 @@ fun registerWorldRenderEvents(client: MinecraftClient, engineClient: EngineClien
         val matrices = context.matrices()
         val queue = context.commandQueue()
         val camera = context.gameRenderer().camera
-        val images = decalsStorage.getBlockImages(
-            engineClient.gameSession?.mainPlayer?.pos ?: return@register,
-            MinecraftClient.options.viewDistance.value
-        )
 
-        matrices.push()
-        matrices.translate(camera.pos.negate())
-        for ((pos, image) in images) {
-            renderBlockDecals(image.gameTexture, pos, matrices, queue)
+        val gameSession = engineClient.gameSession
+        if (gameSession != null) {
+            gameSession.updatePlayerEntityRenderStates(playerTable)
+            val images = decalsStorage.getBlockImages(
+                engineClient.gameSession?.mainPlayer?.pos ?: return@register,
+                MinecraftClient.options.viewDistance.value
+            )
+            matrices.push()
+            matrices.translate(camera.pos.negate())
+            for ((pos, image) in images) {
+                renderBlockDecals(image.gameTexture, pos, matrices, queue)
+            }
+            matrices.pop()
         }
-        matrices.pop()
     }
 }

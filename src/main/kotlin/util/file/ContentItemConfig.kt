@@ -10,6 +10,7 @@ import org.lain.engine.world.SoundEventId
 
 @Serializable
 data class OutfitConfig(
+    val slot: EquipmentSlot,
     val layer: SkinLayerId? = null,
     val part: PlayerPart? = null,
     val parts: List<PlayerPart>? = null,
@@ -107,11 +108,11 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
         val mass = config.mass ?: namespaceConfig.computeInheritable { it.mass }
 
         // Экипировка
-        val outfit = config.outfit?.let { (layer, part, parts, separated, dependsEyeY) ->
+        val outfit = config.outfit?.let { (slot, layer, part, parts, separated, dependsEyeY) ->
             val parts = part?.let { listOf(it) } ?: parts ?: error("Не указана часть тела, покрываемая экипировкой. Доступные варианты: part, parts")
             val display = layer?.let { OutfitDisplay.Texture(it) } ?: OutfitDisplay.Separated.takeIf { separated } ?: error("Не указан способ отображения экипировки")
-            Outfit(display, parts, dependsEyeY = dependsEyeY)
-        } ?: config.hat?.let { Outfit(OutfitDisplay.Separated, listOf(PlayerPart.HEAD)) }
+            Outfit(slot, display, parts, dependsEyeY = dependsEyeY)
+        } ?: config.hat?.let { Outfit(EquipmentSlot.CAP, OutfitDisplay.Separated, listOf(PlayerPart.HEAD)) }
 
         val assetsProperty = { assets.isNotEmpty() }.then { ItemAssets(assets) }
         val progressionAnimationsProperty = { progressionAnimations.isNotEmpty() }.then { ItemProgressionAnimations(progressionAnimations) }
@@ -132,6 +133,7 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
                 progressionAnimationsProperty,
                 {
                     listOfNotNull(
+                        Count(1, maxStackSize ?: 16),
                         nameComponent,
                         config.gun?.gunComponent(),
                         gunDisplayComponent,

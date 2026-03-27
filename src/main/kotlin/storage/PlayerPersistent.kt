@@ -3,12 +3,17 @@ package org.lain.engine.storage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.lain.engine.container.getContainerSlots
+import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.*
 import org.lain.engine.util.Color
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.require
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.ensureExists
+import org.lain.engine.world.World
+import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
 
 val STORAGE_DIR = ENGINE_DIR.resolve("storage")
@@ -47,11 +52,14 @@ data class PersistentPlayerData(
     val voiceApparatus: VoiceApparatus,
     val voiceLoose: VoiceLoose?,
     @SerialName("chat_heads") val chatHeads: Boolean = true,
-    val equipment: Equipment? = null,
+    val equipment: Map<EquipmentSlot, ItemUuid> = mapOf(),
     val skinEyeY: Float = 2f,
 )
 
-fun savePersistentPlayerData(player: EnginePlayer) {
+fun World.getEquipmentContainerSlots(container: EntityId) = getContainerSlots(container)
+    .mapKeys { (slotId, _) -> EquipmentSlot.ofSlot(slotId) }
+
+fun savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
     val id = player.id.value.toString()
     val file = PLAYERS_DATA_DIR.resolve("$id.json")
 
@@ -59,6 +67,9 @@ fun savePersistentPlayerData(player: EnginePlayer) {
     val movementStatus = player.require<MovementStatus>()
     val speedIntention = movementStatus.intention
     val stamina = movementStatus.stamina
+    val world = player.world
+
+    val equipmentSlots = world.getEquipmentContainerSlots(player.equipmentContainer)
 
     file.ensureExists()
     file.writeText(
@@ -70,7 +81,7 @@ fun savePersistentPlayerData(player: EnginePlayer) {
                 player.require<VoiceApparatus>().copy(),
                 player.get<VoiceLoose>()?.copy(),
                 player.chatHeadsEnabled,
-                player.require<Equipment>().copy(),
+                equipmentSlots.mapValues { (_, item) -> item.uuid },
                 player.require<PlayerModel>().skinEyeY,
             )
         )

@@ -22,7 +22,6 @@ data class PlayerInstantiateSettings(
     val spectating: Spectating = Spectating(),
     val gameMaster: GameMaster = GameMaster(),
     val developerModeStatus: DeveloperModeStatus,
-    val equipment: Equipment = Equipment(),
     val items: Set<EngineItem> = setOf(),
     val skinEyeY: Float = 0f,
 )
@@ -51,7 +50,6 @@ fun commonPlayerInstance(
         set(PlayerInput(mutableSetOf(), setOf()))
         set(Narration(mutableListOf()))
         set(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
-        set(settings.equipment)
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)

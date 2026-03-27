@@ -23,9 +23,10 @@ class World(
      * Последний сигнализирует о том, что сущность нужно уничтожить в конце тика
      */
     fun <T : Component> emitEvent(event: T, kclass: KClass<T>) {
-        val entity = componentManager.addEntity()
-        componentManager.setComponentWithType(entity,event, kclass)
-        componentManager.setComponent(entity, Event)
+        componentManager.addEntity {
+            setComponent(event, kclass)
+            setComponent(Event)
+        }
     }
 
     inline fun <reified T : Component> emitEvent(event: T) {

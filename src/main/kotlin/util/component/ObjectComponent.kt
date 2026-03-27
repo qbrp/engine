@@ -57,15 +57,19 @@ interface ComponentManager : Iterable<Component> {
     fun <T : Component> getComponent(clazz: KClass<T>): T?
 
     fun <T : Component> getComponentsOfClass(clazz: KClass<T>): List<T>
+
+    fun copyTo(componentState: ComponentManager)
+}
+
+fun ComponentState(builder: ComponentState.() -> Unit): ComponentState {
+    return ComponentState().apply(builder)
 }
 
 @Suppress("UNCHECKED_CAST")
 class ComponentState(components: List<Component> = emptyList()) : ComponentManager {
     private val components = ConcurrentHashMap<KClass<out Component>, Component>()
 
-    init {
-        components.forEach { setComponent<Component>(it::class as KClass<Component>, it) }
-    }
+    init { components.forEach { setComponent<Component>(it::class as KClass<Component>, it) } }
 
     override fun getComponents(): List<Component> {
         return components.values.toList()
@@ -96,6 +100,10 @@ class ComponentState(components: List<Component> = emptyList()) : ComponentManag
     override fun <T : Component> getComponentsOfClass(clazz: KClass<T>): List<T> {
         val comp = components[clazz] as? T
         return if (comp != null) listOf(comp) else emptyList()
+    }
+
+    override fun copyTo(componentState: ComponentManager){
+        getComponents().forEach { componentState.set(it) }
     }
 }
 

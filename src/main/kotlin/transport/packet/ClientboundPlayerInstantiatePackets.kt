@@ -1,15 +1,22 @@
 package org.lain.engine.transport.packet
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import org.lain.engine.container.getContainerItems
+import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
+import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.getEquipmentContainerSlots
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.component.require
+import org.lain.engine.util.component.requireComponent
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
+import org.lain.engine.world.world
 
 // Join Game
 
@@ -39,6 +46,24 @@ data class ClientboundSetupData(
     }
 }
 
+// References
+
+@Serializable
+data class PlayerReferencedItems(
+    val inventory: List<ItemUuid>,
+    val equipment: List<ItemUuid>
+) {
+    val all by lazy { inventory + equipment }
+
+    companion object {
+        fun of(player: EnginePlayer) = PlayerReferencedItems(
+            player.items.map { it.uuid },
+            player.world.getContainerItems(player.equipmentContainer).map { it.uuid }
+        )
+    }
+}
+
+
 @ConsistentCopyVisibility
 @Serializable
 /**
@@ -58,8 +83,7 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
 
 @Serializable
 data class ServerPlayerData(
-    val id: PlayerId,
-    val displayName: DisplayName,
+    val general: GeneralPlayerData,
     val attributes: PlayerAttributes,
     val speedIntention: Float,
     val stamina: Float,
@@ -68,17 +92,29 @@ data class ServerPlayerData(
     val maxVolume: Float,
     val baseVolume: Float,
     val items: List<ClientboundItemData>,
-    val equipment: Equipment,
+    val equipment: Map<EquipmentSlot, ClientboundItemData>,
     val skinEyeY: Float
 ) {
+    val id
+        get() = general.playerId
+
+    val allItems by lazy { items + equipment.values }
+
+    val referencedItems by lazy {
+        PlayerReferencedItems(
+            items.map { it.uuid },
+            equipment.values.map { it.uuid }
+        )
+    }
+
     companion object {
         fun of(player: EnginePlayer): ServerPlayerData {
             val movementStatus = player.require<MovementStatus>().copy()
             val voiceApparatus = player.require<VoiceApparatus>().copy()
             val defaults = player.require<DefaultPlayerAttributes>().copy()
+            val world = player.world
             return ServerPlayerData(
-                player.id,
-                player.require<DisplayName>().copy(),
+                GeneralPlayerData.of(player),
                 player.require<PlayerAttributes>().copy(),
                 movementStatus.intention,
                 movementStatus.stamina,
@@ -86,8 +122,10 @@ data class ServerPlayerData(
                 voiceApparatus.minVolume ?: defaults.minVolume,
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
-                player.items.map { ClientboundItemData.from(it) },
-                player.require<Equipment>().copy(),
+                player.items.map { ClientboundItemData.from(player.world, it) },
+                world
+                    .getEquipmentContainerSlots(player.equipmentContainer)
+                    .mapValues { (_, item) -> ClientboundItemData.from(world, item) },
                 player.skinEyeY,
             )
         }
@@ -101,6 +139,7 @@ data class JoinGamePacket(
     val setupData: ClientboundSetupData
 ) : Packet
 
+@OptIn(ExperimentalSerializationApi::class)
 val CLIENTBOUND_JOIN_GAME_ENDPOINT = Endpoint<JoinGamePacket>(
     PacketCodec.Kotlinx(
         JoinGamePacket.serializer(),
@@ -121,16 +160,16 @@ data class FullPlayerData(
     val movementStatus: MovementStatus,
     val attributes: PlayerAttributes,
     val armStatus: ArmStatus,
-    val equipment: Equipment,
-    val skinEyeY: Float
+    val skinEyeY: Float,
+    val referencedItems: PlayerReferencedItems,
 ) {
     companion object {
         fun of(player: EnginePlayer) = FullPlayerData(
             player.require<MovementStatus>().copy(),
             player.require<PlayerAttributes>().copy(),
             player.require<ArmStatus>().copy(),
-            player.require<Equipment>().copy(),
-            player.skinEyeY
+            player.skinEyeY,
+            PlayerReferencedItems.of(player)
         )
     }
 }
@@ -140,26 +179,30 @@ val CLIENTBOUND_FULL_PLAYER_ENDPOINT = Endpoint<FullPlayerPacket>()
 // General player data
 
 @Serializable
-data class PlayerJoinServerPacket(
-    val player: GeneralPlayerData
-) : Packet
-
-@Serializable
 data class GeneralPlayerData(
     val playerId: PlayerId,
-    val displayName: DisplayName
+    val displayName: DisplayName,
+    val equipmentContainer: PersistentId
 ) {
     companion object {
-        fun of(player: EnginePlayer): GeneralPlayerData {
+        fun of(player: EnginePlayer): GeneralPlayerData = with(player.world) {
             return GeneralPlayerData(
                 player.id,
-                player.require()
+                player.require<DisplayName>().copy(),
+                player.equipmentContainer.requireComponent<PersistentId>()
             )
         }
     }
 }
 
 val CLIENTBOUND_PLAYER_JOIN_ENDPOINT = Endpoint<PlayerJoinServerPacket>()
+
+// Join / Leave
+
+@Serializable
+data class PlayerJoinServerPacket(
+    val player: GeneralPlayerData
+) : Packet
 
 @Serializable
 data class PlayerDestroyPacket(

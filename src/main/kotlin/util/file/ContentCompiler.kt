@@ -100,18 +100,23 @@ private fun loadNamespaces(directory: File = CONTENTS_DIR): Map<NamespaceId, Fil
     val configs = mutableMapOf<NamespaceId, NamespaceConfig>()
     directory.ensureExists()
     directory.walk().forEach { dir ->
-        if (!dir.isFile && dir.extension != "yml") return@forEach
-        if (dir.name == NAMESPACES_FILENAME) {
-            val config = Yaml.default.decodeFromStream<Map<NamespaceId, NamespaceConfig>>(dir.inputStream())
-            configs.putAll(config)
-        } else {
-            val namespace = Yaml.default.decodeFromStream<NamespaceContents>(dir.inputStream())
-            val id = namespace.id
-            val upserted = contents[id]?.let {
-                it.copy(items = it.items + namespace.items)
+        try {
+            if (!dir.isFile || dir.extension != "yml") return@forEach
+            if (dir.name == NAMESPACES_FILENAME) {
+                val config = Yaml.default.decodeFromStream<Map<NamespaceId, NamespaceConfig>>(dir.inputStream())
+                configs.putAll(config)
+            } else {
+                val namespace = Yaml.default.decodeFromStream<NamespaceContents>(dir.inputStream())
+                val id = namespace.id
+                val upserted = contents[id]?.let {
+                    it.copy(items = it.items + namespace.items)
+                }
+                contents[id] = upserted ?: namespace
+                namespaces.add(id)
             }
-            contents[id] = upserted ?: namespace
-            namespaces.add(id)
+        } catch (e: Throwable) {
+            CONFIG_LOGGER.error("При компиляции пространства имён ${dir.name} возникла ошибка", e)
+            null
         }
     }
     return namespaces.associateWith {

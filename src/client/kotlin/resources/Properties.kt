@@ -42,7 +42,7 @@ data class OutfitTag(val outfit: Outfit) {
             ComponentType
                 .builder<OutfitTag>()
                 .codec(
-                    Codec.unit(OutfitTag(Outfit()))
+                    Codec.unit(OutfitTag(Outfit ()))
                 )
                 .build()
         )

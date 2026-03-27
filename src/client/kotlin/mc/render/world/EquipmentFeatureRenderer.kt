@@ -26,12 +26,12 @@ class EquipmentFeatureRenderer(
     ) {
         matrixStack.push()
         contextModel.rootPart.applyTransform(matrixStack)
-        val items = livingEntityRenderState.getEquipment()
+        val items = livingEntityRenderState.getEngineState()?.detachedEquipment
         if (items != null) {
             for (equip in items) {
                 matrixStack.push()
-                if (equip.modelPart !== (contextModel as ModelWithHead).head) {
-                    equip.modelPart.applyTransform(matrixStack)
+                if (equip.playerModelPart !== (contextModel as ModelWithHead).head) {
+                    equip.playerModelPart?.applyTransform(matrixStack)
                     matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0f))
                     equip.itemRenderState.render(matrixStack, orderedRenderCommandQueue, i, OverlayTexture.DEFAULT_UV, livingEntityRenderState.outlineColor)
                 }
@@ -57,14 +57,15 @@ class HeadEquipmentFeatureRenderer(
     ) {
         matrixStack.push()
         contextModel.rootPart.applyTransform(matrixStack)
-        val items = livingEntityRenderState.getEquipment()
+        val renderState = livingEntityRenderState.getEngineState()
+        val items = renderState?.detachedEquipment
         if (items != null) {
             for (equip in items) {
                 matrixStack.push()
-                if (equip.modelPart == (contextModel as ModelWithHead).head) {
+                if (equip.playerModelPart == (contextModel as ModelWithHead).head) {
                     (contextModel as ModelWithHead).applyTransform(matrixStack)
-                    val skinEyeY = livingEntityRenderState.getSkinEyeY()
-                    if (equip.dependsEyeY && skinEyeY != null) {
+                    val skinEyeY = renderState.skinEyeY
+                    if (equip.dependsEyeY) {
                         matrixStack.translate(0f, -skinEyeY.toFloat(), 0f)
                     }
                     translate(matrixStack, headTransformation)

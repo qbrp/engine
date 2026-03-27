@@ -1,12 +1,12 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.component.Component
+import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.component.has
 import org.lain.engine.util.component.require
 
 @Serializable
-data class Count(var value: Int, val max: Int) : Component
+data class Count(var value: Int, val max: Int) : ItemComponent
 
 val EngineItem.count
     get() = this.require<Count>().value

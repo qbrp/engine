@@ -132,7 +132,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
         }
 
         fun finish() {
-            player.completeInteraction()
+            complete()
             handItem.markDirty<Gun>(id)
         }
 
@@ -183,7 +183,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             handItem.markDirty<Gun>(id)
         }
 
-        player.completeInteraction()
+        complete()
     }
 
     player.handleInteraction(GUN_BARREL_AMMO_LOAD_VERB) {
@@ -200,7 +200,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             player.set(DestroyItemSignal(cursorItem.uuid, count))
             slotItem.markDirty<Gun>(id)
         }
-        player.completeInteraction()
+        complete()
     }
 }
 

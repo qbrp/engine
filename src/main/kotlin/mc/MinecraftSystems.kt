@@ -22,6 +22,7 @@ import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
+import org.lain.engine.world.location
 import org.slf4j.LoggerFactory
 import net.minecraft.world.World as McWorld
 
@@ -100,7 +101,7 @@ fun updateServerMinecraftSystems(
         val entity = table.getEntity(player)
         if (entity == null || checkIsAliveDuplicate(player, entity, server.minecraftServer)) {
             val reason = "Какого хрена? Этой ошибки вообще не должно быть, но так уж и быть, звезды сошлись и она тебе попалась. Что делать? А?" +
-                    "Спрашиваешь, что тебе делать? Может, администратору сообщить? Ну, это ты знаешь. Мой совет - молись, молись, чтобы всё работало."
+                    "Спрашиваешь, что тебе делать? Может, администратору сообщить? Ну, это ты знаешь. Мой совет - молись. МОЛИСЬ, чтобы всё работало."
             connectionManager?.disconnect(connectionManager.getSession(player.id), reason) ?: error(reason)
             continue
         }
@@ -151,6 +152,9 @@ fun updateServerMinecraftSystems(
 fun removeHoldsByMarks(items: List<EngineItem>) {
     items.forEach {
         it.remove<HoldsBy>()
+        it.get<Location>()?.let { location ->
+            with(location.world) { it.entity.removeComponent<HoldsBy>() }
+        }
         it.require<UpdateMeta>().adaptedThisTick = false
     }
 }
@@ -161,7 +165,7 @@ fun updatePlayerMinecraftSystems(
     entity: PlayerEntity,
     world: World,
     itemStorage: Storage<ItemUuid, EngineItem>
-) {
+) = with(world) {
     val items = items.toMutableList()
 
     val location = player.require<Location>()
@@ -231,14 +235,20 @@ fun updatePlayerMinecraftSystems(
     val destroyItemSignal = player.get<DestroyItemSignal>()
     val moveItemSignal = player.get<MoveItemSignal>()
 
-    fun insertStack(item: EngineItem, itemStack: ItemStack, slot: Int) {
-        entity.inventory.insertStack(slot, itemStack)
+    fun insertStack(item: EngineItem, itemStack: ItemStack, slot: Int?) {
+        if (slot != null) {
+            entity.inventory.insertStack(slot, itemStack)
+        } else {
+            entity.inventory.insertStack(itemStack)
+        }
         items += item to itemStack
     }
 
     if (moveItemSignal != null && entity is ServerPlayerEntity) {
         val item = itemStorage.get(moveItemSignal.item) ?: desync("Предмет для передачи ${moveItemSignal.item} не найден")
-        insertStack(item, wrapEngineItemStack(item, ITEM_STACK_MATERIAL.copy()), moveItemSignal.slot)
+        val itemStack = wrapEngineItemStack(item, ITEM_STACK_MATERIAL.copy())
+        val slot = moveItemSignal.slot
+        insertStack(item, itemStack, slot)
     }
 
     val mainItemStack = entity.mainHandStack
@@ -287,15 +297,22 @@ fun updatePlayerMinecraftSystems(
         }
     }
 
-    if (playerInventory.items.isNotEmpty()) {
-        val component = HoldsBy(player.id)
-        playerInventory.items.forEach {
-            it.getOrSet { component }
-        }
-    }
-
     player.remove<DestroyItemSignal>()
     player.remove<MoveItemSignal>()
+}
+
+fun updatePlayerOwnedItems(world: World, player: EnginePlayer) = with(world) {
+    val equipmentItems = player.collectOwnedItems(world)
+    val location = player.location
+    val allItems = player.items + equipmentItems
+    if (allItems.isNotEmpty()) {
+        val component = HoldsBy(player)
+        allItems.forEach {
+            it.getOrSet { component }
+            it.replaceOrSet(location)
+            it.entity.setComponent(component)
+        }
+    }
 }
 
 private fun ServerPlayerEntity.resolveGameMode() = if (this.hasPermissionLevel(4)) {

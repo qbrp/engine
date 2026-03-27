@@ -9,13 +9,11 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.WorldSavePath
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
-import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.chat.IncomingMessage
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemAccess
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.createItem
+import org.lain.engine.container.createContainer
+import org.lain.engine.container.createSlotContainer
+import org.lain.engine.item.*
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
@@ -27,13 +25,12 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.require
+import org.lain.engine.util.component.set
+import org.lain.engine.util.component.setComponent
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.location
-import org.lain.engine.world.updateVoxelEvents
-import org.lain.engine.world.world
+import org.lain.engine.world.*
 
 data class EngineMinecraftServerDependencies(
     val minecraftServer: MinecraftServer,
@@ -61,15 +58,21 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         minecraftServer.getSavePath(WorldSavePath.ROOT).toFile()
     )
 
-    private val autosaveTimer = ItemAutosaveTimer(config.itemAutosavePeriod * 1000, engine.itemStorage, database)
-    private val unloadTimer = UnloadInactiveItemsTimer(config.itemAutosavePeriod / 2 * 1000, engine.itemStorage, database, engine)
     protected val itemLoader = ItemLoader(this)
 
     protected abstract val transportContext: ServerTransportContext
     protected open val connectionManager: ServerConnectionManager? = null
+    private val timers = SaveTimers(
+        SaveTimers.Counter(config.itemAutosavePeriod * 20),
+        SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
+    )
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
-        val item = createItem(owner.location, engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден"), engine.itemStorage)
+        val item = instantiateItem(
+            owner.world,
+            engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден"),
+            engine.itemStorage
+        )
         wrapEngineItemStack(item, itemStack)
         return item
     }
@@ -81,16 +84,21 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     open fun tick() {
+        if (!minecraftServer.isRunning) return
         val players = engine.playerStorage.getAll()
         updateServerMinecraftSystems(this, entityTable, players, engine.itemStorage, itemLoader, connectionManager)
+        engine.listWorlds().forEach { world -> world.players.forEach { player -> updatePlayerOwnedItems(world, player) } }
         engine.update()
         updateBullets(engine.defaultWorld, minecraftServer.overworld)
         engine.listWorlds().forEach { world ->
             world.updateVoxelEvents(engine.handler)
             world.clearEvents()
+            updateUnloadSystem(world, timers)
+            updateSaveSystem(this, world)
         }
-        autosaveTimer.tick()
-        unloadTimer.tick()
+        timers.items.tick()
+        timers.containers.tick()
+        engine.postUpdate()
     }
 
     open fun run() {
@@ -115,7 +123,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     open fun disable() = runBlocking {
-        database.saveItemPersistentDataBatch(engine.itemStorage.getAll().mapPersistentData())
+        engine.allWorlds().forEach { database.saveItems(it) }
         engine.stop()
     }
 
@@ -128,7 +136,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val player = entityTable.getPlayer(entity) ?: return
         engine.destroyPlayer(player)
         entityTable.removePlayer(entity)
-        unloadTimer.activate()
+        timers.items.activate()
     }
 
     override fun onPlayerInstantiated(player: EnginePlayer) {
@@ -138,22 +146,22 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     override fun onChatMessage(message: IncomingMessage) {}
 
-    fun onBlockBreak(pos: BlockPos, world: World) {
+    fun onBlockBreak(pos: BlockPos, world: net.minecraft.world.World) {
         acousticSimulator.removeBlock(pos, world)
         val world = engine.getWorld(world.engine)
         val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
         world.chunkStorage.removeVoxel(voxelPos)
     }
 
-    fun onBlockAdd(block: BlockState, pos: BlockPos, world: World) {
+    fun onBlockAdd(block: BlockState, pos: BlockPos, world: net.minecraft.world.World) {
         acousticSimulator.updateBlock(block, pos, world)
     }
 
-    fun onPlayerBlockInteraction(pos: BlockPos, state: BlockState, world: World) {
+    fun onPlayerBlockInteraction(pos: BlockPos, state: BlockState, world: net.minecraft.world.World) {
         onBlockAdd(state, pos, world)
     }
 
-    fun onChunkUnload(world: World, chunk: Chunk) {
+    fun onChunkUnload(world: net.minecraft.world.World, chunk: Chunk) {
         val pos = chunk.pos.engine()
         acousticSimulator.onChunkUnload(world.engine, chunk)
         engine.handler.onChunkUnload(pos)
@@ -164,13 +172,13 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 }
 
 fun serverMinecraftPlayerInstance(
+    persistentPlayerData: PersistentPlayerData?,
     server: EngineMinecraftServer,
     entity: PlayerEntity,
     playerId: PlayerId,
     developerModeStatus: DeveloperModeStatus
 ): EnginePlayer {
     val engine = server.engine
-    val persistentPlayerData = parsePersistentPlayerData(playerId)
     val defaults = engine.globals.defaultPlayerAttributes
     val stacks = entity.inventory.mainStacks
 
@@ -190,7 +198,6 @@ fun serverMinecraftPlayerInstance(
             Spectating(),
             GameMaster(),
             developerModeStatus,
-            persistentPlayerData?.equipment ?: Equipment(),
             stacks
                 .mapNotNull { it.engineItem() }
                 .toSet(),
@@ -202,16 +209,69 @@ fun serverMinecraftPlayerInstance(
     )
 }
 
-suspend fun prepareServerMinecraftPlayer(server: EngineMinecraftServer, entity: PlayerEntity, player: EnginePlayer) = withContext(Dispatchers.IO) {
-    val items = mutableListOf<Deferred<EngineItem?>>()
-    for (itemStack in entity.inventory.mainStacks) {
-        val reference = itemStack.engine() ?: continue
-        if (reference.getItem() == null) {
-            items.add(
-                async { server.loadItemStack(itemStack, player) }
-            )
+suspend fun prepareServerMinecraftPlayer(
+    server: EngineMinecraftServer,
+    mainStacks: List<ItemStack>,
+    player: EnginePlayer,
+    equipmentItems: Map<EquipmentSlot, ItemUuid>
+) = withContext(Dispatchers.IO) {
+    val engine = server.engine
+    val inventoryItems = async {
+        val items = mutableListOf<Deferred<EngineItem?>>()
+        for (itemStack in mainStacks) {
+            val reference = itemStack.engine() ?: continue
+            if (reference.getItem() == null) {
+                items.add(
+                    async { server.loadItemStack(itemStack, player) }
+                )
+            }
         }
+        items.awaitAll().filterNotNull()
     }
 
-    player.require<PlayerInventory>().items.addAll(items.awaitAll().filterNotNull())
+    val world = player.world
+    val equipment = async {
+        equipmentItems
+            .toList()
+            .map { (slot, uuid) ->
+                async {
+                    val item = server.database.loadWorldItem(uuid, player, engine.namespacedStorage, engine.itemStorage)
+                    slot to item
+                }
+            }
+            .awaitAll()
+            .filter { (_, item) -> item != null }
+            .toMap() as Map<EquipmentSlot, EngineItem>
+    }
+
+    player.require<PlayerInventory>().items.addAll(inventoryItems.await())
+    player.prepareContainers(PersistentId.next(), world, player.location, equipment.await())
 }
+
+fun EnginePlayer.prepareContainers(
+    persistentId: PersistentId,
+    world: World,
+    location: Location,
+    equipmentItems: Map<EquipmentSlot, EngineItem>
+) = with(world) {
+    val playerUuid = this@prepareContainers.id
+    val void = world.createContainer(
+        location,
+        networked = true,
+        persistentId = PersistentId("inventory-$playerUuid"),
+    )
+    void.setComponent(PlayerContainerTag)
+    set(PlayerContainer(void))
+
+    val container = world.createSlotContainer(
+        location,
+        EquipmentSlot.slotIds,
+        networked = true,
+        items = equipmentItems.mapKeys { (slot, _) -> slot.slotId },
+        persistentId = persistentId
+    )
+    container.setComponent(PlayerEquipment(this@prepareContainers))
+    set(Equipment(container))
+}
+
+fun PlayerEntity.copyMainStacks() = inventory.mainStacks.map { it.copy() }

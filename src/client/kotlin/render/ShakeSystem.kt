@@ -17,7 +17,7 @@ const val SHOOT_SHAKE_FREQ = 0.5f
 fun handleBulletFireShakes(mainPlayer: EnginePlayer, camera: Camera, world: World, items: Collection<EngineItem>) {
     items.forEach { item ->
         val shootTag = item.get<Recoil>() ?: return@forEach
-        if (item.owner == mainPlayer.id) {
+        if (item.owner?.id == mainPlayer.id) {
             camera.shake(
                 ShakeEffect(
                     shootTag.bullet.recoilSpeed * SHOOT_SHAKE_TRAUMA,

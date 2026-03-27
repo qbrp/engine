@@ -1,8 +1,7 @@
 package org.lain.engine.client.handler
 
 import org.lain.engine.client.util.registerComponentsClient
-import org.lain.engine.item.Count
-import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ProtoItem
 import org.lain.engine.item.itemInstance
 import org.lain.engine.player.*
 import org.lain.engine.transport.packet.*
@@ -10,7 +9,6 @@ import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.getOrSet
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.world.Location
 import org.lain.engine.world.World
 
 /**
@@ -52,13 +50,12 @@ fun mainClientPlayerInstance(
         PlayerInstantiateSettings(
             world,
             LOD_POS,
-            data.displayName,
+            data.general.displayName,
             MovementStatus(
                 intention = data.speedIntention,
                 stamina = data.stamina
             ),
             data.attributes,
-            equipment = data.equipment,
             developerModeStatus = developerModeStatus,
             skinEyeY = data.skinEyeY
         ),
@@ -66,14 +63,15 @@ fun mainClientPlayerInstance(
     ).also { it.isLowDetailed = false }
 }
 
-fun clientItem(world: World, item: ClientboundItemData): EngineItem {
+fun clientItem(world: World, item: ClientboundItemData): ProtoItem {
     val state = ComponentState(item.components)
+    val entityState = ComponentState(item.entityComponents)
     return itemInstance(
+        world,
         item.uuid,
         item.id,
-        Location(world, item.pos),
-        Count(item.count, item.maxCount),
-        state
+        state,
+        entityState,
     )
 }
 

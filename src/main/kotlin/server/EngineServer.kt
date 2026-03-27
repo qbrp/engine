@@ -4,14 +4,17 @@ import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.trySendJoinMessage
 import org.lain.engine.chat.trySendLeaveMessage
+import org.lain.engine.container.*
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.storage.savePersistentPlayerData
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
+import org.lain.engine.util.component.destroy
 import org.lain.engine.util.component.remove
 import org.lain.engine.util.flush
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.*
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -37,6 +40,7 @@ class EngineServer(
     val namespacedStorage = NamespacedStorage()
     val defaultWorld
         get() = worlds.toList().first().second
+    val voidContainer by lazy { defaultWorld.createContainer(Location(defaultWorld, Vec3(0f))) }
 
     fun listWorlds() = worlds.values
 
@@ -61,7 +65,6 @@ class EngineServer(
         for (player in players) {
             val playerItems = player.items
             updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
-            supplyPlayerInventoryItemsLocation(player, playerItems)
             flushPlayerMessages(player, chat, vocalSettings)
             updatePlayerVoice(player, chat, globals.vocalSettings)
 
@@ -79,7 +82,8 @@ class EngineServer(
             handleGunInteractions(player)
             handleSocialInteractions(player)
             handleFlashlightInteractions(player)
-            handlePlayerEquipmentInteraction(player, itemStorage)
+            handlePlayerEquipmentInteractionProgression(player)
+            handlePlayerEquipmentInteraction(player)
             finishPlayerInteraction(player)
             tickInventoryGun(playerItems)
 
@@ -88,13 +92,22 @@ class EngineServer(
             tickNarrations(player)
         }
 
-        handler.tick()
-
-        worlds.values.forEach { world ->
+        listWorlds().forEach { world ->
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
+            updateSlotContainers(world)
+            updateContainerOperations(world, itemStorage)
+            detachSlotContainers(world)
         }
+        handler.tick()
         tickTimes.add(start.timeElapsed().toInt())
+    }
+
+    fun postUpdate() {
+        listWorlds().forEach { world ->
+            updateContainedPlayerInventoryItems(world)
+            clearAssignItemsOperations(world)
+        }
     }
 
     fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {
@@ -115,12 +128,14 @@ class EngineServer(
         chat.trySendJoinMessage(player)
     }
 
-    fun destroyPlayer(player: EnginePlayer) {
-        val world = player.world
+    fun destroyPlayer(player: EnginePlayer) = with(player.world) {
         playerStorage.remove(player.id)
-        world.players -= player
+        players -= player
 
-        player.items.forEach { item -> item.remove<HoldsBy>() }
+        (player.collectOwnedItems(this) + player.items).forEach { item -> item.remove<HoldsBy>() }
+
+        player.equipmentContainer.destroy()
+        player.mainContainer.destroy()
 
         chat.trySendLeaveMessage(player)
         handler.onPlayerDestroy(player)

@@ -5,20 +5,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.lain.engine.chat.*
+import org.lain.engine.container.Item
 import org.lain.engine.debugPacket
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.backupBookContent
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.component.Networked
+import org.lain.engine.util.component.clearMetaState
 import org.lain.engine.util.component.get
+import org.lain.engine.util.component.getAll
+import org.lain.engine.util.component.iterate
 import org.lain.engine.util.component.require
 import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
+import kotlin.let
 import kotlin.math.pow
 
 sealed class AttributeUpdate() {
@@ -46,8 +53,10 @@ class ServerHandler(
     private val itemStorage: ItemStorage get() = server.itemStorage
     private val globals: ServerGlobals get() = server.globals
     val playerSynchronizationRadius get() = globals.playerSynchronizationRadius
-    private val itemSynchronizationRadius get() = globals.itemSynchronizationRadius
     private val playerDesynchronizationThreshold get() = globals.playerDesynchronizationThreshold
+
+    private var squaredSynchronizationRadius = 0f
+    private var squaredDesynchronizationRadius = 0f
 
     private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) {
         val player = server.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
@@ -59,6 +68,16 @@ class ServerHandler(
     }
 
     private fun execute(r: Runnable) = server.execute(r)
+
+    fun onServerSettingsUpdate() {
+        squaredSynchronizationRadius = (playerSynchronizationRadius * playerSynchronizationRadius).toFloat()
+        squaredDesynchronizationRadius = (playerSynchronizationRadius + playerDesynchronizationThreshold).toFloat().pow(2)
+        CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT.broadcast {
+            ServerSettingsUpdatePacket(
+                ClientboundServerSettings.of(server, it)
+            )
+        }
+    }
 
     fun run() {
         GlobalAcknowledgeListener.start()
@@ -220,7 +239,7 @@ class ServerHandler(
     private fun onPlayerCursorItem(playerId: PlayerId, itemId: ItemUuid?) = updatePlayer(playerId) {
         val item = itemId?.let {
             val result = itemStorage.get(it) ?: desync("Установленный курсором предмет $itemId не найден")
-            if (!hasPermission("invsee") && result.owner != null && result.owner != playerId) {
+            if (!hasPermission("invsee") && result.owner != null && result.owner?.id != playerId) {
                 desync("Захвачен чужой предмет")
             }
             result
@@ -246,6 +265,7 @@ class ServerHandler(
             .filter { it.network.authorized }
 
         for (player in players) {
+            val world = player.world
             val input = player.require<PlayerInput>()
             val state = player.network
             val location = player.location
@@ -253,8 +273,40 @@ class ServerHandler(
             debugPacket("Действия тика ${state.tick}: ${input.actions}")
 
             val playersToSynchronize = filterNearestPlayers(location, playerSynchronizationRadius, players).toMutableList()
-            val playersToDesynchronize = state.players.filter { it.pos.squaredDistanceTo(player.pos) > (playerSynchronizationRadius + playerDesynchronizationThreshold).toFloat().pow(2) }
+            val playersToDesynchronize = state.players.filter { it.pos.squaredDistanceTo(player.pos) > squaredDesynchronizationRadius }
             state.players.removeAll(playersToDesynchronize)
+
+            val items: HashSet<ItemUuid> = hashSetOf()
+            world.iterate<Item, HoldsBy> { entity, (engineItem), (owner) ->
+                items.add(engineItem.uuid)
+                if (engineItem.uuid !in state.items) {
+                    state.items += engineItem.uuid
+                    val packet = ItemPacket(ClientboundItemData.from(world, engineItem))
+                    val task = CLIENTBOUND_ITEM_ENDPOINT.taskS2C(
+                        packet,
+                        player.id
+                    )
+                        .send()
+                        .withAcknowledge()
+                        .onTimeoutServerThread { state.items -= engineItem.uuid }
+                    coroutineScope.launch { task.run() }
+                }
+            }
+
+            state.items.removeIf { it !in items }
+
+            world.iterate<Networked, Location, PersistentId>() { entity, _, location, persistentId ->
+                if (location.position.squaredDistanceTo(location.position) < squaredSynchronizationRadius) {
+                    val delta = world.componentManager.getDeltaBitMask(entity)
+                    val componentsToSynchronize = entity.getAll(delta)
+                    if (componentsToSynchronize.isNotEmpty()) {
+                        CLIENTBOUND_ENTITY_ENDPOINT.sendS2C(
+                            EntityPacket(persistentId, componentsToSynchronize),
+                            player.id
+                        )
+                    }
+                }
+            }
 
             tickSynchronizationComponent(playerStorage, player)
             player.items.forEach { item ->
@@ -264,12 +316,9 @@ class ServerHandler(
                 }
             }
 
-            val items: HashSet<ItemUuid> = hashSetOf<ItemUuid>()
             for (playerToSynchronize in playersToSynchronize) {
                 if (playerToSynchronize !in state.players && playerToSynchronize.id != player.id) {
                     state.players += playerToSynchronize
-
-                    // Игрок будет кикнут, если состояние синхронизации не придёт
                     val task = CLIENTBOUND_FULL_PLAYER_ENDPOINT
                             .taskS2C(
                                 FullPlayerPacket(
@@ -283,25 +332,11 @@ class ServerHandler(
                             .onTimeoutServerThread { state.players -= playerToSynchronize }
                     coroutineScope.launch { task.run() }
                 }
-
-                for (item in playerToSynchronize.items) {
-                    items.add(item.uuid)
-                    if (item.uuid !in state.items) {
-                        state.items += item.uuid
-                        val packet = ItemPacket(ClientboundItemData.from(item))
-                        val task = CLIENTBOUND_ITEM_ENDPOINT.taskS2C(
-                            packet,
-                            player.id
-                        )
-                            .send()
-                            .withAcknowledge()
-                            .onTimeoutServerThread { state.items -= item.uuid }
-                        coroutineScope.launch { task.run() }
-                    }
-                }
             }
+        }
 
-            state.items.removeIf { it !in items }
+        server.listWorlds().forEach {
+            it.iterate<Networked>() { entity, _ -> entity.clearMetaState() }
         }
     }
 
@@ -377,15 +412,13 @@ class ServerHandler(
         }
 
         val synchronization = player.network
+        val joinGamePacket = JoinGamePacket(
+            ServerPlayerData.of(player),
+            ClientboundWorldData.of(world),
+            ClientboundSetupData.create(server, player)
+        )
         val task = CLIENTBOUND_JOIN_GAME_ENDPOINT
-            .taskS2C(
-                JoinGamePacket(
-                    ServerPlayerData.of(player),
-                    ClientboundWorldData.of(world),
-                    ClientboundSetupData.create(server, player)
-                ),
-                playerId
-            )
+            .taskS2C(joinGamePacket, playerId)
             .send()
             .withAcknowledge()
             .onTimeoutServerThread { synchronization.disconnect = true }
@@ -393,6 +426,7 @@ class ServerHandler(
             task.run()
             server.execute {
                 synchronization.authorized = true
+                synchronization.items += joinGamePacket.playerData.referencedItems.all
             }
         }
     }
@@ -410,14 +444,6 @@ class ServerHandler(
 
     fun onChunkUnload(chunk: EngineChunkPos) {
         playerStorage.forEach { it.network.chunks.remove(chunk) }
-    }
-
-    fun onServerSettingsUpdate() {
-        CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT.broadcast {
-            ServerSettingsUpdatePacket(
-                ClientboundServerSettings.of(server, it)
-            )
-        }
     }
 
     fun onPersonalVolumeAcousticDebug(player: EnginePlayer, volumes: List<Pair<ImmutableVoxelPos, Float>>) {

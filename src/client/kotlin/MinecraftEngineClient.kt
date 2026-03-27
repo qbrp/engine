@@ -50,6 +50,7 @@ import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
+import org.lain.engine.storage.parsePersistentPlayerData
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
@@ -106,7 +107,7 @@ class MinecraftEngineClient : ClientModInitializer {
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engineClient)
         registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
-        registerWorldRenderEvents(client, engineClient, eventBus, decalsStorage)
+        registerWorldRenderEvents(client, engineClient, eventBus, decalsStorage, entityTable)
         registerHudRenderEvent(client, engineClient, fontRenderer, renderer, uiRenderPipeline)
         OutfitTag.TYPE // lazy init
 
@@ -273,6 +274,7 @@ class MinecraftEngineClient : ClientModInitializer {
 
             removeHoldsByMarks(gameSession.itemStorage.getAll())
             updatePlayerMinecraftSystems(player, items, entity, world, gameSession.itemStorage)
+            updatePlayerOwnedItems(world, player)
         }
 
         if (engineClient.ticks % 20L == 0L) {
@@ -343,9 +345,10 @@ class MinecraftEngineClient : ClientModInitializer {
         if (client.isInSingleplayer) {
             val server = server ?: throw RuntimeException("Server not started")
             val engine = server.engine
-            val player = serverMinecraftPlayerInstance(server, entity, entity.engineId, developerMode)
+            val persistent = parsePersistentPlayerData(entity.engineId)
+            val player = serverMinecraftPlayerInstance(persistent, server, entity, entity.engineId, developerMode)
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                prepareServerMinecraftPlayer(server, entity, player)
+                prepareServerMinecraftPlayer(server, entity.copyMainStacks(), player, persistent?.equipment ?: mapOf())
                 engine.execute {
                     engine.instantiatePlayer(player)
                 }

@@ -102,6 +102,10 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         taskExecutor.add("chunk-load") { applyChunkPacket(pos, EngineChunk(decals.toMutableMap(), hints.toMutableMap())) }
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_ENTITY_ENDPOINT) { gameSession ->
+        applyEntity(persistentId, components)
+    }
+
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_SPEED_INTENTION_SYNCHRONIZER)

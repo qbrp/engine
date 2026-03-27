@@ -5,7 +5,8 @@ import net.minecraft.client.render.entity.model.ArmPosing;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
 import net.minecraft.client.render.entity.state.BipedEntityRenderState;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
-import org.lain.engine.client.mc.render.world.PlayerRenderStateKt;
+import org.lain.engine.client.mc.render.world.EnginePlayerRenderState;
+import org.lain.engine.client.mc.render.world.PlayerRenderingKt;
 import org.lain.engine.player.ArmPose;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -38,19 +39,22 @@ public abstract class BipedEntityModelMixin {
     )
     private void engine$setAngles(BipedEntityRenderState renderState, CallbackInfo ci) {
         if (renderState instanceof PlayerEntityRenderState state) {
-            ArmPose mainArmPose = PlayerRenderStateKt.getMainArmPose(state);
-            ArmPose minorArmPose = PlayerRenderStateKt.getMinorArmPose(state);
+            EnginePlayerRenderState playerRenderState = PlayerRenderingKt.getEngineState(state);
+            if (playerRenderState != null) {
+                ArmPose mainArmPose = playerRenderState.getMainArmPose();
+                ArmPose minorArmPose = playerRenderState.getMinorArmPose();
 
-            if (mainArmPose == ArmPose.EXPOSE) {
-                holdSingle(this.rightArm, this.head, true);
-            } else if (mainArmPose == ArmPose.HOLD_WEAPON) {
-                ArmPosing.hold(this.rightArm, this.leftArm, this.head, true);
-            }
+                if (mainArmPose == ArmPose.EXPOSE) {
+                    holdSingle(this.rightArm, this.head, true);
+                } else if (mainArmPose == ArmPose.HOLD_WEAPON) {
+                    ArmPosing.hold(this.rightArm, this.leftArm, this.head, true);
+                }
 
-            if (minorArmPose == ArmPose.EXPOSE) {
-                holdSingle(this.leftArm, this.head, false);
-            } else if (minorArmPose == ArmPose.HOLD_WEAPON) {
-                ArmPosing.hold(this.rightArm, this.leftArm, this.head, false);
+                if (minorArmPose == ArmPose.EXPOSE) {
+                    holdSingle(this.leftArm, this.head, false);
+                } else if (minorArmPose == ArmPose.HOLD_WEAPON) {
+                    ArmPosing.hold(this.rightArm, this.leftArm, this.head, false);
+                }
             }
         }
     }

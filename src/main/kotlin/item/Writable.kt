@@ -43,6 +43,7 @@ fun handleWriteableInteractions(player: EnginePlayer) {
     player.handleInteraction(WRITEABLE_OPEN_VERB) {
         emitItemInteractionSoundEvent(handItem, WRITEABLE_OPEN_SOUND, player=player)
         player.set(OpenBookTag)
+        complete()
     }
 }
 

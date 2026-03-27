@@ -9,13 +9,15 @@ import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.handleBulletFireShakes
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.processSoundPlayKeys
+import org.lain.engine.container.clearAssignItemsOperations
+import org.lain.engine.container.updateContainedPlayerInventoryItems
+import org.lain.engine.container.updateContainerOperations
+import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.prepareContainers
 import org.lain.engine.server.ServerId
-import org.lain.engine.transport.packet.ClientboundSetupData
-import org.lain.engine.transport.packet.DeveloperModeStatus
-import org.lain.engine.transport.packet.GeneralPlayerData
-import org.lain.engine.transport.packet.ServerPlayerData
+import org.lain.engine.transport.packet.*
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.has
@@ -70,12 +72,17 @@ class GameSession(
     var soundsToBroadcast = LinkedList<SoundBroadcast>()
 
     init {
-        instantiatePlayer(mainPlayer)
+        val equipmentItems = player.equipment.mapValues { (_, item) -> instantiateItem(item) }
+        player.items.forEach { item -> instantiateItem(item) }
+        instantiatePlayer(mainPlayer, player.general, equipmentItems)
         client.eventBus.onMainPlayerInstantiated(client, this, mainPlayer)
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
         recompileContents()
-        player.items.forEach { itemStorage.add(it.uuid, clientItem(world, it)) }
+    }
+
+    private fun instantiateItem(clientboundItemData: ClientboundItemData): EngineItem {
+        return instantiateItem(clientItem(world, clientboundItemData), itemStorage)
     }
 
     fun recompileContents() {
@@ -113,19 +120,15 @@ class GameSession(
 
             val playerItems = player.items
             updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
-            supplyPlayerInventoryItemsLocation(player, playerItems)
 
             updatePlayerVerbLookup(player, false)
             val interaction = player.get<InteractionComponent>()
-//            if (interaction != null) {
-//                println("Взаимодействие: $interaction")
-//            }
 
             handlePlayerInventoryInteractions(player)
             handleWriteableInteractions(player)
             handleGunInteractions(player, true)
             handleFlashlightInteractions(player)
-            handlePlayerEquipmentInteraction(player, itemStorage)
+            handlePlayerEquipmentInteractionProgression(player)
             finishPlayerInteraction(player)
             val processedInteraction = player.get<InteractionComponent>()
             if (interaction != processedInteraction && interaction != null) {
@@ -146,6 +149,10 @@ class GameSession(
         val sounds = processWorldSounds(namespacedStorage, world)
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()
+        updateSlotContainers(world)
+        updateContainerOperations(world, itemStorage)
+        updateContainedPlayerInventoryItems(world)
+        clearAssignItemsOperations(world)
         world.updateVoxelEvents(null)
     }
 
@@ -156,12 +163,17 @@ class GameSession(
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {
         val player = lowDetailedClientPlayerInstance(data.playerId, world, data)
-        instantiatePlayer(player)
+        instantiatePlayer(player, data)
         return player
     }
 
-    fun instantiatePlayer(player: EnginePlayer) {
+    fun instantiatePlayer(
+        player: EnginePlayer,
+        data: GeneralPlayerData,
+        equipment: Map<EquipmentSlot, EngineItem> = emptyMap(),
+    ) {
         playerStorage.add(player.id, player)
+        player.prepareContainers(data.equipmentContainer, world, player.location, equipment)
     }
 
     fun destroy() {

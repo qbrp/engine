@@ -8,6 +8,7 @@ import org.lain.engine.util.ContentStorage
 import org.lain.engine.util.component.*
 import org.lain.engine.util.nextId
 import org.lain.engine.world.SoundContext
+import org.lain.engine.world.world
 import kotlin.reflect.KClass
 
 data class PlayerInput(
@@ -124,7 +125,7 @@ data class InteractionComponent(
     var progressionTimeStart: Int = 0
     var progression: ProgressionType? = null
     val progress: Float
-        get() = ((timeElapsed.toFloat() - progressionTimeStart) / (this.progression?.duration ?: error("Прогрессия не начата"))).coerceIn(0f, 1f)
+        get() = ((timeElapsed.toFloat() - progressionTimeStart) / (this.progression?.duration ?: -1)).coerceIn(0f, 1f)
     val progressionFinished
         get() = progress >= 1f
     var text: String? = null
@@ -136,6 +137,7 @@ data class InteractionComponent(
 
     val slotAction
         get() = action as InputAction.SlotClick
+    var finish = false
 
     fun attachSelection(title: String, variants: List<InteractionSelection.Variant>) {
         if (selection != null || selectionVariant != null || selectionCancelled) return
@@ -181,6 +183,10 @@ data class InteractionComponent(
     fun emitItemInteractionSoundEvent(item: EngineItem, key: String, player: EnginePlayer? = null) {
         item.emitPlaySoundEvent(key, player = player, context = SoundContext(sounds++, id))
     }
+
+    fun complete() {
+        finish = true
+    }
 }
 
 @Serializable
@@ -197,22 +203,17 @@ data class InteractionSelection(
     )
 }
 
-fun EnginePlayer.handleInteraction(verb: VerbType, statement: InteractionComponent.() -> Unit) {
+fun EnginePlayer.handleInteraction(verb: VerbType, statement: context(ComponentAccess) InteractionComponent.() -> Unit) = with(world) {
     handle<InteractionComponent> {
         if (type.id == verb.id) {
             statement(this)
         }
     }
 }
-
-fun EnginePlayer.completeInteraction() {
-    this.remove<InteractionComponent>()
-}
-
-fun EnginePlayer.completeInteractionIfFinished() = this.handle<InteractionComponent>() {
+fun InteractionComponent.completeIfFinished() {
     val progression = progression
-    if (progression != null && timeElapsed <= progression.duration) return@handle
-    completeInteraction()
+    if (progression != null && timeElapsed <= progression.duration) return
+    complete()
 }
 
 @Serializable
@@ -272,6 +273,10 @@ fun updatePlayerVerbLookup(
 }
 
 fun finishPlayerInteraction(player: EnginePlayer) {
+    if (player.get<InteractionComponent>()?.finish == true) {
+        player.remove<InteractionComponent>()
+    }
+
     val interaction = player.get<InteractionComponent>()
     val input = player.require<PlayerInput>()
     val actions = input.actions

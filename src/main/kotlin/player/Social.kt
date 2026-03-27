@@ -39,7 +39,7 @@ fun appendSocialVerbs(player: EnginePlayer) = player.handle<VerbLookup> {
 fun handleSocialInteractions(player: EnginePlayer) {
     player.handleInteraction(HAIL_VERB) {
         raycastPlayer?.serverNarration("${player.displayNameMiniMessage} окликнул вас!", 40, true)
-        player.completeInteraction()
+        complete()
     }
     player.handleInteraction(GIVE_AWAY) {
         val raycastPlayer = raycastPlayer ?: return@handleInteraction
@@ -66,5 +66,6 @@ fun handleSocialInteractions(player: EnginePlayer) {
             raycastPlayer.serverNarration("$playerName хочет передать предмет...", 120)
             raycastPlayer.serverNarration(failure, 120)
         }
+        complete()
     }
 }

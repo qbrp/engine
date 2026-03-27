@@ -6,15 +6,19 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.protobuf.ProtoBuf
+import org.lain.engine.container.AssignedSlot
+import org.lain.engine.container.ContainedIn
 import org.lain.engine.item.*
 import org.lain.engine.player.Outfit
+import org.lain.engine.storage.polymorphicComponent
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.get
-import org.lain.engine.util.math.ImmutableVec3
-import org.lain.engine.world.pos
+import org.lain.engine.util.component.getComponent
+import org.lain.engine.util.component.require
+import org.lain.engine.world.World
 
 interface ItemComponent : Component
 
@@ -33,7 +37,9 @@ internal val ItemProtobuf = ProtoBuf {
             subclass(Outfit::class)
             subclass(ItemProgressionAnimations::class)
             subclass(Flashlight::class)
+            subclass(Count::class)
         }
+        polymorphic(Component::class) { polymorphicComponent() }
     }
 }
 
@@ -44,18 +50,13 @@ data class ItemPacket(val item: ClientboundItemData) : Packet
 data class ClientboundItemData(
     val id: ItemId,
     val uuid: ItemUuid,
-    val pos: ImmutableVec3,
-    val maxCount: Int,
-    val count: Int,
     val components: List<ItemComponent>,
+    val entityComponents: List<Component>
 ) {
     companion object {
-        fun from(item: EngineItem) = ClientboundItemData(
+        fun from(world: World, item: EngineItem) = ClientboundItemData(
             item.id,
             item.uuid,
-            ImmutableVec3(item.pos),
-            item.maxCount,
-            item.count,
             listOfNotNull(
                 item.get<ItemAssets>()?.copy(),
                 item.get<ItemName>()?.copy(),
@@ -68,7 +69,14 @@ data class ClientboundItemData(
                 item.get<Flashlight>()?.copy(),
                 item.get<Outfit>()?.copy(),
                 item.get<ItemProgressionAnimations>()?.copy(),
-            )
+                item.require<Count>().copy()
+            ),
+            with(world) {
+                listOfNotNull<Component>(
+                    item.entity.getComponent<ContainedIn>()?.copy(),
+                    item.entity.getComponent<AssignedSlot>()?.copy(),
+                )
+            }
         )
     }
 }

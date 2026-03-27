@@ -4,6 +4,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.merge
 import org.lain.engine.util.component.Component
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.handle
 import org.lain.engine.util.component.require
 
@@ -17,13 +18,17 @@ data class PlayerInventory(
     var mainHandItem: EngineItem? = null,
     var offHandItem: EngineItem? = null,
     var mainHandFree: Boolean = false,
-    var selectedSlot: Int = 0
+    var selectedSlot: Int = 0,
 ) : Component
+
+data class PlayerContainer(val containerId: EntityId) : Component
+
+object PlayerContainerTag : Component
 
 // Уничтожить предмет в инвентаре игрока, обработать игрой
 data class DestroyItemSignal(val item: ItemUuid, val count: Int = 1) : Component
 
-data class MoveItemSignal(val item: ItemUuid, val slot: Int) : Component
+data class MoveItemSignal(val item: ItemUuid, val slot: Int?) : Component
 
 val EnginePlayer.items: Set<EngineItem>
     get() = this.require<PlayerInventory>().let { it.items + listOfNotNull(it.cursorItem) }
@@ -39,6 +44,9 @@ val EnginePlayer.cursorItem
 
 val EnginePlayer.selectedSlot
     get() = this.require<PlayerInventory>().selectedSlot
+
+val EnginePlayer.mainContainer
+    get() = this.require<PlayerContainer>().containerId
 
 private val SLOT_MERGE_VERB = VerbType("slot_merge", "Объединить предметы")
 

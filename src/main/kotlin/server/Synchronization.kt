@@ -163,7 +163,7 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
                 SynchronizationTarget.ITEM -> {
                     // Ищем владельца. В будущем можно будет рассылать обновление ближайшим игрокам в мире, если у предмета есть позиция
                     // Пока что о любых отклонениях предупреждаем
-                    val owner = entity.get<HoldsBy>()?.owner?.let { players.get(it) }  ?: run {
+                    val owner = entity.get<HoldsBy>()?.owner ?: run {
                         LOGGER.warn("Не удалось синхронизировать состояние $id сущности $entity - не найден владелец")
                         return@forEach
                     }
