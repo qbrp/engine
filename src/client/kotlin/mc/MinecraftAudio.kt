@@ -11,9 +11,14 @@ import net.minecraft.sound.SoundEvents
 import net.minecraft.util.Identifier
 import net.minecraft.util.Util
 import net.minecraft.util.math.floatprovider.ConstantFloatProvider
+import org.lain.engine.client.GameSession
+import org.lain.engine.client.mixin.SoundManagerAccessor
+import org.lain.engine.client.mixin.SoundSystemAccessor
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.util.EngineAudioManager
+import org.lain.engine.player.Hearing
 import org.lain.engine.util.EngineId
+import org.lain.engine.util.component.require
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.EngineSoundCategory
 import org.lain.engine.world.SoundEvent
@@ -144,7 +149,9 @@ data class EngineSoundInstance(
 class MinecraftAudioManager(
     private val client: MinecraftClient
 ) : EngineAudioManager {
+    private var tinnitus: TinnitusSoundInstance? = null
     private val soundManager get() = client.soundManager
+    private val soundSystem get() = (soundManager as SoundManagerAccessor).`engine$getSoundSystem`()
     private val soundSetCache = SoundSetCache()
 
     override fun playUiNotificationSound() {
@@ -164,6 +171,7 @@ class MinecraftAudioManager(
 
     override fun invalidateCache() {
         soundSetCache.invalidate()
+        tinnitus = null
     }
 
     override fun playSound(player: SoundPlay) {
@@ -189,12 +197,34 @@ class MinecraftAudioManager(
         soundManager.play(PositionedSoundInstance.master(sound, pitch))
     }
 
-    companion object {
-        val PIG_SCREAM = register("pig-scream")
-        val KICK = register("kick")
-
-        private fun register(id: String): net.minecraft.sound.SoundEvent {
-            return Registry.register(Registries.SOUND_EVENT, EngineId(id), net.minecraft.sound.SoundEvent.of(EngineId(id)))
+    fun updatePlayerTinnitus(gameSession: GameSession) {
+        val hearing = gameSession.mainPlayer.require<Hearing>()
+        if (hearing.loss > 0.01f) {
+            if (tinnitus == null) {
+                val soundInstance = TinnitusSoundInstance(hearing)
+                soundManager.play(soundInstance)
+                tinnitus = soundInstance
+            }
+            soundSystem.updateVolume()
+        } else if (hearing.loss < 0.01f) {
+            tinnitus = null
         }
     }
+
+    /** @see ClientMixinAccess.editVolume **/
+    private fun SoundSystem.updateVolume() {
+        val tinnitus = tinnitus
+        (this as SoundSystemAccessor).`engine$getSources`().forEach { (source, manager) ->
+            manager.run { it.setVolume(`engine$getAdjustedVolume`(source)) }
+        }
+    }
+
+    companion object {
+        val PIG_SCREAM = registerSoundEvent("pig-scream")
+        val KICK = registerSoundEvent("kick")
+    }
+}
+
+fun registerSoundEvent(id: String): net.minecraft.sound.SoundEvent {
+    return Registry.register(Registries.SOUND_EVENT, EngineId(id), net.minecraft.sound.SoundEvent.of(EngineId(id)))
 }

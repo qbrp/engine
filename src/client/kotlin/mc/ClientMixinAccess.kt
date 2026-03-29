@@ -3,9 +3,11 @@ package org.lain.engine.client.mc
 import net.minecraft.client.network.ClientPlayerEntity
 import net.minecraft.client.render.entity.model.PlayerEntityModel
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState
+import net.minecraft.client.sound.SoundInstance
 import net.minecraft.entity.PlayerLikeEntity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
+import net.minecraft.sound.SoundCategory
 import net.minecraft.util.Identifier
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
@@ -19,15 +21,19 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Writable
 import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.engine
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.Hearing
 import org.lain.engine.player.processLeftClickInteraction
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.component.get
+import org.lain.engine.util.component.require
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 
 object ClientMixinAccess {
     private val client by injectClient()
     private val mainPlayer get() = client.gameSession?.mainPlayer
+    private var mainPlayerHearing: Hearing? = null
     private var resources: ResourceList? = null
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
@@ -46,6 +52,17 @@ object ClientMixinAccess {
         val item = getEngineItem(itemStack) ?: return
         writable.contents = pages
         client.handler.onWriteableContentsUpdate(item.uuid, pages)
+    }
+
+    fun editVolume(sound: SoundInstance, volume: Float, category: SoundCategory): Float? {
+        if (category == SoundCategory.UI || category == SoundCategory.MUSIC) return null
+        if (sound.sound?.identifier?.path == "builtin/tinnitus") return null
+        val loss = mainPlayerHearing?.loss ?: return null
+        return volume * (1f - loss).coerceIn(0.01f, 1f)
+    }
+
+    fun onMainPlayerInstantiated(mainPlayer: EnginePlayer) {
+        mainPlayerHearing = mainPlayer.require<Hearing>()
     }
 
     fun updatePlayerRenderState(playerLikeEntity: PlayerLikeEntity, playerEntityRenderState: PlayerEntityRenderState, model: PlayerEntityModel) {

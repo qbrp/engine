@@ -10,6 +10,9 @@ import org.lain.engine.util.component.*
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.filterNearestPlayers
+import org.lain.engine.world.World
+import org.lain.engine.world.pos
 import org.lain.engine.world.world
 
 @Serializable
@@ -221,5 +224,20 @@ fun handleItemRecoil(
         if (remove) {
             item.removeComponent(shootTag)
         }
+    }
+}
+
+fun updateBulletsAcoustic(world: World) = world.iterate<BulletFire>() { _, event ->
+    val start = event.shoot.start
+    val players = world.players
+    val affected = filterNearestPlayers(world, start, 8, players)
+    affected.forEach { player ->
+        val distanceStrength = (8f - player.pos.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f
+        player.appendTinnitus(
+            Tinnitus(
+                (event.bullet.bulletMass / DEFAULT_BULLET_MASS) * 0.19f, // тиннитус от выстрела пулей стандартной массы = 0.2
+                ((20 * 8) * distanceStrength).toInt()
+            )
+        )
     }
 }

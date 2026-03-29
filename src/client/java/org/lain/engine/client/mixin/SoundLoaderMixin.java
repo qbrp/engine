@@ -27,7 +27,7 @@ public class SoundLoaderMixin {
             cancellable = true
     )
     public void engine$loadStatic(Identifier id, CallbackInfoReturnable<CompletableFuture<StaticSound>> cir) {
-        if (Objects.equals(id.getNamespace(), CommonEngineServerMod.MOD_ID)) {
+        if (Objects.equals(id.getNamespace(), CommonEngineServerMod.MOD_ID) && !id.getPath().startsWith("sounds/builtin")) {
             cir.setReturnValue(
                 MinecraftAudioKt.loadEngineStaticSound(
                     ClientMixinAccess.INSTANCE.getAssets(),

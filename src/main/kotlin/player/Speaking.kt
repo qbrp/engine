@@ -2,9 +2,9 @@ package org.lain.engine.player
 
 import org.lain.engine.chat.*
 import org.lain.engine.util.component.Component
-import org.lain.engine.util.flush
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.require
+import org.lain.engine.util.flush
 import java.util.concurrent.ConcurrentLinkedQueue
 
 data class Speak(
@@ -25,7 +25,7 @@ fun EnginePlayer.flushMessages(todo: (Speak) -> Unit) {
     get<MessageQueue>()?.messages?.flush(todo)
 }
 
-fun flushPlayerMessages(
+fun updatePlayerSpeaking(
     player: EnginePlayer,
     chat: EngineChat,
     vocalSettings: VocalSettings,

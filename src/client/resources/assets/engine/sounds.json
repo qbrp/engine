@@ -2,7 +2,7 @@
   "pig-scream": {
     "sounds": [
       {
-        "name": "engine:pig-scream",
+        "name": "engine:builtin/pig-scream",
         "attenuation_distance": 16
       }
     ]
@@ -10,7 +10,15 @@
   "kick": {
     "sounds": [
       {
-        "name": "engine:kick"
+        "name": "engine:builtin/kick"
+      }
+    ]
+  },
+  "tinnitus": {
+    "sounds": [
+      {
+        "name": "engine:builtin/tinnitus",
+        "stream": true
       }
     ]
   }

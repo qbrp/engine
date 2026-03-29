@@ -109,7 +109,8 @@ class MinecraftEngineClient : ClientModInitializer {
         registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
         registerWorldRenderEvents(client, engineClient, eventBus, decalsStorage, entityTable)
         registerHudRenderEvent(client, engineClient, fontRenderer, renderer, uiRenderPipeline)
-        OutfitTag.TYPE // lazy init
+        OutfitTag.registerType() // lazy init
+        TinnitusSoundInstance.registerEvents() // lazy init
 
         Injector.register(keybindManager)
 
@@ -316,6 +317,7 @@ class MinecraftEngineClient : ClientModInitializer {
         updateLights(gameSession, dynamicLights, entityTable, dynamicLightSources, dynamicLightBehaviours)
         decalsStorage.handleDecalsEvent(gameSession.world)
         gameSession.world.clearEvents()
+        audioManager.updatePlayerTinnitus(gameSession)
     }
 
     private fun onClientStarted() {

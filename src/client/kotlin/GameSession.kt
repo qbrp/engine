@@ -16,13 +16,15 @@ import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.prepareContainers
+import org.lain.engine.script.LuaContext
+import org.lain.engine.script.compileContents
+import org.lain.engine.script.loadContentsCompileResult
+import org.lain.engine.script.scripts
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.has
-import org.lain.engine.util.file.compileContents
-import org.lain.engine.util.file.loadContentsCompileResult
 import org.lain.engine.world.*
 import java.util.*
 
@@ -86,7 +88,14 @@ class GameSession(
     }
 
     fun recompileContents() {
-        namespacedStorage.loadContentsCompileResult(compileContents(client.resources.contents.file))
+        val serverDirectory = client.resources.serverDirectory
+        val scriptsPath = serverDirectory.file.scripts
+        namespacedStorage.loadContentsCompileResult(
+            compileContents(
+                serverDirectory.file,
+                LuaContext(scriptsPath, scriptsPath.resolve("$server.lua"))
+            )
+        )
         onContentsUpdated()
     }
 
@@ -137,6 +146,7 @@ class GameSession(
 
             tickInventoryGun(playerItems)
             handleItemRecoil(player, playerItems, false)
+            updateHearing(player)
         }
 
         tickNarrations(mainPlayer)

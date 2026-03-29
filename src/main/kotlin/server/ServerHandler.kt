@@ -20,8 +20,6 @@ import org.lain.engine.util.component.get
 import org.lain.engine.util.component.getAll
 import org.lain.engine.util.component.iterate
 import org.lain.engine.util.component.require
-import org.lain.engine.util.file.CONFIG_LOGGER
-import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
@@ -98,7 +96,6 @@ class ServerHandler(
             val player = getPlayer(ctx.sender) ?: return@registerReceiver
             player.network.tick++
         }
-        SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.registerReceiver { ctx -> onRequestReloadContents(ctx.sender) }
         SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
     }
 
@@ -117,17 +114,6 @@ class ServerHandler(
                 if (hasPermission("blockhint.remove")) {
                     world.singleBlockVoxelEvent(pos, VoxelUpdate.RemoveHint(action.index))
                 }
-            }
-        }
-    }
-
-    private fun onRequestReloadContents(playerId: PlayerId) = updatePlayer(playerId) {
-        if (hasPermission("reloadenginecontents")) {
-            try {
-                server.loadContents()
-            } catch (e: Throwable) {
-                CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
-                onServerNotification(this, Notification.COMPILATION_ERROR, false)
             }
         }
     }

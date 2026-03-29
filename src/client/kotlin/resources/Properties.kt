@@ -46,6 +46,9 @@ data class OutfitTag(val outfit: Outfit) {
                 )
                 .build()
         )
+
+        // lazy
+        fun registerType() {}
     }
 }
 

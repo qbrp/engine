@@ -12,6 +12,7 @@ import org.lain.engine.util.component.setNullable
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
+import java.util.*
 
 data class PlayerInstantiateSettings(
     val world: World,
@@ -50,6 +51,7 @@ fun commonPlayerInstance(
         set(PlayerInput(mutableSetOf(), setOf()))
         set(Narration(mutableListOf()))
         set(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
+        set(Hearing())
         set(settings.displayName)
         set(settings.movementStatus)
         set(settings.spectating)
@@ -77,6 +79,7 @@ fun serverPlayerInstance(
         set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
         set(PlayerNetworkState(false))
         require<PlayerAttributes>().gravity.default = defaults.gravity
+        set(AcousticMessageQueue(LinkedList()))
     }
 }
 
@@ -88,6 +91,7 @@ private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_ATTRIBUTES_SYNCHRONIZER)
     submit(PLAYER_EQUIPMENT_SYNCHRONIZER)
     submit(PLAYER_MODEL_SYNCHRONIZER)
+    submit(PLAYER_HEARING_SYNCHRONIZER)
 }
 
 typealias PlayerStorage = Storage<PlayerId, EnginePlayer>

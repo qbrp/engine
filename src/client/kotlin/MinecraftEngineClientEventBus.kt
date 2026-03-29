@@ -2,6 +2,7 @@ package org.lain.engine.client
 
 import net.minecraft.client.MinecraftClient
 import net.minecraft.util.math.BlockPos
+import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
@@ -69,6 +70,7 @@ class MinecraftEngineClientEventBus(
         if (!minecraft.isInSingleplayer) {
             Injector.register<ItemAccess>(gameSession.itemStorage)
         }
+        ClientMixinAccess.onMainPlayerInstantiated(player)
     }
 
     override fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession) {

@@ -65,7 +65,7 @@ class EngineServer(
         for (player in players) {
             val playerItems = player.items
             updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
-            flushPlayerMessages(player, chat, vocalSettings)
+            updatePlayerSpeaking(player, chat, vocalSettings)
             updatePlayerVoice(player, chat, globals.vocalSettings)
 
             updatePlayerVerbLookup(player)
@@ -85,9 +85,11 @@ class EngineServer(
             handlePlayerEquipmentInteractionProgression(player)
             handlePlayerEquipmentInteraction(player)
             finishPlayerInteraction(player)
-            tickInventoryGun(playerItems)
 
+            tickInventoryGun(playerItems)
             handleItemRecoil(player, playerItems)
+            updateHearing(player)
+            updateAcousticHearing(player, handler, globals.chatSettings)
 
             tickNarrations(player)
         }
@@ -95,6 +97,7 @@ class EngineServer(
         listWorlds().forEach { world ->
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
+            updateBulletsAcoustic(world)
             updateSlotContainers(world)
             updateContainerOperations(world, itemStorage)
             detachSlotContainers(world)

@@ -5,12 +5,15 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.acoustic.NEIGHBOURS_26
 import org.lain.engine.mc.InvalidMessageSourcePositionException
+import org.lain.engine.player.AcousticMessage
+import org.lain.engine.player.AcousticMessageQueue
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.acousticDebug
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
+import org.lain.engine.util.component.require
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.roundToInt
 import org.lain.engine.world.World
@@ -242,10 +245,16 @@ class EngineChat(
             id
         )
         server.execute {
-            server.handler.onOutcomingMessage(
-                recipient,
-                message
-            )
+            // Два пайплайна. Если сообщение акустическое, обрабатываем его механиками
+            if (volumes != null && channel.acoustic is Acoustic.Realistic) {
+                val player = server.playerStorage.get(recipient.id)
+                player?.require<AcousticMessageQueue>()?.messages += AcousticMessage(message, recipient)
+            } else {
+                server.handler.onOutcomingMessage(
+                    recipient,
+                    message
+                )
+            }
             outcomingMessageHistory[message.id] = message
         }
     }

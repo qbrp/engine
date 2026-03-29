@@ -40,7 +40,7 @@ fun net.minecraft.util.math.Direction.engine() = when(this) {
     net.minecraft.util.math.Direction.EAST -> Direction.EAST
 }
 
-fun updateBullets(
+fun updateBulletsMinecraft(
     world: World,
     mcWorld: ServerWorld,
 ) = world.iterate<BulletFire> { _, event ->

@@ -4,4 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 @JvmInline
-value class ServerId(val value: String)
+value class ServerId(val value: String) {
+    override fun toString(): String = value
+}
