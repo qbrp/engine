@@ -1,11 +1,10 @@
-package org.lain.engine.util.file
+package org.lain.engine.script
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.then
 import org.lain.engine.world.SoundEventId
 
 @Serializable
@@ -53,13 +52,6 @@ data class GunConfig(
 }
 
 @Serializable
-data class FlashlightConfig(
-    val radius: Float = 8f,
-    val distance: Float = 20f,
-    val light: Float = 15f
-)
-
-@Serializable
 data class ItemConfig(
     @SerialName("display_name") val displayName: String,
     val material: String = "stick",
@@ -78,11 +70,8 @@ data class ItemConfig(
     val flashlight: FlashlightConfig? = null,
 )
 
-@Serializable
-data class WritableConfig(val pages: Int, val texture: String? = null)
-
-context(ctx: ContentCompileContext)
-internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileNamespace): List<CompiledNamespace.Item> {
+context(ctx: YamlCompilationContext)
+internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: YamlNamespace): List<CompiledNamespace.Item> {
     val namespaceConfig = namespace.config
     return itemConfigs.map { (id, config) ->
         // Ассеты
@@ -114,40 +103,26 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: FileN
             Outfit(slot, display, parts, dependsEyeY = dependsEyeY)
         } ?: config.hat?.let { Outfit(EquipmentSlot.CAP, OutfitDisplay.Separated, listOf(PlayerPart.HEAD)) }
 
-        val assetsProperty = { assets.isNotEmpty() }.then { ItemAssets(assets) }
-        val progressionAnimationsProperty = { progressionAnimations.isNotEmpty() }.then { ItemProgressionAnimations(progressionAnimations) }
-
-        val nameComponent = ItemName(config.displayName)
         val gunDisplayComponent = config.gun?.gunDisplayComponent()
-        val tooltipComponent = config.tooltip?.let { ItemTooltip(it) }
-        val massComponent = mass?.let { Mass(it) }
-        val soundComponent = sounds.let { if (it.isNotEmpty()) ItemSounds(it) else null }
 
-        CompiledNamespace.Item(
-            config,
-            ItemPrefab(
-                ItemId(namespacedId(namespace.id, id)),
-                maxStackSize ?: 16,
-                nameComponent.text,
-                assetsProperty,
-                progressionAnimationsProperty,
-                {
-                    listOfNotNull(
-                        Count(1, maxStackSize ?: 16),
-                        nameComponent,
-                        config.gun?.gunComponent(),
-                        gunDisplayComponent,
-                        tooltipComponent,
-                        massComponent,
-                        config.writable?.let { Writable(it.pages, listOf(), it.texture) },
-                        assetsProperty,
-                        outfit,
-                        config.flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance, it.light)) },
-                        soundComponent,
-                        progressionAnimationsProperty
-                    )
-                }
+        CompiledItem(
+            namespace.id,
+            id,
+            config.displayName,
+            assets,
+            progressionAnimations,
+            sounds,
+            maxStackSize,
+            mass,
+            config.tooltip,
+            config.writable,
+            config.flashlight
+        ) {
+            listOfNotNull(
+                config.gun?.gunComponent(),
+                gunDisplayComponent,
+                outfit,
             )
-        )
+        }
     }
 }

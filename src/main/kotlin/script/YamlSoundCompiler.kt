@@ -1,4 +1,4 @@
-package org.lain.engine.util.file
+package org.lain.engine.script
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlNode
@@ -19,7 +19,7 @@ data class SoundEventConfig(
 ) {
     internal fun getSoundEvent(
         id: SoundEventId,
-        namespace: FileNamespace,
+        namespace: YamlNamespace,
         entries: List<SoundEntry> = deserializeSoundEntries(sounds)
     ): SoundEvent {
         return SoundEvent(
@@ -55,7 +55,7 @@ fun deserializeSoundEntries(entries: YamlNode): List<SoundEntry> {
 }
 
 
-internal fun compileSoundEvents(soundEvents: Map<String, SoundEventConfig>, namespace: FileNamespace): List<SoundEvent> {
+internal fun compileSoundEvents(soundEvents: Map<String, SoundEventConfig>, namespace: YamlNamespace): List<SoundEvent> {
     return soundEvents.map { (id, event) ->
         event.getSoundEvent(
             SoundEventId(namespacedId(namespace.id, id)),

@@ -1,4 +1,5 @@
 package org.lain.engine.util.file
+import org.lain.engine.script.contents
 import org.lain.engine.storage.PLAYERS_DATA_DIR
 import java.io.File
 import java.net.URL
@@ -22,7 +23,7 @@ fun updateOldFileNaming() {
     val items = ENGINE_DIR.resolve("items")
     val players = ENGINE_DIR.resolve("players")
     if (items.exists()) {
-        items.renameTo(CONTENTS_DIR)
+        items.renameTo(ENGINE_DIR.contents)
         CONFIG_LOGGER.warn("Файл старого формата engine/items переименован в engine/contents")
     }
     if (players.exists()) {

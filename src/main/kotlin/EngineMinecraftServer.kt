@@ -16,19 +16,26 @@ import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.*
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
+import org.lain.engine.script.LuaContext
+import org.lain.engine.script.loadContents
+import org.lain.engine.script.luaEntrypointDir
+import org.lain.engine.script.scripts
 import org.lain.engine.server.EngineServer
+import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerEventListener
 import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
+import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.require
 import org.lain.engine.util.component.set
 import org.lain.engine.util.component.setComponent
+import org.lain.engine.util.file.CONFIG_LOGGER
+import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.applyConfigCatching
-import org.lain.engine.util.file.loadContents
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.world.*
 
@@ -66,6 +73,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )
+    protected var luaContext = LuaContext(ENGINE_DIR.scripts, engine.luaEntrypointDir)
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
         val item = instantiateItem(
@@ -89,7 +97,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         updateServerMinecraftSystems(this, entityTable, players, engine.itemStorage, itemLoader, connectionManager)
         engine.listWorlds().forEach { world -> world.players.forEach { player -> updatePlayerOwnedItems(world, player) } }
         engine.update()
-        updateBullets(engine.defaultWorld, minecraftServer.overworld)
+        updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld)
         engine.listWorlds().forEach { world ->
             world.updateVoxelEvents(engine.handler)
             world.clearEvents()
@@ -108,7 +116,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         Injector.register<ItemAccess>(engine.itemStorage)
         Injector.register(engine.globals.movementSettings)
         applyConfigCatching(config)
-        engine.loadContents()
+        engine.loadContents(luaContext)
         minecraftServer.worlds.forEach {
             val id = it.engine
             engine.addWorld(
@@ -120,6 +128,20 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             dependencies.entityTable.setWorld(id, it)
         }
         engine.run()
+        SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.registerReceiver { ctx -> onRequestReloadContents(ctx.sender) }
+    }
+
+    private fun onRequestReloadContents(playerId: PlayerId) = playerStorage.get(playerId)?.let { player ->
+        if (player.hasPermission("reloadenginecontents")) {
+            try {
+                val luaContext = LuaContext(ENGINE_DIR.scripts, engine.luaEntrypointDir)
+                this.luaContext = luaContext
+                engine.loadContents(luaContext)
+            } catch (e: Throwable) {
+                CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
+                engine.handler.onServerNotification(player, Notification.COMPILATION_ERROR, false)
+            }
+        }
     }
 
     open fun disable() = runBlocking {
