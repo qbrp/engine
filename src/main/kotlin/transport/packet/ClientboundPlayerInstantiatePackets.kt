@@ -6,6 +6,7 @@ import org.lain.engine.container.getContainerItems
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
+import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.getEquipmentContainerSlots
@@ -136,7 +137,8 @@ data class ServerPlayerData(
 data class JoinGamePacket(
     val playerData: ServerPlayerData,
     val worldData: ClientboundWorldData,
-    val setupData: ClientboundSetupData
+    val setupData: ClientboundSetupData,
+    val notifications: List<Notification>
 ) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)

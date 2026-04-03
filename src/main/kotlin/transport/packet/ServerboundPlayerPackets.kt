@@ -2,6 +2,7 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.ItemUuid
+import org.lain.engine.player.ScriptBindings
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 
@@ -12,6 +13,8 @@ data class SetSpeedIntentionPacket(
 
 val SERVERBOUND_SPEED_INTENTION_PACKET = Endpoint<SetSpeedIntentionPacket>()
 
+// Developer MOde
+
 @Serializable
 data class DeveloperModePacket(val status: DeveloperModeStatus) : Packet
 
@@ -19,6 +22,8 @@ data class DeveloperModePacket(val status: DeveloperModeStatus) : Packet
 data class DeveloperModeStatus(val enabled: Boolean = false, val acoustic: Boolean = false)
 
 val SERVERBOUND_DEVELOPER_MODE_PACKET = Endpoint<DeveloperModePacket>()
+
+// Chat
 
 @Serializable
 data class VolumePacket(
@@ -68,3 +73,9 @@ object ReloadContentsRequestPacket : Packet
 
 val SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT = Endpoint<ReloadContentsRequestPacket>()
 
+// Scripts
+
+@Serializable
+data class ScriptBindingsPacket(val bindings: ScriptBindings) : Packet
+
+val SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT = Endpoint<ScriptBindingsPacket>()

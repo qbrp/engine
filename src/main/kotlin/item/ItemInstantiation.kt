@@ -7,6 +7,7 @@ import org.lain.engine.util.Storage
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Networked
+import org.lain.engine.util.component.WriteComponentAccess
 import org.lain.engine.util.component.copyState
 import org.lain.engine.util.component.set
 import org.lain.engine.util.component.setComponent
@@ -67,7 +68,7 @@ private fun Synchronizations<EngineItem>.initializeSynchronizers() {
     submit(ITEM_FLASHLIGHT_SYNCHRONIZER)
 }
 
-fun instantiateItem(
+fun WriteComponentAccess.instantiateItem(
     world: World,
     prefab: ItemPrefab,
     itemStorage: Storage<ItemUuid, EngineItem>,
@@ -75,16 +76,13 @@ fun instantiateItem(
     return instantiateItem(bakeItem(world, prefab), itemStorage)
 }
 
-fun instantiateItem(item: ProtoItem, itemStorage: Storage<ItemUuid, EngineItem>): EngineItem {
-    val world = item.world
-    val itemEntity = world.componentManager.addEntity()
+fun WriteComponentAccess.instantiateItem(item: ProtoItem, itemStorage: Storage<ItemUuid, EngineItem>): EngineItem {
+    val itemEntity = addEntity()
     val engineItem = EngineItem(item.prefabId, item.uuid, itemEntity, item.state)
-    with(world) {
-        itemEntity.setComponent(Item(engineItem))
-        itemEntity.setComponent(Networked)
-        itemEntity.setComponent(PersistentId(item.uuid.toString()))
-        item.entityState?.let { itemEntity.copyState(it) }
-    }
+    itemEntity.setComponent(Item(engineItem))
+    itemEntity.setComponent(Networked)
+    itemEntity.setComponent(PersistentId(item.uuid.toString()))
+    item.entityState?.let { itemEntity.copyState(it) }
     itemStorage.add(item.uuid, engineItem)
     return engineItem
 }

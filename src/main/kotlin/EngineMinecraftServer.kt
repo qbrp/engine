@@ -1,6 +1,6 @@
 package org.lain.engine
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.runBlocking
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
@@ -11,9 +11,10 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.chunk.Chunk
 import org.lain.engine.chat.IncomingMessage
-import org.lain.engine.container.createContainer
-import org.lain.engine.container.createSlotContainer
-import org.lain.engine.item.*
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemAccess
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.LuaContext
@@ -71,7 +72,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )
-    protected var luaContext = LuaContext(ENGINE_DIR.scripts, engine.luaEntrypointDir)
+    protected var luaContext = LuaContext(engine.playerStorage, ENGINE_DIR.scripts, engine.luaEntrypointDir)
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
         val item = instantiateItem(
@@ -132,7 +133,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     private fun onRequestReloadContents(playerId: PlayerId) = playerStorage.get(playerId)?.let { player ->
         if (player.hasPermission("reloadenginecontents")) {
             try {
-                val luaContext = LuaContext(ENGINE_DIR.scripts, engine.luaEntrypointDir)
+                val luaContext = LuaContext(playerStorage, ENGINE_DIR.scripts, engine.luaEntrypointDir)
                 this.luaContext = luaContext
                 engine.loadContents(luaContext)
             } catch (e: Throwable) {

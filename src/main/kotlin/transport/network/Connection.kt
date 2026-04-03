@@ -3,6 +3,7 @@ package org.lain.engine.transport.network
 import org.lain.engine.mc.disconnectInternal
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
+import org.lain.engine.script.LOGGER
 import org.lain.engine.server.DesynchronizationException
 import java.util.*
 
@@ -44,5 +45,6 @@ class ServerConnectionManager {
             else -> exception.message ?: "Неизвестная ошибка"
         }
         disconnect(getSession(playerId), message)
+        exception.printStackTrace()
     }
 }
