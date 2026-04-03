@@ -8,7 +8,6 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.util.NamespaceId
-import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.SoundEventId
 import java.io.File
@@ -52,7 +51,10 @@ internal data class YamlNamespace(
     val config: NamespaceConfig,
 )
 
-internal data class YamlCompilationContext(val namespaces: Map<NamespaceId, YamlNamespace>)
+internal data class YamlCompilationContext(
+    val namespaces: Map<NamespaceId, YamlNamespace>,
+    val errors: MutableList<Throwable>
+)
 
 context(ctx: YamlCompilationContext)
 internal fun <T> NamespaceConfig?.computeInheritable(getter: (NamespaceConfig) -> T): T? {
@@ -88,7 +90,7 @@ internal fun String.replaceToRelative(namespace: YamlNamespace): String {
     return replaceFirst("~", namespace.id.value)
 }
 
-private fun loadNamespaces(directory: File): Map<NamespaceId, YamlNamespace> {
+private fun loadNamespaces(directory: File, errors: MutableList<Throwable>): Map<NamespaceId, YamlNamespace> {
     val namespaces = mutableSetOf<NamespaceId>()
     val contents = mutableMapOf<NamespaceId, NamespaceContents>()
     val configs = mutableMapOf<NamespaceId, NamespaceConfig>()
@@ -109,8 +111,8 @@ private fun loadNamespaces(directory: File): Map<NamespaceId, YamlNamespace> {
                 namespaces.add(id)
             }
         } catch (e: Throwable) {
-            CONFIG_LOGGER.error("При компиляции пространства имён ${dir.name} возникла ошибка", e)
-            null
+            logNamespaceCompilationError(NamespaceId(dir.name), e)
+            errors += e
         }
     }
     return namespaces.associateWith {
@@ -122,9 +124,12 @@ private fun loadNamespaces(directory: File): Map<NamespaceId, YamlNamespace> {
     }
 }
 
-internal fun compileContentsYaml(directory: File): CompilationResult = with(
-    YamlCompilationContext(loadNamespaces(directory))
-) {
+internal fun createYamlCompilationContext(directory: File): YamlCompilationContext {
+    val errors = mutableListOf<Throwable>()
+    return YamlCompilationContext(loadNamespaces(directory, errors), errors)
+}
+
+internal fun compileContentsYaml(directory: File): CompilationResult = with(createYamlCompilationContext(directory)) {
     val namespaces = namespaces.mapValues { (_, namespace) ->
         try {
             val contents = namespace.contents
@@ -141,13 +146,15 @@ internal fun compileContentsYaml(directory: File): CompilationResult = with(
                     }
                     ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(frames, animation.text, animation.success)
                 }
-                    .toMap()
+                    .toMap(),
+                emptyMap()
             )
         } catch (e: Throwable) {
-            CONFIG_LOGGER.error("При компиляции пространства имён ${namespace.id} возникла ошибка", e)
+            logNamespaceCompilationError(namespace.id, e)
+            errors += e
             null
         }
     }.filterValues { it != null }
 
-    return CompilationResult(namespaces as Map<NamespaceId, CompiledNamespace>)
+    return CompilationResult(namespaces as Map<NamespaceId, CompiledNamespace>, errors)
 }

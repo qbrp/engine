@@ -6,7 +6,9 @@ import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.*
+import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.handleBulletFireShakes
+import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.processSoundPlayKeys
 import org.lain.engine.container.clearAssignItemsOperations
@@ -15,14 +17,13 @@ import org.lain.engine.container.updateContainerOperations
 import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.prepareContainers
 import org.lain.engine.script.LuaContext
 import org.lain.engine.script.compileContents
 import org.lain.engine.script.loadContentsCompileResult
-import org.lain.engine.script.scripts
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.has
 import org.lain.engine.world.*
@@ -83,19 +84,35 @@ class GameSession(
         recompileContents()
     }
 
-    private fun instantiateItem(clientboundItemData: ClientboundItemData): EngineItem {
-        return instantiateItem(clientItem(world, clientboundItemData), itemStorage)
+    fun instantiateItem(clientboundItemData: ClientboundItemData): EngineItem = with(world) {
+        val item = clientItem(world, clientboundItemData)
+        return instantiateItem(item, itemStorage)
     }
 
     fun recompileContents() {
-        val serverDirectory = client.resources.serverDirectory
-        val scriptsPath = serverDirectory.file.scripts
-        namespacedStorage.loadContentsCompileResult(
-            compileContents(
-                serverDirectory.file,
-                LuaContext(scriptsPath, scriptsPath.resolve("$server.lua"))
-            )
+        val resources = client.resources
+        val scriptsPath = resources.scripts.file
+        val contentsPath = resources.contents.file
+        val result = compileContents(
+            contentsPath,
+            LuaContext(playerStorage, scriptsPath, scriptsPath.resolve("$server.lua"))
         )
+        namespacedStorage.loadContentsCompileResult(result)
+
+        val exceptions = result.exceptions
+        if (exceptions.isNotEmpty()) {
+            val line1 = if (exceptions.size == 1) "Возникла 1 ошибка" else "Возникло ${exceptions.size} ошибок"
+            client.applyLittleNotification(
+                LittleNotification(
+                    "Сбой компиляции контента",
+                    "$line1. Проверьте консоль для более подробной информации.",
+                    WARNING_COLOR,
+                    WARNING,
+                    lifeTime = 240
+                )
+            )
+        }
+
         onContentsUpdated()
     }
 
@@ -155,7 +172,7 @@ class GameSession(
         handleBulletFireShakes(mainPlayer, client.camera, world, items)
 
         chatBubbleList.cleanup()
-        chatBubbleList.tick()
+        chatBubbleList.tick(mainPlayer)
         val sounds = processWorldSounds(namespacedStorage, world)
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()
@@ -183,7 +200,7 @@ class GameSession(
         equipment: Map<EquipmentSlot, EngineItem> = emptyMap(),
     ) {
         playerStorage.add(player.id, player)
-        player.prepareContainers(data.equipmentContainer, world, player.location, equipment)
+        with(world) { player.prepareContainers(data.equipmentContainer, player.location, equipment) }
     }
 
     fun destroy() {

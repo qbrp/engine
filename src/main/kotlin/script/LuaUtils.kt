@@ -1,5 +1,6 @@
 package org.lain.engine.script
 
+import org.lain.engine.util.math.Vec3
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
@@ -31,4 +32,10 @@ fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
         list.add(valueTransform(this.get(i)))
     }
     return list
+}
+
+fun LuaValue.toVector3f(): Vec3 {
+    val elements = checktable().toList { it.tofloat() }
+    require(elements.size == 3) { "Invalid vector elements count: $elements" }
+    return Vec3(elements[0], elements[1], elements[2])
 }

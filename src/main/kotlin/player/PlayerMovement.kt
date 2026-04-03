@@ -4,13 +4,13 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.server.markDirty
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.apply
+import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.require
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.math.smootherstep
 import org.lain.engine.util.math.smoothstep
-import org.lain.engine.util.component.remove
-import org.lain.engine.util.component.require
 import kotlin.math.abs
-import kotlin.math.max
+import kotlin.math.min
 
 /**
  * # Движение
@@ -126,7 +126,10 @@ fun updatePlayerMovement(
                 1f
             }
 
-            val target = max(minSpeed, defaultSpeed * speedMul(intention, stamina, isSprinting, settings))
+
+            val maxSpeed = attributes.maxSpeed.get()
+            val minSpeed = min(minSpeed, maxSpeed)
+            val target = (defaultSpeed * speedMul(intention, stamina, isSprinting, settings)).coerceIn(minSpeed, maxSpeed)
             lerp(speedAttribute, target, 0.2f)
         }
     }

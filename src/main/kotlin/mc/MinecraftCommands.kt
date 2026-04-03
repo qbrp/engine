@@ -25,6 +25,9 @@ import net.minecraft.world.chunk.WorldChunk
 import org.lain.engine.chat.*
 import org.lain.engine.item.ItemId
 import org.lain.engine.player.*
+import org.lain.engine.script.ScriptContext
+import org.lain.engine.script.getVoidScript
+import org.lain.engine.script.toScriptId
 import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
@@ -32,6 +35,7 @@ import org.lain.engine.util.*
 import org.lain.engine.util.component.apply
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.require
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.math.ImmutableVec3
@@ -162,6 +166,10 @@ data class Context(
 fun literal(name: String) = CommandManager.literal(name)
 
 fun <T> argument(name: String, argumentType: ArgumentType<T>) = CommandManager.argument(name, argumentType)
+
+fun stringArgument(name: String) = argument(name, StringArgumentType.string())
+
+fun wordArgument(name: String) = argument(name, StringArgumentType.word())
 
 fun floatArgument(name: String) = argument(name, FloatArgumentType.floatArg())
 
@@ -606,6 +614,36 @@ fun ServerCommandDispatcher.registerEngineCommands() {
                         val value = ctx.command.getFloat("y") * 0.01f
                         player.skinEyeY = value
                         ctx.sendFeedback("Установлена высота глаз на $value пикселей", false)
+                    }
+            )
+    )
+
+    register(
+        literal("attackscript")
+            .then(
+                stringArgument("script")
+                    .suggests(NamespacedIdProvider { it.scripts.ids })
+                    .executeCatching { ctx ->
+                        val player = ctx.requirePlayer()
+                        val scriptId = ctx.command.getString("script").replace(""""""", "").toScriptId()
+                        server.engine.namespacedStorage.getVoidScript<ScriptContext.Player>(scriptId) ?: friendlyError("Скрипт $scriptId не найден")
+                        player.require<ScriptBindings>().attack = scriptId
+                        ctx.sendFeedback("Установлен скрипт атаки игрока на $scriptId", true)
+                    }
+            )
+    )
+
+    register(
+        literal("basescript")
+            .then(
+                stringArgument("script")
+                    .suggests(NamespacedIdProvider { it.scripts.ids })
+                    .executeCatching { ctx ->
+                        val player = ctx.requirePlayer()
+                        val scriptId = ctx.command.getString("script").replace(""""""", "").toScriptId()
+                        server.engine.namespacedStorage.getVoidScript<ScriptContext.Player>(scriptId) ?: friendlyError("Скрипт $scriptId не найден")
+                        player.require<ScriptBindings>().base = scriptId
+                        ctx.sendFeedback("Установлен скрипт взаимодействия игрока на $scriptId", true)
                     }
             )
     )

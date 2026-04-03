@@ -109,7 +109,7 @@ dependencies {
     testImplementation(kotlin("test"))
 
     // Тяжелые зависимости
-    modImplementation("org.lain:cyberia:1.0")
+    modImplementation("org.lain:cyberia:1.1")
     compileOnly("org.jetbrains.exposed:exposed-core:1.0.0")
     compileOnly("org.jetbrains.exposed:exposed-jdbc:1.0.0")
     compileOnly("org.xerial:sqlite-jdbc:3.51.1.0")
@@ -124,6 +124,9 @@ dependencies {
     // API WorldEdit
     modCompileOnly("com.sk89q.worldedit:worldedit-core:${project.property("worldedit_version")}")
     modCompileOnly("com.sk89q.worldedit:worldedit-fabric-mc$minecraft_version:${project.property("worldedit_version")}")
+
+    // Lua
+    compileOnly("org.luaj:luaj-jse:3.0.1")
 }
 
 tasks.test {

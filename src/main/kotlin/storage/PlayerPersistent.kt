@@ -15,12 +15,15 @@ import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.World
 import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
+import java.io.File
 
 val STORAGE_DIR = ENGINE_DIR.resolve("storage")
     .also { it.mkdirs() }
 
-val PLAYERS_DATA_DIR = STORAGE_DIR.resolve("players")
-    .also { it.mkdirs() }
+val File.playerData
+    get() = this.resolve("engine_players")
+        .also { ensureExists() }
+
 private val PLAYERS_JSON = Json {
     prettyPrint = true
     ignoreUnknownKeys = true
@@ -59,9 +62,9 @@ data class PersistentPlayerData(
 fun World.getEquipmentContainerSlots(container: EntityId) = getContainerSlots(container)
     .mapKeys { (slotId, _) -> EquipmentSlot.ofSlot(slotId) }
 
-fun savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
+fun File.savePersistentPlayerData(player: EnginePlayer) {
     val id = player.id.value.toString()
-    val file = PLAYERS_DATA_DIR.resolve("$id.json")
+    val file = resolve("$id.json")
 
     val customName = player.customName
     val movementStatus = player.require<MovementStatus>()
@@ -88,8 +91,8 @@ fun savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
     )
 }
 
-fun parsePersistentPlayerData(playerId: PlayerId): PersistentPlayerData? {
-    val file = PLAYERS_DATA_DIR.resolve(playerId.value.toString() + ".json")
+fun File.parsePersistentPlayerData(playerId: PlayerId): PersistentPlayerData? {
+    val file = resolve(playerId.value.toString() + ".json")
     if (!file.exists()) return null
     return PLAYERS_JSON.decodeFromString<PersistentPlayerData>(file.readText())
 }
