@@ -1,9 +1,11 @@
 package org.lain.engine.test
 
 import org.lain.engine.container.*
+import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.updatePlayerOwnedItems
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.getComponent
 import org.lain.engine.util.component.hasComponent
 import org.lain.engine.util.component.setComponent
@@ -28,20 +30,59 @@ class ContainerTest {
         containerA.setComponent(AssignItem(item.uuid))
         world.updateContainers(itemStorage)
 
-        assert(world.getContainerItems(containerA).contains(item)) { "Предмет не был добавлен в контейнер А" }
-        assert(world.getContainerItems(containerB).isEmpty()) { "Предмет не должен быть в контейнере Б" }
-        val containedIn = item.entity.getComponent<ContainedIn>()
-        assert(containedIn != null && containedIn.container == containerA) { "Компонент хранения предмета не найден" }
+        containerA.assertContained(item)
+        containerB.assertNotContained(item)
+        item.assertHasContainedComponent(containerA)
         assert(!containerA.hasComponent<AssignItem>()) { "Компонент AssignItem не удален" }
         assert(!containerB.hasComponent<DetachItem>()) { "Компонент DetachItem не удален" }
     }
 
+    @Test
+    fun testSlotContainerOperations() = with(DummyWorld()) {
+        val world = this
+        val itemStorage = ItemStorage()
+        val slot1 = SlotId("slot1")
+        val slot2 = SlotId("slot2")
+        val slots = setOf(slot1, slot2)
+        val containerA = world.createSlotContainer(world.dummyLocation(), slots)
+        val containerB = world.createSlotContainer(world.dummyLocation(), slots)
+        val item = instantiateItem(world, DummyItemPrefab(), itemStorage)
+
+        containerA.setComponent(AssignSlot(item, slot1))
+        world.updateContainers(itemStorage)
+
+        containerB.setComponent(AssignSlot(item, slot1))
+        world.updateContainers(itemStorage)
+
+        containerA.setComponent(AssignSlot(item, slot1))
+        world.updateContainers(itemStorage)
+
+        containerA.assertContained(item)
+        containerB.assertNotContained(item)
+        item.assertHasContainedComponent(containerA)
+        assert(!containerA.hasComponent<AssignItem>()) { "Компонент AssignItem не удален" }
+        assert(!containerB.hasComponent<DetachItem>()) { "Компонент DetachItem не удален" }
+    }
+
+    context(world: World)
+    private fun EntityId.assertContained(item: EngineItem) {
+        assert(world.getContainerItems(this).contains(item)) { "Предмет не был добавлен в контейнер" }
+    }
+
+    context(world: World)
+    private fun EntityId.assertNotContained(item: EngineItem) {
+        assert(!world.getContainerItems(this).contains(item)) { "Предмет был добавлен в контейнер" }
+    }
+
+    context(world: World)
+    private fun EngineItem.assertHasContainedComponent(container: EntityId) {
+        val containedIn = entity.getComponent<ContainedIn>()
+        assert(containedIn != null && containedIn.container == container) { "Компонент хранения предмета не найден" }
+    }
+
     private fun World.updateContainers(itemStorage: ItemStorage) {
-        updateSlotContainers(this)
-        updateContainerOperations(this, itemStorage)
-        detachSlotContainers(this)
+        updateContainerSystems(this, itemStorage)
         players.forEach { player -> updatePlayerOwnedItems(this, player) }
-        updateContainedPlayerInventoryItems(this)
-        clearAssignItemsOperations(this)
+        postUpdateContainerSystems(this)
     }
 }
