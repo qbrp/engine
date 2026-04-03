@@ -370,7 +370,7 @@ class ConcurrentAcousticSceneBank {
 
                 repeat(1 + extend * 2) { i ->
                     val segmentIndex = bottomSegment + i
-                    if (segmentIndex < segments - 1) {
+                    if (segmentIndex < segments - 1 && segmentIndex >= 0) {
                         chunks.add(compound.getScene(segmentIndex))
                     }
                 }
