@@ -4,7 +4,6 @@ import net.minecraft.client.gui.screen.world.LevelLoadingScreen;
 import net.minecraft.client.world.ClientChunkLoadProgress;
 import net.minecraft.text.Text;
 import org.lain.engine.client.mc.ClientMixinAccess;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;

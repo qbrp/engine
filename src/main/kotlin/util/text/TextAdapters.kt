@@ -9,7 +9,7 @@ import org.lain.engine.player.DisplayName
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.Color
 import org.lain.engine.util.component.require
-import java.util.Optional
+import java.util.*
 
 val EnginePlayer.displayNameMiniMessage
     get() = this.require<DisplayName>().let { it.custom?.textMiniMessage ?: it.username.value }

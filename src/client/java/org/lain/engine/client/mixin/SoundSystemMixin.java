@@ -2,7 +2,6 @@ package org.lain.engine.client.mixin;
 
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.client.sound.SoundSystem;
-import net.minecraft.sound.SoundCategory;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

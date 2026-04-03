@@ -24,7 +24,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import java.io.BufferedReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @Mixin(AtlasLoader.class)
 public class AtlasLoaderMixin {

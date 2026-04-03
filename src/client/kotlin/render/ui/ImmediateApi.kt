@@ -2,10 +2,8 @@ package org.lain.engine.client.render.ui
 
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.DrawContext
-import org.lain.engine.client.MinecraftEngineClient
 import org.lain.engine.client.mc.render.fill
 import org.lain.engine.client.render.FontRenderer
-import org.lain.engine.client.render.Window
 import org.lain.engine.util.BLACK_TRANSPARENT_BG_COLOR
 import org.lain.engine.util.Color
 import org.lain.engine.util.text.EngineText

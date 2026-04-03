@@ -6,7 +6,6 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.MergedComponentMap;
 import net.minecraft.component.type.TooltipDisplayComponent;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.StackReference;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.tooltip.TooltipAppender;
@@ -16,16 +15,12 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ClickType;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.ClientItemStorageKt;
-import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftUtilKt;
 import org.lain.engine.item.EngineItem;
 import org.lain.engine.item.TooltipKt;
 import org.lain.engine.mc.EngineItemReferenceComponent;
 import org.lain.engine.mc.ItemsKt;
 import org.lain.engine.mc.ServerMixinAccess;
-import org.lain.engine.util.text.TextAdaptersKt;
-import org.lain.engine.util.text.TextKt;
-import org.lain.engine.util.text.TextSerializationKt;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -37,7 +32,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 
 @Mixin(ItemStack.class)

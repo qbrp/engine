@@ -1,7 +1,10 @@
 package org.lain.engine.client.resources
 
 import com.google.gson.JsonObject
-import de.javagl.obj.*
+import de.javagl.obj.Mtl
+import de.javagl.obj.MtlReader
+import de.javagl.obj.ObjReader
+import de.javagl.obj.ObjUtils
 import net.minecraft.client.render.model.UnbakedModel.GuiLight
 import net.minecraft.client.render.model.json.ModelTransformation
 import net.minecraft.util.Identifier
@@ -9,6 +12,7 @@ import net.minecraft.util.JsonHelper
 import org.lain.engine.client.mixin.resource.JsonUnbakedModelAccessor
 import java.io.File
 import java.io.IOException
+
 /**
  * @param directory Родительская директория, в которой находится файл модели
  */

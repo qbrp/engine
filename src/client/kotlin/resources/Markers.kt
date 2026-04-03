@@ -1,9 +1,7 @@
 package org.lain.engine.client.resources
 
-import net.minecraft.client.network.AbstractClientPlayerEntity
 import net.minecraft.component.DataComponentTypes
 import net.minecraft.item.ItemStack
-import net.minecraft.util.math.Vec3d
 import org.joml.Vector3fc
 import org.lain.engine.client.mc.MinecraftClient
 

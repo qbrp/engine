@@ -5,7 +5,6 @@ import net.minecraft.client.item.ItemAssetsLoader;
 import net.minecraft.client.render.model.BakedModelManager;
 import net.minecraft.client.render.model.UnbakedModel;
 import net.minecraft.resource.ResourceManager;
-import net.minecraft.resource.ResourceReloader;
 import net.minecraft.util.Identifier;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.resources.ItemAssetLoaderKt;

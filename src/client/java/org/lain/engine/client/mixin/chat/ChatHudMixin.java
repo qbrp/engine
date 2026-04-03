@@ -29,8 +29,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Mixin(ChatHud.class)
 public abstract class ChatHudMixin {

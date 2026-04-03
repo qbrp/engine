@@ -1,13 +1,8 @@
 package org.lain.engine.client.mixin.resource;
 
-import com.google.gson.JsonObject;
-import net.minecraft.util.JsonHelper;
 import net.minecraft.util.math.MathHelper;
 import org.lain.engine.client.resources.ModelLoaderKt;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 

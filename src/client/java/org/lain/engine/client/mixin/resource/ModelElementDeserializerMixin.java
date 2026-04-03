@@ -1,18 +1,12 @@
 package org.lain.engine.client.mixin.resource;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import net.minecraft.client.render.model.json.ModelElement;
 import net.minecraft.util.JsonHelper;
 import net.minecraft.util.math.MathHelper;
 import org.lain.engine.client.resources.ModelLoaderKt;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(targets = "net.minecraft.client.render.model.json.ModelElement$Deserializer")

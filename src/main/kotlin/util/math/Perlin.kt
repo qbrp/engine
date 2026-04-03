@@ -1,6 +1,6 @@
 package org.lain.engine.util.math
 
-import java.util.Random
+import java.util.*
 import kotlin.math.floor
 
 class PerlinNoise(seed: Long) {
