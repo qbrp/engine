@@ -17,6 +17,11 @@ class ScreenRenderer(private val client: EngineClient) {
     val narrations = mutableListOf<NarrationMessageRenderState>()
     val interactionProgression = InteractionProgressionRenderState(0f)
     var chatOpen = false
+//    val consoleRenderState = ConsoleRenderState(
+//        MutableVec2(window.widthDp - 200, 0f),
+//        200,
+//        mutableListOf()
+//    )
 
     fun renderScreen(painter: Painter) {
         val gameSession = client.gameSession

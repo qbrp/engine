@@ -111,7 +111,8 @@ data class Asset(
 
 data class ResourceContext(
     val assets: Assets,
-    val serverDirectory: SourceFile,
+    val contents: SourceFile,
+    val scripts: SourceFile,
     val chatBarConfiguration: ChatBarConfiguration?,
     val formatConfiguration: ChatFormatSettings,
     val autogenerationItemAssets: AutoGenerationList = assets.autogenerationItemAssets
@@ -134,7 +135,8 @@ private fun bakeResourceContext(gameSession: GameSession?): ResourceContext {
 
     return ResourceContext(
         Assets(assetsSource),
-        SourceFile((serverId?.let { ENGINE_DIR.resolve(it.value) } ?: ENGINE_DIR)),
+        CONTENTS.fetch(serverId).getOrThrow(),
+        SCRIPTS.fetch(serverId).getOrThrow(),
         CHAT_BAR_CONFIG.fetch(serverId)?.yaml(),
         FORMAT_CONFIG.fetch(serverId).getOrThrow().yaml(),
     )
@@ -143,6 +145,8 @@ private fun bakeResourceContext(gameSession: GameSession?): ResourceContext {
 private val CHAT_BAR_CONFIG = OverridableResource("chat-bar.yml")
 private val FORMAT_CONFIG = OverridableResource("format.yml")
 private val ASSETS = OverridableResource("assets", true)
+private val CONTENTS = OverridableResource("contents", true)
+private val SCRIPTS = OverridableResource("scripts", true)
 
 class ResourceManager(
     private val client: EngineClient

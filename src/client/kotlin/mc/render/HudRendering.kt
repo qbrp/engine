@@ -84,6 +84,7 @@ fun registerHudRenderEvent(
             val mouseY = mouse.getScaledY(window).toInt()
             drawableRoot.render(context, mouseX, mouseY, deltaTick)
         }
+        //renderConsoleHud(context, screenRenderer.consoleRenderState)
         engineUiRenderPipeline.render(
             context,
             deltaTick,

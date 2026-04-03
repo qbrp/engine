@@ -8,6 +8,7 @@ import org.lain.engine.item.recoilSpeed
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.component.get
 import org.lain.engine.util.component.iterate
+import org.lain.engine.util.component.remove
 import org.lain.engine.world.World
 
 const val SHOOT_SHAKE_DURATION = 0.3f
@@ -26,7 +27,7 @@ fun handleBulletFireShakes(mainPlayer: EnginePlayer, camera: Camera, world: Worl
                 )
             )
         }
-        item.removeComponent(shootTag)
+        item.remove<Recoil>()
     }
 
     world.iterate<BulletHit> { _, hit ->
