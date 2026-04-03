@@ -222,7 +222,7 @@ fun handleItemRecoil(
         val shootTag = item.get<Recoil>() ?: return@forEach
         player.translateRotation(pitch = -(shootTag.bullet.recoilSpeed * 3f))
         if (remove) {
-            item.removeComponent(shootTag)
+            item.remove<Recoil>()
         }
     }
 }
@@ -232,7 +232,8 @@ fun updateBulletsAcoustic(world: World) = world.iterate<BulletFire>() { _, event
     val players = world.players
     val affected = filterNearestPlayers(world, start, 8, players)
     affected.forEach { player ->
-        val distanceStrength = (8f - player.pos.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f
+        // дистанция - 8 блоков
+        val distanceStrength = (64f - player.pos.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f
         player.appendTinnitus(
             Tinnitus(
                 (event.bullet.bulletMass / DEFAULT_BULLET_MASS) * 0.19f, // тиннитус от выстрела пулей стандартной массы = 0.2
