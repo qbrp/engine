@@ -5,7 +5,6 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.component.*
 import org.lain.engine.world.Location
-import org.lain.engine.world.World
 import kotlin.let
 
 /**
@@ -37,18 +36,18 @@ data class Item(val engine: EngineItem) : Component
 @Serializable data class ContainedIn(val container: EntityId) : Component
 @Serializable data class ContainerAnchor(val container: EntityId) : Component
 
-fun World.getContainerItems(container: EntityId): List<EngineItem> {
+fun ReadComponentAccess.getContainerItems(container: EntityId): List<EngineItem> {
     return container.requireComponent<Entries>().items
 }
 
-fun World.createContainer(
+fun WriteComponentAccess.createContainer(
     location: Location,
     componentState: ComponentState? = null,
     persistentId: PersistentId? = null,
     networked: Boolean = false,
     entries: MutableList<EngineItem> = mutableListOf(),
 ): EntityId {
-    return componentManager.addEntity {
+    return addEntity {
         if (networked) setComponent(Networked)
         componentState?.let { copyState(it) }
         persistentId?.let { setComponent(it) }
@@ -58,7 +57,7 @@ fun World.createContainer(
     }
 }
 
-fun World.collectContainedRecursive(container: EntityId): List<EngineItem> {
+fun ReadComponentAccess.collectContainedRecursive(container: EntityId): List<EngineItem> {
     val visited = mutableSetOf<EntityId>()
     val result = mutableListOf<EngineItem>()
     fun visit(container: EntityId) {

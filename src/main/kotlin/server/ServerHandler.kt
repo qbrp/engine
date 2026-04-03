@@ -9,6 +9,9 @@ import org.lain.engine.container.Item
 import org.lain.engine.debugPacket
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.script.ScriptContext
+import org.lain.engine.script.ScriptId
+import org.lain.engine.script.getVoidScript
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.backupBookContent
 import org.lain.engine.transport.Endpoint
@@ -20,6 +23,7 @@ import org.lain.engine.util.component.get
 import org.lain.engine.util.component.getAll
 import org.lain.engine.util.component.iterate
 import org.lain.engine.util.component.require
+import org.lain.engine.util.component.set
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
@@ -97,10 +101,18 @@ class ServerHandler(
             player.network.tick++
         }
         SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
+        SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx -> onScriptBindings(ctx.sender, bindings) }
     }
 
     fun invalidate() {
         transportContext.unregisterAll()
+    }
+
+    private fun onScriptBindings(player: PlayerId, bindings: ScriptBindings) = updatePlayer(player) {
+        fun <C : ScriptContext> ScriptId.ensureExists() = require(server.namespacedStorage.getVoidScript<C>(this) != null)
+        bindings.base?.ensureExists<ScriptContext.Player>()
+        bindings.attack?.ensureExists<ScriptContext.Player>()
+        set(bindings)
     }
 
     private fun onVoxelBlockHint(player: PlayerId, pos: VoxelPos, action: VoxelBlockHintPacket.Action) = updatePlayer(player) {
@@ -384,7 +396,7 @@ class ServerHandler(
         server.playerStorage.get(player)?.let { onServerNotification(it, notification, once) }
     }
 
-    fun onPlayerInstantiation(player: EnginePlayer) {
+    fun onPlayerInstantiation(player: EnginePlayer, notifications: List<Notification> = listOf()) {
         val playerId = player.id
         val world = player.world
         val packet = PlayerJoinServerPacket(GeneralPlayerData.of(player))
@@ -401,7 +413,8 @@ class ServerHandler(
         val joinGamePacket = JoinGamePacket(
             ServerPlayerData.of(player),
             ClientboundWorldData.of(world),
-            ClientboundSetupData.create(server, player)
+            ClientboundSetupData.create(server, player),
+            notifications
         )
         val task = CLIENTBOUND_JOIN_GAME_ENDPOINT
             .taskS2C(joinGamePacket, playerId)

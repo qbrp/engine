@@ -15,7 +15,8 @@ import org.lain.engine.world.Location
 import org.lain.engine.world.VoxelEvent
 import org.lain.engine.world.WorldSoundPlayRequest
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
 
 typealias EntityId = Int
@@ -50,164 +51,130 @@ fun ComponentWorld.registerComponents() {
     registerComponent<Savable>()
 }
 
-interface ComponentAccess {
-    fun <A : Component> iterate1(kclass1: KClass<A>, action: ComponentAccess.(EntityId, A) -> Unit)
+interface ReadComponentAccess {
+    fun exists(entity: EntityId): Boolean
+    fun getComponents(entity: EntityId, bitMask: LongArray? = null): List<Component>
+    fun hasComponent(entity: EntityId, type: KClass<out Component>): Boolean
+    fun <T : Component> getComponent(entity: EntityId, type: KClass<T>): T?
+}
 
+interface IterationComponentAccess {
+    fun <A : Component> iterate1(kclass1: KClass<A>, action: ReadWriteComponentAccess.(EntityId, A) -> Unit)
     fun <A : Component, B : Component> iterate2(
         kclass1: KClass<A>,
         kclass2: KClass<B>,
-        action: ComponentAccess.(EntityId, A, B) -> Unit
+        action: ReadWriteComponentAccess.(EntityId, A, B) -> Unit
     )
-
     fun <A : Component, B : Component, C : Component> iterate3(
         kclass1: KClass<A>,
         kclass2: KClass<B>,
         kclass3: KClass<C>,
-        action: ComponentAccess.(EntityId, A, B, C) -> Unit
+        action: ReadWriteComponentAccess.(EntityId, A, B, C) -> Unit
     )
-
     fun <A : Component, B : Component, C : Component, D : Component> iterate4(
         kclass1: KClass<A>,
         kclass2: KClass<B>,
         kclass3: KClass<C>,
         kclass4: KClass<D>,
-        action: ComponentAccess.(EntityId, A, B, C, D) -> Unit
+        action: ReadWriteComponentAccess.(EntityId, A, B, C, D) -> Unit
     )
-
     fun <A : Component, B : Component, C : Component, D : Component, E : Component> iterate5(
         kclass1: KClass<A>,
         kclass2: KClass<B>,
         kclass3: KClass<C>,
         kclass4: KClass<D>,
         kclass5: KClass<E>,
-        action: ComponentAccess.(EntityId, A, B, C, D, E) -> Unit
+        action: ReadWriteComponentAccess.(EntityId, A, B, C, D, E) -> Unit
     )
-
-    fun hasComponent(entity: EntityId, type: KClass<out Component>): Boolean
-    fun <T : Component> removeComponent(entity: EntityId, type: KClass<T>): T?
-    fun <T : Component> setComponentWithType(entity: EntityId, component: T, kclass: KClass<T>)
-    fun <T : Component> getComponent(entity: EntityId, type: KClass<T>): T?
-    fun getComponents(entity: EntityId, bitMask: LongArray? = null): List<Component>
-    fun destroy(entity: EntityId)
-    fun markDirty(entity: EntityId, component: KClass<out Component>)
-    fun invalidateStates(entity: EntityId)
-    fun exists(entity: EntityId): Boolean
-    fun addEntity(builder: context(ComponentAccess) EntityId.() -> Unit): EntityId
 }
 
-inline fun <reified A : Component, R> ComponentAccess.collect(crossinline collector: (A) -> R): List<R> {
+interface ReadWriteComponentAccess : ReadComponentAccess, WriteComponentAccess
+
+inline fun <reified A : Component, R> IterationComponentAccess.collect(crossinline collector: (A) -> R): List<R> {
     val list = mutableListOf<R>()
     iterate1<A>(A::class) { _, component -> list += collector(component) }
     return list
 }
 
-inline fun <reified A : Component, reified B : Component, R> ComponentAccess.collect(crossinline collector: (A, B) -> R): List<R> {
+inline fun <reified A : Component, reified B : Component, R> IterationComponentAccess.collect(crossinline collector: (A, B) -> R): List<R> {
     val list = mutableListOf<R>()
     iterate2(A::class, B::class) { _, componentA, componentB, -> list += collector(componentA, componentB) }
     return list
 }
 
-inline fun <reified A : Component> ComponentAccess.iterate(noinline action: ComponentAccess.(EntityId, A) -> Unit) {
+inline fun <reified A : Component> IterationComponentAccess.iterate(noinline action: ReadWriteComponentAccess.(EntityId, A) -> Unit) {
     iterate1(A::class, action)
 }
 
-inline fun <reified A : Component, reified B : Component> ComponentAccess.iterate(noinline action: ComponentAccess.(EntityId, A, B) -> Unit) {
+inline fun <reified A : Component, reified B : Component> IterationComponentAccess.iterate(noinline action: ReadWriteComponentAccess.(EntityId, A, B) -> Unit) {
     iterate2(A::class, B::class, action)
 }
 
-inline fun <reified A : Component, reified B : Component, reified C : Component> ComponentAccess.iterate(noinline action: ComponentAccess.(EntityId, A, B, C) -> Unit) {
+inline fun <reified A : Component, reified B : Component, reified C : Component> IterationComponentAccess.iterate(noinline action: ReadWriteComponentAccess.(EntityId, A, B, C) -> Unit) {
     iterate3(A::class, B::class, C::class, action)
 }
 
-inline fun <reified A : Component, reified B : Component, reified C : Component, reified D : Component> ComponentAccess.iterate(noinline action: ComponentAccess.(EntityId, A, B, C, D) -> Unit) {
+inline fun <reified A : Component, reified B : Component, reified C : Component, reified D : Component> IterationComponentAccess.iterate(noinline action: ReadWriteComponentAccess.(EntityId, A, B, C, D) -> Unit) {
     iterate4(A::class, B::class, C::class, D::class, action)
 }
 
-inline fun <reified A : Component, reified B : Component, reified C : Component, reified D : Component, reified E : Component> ComponentAccess.iterate(noinline action: ComponentAccess.(EntityId, A, B, C, D, E) -> Unit) {
+inline fun <reified A : Component, reified B : Component, reified C : Component, reified D : Component, reified E : Component> IterationComponentAccess.iterate(noinline action: ReadWriteComponentAccess.(EntityId, A, B, C, D, E) -> Unit) {
     iterate5(A::class, B::class, C::class, D::class, E::class, action)
 }
-
-context(world: ComponentAccess)
-inline fun <reified T : Component> EntityId.removeComponent(): T? {
-    return world.removeComponent(this, T::class)
-}
-
-context(world: ComponentAccess)
+context(world: ReadComponentAccess)
 inline fun <reified T : Component> EntityId.hasComponent(): Boolean {
     return world.hasComponent(this, T::class)
 }
 
-context(world: ComponentAccess)
+context(world: ReadComponentAccess)
 inline fun <reified T : Component> EntityId.getComponent(): T? {
     return world.getComponent<T>(this, T::class)
 }
 
-context(world: ComponentAccess)
+context(world: ReadComponentAccess)
 inline fun <reified T : Component> EntityId.requireComponent(): T {
     return getComponent<T>() ?: error("Component ${T::class.simpleName} not found")
 }
 
-context(world: ComponentAccess)
+context(world: WriteComponentAccess)
+inline fun <reified T : Component> EntityId.removeComponent(): T? {
+    return world.removeComponent(this, T::class)
+}
+
+context(world: ReadComponentAccess)
 fun EntityId.getAll(bitMask: LongArray? = null): List<Component> {
     return world.getComponents(this, bitMask)
 }
 
-context(world: ComponentAccess)
+context(world: ReadComponentAccess)
 fun EntityId.exists(): Boolean {
     return world.exists(this)
 }
 
-context(world: ComponentAccess)
-fun EntityId.clearMetaState() {
-    return world.invalidateStates(this)
-}
-
-context(world: ComponentAccess)
-inline fun <reified T : Component> EntityId.setComponent(component: T) {
-    setComponent(component, T::class)
-}
-
-context(world: ComponentAccess)
-fun <T : Component> EntityId.setComponent(component: T, kClass: KClass<T>) {
-    world.setComponentWithType(this, component, kClass)
-}
-
-context(world: ComponentAccess)
-fun EntityId.copyState(componentState: ComponentState) {
-    componentState.forEach { setComponent(it, it::class as KClass<Component>) }
-}
-
-context(world: ComponentAccess)
-fun EntityId.copyState(componentState: List<Component>) {
-    componentState.forEach { setComponent(it, it::class as KClass<Component>) }
-}
-
-context(world: ComponentAccess)
-inline fun <reified T : Component> EntityId.markDirty() {
-    world.markDirty(this, T::class)
-}
-
-context(world: ComponentAccess)
-fun EntityId.destroy() {
-    world.destroy(this)
-}
-
-class ComponentWorld : ComponentAccess {
-    private val arrays = ConcurrentHashMap<KClass<out Component>, ComponentArray<*>>()
+class ComponentWorld(val thread: Thread) : ReadWriteComponentAccess, IterationComponentAccess {
+    private val arrays = mutableMapOf<KClass<out Component>, ComponentArray<*>>()
     private val arraysList = mutableListOf<ComponentArray<*>>()
     private val deltaBitMasks = mutableListOf<LongArray?>()
-    private var destroyed = mutableListOf<Boolean>()
-    private var freeIndexes = LinkedList<EntityId>()
-    private var lastIndex = 0
+
+    // Создание сущностей потокобезопасно. Добавление компонентов - нет
+    private var destroyed = Collections.synchronizedList<Boolean>(mutableListOf())
+    private var freeIndexes = ConcurrentLinkedQueue<EntityId>()
+    private var lastIndex = AtomicInteger()
 
     inline fun <reified T : Component> registerComponent(isSavable: Boolean = false, isNetworking: Boolean = false) {
         registerComponent(T::class, isSavable, isNetworking)
     }
 
     fun <T : Component> registerComponent(type: KClass<T>, isSavable: Boolean = false, isNetworking: Boolean = false) {
+        assertOnThread()
         val arr = ComponentArray<T>(arrays.size, isSavable, isNetworking)
         arrays[type] = arr
         arraysList += arr
+    }
+
+    private fun assertOnThread() {
+        val currentThread = Thread.currentThread()
+        assert(currentThread == thread) { "Invalid thread: ${currentThread.name}. Operations allowed only on ${thread.name} thread" }
     }
 
     override fun markDirty(entity: EntityId, component: KClass<out Component>) {
@@ -237,12 +204,14 @@ class ComponentWorld : ComponentAccess {
     }
 
     fun getDeltaBitMaskIfPreset(entity: EntityId): LongArray? {
+        assertOnThread()
         if (entity !in deltaBitMasks.indices) return null
         val bitMask = deltaBitMasks[entity] ?: return null
         return bitMask
     }
 
     fun getDeltaBitMask(entityId: EntityId): LongArray {
+        assertOnThread()
         while(deltaBitMasks.size <= entityId) deltaBitMasks.add(null)
         val bitMask = deltaBitMasks[entityId] ?: createBitMask().also { deltaBitMasks[entityId] = it }
         return bitMask
@@ -257,6 +226,7 @@ class ComponentWorld : ComponentAccess {
         filters: List<KClass<out Component>>,
         statement: (ComponentArray<*>) -> Boolean
     ): List<Pair<EntityId, ComponentState>> {
+        assertOnThread()
         val filterArrays = filters.map { filter -> arrays[filter] ?: error("No component filter found for $filter") }
         val list = mutableListOf<Pair<EntityId, ComponentState>>()
         loop@ for (entityId in filterArrays.flatMap { it.denseEntities }.toSet()) {
@@ -272,16 +242,17 @@ class ComponentWorld : ComponentAccess {
         return list
     }
 
-    fun addEntity(): EntityId {
+    override fun addEntity(): EntityId {
         val idx = freeIndexes.poll() ?: run {
             destroyed.add(false)
-            lastIndex++
+            lastIndex.getAndIncrement()
         }
         destroyed[idx] = false
         return idx
     }
 
     override fun destroy(entity: EntityId) {
+        assertOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         arrays.forEach { (_, array) -> array.removeComponent(entity) }
         freeIndexes.add(entity)
@@ -289,16 +260,17 @@ class ComponentWorld : ComponentAccess {
     }
 
     override fun exists(entity: EntityId): Boolean {
-        return lastIndex >= entity && !destroyed[entity]
+        return lastIndex.get() >= entity && !destroyed[entity]
     }
 
-    override fun addEntity(builder: context(ComponentAccess) EntityId.() -> Unit): EntityId = with(this) {
+    override fun addEntity(builder: context(WriteComponentAccess) EntityId.() -> Unit): EntityId = with(this) {
         val entity = addEntity()
         entity.builder()
         entity
     }
 
     override fun getComponents(entity: EntityId, bitMask: LongArray?): List<Component> {
+        assertOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         val components = mutableListOf<Component>()
 
@@ -325,6 +297,7 @@ class ComponentWorld : ComponentAccess {
     }
 
     override fun <T : Component> setComponentWithType(entity: EntityId, component: T, kclass: KClass<T>) {
+        assertOnThread()
         val array = getComponentArray(kclass)
         array.setComponent(entity, component)
     }
@@ -333,22 +306,26 @@ class ComponentWorld : ComponentAccess {
         entity: EntityId,
         type: KClass<out Component>
     ): Boolean {
+        assertOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         return getComponentArray(type).componentOf(entity) != null
     }
 
     override fun <T : Component> removeComponent(entity: EntityId, type: KClass<T>): T? {
+        assertOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         val array = getComponentArray(type)
         return array.removeComponent(entity)
     }
 
     override fun <T : Component> getComponent(entity: EntityId, type: KClass<T>): T? {
+        assertOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         return getComponentArray(type).componentOf(entity)
     }
 
-    override fun <A : Component> iterate1(kclass1: KClass<A>, action: ComponentAccess.(EntityId, A) -> Unit) {
+    override fun <A : Component> iterate1(kclass1: KClass<A>, action: ReadWriteComponentAccess.(EntityId, A) -> Unit) {
+        assertOnThread()
         val arr1 = getComponentArray(kclass1)
         for (i in arr1.denseEntities.lastIndex downTo 0) {
             val entity = arr1.denseEntities[i]
@@ -360,8 +337,9 @@ class ComponentWorld : ComponentAccess {
     override fun <A : Component, B : Component> iterate2(
         kclass1: KClass<A>,
         kclass2: KClass<B>,
-        action: ComponentAccess.(EntityId, A, B) -> Unit
+        action: ReadWriteComponentAccess.(EntityId, A, B) -> Unit
     ) {
+        assertOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val smallerArr = listOf(arr1, arr2).minBy { it.components.size }
@@ -378,8 +356,9 @@ class ComponentWorld : ComponentAccess {
         kclass1: KClass<A>,
         kclass2: KClass<B>,
         kclass3: KClass<C>,
-        action: ComponentAccess.(EntityId, A, B, C) -> Unit
+        action: ReadWriteComponentAccess.(EntityId, A, B, C) -> Unit
     ) {
+        assertOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val arr3 = getComponentArray(kclass3)
@@ -399,8 +378,9 @@ class ComponentWorld : ComponentAccess {
         kclass2: KClass<B>,
         kclass3: KClass<C>,
         kclass4: KClass<D>,
-        action: ComponentAccess.(EntityId, A, B, C, D) -> Unit
+        action: ReadWriteComponentAccess.(EntityId, A, B, C, D) -> Unit
     ) {
+        assertOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val arr3 = getComponentArray(kclass3)
@@ -423,8 +403,9 @@ class ComponentWorld : ComponentAccess {
         kclass3: KClass<C>,
         kclass4: KClass<D>,
         kclass5: KClass<E>,
-        action: ComponentAccess.(EntityId, A, B, C, D, E) -> Unit
+        action: ReadWriteComponentAccess.(EntityId, A, B, C, D, E) -> Unit
     ) {
+        assertOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val arr3 = getComponentArray(kclass3)
@@ -449,6 +430,7 @@ class ComponentWorld : ComponentAccess {
 
     @Suppress("UNCHECKED_CAST")
     fun <T : Component> getComponentArray(kclass: KClass<T>): ComponentArray<T> {
+        assertOnThread()
         return arrays[kclass] as? ComponentArray<T> ?: error("No component array for $kclass")
     }
 }

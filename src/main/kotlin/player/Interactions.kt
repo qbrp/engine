@@ -203,7 +203,7 @@ data class InteractionSelection(
     )
 }
 
-fun EnginePlayer.handleInteraction(verb: VerbType, statement: context(ComponentAccess) InteractionComponent.() -> Unit) = with(world) {
+fun EnginePlayer.handleInteraction(verb: VerbType, statement: context(WriteComponentAccess) InteractionComponent.() -> Unit) = with(world) {
     handle<InteractionComponent> {
         if (type.id == verb.id) {
             statement(this)
@@ -253,6 +253,7 @@ fun appendVerbs(player: EnginePlayer) {
     appendPlayerInventoryVerbs(player)
     appendPlayerEquipmentVerbs(player)
     appendFlashlightVerbs(player)
+    appendScriptBindingVerbs(player)
     appendSocialVerbs(player)
 }
 
@@ -289,7 +290,7 @@ fun finishPlayerInteraction(player: EnginePlayer) {
         val continueInteraction = (inSelection || interaction.occupied || interaction.progression != null) && itemsSimilar && actionSimilar
 
         if (!continueInteraction) {
-            player.removeComponent(interaction)
+            player.remove<InteractionComponent>()
             debugPacket("Взаимодействие завершено $interaction")
         }
 

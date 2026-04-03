@@ -10,6 +10,7 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.isLowDetailed
+import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.render.EngineItemDisplayContext
 import org.lain.engine.client.mc.render.updateForLivingEntity
 import org.lain.engine.client.resources.OutfitTag
@@ -48,17 +49,15 @@ data class EquipmentRenderState(
 )
 
 fun GameSession.updatePlayerEntityRenderStates(playerTable: EntityTable) {
-    val renderStates = playerStorage
-        .filter { player -> !player.isLowDetailed }
-        .associateWith { player ->
-            player.replaceOrSet(
-                RenderStateComponent(
-                    EnginePlayerRenderState(player, playerTable.client.getEntity(player.id)!!))
-            ).renderState
+    val renderStates = (MinecraftClient.world?.players ?: return)
+        .mapNotNull { it to (playerTable.client.getPlayer(it) ?: return@mapNotNull null) }
+        .filter { (entity, player) -> !player.isLowDetailed }
+        .associate { (entity, player) ->
+            player to player.replaceOrSet(RenderStateComponent(EnginePlayerRenderState(player, entity))).renderState
         }
 
     world.iterate<PlayerEquipment, Entries>() { _, (player), (entries) ->
-        val renderState = renderStates[player]!!
+        val renderState = renderStates[player] ?: return@iterate
         val items = entries
             .filter { it.require<Outfit>().display == OutfitDisplay.Separated }
         renderState.detachedEquipment = createModelPartEquipmentRenderStates(items, renderState.entity, player)

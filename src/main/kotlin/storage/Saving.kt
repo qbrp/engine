@@ -13,12 +13,14 @@ import org.lain.engine.item.*
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.server.EngineServer
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.component.*
 import org.lain.engine.world.World
-import org.lain.engine.world.location
+import org.lain.engine.world.WorldId
 import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
+import java.util.concurrent.ConcurrentLinkedQueue
 
 val ItemIoCoroutineScope = CoroutineScope(Dispatchers.IO.limitedParallelism(4) + SupervisorJob())
 
@@ -134,31 +136,11 @@ fun dataFixItem(item: ProtoItem, storage: NamespacedStorage) {
     }
 }
 
-suspend fun EngineMinecraftServer.loadItemStack(itemStack: ItemStack, owner: EnginePlayer): EngineItem? {
-    val reference = itemStack.engine() ?: return null
-    val uuid = reference.uuid
-    return database.loadWorldItem(uuid, owner, engine.namespacedStorage, engine.itemStorage)
-}
-
-suspend fun Database.loadWorldItem(
-    uuid: ItemUuid,
-    owner: EnginePlayer,
-    contents: NamespacedStorage,
-    itemStorage: ItemStorage
-): EngineItem? {
-    itemStorage.getItem(uuid)?.let { item -> return item }
-    val (id, persistentItemData) = loadPersistentItemData(uuid) ?: return null
-    val world = owner.world
-    val result = loadItem(persistentItemData, owner.location, id, uuid)
-    val protoItem = result.protoItem
-    val containers = result.containers
-        .map { world.instantiateEntity(it, loadEntity(it) ?: error("Контейнер $it не найден") ) }
-    dataFixItem(protoItem, contents)
-    containers.forEach { container -> protoItem.entityState?.set(ContainedIn(container)) }
-    return instantiateItem(protoItem, itemStorage)
-}
-
-class ItemLoader(private val server: EngineMinecraftServer) {
+class ItemLoader(
+    private val server: EngineServer,
+    private val database: Database
+) {
+    private val commandBuffers = ConcurrentLinkedQueue<Pair<WorldId, EntityCommandBuffer>>()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val items = mutableMapOf<ItemUuid, Long>()
     private val notFound = mutableSetOf<ItemUuid>()
@@ -167,19 +149,52 @@ class ItemLoader(private val server: EngineMinecraftServer) {
 
     fun isNotFound(item: ItemUuid) = item in notFound
 
-    fun loadItemStack(itemStack: ItemStack, owner: EnginePlayer) {
+    suspend fun loadWorldItem(
+        uuid: ItemUuid,
+        world: World,
+    ): EngineItem? {
+        server.itemStorage.getItem(uuid)?.let { item -> return item }
+        val (id, persistentItemData) = database.loadPersistentItemData(uuid) ?: run {
+            notFound.add(uuid)
+            return null
+        }
+        val result = loadItem(persistentItemData, world, id, uuid)
+        val protoItem = result.protoItem
+        val container = result.container?.let { database.loadEntity(it) ?: error("Контейнер $it не найден") }
+        dataFixItem(protoItem, server.namespacedStorage)
+
+        val commandBuffer = EntityCommandBuffer(world)
+        container?.let { components -> protoItem.entityState?.set(ContainedIn(commandBuffer.instantiateEntity(result.container, components))) }
+        val item = commandBuffer.instantiateItem(protoItem, server.itemStorage)
+        commandBuffers += world.id to commandBuffer
+        return item
+    }
+
+    suspend fun loadItemStack(itemStack: ItemStack, owner: EnginePlayer): EngineItem? {
+        val reference = itemStack.engine() ?: return null
+        val uuid = reference.uuid
+        return loadWorldItem(uuid, owner.world)
+    }
+
+    fun loadItemStackWrapping(itemStack: ItemStack, owner: EnginePlayer) {
         val uuid = itemStack.engine()?.uuid ?: return
         val time = items[uuid]
         val currentTimeMillis = System.currentTimeMillis()
         if (time == null || currentTimeMillis - time > TIMEOUT) {
             items[uuid] = currentTimeMillis
             coroutineScope.launch {
-                val item = server.loadItemStack(itemStack, owner) ?: run {
+                val item = loadItemStack(itemStack, owner) ?: run {
                     notFound.add(uuid)
                     return@launch
                 }
-                server.engine.execute { wrapEngineItemStack(item, itemStack) }
+                server.execute { wrapEngineItemStack(item, itemStack) }
             }
+        }
+    }
+
+    fun applyCommands(world: World) {
+        commandBuffers.forEach { (worldId, buffer) ->
+            if (world.id == worldId) buffer.apply(world)
         }
     }
 

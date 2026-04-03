@@ -12,8 +12,8 @@ import kotlinx.serialization.serializer
 import org.lain.engine.container.*
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.component.WriteComponentAccess
 import org.lain.engine.util.component.setComponent
-import org.lain.engine.world.World
 import java.util.*
 
 fun PolymorphicModuleBuilder<Component>.polymorphicComponent() {
@@ -52,8 +52,8 @@ fun deserializeEntityComponents(array: ByteArray): List<Component> {
     return ENTITY_CBOR.decodeFromByteArray(ListSerializer(serializer<Component>()), array)
 }
 
-fun World.instantiateEntity(id: PersistentId, components: List<Component>): EntityId {
-    return componentManager.addEntity {
+fun WriteComponentAccess.instantiateEntity(id: PersistentId, components: List<Component>): EntityId {
+    return addEntity {
         setComponent(id)
         components.forEach { setComponent(it) }
     }

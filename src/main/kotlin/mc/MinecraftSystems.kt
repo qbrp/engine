@@ -14,7 +14,6 @@ import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.desync
-import org.lain.engine.storage.ItemLoader
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.*
@@ -89,11 +88,11 @@ fun updateServerMinecraftSystems(
     server: EngineMinecraftServer,
     table: ServerPlayerTable,
     players: List<EnginePlayer>,
-    itemStorage: ItemStorage,
-    itemLoader: ItemLoader,
     connectionManager: ServerConnectionManager?
 ) {
     val engine = server.engine
+    val itemStorage = engine.itemStorage
+    val itemLoader = engine.itemLoader
     val notUpdatedPlayers = players.toMutableList()
 
     removeHoldsByMarks(itemStorage.getAll())
@@ -122,7 +121,7 @@ fun updateServerMinecraftSystems(
                 val uuid = reference.uuid
                 if (item == null) {
                     if (!itemLoader.isLoading(uuid)) {
-                        itemLoader.loadItemStack(itemStack, player)
+                        itemLoader.loadItemStackWrapping(itemStack, player)
                     } else if (itemLoader.isNotFound(uuid)) {
                         detachEngineItemStack(itemStack)
                     }
@@ -181,6 +180,12 @@ fun updatePlayerMinecraftSystems(
         location.position.y - velocity.prev.y,
         location.position.z - velocity.prev.z
     )
+
+    val setVelocity = velocity.set
+    if (setVelocity != null) {
+        entity.velocity = setVelocity.toMinecraft()
+        velocity.set = null
+    }
 
     player.apply<OrientationTranslation> {
         if (yaw != 0f) {

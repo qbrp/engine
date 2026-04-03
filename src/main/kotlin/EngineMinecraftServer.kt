@@ -30,14 +30,13 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
-import org.lain.engine.util.component.require
-import org.lain.engine.util.component.set
-import org.lain.engine.util.component.setComponent
 import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.world.*
+import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.world.updateVoxelEvents
+import org.lain.engine.world.world
 
 data class EngineMinecraftServerDependencies(
     val minecraftServer: MinecraftServer,
@@ -62,10 +61,9 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         acousticSimulator,
         this,
         minecraftServer.thread,
-        minecraftServer.getSavePath(WorldSavePath.ROOT).toFile()
+        minecraftServer.getSavePath(WorldSavePath.ROOT).toFile(),
+        database
     )
-
-    protected val itemLoader = ItemLoader(this)
 
     protected abstract val transportContext: ServerTransportContext
     protected open val connectionManager: ServerConnectionManager? = null
@@ -75,9 +73,9 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     )
     protected var luaContext = LuaContext(ENGINE_DIR.scripts, engine.luaEntrypointDir)
 
-    open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem {
+    open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
         val item = instantiateItem(
-            owner.world,
+            this,
             engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден"),
             engine.itemStorage
         )
@@ -94,7 +92,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     open fun tick() {
         if (!minecraftServer.isRunning) return
         val players = engine.playerStorage.getAll()
-        updateServerMinecraftSystems(this, entityTable, players, engine.itemStorage, itemLoader, connectionManager)
+        updateServerMinecraftSystems(this, entityTable, players, connectionManager)
         engine.listWorlds().forEach { world -> world.players.forEach { player -> updatePlayerOwnedItems(world, player) } }
         engine.update()
         updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld)
@@ -120,7 +118,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         minecraftServer.worlds.forEach {
             val id = it.engine
             engine.addWorld(
-                world(id) { chunkPos ->
+                world(id, engine.thread) { chunkPos ->
                     it.chunkManager.chunkLoadingManager.getPlayersWatchingChunk(ChunkPos(chunkPos.x, chunkPos.z), false)
                         .mapNotNull { entity -> entityTable.getPlayer(entity) }
                 }
@@ -193,107 +191,23 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 }
 
-fun serverMinecraftPlayerInstance(
-    persistentPlayerData: PersistentPlayerData?,
-    server: EngineMinecraftServer,
+fun serverMinecraftPlayerLoadSettings(
     entity: PlayerEntity,
     playerId: PlayerId,
-    developerModeStatus: DeveloperModeStatus
-): EnginePlayer {
-    val engine = server.engine
-    val defaults = engine.globals.defaultPlayerAttributes
+    developerModeStatus: DeveloperModeStatus,
+    notifications: List<Notification>
+): PlayerLoadSettings {
     val stacks = entity.inventory.mainStacks
 
-    return serverPlayerInstance(
-        PlayerInstantiateSettings(
-            engine.getWorld(entity.entityWorld.engine),
-            entity.entityPos.engine(),
-            DisplayName(
-                Username(entity.name),
-                persistentPlayerData?.customName?.toDomain(entity.name.string)
-            ),
-            MovementStatus(
-                intention = persistentPlayerData?.speedIntention ?: MovementStatus.DEFAULT_INTENTION,
-                stamina = persistentPlayerData?.stamina ?: MovementStatus.DEFAULT_STAMINA
-            ),
-            PlayerAttributes(),
-            Spectating(),
-            GameMaster(),
-            developerModeStatus,
-            stacks
-                .mapNotNull { it.engineItem() }
-                .toSet(),
-            persistentPlayerData?.skinEyeY ?: 0f
-        ),
-        persistentPlayerData,
-        defaults,
-        playerId
+    return PlayerLoadSettings(
+        playerId,
+        stacks.mapNotNull { it.engine()?.uuid },
+        notifications,
+        entity.entityPos.engine(),
+        entity.name.string,
+        developerModeStatus,
+        entity.entityWorld.engine
     )
-}
-
-suspend fun prepareServerMinecraftPlayer(
-    server: EngineMinecraftServer,
-    mainStacks: List<ItemStack>,
-    player: EnginePlayer,
-    equipmentItems: Map<EquipmentSlot, ItemUuid>
-) = withContext(Dispatchers.IO) {
-    val engine = server.engine
-    val inventoryItems = async {
-        val items = mutableListOf<Deferred<EngineItem?>>()
-        for (itemStack in mainStacks) {
-            val reference = itemStack.engine() ?: continue
-            if (reference.getItem() == null) {
-                items.add(
-                    async { server.loadItemStack(itemStack, player) }
-                )
-            }
-        }
-        items.awaitAll().filterNotNull()
-    }
-
-    val world = player.world
-    val equipment = async {
-        equipmentItems
-            .toList()
-            .map { (slot, uuid) ->
-                async {
-                    val item = server.database.loadWorldItem(uuid, player, engine.namespacedStorage, engine.itemStorage)
-                    slot to item
-                }
-            }
-            .awaitAll()
-            .filter { (_, item) -> item != null }
-            .toMap() as Map<EquipmentSlot, EngineItem>
-    }
-
-    player.require<PlayerInventory>().items.addAll(inventoryItems.await())
-    player.prepareContainers(PersistentId.next(), world, player.location, equipment.await())
-}
-
-fun EnginePlayer.prepareContainers(
-    persistentId: PersistentId,
-    world: World,
-    location: Location,
-    equipmentItems: Map<EquipmentSlot, EngineItem>
-) = with(world) {
-    val playerUuid = this@prepareContainers.id
-    val void = world.createContainer(
-        location,
-        networked = true,
-        persistentId = PersistentId("inventory-$playerUuid"),
-    )
-    void.setComponent(PlayerContainerTag)
-    set(PlayerContainer(void))
-
-    val container = world.createSlotContainer(
-        location,
-        EquipmentSlot.slotIds,
-        networked = true,
-        items = equipmentItems.mapKeys { (slot, _) -> slot.slotId },
-        persistentId = persistentId
-    )
-    container.setComponent(PlayerEquipment(this@prepareContainers))
-    set(Equipment(container))
 }
 
 fun PlayerEntity.copyMainStacks() = inventory.mainStacks.map { it.copy() }

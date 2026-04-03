@@ -11,7 +11,6 @@ import org.lain.engine.player.OutfitDisplay
 import org.lain.engine.player.PlayerPart
 import org.lain.engine.util.component.*
 import org.lain.engine.util.then
-import org.lain.engine.world.Location
 import org.lain.engine.world.World
 
 @Serializable
@@ -42,6 +41,10 @@ fun <T : ItemData> MutableList<ItemData>.addIf(statement: () -> Boolean, compone
 
 fun <T : Any> MutableCollection<T>.addIfNotNull(component: T?) {
     if (component != null) this += component
+}
+
+fun <T : Any> MutableCollection<T>.addIfNotNull(component: () -> T?) {
+    addIfNotNull(component())
 }
 
 inline fun <reified T : Component> ComponentManager.wrap(statement: (T) -> ItemData): ItemData? {
@@ -118,14 +121,14 @@ fun deserializeItemPersistentComponents(array: ByteArray): List<ItemData> {
  */
 data class ItemLoadResult(
     val protoItem: ProtoItem,
-    val containers: List<PersistentId>,
+    val container: PersistentId?
 )
 
 // Чистая функция
-fun loadItem(data: PersistentItemData, location: Location, id: ItemId, uuid: ItemUuid): ItemLoadResult {
+fun loadItem(data: PersistentItemData, world: World, id: ItemId, uuid: ItemUuid): ItemLoadResult {
     val components = mutableSetOf<Component>()
     val entityComponents = mutableSetOf<Component>()
-    val containers = mutableListOf<PersistentId>()
+    var container: PersistentId? = null
 
     fun processComponent(component: ItemData) {
         when(component) {
@@ -168,11 +171,11 @@ fun loadItem(data: PersistentItemData, location: Location, id: ItemId, uuid: Ite
             is ItemData.Mass ->
                 components.add(Mass(component.value))
             is ItemData.Contained -> {
-                containers.addIfNotNull(PersistentId(component.containedIn))
+                container = PersistentId(component.containedIn)
                 entityComponents.addIfNotNull(component.assignedSLot)
             }
             is ItemData.Container -> {
-                containers.addIfNotNull(component.persistentId)
+                container = component.persistentId
             }
             is ItemData.EntityComponents -> component.components.forEach { processComponent(it) }
         }
@@ -182,11 +185,11 @@ fun loadItem(data: PersistentItemData, location: Location, id: ItemId, uuid: Ite
 
     return ItemLoadResult(
         itemInstance(
-            location.world,
+            world,
             uuid, id,
             ComponentState(components.toList()),
             ComponentState(entityComponents.toList())
         ),
-        containers.toList(),
+        container
     )
 }

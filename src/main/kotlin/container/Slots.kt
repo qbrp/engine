@@ -2,6 +2,7 @@ package org.lain.engine.container
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemStorage
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.component.*
 import org.lain.engine.world.Location
@@ -23,7 +24,7 @@ value class SlotId(val id: String) {
     override fun toString(): String = id
 }
 
-fun World.createSlotContainer(
+fun WriteComponentAccess.createSlotContainer(
     location: Location,
     slots: Set<SlotId>,
     networked: Boolean = false,
@@ -83,4 +84,15 @@ fun detachSlotContainers(world: World) {
         val slot = detachedItem.entity.removeComponent<AssignedSlot>()?.slot ?: return@iterate
         occupiedSlots.remove(slot)
     }
+}
+
+fun updateContainerSystems(world: World, itemStorage: ItemStorage) {
+    updateSlotContainers(world)
+    updateContainerOperations(world, itemStorage)
+    detachSlotContainers(world)
+}
+
+fun postUpdateContainerSystems(world: World) {
+    updateContainedPlayerInventoryItems(world)
+    clearAssignItemsOperations(world)
 }

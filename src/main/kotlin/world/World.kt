@@ -8,11 +8,12 @@ object Event : Component
 
 class World(
     val id: WorldId,
+    val componentManager: ComponentWorld,
     val players: MutableList<EnginePlayer> = mutableListOf(),
-    val componentManager: ComponentWorld = ComponentWorld(),
     val playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null,
-) : ComponentAccess by componentManager {
+) : ReadWriteComponentAccess by componentManager, IterationComponentAccess by componentManager {
     val chunkStorage: ChunkStorage = ChunkStorage(this)
+    var ticks = 0L
 
     init {
         componentManager.registerComponents()
@@ -38,7 +39,7 @@ class World(
     }
 }
 
-fun world(id: WorldId, playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null): World {
-    return World(id, playersWatchingChunkProvider=playersWatchingChunkProvider)
+fun world(id: WorldId, thread: Thread, playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null): World {
+    return World(id, playersWatchingChunkProvider=playersWatchingChunkProvider, componentManager = ComponentWorld(thread))
 }
 

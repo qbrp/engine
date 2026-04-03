@@ -26,7 +26,9 @@ import net.minecraft.text.Text
 import net.minecraft.util.Hand
 import net.minecraft.util.profiler.Profilers
 import net.minecraft.world.chunk.Chunk
-import org.lain.engine.*
+import org.lain.engine.AuthPacket
+import org.lain.engine.EngineMinecraftServerDependencies
+import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.render.EngineUiRenderPipeline
 import org.lain.engine.client.mc.render.InteractionSelectionScreen
@@ -50,7 +52,7 @@ import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
-import org.lain.engine.storage.parsePersistentPlayerData
+import org.lain.engine.serverMinecraftPlayerLoadSettings
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
@@ -245,10 +247,7 @@ class MinecraftEngineClient : ClientModInitializer {
                 else -> e.message ?: "Неизвестная ошибка"
             }
 
-            client.networkHandler?.connection?.disconnect(DisconnectText(text)) ?: run {
-                connectionLogger.warn("Игрок отключен от несуществующего сервера")
-            }
-
+            disconnectWithReason(DisconnectText(text))
             onDisconnect()
         }
         Profilers.get().pop()
@@ -347,24 +346,28 @@ class MinecraftEngineClient : ClientModInitializer {
         if (client.isInSingleplayer) {
             val server = server ?: throw RuntimeException("Server not started")
             val engine = server.engine
-            val persistent = parsePersistentPlayerData(entity.engineId)
-            val player = serverMinecraftPlayerInstance(persistent, server, entity, entity.engineId, developerMode)
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                prepareServerMinecraftPlayer(server, entity.copyMainStacks(), player, persistent?.equipment ?: mapOf())
-                engine.execute {
-                    engine.instantiatePlayer(player)
-                }
+                engine.playerLoader.loadPreparing(
+                    settings = serverMinecraftPlayerLoadSettings(entity, entity.engineId, developerMode, listOf()),
+                    exceptionHandler = { disconnectWithReason(DisconnectText(it)) }
+                )
             }
         } else {
-        SERVERBOUND_AUTH_ENDPOINT
-            .sendC2SPacket(
-                AuthPacket(
-                    MinecraftUsername(entity),
-                    fabricLoader.allMods.map { it.metadata.id },
-                    developerMode,
-                    ENGINE_MOD_VERSION
+            SERVERBOUND_AUTH_ENDPOINT
+                .sendC2SPacket(
+                    AuthPacket(
+                        MinecraftUsername(entity),
+                        fabricLoader.allMods.map { it.metadata.id },
+                        developerMode,
+                        ENGINE_MOD_VERSION
+                    )
                 )
-            )
+        }
+    }
+
+    private fun disconnectWithReason(text: Text) {
+        client.networkHandler?.connection?.disconnect(text) ?: run {
+            connectionLogger.warn("Игрок отключен от несуществующего сервера")
         }
     }
 }

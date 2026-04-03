@@ -12,13 +12,10 @@ import org.lain.engine.mc.engineId
 import org.lain.engine.mc.getPlayer
 import org.lain.engine.mc.hasPermission
 import org.lain.engine.mc.isOp
-import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.server.Notification
 import org.lain.engine.server.network
-import org.lain.engine.storage.PersistentPlayerData
-import org.lain.engine.storage.parsePersistentPlayerData
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.ServerTransportContext
@@ -145,20 +142,11 @@ class ServerAuthorizationListener(
             notifications += Notification.FREECAM
         }
 
-        val persistent = parsePersistentPlayerData(id)
-        val player = newAuthorizedPlayerInstance(persistent, connection, entity, packet.developerMode)
         coroutineScope.launch {
-            runCatching { prepareServerMinecraftPlayer(server, entity.copyMainStacks(), player, persistent?.equipment ?: mapOf()) }
-                .onFailure {
-                    connectionManager.disconnect(player.id, it)
-                    return@launch
-                }
-            engine.execute {
-                runCatching {
-                    engine.instantiatePlayer(player)
-                    notifications.forEach { engine.handler.onServerNotification(player, it, false) }
-                }.onFailure { connectionManager.disconnect(player.id, it) }
-            }
+            engine.playerLoader.loadPreparing(
+                settings = serverMinecraftPlayerLoadSettings(entity, id, packet.developerMode, notifications),
+                exceptionHandler = { connectionManager.disconnect(id, it) }
+            )
         }
     }
 
@@ -168,15 +156,6 @@ class ServerAuthorizationListener(
             .forEach {
                 it.sendMessage("<red>[!]<reset><gold> $username зашел на сервер с $id</gold>".parseMiniMessage())
             }
-    }
-
-    private fun newAuthorizedPlayerInstance(
-        persistentPlayerData: PersistentPlayerData?,
-        connectionSession: ConnectionSession,
-        entity: ServerPlayerEntity,
-        developerModeStatus: DeveloperModeStatus
-    ): EnginePlayer {
-        return serverMinecraftPlayerInstance(persistentPlayerData, server, entity, connectionSession.playerId, developerModeStatus)
     }
 
     companion object {

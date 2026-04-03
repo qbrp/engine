@@ -66,7 +66,10 @@ fun updateAcousticHearing(player: EnginePlayer, handler: ServerHandler, settings
     handler.onOutcomingMessage(recipient, message)
 }
 
+
+// МЕХАНИКА ОТКЛЮЧЕНА
 fun EnginePlayer.appendTinnitus(tinnitus: Tinnitus) = handle<Hearing> {
+    return@handle
     val oldTinnitus = this.tinnitus
     if (oldTinnitus == null) {
         this.tinnitus = Hearing.ActiveTinnitus(tinnitus, 0)
@@ -75,7 +78,7 @@ fun EnginePlayer.appendTinnitus(tinnitus: Tinnitus) = handle<Hearing> {
         this.tinnitus = Hearing.ActiveTinnitus(
             tinnitus.copy(
                 trauma = oldTinnitus.tinnitus.trauma + tinnitus.trauma,
-                duration = newDuration
+                duration = newDuration.coerceAtLeast(1)
             ),
             (oldTinnitus.elapsed - newDuration).coerceAtLeast(0)
         )

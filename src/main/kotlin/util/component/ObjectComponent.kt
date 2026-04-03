@@ -1,8 +1,10 @@
 package org.lain.engine.util.component
 
+import org.luaj.vm2.ast.Str
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
+import kotlin.reflect.jvm.jvmName
 
 //// Exception
 
@@ -54,9 +56,9 @@ interface ComponentManager : Iterable<Component> {
 
     // Getters
 
-    fun <T : Component> getComponent(clazz: KClass<T>): T?
+    fun <T : Component> getComponent(clazzName: String): T?
 
-    fun <T : Component> getComponentsOfClass(clazz: KClass<T>): List<T>
+    fun <T : Component> getComponent(clazz: KClass<T>): T?
 
     fun copyTo(componentState: ComponentManager)
 }
@@ -68,6 +70,7 @@ fun ComponentState(builder: ComponentState.() -> Unit): ComponentState {
 @Suppress("UNCHECKED_CAST")
 class ComponentState(components: List<Component> = emptyList()) : ComponentManager {
     private val components = ConcurrentHashMap<KClass<out Component>, Component>()
+    private val byName = ConcurrentHashMap<String, Component>()
 
     init { components.forEach { setComponent<Component>(it::class as KClass<Component>, it) } }
 
@@ -79,6 +82,8 @@ class ComponentState(components: List<Component> = emptyList()) : ComponentManag
         val old = components.putIfAbsent(type, component)
         if (old != null) {
             throw ComponentCollisionException("Component ${component::class} already added")
+        } else {
+            byName[type.componentName] = component
         }
         return component
     }
@@ -86,25 +91,29 @@ class ComponentState(components: List<Component> = emptyList()) : ComponentManag
     override fun <T : Component> removeComponent(component: T): T? {
         return components.entries
             .firstOrNull { it.value === component }
-            ?.let { (cls, _) -> components.remove(cls) as? T? }
+            ?.let { (cls, _) -> removeComponent(cls) as T? }
     }
 
     override fun <T : Component> removeComponent(type: KClass<T>): T? {
-        return components.remove(type) as? T?
+        val result = components.remove(type) as? T?
+        if (result != null) byName.remove(type.componentName)
+        return result
+    }
+
+    override fun <T : Component> getComponent(clazzName: String): T? {
+        return byName[clazzName] as? T
     }
 
     override fun <T : Component> getComponent(clazz: KClass<T>): T? {
         return components[clazz] as? T
     }
 
-    override fun <T : Component> getComponentsOfClass(clazz: KClass<T>): List<T> {
-        val comp = components[clazz] as? T
-        return if (comp != null) listOf(comp) else emptyList()
-    }
-
     override fun copyTo(componentState: ComponentManager){
         getComponents().forEach { componentState.set(it) }
     }
+
+    private val KClass<out Component>.componentName
+        get() = (simpleName ?: jvmName).lowercase()
 }
 
 

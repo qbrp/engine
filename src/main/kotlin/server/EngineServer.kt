@@ -1,12 +1,20 @@
 package org.lain.engine.server
 
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.trySendJoinMessage
 import org.lain.engine.chat.trySendLeaveMessage
-import org.lain.engine.container.*
+import org.lain.engine.container.createContainer
+import org.lain.engine.container.postUpdateContainerSystems
+import org.lain.engine.container.updateContainerSystems
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.script.Callbacks
+import org.lain.engine.script.ScriptContext
+import org.lain.engine.script.scriptContext
+import org.lain.engine.storage.ItemLoader
+import org.lain.engine.storage.playerData
 import org.lain.engine.storage.savePersistentPlayerData
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
@@ -18,6 +26,7 @@ import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.*
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Executor
 
 class EngineServer(
     id: ServerId,
@@ -26,7 +35,8 @@ class EngineServer(
     val eventListener: ServerEventListener,
     val thread: Thread,
     savePath: File,
-) {
+    database: Database
+): Executor {
     val globals: ServerGlobals = ServerGlobals(id, savePath=savePath)
     val handler = ServerHandler(this)
 
@@ -38,9 +48,13 @@ class EngineServer(
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val itemStorage = ItemStorage()
     val namespacedStorage = NamespacedStorage()
+    val voidContainer by lazy { defaultWorld.createContainer(Location(defaultWorld, Vec3(0f))) }
+    var callbacks = Callbacks()
+    val itemLoader = ItemLoader(this, database)
+    val playerLoader = PlayerLoader(this, itemLoader)
+
     val defaultWorld
         get() = worlds.toList().first().second
-    val voidContainer by lazy { defaultWorld.createContainer(Location(defaultWorld, Vec3(0f))) }
 
     fun listWorlds() = worlds.values
 
@@ -59,6 +73,11 @@ class EngineServer(
         val start = Timestamp()
         val players = playerStorage.getAll()
         val vocalSettings = globals.vocalSettings
+
+        allWorlds().forEach { world ->
+            itemLoader.applyCommands(world)
+            playerLoader.applyCommands(world)
+        }
 
         taskQueue.flush { it.run() }
 
@@ -84,6 +103,7 @@ class EngineServer(
             handleFlashlightInteractions(player)
             handlePlayerEquipmentInteractionProgression(player)
             handlePlayerEquipmentInteraction(player)
+            handleHandScriptInteractions(player)
             finishPlayerInteraction(player)
 
             tickInventoryGun(playerItems)
@@ -98,19 +118,20 @@ class EngineServer(
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
             updateBulletsAcoustic(world)
-            updateSlotContainers(world)
-            updateContainerOperations(world, itemStorage)
-            detachSlotContainers(world)
+            updateContainerSystems(world, itemStorage)
+            val scriptContext = ScriptContext.World(world)
+            callbacks.worldTick.execute(scriptContext)
+            if (world.ticks % 20 == 0L) {
+                callbacks.worldTickSecond.execute(scriptContext)
+            }
+            world.ticks++
         }
         handler.tick()
         tickTimes.add(start.timeElapsed().toInt())
     }
 
     fun postUpdate() {
-        listWorlds().forEach { world ->
-            updateContainedPlayerInventoryItems(world)
-            clearAssignItemsOperations(world)
-        }
+        listWorlds().forEach { world -> postUpdateContainerSystems(world) }
     }
 
     fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {
@@ -119,16 +140,17 @@ class EngineServer(
         handler.onServerSettingsUpdate()
     }
 
-    fun instantiatePlayer(player: EnginePlayer) {
+    fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) {
         val world = player.world
         eventListener.onPlayerInstantiated(player)
 
         player.startSpectating()
         playerStorage.add(player.id, player)
         world.players += player
-        handler.onPlayerInstantiation(player)
+        handler.onPlayerInstantiation(player, notifications)
 
         chat.trySendJoinMessage(player)
+        callbacks.playerInstantiate.execute(player.scriptContext)
     }
 
     fun destroyPlayer(player: EnginePlayer) = with(player.world) {
@@ -142,10 +164,11 @@ class EngineServer(
 
         chat.trySendLeaveMessage(player)
         handler.onPlayerDestroy(player)
-        savePersistentPlayerData(player)
+        callbacks.playerDestroy.execute(player.scriptContext)
+        globals.savePath.playerData.savePersistentPlayerData(player)
     }
 
-    fun execute(r: Runnable) {
+    override fun execute(r: Runnable) {
         if (isOnThread()) {
             r.run()
         } else {

@@ -7,6 +7,7 @@ import org.lain.engine.player.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
+import org.lain.engine.util.component.ComponentWorld
 import org.lain.engine.util.component.getOrSet
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.World
@@ -75,6 +76,6 @@ fun clientItem(world: World, item: ClientboundItemData): ProtoItem {
     )
 }
 
-fun clientWorld(data: ClientboundWorldData) = World(data.id).apply {
+fun clientWorld(thread: Thread, data: ClientboundWorldData) = World(data.id, componentManager = ComponentWorld(thread)).apply {
     componentManager.registerComponentsClient()
 }

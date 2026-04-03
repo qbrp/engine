@@ -20,7 +20,6 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.instantiateItem
 import org.lain.engine.player.*
 import org.lain.engine.server.Notification
 import org.lain.engine.storage.PersistentId
@@ -242,11 +241,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         playerData: ServerPlayerData,
         worldData: ClientboundWorldData,
         data: ClientboundSetupData,
+        notifications: List<Notification>
     ) = runBlocking {
         if (client.gameSession != null) {
             error("Игровая сессия уже запущена!")
         }
-        val world = clientWorld(worldData)
+        val world = clientWorld(client.thread, worldData)
         val gameSession = GameSession(
             data.serverId,
             world,
@@ -258,6 +258,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
         client.joinGameSession(gameSession)
         gameSession.chatManager.updateSettings(data.settings.chat)
+        notifications.forEach { applyNotification(it, false) }
     }
 
     fun applyServerSettingsUpdate(settings: ClientboundServerSettings) = with(gameSession!!) {
@@ -316,7 +317,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             Notification.ACOUSTIC_ERROR -> {
                 LittleNotification(
                     "Акустика сломалась",
-                    "<red>При обработке сообщения акустической системой возникла ошибка. Ваше сообщения не будет видно другим игрокам.",
+                    "При обработке сообщения акустической системой возникла ошибка. Ваше сообщения не будет видно другим игрокам.",
                     color = WARNING_COLOR,
                     sprite = WARNING,
                     lifeTime = 240
@@ -336,8 +337,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun applyItemPacket(item: ClientboundItemData) = with(gameSession!!) {
-        val item = clientItem(world, item)
-        fun add() = instantiateItem(item, itemStorage)
+        fun add() = instantiateItem(item)
 
         try {
             add()
@@ -345,7 +345,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             itemStorage.remove(item.uuid)
             add()
 
-            LOGGER.warn("Предмет ${item.prefabId} (${item.uuid}) был перезаписан")
+            LOGGER.warn("Предмет ${item.id} (${item.uuid}) был перезаписан")
         }
     }
 
@@ -377,7 +377,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun applyEntity(persistentId: PersistentId, components: List<Component>) = with(gameSession!!.world) {
-        val entity = synchronizedEntities[persistentId] ?: addEntity { setComponent(persistentId) }.also { synchronizedEntities[persistentId] = it }
+        val entity = synchronizedEntities[persistentId] ?: run {
+            val e = addEntity().also { synchronizedEntities[persistentId] = it }
+            e.setComponent(persistentId)
+            e
+        }
         entity.copyState(components)
     }
 

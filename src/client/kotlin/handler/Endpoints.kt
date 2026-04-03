@@ -11,7 +11,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     clientAcknowledgeHandler.run()
 
     CLIENTBOUND_JOIN_GAME_ENDPOINT.registerClientReceiver { ctx ->
-        taskExecutor.add("join_game") { applyJoinGame(playerData, worldData, setupData) }
+        taskExecutor.add("join_game") { applyJoinGame(playerData, worldData, setupData, notifications) }
     }
 
     // Players
