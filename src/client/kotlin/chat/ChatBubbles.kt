@@ -4,6 +4,7 @@ import org.lain.engine.client.mc.render.world.LabelRenderState
 import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerId
 import org.lain.engine.player.canSee
 import org.lain.engine.player.eyePos
 import org.lain.engine.util.math.MutableVec3
@@ -25,7 +26,7 @@ data class ChatBubble(
     val expiration: Int,
     var lifetime: Float,
     var remove: Boolean = false,
-    var canSee: Boolean = false,
+    var canSee: Boolean = true,
     var tick: Int = 0,
     var squaredDistanceToCamera: Float = 0f,
 )
@@ -65,8 +66,14 @@ class ChatBubbleList(
         )
     }
 
-    fun tick() {
-        bubbles.forEach { if (it.tick++ % 20 == 0) updateChatBubbleCanSee(it) }
+    fun tick(mainPlayer: EnginePlayer) {
+        val players = mutableMapOf<PlayerId, Boolean>()
+        bubbles.forEach { bubble ->
+            if (bubble.tick++ % 20 == 0) {
+                val canSeeAuthor = players.computeIfAbsent(bubble.player.id) { mainPlayer.canSee(VoxelPos(bubble.player.pos), true) }
+                if (!canSeeAuthor) updateChatBubbleCanSee(bubble)
+            }
+        }
     }
 
     fun cleanup() {
