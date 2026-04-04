@@ -17,10 +17,7 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
-import org.lain.engine.script.LuaContext
-import org.lain.engine.script.loadContents
-import org.lain.engine.script.luaEntrypointDir
-import org.lain.engine.script.scripts
+import org.lain.engine.script.*
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerEventListener
@@ -72,7 +69,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )
-    protected var luaContext = LuaContext(engine.playerStorage, ENGINE_DIR.scripts, engine.luaEntrypointDir)
+    private val luaDataStorage = LuaDataStorage()
+    protected var luaContext = LuaContext(luaDataStorage, engine.playerStorage, ENGINE_DIR.scripts, engine.luaEntrypointDir)
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
         val item = instantiateItem(
@@ -133,7 +131,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     private fun onRequestReloadContents(playerId: PlayerId) = playerStorage.get(playerId)?.let { player ->
         if (player.hasPermission("reloadenginecontents")) {
             try {
-                val luaContext = LuaContext(playerStorage, ENGINE_DIR.scripts, engine.luaEntrypointDir)
+                val luaContext = LuaContext(luaDataStorage, playerStorage, ENGINE_DIR.scripts, engine.luaEntrypointDir)
                 this.luaContext = luaContext
                 engine.loadContents(luaContext)
             } catch (e: Throwable) {

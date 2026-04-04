@@ -123,6 +123,7 @@ fun appendGunVerbs(player: EnginePlayer) {
     }
 }
 
+context(interaction: InteractionComponent)
 fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
     player.handleInteraction(GUN_SHOOT_VERB) {
         val gun = handItem!!.require<Gun>()

@@ -20,6 +20,7 @@ import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.component.destroy
+import org.lain.engine.util.component.handle
 import org.lain.engine.util.component.remove
 import org.lain.engine.util.flush
 import org.lain.engine.util.math.Vec3
@@ -96,15 +97,17 @@ class EngineServer(
 //                println("Взаимодействие: $interaction")
 //            }
 
-            handlePlayerInventoryInteractions(player)
-            handleWriteableInteractions(player)
-            handleGunInteractions(player)
-            handleSocialInteractions(player)
-            handleFlashlightInteractions(player)
-            handlePlayerEquipmentInteractionProgression(player)
-            handlePlayerEquipmentInteraction(player)
-            handleHandScriptInteractions(player)
-            finishPlayerInteraction(player)
+            player.handle<InteractionComponent>() {
+                handlePlayerInventoryInteractions(player)
+                handleWriteableInteractions(player)
+                handleGunInteractions(player)
+                handleSocialInteractions(player)
+                handleFlashlightInteractions(player)
+                handlePlayerEquipmentInteractionProgression(player)
+                handlePlayerEquipmentInteraction(player)
+                handleHandScriptInteractions(player)
+                finishPlayerInteraction(player)
+            }
 
             tickInventoryGun(playerItems)
             handleItemRecoil(player, playerItems)

@@ -55,6 +55,7 @@ fun appendPlayerEquipmentVerbs(player: EnginePlayer) = player.handle<VerbLookup>
     }
 }
 
+context(interaction: InteractionComponent)
 fun handlePlayerEquipmentInteraction(
     player: EnginePlayer,
 ) {
@@ -78,7 +79,7 @@ fun handlePlayerEquipmentInteraction(
     }
 }
 
-context(contents: ContentStorage)
+context(contents: ContentStorage, interaction: InteractionComponent)
 fun handlePlayerEquipmentInteractionProgression(player: EnginePlayer) {
     player.handleInteraction(EQUIP_VERB) {
         attachHandItemProgression(EQUIP_PROGRESSION_ANIMATION, 40)

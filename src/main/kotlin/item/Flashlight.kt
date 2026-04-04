@@ -35,6 +35,7 @@ fun appendFlashlightVerbs(player: EnginePlayer) = player.handle<VerbLookup>() {
     forAction<InputAction.Base>(LIGHT_TOGGLE)
 }
 
+context(interaction: InteractionComponent)
 fun handleFlashlightInteractions(player: EnginePlayer) = player.handleInteraction(LIGHT_TOGGLE) {
     handItem?.apply<Flashlight>() {
         enabled = !enabled

@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.getVoidScript
+import org.lain.engine.script.interactionScriptContext
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.handle
@@ -43,18 +44,19 @@ fun appendScriptBindingVerbs(player: EnginePlayer) = player.handle<VerbLookup>()
     }
 }
 
-context(contents: NamespacedStorage)
+context(contents: NamespacedStorage, interaction: InteractionComponent)
 fun handleHandScriptInteractions(player: EnginePlayer) {
+    val bindings = player.require<ScriptBindings>()
     player.handleInteraction(ATTACK_SCRIPT_VERB) {
         contents
-            .getVoidScript<ScriptContext.Player>(player.require<ScriptBindings>().attack!!)
-            ?.execute(ScriptContext.Player(raycastPlayer ?: return@handleInteraction))
+            .getVoidScript<ScriptContext.Interaction>(bindings.attack!!)
+            ?.execute(player.interactionScriptContext)
         complete()
     }
     player.handleInteraction(BASE_SCRIPT_VERB) {
         contents
-            .getVoidScript<ScriptContext.Player>(player.require<ScriptBindings>().base!!)
-            ?.execute(ScriptContext.Player(raycastPlayer ?: return@handleInteraction))
+            .getVoidScript<ScriptContext.Interaction>(bindings.base!!)
+            ?.execute(player.interactionScriptContext)
         complete()
     }
 }

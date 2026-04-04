@@ -210,6 +210,14 @@ fun EnginePlayer.handleInteraction(verb: VerbType, statement: context(WriteCompo
         }
     }
 }
+
+context(interaction: InteractionComponent)
+fun EnginePlayer.handleInteraction(verb: VerbType, statement: context(WriteComponentAccess) InteractionComponent.() -> Unit) = with(world) {
+    if (interaction.type.id == verb.id) {
+        statement(interaction)
+    }
+}
+
 fun InteractionComponent.completeIfFinished() {
     val progression = progression
     if (progression != null && timeElapsed <= progression.duration) return

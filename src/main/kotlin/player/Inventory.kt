@@ -62,8 +62,7 @@ fun appendPlayerInventoryVerbs(player: EnginePlayer) {
     }
 }
 
-fun handlePlayerInventoryInteractions(player: EnginePlayer) {
-    player.handleInteraction(SLOT_MERGE_VERB) {
-        player.require<PlayerInventory>().cursorItem = null
-    }
+context(interaction: InteractionComponent)
+fun handlePlayerInventoryInteractions(player: EnginePlayer) = player.handleInteraction(SLOT_MERGE_VERB) {
+    player.require<PlayerInventory>().cursorItem = null
 }

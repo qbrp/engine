@@ -26,6 +26,13 @@ fun luaTableOf(vararg values: LuaValue): LuaTable {
     return LuaTable.tableOf(values)
 }
 
+fun luaValue(string: String) = LuaValue.valueOf(string)
+fun luaValueNullable(string: String?) = LuaValue.valueOf(string) ?: LuaValue.NIL
+
+fun luaValue(int: Int) = LuaValue.valueOf(int)
+
+fun luaValue(float: Float) = LuaValue.valueOf(float.toDouble())
+
 fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
     val list = mutableListOf<V>()
     for (i in 1..this.length()) {

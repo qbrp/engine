@@ -2,15 +2,24 @@ package org.lain.engine.script
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.InteractionComponent
 import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.component.require
 
 sealed class ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext()
+    data class Interaction(
+        val player: EnginePlayer,
+        val raycastPlayer: EnginePlayer?,
+    ) : ScriptContext()
     data class World(val world: org.lain.engine.world.World) : ScriptContext()
 }
 
 val EnginePlayer.scriptContext: ScriptContext.Player
     get() = ScriptContext.Player(this)
+
+val EnginePlayer.interactionScriptContext: ScriptContext.Interaction
+    get() = ScriptContext.Interaction(this, require<InteractionComponent>().raycastPlayer)
 
 sealed class ExecutionResult<R> {
     data class Success<R>(val result: R) : ExecutionResult<R>()

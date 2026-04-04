@@ -18,6 +18,7 @@ import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.LuaContext
+import org.lain.engine.script.LuaDataStorage
 import org.lain.engine.script.compileContents
 import org.lain.engine.script.loadContentsCompileResult
 import org.lain.engine.server.ServerId
@@ -25,6 +26,7 @@ import org.lain.engine.transport.packet.*
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.component.get
+import org.lain.engine.util.component.handle
 import org.lain.engine.util.component.has
 import org.lain.engine.world.*
 import java.util.*
@@ -73,6 +75,7 @@ class GameSession(
         private set
     val namespacedStorage = NamespacedStorage()
     var soundsToBroadcast = LinkedList<SoundBroadcast>()
+    private val luaDataStorage = LuaDataStorage()
 
     init {
         val equipmentItems = player.equipment.mapValues { (_, item) -> instantiateItem(item) }
@@ -95,7 +98,7 @@ class GameSession(
         val contentsPath = resources.contents.file
         val result = compileContents(
             contentsPath,
-            LuaContext(playerStorage, scriptsPath, scriptsPath.resolve("$server.lua"))
+            LuaContext(luaDataStorage, playerStorage, scriptsPath, scriptsPath.resolve("$server.lua"))
         )
         namespacedStorage.loadContentsCompileResult(result)
 
@@ -148,17 +151,18 @@ class GameSession(
             updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
 
             updatePlayerVerbLookup(player, false)
-            val interaction = player.get<InteractionComponent>()
+            player.handle<InteractionComponent>() {
+                handlePlayerInventoryInteractions(player)
+                handleWriteableInteractions(player)
+                handleGunInteractions(player, true)
+                handleFlashlightInteractions(player)
+                handlePlayerEquipmentInteractionProgression(player)
+                finishPlayerInteraction(player)
 
-            handlePlayerInventoryInteractions(player)
-            handleWriteableInteractions(player)
-            handleGunInteractions(player, true)
-            handleFlashlightInteractions(player)
-            handlePlayerEquipmentInteractionProgression(player)
-            finishPlayerInteraction(player)
-            val processedInteraction = player.get<InteractionComponent>()
-            if (interaction != processedInteraction && interaction != null) {
-                handler.processedInteractions.add(interaction.id)
+                val processedInteraction = player.get<InteractionComponent>()
+                if (this != processedInteraction) {
+                    handler.processedInteractions.add(this.id)
+                }
             }
 
             tickInventoryGun(playerItems)

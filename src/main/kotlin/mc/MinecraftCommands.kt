@@ -26,6 +26,7 @@ import org.lain.engine.chat.*
 import org.lain.engine.item.ItemId
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
+import org.lain.engine.script.ScriptId
 import org.lain.engine.script.getVoidScript
 import org.lain.engine.script.toScriptId
 import org.lain.engine.server.markDirty
@@ -618,40 +619,58 @@ fun ServerCommandDispatcher.registerEngineCommands() {
             )
     )
 
-    register(
-        literal("attackscript")
-            .then(
-                stringArgument("script")
-                    .suggests(NamespacedIdProvider { it.scripts.ids })
-                    .executeCatching { ctx ->
-                        val player = ctx.requirePlayer()
-                        val scriptId = ctx.command.getString("script").replace(""""""", "").toScriptId()
-                        server.engine.namespacedStorage.getVoidScript<ScriptContext.Player>(scriptId) ?: friendlyError("Скрипт $scriptId не найден")
-                        player.require<ScriptBindings>().attack = scriptId
-                        ctx.sendFeedback("Установлен скрипт атаки игрока на $scriptId", true)
-                    }
-            )
-    )
+    fun registerPlayerScriptCommand(
+        name: String,
+        successMessage: (scriptId: ScriptId) -> String,
+        setter: ScriptBindings.(ScriptId?) -> Unit
+    ) {
+        register(
+            literal(name)
+                .then(
+                    stringArgument("script")
+                        .suggests(NamespacedIdProvider(listOf("none")) { it.scripts.ids })
+                        .executeCatching { ctx ->
+                            val player = ctx.requirePlayer()
 
-    register(
-        literal("basescript")
-            .then(
-                stringArgument("script")
-                    .suggests(NamespacedIdProvider { it.scripts.ids })
-                    .executeCatching { ctx ->
-                        val player = ctx.requirePlayer()
-                        val scriptId = ctx.command.getString("script").replace(""""""", "").toScriptId()
-                        server.engine.namespacedStorage.getVoidScript<ScriptContext.Player>(scriptId) ?: friendlyError("Скрипт $scriptId не найден")
-                        player.require<ScriptBindings>().base = scriptId
-                        ctx.sendFeedback("Установлен скрипт взаимодействия игрока на $scriptId", true)
-                    }
-            )
-    )
+                            val scriptArg = ctx.command.getString("script")
+                            if (scriptArg != "none") {
+                                val scriptId = scriptArg
+                                    .replace("\"", "")
+                                    .toScriptId()
+
+                                server.engine.namespacedStorage
+                                    .getVoidScript<ScriptContext.Player>(scriptId)
+                                    ?: friendlyError("Скрипт $scriptId не найден")
+
+                                player.require<ScriptBindings>().setter(scriptId)
+                                ctx.sendFeedback(successMessage(scriptId), true)
+                            } else {
+                                player.require<ScriptBindings>().setter(null)
+                            }
+                        }
+                )
+        )
+    }
+
+    registerPlayerScriptCommand(
+        name = "attackscript",
+        successMessage = { "Установлен скрипт атаки игрока на $it" }
+    ) {
+        attack = it
+    }
+
+    registerPlayerScriptCommand(
+        name = "basescript",
+        successMessage = { "Установлен скрипт взаимодействия игрока на $it" }
+    ) {
+        base = it
+    }
 
     registerServerPmCommand()
 }
 
 class NamespacedIdProvider(
+    val additional: List<String> = listOf(),
     val provider: (NamespacedStorage) -> List<String>,
 ) : SuggestionProvider<ServerCommandSource> {
     private val server by injectEngineServer()
@@ -663,10 +682,10 @@ class NamespacedIdProvider(
     ): CompletableFuture<Suggestions> {
         val input = builder.remainingLowerCase.replace(""""""", "")
         val identifiers = provider(storage)
-        identifiers
+        (identifiers
             .filter {
                 it.startsWith(input) || it.split("/").any { it.startsWith(input) }
-            }
+            } + additional)
             .forEach { builder.suggest('"' + it + '"') }
         return builder.buildFuture()
     }

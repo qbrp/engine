@@ -36,6 +36,7 @@ fun appendSocialVerbs(player: EnginePlayer) = player.handle<VerbLookup> {
     }
 }
 
+context(interaction: InteractionComponent)
 fun handleSocialInteractions(player: EnginePlayer) {
     player.handleInteraction(HAIL_VERB) {
         raycastPlayer?.serverNarration("${player.displayNameMiniMessage} окликнул вас!", 40, true)

@@ -38,6 +38,7 @@ fun appendWriteableVerbs(player: EnginePlayer) {
     }
 }
 
+context(interaction: InteractionComponent)
 fun handleWriteableInteractions(player: EnginePlayer) {
     val handItem = player.handItem ?: return
     player.handleInteraction(WRITEABLE_OPEN_VERB) {

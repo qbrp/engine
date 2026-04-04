@@ -6,16 +6,22 @@ import org.luaj.vm2.LuaValue
 
 class LuaScript<C : ScriptContext, R : Any>(private val luaFunction: LuaFunction) : Script<C, R> {
     override fun execute(context: C): ExecutionResult<R> {
-        val argument = when(context) {
+        val arguments = when(context) {
             is ScriptContext.Player -> {
-                LuaValue.valueOf(context.player.id.toString())
+                arrayOf(luaValue(context.player.id.toString()))
             }
             is ScriptContext.World -> {
-                LuaValue.valueOf(context.world.id.toString())
+                arrayOf(luaValue(context.world.id.toString()))
+            }
+            is ScriptContext.Interaction -> {
+                arrayOf(
+                    luaValue(context.player.id.toString()),
+                    luaValueNullable(context.raycastPlayer?.id?.toString())
+                )
             }
         }
         return try {
-            val result = luaFunction.call(argument).toKotlin()
+            val result = luaFunction.invoke(LuaValue.varargsOf(arguments)).arg1().toKotlin()
             ExecutionResult.Success(
                 (result ?: Unit) as R
             )

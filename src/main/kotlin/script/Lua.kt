@@ -9,6 +9,7 @@ import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.lib.OneArgFunction
+import org.luaj.vm2.lib.ThreeArgFunction
 import org.luaj.vm2.lib.TwoArgFunction
 import org.luaj.vm2.lib.jse.JsePlatform
 import java.io.File
@@ -20,7 +21,23 @@ data class LuaCompilationContext(
     val errors: MutableList<Throwable> = mutableListOf(),
 )
 
+class LuaDataStorage {
+    private data class DataKey(val module: String, val id: String)
+    private val values: MutableMap<DataKey, LuaValue> = mutableMapOf()
+
+    fun get(module: String, slot: String) = values[DataKey(module, slot)]
+
+    fun set(module: String, id: String, value: LuaValue) {
+        values[DataKey(module, id)] = value
+    }
+
+    fun getOrDefault(module: String, id: String, default: LuaValue): LuaValue {
+        return values.computeIfAbsent(DataKey(module, id)) { default }
+    }
+}
+
 class LuaContext(
+    val dataStorage: LuaDataStorage,
     val playerStorage: Storage<PlayerId, EnginePlayer>,
     val scriptsPath: File,
     directory: File
@@ -157,6 +174,11 @@ private fun Globals.setup() {
             return NIL
         }
     })
+    set("_remember", object : ThreeArgFunction() {
+        override fun call(arg1: LuaValue, arg2: LuaValue, arg3: LuaValue): LuaValue {
+            return ctx.dataStorage.getOrDefault(arg3.tojstring(), arg2.tojstring(), arg1)
+        }
+    })
     set("_compilation", object : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue? {
             ctx.compilationFunction = arg.checkfunction()
@@ -194,6 +216,12 @@ private fun Globals.setup() {
                 narration.get("kick").nullable()?.toboolean() ?: false,
             )
             return NIL
+        }
+    })
+    set("_is_player_game_master", object : OneArgFunction() {
+        override fun call(arg1: LuaValue): LuaValue? {
+            val player = ctx.getPlayer(arg1)
+            return valueOf(player.isInGameMasterMode)
         }
     })
 }
