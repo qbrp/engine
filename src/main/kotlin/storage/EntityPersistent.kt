@@ -9,11 +9,11 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.serializer
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.*
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.EntityId
-import org.lain.engine.util.component.WriteComponentAccess
-import org.lain.engine.util.component.setComponent
 import java.util.*
 
 fun PolymorphicModuleBuilder<Component>.polymorphicComponent() {

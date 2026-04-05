@@ -7,10 +7,10 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.lain.cyberia.ecs.Component
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemUuid
-import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
 
 fun connectDatabase(server: MinecraftServer): Database {

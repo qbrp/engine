@@ -8,8 +8,8 @@ import org.lain.engine.item.DEFAULT_BULLET_MASS
 import org.lain.engine.item.DEFAULT_BULLET_SPEED
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.raycastBulletEvent
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.iterate
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.World

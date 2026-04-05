@@ -3,10 +3,10 @@ package org.lain.engine.player
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.item.merge
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.EntityId
-import org.lain.engine.util.component.handle
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.require
 
 /**
  * # Инвентарь игрока

@@ -26,6 +26,10 @@ import net.minecraft.text.Text
 import net.minecraft.util.Hand
 import net.minecraft.util.profiler.Profilers
 import net.minecraft.world.chunk.Chunk
+import org.lain.cyberia.ecs.apply
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.remove
 import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
@@ -48,6 +52,7 @@ import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.PlayerTickException
+import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
@@ -57,10 +62,7 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.*
-import org.lain.engine.util.component.apply
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.handle
-import org.lain.engine.util.component.remove
+import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.world.ImmutableVoxelPos
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -105,6 +107,7 @@ class MinecraftEngineClient : ClientModInitializer {
     var readyToAuthorize = false
 
     override fun onInitializeClient() {
+        ComponentTypeRegistry.registerComponentsClient()
         engineClient.options = config
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engineClient)

@@ -1,8 +1,8 @@
 package org.lain.engine.world
 
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.ComponentManager
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentManager
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.MutableVec3
 import org.lain.engine.util.math.Pos

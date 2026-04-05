@@ -2,6 +2,7 @@ package org.lain.engine.storage
 
 import kotlinx.serialization.*
 import kotlinx.serialization.cbor.Cbor
+import org.lain.cyberia.ecs.*
 import org.lain.engine.container.AssignedSlot
 import org.lain.engine.container.ContainedIn
 import org.lain.engine.item.*
@@ -9,7 +10,7 @@ import org.lain.engine.player.EquipmentSlot
 import org.lain.engine.player.Outfit
 import org.lain.engine.player.OutfitDisplay
 import org.lain.engine.player.PlayerPart
-import org.lain.engine.util.component.*
+import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.then
 import org.lain.engine.world.World
 

@@ -13,7 +13,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.gunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
-import org.lain.engine.util.component.getOrSet
+import org.lain.cyberia.ecs.getOrSet
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectMovementSettings

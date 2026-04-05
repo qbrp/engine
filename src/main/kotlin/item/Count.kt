@@ -2,8 +2,8 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.component.has
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.require
 
 @Serializable
 data class Count(var value: Int, val max: Int) : ItemComponent

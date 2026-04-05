@@ -6,7 +6,7 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import org.lain.engine.util.component.ComponentManager
+import org.lain.cyberia.ecs.ComponentManager
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Entity
 import org.lain.engine.world.pos

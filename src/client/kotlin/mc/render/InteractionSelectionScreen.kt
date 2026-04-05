@@ -19,8 +19,8 @@ import org.lain.engine.client.mc.KeybindManager
 import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.InteractionSelection
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.handle
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
 
 class InteractionSelectionScreen(
     val gameSession: GameSession,

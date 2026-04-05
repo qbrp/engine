@@ -1,16 +1,16 @@
 package org.lain.engine.item
 
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.cyberia.ecs.copyState
+import org.lain.cyberia.ecs.set
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.Item
 import org.lain.engine.server.*
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.Storage
-import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Networked
-import org.lain.engine.util.component.WriteComponentAccess
-import org.lain.engine.util.component.copyState
-import org.lain.engine.util.component.set
-import org.lain.engine.util.component.setComponent
 import org.lain.engine.world.World
 import org.lain.engine.world.location
 import kotlin.apply

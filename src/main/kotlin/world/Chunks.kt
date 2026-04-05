@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.storage.loadChunk
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.iterate
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt

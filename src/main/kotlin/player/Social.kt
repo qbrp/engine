@@ -4,9 +4,9 @@ import org.lain.engine.item.FireMode
 import org.lain.engine.item.Gun
 import org.lain.engine.item.count
 import org.lain.engine.item.name
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.handle
-import org.lain.engine.util.component.set
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.set
 import org.lain.engine.util.text.displayNameMiniMessage
 
 const val SOCIAL_INTERACTION_DISTANCE = 15

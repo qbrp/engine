@@ -33,10 +33,10 @@ import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.*
-import org.lain.engine.util.component.apply
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.remove
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.apply
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.math.ImmutableVec3

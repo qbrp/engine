@@ -1,5 +1,6 @@
 package org.lain.engine.test
 
+import org.lain.engine.bootstrap
 import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
@@ -9,8 +10,12 @@ import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
+import kotlin.test.BeforeTest
 
-fun DummyWorld() = World(WorldId("dummy"), ComponentWorld(Thread.currentThread()))
+fun DummyWorld() = World(
+    WorldId("dummy"),
+    ComponentWorld(Thread.currentThread()),
+)
 
 fun DummyLocation(world: World) = Location(world, Vec3(0f))
 
@@ -24,3 +29,10 @@ fun DummyItemPrefab() = ItemPrefab(
     ItemProgressionAnimations(mapOf()),
     { emptyList() }
 )
+
+abstract class EngineTest {
+    @BeforeTest
+    fun setup() {
+        bootstrap()
+    }
+}

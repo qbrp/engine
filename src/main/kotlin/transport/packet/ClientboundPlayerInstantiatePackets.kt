@@ -13,8 +13,8 @@ import org.lain.engine.storage.getEquipmentContainerSlots
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.component.require
-import org.lain.engine.util.component.requireComponent
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.world

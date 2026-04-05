@@ -14,10 +14,10 @@ import org.lain.engine.storage.polymorphicComponent
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.getComponent
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.require
 import org.lain.engine.world.World
 
 interface ItemComponent : Component

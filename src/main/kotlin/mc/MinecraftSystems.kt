@@ -16,7 +16,15 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.desync
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.util.Storage
-import org.lain.engine.util.component.*
+import org.lain.cyberia.ecs.apply
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getOrSet
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.replaceOrSet
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.removeComponent
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World

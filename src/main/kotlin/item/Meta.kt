@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.require
 import org.lain.engine.world.*
 
 @Serializable

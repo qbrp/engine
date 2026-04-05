@@ -6,6 +6,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import net.minecraft.item.ItemStack
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.lain.cyberia.ecs.*
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.container.ContainedIn
 import org.lain.engine.container.Item
@@ -15,7 +16,7 @@ import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.component.*
+import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.world
@@ -68,8 +69,8 @@ fun updateUnloadSystem(world: World, timers: SaveTimers) {
 
 fun Database.saveItems(world: World) = with(world) {
     val itemPairsToSave = world.componentManager.collect(
-        listOf(Item::class)
-    ) { component -> component.isSavable }
+        listOf(componentTypeOf(Item::class))
+    ) { component -> component.meta.savable }
     val itemsToSave = itemPairsToSave.map { (id, state) ->
         val engineItem = id.requireComponent<Item>().engine
         engineItem to state
@@ -86,10 +87,10 @@ fun updateSaveSystem(server: EngineMinecraftServer, world: World) = with(world) 
     val engine = server.engine
     val itemPairsToSave = world.componentManager.collect(
         listOf(
-            Item::class,
-            SaveTag::class
+            componentTypeOf(Item::class),
+            componentTypeOf(SaveTag::class)
         )
-    ) { component -> component.isSavable }
+    ) { component -> component.meta.savable }
     val itemsToSave = itemPairsToSave.map { (entity, state) ->
         val engineItem = entity.requireComponent<Item>().engine
         engineItem to state
@@ -109,7 +110,7 @@ fun updateSaveSystem(server: EngineMinecraftServer, world: World) = with(world) 
     }
 
     // Сохраняем все сущности
-    val entitiesToSave = (world.componentManager.collect(listOf(SaveTag::class)) { component -> component.isSavable } - itemPairsToSave.toSet())
+    val entitiesToSave = (world.componentManager.collect(listOf(componentTypeOf(SaveTag::class))) { component -> component.meta.savable } - itemPairsToSave.toSet())
         .map { (_, state) -> state.require<PersistentId>().copy() to state }
     ItemIoCoroutineScope.launch {
         if (entitiesToSave.isNotEmpty()) server.database.saveEntitiesBatch(entitiesToSave)

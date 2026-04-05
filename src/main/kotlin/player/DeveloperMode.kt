@@ -7,9 +7,9 @@ import org.lain.engine.script.ScriptId
 import org.lain.engine.script.getVoidScript
 import org.lain.engine.script.interactionScriptContext
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.handle
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.require
 
 data class DeveloperMode(var enabled: Boolean, var acoustic: Boolean = false) : Component
 

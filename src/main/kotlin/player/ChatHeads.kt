@@ -2,9 +2,9 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.chat.CHAT_HEADS_PERMISSION
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.let
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.let
+import org.lain.cyberia.ecs.require
 
 @Serializable
 data class PlayerChatHeadsComponent(var enabled: Boolean) : Component

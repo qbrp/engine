@@ -2,10 +2,10 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.markDirty
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.apply
-import org.lain.engine.util.component.remove
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.apply
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.math.smootherstep
 import org.lain.engine.util.math.smoothstep

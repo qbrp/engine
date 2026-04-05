@@ -1,8 +1,8 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.require
 
 @Serializable
 data class GameMaster(var enabled: Boolean = false) : Component

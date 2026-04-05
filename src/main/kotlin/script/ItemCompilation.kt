@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.util.NamespaceId
-import org.lain.engine.util.component.Component
+import org.lain.cyberia.ecs.Component
 import org.lain.engine.util.then
 import org.lain.engine.world.SoundEventId
 

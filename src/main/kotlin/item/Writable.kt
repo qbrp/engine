@@ -4,10 +4,10 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.*
 import org.lain.engine.server.ItemSynchronizable
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.handle
-import org.lain.engine.util.component.has
-import org.lain.engine.util.component.set
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.set
 
 @Serializable
 /**

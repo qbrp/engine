@@ -18,7 +18,7 @@ import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.player.Hearing
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.world.EngineSoundCategory
 import org.lain.engine.world.SoundEvent

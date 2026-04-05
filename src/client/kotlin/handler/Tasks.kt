@@ -1,5 +1,6 @@
 package org.lain.engine.client.handler
 
+import org.lain.cyberia.ecs.Component
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.transport.registerClientReceiver
@@ -11,7 +12,6 @@ import org.lain.engine.server.ComponentSynchronizer
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.util.Storage
-import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.Entity
 import java.util.concurrent.ConcurrentLinkedQueue
 

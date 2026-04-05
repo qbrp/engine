@@ -32,8 +32,8 @@ import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.Narration
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.Injector
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.handle
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
 import org.slf4j.Logger
 import java.net.URI
 

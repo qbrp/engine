@@ -5,12 +5,16 @@ import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.serializer
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.replace
+import org.lain.cyberia.ecs.require
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.component.*
+import org.lain.engine.util.component.Entity
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.Location

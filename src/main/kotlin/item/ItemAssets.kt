@@ -1,7 +1,7 @@
 package org.lain.engine.item
 
 import org.lain.engine.storage.addIfNotNull
-import org.lain.engine.util.component.get
+import org.lain.cyberia.ecs.get
 
 const val WRITEABLE_WRITTEN_ASSET = "writable_written"
 const val WRITEABLE_EMPTY_ASSET = "writable_empty"

@@ -8,7 +8,7 @@ import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.component.Component
+import org.lain.cyberia.ecs.Component
 import org.lain.engine.world.*
 
 @Serializable

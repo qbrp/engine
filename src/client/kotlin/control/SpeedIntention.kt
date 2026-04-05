@@ -2,7 +2,7 @@ package org.lain.engine.client.control
 
 import org.lain.engine.client.GameSession
 import org.lain.engine.player.MovementStatus
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.require
 
 class MovementManager(
     private val gameSession: GameSession

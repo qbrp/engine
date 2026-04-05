@@ -7,7 +7,7 @@ import net.minecraft.world.RaycastContext
 import org.lain.engine.item.BULLET_FIRE_RADIUS
 import org.lain.engine.item.BulletFire
 import org.lain.engine.item.GunShoot
-import org.lain.engine.util.component.iterate
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.world.Direction
 import org.lain.engine.world.World
 import org.lain.engine.world.attachBulletDamageDecal

@@ -5,7 +5,14 @@ import org.lain.engine.debugPacket
 import org.lain.engine.item.*
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.ContentStorage
-import org.lain.engine.util.component.*
+import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.set
+import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.engine.util.nextId
 import org.lain.engine.world.SoundContext
 import org.lain.engine.world.world

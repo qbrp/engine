@@ -1,18 +1,18 @@
 package org.lain.engine.test
 
+import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.hasComponent
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.updatePlayerOwnedItems
-import org.lain.engine.util.component.EntityId
-import org.lain.engine.util.component.getComponent
-import org.lain.engine.util.component.hasComponent
-import org.lain.engine.util.component.setComponent
 import org.lain.engine.world.World
 import kotlin.test.Test
 
-class ContainerTest {
+class ContainerTest : EngineTest() {
     @Test
     fun testContainerOperations() = with(DummyWorld()) {
         val world = this

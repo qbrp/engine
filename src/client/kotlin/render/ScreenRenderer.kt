@@ -5,7 +5,7 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.render.InteractionProgressionRenderState
 import org.lain.engine.client.mc.render.NarrationMessageRenderState
 import org.lain.engine.player.Narration
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.require
 
 class ScreenRenderer(private val client: EngineClient) {
     private val window = client.window

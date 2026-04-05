@@ -25,8 +25,8 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
 import org.lain.engine.player.processLeftClickInteraction
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 

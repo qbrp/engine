@@ -11,7 +11,7 @@ import net.minecraft.util.Colors
 import net.minecraft.util.math.ColorHelper
 import org.joml.Vector3f
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.component.iterate
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
 import org.lain.engine.util.math.squaredDistanceTo

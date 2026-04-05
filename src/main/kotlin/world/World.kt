@@ -1,8 +1,8 @@
 package org.lain.engine.world
 
+import org.lain.cyberia.ecs.*
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.component.*
-import kotlin.reflect.KClass
+import org.lain.engine.util.component.ComponentWorld
 
 object Event : Component
 
@@ -11,27 +11,23 @@ class World(
     val componentManager: ComponentWorld,
     val players: MutableList<EnginePlayer> = mutableListOf(),
     val playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null,
-) : ReadWriteComponentAccess by componentManager, IterationComponentAccess by componentManager {
+) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     val chunkStorage: ChunkStorage = ChunkStorage(this)
     var ticks = 0L
-
-    init {
-        componentManager.registerComponents()
-    }
 
     /**
      * Создает сущность с компонентами `event` и Event. Следует использовать как альтернативу очередям событий.
      * Последний сигнализирует о том, что сущность нужно уничтожить в конце тика
      */
-    fun <T : Component> emitEvent(event: T, kclass: KClass<T>) {
+    fun <T : Component> emitEvent(event: T, type: ComponentType<T>) {
         componentManager.addEntity {
-            setComponent(event, kclass)
+            setComponent(event, type)
             setComponent(Event)
         }
     }
 
     inline fun <reified T : Component> emitEvent(event: T) {
-        emitEvent(event, T::class)
+        emitEvent(event, componentTypeOf(T::class))
     }
 
     fun clearEvents() {

@@ -1,10 +1,11 @@
 package org.lain.engine.container
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.storage.PersistentId
-import org.lain.engine.util.component.*
+import org.lain.engine.util.component.ComponentState
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 

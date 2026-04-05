@@ -4,6 +4,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.lain.cyberia.ecs.clearMetaState
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getAll
+import org.lain.cyberia.ecs.iterate
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.set
 import org.lain.engine.chat.*
 import org.lain.engine.container.Item
 import org.lain.engine.debugPacket
@@ -18,12 +24,6 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.component.Networked
-import org.lain.engine.util.component.clearMetaState
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.getAll
-import org.lain.engine.util.component.iterate
-import org.lain.engine.util.component.require
-import org.lain.engine.util.component.set
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*

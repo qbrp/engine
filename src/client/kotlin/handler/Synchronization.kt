@@ -1,14 +1,13 @@
 package org.lain.engine.client.handler
 
-import org.lain.engine.client.util.registerComponentsClient
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.getOrSet
 import org.lain.engine.item.ProtoItem
 import org.lain.engine.item.itemInstance
 import org.lain.engine.player.*
 import org.lain.engine.transport.packet.*
-import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.ComponentWorld
-import org.lain.engine.util.component.getOrSet
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.World
 
@@ -76,6 +75,4 @@ fun clientItem(world: World, item: ClientboundItemData): ProtoItem {
     )
 }
 
-fun clientWorld(thread: Thread, data: ClientboundWorldData) = World(data.id, componentManager = ComponentWorld(thread)).apply {
-    componentManager.registerComponentsClient()
-}
+fun clientWorld(thread: Thread, data: ClientboundWorldData) = World(data.id, componentManager = ComponentWorld(thread))

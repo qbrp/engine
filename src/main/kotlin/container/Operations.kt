@@ -1,10 +1,10 @@
 package org.lain.engine.container
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.*
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.util.Storage
-import org.lain.engine.util.component.*
 import org.lain.engine.world.World
 
 /**

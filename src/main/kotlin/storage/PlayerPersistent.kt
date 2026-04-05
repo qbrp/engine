@@ -7,9 +7,9 @@ import org.lain.engine.container.getContainerSlots
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.*
 import org.lain.engine.util.Color
-import org.lain.engine.util.component.EntityId
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.World

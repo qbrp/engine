@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionComponent
 import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.require
 
 sealed class ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext()

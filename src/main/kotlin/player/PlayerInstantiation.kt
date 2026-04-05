@@ -4,6 +4,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.set
+import org.lain.cyberia.ecs.setComponent
+import org.lain.cyberia.ecs.setNullable
 import org.lain.engine.container.createContainer
 import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
@@ -12,13 +18,7 @@ import org.lain.engine.server.*
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Storage
-import org.lain.engine.util.component.Component
 import org.lain.engine.util.component.EntityCommandBuffer
-import org.lain.engine.util.component.WriteComponentAccess
-import org.lain.engine.util.component.require
-import org.lain.engine.util.component.set
-import org.lain.engine.util.component.setComponent
-import org.lain.engine.util.component.setNullable
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World

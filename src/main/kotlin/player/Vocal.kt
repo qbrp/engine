@@ -2,7 +2,12 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.chat.EngineChat
-import org.lain.engine.util.component.*
+import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.set
 import org.slf4j.LoggerFactory
 import kotlin.random.Random
 

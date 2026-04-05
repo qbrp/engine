@@ -2,7 +2,12 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.Storage
-import org.lain.engine.util.component.*
+import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.ComponentManager
+import org.lain.cyberia.ecs.get
+import org.lain.engine.util.component.Entity
+import org.lain.cyberia.ecs.EntityId
+import org.lain.engine.util.component.ComponentState
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 

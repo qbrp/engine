@@ -1,9 +1,9 @@
 package org.lain.engine.player
 
 import org.lain.engine.chat.*
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.flush
 import java.util.concurrent.ConcurrentLinkedQueue
 

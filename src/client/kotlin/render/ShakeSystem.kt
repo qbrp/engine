@@ -6,9 +6,9 @@ import org.lain.engine.item.Recoil
 import org.lain.engine.item.owner
 import org.lain.engine.item.recoilSpeed
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.iterate
-import org.lain.engine.util.component.remove
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.iterate
+import org.lain.cyberia.ecs.remove
 import org.lain.engine.world.World
 
 const val SHOOT_SHAKE_DURATION = 0.3f

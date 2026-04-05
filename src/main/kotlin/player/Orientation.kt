@@ -1,7 +1,7 @@
 package org.lain.engine.player
 
-import org.lain.engine.util.component.Component
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.Vec3
 import kotlin.math.cos
 import kotlin.math.sin

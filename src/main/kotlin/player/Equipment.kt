@@ -4,7 +4,12 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.container.*
 import org.lain.engine.item.*
 import org.lain.engine.util.ContentStorage
-import org.lain.engine.util.component.*
+import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.world.World
 import org.lain.engine.world.world
 

@@ -13,7 +13,7 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.component.require
+import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.roundToInt
 import org.lain.engine.world.World

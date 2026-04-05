@@ -6,7 +6,14 @@ import org.lain.engine.player.*
 import org.lain.engine.server.ItemSynchronizable
 import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.component.*
+import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.set
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.Vec3

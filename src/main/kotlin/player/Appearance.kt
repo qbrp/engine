@@ -3,7 +3,7 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.Color
-import org.lain.engine.util.component.Component
+import org.lain.cyberia.ecs.Component
 import org.lain.engine.util.math.Vec2
 import org.lain.engine.util.nextId
 

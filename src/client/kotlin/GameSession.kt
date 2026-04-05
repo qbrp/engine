@@ -25,9 +25,9 @@ import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.WARNING_COLOR
-import org.lain.engine.util.component.get
-import org.lain.engine.util.component.handle
-import org.lain.engine.util.component.has
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.has
 import org.lain.engine.world.*
 import java.util.*
 

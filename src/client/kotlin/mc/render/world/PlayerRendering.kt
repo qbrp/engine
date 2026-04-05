@@ -20,7 +20,13 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.player.*
 import org.lain.engine.util.EngineId
-import org.lain.engine.util.component.*
+import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getOrSet
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.replaceOrSet
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.iterate
 
 data class EnginePlayerRenderState(
     val player: EnginePlayer,
