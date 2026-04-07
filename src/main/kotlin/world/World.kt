@@ -2,6 +2,7 @@ package org.lain.engine.world
 
 import org.lain.cyberia.ecs.*
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.util.component.ComponentWorld
 
 object Event : Component
@@ -14,6 +15,10 @@ class World(
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     val chunkStorage: ChunkStorage = ChunkStorage(this)
     var ticks = 0L
+
+    fun registerScriptComponents(components: List<ScriptComponentType>) {
+        componentManager.invalidateComponentArrays(components.map { it.ecsType to it.meta })
+    }
 
     /**
      * Создает сущность с компонентами `event` и Event. Следует использовать как альтернативу очередям событий.

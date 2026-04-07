@@ -1,4 +1,4 @@
-package org.lain.engine.script
+package org.lain.engine.script.yaml
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlNode

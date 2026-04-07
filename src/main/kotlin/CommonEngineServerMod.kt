@@ -22,6 +22,8 @@ import org.lain.engine.mc.*
 import org.lain.engine.player.RaycastProvider
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
+import org.lain.engine.util.component.ComponentTypeRegistry
+import org.lain.engine.util.component.registerAll
 import org.lain.engine.util.file.updateOldFileNaming
 import org.lain.engine.util.injectValue
 
@@ -39,6 +41,7 @@ class CommonEngineServerMod : ModInitializer {
         get() = Injector.resolve(EngineMinecraftServer::class)
 
     override fun onInitialize() {
+        ComponentTypeRegistry.registerAll()
         bootstrap()
         val environment = when (FabricLoader.getInstance().environmentType) {
             EnvType.CLIENT -> Environment.CLIENT

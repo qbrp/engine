@@ -1,5 +1,8 @@
 package org.lain.engine.client
 
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.has
 import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
@@ -17,18 +20,16 @@ import org.lain.engine.container.updateContainerOperations
 import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.script.LuaContext
-import org.lain.engine.script.LuaDataStorage
 import org.lain.engine.script.compileContents
 import org.lain.engine.script.loadContentsCompileResult
+import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.WARNING_COLOR
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.has
 import org.lain.engine.world.*
+import org.luaj.vm2.lib.jse.JsePlatform
 import java.util.*
 
 class GameSession(
@@ -76,6 +77,7 @@ class GameSession(
     val namespacedStorage = NamespacedStorage()
     var soundsToBroadcast = LinkedList<SoundBroadcast>()
     private val luaDataStorage = LuaDataStorage()
+    private val luaGlobals = JsePlatform.standardGlobals()
 
     init {
         val equipmentItems = player.equipment.mapValues { (_, item) -> instantiateItem(item) }
@@ -98,7 +100,15 @@ class GameSession(
         val contentsPath = resources.contents.file
         val result = compileContents(
             contentsPath,
-            LuaContext(luaDataStorage, playerStorage, scriptsPath, scriptsPath.resolve("$server.lua"))
+            LuaContext(
+                luaGlobals,
+                luaDataStorage,
+                playerStorage,
+                mutableMapOf(world.id to world),
+                namespacedStorage,
+                scriptsPath,
+                scriptsPath.resolve("$server.lua")
+            )
         )
         namespacedStorage.loadContentsCompileResult(result)
 

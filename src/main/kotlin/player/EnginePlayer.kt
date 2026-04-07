@@ -9,11 +9,13 @@ import kotlinx.serialization.encoding.Encoder
 import org.lain.cyberia.ecs.ComponentManager
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Entity
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.pos
 import java.util.*
 
 class EnginePlayer(
     val id: PlayerId,
+    val entityId: EntityId,
     val state: ComponentState = ComponentState()
 ) : Entity, ComponentManager by state {
     override val stringId: String get() = id.toString()

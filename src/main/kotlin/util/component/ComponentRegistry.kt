@@ -22,7 +22,7 @@ import kotlin.reflect.KClass
 data class ComponentMeta(val savable: Boolean, val networking: Boolean)
 
 object ComponentTypeRegistry : KClassComponentTypeProvider {
-    private val types: MutableMap<KClass<out Component>, Entry<out Component>> = mutableMapOf()
+    private val types: MutableMap<String, Entry<out Component>> = mutableMapOf()
 
     data class Entry<T : Component>(val type: ComponentType<T>, val meta: ComponentMeta)
 
@@ -33,15 +33,25 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
         registerComponent(T::class, ComponentMeta(isSavable, isNetworking))
     }
 
+    fun isRegistered(type: KClass<out Component>): Boolean {
+        return types.containsKey(type.id)
+    }
+
     fun registerComponent(kClass: KClass<out Component>, meta: ComponentMeta, id: String = kClass.simpleName!!) {
-        types[kClass] = Entry(ComponentType(id), meta)
+        registerComponent(kClass, ComponentType(id.lowercase()), meta)
+    }
+
+    fun registerComponent(kClass: KClass<out Component>, type: ComponentType<out Component>, meta: ComponentMeta) {
+        types[kClass.id] = Entry(type, meta)
     }
 
     fun listEntries() = types.entries.toList()
 
     override fun <T : Component> componentTypeOf(kClass: KClass<T>): ComponentType<T> {
-        return (types[kClass] ?: error("Component type ${kClass.qualifiedName} not registered")).type as ComponentType<T>
+        return (types[kClass.id] ?: error("Component type ${kClass.qualifiedName} not registered")).type as ComponentType<T>
     }
+
+    private val KClass<out Component>.id get() = qualifiedName!!.replace(".", "_")
 }
 
 fun ComponentTypeRegistry.registerComponents() {

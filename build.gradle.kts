@@ -8,7 +8,6 @@ plugins {
     id("maven-publish")
     kotlin("plugin.serialization") version "2.1.0"
     id("com.gradleup.shadow") version "9.3.0"
-    id("com.google.devtools.ksp") version "2.3.6"
 }
 
 version = project.property("mod_version") as String
@@ -110,11 +109,14 @@ dependencies {
     testImplementation(kotlin("test"))
 
     // Тяжелые зависимости
-    modImplementation("org.lain.cyberia:fabric:1.0")
-    modImplementation("org.lain.cyberia:ecs-api:1.1")
+    modImplementation("org.lain.cyberia:fabric:1.1")
+    modImplementation("org.lain.cyberia:ecs-api:1.2")
     compileOnly("org.jetbrains.exposed:exposed-core:1.0.0")
     compileOnly("org.jetbrains.exposed:exposed-jdbc:1.0.0")
     compileOnly("org.xerial:sqlite-jdbc:3.51.1.0")
+    shaded("org.reflections:reflections:0.10.2")
+//    shaded("com.google.guava:guava:33.3.1-jre")
+//    include(implementation("org.javassist:javassist:3.28.0-GA")!!)
 
     // Camera Overhaul совместимость
     modCompileOnly("maven.modrinth:cameraoverhaul:y8OOuYdV")

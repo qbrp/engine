@@ -4,7 +4,6 @@ import org.lain.cyberia.ecs.*
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.reflect.KClass
 
 typealias EntityId = Int
 
@@ -18,8 +17,12 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
     private var freeIndexes = ConcurrentLinkedQueue<EntityId>()
     private var lastIndex = AtomicInteger()
 
-    init {
-        ComponentTypeRegistry.listEntries().forEach { (kclass, entry) -> addComponentArray(entry.type, entry.meta)  }
+    init { invalidateComponentArrays(ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }) }
+
+    fun invalidateComponentArrays(entries: List<Pair<ComponentType<out Component>, ComponentMeta>>) {
+        entries.forEach { (type, meta) ->
+            if (!arrays.containsKey(type)) addComponentArray(type, meta)
+        }
     }
 
     private fun <T : Component> addComponentArray(type: ComponentType<T>, meta: ComponentMeta) {
@@ -93,7 +96,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
             for ((kclass, array) in arrays) {
                 if (!statement(array)) continue
                 val component = array.componentOf(entityId) ?: continue
-                componentState.setComponent(kclass as KClass<Component>, component)
+                componentState.setComponent(kclass as ComponentType<Component>, component)
             }
         }
         return list

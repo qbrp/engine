@@ -1,6 +1,9 @@
 package org.lain.engine.server
 
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.lain.cyberia.ecs.destroy
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.remove
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.trySendJoinMessage
@@ -19,9 +22,6 @@ import org.lain.engine.storage.savePersistentPlayerData
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
-import org.lain.cyberia.ecs.destroy
-import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.remove
 import org.lain.engine.util.flush
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.*
@@ -42,7 +42,7 @@ class EngineServer(
     val handler = ServerHandler(this)
 
     private val taskQueue = ConcurrentLinkedQueue<Runnable>()
-    private val worlds: MutableMap<WorldId, World> = mutableMapOf()
+    internal val worlds: MutableMap<WorldId, World> = mutableMapOf()
 
     var stopped = false
     val tickTimes = FixedSizeList<Int>(20)
@@ -143,13 +143,12 @@ class EngineServer(
         handler.onServerSettingsUpdate()
     }
 
-    fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) {
-        val world = player.world
+    fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
         eventListener.onPlayerInstantiated(player)
 
         player.startSpectating()
         playerStorage.add(player.id, player)
-        world.players += player
+        players += player
         handler.onPlayerInstantiation(player, notifications)
 
         chat.trySendJoinMessage(player)

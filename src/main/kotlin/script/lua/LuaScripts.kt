@@ -1,11 +1,15 @@
-package org.lain.engine.script
+package org.lain.engine.script.lua
 
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.script.*
+import org.lain.engine.world.World
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
+import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
-class LuaScript<C : ScriptContext, R : Any>(private val luaFunction: LuaFunction) : Script<C, R> {
-    override fun execute(context: C): ExecutionResult<R> {
+class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, private val luaFunction: LuaFunction) : Script<C, R> {
+    override fun execute(context: C): ExecutionResult<R> = with(luaContext) {
         val arguments = when(context) {
             is ScriptContext.Player -> {
                 arrayOf(luaValue(context.player.id.toString()))
@@ -15,8 +19,8 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaFunction: LuaFunction
             }
             is ScriptContext.Interaction -> {
                 arrayOf(
-                    luaValue(context.player.id.toString()),
-                    luaValueNullable(context.raycastPlayer?.id?.toString())
+                    context.player.coerceToLua(),
+                    context.raycastPlayer?.coerceToLua()
                 )
             }
         }
@@ -42,4 +46,14 @@ fun LuaValue.toKotlin(): Any? {
         LuaValue.TTABLE -> { checktable().toMap {  } }
         else -> error("Invalid type: " + type())
     }
+}
+
+fun LuaScriptComponent(table: LuaTable) = ScriptComponent(table)
+
+context(world: World, luaContext: LuaContext)
+fun EnginePlayer.prepareLuaScriptComponents() {
+    entityId.setScriptComponent(
+        LuaScriptComponent(luaTableOf(luaValue("object"), coerceToLua())),
+        BuiltinScriptComponents.PLAYER
+    )
 }

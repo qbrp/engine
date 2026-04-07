@@ -54,7 +54,7 @@ fun commonPlayerInstance(
     settings: PlayerInstantiateSettings,
     id: PlayerId
 ): EnginePlayer {
-    return EnginePlayer(id).apply {
+    return EnginePlayer(id, settings.world.addEntity()).apply {
         set(Location(settings.world, settings.pos))
         set(Velocity())
         set(Orientation())

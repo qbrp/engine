@@ -1,4 +1,4 @@
-package org.lain.engine.script
+package org.lain.engine.script.yaml
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlNode
@@ -60,7 +60,7 @@ context(ctx: YamlCompilationContext)
 internal fun <T> NamespaceConfig?.computeInheritable(getter: (NamespaceConfig) -> T): T? {
     if (this == null) return null
     val configs = ctx.namespaces
-    return getter(this) ?: inherit?.let { (configs[it] ?: configs[DEFAULT_NAMESPACE])?.config?.computeInheritable(getter) }
+    return getter(this) ?: inherit?.let { (configs[it] ?: configs[_root_ide_package_.org.lain.engine.script.DEFAULT_NAMESPACE])?.config?.computeInheritable(getter) }
 }
 
 context(ctx: YamlCompilationContext)
@@ -111,7 +111,7 @@ private fun loadNamespaces(directory: File, errors: MutableList<Throwable>): Map
                 namespaces.add(id)
             }
         } catch (e: Throwable) {
-            logNamespaceCompilationError(NamespaceId(dir.name), e)
+            _root_ide_package_.org.lain.engine.script.logNamespaceCompilationError(NamespaceId(dir.name), e)
             errors += e
         }
     }
@@ -129,32 +129,42 @@ internal fun createYamlCompilationContext(directory: File): YamlCompilationConte
     return YamlCompilationContext(loadNamespaces(directory, errors), errors)
 }
 
-internal fun compileContentsYaml(directory: File): CompilationResult = with(createYamlCompilationContext(directory)) {
+internal fun compileContentsYaml(directory: File): org.lain.engine.script.CompilationResult = with(createYamlCompilationContext(directory)) {
     val namespaces = namespaces.mapValues { (_, namespace) ->
         try {
             val contents = namespace.contents
-            CompiledNamespace(
-                compileItems(contents.items, namespace)
+            _root_ide_package_.org.lain.engine.script.CompiledNamespace(
+                compileItemsYaml(contents.items, namespace)
                     .associateBy { it.id },
                 compileSoundEvents(contents.sounds, namespace)
                     .associateBy { it.id },
                 contents.progressionAnimations.map { (id, animation) ->
-                    val framesList = runCatching { Yaml.default.decodeFromYamlNode<List<String>>(animation.frames ?: return@runCatching emptyList()) }
+                    val framesList = runCatching {
+                        Yaml.default.decodeFromYamlNode<List<String>>(
+                            animation.frames ?: return@runCatching emptyList()
+                        )
+                    }
                     val frames = framesList.getOrNull() ?: run {
                         val (baseName, count) = Yaml.default.decodeFromYamlNode<FrameIdGeneratorConfig>(animation.frames!!)
                         List(count) { id -> "$baseName${id + 1}" }
                     }
-                    ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(frames, animation.text, animation.success)
+                    ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(
+                        frames,
+                        animation.text,
+                        animation.success
+                    )
                 }
-                    .toMap(),
-                emptyMap()
+                    .toMap()
             )
         } catch (e: Throwable) {
-            logNamespaceCompilationError(namespace.id, e)
+            _root_ide_package_.org.lain.engine.script.logNamespaceCompilationError(namespace.id, e)
             errors += e
             null
         }
     }.filterValues { it != null }
 
-    return CompilationResult(namespaces as Map<NamespaceId, CompiledNamespace>, errors)
+    return _root_ide_package_.org.lain.engine.script.CompilationResult(
+        namespaces as Map<NamespaceId, org.lain.engine.script.CompiledNamespace>,
+        errors
+    )
 }

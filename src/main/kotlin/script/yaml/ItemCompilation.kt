@@ -1,4 +1,4 @@
-package org.lain.engine.script
+package org.lain.engine.script.yaml
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -63,15 +63,15 @@ data class ItemConfig(
     val tooltip: String? = null,
     val sounds: Map<String, SoundEventId>? = null,
     val mass: Float? = null,
-    val writable: WritableConfig? = null,
+    val writable: org.lain.engine.script.WritableConfig? = null,
     val outfit: OutfitConfig? = null,
     val assets: Map<String, String>? = null,
     @SerialName("progression_animations") val progressionAnimations: Map<String, ProgressionAnimationId>? = null,
-    val flashlight: FlashlightConfig? = null,
+    val flashlight: org.lain.engine.script.FlashlightConfig? = null,
 )
 
 context(ctx: YamlCompilationContext)
-internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: YamlNamespace): List<CompiledNamespace.Item> {
+internal fun compileItemsYaml(itemConfigs: Map<String, ItemConfig>, namespace: YamlNamespace): List<org.lain.engine.script.CompiledNamespace.Item> {
     val namespaceConfig = namespace.config
     return itemConfigs.map { (id, config) ->
         // Ассеты
@@ -105,7 +105,7 @@ internal fun compileItems(itemConfigs: Map<String, ItemConfig>, namespace: YamlN
 
         val gunDisplayComponent = config.gun?.gunDisplayComponent()
 
-        CompiledItem(
+        _root_ide_package_.org.lain.engine.script.CompiledItem(
             namespace.id,
             id,
             config.displayName,

@@ -5,6 +5,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionComponent
 import org.lain.engine.util.NamespacedStorage
 import org.lain.cyberia.ecs.require
+import org.lain.engine.script.lua.LuaScript
 
 sealed class ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext()

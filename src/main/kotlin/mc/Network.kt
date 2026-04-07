@@ -83,7 +83,7 @@ object PayloadRegistry {
 }
 
 val Endpoint<*>.minecraftIdentifier: Identifier
-    get() = EngineId(identifier)
+    get() = EngineId(identifier.lowercase())
 
 fun <P : Packet> PayloadTypeRegistry<RegistryByteBuf>.registerPayload(endpoint: Endpoint<P>): CustomPayload.Id<EnginePayload<P>> {
     val payloadId = CustomPayload.Id<EnginePayload<P>>(endpoint.minecraftIdentifier)

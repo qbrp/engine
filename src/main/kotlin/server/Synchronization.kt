@@ -5,10 +5,7 @@ import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.serializer
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.replace
-import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.*
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.transport.Endpoint
@@ -70,14 +67,14 @@ enum class Propagation {
 }
 
 class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerializationApi::class) constructor(
-    val componentClass: KClass<C>,
+    val componentType: ComponentType<C>,
     val serializer: KSerializer<C>,
     val target: SynchronizationTarget,
     val propagation: Propagation,
     val resolver: (T, C) -> Unit,
     val predicate: PlayerPredicate,
     val endpoint: Endpoint<ComponentSynchronizationPacket<C>> = Endpoint(
-        componentClass.simpleName!!.lowercase(),
+        componentType.id,
         PacketCodec.Binary(
             {
                 val id = readString()
@@ -104,7 +101,7 @@ inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
     predicate: PlayerPredicate,
     noinline resolver: (T, C) -> Unit,
 ) = ComponentSynchronizer<T, C>(
-    C::class,
+    componentTypeOf(C::class),
     C::class.serializer(),
     target,
     propagation,
@@ -141,7 +138,7 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
         if (state.dirty != null) {
             val synchronizer = state.synchronizer as ComponentSynchronizer<T, Component>
             val endpoint = synchronizer.endpoint
-            val component = entity.getComponent(synchronizer.componentClass) ?: error("Dirty component ${synchronizer.componentClass} not found")
+            val component = entity.getComponent(synchronizer.componentType) ?: error("Dirty component ${synchronizer.componentType} not found")
             val packet = ComponentSynchronizationPacket(entity.stringId, state.dirty?.interaction, component)
 
             fun broadcast(location: Location, player: EnginePlayer?) {

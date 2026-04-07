@@ -4,6 +4,8 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
+import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.yaml.compileContentsYaml
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.Namespace
 import org.lain.engine.util.NamespaceId
@@ -34,7 +36,8 @@ data class CompiledNamespace(
     val items: Map<ItemId, Item>,
     val sounds: Map<SoundEventId, SoundEvent>,
     val progressionAnimations: Map<ProgressionAnimationId, ProgressionAnimation>,
-    val scripts: Map<ScriptId, Script<*, *>>
+    val scripts: Map<ScriptId, Script<*, *>> = mapOf(),
+    val components: Map<ScriptComponentId, ScriptComponentType> = mapOf()
 ) {
     data class Item(val prefab: ItemPrefab) {
         val id get() = prefab.id
@@ -53,7 +56,8 @@ fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
                 Namespace.Holder(namespace.items.mapValues { it.value.prefab }),
                 Namespace.Holder(namespace.sounds),
                 Namespace.Holder(namespace.progressionAnimations),
-                Namespace.Holder(namespace.scripts)
+                Namespace.Holder(namespace.scripts),
+                Namespace.Holder(namespace.components)
             )
         }
     )
@@ -61,6 +65,7 @@ fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
 
 fun EngineServer.applyContentsCompileResult(result: CompilationResult) {
     namespacedStorage.loadContentsCompileResult(result)
+    listWorlds().forEach { it.registerScriptComponents(namespacedStorage.components.values.toList()) }
     handler.onContentsUpdate()
 }
 

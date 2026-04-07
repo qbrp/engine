@@ -17,7 +17,12 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
-import org.lain.engine.script.*
+import org.lain.engine.script.loadContents
+import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.LuaDataStorage
+import org.lain.engine.script.lua.prepareLuaScriptComponents
+import org.lain.engine.script.luaEntrypointDir
+import org.lain.engine.script.scripts
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerEventListener
@@ -33,8 +38,10 @@ import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.world.World
 import org.lain.engine.world.updateVoxelEvents
 import org.lain.engine.world.world
+import org.luaj.vm2.lib.jse.JsePlatform
 
 data class EngineMinecraftServerDependencies(
     val minecraftServer: MinecraftServer,
@@ -70,7 +77,18 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )
     private val luaDataStorage = LuaDataStorage()
-    protected var luaContext = LuaContext(luaDataStorage, engine.playerStorage, ENGINE_DIR.scripts, engine.luaEntrypointDir)
+    private val luaGlobals = JsePlatform.standardGlobals()
+    protected var luaContext = createLuaContext()
+
+    fun createLuaContext(): LuaContext = LuaContext(
+        luaGlobals,
+        luaDataStorage,
+        engine.playerStorage,
+        engine.worlds,
+        engine.namespacedStorage,
+        ENGINE_DIR.scripts,
+        engine.luaEntrypointDir
+    )
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
         val item = instantiateItem(
@@ -116,12 +134,12 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.loadContents(luaContext)
         minecraftServer.worlds.forEach {
             val id = it.engine
-            engine.addWorld(
-                world(id, engine.thread) { chunkPos ->
-                    it.chunkManager.chunkLoadingManager.getPlayersWatchingChunk(ChunkPos(chunkPos.x, chunkPos.z), false)
-                        .mapNotNull { entity -> entityTable.getPlayer(entity) }
-                }
-            )
+            val world = world(id, engine.thread) { chunkPos ->
+                it.chunkManager.chunkLoadingManager.getPlayersWatchingChunk(ChunkPos(chunkPos.x, chunkPos.z), false)
+                    .mapNotNull { entity -> entityTable.getPlayer(entity) }
+            }
+            world.registerScriptComponents(engine.namespacedStorage.components.values.toList())
+            engine.addWorld(world)
             dependencies.entityTable.setWorld(id, it)
         }
         engine.run()
@@ -131,7 +149,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     private fun onRequestReloadContents(playerId: PlayerId) = playerStorage.get(playerId)?.let { player ->
         if (player.hasPermission("reloadenginecontents")) {
             try {
-                val luaContext = LuaContext(luaDataStorage, playerStorage, ENGINE_DIR.scripts, engine.luaEntrypointDir)
+                val luaContext = createLuaContext()
                 this.luaContext = luaContext
                 engine.loadContents(luaContext)
             } catch (e: Throwable) {
@@ -158,9 +176,11 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         timers.items.activate()
     }
 
+    context(world: World)
     override fun onPlayerInstantiated(player: EnginePlayer) {
         val entity = minecraftServer.playerManager.getPlayer(player.id.value) ?: return
         entityTable.setPlayer(entity, player)
+        with(luaContext) { player.prepareLuaScriptComponents() }
     }
 
     override fun onChatMessage(message: IncomingMessage) {}
