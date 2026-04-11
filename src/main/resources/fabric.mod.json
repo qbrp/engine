@@ -22,7 +22,7 @@
       "org.lain.engine.CommonEngineServerMod"
     ],
     "lambdynlights:initializer": [
-      "org.lain.engine.client.mc.LambDynamicLights"
+      "org.lain.engine.client.mc.compat.LambDynamicLights"
     ]
   },
   "mixins": [

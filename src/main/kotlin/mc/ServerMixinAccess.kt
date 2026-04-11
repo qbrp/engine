@@ -35,7 +35,7 @@ object ServerMixinAccess {
 
     fun inEnginePlayer(player: ServerPlayerEntity) = table.server.getPlayer(player) != null
 
-    fun onBlockInteraction(entity: ServerPlayerEntity, world: World, blockPos: BlockPos): Boolean = with(server.engine.getWorld(world.engine)) {
+    fun onBlockInteraction(entity: PlayerEntity, world: World, blockPos: BlockPos): Boolean = with(server.engine.getWorld(world.engine)) {
         val voxel = chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return false
         voxel.hasComponent(BuiltinScriptComponents.USE_RESTRICTION.ecsType)
     }

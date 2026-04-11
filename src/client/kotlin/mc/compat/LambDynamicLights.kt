@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc
+package org.lain.engine.client.mc.compat
 
 import dev.lambdaurora.lambdynlights.api.DynamicLightsContext
 import dev.lambdaurora.lambdynlights.api.DynamicLightsInitializer
@@ -12,8 +12,10 @@ import net.minecraft.util.math.MathHelper
 import net.minecraft.world.RaycastContext
 import org.joml.Matrix3d
 import org.joml.Vector3d
+import org.lain.cyberia.ecs.get
 import org.lain.engine.chat.acoustic.Grid3b
 import org.lain.engine.client.GameSession
+import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.item.ConeLightEmitterSettings
 import org.lain.engine.item.Flashlight
 import org.lain.engine.item.ItemUuid
@@ -21,7 +23,6 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.handItem
 import org.lain.engine.util.Injector
-import org.lain.cyberia.ecs.get
 import org.lain.engine.util.inject
 import org.lain.engine.util.math.smoothstepSDF
 import kotlin.math.*

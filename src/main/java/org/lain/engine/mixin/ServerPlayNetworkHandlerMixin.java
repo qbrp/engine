@@ -31,19 +31,4 @@ public class ServerPlayNetworkHandlerMixin {
             instance.broadcast(message, overlay);
         }
     }
-
-    @Inject(
-            method = "onPlayerInteractBlock",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/server/network/ServerPlayerInteractionManager;interactBlock(Lnet/minecraft/server/network/ServerPlayerEntity;Lnet/minecraft/world/World;Lnet/minecraft/item/ItemStack;Lnet/minecraft/util/Hand;Lnet/minecraft/util/hit/BlockHitResult;)Lnet/minecraft/util/ActionResult;"
-            ),
-            cancellable = true
-    )
-    public void engine$cancelBlockInteraction(PlayerInteractBlockC2SPacket packet, CallbackInfo ci) {
-        BlockPos blockPos = packet.getBlockHitResult().getBlockPos();
-        if (ServerMixinAccess.INSTANCE.onBlockInteraction(player, player.getEntityWorld(), blockPos)) {
-            ci.cancel();
-        }
-    }
 }

@@ -4,6 +4,7 @@
   "package": "org.lain.engine.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AbstractBlockMixin",
     "BlockItemMixin",
     "ChunkDataSenderMixin",
     "ItemFrameEntityMixin",

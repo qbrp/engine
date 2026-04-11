@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc
+package org.lain.engine.client.mc.compat
 
 import mirsario.cameraoverhaul.ScreenShakes
 import org.lain.engine.util.isClassAvailable

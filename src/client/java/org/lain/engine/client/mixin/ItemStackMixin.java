@@ -15,7 +15,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ClickType;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.ClientItemStorageKt;
-import org.lain.engine.client.mc.MinecraftUtilKt;
+import org.lain.engine.client.mc.UtilKt;
 import org.lain.engine.item.EngineItem;
 import org.lain.engine.item.TooltipKt;
 import org.lain.engine.mc.EngineItemReferenceComponent;
@@ -81,7 +81,7 @@ public abstract class ItemStackMixin {
         if (engineItem != null) {
             appendComponentTooltip(DataComponentTypes.LORE, context, displayComponent, textConsumer, type);
             for (String line : TooltipKt.getTooltip(engineItem, type.isAdvanced())) {
-                textConsumer.accept(MinecraftUtilKt.parseMiniMessageClient(line));
+                textConsumer.accept(UtilKt.parseMiniMessageClient(line));
             }
             ci.cancel();
         }

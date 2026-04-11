@@ -34,6 +34,9 @@ import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.client.mc.*
+import org.lain.engine.client.mc.compat.LightSource
+import org.lain.engine.client.mc.compat.injectDynamicLightsContext
+import org.lain.engine.client.mc.compat.updateLights
 import org.lain.engine.client.mc.render.EngineUiRenderPipeline
 import org.lain.engine.client.mc.render.InteractionSelectionScreen
 import org.lain.engine.client.mc.render.MinecraftFontRenderer
@@ -42,6 +45,8 @@ import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
 import org.lain.engine.client.mc.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.mc.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.mc.render.world.registerWorldRenderEvents
+import org.lain.engine.client.mc.sound.MinecraftAudioManager
+import org.lain.engine.client.mc.sound.TinnitusSoundInstance
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.Window
@@ -319,7 +324,7 @@ class MinecraftEngineClient : ClientModInitializer {
         updateLights(gameSession, dynamicLights, entityTable, dynamicLightSources, dynamicLightBehaviours)
         decalsStorage.handleDecalsEvent(gameSession.world)
         gameSession.world.clearEvents()
-        audioManager.updatePlayerTinnitus(gameSession)
+        audioManager.tick(gameSession)
     }
 
     private fun onClientStarted() {
