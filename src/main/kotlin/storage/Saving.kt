@@ -105,7 +105,7 @@ fun updateSaveSystem(server: EngineMinecraftServer, world: World) = with(world) 
     if (itemsToSave.isNotEmpty()) {
         ItemIoCoroutineScope.launch {
             server.database.saveItemPersistentDataBatch(itemsPersistent)
-            LOGGER.info("Выгружено {} неактивных предметов, всего сохранено {}", itemsDestroyed.size, itemsToSave.size)
+            server.engine.execute { LOGGER.info("Выгружено {} неактивных предметов, всего сохранено {}", itemsDestroyed.size, itemsToSave.size) }
         }
     }
 

@@ -1,11 +1,11 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.server.markDirty
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.apply
 import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.require
+import org.lain.engine.server.markDirty
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.math.smootherstep
 import org.lain.engine.util.math.smoothstep
@@ -98,7 +98,11 @@ fun updatePlayerMovement(
     settings: MovementSettings,
     isClient: Boolean = false
 ) {
-    val defaultSpeed = primaryAttributes.getPrimarySeed(player) ?: 0.055f
+    val isSpectating = player.isSpectating
+    val isGameMaster = player.isInGameMasterMode
+
+    val status = PlayerStatus.of(isGameMaster, isSpectating)
+    val defaultSpeed = primaryAttributes.getPrimarySeed(status) ?: 0.055f
     val attributes = player.require<PlayerAttributes>()
     val speedAttribute = attributes.speed.default
     val velocityHorizontal = player.velocity.horizontal().length()
@@ -107,25 +111,22 @@ fun updatePlayerMovement(
     val staminaRegen = settings.staminaRegen
     val staminaConsume = settings.staminaConsumption
 
-    attributes.jumpStrength.default = primaryAttributes.getPrimaryJumpStrength(player) ?: 0.55f
+    attributes.jumpStrength.default = primaryAttributes.getPrimaryJumpStrength(status) ?: 0.55f
 
     player.apply<MovementStatus> {
-        val isSpectating = player.isSpectating
-
         val minSpeed = defaultSpeed * minSpeed
         val maxSpeed = defaultSpeed * maxSpeedMul(settings)
 
         attributes.speed.default = if (isSpectating) {
             defaultSpeed
         } else {
-            stamina = if (!player.isInGameMasterMode && !player.isSpectating) {
+            stamina = if (!isGameMaster) {
                 val jumpConsume = if (player.remove<Jump>() != null) settings.jumpStaminaConsume else 0f
                 val movementConsume = abs(velocityHorizontal) / maxSpeed * staminaConsume
                 (stamina + staminaRegen - movementConsume - jumpConsume).coerceIn(0f, 1f)
             } else {
                 1f
             }
-
 
             val maxSpeed = attributes.maxSpeed.get()
             val minSpeed = min(minSpeed, maxSpeed)

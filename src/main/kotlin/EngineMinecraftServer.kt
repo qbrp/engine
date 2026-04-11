@@ -4,12 +4,17 @@ import kotlinx.coroutines.runBlocking
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
+import net.minecraft.registry.RegistryKeys
+import net.minecraft.registry.tag.TagKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.util.Identifier
 import net.minecraft.util.WorldSavePath
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.chunk.Chunk
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemAccess
@@ -17,10 +22,12 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
+import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.loadContents
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.script.lua.prepareLuaScriptComponents
+import org.lain.engine.script.lua.updateScriptComponents
 import org.lain.engine.script.luaEntrypointDir
 import org.lain.engine.script.scripts
 import org.lain.engine.server.EngineServer
@@ -37,10 +44,7 @@ import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.World
-import org.lain.engine.world.updateVoxelEvents
-import org.lain.engine.world.world
+import org.lain.engine.world.*
 import org.luaj.vm2.lib.jse.JsePlatform
 
 data class EngineMinecraftServerDependencies(
@@ -114,6 +118,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.update()
         updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld)
         engine.listWorlds().forEach { world ->
+            updateScriptComponents(world)
             world.updateVoxelEvents(engine.handler)
             world.clearEvents()
             updateUnloadSystem(world, timers)
@@ -180,24 +185,42 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     override fun onPlayerInstantiated(player: EnginePlayer) {
         val entity = minecraftServer.playerManager.getPlayer(player.id.value) ?: return
         entityTable.setPlayer(entity, player)
-        with(luaContext) { player.prepareLuaScriptComponents() }
+        with(luaContext) {
+            player.prepareLuaScriptComponents()
+            player.entityId.setComponent(player.require<Location>())
+        }
     }
 
     override fun onChatMessage(message: IncomingMessage) {}
 
     fun onBlockBreak(pos: BlockPos, world: net.minecraft.world.World) {
         acousticSimulator.removeBlock(pos, world)
-        val world = engine.getWorld(world.engine)
+        val engineWorld = engine.getWorld(world.engine)
         val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
-        world.chunkStorage.removeVoxel(voxelPos)
+        engineWorld.chunkStorage.removeVoxel(voxelPos)?.let { dynamicVoxel -> engineWorld.destroy(dynamicVoxel) }
     }
 
     fun onBlockAdd(block: BlockState, pos: BlockPos, world: net.minecraft.world.World) {
         acousticSimulator.updateBlock(block, pos, world)
     }
 
-    fun onPlayerBlockInteraction(pos: BlockPos, state: BlockState, world: net.minecraft.world.World) {
+    fun onPlayerBlockInteraction(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: net.minecraft.world.World) {
         onBlockAdd(state, pos, world)
+        engine.callbacks.placeVoxel.execute(
+            ScriptContext.VoxelAction(
+                player,
+                engine.getWorld(world),
+                pos.engine(),
+                object : VoxelMeta {
+                    override val id: String
+                        get() = state.block.registryEntry.idAsString
+
+                    override fun hasTag(id: String): Boolean {
+                        return state.isIn(TagKey.of(RegistryKeys.BLOCK, Identifier.ofVanilla(id)))
+                    }
+                }
+            )
+        )
     }
 
     fun onChunkUnload(world: net.minecraft.world.World, chunk: Chunk) {

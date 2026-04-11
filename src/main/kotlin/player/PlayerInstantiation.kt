@@ -28,6 +28,8 @@ import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.apply
 
+object Player : Component
+
 data class PlayerInstantiateSettings(
     val world: World,
     val pos: Pos,

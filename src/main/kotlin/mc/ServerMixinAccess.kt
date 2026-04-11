@@ -2,6 +2,7 @@ package org.lain.engine.mc
 
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.item.ItemPlacementContext
 import net.minecraft.item.ItemStack
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
@@ -9,11 +10,13 @@ import net.minecraft.util.ClickType
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.World
 import net.minecraft.world.chunk.WorldChunk
+import org.lain.cyberia.ecs.getOrSet
+import org.lain.cyberia.ecs.hasComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.gunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
-import org.lain.cyberia.ecs.getOrSet
+import org.lain.engine.script.BuiltinScriptComponents
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectMovementSettings
@@ -31,6 +34,11 @@ object ServerMixinAccess {
     var blockRemovedCallback: ((WorldChunk, BlockPos) -> Unit)? = null
 
     fun inEnginePlayer(player: ServerPlayerEntity) = table.server.getPlayer(player) != null
+
+    fun onBlockInteraction(entity: ServerPlayerEntity, world: World, blockPos: BlockPos): Boolean = with(server.engine.getWorld(world.engine)) {
+        val voxel = chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return false
+        voxel.hasComponent(BuiltinScriptComponents.USE_RESTRICTION.ecsType)
+    }
 
     fun onSlotEngineItemClicked(
         cursorItem: EngineItem,
@@ -116,9 +124,9 @@ object ServerMixinAccess {
         server.engine.handler.onChunkSend(engineChunk, chunkPos, player)
     }
 
-    fun onBlockAdded(world: World, blockPos: BlockPos, state: BlockState) {
+    fun onBlockAdded(context: ItemPlacementContext, world: World, blockPos: BlockPos, state: BlockState) {
         if (world.isClient) return
-        server.onPlayerBlockInteraction(blockPos, state, world)
+        server.onPlayerBlockInteraction(context.player?.engine, blockPos, state, world)
     }
 
     fun onBlockRemoved(world: World, pos: BlockPos) {

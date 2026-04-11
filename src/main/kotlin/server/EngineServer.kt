@@ -4,6 +4,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.trySendJoinMessage
@@ -144,6 +145,7 @@ class EngineServer(
     }
 
     fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
+        player.entityId.setComponent(Player)
         eventListener.onPlayerInstantiated(player)
 
         player.startSpectating()

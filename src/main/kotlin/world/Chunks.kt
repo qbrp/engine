@@ -1,11 +1,12 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.storage.loadChunk
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.iterate
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory
 data class EngineChunk(
     val decals: MutableMap<VoxelPos, BlockDecals> = mutableMapOf(),
     val hints: MutableMap<VoxelPos, BlockHint> = mutableMapOf(),
+    val dynamicVoxels: MutableMap<VoxelPos, EntityId> = mutableMapOf(),
 ) {
     fun isEmpty() = decals.isEmpty() && hints.isEmpty()
 }
@@ -75,7 +77,7 @@ fun getBlockCoord(sectionCoord: Int): Int {
     return sectionCoord shl 4
 }
 
-class ChunkStorage(private val world: World) {
+class ChunkStorage {
     private val chunks = mutableMapOf<Long, EngineChunk>()
 
     fun setChunk(pos: EngineChunkPos, chunk: EngineChunk) {
@@ -94,16 +96,33 @@ class ChunkStorage(private val world: World) {
         return getChunk(pos)?.hints[pos]
     }
 
-    fun removeVoxel(pos: VoxelPos) {
-        val chunk = getChunkByVoxel(pos.x, pos.z) ?: return
+    fun getDynamicVoxel(pos: VoxelPos): EntityId? {
+        return getChunk(pos)?.dynamicVoxels[pos]
+    }
+
+    fun removeVoxel(pos: VoxelPos): EntityId? {
+        val chunk = getChunkByVoxel(pos.x, pos.z) ?: return null
         chunk.hints.remove(pos)
         chunk.decals.remove(pos)
+        return chunk.dynamicVoxels.remove(pos)
     }
 
     fun getChunk(pos: EngineChunkPos): EngineChunk? = getChunk(pos.x, pos.z)
 
     fun requireChunk(pos: EngineChunkPos): EngineChunk {
-        return getChunk(pos) ?: run {
+        return requireChunk(pos.x, pos.z)
+    }
+
+    fun requireChunk(voxelPos: VoxelPos): EngineChunk {
+        return requireChunk(
+            chunkSectionCoord(voxelPos.x),
+            chunkSectionCoord(voxelPos.z)
+        )
+    }
+
+    fun requireChunk(x: Int, z: Int): EngineChunk {
+        return getChunk(x, z) ?: run {
+            val pos = EngineChunkPos(x, z)
             val loadedChunk = loadChunk(pos) ?: EngineChunk()
             setChunk(pos, loadedChunk)
             loadedChunk

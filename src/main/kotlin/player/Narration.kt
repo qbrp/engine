@@ -1,11 +1,11 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.server.markDirty
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.apply
 import org.lain.cyberia.ecs.require
-import org.lain.engine.util.nextId
+import org.lain.engine.server.markDirty
+import org.lain.engine.util.nextIdFast
 import kotlin.math.max
 
 /**
@@ -29,7 +29,7 @@ data class NarrationMessage(
     val content: NarrationContent,
     var time: Int,
     val kick: Boolean,
-    val id: Long = nextId()
+    val id: Long = nextIdFast()
 )
 
 fun EnginePlayer.narration(message: String, time: Int, kick: Boolean = false) = this.apply<Narration>() {

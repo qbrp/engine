@@ -1,31 +1,44 @@
 package org.lain.engine.script.lua
 
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.iterate
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.Player
 import org.lain.engine.script.*
+import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
-import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
+import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
 class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, private val luaFunction: LuaFunction) : Script<C, R> {
     override fun execute(context: C): ExecutionResult<R> = with(luaContext) {
         val arguments = when(context) {
             is ScriptContext.Player -> {
-                arrayOf(luaValue(context.player.id.toString()))
+                context.player.coerceToLua()
             }
             is ScriptContext.World -> {
-                arrayOf(luaValue(context.world.id.toString()))
+                context.world.coerceToLua()
             }
             is ScriptContext.Interaction -> {
-                arrayOf(
-                    context.player.coerceToLua(),
-                    context.raycastPlayer?.coerceToLua()
+                luaTableOf(
+                    luaValue("player"), context.player.coerceToLua(),
+                    luaValue("raycast_player"), context.raycastPlayer?.coerceToLua() ?: LuaValue.NIL,
+                )
+            }
+            is ScriptContext.VoxelAction -> {
+                luaTableOf(
+                    luaValue("player"), context.player?.coerceToLua() ?: LuaValue.NIL,
+                    luaValue("world"), context.world.coerceToLua(),
+                    luaValue("voxel_pos"), context.pos.toLuaValue(),
+                    luaValue("voxel_meta"), context.meta.coerceToLua(),
                 )
             }
         }
         return try {
-            val result = luaFunction.invoke(LuaValue.varargsOf(arguments)).arg1().toKotlin()
+            val result = luaFunction.invoke(arguments).arg1().toKotlin()
             ExecutionResult.Success(
                 (result ?: Unit) as R
             )
@@ -48,7 +61,9 @@ fun LuaValue.toKotlin(): Any? {
     }
 }
 
-fun LuaScriptComponent(table: LuaTable) = ScriptComponent(table)
+fun LuaScriptComponent(value: LuaValue) = ScriptComponent(value)
+
+fun LuaUserdataComponent(component: Component) = LuaScriptComponent(CoerceJavaToLua.coerce(component))
 
 context(world: World, luaContext: LuaContext)
 fun EnginePlayer.prepareLuaScriptComponents() {
@@ -56,4 +71,17 @@ fun EnginePlayer.prepareLuaScriptComponents() {
         LuaScriptComponent(luaTableOf(luaValue("object"), coerceToLua())),
         BuiltinScriptComponents.PLAYER
     )
+    entityId.setScriptComponent(
+        LuaScriptComponent(
+            luaTableOf(luaValue("vector"), LuaValue.NIL),
+        ),
+        BuiltinScriptComponents.LOCATION
+    )
+}
+
+fun updateScriptComponents(world: World) {
+    world.iterate<Player, Location>() { player, _, location ->
+        val scriptLocation = player.requireComponent(BuiltinScriptComponents.LOCATION.ecsType)
+        scriptLocation.luaTable.set("vector", location.position.toLuaValue())
+    }
 }

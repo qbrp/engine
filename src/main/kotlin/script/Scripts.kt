@@ -1,11 +1,14 @@
 package org.lain.engine.script
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.require
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionComponent
-import org.lain.engine.util.NamespacedStorage
-import org.lain.cyberia.ecs.require
 import org.lain.engine.script.lua.LuaScript
+import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.world.VoxelMeta
+import org.lain.engine.world.VoxelPos
+import org.lain.engine.world.World as EngineWorld
 
 sealed class ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext()
@@ -13,7 +16,13 @@ sealed class ScriptContext {
         val player: EnginePlayer,
         val raycastPlayer: EnginePlayer?,
     ) : ScriptContext()
-    data class World(val world: org.lain.engine.world.World) : ScriptContext()
+    data class World(val world: EngineWorld) : ScriptContext()
+    data class VoxelAction(
+        val player: EnginePlayer?,
+        val world: EngineWorld,
+        val pos: VoxelPos,
+        val meta: VoxelMeta
+    ) : ScriptContext()
 }
 
 val EnginePlayer.scriptContext: ScriptContext.Player

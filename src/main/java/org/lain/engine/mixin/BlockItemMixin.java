@@ -21,7 +21,7 @@ public class BlockItemMixin {
         if (cir.getReturnValue() == ActionResult.SUCCESS) {
             World world = context.getWorld();
             BlockPos pos = context.getBlockPos();
-            ServerMixinAccess.INSTANCE.onBlockAdded(world, pos, world.getBlockState(pos));
+            ServerMixinAccess.INSTANCE.onBlockAdded(context, world, pos, world.getBlockState(pos));
         }
     }
 }

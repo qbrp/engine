@@ -16,6 +16,7 @@ import org.lain.engine.transport.packet.ServerAcknowledgeTask
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.randomLong
 import org.lain.engine.util.nextId
+import org.lain.engine.util.nextIdFast
 import kotlin.reflect.KClass
 
 class Endpoint<P : Packet>(
@@ -32,7 +33,7 @@ class Endpoint<P : Packet>(
         }
     }
 
-    fun sendS2C(packet: P, player: PlayerId, id: Long = nextId()) = executeOnThread {
+    fun sendS2C(packet: P, player: PlayerId, id: Long = nextIdFast()) = executeOnThread {
         if (SharedConstants.SIMULATE_LATENCY) {
             val endpoint = this
             CoroutineScope(Dispatchers.IO).launch {
@@ -48,7 +49,7 @@ class Endpoint<P : Packet>(
         packets.forEach { sendS2C(it, player) }
     }
 
-    fun taskS2C(packet: P, player: PlayerId, id: Long = nextId()): ServerPacketSendTask<P> {
+    fun taskS2C(packet: P, player: PlayerId, id: Long = nextIdFast()): ServerPacketSendTask<P> {
         return ServerPacketSendTask(id, packet, this, transport, player)
     }
 
@@ -100,7 +101,7 @@ interface ServerTransportContext {
         endpoint: Endpoint<P>,
         packet: P,
         player: PlayerId,
-        id: Long = nextId()
+        id: Long = nextIdFast()
     )
 
     fun <P : Packet> broadcastClientboundPacket(

@@ -13,7 +13,7 @@ class World(
     val players: MutableList<EnginePlayer> = mutableListOf(),
     val playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null,
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
-    val chunkStorage: ChunkStorage = ChunkStorage(this)
+    val chunkStorage: ChunkStorage = ChunkStorage()
     var ticks = 0L
 
     fun registerScriptComponents(components: List<ScriptComponentType>) {
@@ -24,7 +24,7 @@ class World(
      * Создает сущность с компонентами `event` и Event. Следует использовать как альтернативу очередям событий.
      * Последний сигнализирует о том, что сущность нужно уничтожить в конце тика
      */
-    fun <T : Component> emitEvent(event: T, type: ComponentType<T>) {
+    inline fun <reified T : Component> emitEvent(event: T, type: ComponentType<T>) {
         componentManager.addEntity {
             setComponent(event, type)
             setComponent(Event)

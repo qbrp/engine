@@ -290,7 +290,6 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
 
     @Suppress("UNCHECKED_CAST")
     fun <T : Component> getComponentArray(type: ComponentType<T>): ComponentArray<T> {
-        assertOnThread()
         return arrays[type] as? ComponentArray<T> ?: error("No component array for $type")
     }
 }

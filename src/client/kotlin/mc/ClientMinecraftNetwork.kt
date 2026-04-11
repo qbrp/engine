@@ -12,6 +12,7 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.nextId
+import org.lain.engine.util.nextIdFast
 
 class ClientMinecraftNetwork : ClientTransportContext {
     override val packetHistory: FixedSizeList<Long> = FixedSizeList(3000)
@@ -54,7 +55,7 @@ class ClientMinecraftNetwork : ClientTransportContext {
         val payload = PayloadRegistry.payloadOf(endpoint)
         ClientPlayNetworking.send(
             EnginePayload(
-                nextId(),
+                nextIdFast(),
                 packet,
                 payload
             )

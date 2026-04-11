@@ -1,13 +1,16 @@
 package org.lain.engine.script.lua
 
-import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.world.world
+import org.lain.engine.world.VoxelPos
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
+import org.luaj.vm2.Varargs
+import org.luaj.vm2.lib.OneArgFunction
+import org.luaj.vm2.lib.ThreeArgFunction
 import org.luaj.vm2.lib.TwoArgFunction
+import org.luaj.vm2.lib.VarArgFunction
 
 fun LuaValue.nullable() = if (isnil()) null else this
 
@@ -48,36 +51,78 @@ fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
     return list
 }
 
+fun VoxelPos.toLuaValue(): LuaTable {
+    return LuaValue.listOf(
+        arrayOf(luaValue(x), luaValue(y), luaValue(z)),
+    )
+}
+
+fun Vec3.toLuaValue(): LuaTable {
+    return LuaValue.listOf(
+        arrayOf(luaValue(x), luaValue(y), luaValue(z))
+    )
+}
+
+fun LuaValue.toVoxelPos(): VoxelPos {
+    val elements = checktable().toList { it.tofloat() }
+    require(elements.size == 3) { "Invalid vector elements count: $elements" }
+    return VoxelPos(elements[0], elements[1], elements[2])
+}
+
 fun LuaValue.toVector3f(): Vec3 {
     val elements = checktable().toList { it.tofloat() }
     require(elements.size == 3) { "Invalid vector elements count: $elements" }
     return Vec3(elements[0], elements[1], elements[2])
 }
 
-fun LuaValue.coerceToScriptComponent(): ScriptComponentType {
+fun LuaValue.coerceToScriptComponentType(): ScriptComponentType {
     return checkuserdata(ScriptComponentType::class.java) as? ScriptComponentType ?: error("Invalid component type value")
 }
 
-fun LuaValue.coerceToEnginePlayer() = this.checkuserdata() as EnginePlayer
-
-context(context: LuaContext)
-fun EnginePlayer.coerceToLua(): LuaUserdata {
+fun ScriptComponentType.toLuaValue(): LuaValue {
     val userdata = LuaUserdata(this)
     val meta = object : LuaTable() {
         init {
             set("__index", object : TwoArgFunction() {
                 override fun call(self: LuaValue, key: LuaValue): LuaValue {
                     return when (key.tojstring()) {
-                        "id" -> luaValue(this@coerceToLua.id.toString())
-                        "world_id" -> luaValue(this@coerceToLua.world.id.toString())
-                        "entity_id" -> luaValue(this@coerceToLua.entityId)
-                        else -> context.playerTable.get(key)
+                        "id" -> luaValue(ecsType.id)
+                        else -> NIL
                     }
                 }
             })
         }
     }
-
     userdata.setmetatable(meta)
     return userdata
+}
+
+fun oneArgFunction(builder: (LuaValue) -> LuaValue) = object : OneArgFunction() {
+    override fun call(arg: LuaValue): LuaValue {
+        return builder.invoke(arg)
+    }
+}
+
+fun twoArgFunction(builder: (LuaValue, LuaValue) -> LuaValue) = object : TwoArgFunction() {
+    override fun call(arg: LuaValue, arg2: LuaValue): LuaValue {
+        return builder.invoke(arg, arg2)
+    }
+}
+
+fun threeArgFunction(builder: (LuaValue, LuaValue, LuaValue) -> LuaValue) = object : ThreeArgFunction() {
+    override fun call(arg: LuaValue, arg2: LuaValue, arg3: LuaValue): LuaValue {
+        return builder.invoke(arg, arg2, arg3)
+    }
+}
+
+fun fourArgFunction(builder: (LuaValue, LuaValue, LuaValue, LuaValue) -> LuaValue) = object : VarArgFunction() {
+    override fun onInvoke(args: Varargs): Varargs {
+        return builder.invoke(args.arg(1), args.arg(2), args.arg(3), args.arg(4))
+    }
+}
+
+fun varargsFunction(builder: (Varargs) -> LuaValue) = object : VarArgFunction() {
+    override fun onInvoke(args: Varargs): Varargs {
+        return builder.invoke(args)
+    }
 }

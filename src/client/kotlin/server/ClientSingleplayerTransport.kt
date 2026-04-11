@@ -11,7 +11,7 @@ import org.lain.engine.transport.*
 import org.lain.engine.transport.packet.EngineChunkPacket
 import org.lain.engine.transport.packet.JoinGamePacket
 import org.lain.engine.util.FixedSizeList
-import org.lain.engine.util.nextId
+import org.lain.engine.util.nextIdFast
 
 private enum class Side { CLIENT, SERVER }
 
@@ -64,7 +64,7 @@ class ClientSingleplayerTransport(
         endpoint: Endpoint<P>,
         packet: P
     ) {
-        CommonSingleplayerEndpointRegistry.invoke(endpoint, Side.SERVER, packet, nextId())
+        CommonSingleplayerEndpointRegistry.invoke(endpoint, Side.SERVER, packet, nextIdFast())
     }
 }
 

@@ -21,4 +21,10 @@ fun nextIdStr(): String {
     return nextId().toString()
 }
 
+private var lastId = 0L
+
+fun nextIdFast(): Long {
+    return ++lastId
+}
+
 fun EngineId(path: String) = Identifier.of(CommonEngineServerMod.MOD_ID, path)!!

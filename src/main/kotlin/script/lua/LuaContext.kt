@@ -47,6 +47,7 @@ class LuaContext(
     var compilationFunctions: MutableList<LuaFunction> = mutableListOf()
     val callbacksFunctions: MutableList<LuaFunction> = mutableListOf()
     lateinit var playerTable: LuaTable
+    lateinit var worldTable: LuaTable
 
     init {
         directory.parentFile.mkdirs()
@@ -58,9 +59,12 @@ class LuaContext(
                 scriptsPath.resolve("core/bridge.lua").path
             ).call()
             playerTable = globals.get("Player").checktable()
+            worldTable = globals.get("World").checktable()
             globals.setupPlayer()
+            globals.setupWorld()
 
             file.call()
+            worldTable = globals.get("World").checktable()
         }
     }
 
@@ -69,6 +73,7 @@ class LuaContext(
         val playerDestroy = mutableListOf<PlayerDestroyCallback>()
         val worldTickSecond = mutableListOf<WorldTickSecondCallback>()
         val worldTick = mutableListOf<WorldTickCallback>()
+        val placeVoxel = mutableListOf<PlaceVoxelCallback>()
 
         callbacksFunctions.forEach {
             val table = it.call().checktable()
@@ -85,13 +90,15 @@ class LuaContext(
             playerDestroy.addTableCallback("player_destroy")
             worldTickSecond.addTableCallback("world_tick_second")
             worldTick.addTableCallback("world_tick")
+            placeVoxel.addTableCallback("place_voxel")
         }
 
         return Callbacks(
             ScriptCallback(playerInstantiate.flatMap { it.scripts }),
             ScriptCallback(playerDestroy.flatMap { it.scripts }),
             ScriptCallback(worldTickSecond.flatMap { it.scripts }),
-            ScriptCallback(worldTick.flatMap { it.scripts })
+            ScriptCallback(worldTick.flatMap { it.scripts }),
+            ScriptCallback(placeVoxel.flatMap { it.scripts }),
         )
     }
 

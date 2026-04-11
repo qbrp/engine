@@ -1,6 +1,7 @@
 package org.lain.engine.util.component
 
 import org.lain.cyberia.ecs.Component
+import org.lain.engine.script.ScriptComponent
 import org.reflections.Reflections
 import org.reflections.scanners.Scanners
 import org.reflections.util.ClasspathHelper
@@ -14,7 +15,7 @@ fun ComponentTypeRegistry.registerAll() {
     )
     reflections.getSubTypesOf(Component::class.java).forEach {
         val kclass = it.kotlin
-        if (!isRegistered(kclass)) {
+        if (!isRegistered(kclass) && it != ScriptComponent::class.java) {
             registerComponent(kclass, ComponentMeta(false, false), it.simpleName)
         }
     }

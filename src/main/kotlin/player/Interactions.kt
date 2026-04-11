@@ -14,6 +14,7 @@ import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.set
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.engine.util.nextId
+import org.lain.engine.util.nextIdFast
 import org.lain.engine.world.SoundContext
 import org.lain.engine.world.world
 import kotlin.reflect.KClass
@@ -252,7 +253,7 @@ value class VerbId(val value: String)
 @JvmInline
 value class InteractionId(val value: Long) {
     companion object {
-        fun next(): InteractionId = InteractionId(nextId())
+        fun next(): InteractionId = InteractionId(nextIdFast())
     }
 }
 

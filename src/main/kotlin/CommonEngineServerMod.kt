@@ -41,8 +41,8 @@ class CommonEngineServerMod : ModInitializer {
         get() = Injector.resolve(EngineMinecraftServer::class)
 
     override fun onInitialize() {
-        ComponentTypeRegistry.registerAll()
         bootstrap()
+        ComponentTypeRegistry.registerAll()
         val environment = when (FabricLoader.getInstance().environmentType) {
             EnvType.CLIENT -> Environment.CLIENT
             EnvType.SERVER -> Environment.SERVER

@@ -1,9 +1,9 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.server.markDirty
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.require
+import org.lain.engine.server.markDirty
 
 @Serializable
 data class AttributeValue(var default: Float, var custom: Float? = null) {
@@ -28,20 +28,13 @@ data class PlayerAttributes(
 data class MovementDefaultAttributes(
     val attributes: Map<PlayerStatus, Map<PrimaryAttribute, Float>> = mapOf()
 ) {
-    fun getPrimarySeed(player: EnginePlayer): Float? {
-        return attributes[player.status]?.get(PrimaryAttribute.SPEED)
+    fun getPrimarySeed(status: PlayerStatus): Float? {
+        return attributes[status]?.get(PrimaryAttribute.SPEED)
     }
 
-    fun getPrimaryJumpStrength(player: EnginePlayer): Float? {
-        return attributes[player.status]?.get(PrimaryAttribute.JUMP_STRENGTH)
+    fun getPrimaryJumpStrength(status: PlayerStatus): Float? {
+        return attributes[status]?.get(PrimaryAttribute.JUMP_STRENGTH)
     }
-
-    private val EnginePlayer.status: PlayerStatus
-        get() = when {
-            isInGameMasterMode -> PlayerStatus.GM
-            isSpectating -> PlayerStatus.SPECTATING
-            else -> PlayerStatus.DEFAULT
-        }
 
     companion object {
         val BUILTIN = MovementDefaultAttributes(
@@ -67,7 +60,15 @@ enum class PrimaryAttribute {
 }
 
 enum class PlayerStatus {
-    DEFAULT, GM, SPECTATING
+    DEFAULT, GM, SPECTATING;
+
+    companion object {
+        fun of(gameMaster: Boolean, spectating: Boolean) = when {
+            gameMaster -> PlayerStatus.GM
+            spectating -> PlayerStatus.SPECTATING
+            else -> PlayerStatus.DEFAULT
+        }
+    }
 }
 
 val EnginePlayer.attributes

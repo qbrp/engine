@@ -110,7 +110,7 @@ dependencies {
 
     // Тяжелые зависимости
     modImplementation("org.lain.cyberia:fabric:1.1")
-    modImplementation("org.lain.cyberia:ecs-api:1.2")
+    modImplementation("org.lain.cyberia:ecs-api:1.3.1")
     compileOnly("org.jetbrains.exposed:exposed-core:1.0.0")
     compileOnly("org.jetbrains.exposed:exposed-jdbc:1.0.0")
     compileOnly("org.xerial:sqlite-jdbc:3.51.1.0")
