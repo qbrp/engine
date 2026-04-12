@@ -1,10 +1,14 @@
 package org.lain.engine.mc
 
+import net.minecraft.block.BlockState
 import net.minecraft.block.ShapeContext
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.entity.projectile.ProjectileUtil
 import net.minecraft.predicate.entity.EntityPredicates
+import net.minecraft.registry.RegistryKeys
+import net.minecraft.registry.tag.TagKey
 import net.minecraft.server.MinecraftServer
+import net.minecraft.util.Identifier
 import net.minecraft.util.hit.HitResult
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
@@ -14,11 +18,15 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.RaycastProvider
 import org.lain.engine.player.Username
+import org.lain.engine.script.Callbacks
+import org.lain.engine.script.ScriptContext
 import org.lain.engine.util.math.MutableVec3
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.asVec3
 import org.lain.engine.world.EngineChunkPos
+import org.lain.engine.world.VoxelMeta
 import org.lain.engine.world.VoxelPos
+import org.lain.engine.world.World
 
 fun MinecraftUsername(player: PlayerEntity) = Username(player.name.string)
 
@@ -85,3 +93,21 @@ fun MinecraftServer.getPlayer(id: PlayerId) = playerManager.getPlayer(id.value)
 fun ChunkPos.engine() = EngineChunkPos(x, z)
 
 fun BlockPos.engine() = VoxelPos(this.x, this.y, this.z)
+
+fun Callbacks.executePlaceVoxelCallback(player: EnginePlayer?, world: World, pos: VoxelPos, state: BlockState) {
+    placeVoxel.execute(
+        ScriptContext.VoxelAction(
+            player,
+            world,
+            pos,
+            object : VoxelMeta {
+                override val id: String
+                    get() = state.block.registryEntry.idAsString
+
+                override fun hasTag(id: String): Boolean {
+                    return state.isIn(TagKey.of(RegistryKeys.BLOCK, Identifier.ofVanilla(id)))
+                }
+            }
+        )
+    )
+}

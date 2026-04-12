@@ -1,14 +1,14 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.sound
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.NamespacedStorage
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.iterate
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.Vec3
 
@@ -28,7 +28,7 @@ fun SoundPlay(sound: SoundEvent, pos: Vec3, category: EngineSoundCategory = Engi
     SoundPlay(sound, ImmutableVec3(pos), category, volume, pitch)
 
 enum class EngineSoundCategory {
-    MASTER, WEATHER, BLOCKS, HOSTILE, NEUTRAL, PLAYERS, AMBIENT, VOICE
+    MASTER, WEATHER, BLOCKS, HOSTILE, NEUTRAL, PLAYERS, AMBIENT, VOICE;
 }
 
 @JvmInline

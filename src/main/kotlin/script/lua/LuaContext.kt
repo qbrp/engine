@@ -35,21 +35,35 @@ class LuaDataStorage {
     }
 }
 
-class LuaContext(
+data class LuaDependencies(
     val globals: Globals,
     val dataStorage: LuaDataStorage,
     val playerStorage: Storage<PlayerId, EnginePlayer>,
     val worlds: MutableMap<WorldId, World>,
     val namespacesStorage: NamespacedStorage,
     val scriptsPath: File,
-    directory: File
-) {
+)
+
+open class LuaContext(val dependencies: LuaDependencies) {
+    val globals get() = dependencies.globals
+    val scriptsPath get() = dependencies.scriptsPath
+
     var compilationFunctions: MutableList<LuaFunction> = mutableListOf()
     val callbacksFunctions: MutableList<LuaFunction> = mutableListOf()
     lateinit var playerTable: LuaTable
     lateinit var worldTable: LuaTable
 
-    init {
+    open fun setupTables() {
+        playerTable = globals.get("Player").checktable()
+        worldTable = globals.get("World").checktable()
+    }
+
+    open fun setupGlobals() {
+        globals.setupPlayer()
+        globals.setupWorld()
+    }
+
+    open fun setup(directory: File) {
         directory.parentFile.mkdirs()
         if (directory.exists()) {
             globals.setup()
@@ -58,13 +72,11 @@ class LuaContext(
             globals.loadfile(
                 scriptsPath.resolve("core/bridge.lua").path
             ).call()
-            playerTable = globals.get("Player").checktable()
-            worldTable = globals.get("World").checktable()
-            globals.setupPlayer()
-            globals.setupWorld()
+            setupTables()
+            setupGlobals()
 
             file.call()
-            worldTable = globals.get("World").checktable()
+            setupTables()
         }
     }
 

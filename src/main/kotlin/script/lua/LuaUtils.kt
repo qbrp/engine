@@ -7,10 +7,7 @@ import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.Varargs
-import org.luaj.vm2.lib.OneArgFunction
-import org.luaj.vm2.lib.ThreeArgFunction
-import org.luaj.vm2.lib.TwoArgFunction
-import org.luaj.vm2.lib.VarArgFunction
+import org.luaj.vm2.lib.*
 
 fun LuaValue.nullable() = if (isnil()) null else this
 
@@ -95,6 +92,12 @@ fun ScriptComponentType.toLuaValue(): LuaValue {
     }
     userdata.setmetatable(meta)
     return userdata
+}
+
+fun zeroArgFunction(builder: () -> LuaValue) = object : ZeroArgFunction() {
+    override fun call(): LuaValue {
+        return builder.invoke()
+    }
 }
 
 fun oneArgFunction(builder: (LuaValue) -> LuaValue) = object : OneArgFunction() {

@@ -23,6 +23,7 @@ data class Namespace(
     val progressionAnimations: Holder<ProgressionAnimationId, ProgressionAnimation>,
     val scripts: Holder<ScriptId, Script<*, *>>,
     val components: Holder<ScriptComponentId, ScriptComponentType>,
+    val intents: Holder<IntentId, Intent>
 ) {
     class Holder<K, V>(private val map: Map<K, V> = mapOf()) : Map<K, V> by map {
         val ids: List<String> by lazy { map.keys.map { it.toString() } }
@@ -35,6 +36,7 @@ interface ContentStorage {
     val progressionAnimations: Namespace.Holder<ProgressionAnimationId, ProgressionAnimation>
     val scripts: Namespace.Holder<ScriptId, Script<*, *>>
     val components: Namespace.Holder<ScriptComponentId, ScriptComponentType>
+    val intents: Namespace.Holder<IntentId, Intent>
 }
 
 class NamespacedStorage : ContentStorage {
@@ -45,6 +47,7 @@ class NamespacedStorage : ContentStorage {
     override var progressionAnimations: Namespace.Holder<ProgressionAnimationId, ProgressionAnimation> = Namespace.Holder()
     override var scripts: Namespace.Holder<ScriptId, Script<*, *>> = Namespace.Holder()
     override var components: Namespace.Holder<ScriptComponentId, ScriptComponentType> = Namespace.Holder()
+    override var intents: Namespace.Holder<IntentId, Intent> = Namespace.Holder()
 
     fun upload(namespaces: List<Namespace>) {
         this.namespaces = namespaces.associateBy { it.id }
@@ -53,6 +56,7 @@ class NamespacedStorage : ContentStorage {
         progressionAnimations = collect { it.progressionAnimations }
         scripts = collect { it.scripts }
         components = collect { it.components }
+        intents = collect { it.intents }
     }
 
     private fun <K, V> collect(property: (Namespace) -> Namespace.Holder<K, V>): Namespace.Holder<K, V> {

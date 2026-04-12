@@ -5,7 +5,6 @@ import net.minecraft.client.sound.StaticSound;
 import net.minecraft.util.Identifier;
 import org.lain.engine.CommonEngineServerMod;
 import org.lain.engine.client.mc.ClientMixinAccess;
-import org.lain.engine.client.mc.MinecraftAudioKt;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,6 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+
+import static org.lain.engine.client.mc.sound.UtilKt.loadEngineStaticSound;
 
 @Mixin(SoundLoader.class)
 public class SoundLoaderMixin {
@@ -29,7 +30,7 @@ public class SoundLoaderMixin {
     public void engine$loadStatic(Identifier id, CallbackInfoReturnable<CompletableFuture<StaticSound>> cir) {
         if (Objects.equals(id.getNamespace(), CommonEngineServerMod.MOD_ID) && !id.getPath().startsWith("sounds/builtin")) {
             cir.setReturnValue(
-                MinecraftAudioKt.loadEngineStaticSound(
+                loadEngineStaticSound(
                     ClientMixinAccess.INSTANCE.getAssets(),
                     this.loadedSounds,
                     Identifier.of(id.getNamespace(), id.getPath().replaceFirst("sounds/", ""))

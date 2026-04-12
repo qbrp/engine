@@ -25,6 +25,7 @@ import net.minecraft.text.RawFilteredPair
 import net.minecraft.text.Text
 import net.minecraft.util.Hand
 import net.minecraft.util.profiler.Profilers
+import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
 import org.lain.cyberia.ecs.apply
 import org.lain.cyberia.ecs.get
@@ -111,6 +112,8 @@ class MinecraftEngineClient : ClientModInitializer {
     private var inAuthorization = false
     var readyToAuthorize = false
 
+    private fun isInWorld(world: World): Boolean = client.world?.registryKey?.value == world.registryKey.value
+
     override fun onInitializeClient() {
         ComponentTypeRegistry.registerComponentsClient()
         engineClient.options = config
@@ -124,11 +127,21 @@ class MinecraftEngineClient : ClientModInitializer {
 
         Injector.register(keybindManager)
 
-        ServerMixinAccess.blockRemovedCallback = { chunk, blockPos ->
+        ServerMixinAccess.blockRemovedCallback = callback@{ chunk, blockPos ->
+            if (!chunk.world.isClient || !isInWorld(chunk.world)) return@callback
             client.execute {
                 val pos = ImmutableVoxelPos(blockPos.engine())
                 engineClient.gameSession?.world?.chunkStorage?.removeVoxel(pos)
                 decalsStorage.unloadTexture(pos)
+            }
+        }
+
+        ServerMixinAccess.blockPlacedCallback = callback@{ player, blockPos, blockState, world ->
+            val gameSession = engineClient.gameSession
+            if (!world.isClient || !isInWorld(world) || gameSession == null) return@callback
+            client.execute {
+                val enginePlayer = player?.let { clientPlayerTable.getPlayer(it) }
+                gameSession.callbacks.executePlaceVoxelCallback(enginePlayer, gameSession.world, blockPos.engine(), blockState)
             }
         }
 

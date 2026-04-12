@@ -11,6 +11,7 @@ import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.handleBulletFireShakes
+import org.lain.engine.client.script.ClientLuaContext
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.processSoundPlayKeys
@@ -20,10 +21,11 @@ import org.lain.engine.container.updateContainerOperations
 import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.script.Callbacks
 import org.lain.engine.script.compileContents
 import org.lain.engine.script.loadContentsCompileResult
-import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.LuaDataStorage
+import org.lain.engine.script.lua.LuaDependencies
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.NamespacedStorage
@@ -78,6 +80,7 @@ class GameSession(
     var soundsToBroadcast = LinkedList<SoundBroadcast>()
     private val luaDataStorage = LuaDataStorage()
     private val luaGlobals = JsePlatform.standardGlobals()
+    var callbacks: Callbacks = Callbacks()
 
     init {
         val equipmentItems = player.equipment.mapValues { (_, item) -> instantiateItem(item) }
@@ -98,19 +101,25 @@ class GameSession(
         val resources = client.resources
         val scriptsPath = resources.scripts.file
         val contentsPath = resources.contents.file
-        val result = compileContents(
-            contentsPath,
-            LuaContext(
+        val luaContext = ClientLuaContext(
+            client,
+            LuaDependencies(
                 luaGlobals,
                 luaDataStorage,
                 playerStorage,
                 mutableMapOf(world.id to world),
                 namespacedStorage,
                 scriptsPath,
-                scriptsPath.resolve("$server.lua")
             )
         )
+        val result = compileContents(
+            contentsPath,
+            scriptsPath.resolve("$server.lua"),
+            luaContext
+        )
         namespacedStorage.loadContentsCompileResult(result)
+        callbacks = luaContext.compileCallbacks()
+        world.registerScriptComponents(namespacedStorage.components.map { it.value })
 
         val exceptions = result.exceptions
         if (exceptions.isNotEmpty()) {
@@ -194,6 +203,7 @@ class GameSession(
         updateContainerOperations(world, itemStorage)
         updateContainedPlayerInventoryItems(world)
         clearAssignItemsOperations(world)
+        world.tickCallbacks(callbacks)
         world.updateVoxelEvents(null)
     }
 

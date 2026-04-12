@@ -23,6 +23,11 @@ sealed class ScriptContext {
         val pos: VoxelPos,
         val meta: VoxelMeta
     ) : ScriptContext()
+    data class IntentExecution(
+        val player: EnginePlayer? = null,
+        val pos: VoxelPos? = null,
+        val data: Any? = null,
+    ) : ScriptContext()
 }
 
 val EnginePlayer.scriptContext: ScriptContext.Player

@@ -23,6 +23,7 @@ fun World.coerceToLua(): LuaUserdata {
                 override fun call(self: LuaValue, key: LuaValue): LuaValue {
                     return when (key.tojstring()) {
                         "id" -> luaValue(this@coerceToLua.id.toString())
+                        "is_client" -> luaValue(self.coerceToEngineWorld().isClient)
                         else -> ctx.worldTable.get(key)
                     }
                 }
@@ -37,6 +38,10 @@ fun LuaValue.coerceToEngineWorld() = this.checkuserdata() as World
 
 context(ctx: LuaContext)
 fun Globals.setupWorld() {
+    ctx.worldTable.set("_add_entity", oneArgFunction { self ->
+        val world = self.coerceToEngineWorld()
+        luaValue(world.addEntity())
+    })
     ctx.worldTable.set("_get_component", threeArgFunction { self, entityId, type ->
         val world = self.coerceToEngineWorld()
         val type = type.coerceToScriptComponentType()
@@ -57,14 +62,31 @@ fun Globals.setupWorld() {
         val entityId = entityId.toint()
         val component = component.checktable()
         world.setLuaComponent(entityId, type, component)
-        LuaValue.NIL
+        NIL
     })
 
     ctx.worldTable.set("_remove_component", threeArgFunction { self, entityId, type ->
         val world = self.coerceToEngineWorld()
         val type = type.coerceToScriptComponentType()
         val entityId = entityId.toint()
-        world.removeLuaComponent(entityId, type) ?: LuaValue.NIL
+        world.removeLuaComponent(entityId, type) ?: NIL
+    })
+
+    ctx.worldTable.set("_get_all_components", twoArgFunction { self, entityId ->
+        val world = self.coerceToEngineWorld()
+        LuaTable.listOf(
+            world.getComponents(entityId.toint())
+                .filterIsInstance<ScriptComponent>()
+                .filter { it.field is LuaTable }
+                .map { it.luaTable }
+                .toTypedArray()
+        )
+    })
+
+    ctx.worldTable.set("_destroy_entity", twoArgFunction { self, entityId ->
+        val world = self.coerceToEngineWorld()
+        world.destroy(entityId.toint())
+        NIL
     })
 
     ctx.worldTable.set("_iterate", varargsFunction { args ->
@@ -72,16 +94,18 @@ fun Globals.setupWorld() {
         val func = args.arg(2).checkfunction()
         val types = setOf(args.arg(3), args.arg(4), args.arg(5), args.arg(6), args.arg(7))
             .filter { !it.isnil() }
-        when(types.size) {
+        when (types.size) {
             1 -> world.iterate1(types[0].coerceToScriptComponentType().ecsType) { entity, component ->
                 func.invoke(luaValue(entity), component.luaTable)
             }
+
             2 -> world.iterate2(
                 types[0].coerceToScriptComponentType().ecsType,
                 types[1].coerceToScriptComponentType().ecsType
             ) { entity, component1, component2 ->
                 func.invoke(luaValue(entity), component1.luaTable, component2.luaTable)
             }
+
             3 -> world.iterate3(
                 types[0].coerceToScriptComponentType().ecsType,
                 types[1].coerceToScriptComponentType().ecsType,
@@ -91,6 +115,7 @@ fun Globals.setupWorld() {
                     arrayOf(luaValue(entity), component1.luaTable, component2.luaTable, component3.luaTable)
                 )
             }
+
             4 -> world.iterate4(
                 types[0].coerceToScriptComponentType().ecsType,
                 types[1].coerceToScriptComponentType().ecsType,
@@ -98,9 +123,16 @@ fun Globals.setupWorld() {
                 types[3].coerceToScriptComponentType().ecsType
             ) { entity, component1, component2, component3, component4 ->
                 func.invoke(
-                    arrayOf(luaValue(entity), component1.luaTable, component2.luaTable, component3.luaTable, component4.luaTable)
+                    arrayOf(
+                        luaValue(entity),
+                        component1.luaTable,
+                        component2.luaTable,
+                        component3.luaTable,
+                        component4.luaTable
+                    )
                 )
             }
+
             5 -> world.iterate5(
                 types[0].coerceToScriptComponentType().ecsType,
                 types[1].coerceToScriptComponentType().ecsType,
@@ -109,7 +141,14 @@ fun Globals.setupWorld() {
                 types[4].coerceToScriptComponentType().ecsType
             ) { entity, component1, component2, component3, component4, component5 ->
                 func.invoke(
-                    arrayOf(luaValue(entity), component1.luaTable, component2.luaTable, component3.luaTable, component4.luaTable, component5.luaTable)
+                    arrayOf(
+                        luaValue(entity),
+                        component1.luaTable,
+                        component2.luaTable,
+                        component3.luaTable,
+                        component4.luaTable,
+                        component5.luaTable
+                    )
                 )
             }
         }

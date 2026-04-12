@@ -57,7 +57,8 @@ fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
                 Namespace.Holder(namespace.sounds),
                 Namespace.Holder(namespace.progressionAnimations),
                 Namespace.Holder(namespace.scripts),
-                Namespace.Holder(namespace.components)
+                Namespace.Holder(namespace.components),
+                Namespace.Holder()
             )
         }
     )
@@ -70,14 +71,16 @@ fun EngineServer.applyContentsCompileResult(result: CompilationResult) {
 }
 
 fun EngineServer.loadContents(luaContext: LuaContext) {
-    val results = compileContents(ENGINE_DIR.contents, luaContext)
+    val results = compileContents(ENGINE_DIR.contents, luaEntrypointDir, luaContext)
     callbacks = luaContext.compileCallbacks()
     applyContentsCompileResult(results)
 }
 
-fun compileContents(contents: File, luaContext: LuaContext): CompilationResult {
+// Функция с побочными эффектами
+fun compileContents(contents: File, entrypointScript: File, luaContext: LuaContext): CompilationResult {
     val start = Timestamp()
     val result1 = compileContentsYaml(contents)
+    luaContext.setup(entrypointScript)
     val result2 = luaContext.compileContents()
     val result = CompilationResult(
         result1.namespaces + result2.namespaces,

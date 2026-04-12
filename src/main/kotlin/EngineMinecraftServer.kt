@@ -4,11 +4,8 @@ import kotlinx.coroutines.runBlocking
 import net.minecraft.block.BlockState
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.registry.tag.TagKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.util.Identifier
 import net.minecraft.util.WorldSavePath
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
@@ -22,13 +19,8 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
-import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.loadContents
-import org.lain.engine.script.lua.LuaContext
-import org.lain.engine.script.lua.LuaDataStorage
-import org.lain.engine.script.lua.prepareLuaScriptComponents
-import org.lain.engine.script.lua.updateScriptComponents
-import org.lain.engine.script.luaEntrypointDir
+import org.lain.engine.script.lua.*
 import org.lain.engine.script.scripts
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
@@ -85,13 +77,14 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     protected var luaContext = createLuaContext()
 
     fun createLuaContext(): LuaContext = LuaContext(
-        luaGlobals,
-        luaDataStorage,
-        engine.playerStorage,
-        engine.worlds,
-        engine.namespacedStorage,
-        ENGINE_DIR.scripts,
-        engine.luaEntrypointDir
+        LuaDependencies(
+            luaGlobals,
+            luaDataStorage,
+            engine.playerStorage,
+            engine.worlds,
+            engine.namespacedStorage,
+            ENGINE_DIR.scripts,
+        )
     )
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
@@ -200,27 +193,9 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engineWorld.chunkStorage.removeVoxel(voxelPos)?.let { dynamicVoxel -> engineWorld.destroy(dynamicVoxel) }
     }
 
-    fun onBlockAdd(block: BlockState, pos: BlockPos, world: net.minecraft.world.World) {
-        acousticSimulator.updateBlock(block, pos, world)
-    }
-
-    fun onPlayerBlockInteraction(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: net.minecraft.world.World) {
-        onBlockAdd(state, pos, world)
-        engine.callbacks.placeVoxel.execute(
-            ScriptContext.VoxelAction(
-                player,
-                engine.getWorld(world),
-                pos.engine(),
-                object : VoxelMeta {
-                    override val id: String
-                        get() = state.block.registryEntry.idAsString
-
-                    override fun hasTag(id: String): Boolean {
-                        return state.isIn(TagKey.of(RegistryKeys.BLOCK, Identifier.ofVanilla(id)))
-                    }
-                }
-            )
-        )
+    fun onBlockAdd(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: net.minecraft.world.World) {
+        acousticSimulator.updateBlock(state, pos, world)
+        engine.callbacks.executePlaceVoxelCallback(player, engine.getWorld(world), pos.engine(), state,)
     }
 
     fun onChunkUnload(world: net.minecraft.world.World, chunk: Chunk) {

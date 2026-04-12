@@ -15,7 +15,6 @@ import org.lain.engine.container.updateContainerSystems
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
-import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.storage.playerData
@@ -123,12 +122,7 @@ class EngineServer(
             broadcastWorldSounds(sounds, handler)
             updateBulletsAcoustic(world)
             updateContainerSystems(world, itemStorage)
-            val scriptContext = ScriptContext.World(world)
-            callbacks.worldTick.execute(scriptContext)
-            if (world.ticks % 20 == 0L) {
-                callbacks.worldTickSecond.execute(scriptContext)
-            }
-            world.ticks++
+            world.tickCallbacks(callbacks)
         }
         handler.tick()
         tickTimes.add(start.timeElapsed().toInt())

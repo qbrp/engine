@@ -34,13 +34,13 @@ class MinecraftAudioManager(
 
     private class AudioSourcePlayback(val source: AudioSource, val instance: AudioSourceSoundInstance) {
         fun update() {
-            instance.isRelative = source.isRelative
-            instance.x = source.x
-            instance.y = source.y
-            instance.z = source.z
+            instance._isRelative = source.isRelative
+            instance._x = source.x
+            instance._y = source.y
+            instance._z = source.z
             instance.attenuate = source.attenuate
-            instance.pitch = source.pitch
-            instance.volume = source.volume
+            instance._pitch = source.pitch
+            instance._volume = source.volume
         }
     }
 
@@ -86,23 +86,41 @@ class MinecraftAudioManager(
     override fun addAudioSource(audioSource: AudioSource, slot: String) {
         if (audioSources.contains(slot)) error("Duplicate audio source $slot")
         val slotId = EngineId(slot)
-        audioSources[slot] = AudioSourcePlayback(
+        val playback = AudioSourcePlayback(
             audioSource,
             AudioSourceSoundInstance(
                 slotId,
                 getSound(audioSource.sound.value),
                 audioSource.category.toMinecraft()
             )
-        ).also { it.update() }
+        )
+        playback.update()
+        audioSources[slot] = playback
+        audioSource.slot = slot
+        soundManager.play(playback.instance)
+        audioSource.isEnded = false
+    }
+
+    override fun stopAudioSource(audioSource: AudioSource) {
+        val slot = audioSource.slot ?: return
+        audioSources[slot]?.let { soundManager.stop(it.instance) }
+        audioSource.isEnded = true
+        audioSource.slot = null
     }
 
     private fun tickAudioSources() {
+        val remove = mutableListOf<String>()
         audioSources.forEach { (slot, playback) ->
             playback.update()
+            val source = playback.source
             if (!soundManager.isPlaying(playback.instance)) {
-                audioSources.remove(slot)
+                source.isEnded = true
+                remove += slot
+            } else {
+                source.isEnded = false
             }
         }
+        remove.forEach { audioSources.remove(it) }
     }
 
     private fun getSound(id: String, stream: Boolean = false, preload: Boolean = false): Sound {

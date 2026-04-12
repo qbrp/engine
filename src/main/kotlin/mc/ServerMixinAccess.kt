@@ -32,6 +32,7 @@ object ServerMixinAccess {
     var disableAchievementMessages = false
     var isDamageEnabled = false
     var blockRemovedCallback: ((WorldChunk, BlockPos) -> Unit)? = null
+    var blockPlacedCallback: ((PlayerEntity?, BlockPos, BlockState, World) -> Unit)? = null
 
     fun inEnginePlayer(player: ServerPlayerEntity) = table.server.getPlayer(player) != null
 
@@ -125,8 +126,9 @@ object ServerMixinAccess {
     }
 
     fun onBlockAdded(context: ItemPlacementContext, world: World, blockPos: BlockPos, state: BlockState) {
-        if (world.isClient) return
-        server.onPlayerBlockInteraction(context.player?.engine, blockPos, state, world)
+        val playerEntity = context.player
+        if (!world.isClient) server.onBlockAdd(playerEntity?.engine, blockPos, state, world)
+        blockPlacedCallback?.invoke(playerEntity, blockPos, state, world)
     }
 
     fun onBlockRemoved(world: World, pos: BlockPos) {

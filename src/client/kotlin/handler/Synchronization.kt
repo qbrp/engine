@@ -75,4 +75,4 @@ fun clientItem(world: World, item: ClientboundItemData): ProtoItem {
     )
 }
 
-fun clientWorld(thread: Thread, data: ClientboundWorldData) = World(data.id, componentManager = ComponentWorld(thread))
+fun clientWorld(thread: Thread, data: ClientboundWorldData) = World(data.id, componentManager = ComponentWorld(thread), isClient = true)

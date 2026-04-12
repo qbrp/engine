@@ -36,6 +36,9 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                     luaValue("voxel_meta"), context.meta.coerceToLua(),
                 )
             }
+            is ScriptContext.IntentExecution -> {
+                TODO()
+            }
         }
         return try {
             val result = luaFunction.invoke(arguments).arg1().toKotlin()

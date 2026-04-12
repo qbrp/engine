@@ -17,7 +17,9 @@ data class AudioSource(
     var isRelative: Boolean,
     var volume: Float,
     var pitch: Float,
-    var attenuate: Boolean
+    var attenuate: Boolean,
+    var slot: String? = null,
+    var isEnded: Boolean = false
 )
 
 interface EngineAudioManager {
@@ -27,6 +29,7 @@ interface EngineAudioManager {
     fun playSound(player: SoundPlay)
     fun containsAudioSource(slot: String): Boolean
     fun addAudioSource(audioSource: AudioSource, slot: String)
+    fun stopAudioSource(audioSource: AudioSource)
     fun invalidateCache()
 }
 

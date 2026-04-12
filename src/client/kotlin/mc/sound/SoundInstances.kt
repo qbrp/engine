@@ -7,6 +7,7 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.math.random.Random
 import org.lain.engine.player.Hearing
 import org.lain.engine.player.TINNITUS_HEAR_THRESHOLD
+import org.lain.engine.util.EngineId
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.lerp
 
@@ -99,17 +100,17 @@ class AudioSourceSoundInstance(
     private val engineId: Identifier,
     private val sound: Sound,
     private val engineCategory: SoundCategory,
-    var isRelative: Boolean = false,
-    var x: Float = 0f,
-    var y: Float = 0f,
-    var z: Float = 0f,
-    var volume: Float = 0f,
-    var pitch: Float = 0f,
+    var _isRelative: Boolean = false,
+    var _x: Float = 0f,
+    var _y: Float = 0f,
+    var _z: Float = 0f,
+    var _volume: Float = 1f,
+    var _pitch: Float = 1f,
     var attenuate: Boolean = false
 ) : SoundInstance {
     override fun getId(): Identifier = engineId
 
-    override fun getSoundSet(soundManager: SoundManager): WeightedSoundSet? = null
+    override fun getSoundSet(soundManager: SoundManager): WeightedSoundSet = SOUND_SET
 
     override fun getSound(): Sound = sound
 
@@ -117,19 +118,19 @@ class AudioSourceSoundInstance(
 
     override fun isRepeatable(): Boolean = false
 
-    override fun isRelative(): Boolean = isRelative
+    override fun isRelative(): Boolean = _isRelative
 
     override fun getRepeatDelay(): Int = 0
 
-    override fun getVolume(): Float = volume * sound.volume.get(RANDOM)
+    override fun getVolume(): Float = _volume * sound.volume.get(RANDOM)
 
-    override fun getPitch(): Float = pitch * sound.pitch.get(RANDOM)
+    override fun getPitch(): Float = _pitch * sound.pitch.get(RANDOM)
 
-    override fun getX(): Double = x.toDouble()
+    override fun getX(): Double = _x.toDouble()
 
-    override fun getY(): Double = y.toDouble()
+    override fun getY(): Double = _y.toDouble()
 
-    override fun getZ(): Double = z.toDouble()
+    override fun getZ(): Double = _z.toDouble()
 
     override fun getAttenuationType(): AttenuationType = when(attenuate) {
         true -> AttenuationType.LINEAR
@@ -138,5 +139,6 @@ class AudioSourceSoundInstance(
 
     companion object {
         private val RANDOM = Random.create()
+        private val SOUND_SET = WeightedSoundSet(EngineId("engine"), "engine")
     }
 }
