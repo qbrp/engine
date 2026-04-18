@@ -64,6 +64,8 @@ repositories {
         name = "EngineHub"
         url = uri("https://maven.enginehub.org/repo/")
     }
+    maven("https://maven.wispforest.io/releases/")
+    maven("https://jitpack.io")
 }
 
 val transitive by configurations.creating

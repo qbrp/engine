@@ -22,6 +22,10 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.World
 import net.minecraft.world.chunk.WorldChunk
+import org.lain.cyberia.ecs.apply
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.*
 import org.lain.engine.item.ItemId
 import org.lain.engine.player.*
@@ -33,10 +37,6 @@ import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.*
-import org.lain.cyberia.ecs.apply
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.remove
-import org.lain.cyberia.ecs.require
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.math.ImmutableVec3
@@ -191,9 +191,19 @@ class StringListSuggestionProvider(val variants: List<String>) : SuggestionProvi
     }
 }
 
-fun ServerCommandDispatcher.registerEngineCommands() {
+fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     val playerTable = injectValue<EntityTable>().server
     val server by injectMinecraftEngineServer()
+
+    if (isDedicated) {
+        register(
+            literal("recompilescrpits")
+                .executeCatching { ctx ->
+                    server.recompileEngineContents()
+                    ctx.sendFeedback("Контент скомпилирован", true)
+                }
+        )
+    }
 
     register(
         literal("speed")

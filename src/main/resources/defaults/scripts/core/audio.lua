@@ -66,6 +66,7 @@ end
 ---@return Entity
 function World:add_sound_entity(sound, parameters)
     assert(sound, "sound must be not null")
+    assert(self.is_client, "world must be client")
     local entity = self:add_entity()
     local parameters2 = parameters or {}
     parameters2.sound = sound

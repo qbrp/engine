@@ -7,10 +7,7 @@ import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.yaml.compileContentsYaml
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.Namespace
-import org.lain.engine.util.NamespaceId
-import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.Timestamp
+import org.lain.engine.util.*
 import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.world.SoundEvent
@@ -19,7 +16,9 @@ import org.slf4j.LoggerFactory
 import java.io.File
 
 val File.contents: File get() = this.resolve("contents")
+    .also { it.mkdirs() }
 val File.scripts: File get() = this.resolve("scripts")
+    .also { it.mkdirs() }
 val DEFAULT_NAMESPACE = NamespaceId("default")
 
 val EngineServer.luaEntrypointDir: File
@@ -37,7 +36,8 @@ data class CompiledNamespace(
     val sounds: Map<SoundEventId, SoundEvent>,
     val progressionAnimations: Map<ProgressionAnimationId, ProgressionAnimation>,
     val scripts: Map<ScriptId, Script<*, *>> = mapOf(),
-    val components: Map<ScriptComponentId, ScriptComponentType> = mapOf()
+    val components: Map<ScriptComponentId, ScriptComponentType> = mapOf(),
+    val intents: Map<IntentId, Intent> = mapOf()
 ) {
     data class Item(val prefab: ItemPrefab) {
         val id get() = prefab.id
@@ -58,7 +58,7 @@ fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
                 Namespace.Holder(namespace.progressionAnimations),
                 Namespace.Holder(namespace.scripts),
                 Namespace.Holder(namespace.components),
-                Namespace.Holder()
+                Namespace.Holder(namespace.intents),
             )
         }
     )
@@ -74,12 +74,16 @@ fun EngineServer.loadContents(luaContext: LuaContext) {
     val results = compileContents(ENGINE_DIR.contents, luaEntrypointDir, luaContext)
     callbacks = luaContext.compileCallbacks()
     applyContentsCompileResult(results)
+    eventListener.onCompiled(namespacedStorage)
 }
 
 // Функция с побочными эффектами
 fun compileContents(contents: File, entrypointScript: File, luaContext: LuaContext): CompilationResult {
     val start = Timestamp()
     val result1 = compileContentsYaml(contents)
+    if (!entrypointScript.exists()) {
+        entrypointScript.createNewFile()
+    }
     luaContext.setup(entrypointScript)
     val result2 = luaContext.compileContents()
     val result = CompilationResult(

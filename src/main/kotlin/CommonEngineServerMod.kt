@@ -22,6 +22,7 @@ import org.lain.engine.mc.*
 import org.lain.engine.player.RaycastProvider
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
+import org.lain.engine.util.file.loadStdLuaLibrary
 import org.lain.engine.util.file.updateOldFileNaming
 import org.lain.engine.util.injectValue
 
@@ -45,6 +46,7 @@ class CommonEngineServerMod : ModInitializer {
             EnvType.SERVER -> Environment.SERVER
         }
         updateOldFileNaming()
+        loadStdLuaLibrary()
         initializeEngineItemComponents()
 
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
@@ -110,8 +112,8 @@ class CommonEngineServerMod : ModInitializer {
             ActionResult.PASS
         }
 
-        CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
-            dispatcher.registerEngineCommands()
+        CommandRegistrationCallback.EVENT.register { dispatcher, _, env ->
+            dispatcher.registerEngineCommands(env.dedicated)
             if (isWorldEditAvailable()) dispatcher.registerWorldEditCommands()
         }
 

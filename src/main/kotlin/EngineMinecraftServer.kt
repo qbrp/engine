@@ -32,6 +32,7 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
+import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.applyConfigCatching
@@ -147,14 +148,18 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     private fun onRequestReloadContents(playerId: PlayerId) = playerStorage.get(playerId)?.let { player ->
         if (player.hasPermission("reloadenginecontents")) {
             try {
-                val luaContext = createLuaContext()
-                this.luaContext = luaContext
-                engine.loadContents(luaContext)
+                recompileEngineContents()
             } catch (e: Throwable) {
                 CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
                 engine.handler.onServerNotification(player, Notification.COMPILATION_ERROR, false)
             }
         }
+    }
+
+    fun recompileEngineContents() {
+        val luaContext = createLuaContext()
+        this.luaContext = luaContext
+        engine.loadContents(luaContext)
     }
 
     open fun disable() = runBlocking {
@@ -185,6 +190,10 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     override fun onChatMessage(message: IncomingMessage) {}
+
+    override fun onCompiled(contents: NamespacedStorage) {
+        minecraftServer.commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler=engine.handler)
+    }
 
     fun onBlockBreak(pos: BlockPos, world: net.minecraft.world.World) {
         acousticSimulator.removeBlock(pos, world)

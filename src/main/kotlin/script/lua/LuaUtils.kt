@@ -1,7 +1,11 @@
 package org.lain.engine.script.lua
 
 import org.lain.engine.script.ScriptComponentType
+import org.lain.engine.util.AnyInputValue
+import org.lain.engine.util.Input
+import org.lain.engine.util.IntentTarget
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.asVec3
 import org.lain.engine.world.VoxelPos
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
@@ -32,13 +36,49 @@ fun luaTableOf(vararg values: LuaValue): LuaTable {
 }
 
 fun luaValue(string: String) = LuaValue.valueOf(string)
+
+fun String.toLuaValue(): LuaValue = luaValue(this)
+
 fun luaValueNullable(string: String?) = LuaValue.valueOf(string) ?: LuaValue.NIL
 
 fun luaValue(int: Int) = LuaValue.valueOf(int)
 
+fun Int.toLuaValue(): LuaValue = luaValue(this)
+
 fun luaValue(float: Float) = LuaValue.valueOf(float.toDouble())
 
+fun Float.toLuaValue(): LuaValue = luaValue(this)
+
 fun luaValue(boolean: Boolean) = LuaValue.valueOf(boolean)
+
+fun Boolean.toLuaValue(): LuaValue = luaValue(this)
+
+fun luaValue(double: Double) = LuaValue.valueOf(double)
+
+fun Double.toLuaValue(): LuaValue = luaValue(this)
+
+fun List<AnyInputValue>.toLuaTable(): LuaTable {
+    val table = LuaTable()
+    forEach { table.set(luaValue(it.input.id), it.value.toLuaValue(it.input.type)) }
+    return table
+}
+
+private fun Any?.toLuaValue(type: Input.Type<*>): LuaValue {
+    return when (type) {
+        Input.Type.Logic -> (this as Boolean).toLuaValue()
+        Input.Type.Integer -> (this as Int).toLuaValue()
+        Input.Type.Double -> (this as Double).toLuaValue()
+        Input.Type.Table -> (this as List<AnyInputValue>).toLuaTable()
+        is Input.Type.Text -> (this as String).toLuaValue()
+    }
+}
+
+context(ctx: LuaContext)
+fun IntentTarget.toLuaValue(): LuaTable = luaTableOf(
+    luaValue("player"), player?.coerceToLua() ?: LuaValue.NIL,
+    luaValue("voxel_pos"), voxelPos.toLuaValue(),
+    luaValue("pos"), pos.asVec3().toLuaValue(),
+)
 
 fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
     val list = mutableListOf<V>()
@@ -92,6 +132,19 @@ fun ScriptComponentType.toLuaValue(): LuaValue {
     }
     userdata.setmetatable(meta)
     return userdata
+}
+
+fun LuaTable.toIntentInput(): Input<out Any> {
+    val id = get("id").tojstring()
+    val type = when(val type = get("type").tojstring()) {
+        "text" -> Input.Type.Text(false)
+        "int" -> Input.Type.Integer
+        "double" -> Input.Type.Double
+        "logic" -> Input.Type.Logic
+        "table" -> Input.Type.Table
+        else -> error("Unsupported table type $type")
+    }
+    return Input(id, type)
 }
 
 fun zeroArgFunction(builder: () -> LuaValue) = object : ZeroArgFunction() {

@@ -2,18 +2,13 @@ package org.lain.engine.util
 
 import net.minecraft.util.Identifier
 import org.lain.engine.CommonEngineServerMod
-import java.util.prefs.Preferences
+import org.lain.engine.util.file.ENGINE_PREFERENCES
 
-object IdPreferences {
-    val prefs = Preferences.userNodeForPackage(IdPreferences::class.java)
-}
-
-private val prefs
-    get() = IdPreferences.prefs
+private val ID_PREFERENCES = ENGINE_PREFERENCES.node("id")
 
 fun nextId(): Long {
-    val id = prefs.getLong("lastId", 0L) + 1
-    prefs.putLong("lastId", id)
+    val id = ID_PREFERENCES.getLong("lastId", 0L) + 1
+    ID_PREFERENCES.putLong("lastId", id)
     return id
 }
 

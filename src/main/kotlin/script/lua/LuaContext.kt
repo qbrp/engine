@@ -4,9 +4,8 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.script.*
 import org.lain.engine.storage.addIfNotNull
-import org.lain.engine.util.NamespaceId
-import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.Storage
+import org.lain.engine.util.*
+import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.luaj.vm2.Globals
@@ -65,19 +64,29 @@ open class LuaContext(val dependencies: LuaDependencies) {
 
     open fun setup(directory: File) {
         directory.parentFile.mkdirs()
-        if (directory.exists()) {
-            globals.setup()
-            val file = globals.loadfile(directory.path)
 
-            globals.loadfile(
-                scriptsPath.resolve("core/bridge.lua").path
-            ).call()
-            setupTables()
-            setupGlobals()
+        val libraryDir = BUILTIN_SCRIPTS_DIR
+        val librarySetupDir = libraryDir.resolve("core/bridge.lua")
+        val scriptsPath = scriptsPath.path
+        val libraryPath = libraryDir.path
 
-            file.call()
-            setupTables()
-        }
+        require(directory.exists()) { "Входной скрипт сервера по директроии $directory не найден" }
+        require(librarySetupDir.exists()) { "Скрипт загрузки стандартных библиотек $librarySetupDir не найден" }
+        // Ставим package-path, например core.bridge
+        globals.load(
+            """package.path = package.path .. ";$scriptsPath/?.lua;$scriptsPath/?/init.lua;$libraryPath/?.lua;" """
+        ).call()
+
+        globals.setup()
+        val file = globals.loadfile(directory.path)
+
+        // Загрузка стандартной библиотеки
+        globals.loadfile(librarySetupDir.path).call()
+        setupTables()
+        setupGlobals()
+
+        file.call()
+        setupTables()
     }
 
     fun compileCallbacks(): Callbacks {
@@ -128,6 +137,7 @@ open class LuaContext(val dependencies: LuaDependencies) {
                         val itemsArray = namespace.get("items").nullable()?.checktable()
                         val scriptsArray = namespace.get("scripts").nullable()?.checktable()
                         val componentsArray = namespace.get("components").nullable()?.checktable()
+                        val intentsArray = namespace.get("intents").nullable()?.checktable()
 
                         val items = compileItemsLua(namespaceId, itemsArray?.toList { it.checktable() } ?: emptyList())
                         val scripts = scriptsArray?.toList { it.checktable() }
@@ -143,12 +153,24 @@ open class LuaContext(val dependencies: LuaDependencies) {
                                 coercedComponentType.ecsType.id.toScriptComponentId() to coercedComponentType
                             } ?: emptyMap()
 
+                        val intents = intentsArray?.toList { it.checktable() }
+                            ?.associate { intent ->
+                                val id = IntentId(intent.get("id").tojstring())
+                                val script = ScriptId(intent.get("script").tojstring())
+                                val name = intent.get("name")?.nullable()?.tojstring() ?: id.value
+                                val inputs = intent.get("inputs")?.nullable()?.checktable()
+                                    ?.toList { it.checktable() }
+                                    ?.map { it.toIntentInput() } ?: emptyList()
+                                id to Intent(id, name, script, inputs)
+                            } ?: emptyMap()
+
                         compilation.namespaces[namespaceId] = CompiledNamespace(
                             items.associateBy { it.id },
                             mapOf(),
                             mapOf(),
                             scripts,
-                            components
+                            components,
+                            intents
                         )
                     } catch (e: Throwable) {
                         compilation.errors += e

@@ -200,10 +200,25 @@ Script.__index = Script
 
 ------------------
 
+---@class IntentInput
+---@field id string
+---@field type string "text", "int", "double", "logic", "table" available
+IntentInput = {}
+IntentInput.__index = IntentInput
+
+---@field id string
+---@field type string
+---@return IntentInput
+function IntentInput.of(id, type)
+    return setmetatable({ id = id, type = type }, IntentInput)
+end
+
 ---@class Intent
 ---@field id string
 ---@field name string
----@field script Script
+---@field script string id
+---@field inputs IntentInput[]
+---@field actors string[] "command", "toolgun" available, default all
 Intent = {}
 Intent.__index = Intent
 
@@ -214,7 +229,7 @@ Intent.__index = Intent
 ---@field items Item[]
 ---@field scripts Script[]
 ---@field components ComponentType[]
----@field intents
+---@field intents Intent[]
 Namespace = {}
 Namespace.__index = Namespace
 
@@ -241,7 +256,7 @@ function compilation(func) _compilation(func) end
 --------------------------------------------------------------------------------
 
 --- Userdata
----@class AudioSource
+---@class  AudioSource
 ---@field sound string
 ---@field category string
 ---@field x number

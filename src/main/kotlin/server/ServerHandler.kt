@@ -23,6 +23,7 @@ import org.lain.engine.storage.backupBookContent
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.Intent
 import org.lain.engine.util.component.Networked
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
@@ -336,6 +337,14 @@ class ServerHandler(
         server.listWorlds().forEach {
             it.iterate<Networked>() { entity, _ -> entity.clearMetaState() }
         }
+    }
+
+    fun onPlayerIntent(context: ScriptContext.IntentExecution, intent: Intent) {
+        CLIENTBOUND_INTENT_ENDPOINT.broadcastInRadius(
+            context.actor.player,
+            playerSynchronizationRadius,
+            IntentPacket(intent.id, context.toDto())
+        )
     }
 
     fun onPlayerInteraction(player: EnginePlayer, component: InteractionComponent) {

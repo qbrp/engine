@@ -4,11 +4,17 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.require
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionComponent
-import org.lain.engine.script.lua.LuaScript
+import org.lain.engine.util.AnyInputValue
+import org.lain.engine.util.IntentActor
+import org.lain.engine.util.IntentTarget
 import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.world.VoxelMeta
 import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.World as EngineWorld
+
+interface IntentBehaviour {
+    fun generateTarget(): IntentTarget
+}
 
 sealed class ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext()
@@ -24,9 +30,10 @@ sealed class ScriptContext {
         val meta: VoxelMeta
     ) : ScriptContext()
     data class IntentExecution(
-        val player: EnginePlayer? = null,
-        val pos: VoxelPos? = null,
-        val data: Any? = null,
+        val actor: IntentActor,
+        val target: IntentTarget? = null,
+        val inputValues: List<AnyInputValue>,
+        val behaviour: IntentBehaviour
     ) : ScriptContext()
 }
 
@@ -56,10 +63,10 @@ value class ScriptId(val string: String) {
 fun String.toScriptId(): ScriptId = ScriptId(this)
 
 @Suppress("UNCHECKED_CAST")
-fun <C : ScriptContext, R : Any> NamespacedStorage.getScript(id: ScriptId): LuaScript<C, R>? {
-    return scripts[id] as? LuaScript<C, R>
+fun <C : ScriptContext, R : Any> NamespacedStorage.getScript(id: ScriptId): Script<C, R>? {
+    return scripts[id] as? Script<C, R>
 }
 
-fun <C : ScriptContext> NamespacedStorage.getVoidScript(id: ScriptId): LuaScript<C, Unit>? {
+fun <C : ScriptContext> NamespacedStorage.getVoidScript(id: ScriptId): Script<C, Unit>? {
     return getScript(id)
 }

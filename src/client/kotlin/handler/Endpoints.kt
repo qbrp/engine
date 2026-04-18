@@ -106,6 +106,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyEntity(persistentId, components)
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { gameSession -> applyIntent(dto, intent) }
+
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_SPEED_INTENTION_SYNCHRONIZER)

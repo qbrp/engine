@@ -1,0 +1,11 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "engine:leelawadee.ttf",
+      "shift": [0, 0],
+      "size": 22.0,
+      "oversample": 2.0
+    }
+  ]
+}

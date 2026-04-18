@@ -1,8 +1,8 @@
 require("core.bridge")
 
-----------------------------------------
---- API регистрации
-----------------------------------------
+--------------------------------------------------------------------------------
+--- Утилиты
+--------------------------------------------------------------------------------
 
 ---@param namespace Namespace
 function CompilationResult:namespace(namespace)
@@ -10,13 +10,14 @@ function CompilationResult:namespace(namespace)
     table.insert(self.namespaces, namespace)
 end
 
-------------------
+--------------------------------------------------------------------------------
+--- Контексты скриптов
+--------------------------------------------------------------------------------
 
 ---@class InteractionScriptContext
 ---@field player Player
 ---@field raycastPlayer Player?
 InteractionScriptContext = {}
-InteractionScriptContext.__index = InteractionScriptContext
 
 ---@class VoxelActionScriptContext
 ---@field player Player?
@@ -24,7 +25,6 @@ InteractionScriptContext.__index = InteractionScriptContext
 ---@field voxel_pos number[]
 ---@field voxel_meta VoxelMeta
 VoxelActionScriptContext = {}
-VoxelActionScriptContext.__index = VoxelActionScriptContext
 
 ---@param id string
 ---@param fun fun(context)
@@ -32,7 +32,9 @@ function Script.new(id, fun)
     return setmetatable({ id = id, fun = fun }, Script)
 end
 
-------------------
+--------------------------------------------------------------------------------
+--- События
+--------------------------------------------------------------------------------
 
 ---@return Callbacks
 function Callbacks.build()
@@ -60,6 +62,8 @@ function Callbacks:on_world_tick(fun)
     return self
 end
 
+------------------
+
 ---@param types ComponentType[]|Component[]
 ---@param fun fun(world: World, entity: number, ...)
 ---@param env string client or server
@@ -78,6 +82,8 @@ function Callbacks:system(types, fun, env)
     return self
 end
 
+------------------
+
 function Callbacks:submit()
     if (self.systems ~= nil) then
         local base_world_tick = self.world_tick
@@ -90,4 +96,43 @@ function Callbacks:submit()
     end
 
     callbacks(self)
+end
+
+--------------------------------------------------------------------------------
+--- Интенты
+--------------------------------------------------------------------------------
+
+---@class IntentActor
+---@field type string "command", "toolgun" available
+---@field player Player?
+---@field entity number id
+IntentActor = {}
+
+---@class IntentTarget
+---@field player Player?
+---@field voxel_pos number[]
+---@field pos number[]
+IntentTarget = {}
+
+---@class IntentScriptContext
+---@field world World
+---@field actor IntentActor
+---@field target IntentTarget
+---@field inputs table<string, any>
+---@field gen_target fun(): IntentTarget
+IntentScriptContext = {}
+
+---@field name string
+---@field script string id
+---@field inputs IntentInput[]
+---@field actors string[]
+---@return Intent
+function Intent.of(script, name, inputs, actors)
+    return setmetatable({
+        id = script.id or script,
+        name = name,
+        script = script.id or script,
+        inputs = inputs,
+        actors = actors or { "command", "toolgun" }
+    }, Intent)
 end

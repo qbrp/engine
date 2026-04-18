@@ -31,6 +31,7 @@
     "render.CameraMixin",
     "render.EntityRendererMixin",
     "render.GameRendererAccessor",
+    "render.GameRendererMixin",
     "render.GuiRendererAccessor",
     "render.ItemModelManagerMixin",
     "render.ItemRenderStateAccessor",

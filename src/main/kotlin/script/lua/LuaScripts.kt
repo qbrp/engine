@@ -8,6 +8,7 @@ import org.lain.engine.player.Player
 import org.lain.engine.script.*
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
+import org.lain.engine.world.world
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaValue
@@ -37,7 +38,18 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                 )
             }
             is ScriptContext.IntentExecution -> {
-                TODO()
+                val (actor, target, inputs, behaviour) = context
+                luaTableOf(
+                    luaValue("world"), actor.player.world.coerceToLua(),
+                    luaValue("actor"), luaTableOf(
+                        luaValue("type"), actor.type.name.lowercase().toLuaValue(),
+                        luaValue("player"), actor.player.coerceToLua(),
+                        luaValue("entity"), actor.entity.toLuaValue(),
+                    ),
+                    luaValue("target"), target?.toLuaValue() ?: LuaValue.NIL,
+                    luaValue("inputs"), inputs.toLuaTable(),
+                    luaValue("gen_target"), zeroArgFunction { behaviour.generateTarget().toLuaValue() }
+                )
             }
         }
         return try {

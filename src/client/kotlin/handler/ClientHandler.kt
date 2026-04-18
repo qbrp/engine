@@ -3,6 +3,7 @@ package org.lain.engine.client.handler
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.runBlocking
 import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
+import org.lain.cyberia.ecs.*
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
@@ -20,22 +21,14 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemUuid
+import org.lain.engine.mc.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
+import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.Notification
+import org.lain.engine.server.desync
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
-import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.getOrSet
-import org.lain.cyberia.ecs.has
-import org.lain.cyberia.ecs.replaceOrSet
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.set
-import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.copyState
-import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.util.component.Networked
 import org.lain.engine.world.*
 import org.slf4j.Logger
@@ -394,6 +387,29 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             e
         }
         entity.copyState(components)
+    }
+
+    fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {
+        val intent = namespacedStorage.intents[intentId] ?: desync("Интент $intentId не существует")
+        val actor = dto.actor.let { actor ->
+            val enginePlayer = getPlayer(actor.player) ?: error("Can't find intent actor ${actor.player}")
+            IntentActor(
+                actor.type,
+                enginePlayer,
+                enginePlayer.entityId
+            )
+        }
+        val target = dto.target?.let {
+            IntentTarget(
+                it.player?.let { id -> getPlayer(id) },
+                it.voxelPos,
+                it.pos
+            )
+        }
+        val behaviour = when (val behaviour = dto.behaviour) {
+            is IntentBehaviourDto.Command -> ClientCommandIntentBehaviour(actor.player)
+        }
+        executeIntent(intent, ScriptContext.IntentExecution(actor, target, dto.inputValues.map { it.toDomain() }, behaviour), namespacedStorage)
     }
 
     companion object {
