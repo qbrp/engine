@@ -7,7 +7,7 @@ import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.item.ItemAccess
-import org.lain.engine.mc.ClientPlayerTable
+import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.FullPlayerData
@@ -19,7 +19,7 @@ import java.util.*
 
 class MinecraftEngineClientEventBus(
     private val minecraft: MinecraftClient,
-    private val table: ClientPlayerTable,
+    private val table: EntityTable,
     private val chunkDecalsStorage: ChunkDecalsStorage
 ) : ClientEventBus {
     private data class PendingFullPlayerData(val player: EnginePlayer, val data: FullPlayerData)
@@ -48,14 +48,14 @@ class MinecraftEngineClientEventBus(
             pendingFullPlayerData.add(PendingFullPlayerData(player, data))
             return
         }
-        table.setPlayer(entity, player)
+        table.client.setPlayer(entity, player)
     }
 
     override fun onPlayerDestroy(
         client: EngineClient,
         playerId: PlayerId
     ) {
-        table.removePlayer(playerId)
+        table.client.removePlayer(playerId)
         MinecraftChat.typingPlayers.removeIf { it.id == playerId }
     }
 
@@ -64,13 +64,14 @@ class MinecraftEngineClientEventBus(
         gameSession: GameSession,
         player: EnginePlayer
     ) {
-        table.setPlayer(minecraft.player!!, player)
+        table.client.setPlayer(minecraft.player!!, player)
         Injector.register(gameSession.itemStorage)
         Injector.register(gameSession.movementSettings)
         if (!minecraft.isInSingleplayer) {
             Injector.register<ItemAccess>(gameSession.itemStorage)
         }
         ClientMixinAccess.onMainPlayerInstantiated(player)
+        table.setWorld(gameSession.world.id, minecraft.world!!)
     }
 
     override fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession) {

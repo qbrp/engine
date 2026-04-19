@@ -27,10 +27,7 @@ import net.minecraft.util.Hand
 import net.minecraft.util.profiler.Profilers
 import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
-import org.lain.cyberia.ecs.apply
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.*
 import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
@@ -38,10 +35,7 @@ import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.compat.LightSource
 import org.lain.engine.client.mc.compat.injectDynamicLightsContext
 import org.lain.engine.client.mc.compat.updateLights
-import org.lain.engine.client.mc.render.EngineUiRenderPipeline
-import org.lain.engine.client.mc.render.InteractionSelectionScreen
-import org.lain.engine.client.mc.render.MinecraftFontRenderer
-import org.lain.engine.client.mc.render.registerHudRenderEvent
+import org.lain.engine.client.mc.render.*
 import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
 import org.lain.engine.client.mc.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.mc.render.world.HeadEquipmentFeatureRenderer
@@ -63,6 +57,7 @@ import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
+import org.lain.engine.script.BuiltinScriptComponents
 import org.lain.engine.serverMinecraftPlayerLoadSettings
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
@@ -90,7 +85,7 @@ class MinecraftEngineClient : ClientModInitializer {
     val uiRenderPipeline = EngineUiRenderPipeline(client, fontRenderer)
 
     private val decalsStorage: ChunkDecalsStorage = ChunkDecalsStorage()
-    private val eventBus = MinecraftEngineClientEventBus(client, clientPlayerTable, decalsStorage)
+    private val eventBus = MinecraftEngineClientEventBus(client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
         window,
@@ -143,6 +138,13 @@ class MinecraftEngineClient : ClientModInitializer {
                 val enginePlayer = player?.let { clientPlayerTable.getPlayer(it) }
                 gameSession.callbacks.executePlaceVoxelCallback(enginePlayer, gameSession.world, blockPos.engine(), blockState)
             }
+        }
+
+        ServerMixinAccess.blockInteractionCallback = callback@ { entity, world, blockPos ->
+            val gameSession = engineClient.gameSession
+            if (!world.isClient || !isInWorld(world) || gameSession == null) return@callback false
+            val voxel = gameSession.world.chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return@callback false
+            with(gameSession.world) { voxel.hasComponent(BuiltinScriptComponents.USE_RESTRICTION.ecsType) }
         }
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, env ->

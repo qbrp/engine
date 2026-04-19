@@ -33,12 +33,18 @@ object ServerMixinAccess {
     var isDamageEnabled = false
     var blockRemovedCallback: ((WorldChunk, BlockPos) -> Unit)? = null
     var blockPlacedCallback: ((PlayerEntity?, BlockPos, BlockState, World) -> Unit)? = null
+    var blockInteractionCallback: ((entity: PlayerEntity, world: World, blockPos: BlockPos) -> Boolean)? = null
 
     fun inEnginePlayer(player: ServerPlayerEntity) = table.server.getPlayer(player) != null
 
-    fun onBlockInteraction(entity: PlayerEntity, world: World, blockPos: BlockPos): Boolean = with(server.engine.getWorld(world.engine)) {
-        val voxel = chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return false
-        voxel.hasComponent(BuiltinScriptComponents.USE_RESTRICTION.ecsType)
+    fun onBlockInteraction(entity: PlayerEntity, world: World, blockPos: BlockPos): Boolean {
+        return if (!world.isClient) {
+            val world = server.engine.getWorld(world.engine)
+            val voxel = world.chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return false
+            with(world) { voxel.hasComponent(BuiltinScriptComponents.USE_RESTRICTION.ecsType) }
+        } else {
+            blockInteractionCallback?.invoke(entity, world, blockPos) ?: false
+        }
     }
 
     fun onSlotEngineItemClicked(
