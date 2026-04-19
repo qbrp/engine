@@ -21,6 +21,7 @@ import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.loadContents
 import org.lain.engine.script.lua.*
+import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.script.scripts
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
@@ -137,7 +138,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
                 it.chunkManager.chunkLoadingManager.getPlayersWatchingChunk(ChunkPos(chunkPos.x, chunkPos.z), false)
                     .mapNotNull { entity -> entityTable.getPlayer(entity) }
             }
-            world.registerScriptComponents(engine.namespacedStorage.components.values.toList())
+            world.registerScriptComponents(engine.namespacedStorage)
             engine.addWorld(world)
             dependencies.entityTable.setWorld(id, it)
         }
@@ -146,7 +147,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     private fun onRequestReloadContents(playerId: PlayerId) = playerStorage.get(playerId)?.let { player ->
-        if (player.hasPermission("reloadenginecontents")) {
+        if (player.hasPermission("reloadenginecontents") || minecraftServer.isRunning) {
             try {
                 recompileEngineContents()
             } catch (e: Throwable) {
@@ -192,7 +193,9 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     override fun onChatMessage(message: IncomingMessage) {}
 
     override fun onCompiled(contents: NamespacedStorage) {
-        minecraftServer.commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler=engine.handler)
+        val commandManager = minecraftServer.commandManager
+        commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler=engine.handler)
+        minecraftServer.playerManager.playerList.forEach { commandManager.sendCommandTree(it) }
     }
 
     fun onBlockBreak(pos: BlockPos, world: net.minecraft.world.World) {

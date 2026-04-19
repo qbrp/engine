@@ -26,10 +26,10 @@ end
 
 ---@class DynamicVoxelComponent : Component
 ---@field pos number[]
-DynamicVoxelComponent = Component.of("core/dynamic_voxel")
+DynamicVoxelComponent = Component.of("core/voxel/dynamic_voxel")
 
 ---@class UseRestrictionComponent : Component
-UseRestrictionComponent = Component.of("core/use_restriction")
+UseRestrictionComponent = Component.of("core/voxel/use_restriction")
 
 ---@param voxel_pos number[]
 ---@return number entity id

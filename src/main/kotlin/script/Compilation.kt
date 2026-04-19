@@ -13,6 +13,7 @@ import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
+import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -65,9 +66,13 @@ fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
     )
 }
 
+fun World.registerScriptComponents(namespacesStorage: NamespacedStorage) {
+    registerScriptComponents(namespacesStorage.components.values.toList() + BuiltinScriptComponents.ALL.values)
+}
+
 fun EngineServer.applyContentsCompileResult(result: CompilationResult) {
     namespacedStorage.loadContentsCompileResult(result)
-    listWorlds().forEach { it.registerScriptComponents(namespacedStorage.components.values.toList()) }
+    listWorlds().forEach { it.registerScriptComponents(namespacedStorage) }
     handler.onContentsUpdate()
 }
 
@@ -97,10 +102,12 @@ fun compileContents(contents: File, entrypointScript: File, luaContext: LuaConte
     val end = start.timeElapsed()
 
     CONFIG_LOGGER.info(
-        "Скомпилировано {} предметов, {} звуковых событий и {} прогрессий в пространствах имён {} за {} мл.",
+        "Скомпилировано {} предметов, {} звуковых событий, {} прогрессий, {} компонентов и {} скриптов в пространствах имён {} за {} мл.",
         namespaces.sumOf { it.items.count() },
         namespaces.sumOf { it.sounds.count() },
         namespaces.sumOf { it.progressionAnimations.count() },
+        namespaces.sumOf { it.components.count() },
+        namespaces.sumOf { it.scripts.count() },
         result.namespaces.keys.joinToString(separator = ", "),
         end
     )

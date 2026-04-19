@@ -93,8 +93,6 @@ function Player:__narration(narration) self:_narration(narration) end
 --- Userdata
 ---@class ComponentType
 ---@field id string
-ComponentType = {}
-ComponentType.__index = ComponentType
 
 ---@param id string
 ---@return ComponentType
@@ -148,7 +146,6 @@ function World:__destroy_entity(entity) return self:_destroy_entity(entity) end
 ---@class VoxelMeta
 ---@field id string
 ---@field has_tag fun(tag: string): boolean
-VoxelMeta = {}
 
 ---@param voxel_pos number[]
 ---@return number entity id
@@ -171,18 +168,15 @@ function World:__set_dynamic_voxel(voxel_pos) return self:_set_dynamic_voxel(vox
 ---@field flashlight Flashlight
 ---@field progression_animations table<string, string>
 ---@field sound_events table<string, string>
-Item = {}
 
 ---@class Flashlight
 ---@field radius number meters
 ---@field distance number meters
 ---@field light number 0-15
-Flashlight = {}
 
 ---@class Writable
 ---@field pages number
 ---@field texture string id
-Writable = {}
 
 ------------------
 
@@ -191,7 +185,7 @@ Writable = {}
 ---@field fun fun(context)
 ---@see InteractionScriptContext
 ---@see VoxelActionScriptContext
-Script = {}
+Script = Script or {}
 Script.__index = Script
 
 ------------------
@@ -199,7 +193,7 @@ Script.__index = Script
 ---@class IntentInput
 ---@field id string
 ---@field type string "text", "int", "double", "logic", "table" available
-IntentInput = {}
+IntentInput = IntentInput or {}
 IntentInput.__index = IntentInput
 
 ---@field id string
@@ -215,14 +209,14 @@ end
 ---@field script string id
 ---@field inputs IntentInput[]
 ---@field actors string[] "command", "toolgun" available, default all
-Intent = {}
+Intent = Intent or {}
 Intent.__index = Intent
 
 ------------------
 
 ---@class ComponentTypeSettings
 ---@field id string
-ComponentTypeSettings = {}
+ComponentTypeSettings = ComponentTypeSettings or {}
 ComponentTypeSettings.__index = ComponentTypeSettings
 
 function ComponentTypeSettings.of(id)
@@ -233,12 +227,10 @@ end
 
 ---@class Namespace
 ---@field id string
----@field items Item[]
----@field scripts Script[]
----@field components ComponentTypeSettings[]
----@field intents Intent[]
-Namespace = {}
-Namespace.__index = Namespace
+---@field items Item[]? empty default
+---@field scripts Script[]? empty default
+---@field components ComponentTypeSettings[]? empty default
+---@field intents Intent[]? empty default
 
 ------------------
 
@@ -285,25 +277,3 @@ function AudioSource:__play(slot) self:_play(slot) end
 
 ---@field slot string
 function AudioSource:__stop() self:_stop() end
-
-info("Loaded standard library")
-
-compilation(function()
-    local result = CompilationResult.new(
-        {
-            {
-                id = "core",
-                components = {
-                    ComponentTypeSettings.of("freeze"),
-                    ComponentTypeSettings.of("player"),
-                    ComponentTypeSettings.of("location"),
-                    ComponentTypeSettings.of("dynamic_voxel"),
-                    ComponentTypeSettings.of("use_restriction"),
-                    ComponentTypeSettings.of("sound"),
-                    ComponentTypeSettings.of("repeatable"),
-                }
-            }
-        }
-    )
-    return result
-end)

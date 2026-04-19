@@ -26,6 +26,7 @@ import org.lain.engine.script.compileContents
 import org.lain.engine.script.loadContentsCompileResult
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.script.lua.LuaDependencies
+import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.NamespacedStorage
@@ -119,7 +120,7 @@ class GameSession(
         )
         namespacedStorage.loadContentsCompileResult(result)
         callbacks = luaContext.compileCallbacks()
-        world.registerScriptComponents(namespacedStorage.components.map { it.value })
+        world.registerScriptComponents(namespacedStorage)
 
         val exceptions = result.exceptions
         if (exceptions.isNotEmpty()) {

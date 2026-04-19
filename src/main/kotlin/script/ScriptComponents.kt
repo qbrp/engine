@@ -18,10 +18,10 @@ data class ScriptComponentType(
 fun String.toScriptComponentId(): ScriptComponentId = ScriptComponentId(this)
 
 object BuiltinScriptComponents {
-    val PLAYER = ScriptComponentType(ComponentType("core/player"))
-    val LOCATION = ScriptComponentType(ComponentType("core/location"))
-    val DYNAMIC_VOXEL = ScriptComponentType(ComponentType("core/dynamic_voxel"))
-    val USE_RESTRICTION = ScriptComponentType(ComponentType("core/use_restriction"))
+    val PLAYER = ScriptComponentType(ComponentType("core/player/component"))
+    val LOCATION = ScriptComponentType(ComponentType("core/player/location"))
+    val DYNAMIC_VOXEL = ScriptComponentType(ComponentType("core/voxel/dynamic_voxel"))
+    val USE_RESTRICTION = ScriptComponentType(ComponentType("core/voxel/use_restriction"))
     val ALL = listOf(PLAYER, DYNAMIC_VOXEL, LOCATION, USE_RESTRICTION).associateBy { it.id }
 }
 

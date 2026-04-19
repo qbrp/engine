@@ -53,12 +53,13 @@ fun listBuiltinResourcesRecursive(path: String): List<Path> {
 }
 
 fun loadStdLuaLibrary() {
-    if (SharedConstants.DEVELOPER_TEST_ENVIRONMENT) return
+    if (SharedConstants.DEVELOPER_TEST_ENVIRONMENT && !SharedConstants.LOAD_LUA_LIBRARIES) return
     val targetRoot = BUILTIN_SCRIPTS_DIR
     listBuiltinResourcesRecursive("scripts").forEach { source ->
+        println("Loading script ${source.toString()}")
         val relative = source.toString()
-            .substringAfter("scripts\\")
             .replace("\\", "/")
+            .substringAfter("scripts/")
 
         val target = targetRoot.resolve(relative).toPath()
 

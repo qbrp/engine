@@ -50,7 +50,7 @@ function AudioSource:stop() self:__stop() end
 
 ---@class SoundComponent : Component
 ---@field source AudioSource
-SoundComponent = Component.of("core/sound")
+SoundComponent = Component.of("core/sound/component")
 
 ---@return SoundComponent
 function SoundComponent.new(parameters)
@@ -88,7 +88,7 @@ end
 
 ---@class RepeatableComponent : Component
 ---@field repeats_left number
-RepeatableComponent = Component.of("core/repeatable")
+RepeatableComponent = Component.of("core/sound/repeatable")
 
 ---@param repeats number
 ---@return RepeatableComponent

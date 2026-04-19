@@ -26,7 +26,7 @@ fun ServerCommandDispatcher.registerIntentCommands(
     handler: ServerHandler
 ) = intents.forEach {
     val (id, name, script, inputs) = it
-    val node = literal(id.value)
+    val node = literal(id.value.substringAfterLast('/'))
     var current: ArgumentBuilder<ServerCommandSource, *> = node
 
     inputs.forEachIndexed { index, (inputId, inputType) ->

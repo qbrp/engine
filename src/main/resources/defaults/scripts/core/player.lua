@@ -63,7 +63,7 @@ end
 
 ---@class PlayerComponent : Component
 ---@field object Player
-PlayerComponent = Component.of("core/player")
+PlayerComponent = Component.of("core/player/component")
 
 ---@param types ComponentType[]|Component[]
 ---@param fun fun(player: Player, ...)
@@ -74,13 +74,23 @@ function World:iterate_players(types, fun)
     end)
 end
 
+
+---@param types ComponentType[]|Component[]
+---@param fun fun(world: World, player: Player, ...)
+---@param env string client or server
+---@return Callbacks
+function Callbacks:player_system(types, fun, env)
+    table.insert(types, PlayerComponent)
+    return self:system(types, function(world, entity, player, ...) fun(world, player.object) end, env)
+end
+
 --------------------------------------------------------------------------------
 ---- Прочие компоненты
 --------------------------------------------------------------------------------
 
 ---@class LocationComponent : Component
 ---@field vector number[]
-LocationComponent = Component.of("core/location")
+LocationComponent = Component.of("core/player/location")
 
 --------------------------------------------------------------------------------
 ---- Заморозка
@@ -89,24 +99,24 @@ LocationComponent = Component.of("core/location")
 ---@class FreezeComponent : Component
 ---@field duration number ticks
 ---@field time number ticks elapsed
-FreezeComponent = Component.of("core/freeze")
+local FreezeComponent = Component.of("core/player/freeze")
 
 ---@return FreezeComponent
 ---@field duration number
 function FreezeComponent.new(duration) return FreezeComponent:construct { duration=duration, time=0 } end
 
 ---@param world World
-function tick_freeze_system(world)
-    world:iterate_players({ FreezeComponent }, function(player, freeze)
-        if (freeze.time > freeze.duration) then
-            player:remove_component(FreezeComponent)
-            player:reset_custom_max_speed()
-            return
-        end
+---@param player Player
+---@param freeze FreezeComponent
+local function FreezeSystem(world, player, freeze)
+    if (freeze.time > freeze.duration) then
+        player:remove_component(FreezeComponent)
+        player:reset_custom_max_speed()
+        return
+    end
 
-        player:set_custom_max_speed(0)
-        freeze.time = freeze.time + 1
-    end)
+    player:set_custom_max_speed(0)
+    freeze.time = freeze.time + 1
 end
 
 ---@param ticks number
@@ -120,4 +130,5 @@ end
 --------------------------------------------------------------------------------
 
 Callbacks.build()
-        :on_world_tick(tick_freeze_system)
+        :player_system({ FreezeComponent }, FreezeSystem)
+        :submit()

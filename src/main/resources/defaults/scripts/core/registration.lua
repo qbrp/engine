@@ -1,3 +1,4 @@
+require("core.util")
 require("core.bridge")
 
 --------------------------------------------------------------------------------
@@ -16,7 +17,7 @@ end
 
 ---@class InteractionScriptContext
 ---@field player Player
----@field raycastPlayer Player?
+---@field raycast_player Player?
 InteractionScriptContext = {}
 
 ---@class VoxelActionScriptContext
@@ -31,6 +32,33 @@ VoxelActionScriptContext = {}
 function Script.new(id, fun)
     return setmetatable({ id = id, fun = fun }, Script)
 end
+
+--------------------------------------------------------------------------------
+--- Компоненты
+--------------------------------------------------------------------------------
+
+---@param id string
+---@return ComponentTypeSettings
+function SavableComponent(id)
+    return ComponentTypeSettings.of(id)
+end
+
+---@param components ComponentTypeSettings[]|string[]
+---@return ComponentTypeSettings[]
+function ComponentList(components)
+    return map(components, function(elem)
+        local elem_type = type(elem)
+        if (elem_type == "string") then
+            return ComponentTypeSettings.of(elem)
+        elseif (elem_type == "table") then
+            return elem
+        end
+    end)
+end
+
+---
+ComponentList { "component_1", "component_2", SavableComponent("component_3") }
+---
 
 --------------------------------------------------------------------------------
 --- События

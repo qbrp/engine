@@ -8,6 +8,7 @@ object SharedConstants {
     const val DEBUG_PACKETS = false
     const val SIMULATE_LATENCY = false
     val DEBUG_ALL = true
+    val LOAD_LUA_LIBRARIES = false
     val DEVELOPER_TEST_ENVIRONMENT = System.getenv("OP").toBoolean()
     val ALLOWED_VERSIONS = listOf(ENGINE_MOD_VERSION)
 }

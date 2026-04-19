@@ -68,16 +68,16 @@ open class LuaContext(val dependencies: LuaDependencies) {
         directory.parentFile.mkdirs()
 
         val libraryDir = BUILTIN_SCRIPTS_DIR
-        val librarySetupDir = libraryDir.resolve("core/bridge.lua")
+        val libraryBootDir = libraryDir.resolve("core/boot.lua")
         val scriptsPath = scriptsPath.path
         val libraryPath = libraryDir.path
 
         require(directory.exists()) { "Входной скрипт сервера по директроии $directory не найден" }
-        require(librarySetupDir.exists()) { "Скрипт загрузки стандартных библиотек $librarySetupDir не найден" }
+        require(libraryBootDir.exists()) { "Скрипт загрузки стандартных библиотек $libraryBootDir не найден" }
         globals.setup()
 
         // Загрузка стандартной библиотеки
-        globals.loadfile(librarySetupDir.path).call()
+        globals.loadfile(libraryBootDir.path).call()
         setupTables()
         setupGlobals()
 
