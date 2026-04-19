@@ -15,6 +15,10 @@ import org.luaj.vm2.LuaValue
 import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
 class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, private val luaFunction: LuaFunction) : Script<C, R> {
+    override fun toString(): String {
+        return luaFunction.toString()
+    }
+
     override fun execute(context: C): ExecutionResult<R> = with(luaContext) {
         val arguments = when(context) {
             is ScriptContext.Player -> {
@@ -58,7 +62,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                 (result ?: Unit) as R
             )
         } catch (e: LuaError) {
-            LOGGER.error("Ошибка выполнения скрипта $luaFunction", e)
+            handleScriptException(this@LuaScript, e)
             ExecutionResult.Failure(e)
         }
     }

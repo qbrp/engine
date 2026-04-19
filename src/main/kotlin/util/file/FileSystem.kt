@@ -12,7 +12,7 @@ import java.nio.file.Paths
 import java.util.prefs.Preferences
 import kotlin.io.path.copyTo
 
-val ENGINE_DIR = File("engine-fabric")
+val ENGINE_DIR = File("engine")
     .also { it.mkdirs() }
 
 val BUILTIN_SCRIPTS_DIR = ENGINE_DIR.scripts

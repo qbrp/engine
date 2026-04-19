@@ -98,11 +98,7 @@ ComponentType.__index = ComponentType
 
 ---@param id string
 ---@return ComponentType
-function register_component(id) return _register_component(id) end
-
----@param id string
----@return ComponentType
-function get_builtin_component(id) return _get_builtin_component(id) end
+function component_type_of(id) return _component_type_of(id) end
 
 ------------------
 
@@ -224,11 +220,22 @@ Intent.__index = Intent
 
 ------------------
 
+---@class ComponentTypeSettings
+---@field id string
+ComponentTypeSettings = {}
+ComponentTypeSettings.__index = ComponentTypeSettings
+
+function ComponentTypeSettings.of(id)
+    return setmetatable({ id = id}, ComponentTypeSettings)
+end
+
+------------------
+
 ---@class Namespace
 ---@field id string
 ---@field items Item[]
 ---@field scripts Script[]
----@field components ComponentType[]
+---@field components ComponentTypeSettings[]
 ---@field intents Intent[]
 Namespace = {}
 Namespace.__index = Namespace
@@ -240,9 +247,9 @@ Namespace.__index = Namespace
 CompilationResult = {}
 CompilationResult.__index = CompilationResult
 
-function CompilationResult.new()
+function CompilationResult.new(namespaces)
     local obj = setmetatable({}, CompilationResult)
-    obj.namespaces = {}   -- поле для конкретного объекта
+    obj.namespaces = namespaces or {}   -- поле для конкретного объекта
     return obj
 end
 
@@ -278,3 +285,25 @@ function AudioSource:__play(slot) self:_play(slot) end
 
 ---@field slot string
 function AudioSource:__stop() self:_stop() end
+
+info("Loaded standard library")
+
+compilation(function()
+    local result = CompilationResult.new(
+        {
+            {
+                id = "core",
+                components = {
+                    ComponentTypeSettings.of("freeze"),
+                    ComponentTypeSettings.of("player"),
+                    ComponentTypeSettings.of("location"),
+                    ComponentTypeSettings.of("dynamic_voxel"),
+                    ComponentTypeSettings.of("use_restriction"),
+                    ComponentTypeSettings.of("sound"),
+                    ComponentTypeSettings.of("repeatable"),
+                }
+            }
+        }
+    )
+    return result
+end)

@@ -4,6 +4,7 @@ import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.Input
 import org.lain.engine.util.IntentTarget
+import org.lain.engine.util.file.getBuiltinResource
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.asVec3
 import org.lain.engine.world.VoxelPos
@@ -12,6 +13,11 @@ import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.Varargs
 import org.luaj.vm2.lib.*
+import java.io.File
+
+fun File.writeDefaultLuaEntrypointScript() {
+    writeText(getBuiltinResource("entrypoint.lua")?.readText() ?: "")
+}
 
 fun LuaValue.nullable() = if (isnil()) null else this
 
@@ -112,18 +118,19 @@ fun LuaValue.toVector3f(): Vec3 {
     return Vec3(elements[0], elements[1], elements[2])
 }
 
-fun LuaValue.coerceToScriptComponentType(): ScriptComponentType {
-    return checkuserdata(ScriptComponentType::class.java) as? ScriptComponentType ?: error("Invalid component type value")
+fun LuaValue.coerceToScriptComponentType(): LazyScriptComponentType {
+    return checkuserdata(LazyScriptComponentType::class.java) as? LazyScriptComponentType ?: error("Invalid component type value")
 }
 
-fun ScriptComponentType.toLuaValue(): LuaValue {
+fun LazyScriptComponentType.toLuaValue(): LuaValue {
     val userdata = LuaUserdata(this)
+
     val meta = object : LuaTable() {
         init {
             set("__index", object : TwoArgFunction() {
                 override fun call(self: LuaValue, key: LuaValue): LuaValue {
                     return when (key.tojstring()) {
-                        "id" -> luaValue(ecsType.id)
+                        "id" -> { luaValue(requireComponent().id) }
                         else -> NIL
                     }
                 }

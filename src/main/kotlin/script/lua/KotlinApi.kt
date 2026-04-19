@@ -1,13 +1,15 @@
 package org.lain.engine.script.lua
 
-import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.SharedConstants
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.script.BuiltinScriptComponents
 import org.lain.engine.script.LOGGER
+import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.util.Environment
+import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
 import org.lain.engine.util.inject
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -22,6 +24,7 @@ context(ctx: LuaContext)
 fun Globals.setup() {
     setupComponentCommands()
     set("SCRIPTS_PATH", ctx.scriptsPath.path)
+    set("LIBRARY_PATH", BUILTIN_SCRIPTS_DIR.path)
     set("_info", object : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue {
             LOGGER.info(arg.tojstring())
@@ -61,20 +64,29 @@ fun Globals.setup() {
     })
 }
 
+class LazyScriptComponentType(
+    private val storage: NamespacedStorage,
+    val id: ScriptComponentId
+) {
+    private var componentType: ScriptComponentType? = null
+    val ecsType get() = requireComponent().ecsType
+
+    fun getComponent(): ScriptComponentType? {
+        return storage.components[id] ?: BuiltinScriptComponents.ALL[id.id]
+    }
+
+    fun requireComponent(): ScriptComponentType {
+        return componentType ?: (getComponent() ?: error("Component $id not registered in system"))
+            .also { componentType = it }
+    }
+}
+
 context(ctx: LuaContext)
 private fun Globals.setupComponentCommands() {
-    set("_get_builtin_component", object : OneArgFunction() {
+    set("_component_type_of", object : OneArgFunction() {
         override fun call(arg1: LuaValue): LuaValue {
             val id = arg1.tojstring()
-            val components = BuiltinScriptComponents.ALL
-            val type = components[id] ?: kotlin.error("Builtin component type $id not exists. Available: ${components.values.map { it.id }}")
-            return type.toLuaValue()
-        }
-    })
-    set("_register_component", object : OneArgFunction() {
-        override fun call(arg1: LuaValue): LuaValue {
-            val id = arg1.tojstring()
-            val type = ScriptComponentType(ComponentType(id))
+            val type = LazyScriptComponentType(ctx.dependencies.namespacesStorage, ScriptComponentId(id))
             return type.toLuaValue()
         }
     })

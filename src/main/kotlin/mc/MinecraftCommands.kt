@@ -197,7 +197,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
 
     if (isDedicated) {
         register(
-            literal("recompilescrpits")
+            literal("recompilescripts")
                 .executeCatching { ctx ->
                     server.recompileEngineContents()
                     ctx.sendFeedback("Контент скомпилирован", true)

@@ -1,8 +1,10 @@
 package org.lain.engine.script.lua
 
+import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.script.*
+import org.lain.engine.script.yaml.namespacedId
 import org.lain.engine.storage.addIfNotNull
 import org.lain.engine.util.*
 import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
@@ -72,20 +74,14 @@ open class LuaContext(val dependencies: LuaDependencies) {
 
         require(directory.exists()) { "Входной скрипт сервера по директроии $directory не найден" }
         require(librarySetupDir.exists()) { "Скрипт загрузки стандартных библиотек $librarySetupDir не найден" }
-        // Ставим package-path, например core.bridge
-        globals.load(
-            """package.path = package.path .. ";$scriptsPath/?.lua;$scriptsPath/?/init.lua;$libraryPath/?.lua;" """
-        ).call()
-
         globals.setup()
-        val file = globals.loadfile(directory.path)
 
         // Загрузка стандартной библиотеки
         globals.loadfile(librarySetupDir.path).call()
         setupTables()
         setupGlobals()
 
-        file.call()
+        globals.loadfile(directory.path).call()
         setupTables()
     }
 
@@ -144,18 +140,18 @@ open class LuaContext(val dependencies: LuaDependencies) {
                             ?.associate { script ->
                                 val id = script.get("id").tojstring()
                                 val function = script.get("fun").checkfunction()
-                                id.toScriptId() to LuaScript<ScriptContext, Any>(this@LuaContext, function)
+                                namespacedId(namespaceId, id).toScriptId() to LuaScript<ScriptContext, Any>(this@LuaContext, function)
                             } ?: emptyMap()
 
-                        val components = componentsArray?.toList { it.checkuserdata() }
+                        val components = componentsArray?.toList { it.checktable() }
                             ?.associate { componentType ->
-                                val coercedComponentType = (componentType as? ScriptComponentType) ?: error("Unexpected component type $componentType")
-                                coercedComponentType.ecsType.id.toScriptComponentId() to coercedComponentType
+                                val componentId = namespacedId(namespaceId, componentType.get("id").tojstring()).toScriptComponentId()
+                                componentId to ScriptComponentType(ComponentType(componentId.id))
                             } ?: emptyMap()
 
                         val intents = intentsArray?.toList { it.checktable() }
                             ?.associate { intent ->
-                                val id = IntentId(intent.get("id").tojstring())
+                                val id = IntentId(namespacedId(namespaceId, intent.get("id").tojstring()))
                                 val script = ScriptId(intent.get("script").tojstring())
                                 val name = intent.get("name")?.nullable()?.tojstring() ?: id.value
                                 val inputs = intent.get("inputs")?.nullable()?.checktable()

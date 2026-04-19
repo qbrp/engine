@@ -63,7 +63,7 @@ end
 
 ---@class PlayerComponent : Component
 ---@field object Player
-PlayerComponent = Component.builtin("core/player")
+PlayerComponent = Component.of("core/player")
 
 ---@param types ComponentType[]|Component[]
 ---@param fun fun(player: Player, ...)
@@ -80,7 +80,7 @@ end
 
 ---@class LocationComponent : Component
 ---@field vector number[]
-LocationComponent = Component.builtin("core/location")
+LocationComponent = Component.of("core/location")
 
 --------------------------------------------------------------------------------
 ---- Заморозка
@@ -89,7 +89,7 @@ LocationComponent = Component.builtin("core/location")
 ---@class FreezeComponent : Component
 ---@field duration number ticks
 ---@field time number ticks elapsed
-FreezeComponent = Component.create("core/freeze")
+FreezeComponent = Component.of("core/freeze")
 
 ---@return FreezeComponent
 ---@field duration number
@@ -121,20 +121,3 @@ end
 
 Callbacks.build()
         :on_world_tick(tick_freeze_system)
-
-compilation(function()
-    local result = CompilationResult.new()
-    result:namespace {
-        id = "core",
-        components = {
-            FreezeComponent.type,
-            PlayerComponent.type,
-            LocationComponent.type,
-            DynamicVoxelComponent.type,
-            UseRestrictionComponent.type,
-            SoundComponent.type,
-            RepeatableComponent.type
-        }
-    }
-    return result
-end)

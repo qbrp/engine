@@ -5,6 +5,7 @@ import org.lain.engine.item.ItemPrefab
 import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.writeDefaultLuaEntrypointScript
 import org.lain.engine.script.yaml.compileContentsYaml
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.*
@@ -83,6 +84,7 @@ fun compileContents(contents: File, entrypointScript: File, luaContext: LuaConte
     val result1 = compileContentsYaml(contents)
     if (!entrypointScript.exists()) {
         entrypointScript.createNewFile()
+        entrypointScript.writeDefaultLuaEntrypointScript()
     }
     luaContext.setup(entrypointScript)
     val result2 = luaContext.compileContents()

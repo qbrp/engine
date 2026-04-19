@@ -46,14 +46,14 @@ fun Globals.setupWorld() {
         val world = self.coerceToEngineWorld()
         val type = type.coerceToScriptComponentType()
         val entityId = entityId.toint()
-        luaValue(world.hasLuaComponent(entityId, type))
+        luaValue(world.hasLuaComponent(entityId, type.requireComponent()))
     })
 
     ctx.worldTable.set("_has_component", threeArgFunction { self, entityId, type ->
         val world = self.coerceToEngineWorld()
         val type = type.coerceToScriptComponentType()
         val entityId = entityId.toint()
-        luaValue(world.hasLuaComponent(entityId, type))
+        luaValue(world.hasLuaComponent(entityId, type.requireComponent()))
     })
 
     ctx.worldTable.set("_set_component", fourArgFunction { self, entityId, type, component ->
@@ -61,7 +61,7 @@ fun Globals.setupWorld() {
         val type = type.coerceToScriptComponentType()
         val entityId = entityId.toint()
         val component = component.checktable()
-        world.setLuaComponent(entityId, type, component)
+        world.setLuaComponent(entityId, type.requireComponent(), component)
         NIL
     })
 
@@ -69,7 +69,7 @@ fun Globals.setupWorld() {
         val world = self.coerceToEngineWorld()
         val type = type.coerceToScriptComponentType()
         val entityId = entityId.toint()
-        world.removeLuaComponent(entityId, type) ?: NIL
+        world.removeLuaComponent(entityId, type.requireComponent()) ?: NIL
     })
 
     ctx.worldTable.set("_get_all_components", twoArgFunction { self, entityId ->
