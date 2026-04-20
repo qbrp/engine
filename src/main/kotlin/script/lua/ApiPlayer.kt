@@ -35,6 +35,11 @@ fun EnginePlayer.coerceToLua(): LuaUserdata {
 
 context(ctx: LuaContext)
 fun Globals.setupPlayer() {
+    ctx.playerTable.set("_has_permission", twoArgFunction { self, permission ->
+        val player = self.coerceToEnginePlayer()
+        player.hasPermission(permission.tojstring()).toLuaValue()
+    })
+
     ctx.playerTable.set("_is_game_master", object : OneArgFunction() {
         override fun call(self: LuaValue): LuaValue {
             val player = self.coerceToEnginePlayer()

@@ -15,12 +15,12 @@ import org.lain.engine.container.updateContainerSystems
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.storage.playerData
 import org.lain.engine.storage.savePersistentPlayerData
 import org.lain.engine.util.FixedSizeList
-import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.flush
 import org.lain.engine.util.math.Vec3
@@ -34,6 +34,7 @@ class EngineServer(
     val playerStorage: PlayerStorage,
     val acousticSimulator: AcousticSimulator,
     val eventListener: ServerEventListener,
+    val namespacedStorage: NamespacedStorage,
     val thread: Thread,
     savePath: File,
     database: Database
@@ -48,7 +49,6 @@ class EngineServer(
     val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val itemStorage = ItemStorage()
-    val namespacedStorage = NamespacedStorage()
     val voidContainer by lazy { defaultWorld.createContainer(Location(defaultWorld, Vec3(0f))) }
     var callbacks = Callbacks()
     val itemLoader = ItemLoader(this, database)

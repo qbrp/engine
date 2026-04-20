@@ -2,6 +2,7 @@ package org.lain.engine.util
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.getScript

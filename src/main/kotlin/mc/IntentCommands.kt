@@ -16,6 +16,7 @@ import net.minecraft.world.RaycastContext
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.SOCIAL_INTERACTION_DISTANCE
 import org.lain.engine.script.IntentBehaviour
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.*

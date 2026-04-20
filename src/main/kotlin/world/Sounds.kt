@@ -8,7 +8,7 @@ import org.lain.engine.item.sound
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.Vec3
 

@@ -5,10 +5,15 @@ import org.lain.engine.item.ItemPrefab
 import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.LuaRuntimeDependencies
 import org.lain.engine.script.lua.writeDefaultLuaEntrypointScript
 import org.lain.engine.script.yaml.compileContentsYaml
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.*
+import org.lain.engine.server.ServerId
+import org.lain.engine.util.Intent
+import org.lain.engine.util.IntentId
+import org.lain.engine.util.NamespaceId
+import org.lain.engine.util.Timestamp
 import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.world.SoundEvent
@@ -24,14 +29,55 @@ val File.scripts: File get() = this.resolve("scripts")
 val DEFAULT_NAMESPACE = NamespaceId("default")
 
 val EngineServer.luaEntrypointDir: File
-    get() = ENGINE_DIR.scripts.resolve("${globals.serverId}.lua")
+    get() = getLuaEntrypointDir(globals.serverId)
+
+fun File.luaEntrypointDir(serverId: ServerId): File {
+    return resolve("${serverId}.lua")
+}
+
+fun getLuaEntrypointDir(serverId: ServerId): File {
+    return ENGINE_DIR.scripts.luaEntrypointDir(serverId)
+}
 
 internal val LOGGER = LoggerFactory.getLogger("Script Engine")
 
+data class CompilationException(val namespace: NamespaceId, val error: Exception) : Exception(error) {
+    val errorString: String
+        get() = "- $namespace: ${error.message}"
+
+    fun log() {
+        CONFIG_LOGGER.error("При компиляции пространства имён $namespace возникла ошибка", error)
+    }
+}
+
 data class CompilationResult(
     val namespaces: Map<NamespaceId, CompiledNamespace>,
-    val exceptions: List<Throwable> = emptyList(),
-)
+    val exceptions: List<CompilationException>,
+    val callbacks: Callbacks?,
+    val time: Long
+) {
+    fun log() {
+        val namespaces = namespaces.values
+        CONFIG_LOGGER.info(
+            "Скомпилировано {} предметов, {} звуковых событий, {} прогрессий, {} компонентов и {} скриптов в пространствах имён {} за {} мл.",
+            namespaces.sumOf { it.items.count() },
+            namespaces.sumOf { it.sounds.count() },
+            namespaces.sumOf { it.progressionAnimations.count() },
+            namespaces.sumOf { it.components.count() },
+            namespaces.sumOf { it.scripts.count() },
+            this.namespaces.keys.joinToString(separator = ", "),
+            time
+        )
+
+        if (exceptions.isNotEmpty()) {
+            CONFIG_LOGGER.warn("Во время компиляции возникло ${exceptions.count()} ошибок")
+        }
+    }
+
+    fun logExceptions() {
+        exceptions.forEach { exception -> exception.log() }
+    }
+}
 
 data class CompiledNamespace(
     val items: Map<ItemId, Item>,
@@ -44,10 +90,6 @@ data class CompiledNamespace(
     data class Item(val prefab: ItemPrefab) {
         val id get() = prefab.id
     }
-}
-
-fun logNamespaceCompilationError(namespace: NamespaceId, error: Throwable) {
-    CONFIG_LOGGER.error("При компиляции пространства имён $namespace возникла ошибка", error)
 }
 
 fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
@@ -71,16 +113,20 @@ fun World.registerScriptComponents(namespacesStorage: NamespacedStorage) {
 }
 
 fun EngineServer.applyContentsCompileResult(result: CompilationResult) {
+    result.callbacks?.let { callbacks = it }
     namespacedStorage.loadContentsCompileResult(result)
     listWorlds().forEach { it.registerScriptComponents(namespacedStorage) }
     handler.onContentsUpdate()
 }
 
-fun EngineServer.loadContents(luaContext: LuaContext) {
-    val results = compileContents(ENGINE_DIR.contents, luaEntrypointDir, luaContext)
-    callbacks = luaContext.compileCallbacks()
-    applyContentsCompileResult(results)
+fun EngineServer.loadContents(
+    luaContext: LuaContext,
+    result: CompilationResult = compileContents(ENGINE_DIR.contents, luaEntrypointDir, luaContext)
+) {
+    applyContentsCompileResult(result)
+    luaContext.setupGame(LuaRuntimeDependencies(playerStorage, worlds))
     eventListener.onCompiled(namespacedStorage)
+    result.log()
 }
 
 // Функция с побочными эффектами
@@ -95,26 +141,10 @@ fun compileContents(contents: File, entrypointScript: File, luaContext: LuaConte
     val result2 = luaContext.compileContents()
     val result = CompilationResult(
         result1.namespaces + result2.namespaces,
-        result1.exceptions + result2.exceptions
+        result1.exceptions + result2.exceptions,
+        result2.callbacks,
+        start.timeElapsed()
     )
-    val namespaces = result.namespaces.values
-    val exceptions = result.exceptions
-    val end = start.timeElapsed()
-
-    CONFIG_LOGGER.info(
-        "Скомпилировано {} предметов, {} звуковых событий, {} прогрессий, {} компонентов и {} скриптов в пространствах имён {} за {} мл.",
-        namespaces.sumOf { it.items.count() },
-        namespaces.sumOf { it.sounds.count() },
-        namespaces.sumOf { it.progressionAnimations.count() },
-        namespaces.sumOf { it.components.count() },
-        namespaces.sumOf { it.scripts.count() },
-        result.namespaces.keys.joinToString(separator = ", "),
-        end
-    )
-
-    if (exceptions.isNotEmpty()) {
-        CONFIG_LOGGER.warn("Во время компиляции возникло ${exceptions.count()} ошибок")
-    }
 
     return result
 }

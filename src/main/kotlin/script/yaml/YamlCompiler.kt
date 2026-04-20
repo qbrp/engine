@@ -7,6 +7,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
+import org.lain.engine.script.CompilationException
+import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.CompiledNamespace
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.SoundEventId
@@ -53,7 +56,7 @@ internal data class YamlNamespace(
 
 internal data class YamlCompilationContext(
     val namespaces: Map<NamespaceId, YamlNamespace>,
-    val errors: MutableList<Throwable>
+    val errors: MutableList<CompilationException>
 )
 
 context(ctx: YamlCompilationContext)
@@ -90,7 +93,7 @@ internal fun String.replaceToRelative(namespace: YamlNamespace): String {
     return replaceFirst("~", namespace.id.value)
 }
 
-private fun loadNamespaces(directory: File, errors: MutableList<Throwable>): Map<NamespaceId, YamlNamespace> {
+private fun loadNamespaces(directory: File, errors: MutableList<CompilationException>): Map<NamespaceId, YamlNamespace> {
     val namespaces = mutableSetOf<NamespaceId>()
     val contents = mutableMapOf<NamespaceId, NamespaceContents>()
     val configs = mutableMapOf<NamespaceId, NamespaceConfig>()
@@ -110,9 +113,8 @@ private fun loadNamespaces(directory: File, errors: MutableList<Throwable>): Map
                 contents[id] = upserted ?: namespace
                 namespaces.add(id)
             }
-        } catch (e: Throwable) {
-            _root_ide_package_.org.lain.engine.script.logNamespaceCompilationError(NamespaceId(dir.name), e)
-            errors += e
+        } catch (e: Exception) {
+            errors += CompilationException(NamespaceId(dir.name), e)
         }
     }
     return namespaces.associateWith {
@@ -125,15 +127,15 @@ private fun loadNamespaces(directory: File, errors: MutableList<Throwable>): Map
 }
 
 internal fun createYamlCompilationContext(directory: File): YamlCompilationContext {
-    val errors = mutableListOf<Throwable>()
+    val errors = mutableListOf<CompilationException>()
     return YamlCompilationContext(loadNamespaces(directory, errors), errors)
 }
 
-internal fun compileContentsYaml(directory: File): org.lain.engine.script.CompilationResult = with(createYamlCompilationContext(directory)) {
+internal fun compileContentsYaml(directory: File): CompilationResult = with(createYamlCompilationContext(directory)) {
     val namespaces = namespaces.mapValues { (_, namespace) ->
         try {
             val contents = namespace.contents
-            _root_ide_package_.org.lain.engine.script.CompiledNamespace(
+            CompiledNamespace(
                 compileItemsYaml(contents.items, namespace)
                     .associateBy { it.id },
                 compileSoundEvents(contents.sounds, namespace)
@@ -156,15 +158,16 @@ internal fun compileContentsYaml(directory: File): org.lain.engine.script.Compil
                 }
                     .toMap()
             )
-        } catch (e: Throwable) {
-            _root_ide_package_.org.lain.engine.script.logNamespaceCompilationError(namespace.id, e)
-            errors += e
+        } catch (e: Exception) {
+            errors += CompilationException(namespace.id, e)
             null
         }
     }.filterValues { it != null }
 
-    return _root_ide_package_.org.lain.engine.script.CompilationResult(
-        namespaces as Map<NamespaceId, org.lain.engine.script.CompiledNamespace>,
-        errors
+    return CompilationResult(
+        namespaces as Map<NamespaceId, CompiledNamespace>,
+        errors,
+        null,
+        0L
     )
 }

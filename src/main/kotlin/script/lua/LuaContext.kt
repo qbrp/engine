@@ -6,7 +6,10 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.script.*
 import org.lain.engine.script.yaml.namespacedId
 import org.lain.engine.storage.addIfNotNull
-import org.lain.engine.util.*
+import org.lain.engine.util.Intent
+import org.lain.engine.util.IntentId
+import org.lain.engine.util.NamespaceId
+import org.lain.engine.util.Storage
 import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -18,7 +21,7 @@ import java.io.File
 
 data class LuaCompilationContext(
     val namespaces: MutableMap<NamespaceId, CompiledNamespace> = mutableMapOf(),
-    val errors: MutableList<Throwable> = mutableListOf(),
+    val errors: MutableList<CompilationException> = mutableListOf(),
 )
 
 class LuaDataStorage {
@@ -38,14 +41,19 @@ class LuaDataStorage {
 
 data class LuaDependencies(
     val globals: Globals,
-    val dataStorage: LuaDataStorage,
-    val playerStorage: Storage<PlayerId, EnginePlayer>,
-    val worlds: MutableMap<WorldId, World>,
     val namespacesStorage: NamespacedStorage,
     val scriptsPath: File,
+    val dataStorage: LuaDataStorage,
+)
+
+data class LuaRuntimeDependencies(
+    val playerStorage: Storage<PlayerId, EnginePlayer>,
+    val worlds: MutableMap<WorldId, World>
 )
 
 open class LuaContext(val dependencies: LuaDependencies) {
+    var runtimeDependencies: LuaRuntimeDependencies? = null
+        private set
     val globals get() = dependencies.globals
     val scriptsPath get() = dependencies.scriptsPath
 
@@ -59,6 +67,8 @@ open class LuaContext(val dependencies: LuaDependencies) {
         worldTable = globals.get("World").checktable()
     }
 
+    open fun setupGlobalsRuntime() {}
+
     open fun setupGlobals() {
         globals.setupPlayer()
         globals.setupWorld()
@@ -69,8 +79,6 @@ open class LuaContext(val dependencies: LuaDependencies) {
 
         val libraryDir = BUILTIN_SCRIPTS_DIR
         val libraryBootDir = libraryDir.resolve("core/boot.lua")
-        val scriptsPath = scriptsPath.path
-        val libraryPath = libraryDir.path
 
         require(directory.exists()) { "Входной скрипт сервера по директроии $directory не найден" }
         require(libraryBootDir.exists()) { "Скрипт загрузки стандартных библиотек $libraryBootDir не найден" }
@@ -82,10 +90,16 @@ open class LuaContext(val dependencies: LuaDependencies) {
         setupGlobals()
 
         globals.loadfile(directory.path).call()
+        // Загружаем второй раз, чтобы... чтобы всё точно загрузилось. Без повторения иногда всё ломается
         setupTables()
     }
 
-    fun compileCallbacks(): Callbacks {
+    open fun setupGame(dependencies: LuaRuntimeDependencies) {
+        runtimeDependencies = dependencies
+        setupGlobalsRuntime()
+    }
+
+    private fun compileCallbacks(): Callbacks {
         val playerInstantiate = mutableListOf<PlayerInstantiateCallback>()
         val playerDestroy = mutableListOf<PlayerDestroyCallback>()
         val worldTickSecond = mutableListOf<WorldTickSecondCallback>()
@@ -168,12 +182,16 @@ open class LuaContext(val dependencies: LuaDependencies) {
                             components,
                             intents
                         )
-                    } catch (e: Throwable) {
-                        compilation.errors += e
-                        logNamespaceCompilationError(namespaceId, e)
+                    } catch (e: Exception) {
+                        compilation.errors += CompilationException(namespaceId, e)
                     }
                 }
         }
-        return CompilationResult(compilation.namespaces)
+        return CompilationResult(
+            compilation.namespaces,
+            compilation.errors,
+            compileCallbacks(),
+            0
+        )
     }
 }

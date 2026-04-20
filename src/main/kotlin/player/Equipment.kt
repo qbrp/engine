@@ -3,7 +3,7 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.engine.container.*
 import org.lain.engine.item.*
-import org.lain.engine.util.ContentStorage
+import org.lain.engine.script.ContentStorage
 import org.lain.cyberia.ecs.*
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.has

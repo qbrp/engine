@@ -29,6 +29,7 @@ import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.*
 import org.lain.engine.item.ItemId
 import org.lain.engine.player.*
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.getVoidScript

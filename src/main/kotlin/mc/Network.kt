@@ -105,10 +105,3 @@ fun <P : Packet> PayloadTypeRegistry<RegistryByteBuf>.registerPayload(endpoint: 
 fun DisconnectText(reason: String) = "<red>[ENGINE] ${reason}</red>".parseMiniMessageLegacy()
 
 fun DisconnectText(exception: Throwable) = DisconnectText(exception.message ?: "Unknown error")
-
-fun disconnectInternal(playerId: PlayerId, reason: String) {
-    val server by injectMinecraftEngineServer()
-    val entity = ENTITY_TABLE.server.getEntity(playerId) as? ServerPlayerEntity ?: server.minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
-    val networkHandler = entity.networkHandler
-    networkHandler.disconnect(DisconnectText(reason))
-}

@@ -6,7 +6,7 @@ import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.getVoidScript
 import org.lain.engine.script.interactionScriptContext
-import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.script.NamespacedStorage
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.require

@@ -8,13 +8,20 @@ import kotlinx.serialization.Serializable
 import net.fabricmc.api.DedicatedServerModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.util.crash.CrashException
+import net.minecraft.util.crash.CrashReport
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.getPlayer
 import org.lain.engine.mc.hasPermission
 import org.lain.engine.mc.isOp
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
+import org.lain.engine.script.*
+import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.LuaDataStorage
+import org.lain.engine.script.lua.LuaDependencies
 import org.lain.engine.server.Notification
+import org.lain.engine.server.ServerId
 import org.lain.engine.server.network
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -23,23 +30,71 @@ import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.network.ServerNetworkTransport
 import org.lain.engine.transport.network.SessionId
-import org.lain.engine.transport.packet.DeveloperModeStatus
+import org.lain.engine.transport.packet.*
+import org.lain.engine.util.file.ENGINE_DIR
+import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.registerMinecraftServer
 import org.lain.engine.util.text.parseMiniMessage
+import org.luaj.vm2.lib.jse.JsePlatform
 import java.util.*
+
+class SetupException(val exceptions: List<CompilationException>) : Exception()
 
 class DedicatedServerEngineMod : DedicatedServerModInitializer {
     override fun onInitializeServer() {
-        ServerLifecycleEvents.SERVER_STARTING.register { server ->
-            val dependencies = EngineMinecraftServerDependencies(server)
+        val namespacedStorage = NamespacedStorage()
+        val luaDependencies = LuaDependencies(
+            JsePlatform.standardGlobals(),
+            namespacedStorage,
+            ENGINE_DIR.scripts,
+            LuaDataStorage()
+        )
+        val config = loadOrCreateServerConfig()
+        val luaContext = LuaContext(luaDependencies)
+        val compilationResult = setupContents(luaContext, config.server)
 
+        ServerLifecycleEvents.SERVER_STARTING.register { server ->
+            val dependencies = EngineMinecraftServerDependencies(server, luaContext, compilationResult, config, namespacedStorage)
             registerMinecraftServer(
                 DedicatedEngineMinecraftServer(dependencies)
             )
         }
     }
-}
 
+    fun setupContents(luaContext: LuaContext, serverId: ServerId): CompilationResult {
+        val scanner = Scanner(System.`in`)
+        error@ while (true) {
+            try {
+                val result = compileContents(ENGINE_DIR.contents, getLuaEntrypointDir(serverId), luaContext)
+                if (result.exceptions.isNotEmpty()) {
+                    throw SetupException(result.exceptions)
+                }
+                return result
+            } catch (e: Exception) {
+                LOGGER.error("Не удалось скомпилировать ресурсы Engine!")
+
+                if (e is SetupException) {
+                    e.exceptions.forEach {
+                        LOGGER.error(it.errorString)
+                    }
+                } else {
+                    LOGGER.error(e.message)
+                }
+
+                LOGGER.info("Перекомпилировать заново? y - да, n - выключить сервер")
+                while (true) {
+                    when (scanner.nextLine().lowercase()) {
+                        "y" -> continue@error
+                        "n" -> throw CrashException(
+                            CrashReport("Engine compilation", e)
+                        )
+                        else -> LOGGER.warn("y - да, n - выключить сервер")
+                    }
+                }
+            }
+        }
+    }
+}
 
 class DedicatedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,

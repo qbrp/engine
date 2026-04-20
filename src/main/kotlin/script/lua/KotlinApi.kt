@@ -3,12 +3,8 @@ package org.lain.engine.script.lua
 import org.lain.engine.SharedConstants
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.script.BuiltinScriptComponents
-import org.lain.engine.script.LOGGER
-import org.lain.engine.script.ScriptComponentId
-import org.lain.engine.script.ScriptComponentType
+import org.lain.engine.script.*
 import org.lain.engine.util.Environment
-import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
 import org.lain.engine.util.inject
 import org.lain.engine.world.World
@@ -94,10 +90,10 @@ private fun Globals.setupComponentCommands() {
 
 private fun LuaContext.getPlayer(playerIdArg: LuaValue): EnginePlayer {
     val playerId = PlayerId.fromString(playerIdArg.tojstring())
-    return dependencies.playerStorage.get(playerId) ?: error("Player $playerId not found")
+    return runtimeDependencies?.playerStorage?.get(playerId) ?: error("Player $playerId not found")
 }
 
 internal fun LuaContext.getWorld(worldIdArg: LuaValue): World {
     val worldId = WorldId(worldIdArg.tojstring())
-    return dependencies.worlds[worldId] ?: error("World not found")
+    return runtimeDependencies?.worlds[worldId] ?: error("World not found")
 }

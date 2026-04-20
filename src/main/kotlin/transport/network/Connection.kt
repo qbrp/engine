@@ -1,6 +1,10 @@
 package org.lain.engine.transport.network
 
-import org.lain.engine.mc.disconnectInternal
+import net.minecraft.server.MinecraftServer
+import net.minecraft.server.network.ServerPlayerEntity
+import org.lain.engine.mc.DisconnectText
+import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.getPlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.server.DesynchronizationException
@@ -13,10 +17,14 @@ data class ConnectionSession(
     val uuid: SessionId,
     val username: Username,
     val playerId: PlayerId,
-    val isOp: Boolean
+    val isOp: Boolean,
+    var mods: Set<String> = emptySet(),
 )
 
-class ServerConnectionManager {
+class ServerConnectionManager(
+    private val minecraftServer: MinecraftServer,
+    private val entityTable: EntityTable
+) {
     private val sessions: MutableMap<PlayerId, ConnectionSession> = mutableMapOf()
 
     fun addConnectionSession(session: ConnectionSession) {
@@ -32,10 +40,11 @@ class ServerConnectionManager {
     }
 
     fun disconnect(connectionSession: ConnectionSession, reason: String)  {
-        disconnectInternal(
-            connectionSession.playerId,
-            reason
-        )
+        val playerId = connectionSession.playerId
+        val entity = entityTable.server.getEntity(playerId) as? ServerPlayerEntity ?: minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
+        val networkHandler = entity.networkHandler
+        entityTable.server.removePlayer(playerId)
+        networkHandler.disconnect(DisconnectText(reason))
     }
 
     fun disconnect(playerId: PlayerId, exception: Throwable) {

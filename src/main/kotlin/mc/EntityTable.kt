@@ -37,6 +37,10 @@ class EntityTable {
         private val playerToEntityMap: ConcurrentHashMap<PlayerId, T> = ConcurrentHashMap()
         private val entityToPlayerMap: ConcurrentHashMap<T, EnginePlayer> = ConcurrentHashMap()
 
+        fun setEntity(entity: T, player: PlayerId) {
+            playerToEntityMap[player] = entity
+        }
+
         fun setPlayer(entity: T, player: EnginePlayer) {
             entityToPlayerMap[entity] = player
             playerToEntityMap[player.id] = entity

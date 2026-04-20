@@ -19,10 +19,8 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
-import org.lain.engine.script.loadContents
+import org.lain.engine.script.*
 import org.lain.engine.script.lua.*
-import org.lain.engine.script.registerScriptComponents
-import org.lain.engine.script.scripts
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerEventListener
@@ -33,16 +31,15 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
-import org.lain.engine.util.NamespacedStorage
-import org.lain.engine.util.file.CONFIG_LOGGER
-import org.lain.engine.util.file.ENGINE_DIR
-import org.lain.engine.util.file.applyConfigCatching
-import org.lain.engine.util.file.loadOrCreateServerConfig
+import org.lain.engine.util.file.*
 import org.lain.engine.world.*
-import org.luaj.vm2.lib.jse.JsePlatform
 
 data class EngineMinecraftServerDependencies(
     val minecraftServer: MinecraftServer,
+    val luaContext: LuaContext,
+    val compilationResult: CompilationResult,
+    val config: ServerConfig = loadOrCreateServerConfig(),
+    val namespacedStorage: NamespacedStorage = NamespacedStorage(),
     val playerStorage: PlayerStorage = ConcurrentStorage(),
     val entityTable: EntityTable = Injector.resolve(EntityTable::class),
     val acousticSceneBank: ConcurrentAcousticSceneBank = ConcurrentAcousticSceneBank(),
@@ -55,7 +52,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     protected val playerStorage = dependencies.playerStorage
     protected val acousticSceneBank = dependencies.acousticSceneBank
     protected val acousticBlockData = dependencies.acousticBlockData
-    protected val config = loadOrCreateServerConfig()
+    protected val config = dependencies.config
     val entityTable = dependencies.entityTable.server
     val acousticSimulator = MinecraftAcousticManager(this, dependencies.entityTable, acousticSceneBank, acousticBlockData)
     val engine = EngineServer(
@@ -63,6 +60,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         playerStorage,
         acousticSimulator,
         this,
+        dependencies.namespacedStorage,
         minecraftServer.thread,
         minecraftServer.getSavePath(WorldSavePath.ROOT).toFile(),
         database
@@ -74,20 +72,16 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )
-    private val luaDataStorage = LuaDataStorage()
-    private val luaGlobals = JsePlatform.standardGlobals()
-    protected var luaContext = createLuaContext()
+    protected var luaContext: LuaContext = dependencies.luaContext
 
-    fun createLuaContext(): LuaContext = LuaContext(
+    fun recreateLuaContext(): LuaContext = LuaContext(
         LuaDependencies(
-            luaGlobals,
-            luaDataStorage,
-            engine.playerStorage,
-            engine.worlds,
+            luaContext.globals,
             engine.namespacedStorage,
             ENGINE_DIR.scripts,
+            luaContext.dependencies.dataStorage
         )
-    )
+    ).also { it.setupGame(LuaRuntimeDependencies(engine.playerStorage, engine.worlds)) }
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
         val item = instantiateItem(
@@ -131,7 +125,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         Injector.register<ItemAccess>(engine.itemStorage)
         Injector.register(engine.globals.movementSettings)
         applyConfigCatching(config)
-        engine.loadContents(luaContext)
+        val compilationResult = dependencies.compilationResult
+        engine.loadContents(luaContext, compilationResult)
         minecraftServer.worlds.forEach {
             val id = it.engine
             val world = world(id, engine.thread) { chunkPos ->
@@ -158,7 +153,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     fun recompileEngineContents() {
-        val luaContext = createLuaContext()
+        val luaContext = recreateLuaContext()
         this.luaContext = luaContext
         engine.loadContents(luaContext)
     }
@@ -207,7 +202,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     fun onBlockAdd(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: net.minecraft.world.World) {
         acousticSimulator.updateBlock(state, pos, world)
-        engine.callbacks.executePlaceVoxelCallback(player, engine.getWorld(world), pos.engine(), state,)
+        engine.callbacks.executePlaceVoxelCallback(player, engine.getWorld(world), pos.engine(), state)
     }
 
     fun onChunkUnload(world: net.minecraft.world.World, chunk: Chunk) {
@@ -238,5 +233,3 @@ fun serverMinecraftPlayerLoadSettings(
         entity.entityWorld.engine
     )
 }
-
-fun PlayerEntity.copyMainStacks() = inventory.mainStacks.map { it.copy() }

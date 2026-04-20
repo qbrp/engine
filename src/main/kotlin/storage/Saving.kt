@@ -15,7 +15,7 @@ import org.lain.engine.mc.engine
 import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.NamespacedStorage
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
