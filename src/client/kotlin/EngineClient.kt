@@ -6,13 +6,20 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.*
 import org.lain.engine.client.render.ui.EngineUi
 import org.lain.engine.client.resources.ResourceManager
+import org.lain.engine.client.script.ClientLuaContext
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.player.developerMode
+import org.lain.engine.script.*
+import org.lain.engine.script.lua.LuaDataStorage
+import org.lain.engine.script.lua.LuaDependencies
+import org.lain.engine.server.ServerId
 import org.lain.engine.util.DEV_MODE_COLOR
 import org.lain.engine.util.SPECTATOR_MODE_COLOR
+import org.luaj.vm2.lib.jse.JsePlatform
+import java.io.File
 
 class EngineClient(
     val window: Window,
@@ -57,9 +64,42 @@ class EngineClient(
             field = value
         }
 
+    val namespacedStorage: NamespacedStorage = NamespacedStorage()
+
     var gameSession: GameSession? = null
     val gameSessionActive
         get() = gameSession != null
+
+    private val luaDataStorage = LuaDataStorage()
+    private val luaGlobals = JsePlatform.standardGlobals()
+    var compilationResult: CompilationResult? = null
+    var luaContext: ClientLuaContext? = null
+
+    fun compileScripts(server: ServerId): CompilationResult {
+        val scriptsPath = resources.scripts.file
+        val contentsPath = resources.contents.file
+        luaContext = createLuaContext()
+        compilationResult = compileContents(contentsPath, scriptsPath.luaEntrypointDir(server), luaContext!!)
+        namespacedStorage.loadContentsCompileResult(compilationResult!!)
+        return compilationResult!!
+    }
+
+    fun createLuaDependencies(scriptsPath: File): LuaDependencies {
+        return LuaDependencies(
+            luaGlobals,
+            namespacedStorage,
+            scriptsPath,
+            luaDataStorage
+        )
+    }
+
+    fun createLuaContext(): ClientLuaContext {
+        val scriptsPath = resources.scripts.file
+        return ClientLuaContext(
+            this,
+            createLuaDependencies(scriptsPath),
+        )
+    }
 
     var ticks = 0L
         private set

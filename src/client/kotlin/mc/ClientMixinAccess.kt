@@ -9,9 +9,13 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
 import net.minecraft.sound.SoundCategory
 import net.minecraft.util.Identifier
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.require
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
+import org.lain.engine.client.mc.render.ToolgunRenderer
 import org.lain.engine.client.mc.render.world.RenderStateComponent
+import org.lain.engine.client.mc.render.world.beforeWorldProjectionMatrix
 import org.lain.engine.client.mc.render.world.modelPartOf
 import org.lain.engine.client.mc.render.world.setEngineState
 import org.lain.engine.client.resources.Assets
@@ -25,8 +29,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
 import org.lain.engine.player.processLeftClickInteraction
 import org.lain.engine.util.EngineId
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.require
+import org.lain.engine.util.inject
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 
@@ -42,6 +45,11 @@ object ClientMixinAccess {
 
     fun tick() {
         chatClipboardCopyTicksElapsed += 1
+    }
+
+    fun onSetWorldProjectionMatrix() {
+        val toolgunRenderer by inject<ToolgunRenderer>()
+        beforeWorldProjectionMatrix(toolgunRenderer)
     }
 
     fun getWriteable(itemStack: ItemStack): Writable? {

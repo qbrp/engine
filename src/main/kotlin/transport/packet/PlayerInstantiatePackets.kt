@@ -2,9 +2,12 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerItems
 import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.*
+import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
@@ -13,8 +16,6 @@ import org.lain.engine.storage.getEquipmentContainerSlots
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.world
@@ -212,3 +213,21 @@ data class PlayerDestroyPacket(
 ) : Packet
 
 val CLIENTBOUND_PLAYER_DESTROY_ENDPOINT = Endpoint<PlayerDestroyPacket>()
+
+// Namespaces
+
+@Serializable
+data class VerificationResponsePacket(
+    val developerModeStatus: DeveloperModeStatus,
+    val namespaces: NamespaceHashMap
+) : Packet
+
+val SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT = Endpoint<VerificationResponsePacket>()
+
+@Serializable
+data class GeneralServerData(val serverId: ServerId)
+
+@Serializable
+data class VerificationDataPacket(val server: GeneralServerData) : Packet
+
+val CLIENTBOUND_VERIFICATION_ENDPOINT = Endpoint<VerificationDataPacket>()

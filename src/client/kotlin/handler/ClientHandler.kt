@@ -17,6 +17,7 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.ClientTransportContext
+import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
@@ -45,9 +46,19 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     val processedInteractions = FixedSizeList<InteractionId>(40)
     val pendingSnapshots = mutableListOf<Pair<InteractionId, Runnable>>()
     val pendingFullPlayerData = mutableListOf<Pair<EnginePlayer, FullPlayerData>>()
+    private val pendingChunks: Queue<Pair<EngineChunkPos, EngineChunk>> = LinkedList()
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
+        CLIENTBOUND_VERIFICATION_ENDPOINT.registerClientReceiver { ctx ->
+            client.compileScripts(server.serverId)
+            SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
+                VerificationResponsePacket(
+                    DeveloperModeStatus(client.developerMode, client.acousticDebug),
+                    client.namespacedStorage.namespaceHashMap
+                )
+            )
+        }
     }
 
     fun disable() {
@@ -56,6 +67,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         processedSounds.clear()
         synchronizedEntities.clear()
         pendingSnapshots.clear()
+        pendingChunks.clear()
     }
 
     fun tick() {
@@ -361,8 +373,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         acousticDebugVolumes = volumes
         eventBus.onAcousticDebugVolumes(volumes, this)
     }
-
-    private val pendingChunks: Queue<Pair<EngineChunkPos, EngineChunk>> = LinkedList()
 
     fun applyChunkPacket(pos: EngineChunkPos, chunk: EngineChunk) {
         val session = gameSession

@@ -6,9 +6,14 @@ import net.minecraft.client.render.VertexConsumerProvider
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.MinecraftEngineClientEventBus
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.mc.render.ToolgunRenderer
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.world.pos
+
+fun beforeWorldProjectionMatrix(toolgunRenderer: ToolgunRenderer) {
+    //toolgunRenderer.renderInTexture()
+}
 
 fun registerWorldRenderEvents(
     client: MinecraftClient,
@@ -16,7 +21,24 @@ fun registerWorldRenderEvents(
     eventBus: MinecraftEngineClientEventBus,
     decalsStorage: ChunkDecalsStorage,
     playerTable: EntityTable,
+    toolgunRenderer: ToolgunRenderer
 ) {
+    WorldRenderEvents.BEFORE_ENTITIES.register { context ->
+        val player = client.player ?: return@register
+        val camera = context.gameRenderer().camera
+
+        val center = player.entityPos
+
+//        toolgunRenderer.renderScreenQuad(
+//            context.matrices(),
+//            context.commandQueue(),
+//            center.add(-1.0, 1.0, 0.0).toVector3f(),
+//            center.add(1.0, 1.0, 0.0).toVector3f(),
+//            center.add(-1.0, -1.0, 0.0).toVector3f(),
+//            center.add(1.0, -1.0, 0.0).toVector3f(),
+//        )
+    }
+
     WorldRenderEvents.END_MAIN.register { context ->
         val gameRenderer = context.gameRenderer()
         val camera = gameRenderer.camera

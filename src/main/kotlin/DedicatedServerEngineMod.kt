@@ -98,7 +98,7 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
 
 class DedicatedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,
-    override val connectionManager: ServerConnectionManager = ServerConnectionManager(),
+    override val connectionManager: ServerConnectionManager = ServerConnectionManager(dependencies.minecraftServer, dependencies.entityTable),
     override val transportContext: ServerTransportContext = ServerNetworkTransport(dependencies.minecraftServer, connectionManager, dependencies.playerStorage),
 ) : EngineMinecraftServer(dependencies) {
     val authorizationListener = ServerAuthorizationListener(
@@ -145,10 +145,8 @@ class DedicatedEngineMinecraftServer(
 
 @Serializable
 data class AuthPacket(
-    val username: Username,
     val mods: List<String>,
-    val developerMode: DeveloperModeStatus,
-    val version: String
+    val version: String,
 ) : Packet
 
 val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
@@ -166,9 +164,15 @@ class ServerAuthorizationListener(
             val entity = server.minecraftServer.getPlayer(playerId) ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
             onAuth(packet, entity, playerId)
         }
+        SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.registerReceiver { ctx ->
+            val playerId = ctx.sender
+            val entity = server.minecraftServer.getPlayer(playerId) ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
+            onVerificationResponse(developerModeStatus, namespaces, entity, playerId)
+        }
     }
 
     private fun onAuth(packet: AuthPacket, entity: ServerPlayerEntity, id: PlayerId) {
+        val connection = connectionManager.getSession(id)
         if (packet.version !in SharedConstants.ALLOWED_VERSIONS) {
             val versionsText = if (SharedConstants.ALLOWED_VERSIONS.size == 1) {
                 SharedConstants.ALLOWED_VERSIONS.first()
@@ -178,12 +182,7 @@ class ServerAuthorizationListener(
             error("Несовместимая версия. Установлена ${packet.version}, в то время как требуется $versionsText")
         }
 
-        val engine = server.engine
-        val connection = connectionManager.getSession(id)
-        val username = packet.username
         val mods = packet.mods
-
-        val notifications = mutableListOf<Notification>()
         val minimapPermission = entity.isOp || entity.hasPermission("minimap")
         val hasMinimap = mods.contains("xaeroworldmap") || mods.contains("xaerominimap") || mods.contains("voxelmap") || mods.contains("journeymap")
         if (!minimapPermission && hasMinimap) {
@@ -192,15 +191,45 @@ class ServerAuthorizationListener(
                 "<bold>Вы были исключены с сервера из-за мода на мини-карту</bold><newline>$MINIMAP_WARNING"
             )
         }
-        if (mods.contains("freecam")) {
+        connection.mods = mods.toSet()
+
+        val engine = server.engine
+        server.entityTable.setEntity(entity, id)
+
+        CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
+            VerificationDataPacket(
+                GeneralServerData(engine.globals.serverId)
+            ),
+            id
+        )
+    }
+
+    private fun onVerificationResponse(developerModeStatus: DeveloperModeStatus, playerNamespaces: NamespaceHashMap, entity: ServerPlayerEntity, playerId: PlayerId) {
+        val connection = connectionManager.getSession(playerId)
+        val serverNamespacesHash = server.engine.namespacedStorage.namespaceHashMap
+        if (playerNamespaces != serverNamespacesHash) {
+            val missing = serverNamespacesHash.keys.filter { it !in playerNamespaces }
+                .joinToString { it.value }
+            val invalid = serverNamespacesHash.filter { (id, hash) -> (playerNamespaces[id] ?: return@filter false) != hash }
+                .toList().joinToString { it.first.value }
+
+            val errorString = StringBuilder("<bold>Скрипты сервера отличаются от ваших</bold>")
+            if (missing.isNotEmpty()) errorString.append("<newline>Отсутствуют: $missing")
+            if (invalid.isNotEmpty()) errorString.append("<newline>Отличаются: $invalid")
+            error(errorString.toString())
+        }
+
+        val username = connection.username
+        val notifications = mutableListOf<Notification>()
+        if (connection.mods.contains("freecam")) {
             notifyOperators("Freecam", username)
             notifications += Notification.FREECAM
         }
 
         coroutineScope.launch {
-            engine.playerLoader.loadPreparing(
-                settings = serverMinecraftPlayerLoadSettings(entity, id, packet.developerMode, notifications),
-                exceptionHandler = { connectionManager.disconnect(id, it) }
+            server.engine.playerLoader.loadPreparing(
+                settings = serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications),
+                exceptionHandler = { connectionManager.disconnect(playerId, it) }
             )
         }
     }

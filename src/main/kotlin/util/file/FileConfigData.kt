@@ -7,11 +7,12 @@ import org.lain.engine.server.ServerId
 @Serializable
 data class ServerConfig(
     val server: ServerId,
+    @SerialName("require_identical_namespaces") val requireIdenticalNamespaces: Boolean = true,
     val chat: ChatConfig,
     val player: PlayerConfig,
     val vocal: VoiceApparatusConfig,
     val movement: MovementConfig,
-    @SerialName("item_autosave_period") val itemAutosavePeriod: Int // в секундах
+    @SerialName("item_autosave_period") val itemAutosavePeriod: Int, // в секундах
 )
 
 

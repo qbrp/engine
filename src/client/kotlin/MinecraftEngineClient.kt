@@ -57,13 +57,16 @@ import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
-import org.lain.engine.script.BuiltinScriptComponents
+import org.lain.engine.script.*
+import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.serverMinecraftPlayerLoadSettings
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.ReloadContentsRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.*
 import org.lain.engine.util.component.ComponentTypeRegistry
+import org.lain.engine.util.file.ENGINE_DIR
+import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.world.ImmutableVoxelPos
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -84,6 +87,7 @@ class MinecraftEngineClient : ClientModInitializer {
     private val camera = MinecraftCamera(client)
     val uiRenderPipeline = EngineUiRenderPipeline(client, fontRenderer)
 
+    private lateinit var toolgunRenderer: ToolgunRenderer
     private val decalsStorage: ChunkDecalsStorage = ChunkDecalsStorage()
     private val eventBus = MinecraftEngineClientEventBus(client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
@@ -115,8 +119,6 @@ class MinecraftEngineClient : ClientModInitializer {
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engineClient)
         registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
-        registerWorldRenderEvents(client, engineClient, eventBus, decalsStorage, entityTable)
-        registerHudRenderEvent(client, engineClient, fontRenderer, renderer, uiRenderPipeline)
         OutfitTag.registerType() // lazy init
         TinnitusSoundInstance.registerEvents() // lazy init
 
@@ -208,7 +210,18 @@ class MinecraftEngineClient : ClientModInitializer {
         }
 
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
-            val dependencies = EngineMinecraftServerDependencies(server)
+            val context = LuaContext(engineClient.createLuaDependencies(ENGINE_DIR.scripts))
+            val config = loadOrCreateServerConfig()
+            val dependencies = EngineMinecraftServerDependencies(
+                server,
+                context,
+                compileContents(
+                    ENGINE_DIR.contents,
+                    getLuaEntrypointDir(config.server),
+                    context
+                ),
+                config
+            )
             Injector.register<ClientTransportContext>(ClientSingleplayerTransport(engineClient))
 
             registerMinecraftServer(
@@ -343,11 +356,20 @@ class MinecraftEngineClient : ClientModInitializer {
     }
 
     private fun onClientStarted() {
+        toolgunRenderer = ToolgunRenderer(
+            client.bufferBuilders.entityVertexConsumers,
+            client.gameRenderer.entityRenderDispatcher
+        )
+        toolgunRenderer.init()
+        Injector.register(toolgunRenderer)
+
         if (listOf("remii", "denterest").contains(client.gameProfile.name)) {
             audioManager.playPigScreamSound()
         }
         decalsStorage.textureManager = client.textureManager
         engineClient.thread = (client as MinecraftClientAccessor).`engine$getThread`()
+        registerWorldRenderEvents(client, engineClient, eventBus, decalsStorage, entityTable, toolgunRenderer)
+        registerHudRenderEvent(client, engineClient, fontRenderer, renderer, uiRenderPipeline, toolgunRenderer)
     }
 
     private fun onDisconnect() = client.execute {
@@ -379,9 +401,7 @@ class MinecraftEngineClient : ClientModInitializer {
             SERVERBOUND_AUTH_ENDPOINT
                 .sendC2SPacket(
                     AuthPacket(
-                        MinecraftUsername(entity),
                         fabricLoader.allMods.map { it.metadata.id },
-                        developerMode,
                         ENGINE_MOD_VERSION
                     )
                 )

@@ -2,7 +2,9 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.*
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.server.EngineServer
+import org.lain.engine.util.NamespaceId
 
 @Serializable
 data class ClientboundServerSettings(

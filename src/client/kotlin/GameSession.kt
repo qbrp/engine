@@ -11,7 +11,6 @@ import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.handleBulletFireShakes
-import org.lain.engine.client.script.ClientLuaContext
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.processSoundPlayKeys
@@ -22,17 +21,12 @@ import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
-import org.lain.engine.script.compileContents
-import org.lain.engine.script.loadContentsCompileResult
-import org.lain.engine.script.lua.LuaDataStorage
-import org.lain.engine.script.lua.LuaDependencies
+import org.lain.engine.script.CompilationResult
 import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
-import org.lain.engine.util.NamespacedStorage
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.world.*
-import org.luaj.vm2.lib.jse.JsePlatform
 import java.util.*
 
 class GameSession(
@@ -77,10 +71,9 @@ class GameSession(
     val mainPlayer = mainClientPlayerInstance(player.id, world, player, DeveloperModeStatus(client.developerMode, client.acousticDebug))
     var ticks = 0L
         private set
-    val namespacedStorage = NamespacedStorage()
+    val namespacedStorage get() = client.namespacedStorage
+    val luaContext get() = client.luaContext ?: error("Lua context is not initialized")
     var soundsToBroadcast = LinkedList<SoundBroadcast>()
-    private val luaDataStorage = LuaDataStorage()
-    private val luaGlobals = JsePlatform.standardGlobals()
     var callbacks: Callbacks = Callbacks()
 
     init {
@@ -90,7 +83,7 @@ class GameSession(
         client.eventBus.onMainPlayerInstantiated(client, this, mainPlayer)
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
-        recompileContents()
+        applyCompilation(client.compilationResult ?: error("Compilation is not initialized"))
     }
 
     fun instantiateItem(clientboundItemData: ClientboundItemData): EngineItem = with(world) {
@@ -98,29 +91,10 @@ class GameSession(
         return instantiateItem(item, itemStorage)
     }
 
-    fun recompileContents() {
-        val resources = client.resources
-        val scriptsPath = resources.scripts.file
-        val contentsPath = resources.contents.file
-        val luaContext = ClientLuaContext(
-            client,
-            LuaDependencies(
-                luaGlobals,
-                luaDataStorage,
-                playerStorage,
-                mutableMapOf(world.id to world),
-                namespacedStorage,
-                scriptsPath,
-            )
-        )
-        val result = compileContents(
-            contentsPath,
-            scriptsPath.resolve("$server.lua"),
-            luaContext
-        )
-        namespacedStorage.loadContentsCompileResult(result)
-        callbacks = luaContext.compileCallbacks()
+    fun applyCompilation(result: CompilationResult) {
         world.registerScriptComponents(namespacedStorage)
+        result.callbacks?.let { callbacks = it }
+        luaContext.setupClientGameSession(this)
 
         val exceptions = result.exceptions
         if (exceptions.isNotEmpty()) {
@@ -135,8 +109,11 @@ class GameSession(
                 )
             )
         }
-
         onContentsUpdated()
+    }
+
+    fun recompileContents() {
+        applyCompilation(client.compileScripts(server))
     }
 
     fun onContentsUpdated() {

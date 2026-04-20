@@ -25,6 +25,8 @@ import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.Util
 import net.minecraft.world.World
+import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.handle
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.ScreenRenderer
@@ -32,8 +34,6 @@ import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.Narration
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.Injector
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.handle
 import org.slf4j.Logger
 import java.net.URI
 
@@ -42,7 +42,8 @@ fun registerHudRenderEvent(
     engineClient: EngineClient,
     fontRenderer: MinecraftFontRenderer,
     screenRenderer: ScreenRenderer,
-    engineUiRenderPipeline: EngineUiRenderPipeline
+    engineUiRenderPipeline: EngineUiRenderPipeline,
+    toolgunRenderer: ToolgunRenderer
 ) {
     var drawableRoot: DrawableRoot? = null
     HudElementRegistry.addLast(
@@ -91,6 +92,7 @@ fun registerHudRenderEvent(
             mouse.getScaledX(window).toFloat(),
             mouse.getScaledY(window).toFloat()
         )
+        toolgunRenderer.renderScreenTest(context)
         context.matrices.popMatrix()
     }
 }
