@@ -231,6 +231,8 @@ end
 ---@field scripts Script[]? empty default
 ---@field components ComponentTypeSettings[]? empty default
 ---@field intents Intent[]? empty default
+Namespace = Namespace or {}
+Namespace.__index = Namespace
 
 ------------------
 

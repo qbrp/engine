@@ -5,12 +5,37 @@ require("core.bridge")
 --- Утилиты
 --------------------------------------------------------------------------------
 
----@param namespace Namespace
-function CompilationResult:namespace(namespace)
-    assert(namespace.id ~= nil, "namespace.id required")
-    table.insert(self.namespaces, namespace)
+---@type Namespace for EmmyLua
+local Namespace = Namespace
+
+---@param id string
+---@param display_name string
+---@param parameters Item without id and display_name values
+function Namespace:item(id, display_name, parameters)
+    assert(id ~= nil, "item id must be not null")
+    if (parameters == nil) then parameters = { } end
+    parameters.id = id
+    parameters.display_name = display_name
+    local default_asset = parameters.asset or self.id .. "/" .. id
+    if (parameters.assets == nil) then
+        parameters.assets = {}
+    end
+    parameters.assets.default = default_asset
+    return parameters
 end
 
+---@return Namespace
+---@param id string
+function Namespace.of(id)
+    assert(id ~= nil, "id must be not null")
+    return setmetatable({ id = id }, Namespace)
+end
+
+---@param namespace Namespace
+function CompilationResult:namespace(namespace)
+    assert(namespace.id ~= nil, "namespace.id must be not null")
+    table.insert(self.namespaces, namespace)
+end
 --------------------------------------------------------------------------------
 --- Контексты скриптов
 --------------------------------------------------------------------------------

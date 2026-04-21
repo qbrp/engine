@@ -190,4 +190,5 @@ tasks.jar {
     from("LICENSE") {
         rename { "${it}_${project.base.archivesName.get()}" }
     }
+    duplicatesStrategy = DuplicatesStrategy.WARN
 }

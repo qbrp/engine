@@ -3,6 +3,7 @@ function reload(module)
     for name, _ in pairs(package.loaded) do
         if name:match("^" .. module .. "%.") then
             package.loaded[name] = nil
+            -- info("Reloaded module " .. name)
         end
     end
 end

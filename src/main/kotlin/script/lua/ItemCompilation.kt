@@ -2,13 +2,12 @@ package org.lain.engine.script.lua
 
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.script.*
-import org.lain.engine.script.yaml.namespacedId
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.world.SoundEventId
 import org.luaj.vm2.LuaTable
 
 fun compileItemsLua(namespaceId: NamespaceId, items: List<LuaTable>): List<CompiledNamespace.Item> = items.map { item ->
-    val itemId = namespacedId(namespaceId, item.get("id").tojstring())
+    val itemId = item.get("id").tojstring()
     val displayName = item.get("display_name").tojstring()
     val stackSize = item.get("stack_size").nullable()?.toint()
     val mass = item.get("mass").nullable()?.tofloat()

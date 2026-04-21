@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.script.CompiledItem
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.SoundEventId
 
@@ -105,7 +106,7 @@ internal fun compileItemsYaml(itemConfigs: Map<String, ItemConfig>, namespace: Y
 
         val gunDisplayComponent = config.gun?.gunDisplayComponent()
 
-        _root_ide_package_.org.lain.engine.script.CompiledItem(
+        CompiledItem(
             namespace.id,
             id,
             config.displayName,
