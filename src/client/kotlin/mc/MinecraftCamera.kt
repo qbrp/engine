@@ -58,10 +58,9 @@ class MinecraftCamera(
         time += dt
 
         val noise = MutableVec3(0.0f)
-        var totalIntensity = 0f
+        val noiseRot = MutableVec2(0.0f, 0.0f)
 
         shakeEffects.removeIf { effect ->
-            // delta tick
             val progress = if (effect.duration > 0f) (time - effect.startTime) / (effect.duration * 50) else 1f
             if (progress >= 1f) {
                 true
@@ -75,30 +74,23 @@ class MinecraftCamera(
                 if (intensity > 0f && intensity.isFinite()) {
                     val sampleStep = time * effect.frequency
                     noise.mutateAdd(
-                        perlinX1.noise(sampleStep) * intensity,
-                        perlinY1.noise(sampleStep) * intensity,
-                        perlinZ1.noise(sampleStep) * intensity
+                        perlinX1.noise(sampleStep),
+                        perlinY1.noise(sampleStep),
+                        perlinZ1.noise(sampleStep)
                     )
-                    totalIntensity += intensity
+                    noiseRot.addMutate(
+                        perlinX2.noise(time) * 2 - 1,
+                        perlinY2.noise(time) * 2 - 1
+                    )
                 }
                 false
             }
         }
 
-        if (totalIntensity > 1f) {
-            noise.mutateDiv(totalIntensity, totalIntensity, totalIntensity)
-        }
-
-        val finalPosition = noise.mul(maxShakeTranslation)
-        val finalRotation = Vec2(
-            perlinX2.noise(time) * 2 - 1,
-            perlinY2.noise(time) * 2 - 1
-        )
+        val finalRotation = noiseRot
             .scale(maxShakeRotation)
-            .scale(totalIntensity)
             .add(impulseX, impulseY)
 
-        positionConsumer(finalPosition)
         rotationConsumer(finalRotation)
 
         impulseX = lerp(impulseX, 0f, 1f - 0.6f.pow(dt))

@@ -301,6 +301,7 @@ class MinecraftEngineClient : ClientModInitializer {
             }
         }
 
+        removeHoldsByMarks(gameSession.itemStorage.getAll())
         players.forEach { (entity, player) ->
             val itemStacks = (entity.inventory + entity.currentScreenHandler.cursorStack).toSet()
             val items = itemStacks.mapNotNull { itemStack ->
@@ -308,7 +309,6 @@ class MinecraftEngineClient : ClientModInitializer {
                 item to itemStack
             }.toSet()
 
-            removeHoldsByMarks(gameSession.itemStorage.getAll())
             updatePlayerMinecraftSystems(player, items, entity, world, gameSession.itemStorage)
             updatePlayerOwnedItems(world, player)
         }

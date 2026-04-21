@@ -18,7 +18,7 @@ public class CreativeInventoryScreenMixin {
                     target = "Lnet/minecraft/item/ItemGroups;getGroupsToDisplay()Ljava/util/List;"
             )
     )
-    public List<ItemGroup> engine$hideTooltip() {
+    public List<ItemGroup> engine$hideItemGroupTooltip() {
         return new ArrayList<>();
     }
 }
