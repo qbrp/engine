@@ -41,17 +41,22 @@ import java.util.*
 class SetupException(val exceptions: List<CompilationException>) : Exception()
 
 class DedicatedServerEngineMod : DedicatedServerModInitializer {
-    override fun onInitializeServer() {
-        val namespacedStorage = NamespacedStorage()
-        val luaDependencies = LuaDependencies(
+    private lateinit var luaContext: LuaContext
+
+    private fun createLuaContext(namespacedStorage: NamespacedStorage) = LuaContext(
+        LuaDependencies(
             JsePlatform.standardGlobals(),
             namespacedStorage,
             ENGINE_DIR.scripts,
             LuaDataStorage()
         )
+    )
+
+    override fun onInitializeServer() {
+        val namespacedStorage = NamespacedStorage()
         val config = loadOrCreateServerConfig()
-        val luaContext = LuaContext(luaDependencies)
-        val compilationResult = setupContents(luaContext, config.server)
+        luaContext = createLuaContext(namespacedStorage)
+        val compilationResult = setupContents(config.server, namespacedStorage)
 
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
             val dependencies = EngineMinecraftServerDependencies(server, luaContext, compilationResult, config, namespacedStorage)
@@ -61,7 +66,7 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
         }
     }
 
-    fun setupContents(luaContext: LuaContext, serverId: ServerId): CompilationResult {
+    fun setupContents(serverId: ServerId, namespacedStorage: NamespacedStorage): CompilationResult {
         val scanner = Scanner(System.`in`)
         error@ while (true) {
             try {
@@ -84,7 +89,10 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
                 LOGGER.info("Перекомпилировать заново? y - да, n - выключить сервер")
                 while (true) {
                     when (scanner.nextLine().lowercase()) {
-                        "y" -> continue@error
+                        "y" -> {
+                            luaContext = createLuaContext(namespacedStorage)
+                            continue@error
+                        }
                         "n" -> throw CrashException(
                             CrashReport("Engine compilation", e)
                         )

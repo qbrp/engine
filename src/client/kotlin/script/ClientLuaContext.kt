@@ -18,15 +18,11 @@ class ClientLuaContext(
         audioSourceTable = globals.get("AudioSource").checktable()
     }
 
-    override fun setupGlobalsRuntime() {
-        super.setupGlobalsRuntime()
-        globals.setupAudio()
-    }
-
     fun setupClientGameSession(gameSession: GameSession) {
         val world = gameSession.world
         setupGame(
             LuaRuntimeDependencies(gameSession.playerStorage, mutableMapOf(world.id to world))
         )
+        globals.setupAudio()
     }
 }

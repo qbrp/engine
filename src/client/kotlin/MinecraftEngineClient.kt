@@ -170,7 +170,7 @@ class MinecraftEngineClient : ClientModInitializer {
                             e.printStackTrace()
                         }
 
-                        ctx.source.sendFeedback(Text.of("Контен скомпилирован"))
+                        ctx.source.sendFeedback(Text.of("Контент скомпилирован"))
                         1
                     }
             )
@@ -212,14 +212,21 @@ class MinecraftEngineClient : ClientModInitializer {
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
             val context = LuaContext(engineClient.createLuaDependencies(ENGINE_DIR.scripts))
             val config = loadOrCreateServerConfig()
+            val entrypoint = getLuaEntrypointDir(config.server)
+            val compilationResult = compileContents(
+                ENGINE_DIR.contents,
+                entrypoint,
+                context
+            )
+            val clientLuaContext = engineClient.createLuaContext()
+            clientLuaContext.setup(entrypoint)
+            engineClient.compilationResult = compilationResult
+            engineClient.luaContext = clientLuaContext
+            engineClient.namespacedStorage.loadContentsCompileResult(compilationResult)
             val dependencies = EngineMinecraftServerDependencies(
                 server,
                 context,
-                compileContents(
-                    ENGINE_DIR.contents,
-                    getLuaEntrypointDir(config.server),
-                    context
-                ),
+                compilationResult,
                 config
             )
             Injector.register<ClientTransportContext>(ClientSingleplayerTransport(engineClient))

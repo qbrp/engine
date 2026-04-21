@@ -1,5 +1,7 @@
 package org.lain.engine.script
 
+import net.minecraft.util.Identifier
+import net.minecraft.util.InvalidIdentifierException
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.player.ProgressionAnimation
@@ -74,6 +76,20 @@ data class CompilationResult(
         }
     }
 
+    fun withValidateIdentifiers(): CompilationResult {
+        val exceptions = exceptions.toMutableList()
+        namespaces.forEach { (id, namespace) ->
+            namespace.identifiers.forEach {
+                runCatching {
+                    assertIdentifierValid(id, it)
+                }
+                    .exceptionOrNull()
+                    ?.let { exceptions += it as CompilationException }
+            }
+        }
+        return copy(exceptions = exceptions)
+    }
+
     fun logExceptions() {
         exceptions.forEach { exception -> exception.log() }
     }
@@ -87,9 +103,23 @@ data class CompiledNamespace(
     val components: Map<ScriptComponentId, ScriptComponentType> = mapOf(),
     val intents: Map<IntentId, Intent> = mapOf()
 ) {
+    val identifiers: List<String> get() {
+        val maps = listOf(items, sounds, scripts, progressionAnimations, scripts, components, intents)
+        return maps.flatMap {
+            it.map { (id, obj) -> id.toString() }
+        }
+    }
+
     data class Item(val prefab: ItemPrefab) {
         val id get() = prefab.id
     }
+}
+
+fun assertIdentifierValid(namespaceId: NamespaceId, id: String) {
+    if (!Identifier.isPathValid(id)) throw CompilationException(
+        namespaceId,
+        InvalidIdentifierException("Non [a-z0-9/._-] character in path of location: $id")
+    )
 }
 
 fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
@@ -144,7 +174,7 @@ fun compileContents(contents: File, entrypointScript: File, luaContext: LuaConte
         result1.exceptions + result2.exceptions,
         result2.callbacks,
         start.timeElapsed()
-    )
+    ).withValidateIdentifiers()
 
     return result
 }

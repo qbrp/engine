@@ -4,7 +4,9 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.util.component.ComponentMeta
 
 @JvmInline
-value class ScriptComponentId(val id: String)
+value class ScriptComponentId(val id: String) {
+    override fun toString(): String = id
+}
 
 data class ScriptComponent(val field: Any) : Component
 

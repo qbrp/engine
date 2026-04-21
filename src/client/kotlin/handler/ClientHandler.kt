@@ -262,6 +262,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         if (client.gameSession != null) {
             error("Игровая сессия уже запущена!")
         }
+
+        if (client.luaContext == null) {
+            client.luaContext = client.createLuaContext()
+        }
+
         val world = clientWorld(client.thread, worldData)
         val gameSession = GameSession(
             data.serverId,

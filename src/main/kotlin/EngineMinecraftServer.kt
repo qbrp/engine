@@ -166,9 +166,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     open fun onJoinPlayer(entity: ServerPlayerEntity) {}
 
     open fun onLeavePlayer(entity: ServerPlayerEntity) {
-        if (entity.networkHandler.isConnectionOpen) {
-            return
-        }
         val player = entityTable.getPlayer(entity) ?: return
         engine.destroyPlayer(player)
         entityTable.removePlayer(entity)
