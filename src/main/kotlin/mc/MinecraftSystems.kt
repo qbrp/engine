@@ -273,15 +273,18 @@ fun updatePlayerMinecraftSystems(
         playerInventory.items += item
         playerInventoryItems -= item
 
+        if (destroyItemSignal != null && destroyItemSignal.item == item.uuid) {
+            itemStack.decrement(destroyItemSignal.count)
+            player.remove<DestroyItemSignal>()
+        }
+
         val updateMeta = item.require<UpdateMeta>()
-        if (updateMeta.adaptedThisTick) continue
+        if (updateMeta.adaptedThisTick) {
+            continue
+        }
         updateMeta.adaptedThisTick = true
 
         updateEngineItemStack(itemStack, item)
-
-        if (destroyItemSignal != null && destroyItemSignal.item == item.uuid) {
-            itemStack.decrement(destroyItemSignal.count)
-        }
 
         val countComponent = item.get<Count>()
         if (countComponent == null) {
@@ -302,7 +305,6 @@ fun updatePlayerMinecraftSystems(
         }
     }
 
-    player.remove<DestroyItemSignal>()
     player.remove<MoveItemSignal>()
 }
 
