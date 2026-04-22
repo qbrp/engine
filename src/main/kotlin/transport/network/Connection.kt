@@ -4,8 +4,10 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.FriendlyException
 import org.lain.engine.mc.getPlayer
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.Username
 import org.lain.engine.server.DesynchronizationException
 import java.util.*
@@ -22,6 +24,7 @@ data class ConnectionSession(
 )
 
 class ServerConnectionManager(
+    private val serverPlayerStorage: PlayerStorage,
     private val minecraftServer: MinecraftServer,
     private val entityTable: EntityTable
 ) {
@@ -43,7 +46,6 @@ class ServerConnectionManager(
         val playerId = connectionSession.playerId
         val entity = entityTable.server.getEntity(playerId) as? ServerPlayerEntity ?: minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
         val networkHandler = entity.networkHandler
-        entityTable.server.removePlayer(playerId)
         networkHandler.disconnect(DisconnectText(reason))
     }
 
@@ -53,6 +55,8 @@ class ServerConnectionManager(
             else -> exception.message ?: "Неизвестная ошибка"
         }
         disconnect(getSession(playerId), message)
-        exception.printStackTrace()
+        if (exception !is FriendlyException) {
+            exception.printStackTrace()
+        }
     }
 }

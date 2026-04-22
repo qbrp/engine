@@ -5,6 +5,9 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.world.World
 
+/**
+ * @see org.lain.engine.mc.updatePlayerOwnedItems
+ */
 data class HoldsBy(val owner: EnginePlayer) : Component
 
 context(world: World)

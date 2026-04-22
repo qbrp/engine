@@ -129,7 +129,7 @@ fun ServerCommandSource.hasPermission(text: String): Boolean {
     return false
 }
 
-private class FriendlyException(message: String) : RuntimeException(message)
+class FriendlyException(message: String) : Exception(message)
 
 fun friendlyError(message: String): Nothing = throw FriendlyException(message)
 
@@ -201,6 +201,8 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                 }
         )
     }
+
+    registerEngineDeveloperCommands()
 
     register(
         literal("speed")
@@ -324,15 +326,6 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                 } catch (e: Exception) {
                     ctx.sendError("Возникла ошибка при применении конфигурации: ${e.message ?: "Unknown"}")
                 }
-            }
-    )
-
-    register(
-        CommandManager.literal("debugpositions")
-            .requires { it.hasPermission("debugpositions") }
-            .executeCatching { ctx ->
-                val lines = playerPositionsMessage(server.engine.playerStorage, ctx.source.world)
-                lines.forEach { ctx.sendFeedback(it, false) }
             }
     )
 
@@ -557,15 +550,6 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                 val player = it.requirePlayer()
                 val enabled = player.toggleChatHeads()
                 it.sendFeedback("Отображение иконки персонажа ${if (enabled) "включено" else "отключено"}", false)
-            }
-    )
-
-    register(
-        CommandManager.literal("engineticks")
-            .requires { it.hasPermission("engineticks") }
-            .executeCatching {
-                val stats = getServerStats(server.engine.tickTimes.toList())
-                it.sendFeedback("Средняя длительность последних 20 тактов engine: ${stats.averageTickTimeMillis} мл.", false)
             }
     )
 

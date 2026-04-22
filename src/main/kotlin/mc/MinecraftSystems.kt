@@ -303,9 +303,8 @@ fun updatePlayerOwnedItems(world: World, player: EnginePlayer) = with(world) {
     if (allItems.isNotEmpty()) {
         val component = HoldsBy(player)
         allItems.forEach {
-            if (!it.hasComponent<HoldsBy>()) it.setComponent(component)
-            it.setComponent(location)
             it.setComponent(component)
+            it.setComponent(location)
         }
     }
 }

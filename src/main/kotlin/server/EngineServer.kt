@@ -80,7 +80,6 @@ class EngineServer(
     fun update() = with(namespacedStorage) {
         if (stopped) return
         val start = Timestamp()
-        val players = playerStorage.getAll()
         val vocalSettings = globals.vocalSettings
         val worlds = allWorlds()
 

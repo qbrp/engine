@@ -49,8 +49,8 @@ fun updateUnloadSystem(world: World, timers: SaveTimers) {
         world.iterate<Item> { item, _ ->
             item.setComponent(SaveTag)
             val containedIn = item.getComponent<ContainedIn>()
-            // Если контейнер выгружен
-            if (containedIn != null && !containedIn.container.exists()) {
+            val containerUnloaded = containedIn != null && !containedIn.container.exists()
+            if (!item.hasComponent<HoldsBy>() || containerUnloaded) {
                 item.setComponent(UnloadTag)
             }
         }
@@ -64,7 +64,7 @@ fun updateUnloadSystem(world: World, timers: SaveTimers) {
 //    }
 }
 
-fun Database.saveItemsBlocking(world: World) = with(world) {
+fun Database.saveItemsBlocking(world: World): Int = with(world) {
     val itemPairsToSave = world.componentManager.collect(
         listOf(componentTypeOf(Item::class))
     ) { component -> component.meta.savable }
@@ -74,7 +74,10 @@ fun Database.saveItemsBlocking(world: World) = with(world) {
             state.getComponents().map { it.toDto() }
         )
     }
-    runBlocking { saveEntitiesBatch(itemsToSave) }
+    runBlocking {
+        saveEntitiesBatch(itemsToSave)
+        itemsToSave.count()
+    }
 }
 
 context(world: World)
@@ -96,9 +99,9 @@ fun updateSaveSystem(server: EngineMinecraftServer) {
     val entitiesToSave = world.componentManager.collect(
         listOf(componentTypeOf(SaveTag::class))
     ) { component -> component.meta.savable }
-        .map { (_, state) ->
+        .map { (item, state) ->
             val persistentId = state.require<PersistentId>()
-            if (state.has<Item>() && state.has<UnloadTag>()) {
+            if (item.hasComponent<Item>() && item.hasComponent<UnloadTag>()) {
                 itemsDestroyed += persistentId
             }
 
@@ -108,16 +111,20 @@ fun updateSaveSystem(server: EngineMinecraftServer) {
             )
         }
 
+    // защита от гонки потоков (не знаю обязательно ли)
+    val itemsDestroyed2 = itemsDestroyed.toList()
     StorageCoroutineScope.launch {
         if (entitiesToSave.isNotEmpty()) {
             server.database.saveEntitiesBatch(entitiesToSave)
+            engine.execute { LOGGER.info("Сохранено ${entitiesToSave.size} сущностей. Выгружено ${itemsDestroyed2.count()} предметов") }
         }
     }
 
+    itemsDestroyed.forEach { server.engine.itemStorage.remove(it.value) }
     engine.handler.onItemsBatchDestroy(itemsDestroyed)
 
     world.iterate<SaveTag> { item, _ -> item.removeComponent<SaveTag>() }
-    world.iterate<UnloadTag> { item, _ -> item.removeComponent<UnloadTag>() }
+    world.iterate<UnloadTag> { item, _ -> item.destroy() }
 }
 
 fun dataFixItem(item: ProtoItem, storage: NamespacedStorage) {

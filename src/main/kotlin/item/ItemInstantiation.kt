@@ -1,6 +1,9 @@
 package org.lain.engine.item
 
-import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.cyberia.ecs.copyState
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentState
@@ -61,9 +64,4 @@ fun WriteComponentAccess.instantiateItem(item: ProtoItem, itemStorage: Storage<S
     engineItem.copyState(item.state)
     itemStorage.add(item.uuid.value, engineItem)
     return engineItem
-}
-
-fun World.destroyItem(item: EngineItem, storage: Storage<String, EngineItem>) {
-    destroy(item)
-    storage.remove(item.requireComponent<PersistentId>().value)
 }

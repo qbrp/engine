@@ -69,7 +69,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     protected abstract val transportContext: ServerTransportContext
     protected open val connectionManager: ServerConnectionManager? = null
-    private val timers = SaveTimers(
+    val timers = SaveTimers(
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )

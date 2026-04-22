@@ -260,6 +260,7 @@ fun processLeftClickInteraction(player: EnginePlayer, handItem: EngineItem? = pl
 
 context(world: World)
 fun appendVerbs(player: EnginePlayer) {
+    if (player.isSpectating) return
     appendWriteableVerbs(player)
     // appendGunVerbs(player)
     appendPlayerInventoryVerbs(player)

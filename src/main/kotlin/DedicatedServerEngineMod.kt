@@ -10,10 +10,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.crash.CrashException
 import net.minecraft.util.crash.CrashReport
-import org.lain.engine.mc.engineId
-import org.lain.engine.mc.getPlayer
-import org.lain.engine.mc.hasPermission
-import org.lain.engine.mc.isOp
+import org.lain.engine.mc.*
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.script.*
@@ -106,7 +103,11 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
 
 class DedicatedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,
-    override val connectionManager: ServerConnectionManager = ServerConnectionManager(dependencies.minecraftServer, dependencies.entityTable),
+    override val connectionManager: ServerConnectionManager = ServerConnectionManager(
+        dependencies.playerStorage,
+        dependencies.minecraftServer,
+        dependencies.entityTable
+    ),
     override val transportContext: ServerTransportContext = ServerNetworkTransport(dependencies.minecraftServer, connectionManager, dependencies.playerStorage),
 ) : EngineMinecraftServer(dependencies) {
     val authorizationListener = ServerAuthorizationListener(
@@ -146,6 +147,12 @@ class DedicatedEngineMinecraftServer(
     }
 
     override fun onLeavePlayer(entity: ServerPlayerEntity) {
+        // Уничтожаем в первую очередь запись PlayerId -> Entity
+        // Она создаётся до инстанцирования игрока (см. ServerAuthorizationListener)
+        val id = entity.engineId
+        if (playerStorage.get(id) == null) {
+            entityTable.removePlayer(id)
+        }
         super.onLeavePlayer(entity)
         connectionManager.removeConnectionSession(entity.engineId)
     }
@@ -187,8 +194,12 @@ class ServerAuthorizationListener(
             } else {
                 "одна из следующих: ${SharedConstants.ALLOWED_VERSIONS.map { "<newline>$it" }}"
             }
-            error("Несовместимая версия. Установлена ${packet.version}, в то время как требуется $versionsText")
+            friendlyError("Несовместимая версия. Установлена ${packet.version}, в то время как требуется $versionsText")
         }
+
+        // Запись в entityTable снимается в DedicatedEngineMinecraftServer.onLeavePlayer
+        val engine = server.engine
+        server.entityTable.setEntity(entity, id)
 
         val mods = packet.mods
         val minimapPermission = entity.isOp || entity.hasPermission("minimap")
@@ -200,9 +211,6 @@ class ServerAuthorizationListener(
             )
         }
         connection.mods = mods.toSet()
-
-        val engine = server.engine
-        server.entityTable.setEntity(entity, id)
 
         CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
             VerificationDataPacket(
@@ -224,7 +232,7 @@ class ServerAuthorizationListener(
             val errorString = StringBuilder("<bold>Скрипты сервера отличаются от ваших</bold>")
             if (missing.isNotEmpty()) errorString.append("<newline>Отсутствуют: $missing")
             if (invalid.isNotEmpty()) errorString.append("<newline>Отличаются: $invalid")
-            error(errorString.toString())
+            friendlyError(errorString.toString())
         }
 
         val username = connection.username
