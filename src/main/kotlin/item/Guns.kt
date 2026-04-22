@@ -2,25 +2,15 @@ package org.lain.engine.item
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.*
-import org.lain.engine.server.ItemSynchronizable
-import org.lain.engine.server.markDirty
-import org.lain.engine.transport.packet.ItemComponent
 import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.has
-import org.lain.cyberia.ecs.remove
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.set
-import org.lain.cyberia.ecs.iterate
+import org.lain.engine.player.*
+import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.World
 import org.lain.engine.world.pos
-import org.lain.engine.world.world
 
 @Serializable
 data class Barrel(var bullets: Int, val maxBullets: Int)
@@ -35,7 +25,7 @@ data class Gun(
     var fireTime: Int = 0,
     var mode: FireMode = FireMode.SELECTOR,
     val modes: List<FireMode> = listOf(FireMode.SELECTOR, FireMode.SINGLE, FireMode.AUTO),
-) : ItemComponent, ItemSynchronizable {
+) : ItemComponent {
     fun copy(): Gun {
         return Gun(
             Barrel(barrel.bullets, barrel.maxBullets),
@@ -58,10 +48,10 @@ data class GunDisplay(
 /**
  * @return Уменьшение количества принимаемого как патрон предмета для предмета-оружия
  */
-fun EngineItem.gunAmmoConsumeCount(item: EngineItem): Int {
-    val gun = this.get<Gun>()
-    if (gun == null || item.id != gun.ammunition) return 0
-    val count = item.count
+fun EngineItem.gunAmmoConsumeCount(world: World, item: EngineItem): Int = with(world) {
+    val gun = item.getComponent<Gun>()
+    if (gun == null || item.getComponent<ItemMeta>()?.id != gun.ammunition) return 0
+    val count = item.getComponent<Count>()?.value ?: 1
     val barrel = gun.barrel
     return count.coerceAtMost(barrel.maxBullets - barrel.bullets)
 }
@@ -105,35 +95,32 @@ private val GUN_BARREL_AMMO_LOAD_VERB = VerbType(
     "Загрузить патроны в патронник",
 )
 
-fun tickInventoryGun(items: Collection<EngineItem>) {
-    for (item in items) {
-        val gun = item.get<Gun>() ?: continue
-        if (gun.fireTime > 0) {
-            gun.fireTime--
-        }
+fun World.updateFireTimeSystem() = iterate<Gun> { item, gun ->
+    if (gun.fireTime > 0) {
+        gun.fireTime--
     }
 }
 
-val EngineItem?.isGun
-    get() = this?.has<Gun>() == true
+context(world: World)
+fun EngineItem.isGun() = hasComponent<Gun>()
 
-fun appendGunVerbs(player: EnginePlayer) {
+fun World.appendGunVerbs(player: EnginePlayer) {
     player.handle<VerbLookup>() {
-        if (!handItem.isGun && !(slotClick?.item?.isGun ?: false)) return@handle
+        if (handItem?.isGun() != true && !(slotClick?.item?.isGun() ?: false)) return@handle
         forAction<InputAction.Attack>(GUN_SHOOT_VERB)
         forAction<InputAction.Base>(GUN_TOGGLE_MODE_VERB)
         forAction<InputAction.SlotClick> { action ->
             GUN_BARREL_AMMO_LOAD_VERB.takeIf {
-                action.item.gunAmmoConsumeCount(action.cursorItem) > 0
+                action.item.gunAmmoConsumeCount(this@appendGunVerbs, action.cursorItem) > 0
             }
         }
     }
 }
 
 context(interaction: InteractionComponent)
-fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
+fun World.handleGunInteractions(player: EnginePlayer) {
     player.handleInteraction(GUN_SHOOT_VERB) {
-        val gun = handItem!!.require<Gun>()
+        val gun = handItem!!.requireComponent<Gun>()
         val barrel = gun.barrel
         if (gun.mode == FireMode.SELECTOR || gun.fireTime > 0) return@handleInteraction
 
@@ -144,7 +131,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
 
         fun finish() {
             complete()
-            handItem.markDirty<Gun>(id)
+            handItem.markDirty<Gun>()
         }
 
         if (occupied && !player.actionsSimilar()) {
@@ -159,8 +146,8 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             val start = player.eyePos
             val shoot = GunShoot(start, rotationVector)
             val parameters = BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)
-            handItem.set(Recoil(shoot, parameters))
-            handItem.world.emitEvent(
+            handItem.setComponent(Recoil(shoot, parameters))
+            emitEvent(
                 BulletFire(
                     shoot,
                     parameters,
@@ -183,7 +170,7 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
     }
 
     player.handleInteraction(GUN_TOGGLE_MODE_VERB) {
-        val gun = handItem!!.require<Gun>()
+        val gun = handItem!!.requireComponent<Gun>()
         val modes = gun.modes
 
         if (modes.isNotEmpty()) {
@@ -191,25 +178,25 @@ fun handleGunInteractions(player: EnginePlayer, isClient: Boolean = false) {
             val nextIndex = (currentIndex + 1) % modes.size
             gun.mode = modes[nextIndex]
             emitItemInteractionSoundEvent(handItem, SELECTOR_TOGGLE_SOUND)
-            handItem.markDirty<Gun>(id)
+            handItem.markDirty<Gun>()
         }
 
         complete()
     }
 
     player.handleInteraction(GUN_BARREL_AMMO_LOAD_VERB) {
-        val gun = slotAction.item.require<Gun>()
+        val gun = slotAction.item.requireComponent<Gun>()
         val barrel = gun.barrel
 
         val cursorItem = slotAction.cursorItem
         val slotItem = slotAction.item
-        val count = slotAction.item.gunAmmoConsumeCount(slotAction.cursorItem)
+        val count = slotAction.item.gunAmmoConsumeCount(this@handleGunInteractions, slotAction.cursorItem)
         if (count > 0) {
             barrel.bullets = (barrel.bullets + count).coerceAtMost(barrel.maxBullets)
             gun.clicked = false
             emitItemInteractionSoundEvent(slotItem, ROUND_BARREL_SOUND)
-            player.set(DestroyItemSignal(cursorItem.uuid, count))
-            slotItem.markDirty<Gun>(id)
+            player.set(DestroyItemSignal(cursorItem, count))
+            slotItem.markDirty<Gun>()
         }
         complete()
     }
@@ -221,18 +208,9 @@ val DEFAULT_BULLET_SPEED = 800f
 
 val BulletParameters.recoilSpeed get() = bulletMass * bulletSpeed / DEFAULT_WEAPON_MASS
 
-fun handleItemRecoil(
-    player: EnginePlayer,
-    items: Collection<EngineItem> = player.items,
-    remove: Boolean = true
-) {
-    items.forEach { item ->
-        val shootTag = item.get<Recoil>() ?: return@forEach
-        player.translateRotation(pitch = -(shootTag.bullet.recoilSpeed * 3f))
-        if (remove) {
-            item.remove<Recoil>()
-        }
-    }
+fun World.updateRecoilSystem(remove: Boolean = true) = iterate<Item, Recoil, HoldsBy> { item, _, recoil, (owner) ->
+    owner.translateRotation(pitch = -(recoil.bullet.recoilSpeed * 3f))
+    if (remove) { item.removeComponent<Recoil>() }
 }
 
 fun updateBulletsAcoustic(world: World) = world.iterate<BulletFire>() { _, event ->

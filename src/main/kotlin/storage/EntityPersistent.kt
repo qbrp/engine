@@ -1,32 +1,46 @@
 package org.lain.engine.storage
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.modules.PolymorphicModuleBuilder
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
-import kotlinx.serialization.modules.subclass
-import kotlinx.serialization.serializer
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.container.*
+import org.lain.engine.util.component.ComponentTypeRegistry
 import java.util.*
+import kotlin.reflect.KClass
 
-fun PolymorphicModuleBuilder<Component>.polymorphicComponent() {
-    subclass(PersistentId::class)
-    subclass(ContainedIn::class)
-    subclass(Slots::class)
-    subclass(OccupiedSlots::class)
-    subclass(AssignedSlot::class)
-    subclass(AssignItem::class)
+class ComponentSerializerNotRegisteredException(componentClass: KClass<out Component>) : Exception("Serializer not registered for component ${componentClass.simpleName}")
+
+@OptIn(InternalSerializationApi::class)
+@Suppress("UNCHECKED_CAST")
+fun PolymorphicModuleBuilder<Component>.componentSubclassSerializers() {
+    val classes = ComponentTypeRegistry.listEntries()
+        .filter { (_, entry) -> entry.meta.savable }
+        .map { (_, entry) -> entry.meta.serializationClass }
+    val exceptions = mutableListOf<ComponentSerializerNotRegisteredException>()
+    classes.forEach {
+        val serializer = runCatching { it.serializer() }
+            .onFailure {
+                exception -> if (exception is SerializationException) {
+                    exceptions += ComponentSerializerNotRegisteredException(it)
+                }
+            }
+            .getOrNull() as? KSerializer<Component>
+        subclass(it as KClass<Component>, serializer ?: return@forEach)
+    }
+    if (exceptions.isNotEmpty()) {
+        exceptions.forEach { LOGGER.error(it.message) }
+        error("Serializer not registered for $exceptions components")
+    }
 }
 
 val COMPONENT_SERIALIZERS_MODULE = SerializersModule {
-    polymorphic(Component::class) { polymorphicComponent() }
+    polymorphic(Component::class) { componentSubclassSerializers() }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -36,7 +50,8 @@ val ENTITY_CBOR = Cbor {
 }
 
 @Serializable
-data class PersistentId(val uuid: String) : Component {
+data class PersistentId(val value: String) : Component {
+    override fun toString(): String = value
     companion object {
         fun next() = PersistentId(UUID.randomUUID().toString())
     }

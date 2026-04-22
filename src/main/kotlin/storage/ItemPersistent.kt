@@ -1,18 +1,24 @@
 package org.lain.engine.storage
 
-import kotlinx.serialization.*
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
-import org.lain.cyberia.ecs.*
+import kotlinx.serialization.decodeFromByteArray
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.require
 import org.lain.engine.container.AssignedSlot
-import org.lain.engine.container.ContainedIn
 import org.lain.engine.item.*
 import org.lain.engine.player.EquipmentSlot
 import org.lain.engine.player.Outfit
 import org.lain.engine.player.OutfitDisplay
 import org.lain.engine.player.PlayerPart
+import org.lain.engine.util.addIfNotNull
 import org.lain.engine.util.component.ComponentState
-import org.lain.engine.util.then
 import org.lain.engine.world.World
+
+/////////////// LEGACY SAVING
 
 @Serializable
 data class PersistentItemData(val components: List<ItemData>)
@@ -36,97 +42,53 @@ sealed class ItemData {
     @Serializable @Deprecated("Использовать PhysicalParameters") data class Count(val value: Int) : ItemData()
 }
 
-fun <T : ItemData> MutableList<ItemData>.addIf(statement: () -> Boolean, component: () -> T) {
-    if (statement()) this += component()
-}
-
-fun <T : Any> MutableCollection<T>.addIfNotNull(component: T?) {
-    if (component != null) this += component
-}
-
-fun <T : Any> MutableCollection<T>.addIfNotNull(component: () -> T?) {
-    addIfNotNull(component())
-}
-
-inline fun <reified T : Component> ComponentManager.wrap(statement: (T) -> ItemData): ItemData? {
-    return get<T>()?.let { statement(it) }
-}
-
-// SAVE
-
-fun itemPersistentData(
-    world: World,
-    item: ComponentState,
-    entityComponents: ComponentState
-): PersistentItemData = with(world) {
-    val components = mutableListOf<ItemData>()
-
-    val name = item.get<ItemName>()
-    val tooltip = item.get<ItemTooltip>()
-    components.addIfNotNull(
-        { name != null || tooltip != null }.then { ItemData.Display(name?.copy(), tooltip?.copy()) }
-    )
-
-    components.addIfNotNull(item.wrap<ItemSounds> { ItemData.Sounds(it.copy()) })
-    components.addIfNotNull(item.wrap<Gun> { ItemData.Guns(it.copy(), item.get<GunDisplay>()?.copy()) })
-    components.add(
-        ItemData.PhysicalParameters(
-            item.require<Count>().copy(),
-            item.get<Mass>()
-        )
-    )
-    components.addIfNotNull(item.wrap<Writable> { ItemData.Book(writable=it.copy())  })
-    val outfit = item.get<Outfit>()
-    components.addIfNotNull(
-        { outfit != null }.then { ItemData.Equipment(false, outfit) }
-    )
-
-    item.handle<Flashlight> {
-        components.add(ItemData.Lights(this.copy()))
-    }
-
-    if (entityComponents.getComponents().isNotEmpty()) {
-        val entityComponentsList = mutableListOf<ItemData>()
-        val containedIn = item.get<ContainedIn>()
-        val assignedSLot = item.get<AssignedSlot>()
-        entityComponentsList.addIfNotNull(
-            { containedIn != null }.then {
-                val containerUuid = containedIn?.container?.getComponent<PersistentId>() ?: error("Container persistent id not found")
-                ItemData.Contained(containerUuid.uuid, assignedSLot?.copy())
-            }
-        )
-
-        components += ItemData.EntityComponents(entityComponentsList)
-    }
-
-    return PersistentItemData(components)
-}
-
 @OptIn(ExperimentalSerializationApi::class)
 val ITEM_CBOR = Cbor { ignoreUnknownKeys = true }
-
-@OptIn(ExperimentalSerializationApi::class)
-fun serializeItemPersistentComponents(item: PersistentItemData): ByteArray {
-    return ITEM_CBOR.encodeToByteArray(item.components)
-}
 
 @OptIn(ExperimentalSerializationApi::class)
 fun deserializeItemPersistentComponents(array: ByteArray): List<ItemData> {
     return ITEM_CBOR.decodeFromByteArray(array)
 }
 
-// LOAD
+////////////////// LOAD
+
+data class EntryVersion(val value: Int) : Component {
+    companion object {
+        val DEFAULT = EntryVersion(0)
+    }
+}
 
 /**
- * @param containers Используемые предметом контейнеры, **требуемые** для корректной работы. После загрузки контейнеров требуется создать компоненты для предмета
+ * @see ItemLoader.loadWorldItem
+ */
+fun loadItem(world: World, persistentId: PersistentId, components: List<Component>): ItemLoadResult {
+    val componentState = ComponentState(components)
+    // использовать в будущем для версионирования
+    // val entry = componentState.get<EntryVersion>() ?: EntryVersion.DEFAULT
+    return ItemLoadResult(
+        ProtoItem(
+        componentState.require<ItemMeta>().id,
+        persistentId,
+            world,
+            componentState,
+        ),
+        componentState.remove<ContainedInDto>()?.container // контейнер подгрузиться позже
+    )
+}
+
+/**
+ * @param container Используемый предметом контейнеры для корректной работы. После загрузки контейнеров требуется создать компоненты для предмета
  */
 data class ItemLoadResult(
     val protoItem: ProtoItem,
     val container: PersistentId?
 )
 
-// Чистая функция
-fun loadItem(data: PersistentItemData, world: World, id: ItemId, uuid: ItemUuid): ItemLoadResult {
+/**
+ * Чистая функция.
+ * @deprecated C 22.04.2026 предметы загружаются как обычные сущности и не нуждаются в отдельном пайплайне
+ */
+fun loadItemLegacy(data: PersistentItemData, world: World, id: ItemId, uuid: PersistentId): ItemLoadResult {
     val components = mutableSetOf<Component>()
     val entityComponents = mutableSetOf<Component>()
     var container: PersistentId? = null
@@ -188,8 +150,7 @@ fun loadItem(data: PersistentItemData, world: World, id: ItemId, uuid: ItemUuid)
         itemInstance(
             world,
             uuid, id,
-            ComponentState(components.toList()),
-            ComponentState(entityComponents.toList())
+            ComponentState(components.toList() + entityComponents.toList()),
         ),
         container
     )

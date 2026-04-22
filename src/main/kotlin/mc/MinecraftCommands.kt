@@ -29,11 +29,7 @@ import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.*
 import org.lain.engine.item.ItemId
 import org.lain.engine.player.*
-import org.lain.engine.script.NamespacedStorage
-import org.lain.engine.script.ScriptContext
-import org.lain.engine.script.ScriptId
-import org.lain.engine.script.getVoidScript
-import org.lain.engine.script.toScriptId
+import org.lain.engine.script.*
 import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
@@ -66,7 +62,7 @@ fun playerPositionsMessage(playerStorage: PlayerStorage, world: World): List<Str
 
         "<aqua>-<reset> ${enginePlayer.displayName} (${enginePlayer.username})<newline>" +
                 "<aqua>Координаты:</aqua><newline>  <red>Engine:</red> ${enginePosFormatted}<newline>  <green>Minecraft:</green> ${minecraftPosFormatted}<newline>" +
-                "<aqua>Предметы:</aqua> ${enginePlayer.items.joinToString { it.shortString() }}"
+                "<aqua>Предметы:</aqua> ${enginePlayer.items.joinToString()}"
     }
 }
 
@@ -593,7 +589,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                 }
                 val input = PlayerInput(actions, setOf())
                 updatePlayerVerbLookup(player, true, input)
-                appendVerbs(player)
+                with(player.world) { appendVerbs(player) }
                 val lookup = player.remove<VerbLookup>()!!
                 val text = Text.empty()
                 text.append(

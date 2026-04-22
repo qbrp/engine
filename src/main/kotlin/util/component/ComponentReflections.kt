@@ -16,7 +16,7 @@ fun ComponentTypeRegistry.registerAll() {
     reflections.getSubTypesOf(Component::class.java).forEach {
         val kclass = it.kotlin
         if (!isRegistered(kclass) && it != ScriptComponent::class.java) {
-            registerComponent(kclass, ComponentMeta(false, false), it.simpleName)
+            registerComponent(kclass, ComponentMeta(false, kclass, false), it.simpleName)
         }
     }
 }

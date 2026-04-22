@@ -13,7 +13,6 @@ import org.lain.cyberia.ecs.setNullable
 import org.lain.engine.container.createContainer
 import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemUuid
 import org.lain.engine.server.*
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
@@ -115,7 +114,7 @@ typealias PlayerStorage = Storage<PlayerId, EnginePlayer>
 
 data class PlayerLoadSettings(
     val playerId: PlayerId,
-    val inventoryItems: List<ItemUuid>,
+    val inventoryItems: List<PersistentId>,
     val notifications: List<Notification>,
     val initialPosition: Pos,
     val username: String,
@@ -192,8 +191,8 @@ class PlayerLoader(
 
     private suspend fun loadInventoryItems(
         world: World,
-        inventoryItems: List<ItemUuid>,
-        equipmentItems: Map<EquipmentSlot, ItemUuid>
+        inventoryItems: List<PersistentId>,
+        equipmentItems: Map<EquipmentSlot, PersistentId>
     ): InventoryItemsLoadResult = withContext(Dispatchers.IO) {
         val inventoryItems = async {
             val items = inventoryItems.map { uuid ->

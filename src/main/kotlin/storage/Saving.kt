@@ -1,21 +1,18 @@
 package org.lain.engine.storage
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.serialization.Serializable
 import net.minecraft.item.ItemStack
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.container.ContainedIn
-import org.lain.engine.container.Item
 import org.lain.engine.item.*
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.server.EngineServer
 import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.server.EngineServer
 import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -23,9 +20,9 @@ import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentLinkedQueue
 
-val ItemIoCoroutineScope = CoroutineScope(Dispatchers.IO.limitedParallelism(4) + SupervisorJob())
+val StorageCoroutineScope = CoroutineScope(Dispatchers.IO.limitedParallelism(4) + SupervisorJob())
 
-private val LOGGER = LoggerFactory.getLogger("Engine Autosave")
+internal val LOGGER = LoggerFactory.getLogger("Engine Storage")
 
 data class SaveTimers(var items: Counter, var containers: Counter) {
     class Counter(val period: Int, var tick: Int = 0) {
@@ -67,54 +64,57 @@ fun updateUnloadSystem(world: World, timers: SaveTimers) {
 //    }
 }
 
-fun Database.saveItems(world: World) = with(world) {
+fun Database.saveItemsBlocking(world: World) = with(world) {
     val itemPairsToSave = world.componentManager.collect(
         listOf(componentTypeOf(Item::class))
     ) { component -> component.meta.savable }
-    val itemsToSave = itemPairsToSave.map { (id, state) ->
-        val engineItem = id.requireComponent<Item>().engine
-        engineItem to state
+    val itemsToSave = itemPairsToSave.map { (_, state) ->
+        EntityDto(
+            state.require<PersistentId>(),
+            state.getComponents().map { it.toDto() }
+        )
     }
-    val itemsPersistent = itemsToSave.map { (item, state) -> item to itemPersistentData(world, item.state, state) }
-    if (itemsToSave.isNotEmpty()) {
-        ItemIoCoroutineScope.launch {
-            saveItemPersistentDataBatch(itemsPersistent)
-        }
-    }
+    runBlocking { saveEntitiesBatch(itemsToSave) }
 }
 
-fun updateSaveSystem(server: EngineMinecraftServer, world: World) = with(world) {
+context(world: World)
+fun Component.toDto() = when (this) {
+    is ContainedIn -> ContainedInDto(container.requireComponent())
+    else -> this
+}
+
+@Serializable
+data class ContainedInDto(val container: PersistentId) : Component
+
+context(world: World)
+fun updateSaveSystem(server: EngineMinecraftServer) {
     val engine = server.engine
-    val itemPairsToSave = world.componentManager.collect(
-        listOf(
-            componentTypeOf(Item::class),
-            componentTypeOf(SaveTag::class)
-        )
+
+    // Сохраняем все сущности
+    // 22.04.2026: предметы сохраняются как сущности, компоненты трансформируются в toDto
+    val itemsDestroyed = mutableListOf<PersistentId>()
+    val entitiesToSave = world.componentManager.collect(
+        listOf(componentTypeOf(SaveTag::class))
     ) { component -> component.meta.savable }
-    val itemsToSave = itemPairsToSave.map { (entity, state) ->
-        val engineItem = entity.requireComponent<Item>().engine
-        engineItem to state
-    }
+        .map { (_, state) ->
+            val persistentId = state.require<PersistentId>()
+            if (state.has<Item>() && state.has<UnloadTag>()) {
+                itemsDestroyed += persistentId
+            }
 
-    // Выгружаем
-    val itemsDestroyed = itemsToSave.filter { (item, state) -> item.entity.hasComponent<UnloadTag>() }
-    itemsDestroyed.forEach { destroyItem(it.first, engine.itemStorage) }
-    engine.handler.onItemsBatchDestroy(itemsDestroyed.map { it.first.uuid })
+            EntityDto(
+                persistentId,
+                state.getComponents().map { it.toDto() }
+            )
+        }
 
-    val itemsPersistent = itemsToSave.map { (item, state) -> item to itemPersistentData(world, item.state, state) }
-    if (itemsToSave.isNotEmpty()) {
-        ItemIoCoroutineScope.launch {
-            server.database.saveItemPersistentDataBatch(itemsPersistent)
-            server.engine.execute { LOGGER.info("Выгружено {} неактивных предметов, всего сохранено {}", itemsDestroyed.size, itemsToSave.size) }
+    StorageCoroutineScope.launch {
+        if (entitiesToSave.isNotEmpty()) {
+            server.database.saveEntitiesBatch(entitiesToSave)
         }
     }
 
-    // Сохраняем все сущности
-    val entitiesToSave = (world.componentManager.collect(listOf(componentTypeOf(SaveTag::class))) { component -> component.meta.savable } - itemPairsToSave.toSet())
-        .map { (_, state) -> state.require<PersistentId>().copy() to state }
-    ItemIoCoroutineScope.launch {
-        if (entitiesToSave.isNotEmpty()) server.database.saveEntitiesBatch(entitiesToSave)
-    }
+    engine.handler.onItemsBatchDestroy(itemsDestroyed)
 
     world.iterate<SaveTag> { item, _ -> item.removeComponent<SaveTag>() }
     world.iterate<UnloadTag> { item, _ -> item.removeComponent<UnloadTag>() }
@@ -143,48 +143,50 @@ class ItemLoader(
 ) {
     private val commandBuffers = ConcurrentLinkedQueue<Pair<WorldId, EntityCommandBuffer>>()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val items = mutableMapOf<ItemUuid, Long>()
-    private val notFound = mutableSetOf<ItemUuid>()
+    private val items = mutableMapOf<String, Long>()
+    private val notFound = mutableSetOf<String>()
 
-    fun isLoading(item: ItemUuid) = item in items
+    fun isLoading(item: String) = item in items
 
-    fun isNotFound(item: ItemUuid) = item in notFound
+    fun isNotFound(item: String) = item in notFound
 
     suspend fun loadWorldItem(
-        uuid: ItemUuid,
+        uuid: PersistentId,
         world: World,
     ): EngineItem? {
         server.itemStorage.getItem(uuid)?.let { item -> return item }
-        val (id, persistentItemData) = database.loadPersistentItemData(uuid) ?: run {
-            notFound.add(uuid)
-            return null
-        }
-        val result = loadItem(persistentItemData, world, id, uuid)
+
+        val result = database.loadEntity(uuid)?.let { components -> loadItem(world, uuid, components) }
+            ?: database.loadPersistentItemDataLegacy(uuid)?.let { (id, components) -> loadItemLegacy(components, world, id, uuid) }
+            ?: run {
+                notFound.add(uuid.value)
+                return null
+            }
         val protoItem = result.protoItem
         val container = result.container?.let { database.loadEntity(it) ?: error("Контейнер $it не найден") }
         dataFixItem(protoItem, server.namespacedStorage)
 
         val commandBuffer = EntityCommandBuffer(world)
-        container?.let { components -> protoItem.entityState?.set(ContainedIn(commandBuffer.instantiateEntity(result.container, components))) }
+        container?.let { components -> protoItem.state.set(ContainedIn(commandBuffer.instantiateEntity(result.container, components))) }
         val item = commandBuffer.instantiateItem(protoItem, server.itemStorage)
         commandBuffers += world.id to commandBuffer
         return item
     }
 
-    suspend fun loadItemStack(itemStack: ItemStack, owner: EnginePlayer): EngineItem? {
+    suspend fun loadItemStack(itemStack: ItemStack, world: World): EngineItem? {
         val reference = itemStack.engine() ?: return null
         val uuid = reference.uuid
-        return loadWorldItem(uuid, owner.world)
+        return loadWorldItem(PersistentId(uuid.value), world)
     }
 
-    fun loadItemStackWrapping(itemStack: ItemStack, owner: EnginePlayer) {
-        val uuid = itemStack.engine()?.uuid ?: return
+    fun loadItemStackWrapping(itemStack: ItemStack, owner: EnginePlayer) = with(owner.world) {
+        val uuid = itemStack.engine()?.uuid?.value ?: return
         val time = items[uuid]
         val currentTimeMillis = System.currentTimeMillis()
         if (time == null || currentTimeMillis - time > TIMEOUT) {
             items[uuid] = currentTimeMillis
             coroutineScope.launch {
-                val item = loadItemStack(itemStack, owner) ?: run {
+                val item = loadItemStack(itemStack, this@with) ?: run {
                     notFound.add(uuid)
                     return@launch
                 }

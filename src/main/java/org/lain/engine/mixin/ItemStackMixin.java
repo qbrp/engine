@@ -4,7 +4,6 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.util.ClickType;
-import org.lain.engine.item.EngineItem;
 import org.lain.engine.mc.EngineItemReferenceComponent;
 import org.lain.engine.mc.ItemsKt;
 import org.lain.engine.mc.ServerMixinAccess;
@@ -25,15 +24,15 @@ public abstract class ItemStackMixin {
     )
     public void engine$onClicked(Slot slot, ClickType clickType, PlayerEntity player, CallbackInfoReturnable<Boolean> cir) {
         ItemStack slotStack = slot.getStack();
-        EngineItem slotItem = getEngineItem(slotStack);
-        EngineItem item = getEngineItem((ItemStack) (Object)this);
+        Integer slotItem = getEngineItem(slotStack);
+        Integer item = getEngineItem((ItemStack) (Object)this);
         if (slotItem != null && item != null && !player.getEntityWorld().isClient()) {
             cir.setReturnValue(ServerMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object)this, player, clickType));
         }
     }
 
     @Unique
-    private static EngineItem getEngineItem(ItemStack itemStack) {
+    private static Integer getEngineItem(ItemStack itemStack) {
         EngineItemReferenceComponent component = itemStack.get(ItemsKt.getENGINE_ITEM_REFERENCE_COMPONENT());
         if (component == null) {
             return null;

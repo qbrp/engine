@@ -1,10 +1,7 @@
 package org.lain.engine.client
 
 import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
@@ -51,6 +48,7 @@ import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.client.util.PlayerTickException
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.OpenBookTag
@@ -218,11 +216,18 @@ class MinecraftEngineClient : ClientModInitializer {
                 entrypoint,
                 context
             )
-            val clientLuaContext = engineClient.createLuaContext()
-            clientLuaContext.setup(entrypoint)
-            engineClient.compilationResult = compilationResult
-            engineClient.luaContext = clientLuaContext
-            engineClient.namespacedStorage.loadContentsCompileResult(compilationResult)
+
+            runBlocking {
+                withContext(MinecraftClientDispatcher) {
+                    val clientLuaContext = engineClient.createLuaContext()
+                    clientLuaContext.setup(entrypoint)
+
+                    engineClient.compilationResult = compilationResult
+                    engineClient.luaContext = clientLuaContext
+                    engineClient.namespacedStorage.loadContentsCompileResult(compilationResult)
+                }
+            }
+
             val dependencies = EngineMinecraftServerDependencies(
                 server,
                 context,
@@ -252,7 +257,8 @@ class MinecraftEngineClient : ClientModInitializer {
     }
 
     private fun tickClient() {
-        Profilers.get().push("engineClientTick")
+        val profiler = Profilers.get()
+        profiler.push("engineClientTick")
         val entity = client.player
         val gameSession = engineClient.gameSession
 
@@ -274,8 +280,11 @@ class MinecraftEngineClient : ClientModInitializer {
                 players[entity] = player
             }
 
+            profiler.swap("preTick")
             preEngineTick(players)
+            profiler.swap("tick")
             engineClient.tick()
+            profiler.swap("postTick")
             postEngineTick(players)
 
             if (skippedPlayers.isNotEmpty()) {
@@ -293,7 +302,7 @@ class MinecraftEngineClient : ClientModInitializer {
             disconnectWithReason(DisconnectText(text))
             onDisconnect()
         }
-        Profilers.get().pop()
+        profiler.pop()
     }
 
     private fun preEngineTick(players: Map<PlayerEntity, EnginePlayer>) {
@@ -308,7 +317,7 @@ class MinecraftEngineClient : ClientModInitializer {
             }
         }
 
-        removeHoldsByMarks(gameSession.itemStorage.getAll())
+        world.prepareItemMinecraftSystem()
         players.forEach { (entity, player) ->
             val itemStacks = (entity.inventory + entity.currentScreenHandler.cursorStack).toSet()
             val items = itemStacks.mapNotNull { itemStack ->
@@ -328,12 +337,13 @@ class MinecraftEngineClient : ClientModInitializer {
     private fun postEngineTick(players: Map<PlayerEntity, EnginePlayer>) {
         val gameSession = engineClient.gameSession ?: return
         val minecraftWorld = client.world ?: return
+        val world = gameSession.world
         renderer.tick()
 
         players.forEach { (entity, player) ->
             player.remove<OpenBookTag>()?.let {
                 if (player == gameSession.mainPlayer) {
-                    val writable = player.handItem?.get<Writable>() ?: return@let
+                    val writable = with(world) { player.handItem?.getComponent<Writable>() ?: return@let }
                     client.setScreen(
                         BookEditScreen(
                             entity,

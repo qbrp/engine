@@ -3,7 +3,7 @@ package org.lain.engine.server
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
@@ -23,6 +23,7 @@ import org.lain.engine.storage.savePersistentPlayerData
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.flush
+import org.lain.engine.util.forEachWithContext
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.*
 import java.io.File
@@ -69,67 +70,65 @@ class EngineServer(
         handler.invalidate()
     }
 
+    fun preUpdate() {
+        listWorlds().forEach { world ->
+            itemLoader.applyCommands(world)
+            playerLoader.applyCommands(world)
+        }
+    }
+
     fun update() = with(namespacedStorage) {
         if (stopped) return
         val start = Timestamp()
         val players = playerStorage.getAll()
         val vocalSettings = globals.vocalSettings
-
-        allWorlds().forEach { world ->
-            itemLoader.applyCommands(world)
-            playerLoader.applyCommands(world)
-        }
+        val worlds = allWorlds()
 
         taskQueue.flush { it.run() }
 
-        for (player in players) {
-            val playerItems = player.items
-            updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
-            updatePlayerSpeaking(player, chat, vocalSettings)
-            updatePlayerVoice(player, chat, globals.vocalSettings)
+        worlds.forEachWithContext({ it }) { world ->
+            world.players.forEach { player ->
+                updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
+                updatePlayerSpeaking(player, chat, vocalSettings)
+                updatePlayerVoice(player, chat, globals.vocalSettings)
 
-            updatePlayerVerbLookup(player)
-            appendVerbs(player)
-            updatePlayerInteractions(player, handler=handler)
+                updatePlayerVerbLookup(player)
+                appendVerbs(player)
+                updatePlayerInteractions(player, handler=handler)
 
-//            val interaction = player.get<InteractionComponent>()
-//            if (interaction != null) {
-//                println("Взаимодействие: $interaction")
-//            }
+                player.handle<InteractionComponent>() {
+                    handlePlayerInventoryInteractions(player)
+                    handleWriteableInteractions(player)
+                    handleGunInteractions(player)
+                    handleSocialInteractions(player)
+//                    handleFlashlightInteractions(player)
+//                    handlePlayerEquipmentInteractionProgression(player)
+//                    handlePlayerEquipmentInteraction(player)
+                    handleHandScriptInteractions(player)
+                    finishPlayerInteraction(player)
+                }
 
-            player.handle<InteractionComponent>() {
-                handlePlayerInventoryInteractions(player)
-                handleWriteableInteractions(player)
-                handleGunInteractions(player)
-                handleSocialInteractions(player)
-                handleFlashlightInteractions(player)
-                handlePlayerEquipmentInteractionProgression(player)
-                handlePlayerEquipmentInteraction(player)
-                handleHandScriptInteractions(player)
-                finishPlayerInteraction(player)
+                updateFireTimeSystem()
+                updateRecoilSystem()
+                updateHearing(player)
+                updateAcousticHearing(player, handler, globals.chatSettings)
+
+                tickNarrations(player)
             }
 
-            tickInventoryGun(playerItems)
-            handleItemRecoil(player, playerItems)
-            updateHearing(player)
-            updateAcousticHearing(player, handler, globals.chatSettings)
-
-            tickNarrations(player)
-        }
-
-        listWorlds().forEach { world ->
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
             updateBulletsAcoustic(world)
-            updateContainerSystems(world, itemStorage)
+            updateContainerSystems(itemStorage)
             world.tickCallbacks(callbacks)
         }
+
         handler.tick()
         tickTimes.add(start.timeElapsed().toInt())
     }
 
     fun postUpdate() {
-        listWorlds().forEach { world -> postUpdateContainerSystems(world) }
+        listWorlds().forEachWithContext({ it }) { world -> postUpdateContainerSystems() }
     }
 
     fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {
@@ -155,7 +154,7 @@ class EngineServer(
         playerStorage.remove(player.id)
         players -= player
 
-        (player.collectOwnedItems(this) + player.items).forEach { item -> item.remove<HoldsBy>() }
+        (player.collectOwnedItems(this) + player.items).forEach { item -> item.removeComponent<HoldsBy>() }
 
         player.equipmentContainer.destroy()
         player.mainContainer.destroy()

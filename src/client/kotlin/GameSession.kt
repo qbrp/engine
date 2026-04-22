@@ -10,13 +10,13 @@ import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.WARNING
-import org.lain.engine.client.render.handleBulletFireShakes
+import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.processSoundPlayKeys
 import org.lain.engine.container.clearAssignItemsOperations
-import org.lain.engine.container.updateContainedPlayerInventoryItems
-import org.lain.engine.container.updateContainerOperations
+import org.lain.engine.container.updateContainerOperationSystem
+import org.lain.engine.container.updatePlayerContainerSystem
 import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.*
 import org.lain.engine.player.*
@@ -121,15 +121,13 @@ class GameSession(
         client.eventBus.onContentsUpdate()
     }
 
-    fun tick() = with(namespacedStorage) {
+    fun tick() = with(world) {
         ticks++
         chatManager.tick()
 
         val players = playerStorage.getAll()
-        world.apply {
-            this.players.clear()
-            this.players.addAll(players)
-        }
+        world.players.clear()
+        world.players.addAll(players)
 
         movementManager.stamina = mainPlayer.stamina
         if (mainPlayer.has<SpawnMark>()) {
@@ -144,16 +142,14 @@ class GameSession(
                 player.isLowDetailed = false
             }
 
-            val playerItems = player.items
             updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
-
             updatePlayerVerbLookup(player, false)
             player.handle<InteractionComponent>() {
                 handlePlayerInventoryInteractions(player)
                 handleWriteableInteractions(player)
-                handleGunInteractions(player, true)
-                handleFlashlightInteractions(player)
-                handlePlayerEquipmentInteractionProgression(player)
+//                handleGunInteractions(player, true)
+//                handleFlashlightInteractions(player)
+//                handlePlayerEquipmentInteractionProgression(player)
                 finishPlayerInteraction(player)
 
                 val processedInteraction = player.get<InteractionComponent>()
@@ -162,15 +158,14 @@ class GameSession(
                 }
             }
 
-            tickInventoryGun(playerItems)
-            handleItemRecoil(player, playerItems, false)
             updateHearing(player)
         }
-
+        updateFireTimeSystem()
+        updateRecoilSystem()
         tickNarrations(mainPlayer)
 
         val items = itemStorage.getAll()
-        handleBulletFireShakes(mainPlayer, client.camera, world, items)
+        updateShootShakeSystem(mainPlayer, client.camera)
 
         chatBubbleList.cleanup()
         chatBubbleList.tick(mainPlayer)
@@ -178,8 +173,8 @@ class GameSession(
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()
         updateSlotContainers(world)
-        updateContainerOperations(world, itemStorage)
-        updateContainedPlayerInventoryItems(world)
+        updateContainerOperationSystem(itemStorage)
+        updatePlayerContainerSystem()
         clearAssignItemsOperations(world)
         world.tickCallbacks(callbacks)
         world.updateVoxelEvents(null)

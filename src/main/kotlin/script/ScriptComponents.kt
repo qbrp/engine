@@ -12,7 +12,7 @@ data class ScriptComponent(val field: Any) : Component
 
 data class ScriptComponentType(
     val ecsType: ComponentType<ScriptComponent>,
-    val meta: ComponentMeta = ComponentMeta(false, false)
+    val meta: ComponentMeta = ComponentMeta(false, ScriptComponent::class, false)
 ) {
     val id get() = ecsType.id
 }

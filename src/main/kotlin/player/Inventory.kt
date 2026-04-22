@@ -1,12 +1,12 @@
 package org.lain.engine.player
 
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.item.merge
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.require
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.merge
+import org.lain.engine.world.world
 
 /**
  * # Инвентарь игрока
@@ -26,9 +26,9 @@ data class PlayerContainer(val containerId: EntityId) : Component
 object PlayerContainerTag : Component
 
 // Уничтожить предмет в инвентаре игрока, обработать игрой
-data class DestroyItemSignal(val item: ItemUuid, val count: Int = 1) : Component
+data class DestroyItemSignal(val item: EngineItem, val count: Int = 1) : Component
 
-data class MoveItemSignal(val item: ItemUuid, val slot: Int?) : Component
+data class MoveItemSignal(val item: EngineItem, val slot: Int?) : Component
 
 val EnginePlayer.items: Set<EngineItem>
     get() = this.require<PlayerInventory>().let { it.items + listOfNotNull(it.cursorItem) }
@@ -53,7 +53,7 @@ private val SLOT_MERGE_VERB = VerbType("slot_merge", "Объединить пр�
 fun appendPlayerInventoryVerbs(player: EnginePlayer) {
     player.handle<VerbLookup> {
         val slotClick = slotClick ?: return@handle
-        if (merge(slotClick.item, slotClick.cursorItem)) {
+        if (player.world.merge(slotClick.item, slotClick.cursorItem)) {
             verbs += VerbVariant(
                 SLOT_MERGE_VERB,
                 slotClick

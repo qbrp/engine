@@ -21,7 +21,6 @@ import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemUuid
 import org.lain.engine.mc.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
@@ -71,47 +70,49 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun tick() {
-        val gameSession = gameSession
+        val gameSession = client.gameSession
         if (gameSession != null) {
-            gameSession.world.iterate<Networked, PersistentId>() { entity, _, persistentId ->
-                if (!synchronizedEntities.containsKey(persistentId)) {
-                    synchronizedEntities[persistentId] = entity
-                    entity.setComponent(persistentId)
+            with(gameSession.world) {
+                iterate<Networked, PersistentId>() { entity, _, persistentId ->
+                    if (!synchronizedEntities.containsKey(persistentId)) {
+                        synchronizedEntities[persistentId] = entity
+                        entity.setComponent(persistentId)
+                    }
                 }
-            }
 
-            SERVERBOUND_CLIENT_TICK_END_ENDPOINT.sendC2SPacket(ClientTickEndPacket)
-            val input = gameSession.mainPlayer.require<PlayerInput>()
-            val actions = input.actions.toMutableSet()
+                SERVERBOUND_CLIENT_TICK_END_ENDPOINT.sendC2SPacket(ClientTickEndPacket)
+                val input = gameSession.mainPlayer.require<PlayerInput>()
+                val actions = input.actions.toMutableSet()
 
-            if (MinecraftClient.currentScreen !is CreativeInventoryScreen) {
-                actions.removeIf { it is InputAction.SlotClick }
-            }
+                if (MinecraftClient.currentScreen !is CreativeInventoryScreen) {
+                    actions.removeIf { it is InputAction.SlotClick }
+                }
 
-            val interaction = gameSession.mainPlayer.get<InteractionComponent>()
-            if (input.actions != input.lastActions && interaction?.selection == null) {
-                SERVERBOUND_INPUT_PACKET.sendC2SPacket(
-                    InputPacket(
-                        gameSession.ticks,
-                        actions.map { it.toDto() }.toSet()
+                val interaction = gameSession.mainPlayer.get<InteractionComponent>()
+                if (input.actions != input.lastActions && interaction?.selection == null) {
+                    SERVERBOUND_INPUT_PACKET.sendC2SPacket(
+                        InputPacket(
+                            gameSession.ticks,
+                            actions.map { it.toDto() }.toSet()
+                        )
                     )
-                )
-            }
-
-            for (player in gameSession.playerStorage) {
-                if (player.has<InteractionComponent>()) continue
-                player.get<InteractionQueueComponent>()?.interactions?.poll()?.let {
-                    player.set(it)
                 }
-            }
 
-            for (i in pendingFullPlayerData.indices) {
-                val (player, pendingFullData) = pendingFullPlayerData[i]
-                if (pendingFullData.referencedItems.isPresent()) {
-                    pendingFullPlayerData.removeAt(i)
-                    applyFullPlayerDataInternal(player, pendingFullData)
-                } else {
-                    continue
+                for (player in gameSession.playerStorage) {
+                    if (player.has<InteractionComponent>()) continue
+                    player.get<InteractionQueueComponent>()?.interactions?.poll()?.let {
+                        player.set(it)
+                    }
+                }
+
+                for (i in pendingFullPlayerData.indices) {
+                    val (player, pendingFullData) = pendingFullPlayerData[i]
+                    if (pendingFullData.referencedItems.isPresent()) {
+                        pendingFullPlayerData.removeAt(i)
+                        applyFullPlayerDataInternal(player, pendingFullData)
+                    } else {
+                        continue
+                    }
                 }
             }
         }
@@ -210,7 +211,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun onCursorItem(item: EngineItem?) {
-        SERVERBOUND_CURSOR_ITEM_ENDPOINT.sendC2SPacket(CursorItemPacket(item?.uuid))
+        val gameSession = gameSession ?: return
+        with(gameSession.world) { SERVERBOUND_CURSOR_ITEM_ENDPOINT.sendC2SPacket(CursorItemPacket(item?.requireComponent())) }
     }
 
     fun onChatStartTyping(channelId: ChannelId) {
@@ -221,7 +223,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.sendC2SPacket(ChatTypingEndPacket)
     }
 
-    fun onWriteableContentsUpdate(item: ItemUuid, contents: List<String>) {
+    fun onWriteableContentsUpdate(item: PersistentId, contents: List<String>) {
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.sendC2SPacket(WriteableUpdatePacket(item, contents))
     }
 
@@ -242,7 +244,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         client.eventBus.onFullPlayerData(client, id, data)
     }
 
-    private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.get(it) == null }
+    private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.getItem(it) == null }
 
     fun applyPlayerJoined(data: GeneralPlayerData) {
         gameSession!!.instantiateLowDetailedPlayer(data)
@@ -363,7 +365,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         try {
             add()
         } catch (e: IdCollisionException) {
-            itemStorage.remove(item.uuid)
+            itemStorage.remove(item.uuid.value)
             add()
 
             LOGGER.warn("Предмет ${item.id} (${item.uuid}) был перезаписан")

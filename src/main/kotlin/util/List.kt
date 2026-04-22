@@ -1,5 +1,6 @@
 package org.lain.engine.util
 
+import org.lain.engine.storage.ItemData
 import java.util.Queue
 import kotlin.collections.ArrayDeque
 
@@ -45,4 +46,22 @@ typealias Predicate = () -> Boolean
 
 fun <T> Predicate.then(factory: () -> T): T? {
     return if (this()) factory() else null
+}
+
+fun <T, C> Collection<T>.forEachWithContext(contextReceiver: (T) -> C, block: C.(T) -> Unit) {
+    forEach {
+        with (contextReceiver(it)) { block(it)  }
+    }
+}
+
+fun <T : ItemData> MutableList<ItemData>.addIf(statement: () -> Boolean, component: () -> T) {
+    if (statement()) this += component()
+}
+
+fun <T : Any> MutableCollection<T>.addIfNotNull(component: T?) {
+    if (component != null) this += component
+}
+
+fun <T : Any> MutableCollection<T>.addIfNotNull(component: () -> T?) {
+    addIfNotNull(component())
 }

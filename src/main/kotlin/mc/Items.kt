@@ -11,10 +11,13 @@ import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
 import net.minecraft.text.Text
 import net.minecraft.util.Unit
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.*
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.EngineId
 import org.lain.engine.util.injectItemAccess
 import org.lain.engine.util.text.parseMiniMessage
+import org.lain.engine.world.World
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
 
@@ -33,8 +36,9 @@ fun detachEngineItemStack(itemStack: ItemStack) {
     )
 }
 
+context(world: World)
 fun updateEngineItemStack(itemStack: ItemStack, item: EngineItem) {
-    wrapEngineItemStackVisual(itemStack, item.name)
+    wrapEngineItemStackVisual(itemStack, item.getName())
 }
 
 fun wrapEngineItemStackVisual(
@@ -61,16 +65,17 @@ fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int) {
     )
 }
 
+context(world: World)
 fun wrapEngineItemStack(
     item: EngineItem,
     itemStack: ItemStack
-): ItemStack {
-    wrapEngineItemStackVisual(itemStack, item.name)
-    wrapEngineItemStackBase(itemStack, item.maxCount)
+): ItemStack = with(world) {
+    wrapEngineItemStackVisual(itemStack, item.getName())
+    wrapEngineItemStackBase(itemStack, item.requireComponent<Count>().max)
 
     itemStack.set(
         ENGINE_ITEM_REFERENCE_COMPONENT,
-        EngineItemReferenceComponent(item.id, item.uuid, CURRENT_ITEM_VERSION)
+        EngineItemReferenceComponent(item.requireComponent<ItemMeta>().id, item.requireComponent<PersistentId>(), CURRENT_ITEM_VERSION)
     )
     return itemStack
 }
@@ -104,7 +109,7 @@ val ENGINE_ITEM_REFERENCE_COMPONENT: ComponentType<EngineItemReferenceComponent>
                         .forGetter { it.id },
                     Codec.STRING.optionalFieldOf("uuid")
                         .xmap(
-                            { it.map { ItemUuid(UUID.fromString(it).toString()) }.orElse(null) },
+                            { it.map { PersistentId(it) }.orElse(null) },
                             { Optional.ofNullable(it?.value) }
                         )
                         .forGetter { Optional.ofNullable(it.uuid).getOrNull() },
@@ -124,35 +129,13 @@ fun initializeEngineItemComponents() = kotlin.Unit
 
 const val CURRENT_ITEM_VERSION = 1
 
-// 0 - до механики предметов, не нужно детачить
-data class EngineItemReferenceComponent(val id: ItemId, val uuid: ItemUuid, val version: Int) {
+data class EngineItemReferenceComponent(
+    val id: ItemId,
+    val uuid: PersistentId,
+    val version: Int
+) {
     fun getItem(): EngineItem? {
         val itemStorage by injectItemAccess()
         return itemStorage.getItem(uuid)
     }
 }
-
-data class LegacyEngineItemReferenceComponent(val item: ItemId)
-
-val ENGINE_ITEM_REFERENCE_COMPONENT_LEGACY: ComponentType<LegacyEngineItemReferenceComponent> = Registry.register(
-    Registries.DATA_COMPONENT_TYPE,
-    EngineId("reference-component"),
-    ComponentType
-        .builder<LegacyEngineItemReferenceComponent>()
-        .codec(
-            RecordCodecBuilder.create { instance ->
-                instance.group(
-                    Codec.STRING.xmap(
-                        { ItemId(it) },
-                        { it.value }
-                    )
-                        .fieldOf("item")
-                        .forGetter { it.item }
-                ).apply(
-                    instance,
-                    ::LegacyEngineItemReferenceComponent
-                )
-            }
-        )
-        .build()
-)

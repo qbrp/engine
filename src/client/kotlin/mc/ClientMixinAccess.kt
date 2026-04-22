@@ -10,7 +10,9 @@ import net.minecraft.item.ItemStack
 import net.minecraft.sound.SoundCategory
 import net.minecraft.util.Identifier
 import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
 import org.lain.engine.client.mc.render.ToolgunRenderer
@@ -23,6 +25,7 @@ import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Writable
+import org.lain.engine.item.getTooltip
 import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.engine
 import org.lain.engine.player.EnginePlayer
@@ -52,14 +55,22 @@ object ClientMixinAccess {
         beforeWorldProjectionMatrix(toolgunRenderer)
     }
 
+    fun getTooltip(engineItem: EngineItem, advanced: Boolean): List<String> {
+        with(client.gameSession?.world ?: return emptyList()) {
+            return engineItem.getTooltip(advanced)
+        }
+    }
+
     fun getWriteable(itemStack: ItemStack): Writable? {
-        return getEngineItem(itemStack)?.get<Writable>()
+        val gameSession = client.gameSession ?: return null
+        return with(gameSession.world) { getEngineItem(itemStack)?.getComponent<Writable>() }
     }
 
     fun onBookClose(itemStack: ItemStack, writable: Writable, pages: List<String>) {
         val item = getEngineItem(itemStack) ?: return
+        val gameSession = client.gameSession ?: return
         writable.contents = pages
-        client.handler.onWriteableContentsUpdate(item.uuid, pages)
+        with(gameSession.world) { client.handler.onWriteableContentsUpdate(item.requireComponent(), pages) }
     }
 
     fun editVolume(sound: SoundInstance, volume: Float, category: SoundCategory): Float? {
@@ -87,8 +98,10 @@ object ClientMixinAccess {
     fun getEngineItemModel(itemStack: ItemStack): Identifier? {
         if (!client.gameSessionActive) return null
         val engineItem = itemStack.engine()?.getClientItem() ?: return null
-        return resolveItemAsset(engineItem).let { path ->
-            identifierCache.computeIfAbsent(resolveItemAsset(engineItem)) { EngineId(path) }
+        return with(client.gameSession?.world ?: return null) {
+            resolveItemAsset(engineItem).let { path ->
+                identifierCache.computeIfAbsent(resolveItemAsset(engineItem)) { EngineId(path) }
+            }
         }
     }
 
@@ -100,12 +113,12 @@ object ClientMixinAccess {
 
     fun predictItemLeftClickInteraction(): Boolean {
         val player = client.gameSession?.mainPlayer ?: return false
-        return processLeftClickInteraction(player)
+        return with(client.gameSession?.world ?: return false) { processLeftClickInteraction(player) }
     }
 
     fun canBreakBlocks(): Boolean {
-        val player = client.gameSession?.mainPlayer ?: return false
-        return !processLeftClickInteraction(player)
+        val gameSession = client.gameSession ?: return false
+        return with(gameSession.world) { !processLeftClickInteraction(gameSession.mainPlayer) }
     }
 
     fun onCursorStackSet(itemStack: ItemStack?) {

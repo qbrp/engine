@@ -8,6 +8,7 @@ import net.minecraft.client.render.item.ItemRenderState
 import net.minecraft.component.DataComponentTypes
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.item.ItemStack
+import org.lain.cyberia.ecs.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.isLowDetailed
 import org.lain.engine.client.mc.MinecraftClient
@@ -15,18 +16,16 @@ import org.lain.engine.client.mc.render.EngineItemDisplayContext
 import org.lain.engine.client.mc.render.updateForLivingEntity
 import org.lain.engine.client.resources.OutfitTag
 import org.lain.engine.container.Entries
-import org.lain.engine.item.*
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.FireMode
+import org.lain.engine.item.Gun
+import org.lain.engine.item.ItemAssets
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.player.*
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.EngineId
-import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.getOrSet
-import org.lain.cyberia.ecs.has
-import org.lain.cyberia.ecs.replaceOrSet
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.iterate
+import org.lain.engine.world.World
 
 data class EnginePlayerRenderState(
     val player: EnginePlayer,
@@ -54,7 +53,7 @@ data class EquipmentRenderState(
     var playerModelPart: ModelPart? = null,
 )
 
-fun GameSession.updatePlayerEntityRenderStates(playerTable: EntityTable) {
+fun GameSession.updatePlayerEntityRenderStates(playerTable: EntityTable) = with(world) {
     val renderStates = (MinecraftClient.world?.players ?: return)
         .mapNotNull { it to (playerTable.client.getPlayer(it) ?: return@mapNotNull null) }
         .filter { (entity, player) -> !player.isLowDetailed }
@@ -62,10 +61,10 @@ fun GameSession.updatePlayerEntityRenderStates(playerTable: EntityTable) {
             player to player.replaceOrSet(RenderStateComponent(EnginePlayerRenderState(player, entity))).renderState
         }
 
-    world.iterate<PlayerEquipment, Entries>() { _, (player), (entries) ->
+    iterate<PlayerEquipment, Entries>() { _, (player), (entries) ->
         val renderState = renderStates[player] ?: return@iterate
         val items = entries
-            .filter { it.require<Outfit>().display == OutfitDisplay.Separated }
+            .filter { it.requireComponent<Outfit>().display == OutfitDisplay.Separated }
         renderState.detachedEquipment = createModelPartEquipmentRenderStates(items, renderState.entity, player)
     }
 
@@ -79,23 +78,26 @@ fun GameSession.updatePlayerEntityRenderStates(playerTable: EntityTable) {
     }
 }
 
-private fun isGun(item: EngineItem?) = item?.has<Gun>() == true
+context(world: World)
+private fun isGun(item: EngineItem?) = item?.hasComponent<Gun>() == true
 
+context(world: World)
 private fun isGunWithoutSelector(item: EngineItem?): Boolean {
-    return (item?.get<Gun>() ?: return false).mode != FireMode.SELECTOR
+    return (item?.getComponent<Gun>() ?: return false).mode != FireMode.SELECTOR
 }
 
-data class PlayerEquipmentItemStacks(val stacks: MutableMap<ItemUuid, ItemStack>) : Component
+data class PlayerEquipmentItemStacks(val stacks: MutableMap<PersistentId, ItemStack>) : Component
 
+context(world: World)
 fun createModelPartEquipmentRenderStates(items: List<EngineItem>, entity: PlayerEntity, player: EnginePlayer): List<EquipmentRenderState> {
     return items
         .map {
-            val outfit = it.require<Outfit>()
-            val model = it.require<ItemAssets>()
+            val outfit = it.requireComponent<Outfit>()
+            val model = it.requireComponent<ItemAssets>()
             val part = outfit.parts.first()
             val state = ItemRenderState()
             val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
-            val itemStack = equipmentStacks.computeIfAbsent(it.uuid) {
+            val itemStack = equipmentStacks.computeIfAbsent(it.requireComponent()) {
                 val stack = ITEM_STACK_MATERIAL.copy()
                 stack.set(
                     DataComponentTypes.ITEM_MODEL,

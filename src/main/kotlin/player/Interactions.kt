@@ -1,20 +1,14 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.*
 import org.lain.engine.debugPacket
 import org.lain.engine.item.*
-import org.lain.engine.server.ServerHandler
 import org.lain.engine.script.ContentStorage
-import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.has
-import org.lain.cyberia.ecs.remove
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.set
-import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.nextIdFast
 import org.lain.engine.world.SoundContext
+import org.lain.engine.world.World
 import org.lain.engine.world.world
 import kotlin.reflect.KClass
 
@@ -162,16 +156,16 @@ data class InteractionComponent(
         progressionTimeStart = timeElapsed
     }
 
-    context(contents: ContentStorage)
+    context(world: World, contents: ContentStorage)
     fun attachItemProgression(
         item: EngineItem,
         key: String,
         duration: Int
     ) {
-        attachProgression(item.get<ItemProgressionAnimations>()?.animations[key], duration)
+        attachProgression(item.getComponent<ItemProgressionAnimations>()?.animations[key], duration)
     }
 
-    context(contents: ContentStorage)
+    context(world: World, contents: ContentStorage)
     fun attachHandItemProgression(
         key: String,
         duration: Int
@@ -187,6 +181,7 @@ data class InteractionComponent(
         occupied = true
     }
 
+    context(world: World)
     fun emitItemInteractionSoundEvent(item: EngineItem, key: String, player: EnginePlayer? = null) {
         item.emitPlaySoundEvent(key, player = player, context = SoundContext(sounds++, id))
     }
@@ -257,17 +252,19 @@ value class InteractionId(val value: Long) {
 }
 
 /** @return Отменить стандартное взаимодействие */
+context(world: World)
 fun processLeftClickInteraction(player: EnginePlayer, handItem: EngineItem? = player.handItem): Boolean {
     // стрельба
-    return handItem?.has<Gun>() == true
+    return handItem?.isGun() == true
 }
 
+context(world: World)
 fun appendVerbs(player: EnginePlayer) {
     appendWriteableVerbs(player)
-    appendGunVerbs(player)
+    // appendGunVerbs(player)
     appendPlayerInventoryVerbs(player)
-    appendPlayerEquipmentVerbs(player)
-    appendFlashlightVerbs(player)
+    // appendPlayerEquipmentVerbs(player)
+    // appendFlashlightVerbs(player)
     appendScriptBindingVerbs(player)
     appendSocialVerbs(player)
 }
@@ -301,7 +298,7 @@ fun finishPlayerInteraction(player: EnginePlayer) {
         val item = interaction.handItem
         val inSelection = interaction.selection != null
         val actionSimilar = interaction.action in actions || inSelection // условие всегда false во время открытой панели выбора
-        val itemsSimilar = item?.uuid == player.handItem?.uuid
+        val itemsSimilar = item == player.handItem
         val continueInteraction = (inSelection || interaction.occupied || interaction.progression != null) && itemsSimilar && actionSimilar
 
         if (!continueInteraction) {

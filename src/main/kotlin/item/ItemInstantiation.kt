@@ -1,21 +1,11 @@
 package org.lain.engine.item
 
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.WriteComponentAccess
-import org.lain.cyberia.ecs.copyState
-import org.lain.cyberia.ecs.set
-import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.container.Item
-import org.lain.engine.server.*
+import org.lain.cyberia.ecs.*
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Networked
 import org.lain.engine.world.World
-import org.lain.engine.world.location
-import kotlin.apply
-import kotlin.collections.any
-import kotlin.let
 
 data class ItemPrefab(
     val id: ItemId,
@@ -29,65 +19,51 @@ data class ItemPrefab(
 // Неинициализированный предмет
 data class ProtoItem(
     val prefabId: ItemId,
-    val uuid: ItemUuid,
+    val uuid: PersistentId,
     val world: World,
-    val state: ComponentState,
-    val entityState: ComponentState?,
+    val state: ComponentState
 )
 
 fun bakeItem(world: World, prefab: ItemPrefab): ProtoItem {
-    return itemInstance(world, ItemUuid.next(), prefab)
+    return itemInstance(world, PersistentId.next(), prefab)
 }
 
-fun itemInstance(world: World, uuid: ItemUuid, prefab: ItemPrefab): ProtoItem {
+fun itemInstance(world: World, uuid: PersistentId, prefab: ItemPrefab): ProtoItem {
     val state = ComponentState(prefab.componentsFactory())
-    return itemInstance(world, uuid, prefab.id, state, null)
+    return itemInstance(world, uuid, prefab.id, state)
 }
 
 fun itemInstance(
     world: World,
-    uuid: ItemUuid,
+    uuid: PersistentId,
     id: ItemId,
-    state: ComponentState,
-    entityState: ComponentState?,
+    state: ComponentState
 ): ProtoItem {
-    val item = ProtoItem(id, uuid, world, state, entityState)
-    item.state.apply {
-        set(UpdateMeta(false))
-        if (any { it is ItemSynchronizable }) {
-            set(Synchronizations<EngineItem>(mutableMapOf()))
-                .also { it.initializeSynchronizers() }
-        }
-    }
+    val item = ProtoItem(id, uuid, world, state)
     return item
-}
-
-private fun Synchronizations<EngineItem>.initializeSynchronizers() {
-    submit(ITEM_WRITABLE_SYNCHRONIZER)
-    submit(ITEM_GUN_SYNCHRONIZER)
-    submit(ITEM_FLASHLIGHT_SYNCHRONIZER)
 }
 
 fun WriteComponentAccess.instantiateItem(
     world: World,
     prefab: ItemPrefab,
-    itemStorage: Storage<ItemUuid, EngineItem>,
+    itemStorage: Storage<String, EngineItem>,
 ): EngineItem {
     return instantiateItem(bakeItem(world, prefab), itemStorage)
 }
 
-fun WriteComponentAccess.instantiateItem(item: ProtoItem, itemStorage: Storage<ItemUuid, EngineItem>): EngineItem {
-    val itemEntity = addEntity()
-    val engineItem = EngineItem(item.prefabId, item.uuid, itemEntity, item.state)
-    itemEntity.setComponent(Item(engineItem))
-    itemEntity.setComponent(Networked)
-    itemEntity.setComponent(PersistentId(item.uuid.toString()))
-    item.entityState?.let { itemEntity.copyState(it) }
-    itemStorage.add(item.uuid, engineItem)
+fun WriteComponentAccess.instantiateItem(item: ProtoItem, itemStorage: Storage<String, EngineItem>): EngineItem {
+    val engineItem = addEntity()
+    engineItem.setComponent(Item)
+    engineItem.setComponent(Networked)
+    engineItem.setComponent(PersistentId(item.uuid.toString()))
+    engineItem.setComponent(ItemMeta(item.uuid, item.prefabId))
+    engineItem.setComponent(UpdateMeta(false))
+    engineItem.copyState(item.state)
+    itemStorage.add(item.uuid.value, engineItem)
     return engineItem
 }
 
-fun destroyItem(item: EngineItem, storage: Storage<ItemUuid, EngineItem>) {
-    item.location.world.destroy(item.entity)
-    storage.remove(item.uuid)
+fun World.destroyItem(item: EngineItem, storage: Storage<String, EngineItem>) {
+    destroy(item)
+    storage.remove(item.requireComponent<PersistentId>().value)
 }

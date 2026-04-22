@@ -4,14 +4,14 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.util.WorldSavePath
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.batchUpsert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.lain.cyberia.ecs.Component
-import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.util.component.ComponentState
 
 fun connectDatabase(server: MinecraftServer): Database {
     val path = server.getSavePath(WorldSavePath.ROOT)
@@ -20,7 +20,7 @@ fun connectDatabase(server: MinecraftServer): Database {
         oldEngineDbFile.renameTo(path.toFile().resolve("engine-players.db"))
     }
     val database = Database.connect("jdbc:sqlite:$path/engine-players.db")
-    transaction { SchemaUtils.create(ItemsTable, EcsEntityTable) }
+    transaction { SchemaUtils.create(EcsEntityTable) }
     return database
 }
 
@@ -29,17 +29,20 @@ object EcsEntityTable : Table() {
     val components = binary("components")
 }
 
+@Deprecated("since 3.6.0")
 object ItemsTable : Table() {
     val uuid = varchar("uuid", 255).uniqueIndex()
     val id = varchar("id", 255)
     val components = binary("components")
 }
 
-suspend fun Database.saveEntitiesBatch(entities: List<Pair<PersistentId, ComponentState>>) {
+data class EntityDto(val persistentId: PersistentId, val components: List<Component>)
+
+suspend fun Database.saveEntitiesBatch(entities: List<EntityDto>) {
     suspendTransaction(this) {
-        EcsEntityTable.batchUpsert(entities) { (uuid, data) ->
-            this[EcsEntityTable.uuid] = uuid.uuid
-            this[EcsEntityTable.components] = serializeEntityComponents(data.getComponents())
+        EcsEntityTable.batchUpsert(entities) { (uuid, components) ->
+            this[EcsEntityTable.uuid] = uuid.value
+            this[EcsEntityTable.components] = serializeEntityComponents(components)
         }
     }
 }
@@ -48,34 +51,17 @@ suspend fun Database.loadEntity(id: PersistentId): List<Component>? {
     return suspendTransaction(this) {
         EcsEntityTable
             .selectAll()
-            .where { EcsEntityTable.uuid eq id.uuid }
+            .where { EcsEntityTable.uuid eq id.value }
             .firstOrNull()
     }?.let {
         deserializeEntityComponents(it[EcsEntityTable.components])
     }
 }
 
-suspend fun Database.saveItemPersistentDataBatch(items: List<Pair<EngineItem, PersistentItemData>>) {
-    suspendTransaction(this) {
-        ItemsTable.batchUpsert(items) { (item, data) ->
-            this[ItemsTable.uuid] = item.uuid.value
-            this[ItemsTable.id] = item.id.value
-            this[ItemsTable.components] = serializeItemPersistentComponents(data)
-        }
-    }
-}
-
-suspend fun Database.saveItemPersistentData(uuid: ItemUuid, id: ItemId, item: PersistentItemData) {
-    suspendTransaction(this) {
-        ItemsTable.upsert {
-            it[this.uuid] = uuid.value
-            it[this.id] = id.value
-            it[this.components] = serializeItemPersistentComponents(item)
-        }
-    }
-}
-
-suspend fun Database.loadPersistentItemData(uuid: ItemUuid): Pair<ItemId, PersistentItemData>? {
+/**
+ * C 22.04.2026 предметы сохраняются в общую базу данных сущностей
+ */
+suspend fun Database.loadPersistentItemDataLegacy(uuid: PersistentId): Pair<ItemId, PersistentItemData>? {
     return suspendTransaction(this) {
         ItemsTable
             .selectAll()

@@ -32,6 +32,7 @@ import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDP
 import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
 import org.lain.engine.util.file.*
+import org.lain.engine.util.forEachWithContext
 import org.lain.engine.world.*
 
 data class EngineMinecraftServerDependencies(
@@ -101,17 +102,18 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     open fun tick() {
         if (!minecraftServer.isRunning) return
+        engine.preUpdate()
         val players = engine.playerStorage.getAll()
         updateServerMinecraftSystems(this, entityTable, players, connectionManager)
         engine.listWorlds().forEach { world -> world.players.forEach { player -> updatePlayerOwnedItems(world, player) } }
         engine.update()
         updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld)
-        engine.listWorlds().forEach { world ->
+        engine.listWorlds().forEachWithContext({ it }) { world ->
             updateScriptComponents(world)
             world.updateVoxelEvents(engine.handler)
             world.clearEvents()
             updateUnloadSystem(world, timers)
-            updateSaveSystem(this, world)
+            updateSaveSystem(this@EngineMinecraftServer)
         }
         timers.items.tick()
         timers.containers.tick()
@@ -159,7 +161,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     open fun disable() = runBlocking {
-        engine.allWorlds().forEach { database.saveItems(it) }
+        engine.allWorlds().forEach { database.saveItemsBlocking(it) }
         engine.stop()
     }
 

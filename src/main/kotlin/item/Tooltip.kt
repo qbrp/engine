@@ -1,21 +1,24 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.cyberia.ecs.get
+import org.lain.engine.world.World
 
 @Serializable
 data class ItemTooltip(val text: String) : ItemComponent
 
+context(world: World)
 fun EngineItem.getTooltip(debug: Boolean): List<String> {
     val lines = mutableListOf<String>()
 
-    get<ItemTooltip>()?.let { tooltip ->
+    getComponent<ItemTooltip>()?.let { tooltip ->
         lines += "<gray>${tooltip.text}</gray>"
     }
 
-    get<Gun>()?.let { gun ->
-        val display = get<GunDisplay>()
+    getComponent<Gun>()?.let { gun ->
+        val display = getComponent<GunDisplay>()
         val ammunition = gun.ammunition
         val ammunitionName = display?.ammunition ?: ammunition?.value
 
@@ -42,6 +45,7 @@ fun EngineItem.getTooltip(debug: Boolean): List<String> {
         }
     }
 
+    val (uuid, id) = requireComponent<ItemMeta>()
     if (debug) {
         lines.add("<dark_gray>$id</dark_gray>")
         lines.add("<dark_gray>$uuid</dark_gray>")

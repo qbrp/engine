@@ -55,8 +55,9 @@ object ServerMixinAccess {
         player: PlayerEntity,
         clickType: ClickType
     ): Boolean {
+        val world = player.engine?.world ?: return false
         val space = slotStack.maxCount - slotStack.count
-        if (merge(item, cursorItem) && space > 0) {
+        if (world.merge(item, cursorItem) && space > 0) {
             when (clickType) {
                 ClickType.LEFT -> {
                     val toMove = minOf(cursorStack.count, space)
@@ -72,7 +73,7 @@ object ServerMixinAccess {
         }
 
         var success = false
-        val gunAmmoConsumeCount = item.gunAmmoConsumeCount(cursorItem)
+        val gunAmmoConsumeCount = item.gunAmmoConsumeCount(world, cursorItem)
         if (gunAmmoConsumeCount != 0)  {
             success = true
         }

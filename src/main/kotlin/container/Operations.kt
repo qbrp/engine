@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.util.Storage
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.world.World
 
 /**
@@ -15,7 +15,7 @@ import org.lain.engine.world.World
  * @see AssignSlot
  */
 @Serializable
-data class AssignItem(val itemUuid: ItemUuid) : Component
+data class AssignItem(val PersistentId: PersistentId) : Component
 data class DetachItem(val item: EngineItem) : Component
 
 /**
@@ -24,22 +24,22 @@ data class DetachItem(val item: EngineItem) : Component
  */
 data class ContainerError(val text: String) : Component
 
-fun updateContainerOperations(world: World, itemStorage: Storage<ItemUuid, EngineItem>) {
+context(world: World)
+fun updateContainerOperationSystem(itemStorage: ItemAccess) {
     world.iterate<Container, AssignItem, Entries>() { container, _, (itemToAttach), (entries) ->
-        val itemToAttach = itemStorage.get(itemToAttach) ?: return@iterate
+        val itemToAttach = itemStorage.getItem(itemToAttach) ?: return@iterate
         if (entries.contains(itemToAttach)) {
-            world.emitEvent(ContainerError("Контейнер уже содержит ${itemToAttach.name}"))
+            world.emitEvent(ContainerError("Контейнер уже содержит ${itemToAttach.getName()}"))
             return@iterate
         }
 
-        val itemEntity = itemToAttach.entity
         entries += itemToAttach
-        itemEntity.removeComponent<ContainedIn>()
+        itemToAttach.removeComponent<ContainedIn>()
             ?.let {
                 it.container.requireComponent<Entries>().items -= itemToAttach
                 it.container.setComponent(DetachItem(itemToAttach))
             }
-        itemEntity.setComponent(ContainedIn(container))
+        itemToAttach.setComponent(ContainedIn(container))
         container.markDirty<AssignItem>()
     }
 }
@@ -53,16 +53,17 @@ fun clearAssignItemsOperations(world: World) {
     }
 }
 
-fun updateContainedPlayerInventoryItems(world: World) {
-    world.iterate<Item, ContainedIn, HoldsBy>() { entity, (item), (container), (owner) ->
+context(world: World)
+fun updatePlayerContainerSystem() {
+    world.iterate<Item, ContainedIn, HoldsBy>() { item, _, (container), (owner) ->
         if (!container.hasComponent<PlayerContainerTag>()) {
-            owner.getOrSet { DestroyItemSignal(item.uuid, item.count) }
+            owner.getOrSet { DestroyItemSignal(item, item.getCount()) }
         } else if (item !in owner.items) {
             val inventory = owner.require<PlayerInventory>()
             val slot = if (inventory.mainHandFree) inventory.selectedSlot else null
-            owner.getOrSet { MoveItemSignal(item.uuid, slot) }
+            owner.getOrSet { MoveItemSignal(item, slot) }
             container.requireComponent<Entries>().items -= item
-            item.entity.removeComponent<ContainedIn>()
+            item.removeComponent<ContainedIn>()
         }
     }
 }

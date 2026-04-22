@@ -1,13 +1,14 @@
 package org.lain.engine.player
 
-import org.lain.engine.item.FireMode
-import org.lain.engine.item.Gun
-import org.lain.engine.item.count
-import org.lain.engine.item.name
-import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.set
+import org.lain.engine.item.FireMode
+import org.lain.engine.item.Gun
+import org.lain.engine.item.getCount
+import org.lain.engine.item.getName
 import org.lain.engine.util.text.displayNameMiniMessage
+import org.lain.engine.world.World
 
 const val SOCIAL_INTERACTION_DISTANCE = 15
 
@@ -23,6 +24,7 @@ val GIVE_AWAY = VerbType(
     priority = -5
 )
 
+context(world: World)
 fun appendSocialVerbs(player: EnginePlayer) = player.handle<VerbLookup> {
     forAction<InputAction.Attack>() {
         HAIL_VERB.takeIf { raycastPlayerNotNull(player, SOCIAL_INTERACTION_DISTANCE) }
@@ -30,13 +32,13 @@ fun appendSocialVerbs(player: EnginePlayer) = player.handle<VerbLookup> {
     forAction<InputAction.Base>(override = true) {
         GIVE_AWAY.takeIf {
             val lookOnPlayer = raycastPlayerNotNull(player, SOCIAL_INTERACTION_DISTANCE)
-            val gunSafety = (handItem?.get<Gun>()?.mode ?: FireMode.SELECTOR) == FireMode.SELECTOR
+            val gunSafety = (handItem?.getComponent<Gun>()?.mode ?: FireMode.SELECTOR) == FireMode.SELECTOR
             handItem != null && player.extendArm && lookOnPlayer && gunSafety
         }
     }
 }
 
-context(interaction: InteractionComponent)
+context(interaction: InteractionComponent, world: World)
 fun handleSocialInteractions(player: EnginePlayer) {
     player.handleInteraction(HAIL_VERB) {
         raycastPlayer?.serverNarration("${player.displayNameMiniMessage} окликнул вас!", 40, true)
@@ -47,12 +49,12 @@ fun handleSocialInteractions(player: EnginePlayer) {
         val handItem = handItem ?: return@handleInteraction
         val playerName = player.displayNameMiniMessage
         val raycastPlayerName = raycastPlayer.displayNameMiniMessage
-        val itemName = handItem.name
+        val itemName = handItem.getName()
         var failure: String? = null
         if (raycastPlayer.extendArm) {
             if (raycastPlayer.handFree) {
-                player.set(DestroyItemSignal(handItem.uuid, handItem.count))
-                raycastPlayer.set(MoveItemSignal(handItem.uuid, raycastPlayer.selectedSlot))
+                player.set(DestroyItemSignal(handItem, handItem.getCount()))
+                raycastPlayer.set(MoveItemSignal(handItem, raycastPlayer.selectedSlot))
                 raycastPlayer.serverNarration("$playerName передал вам $itemName", 60)
             } else {
                 player.serverNarration("$raycastPlayerName не может принять предмет, так как его руки заняты", 160)

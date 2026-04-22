@@ -1,9 +1,6 @@
 package org.lain.engine.test
 
-import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.hasComponent
-import org.lain.cyberia.ecs.setComponent
+import org.lain.cyberia.ecs.*
 import org.lain.engine.container.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
@@ -21,13 +18,13 @@ class ContainerTest : EngineTest() {
         val containerB = world.createContainer(world.dummyLocation())
         val item = instantiateItem(world, DummyItemPrefab(), itemStorage)
 
-        containerA.setComponent(AssignItem(item.uuid))
+        containerA.setComponent(AssignItem(item.requireComponent()))
         world.updateContainers(itemStorage)
 
-        containerB.setComponent(AssignItem(item.uuid))
+        containerB.setComponent(AssignItem(item.requireComponent()))
         world.updateContainers(itemStorage)
 
-        containerA.setComponent(AssignItem(item.uuid))
+        containerA.setComponent(AssignItem(item.requireComponent()))
         world.updateContainers(itemStorage)
 
         containerA.assertContained(item)
@@ -76,13 +73,13 @@ class ContainerTest : EngineTest() {
 
     context(world: World)
     private fun EngineItem.assertHasContainedComponent(container: EntityId) {
-        val containedIn = entity.getComponent<ContainedIn>()
+        val containedIn = getComponent<ContainedIn>()
         assert(containedIn != null && containedIn.container == container) { "Компонент хранения предмета не найден" }
     }
 
     private fun World.updateContainers(itemStorage: ItemStorage) {
-        updateContainerSystems(this, itemStorage)
+        updateContainerSystems(itemStorage)
         players.forEach { player -> updatePlayerOwnedItems(this, player) }
-        postUpdateContainerSystems(this)
+        postUpdateContainerSystems()
     }
 }

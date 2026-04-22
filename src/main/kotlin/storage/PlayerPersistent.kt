@@ -3,13 +3,13 @@ package org.lain.engine.storage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.lain.engine.container.getContainerSlots
-import org.lain.engine.item.ItemUuid
-import org.lain.engine.player.*
-import org.lain.engine.util.Color
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.requireComponent
+import org.lain.engine.container.getContainerSlots
+import org.lain.engine.player.*
+import org.lain.engine.util.Color
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.World
@@ -55,14 +55,14 @@ data class PersistentPlayerData(
     val voiceApparatus: VoiceApparatus,
     val voiceLoose: VoiceLoose?,
     @SerialName("chat_heads") val chatHeads: Boolean = true,
-    val equipment: Map<EquipmentSlot, ItemUuid> = mapOf(),
+    val equipment: Map<EquipmentSlot, PersistentId> = mapOf(),
     val skinEyeY: Float = 2f,
 )
 
 fun World.getEquipmentContainerSlots(container: EntityId) = getContainerSlots(container)
     .mapKeys { (slotId, _) -> EquipmentSlot.ofSlot(slotId) }
 
-fun File.savePersistentPlayerData(player: EnginePlayer) {
+fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
     val id = player.id.value.toString()
     val file = resolve("$id.json")
 
@@ -70,9 +70,8 @@ fun File.savePersistentPlayerData(player: EnginePlayer) {
     val movementStatus = player.require<MovementStatus>()
     val speedIntention = movementStatus.intention
     val stamina = movementStatus.stamina
-    val world = player.world
 
-    val equipmentSlots = world.getEquipmentContainerSlots(player.equipmentContainer)
+    val equipmentSlots = getEquipmentContainerSlots(player.equipmentContainer)
 
     file.ensureExists()
     file.writeText(
@@ -84,7 +83,7 @@ fun File.savePersistentPlayerData(player: EnginePlayer) {
                 player.require<VoiceApparatus>().copy(),
                 player.get<VoiceLoose>()?.copy(),
                 player.chatHeadsEnabled,
-                equipmentSlots.mapValues { (_, item) -> item.uuid },
+                equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentId>() },
                 player.require<PlayerModel>().skinEyeY,
             )
         )

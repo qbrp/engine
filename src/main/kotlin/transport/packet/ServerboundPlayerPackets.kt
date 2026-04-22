@@ -1,8 +1,8 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.ScriptBindings
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 
@@ -55,7 +55,7 @@ val SERVERBOUND_CLIENT_TICK_END_ENDPOINT = Endpoint<ClientTickEndPacket>()
 // Inventory
 
 @Serializable
-data class CursorItemPacket(val item: ItemUuid?) : Packet
+data class CursorItemPacket(val item: PersistentId?) : Packet
 
 val SERVERBOUND_CURSOR_ITEM_ENDPOINT = Endpoint<CursorItemPacket>()
 

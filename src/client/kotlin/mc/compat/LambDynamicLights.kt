@@ -12,16 +12,17 @@ import net.minecraft.util.math.MathHelper
 import net.minecraft.world.RaycastContext
 import org.joml.Matrix3d
 import org.joml.Vector3d
-import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.chat.acoustic.Grid3b
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.item.ConeLightEmitterSettings
 import org.lain.engine.item.Flashlight
-import org.lain.engine.item.ItemUuid
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.handItem
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.Injector
 import org.lain.engine.util.inject
 import org.lain.engine.util.math.smoothstepSDF
@@ -35,7 +36,7 @@ class LambDynamicLights : DynamicLightsInitializer {
     }
 }
 
-data class LightSource(val owner: EnginePlayer, val item: ItemUuid, val settings: ConeLightEmitterSettings)
+data class LightSource(val owner: EnginePlayer, val item: PersistentId, val settings: ConeLightEmitterSettings)
 
 fun updateLights(
     gameSession: GameSession,
@@ -43,15 +44,15 @@ fun updateLights(
     entityTable: EntityTable,
     lastSources: MutableSet<LightSource>,
     behaviours: MutableMap<LightSource, DynamicLightBehavior>
-) {
+) = with(gameSession.world) {
     val sourceList = mutableSetOf<LightSource>()
     // Сбор источников света
     gameSession.playerStorage.forEach { player ->
         val handItem = player.handItem ?: return@forEach
 
-        val flashlight = handItem.get<Flashlight>()
+        val flashlight = handItem.getComponent<Flashlight>()
         if (flashlight != null && flashlight.enabled) {
-            sourceList.add(LightSource(player, handItem.uuid, flashlight.emitter))
+            sourceList.add(LightSource(player, handItem.requireComponent(), flashlight.emitter))
         }
     }
 

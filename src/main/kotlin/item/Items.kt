@@ -1,36 +1,17 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.Storage
-import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.ComponentManager
-import org.lain.cyberia.ecs.get
-import org.lain.engine.util.component.Entity
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
-import org.lain.engine.util.component.ComponentState
-import java.util.*
+import org.lain.engine.storage.PersistentId
+import org.lain.engine.util.Storage
 import java.util.concurrent.ConcurrentHashMap
 
 /**
  * # Предмет модификации
  * Уникальный экземпляр предмета, представляемый в игре как единичный ItemStack
- * @param id Идентификатор префаба предмета
- * @param uuid Уникальный идентификатор экземпляра
  */
-data class EngineItem(
-    val id: ItemId,
-    val uuid: ItemUuid,
-    val entity: EntityId,
-    val state: ComponentState
-) : Entity, ComponentManager by state {
-    fun shortString(): String {
-        val name = get<ItemName>()?.text.let { if (it != null) ", $it" else "" }
-        return "$uuid($id$name)"
-    }
-
-    override val stringId: String
-        get() = this.uuid.toString()
-}
+typealias EngineItem = EntityId
 
 data class UpdateMeta(var adaptedThisTick: Boolean = false) : Component
 
@@ -44,27 +25,14 @@ value class ItemId(val value: String) {
     }
 }
 
-@JvmInline
-@Serializable
-value class ItemUuid(val value: String) {
-    override fun toString(): String {
-        return value
-    }
+class ItemStorage : Storage<String, EngineItem>(), ItemAccess {
+    override val map: MutableMap<String, EngineItem> = ConcurrentHashMap()
 
-    companion object {
-        fun next() = ItemUuid(UUID.randomUUID().toString())
-        fun fromString(string: String): ItemUuid = ItemUuid(string)
-    }
-}
-
-class ItemStorage : Storage<ItemUuid, EngineItem>(), ItemAccess {
-    override val map: MutableMap<ItemUuid, EngineItem> = ConcurrentHashMap()
-
-    override fun getItem(uuid: ItemUuid): EngineItem? {
-        return this.get(uuid)
+    override fun getItem(uuid: PersistentId): EngineItem? {
+        return this.get(uuid.value)
     }
 }
 
 interface ItemAccess {
-    fun getItem(uuid: ItemUuid): EngineItem?
+    fun getItem(uuid: PersistentId): EngineItem?
 }

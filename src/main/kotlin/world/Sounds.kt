@@ -2,13 +2,14 @@ package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.sound
+import org.lain.engine.item.ItemSounds
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
-import org.lain.engine.server.ServerHandler
 import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.math.Vec3
 
@@ -117,9 +118,9 @@ fun processWorldSounds(
                 context = request.context
                 SoundPlay(
                     storage.getOrSingleSound(
-                        request.item.sound?.get(request.key) ?: SoundEventId.MISSING,
+                        request.item.getComponent<ItemSounds>()?.sounds?.get(request.key) ?: SoundEventId.MISSING,
                     ),
-                    request.item.pos,
+                    request.item.getComponent<Location>()?.position ?: ImmutableVec3(),
                     request.category,
                     request.volume,
                     request.pitch

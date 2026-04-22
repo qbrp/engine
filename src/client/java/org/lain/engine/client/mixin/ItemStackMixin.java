@@ -15,8 +15,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ClickType;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.ClientItemStorageKt;
+import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.UtilKt;
-import org.lain.engine.item.EngineItem;
 import org.lain.engine.item.TooltipKt;
 import org.lain.engine.mc.EngineItemReferenceComponent;
 import org.lain.engine.mc.ItemsKt;
@@ -77,10 +77,10 @@ public abstract class ItemStackMixin {
             Consumer<Text> textConsumer,
             CallbackInfo ci
     ) {
-        EngineItem engineItem = getEngineItem((ItemStack)((Object)this));
+        Integer engineItem = getEngineItem((ItemStack)((Object)this));
         if (engineItem != null) {
             appendComponentTooltip(DataComponentTypes.LORE, context, displayComponent, textConsumer, type);
-            for (String line : TooltipKt.getTooltip(engineItem, type.isAdvanced())) {
+            for (String line : ClientMixinAccess.INSTANCE.getTooltip(engineItem, type.isAdvanced())) {
                 textConsumer.accept(UtilKt.parseMiniMessageClient(line));
             }
             ci.cancel();
@@ -96,15 +96,15 @@ public abstract class ItemStackMixin {
     public void engine$onClicked(Slot slot, ClickType clickType, PlayerEntity player, CallbackInfoReturnable<Boolean> cir) {
         if (!player.getEntityWorld().isClient()) return;
         ItemStack slotStack = slot.getStack();
-        EngineItem slotItem = getEngineItem(slotStack);
-        EngineItem item = getEngineItem((ItemStack) (Object)this);
+        Integer slotItem = getEngineItem(slotStack);
+        Integer item = getEngineItem((ItemStack) (Object)this);
         if (slotItem != null && item != null) {
             cir.setReturnValue(ServerMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object)this, player, clickType));
         }
     }
 
     @Unique
-    private static EngineItem getEngineItem(ItemStack itemStack) {
+    private static Integer getEngineItem(ItemStack itemStack) {
         EngineItemReferenceComponent component = itemStack.get(ItemsKt.getENGINE_ITEM_REFERENCE_COMPONENT());
         if (component == null) {
             return null;

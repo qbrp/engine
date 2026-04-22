@@ -5,7 +5,6 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerItems
-import org.lain.engine.item.ItemUuid
 import org.lain.engine.player.*
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
@@ -52,15 +51,16 @@ data class ClientboundSetupData(
 
 @Serializable
 data class PlayerReferencedItems(
-    val inventory: List<ItemUuid>,
-    val equipment: List<ItemUuid>
+    val inventory: List<PersistentId>,
+    val equipment: List<PersistentId>
 ) {
     val all by lazy { inventory + equipment }
 
     companion object {
+        context(world: World)
         fun of(player: EnginePlayer) = PlayerReferencedItems(
-            player.items.map { it.uuid },
-            player.world.getContainerItems(player.equipmentContainer).map { it.uuid }
+            player.items.map { it.requireComponent() },
+            player.world.getContainerItems(player.equipmentContainer).map { it.requireComponent() }
         )
     }
 }
@@ -167,6 +167,7 @@ data class FullPlayerData(
     val referencedItems: PlayerReferencedItems,
 ) {
     companion object {
+        context(world: World)
         fun of(player: EnginePlayer) = FullPlayerData(
             player.require<MovementStatus>().copy(),
             player.require<PlayerAttributes>().copy(),

@@ -9,7 +9,7 @@ import java.util.*
 private val BOOK_BACKUPS_DIR = STORAGE_DIR.resolve("books")
     .also { it.mkdirs() }
 
-fun backupBookContent(writer: String, item: ItemId, pages: List<String>) = ItemIoCoroutineScope.launch {
+fun backupBookContent(writer: String, item: ItemId, pages: List<String>) = StorageCoroutineScope.launch {
     val date = SimpleDateFormat("dd-MM-yyyy-HH-mm").format(Date())
     val name = "$date $item $writer"
         .replace("/", "")

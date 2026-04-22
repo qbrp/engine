@@ -1,13 +1,13 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.*
-import org.lain.engine.server.ItemSynchronizable
-import org.lain.engine.transport.packet.ItemComponent
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.set
+import org.lain.engine.player.*
+import org.lain.engine.transport.packet.ItemComponent
+import org.lain.engine.world.World
 
 @Serializable
 /**
@@ -22,7 +22,7 @@ data class Writable(
     val pages: Int,
     var contents: List<String>,
     val backgroundAsset: String? = null,
-) : ItemComponent, ItemSynchronizable
+) : ItemComponent
 
 const val WRITEABLE_OPEN_SOUND = "writable_open"
 
@@ -31,14 +31,15 @@ val WRITEABLE_OPEN_VERB = VerbType(
     "Открыть для чтения"
 )
 
+context(world: World)
 fun appendWriteableVerbs(player: EnginePlayer) {
     player.handle<VerbLookup> {
-        if (!(handItem?.has<Writable>() ?: false)) return@handle
+        if (!(handItem?.hasComponent<Writable>() ?: false)) return@handle
         forAction<InputAction.Base>(WRITEABLE_OPEN_VERB)
     }
 }
 
-context(interaction: InteractionComponent)
+context(world: World, interaction: InteractionComponent)
 fun handleWriteableInteractions(player: EnginePlayer) {
     val handItem = player.handItem ?: return
     player.handleInteraction(WRITEABLE_OPEN_VERB) {

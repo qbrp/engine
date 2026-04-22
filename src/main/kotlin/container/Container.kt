@@ -1,10 +1,10 @@
 package org.lain.engine.container
 
-import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.cyberia.ecs.copyState
 import org.lain.engine.item.EngineItem
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Networked
 import org.lain.engine.world.Location
@@ -35,9 +35,8 @@ data class Entries(val items: MutableList<EngineItem>) : Component
  * ## Компоненты предметов
  * Крепятся к сущности в ComponentWorld
  */
-data class Item(val engine: EngineItem) : Component
-@Serializable data class ContainedIn(val container: EntityId) : Component
-@Serializable data class ContainerAnchor(val container: EntityId) : Component
+data class ContainedIn(val container: EntityId) : ItemComponent
+data class ContainerAnchor(val container: EntityId) : Component
 
 fun ReadComponentAccess.getContainerItems(container: EntityId): List<EngineItem> {
     return container.requireComponent<Entries>().items
@@ -69,7 +68,7 @@ fun ReadComponentAccess.collectContainedRecursive(container: EntityId): List<Eng
 
         for (child in entries) {
             result += child
-            val anchor = child.entity.getComponent<ContainerAnchor>() ?: continue
+            val anchor = child.getComponent<ContainerAnchor>() ?: continue
             visit(anchor.container)
         }
     }

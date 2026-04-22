@@ -65,13 +65,11 @@ fun mainClientPlayerInstance(
 
 fun clientItem(world: World, item: ClientboundItemData): ProtoItem {
     val state = ComponentState(item.components)
-    val entityState = ComponentState(item.entityComponents)
     return itemInstance(
         world,
         item.uuid,
         item.id,
         state,
-        entityState,
     )
 }
 

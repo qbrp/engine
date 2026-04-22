@@ -1,8 +1,9 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.cyberia.ecs.get
+import org.lain.engine.world.World
 
 /**
  * @param text Отображаемый текст без форматирования
@@ -10,5 +11,5 @@ import org.lain.cyberia.ecs.get
 @Serializable
 data class ItemName(val text: String) : ItemComponent
 
-val EngineItem.name
-    get() = this.get<ItemName>()?.text ?: "Предмет"
+context(world: World)
+fun EngineItem.getName(): String = requireComponent<ItemName>().text

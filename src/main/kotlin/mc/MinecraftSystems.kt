@@ -14,7 +14,6 @@ import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.server.EngineServer
-import org.lain.engine.server.desync
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.util.Storage
 import org.lain.engine.util.math.Vec3
@@ -46,24 +45,15 @@ val ENGINE_MOD_VERSION
 
 fun Username(text: Text) = Username(text.string)
 
+context(world: World)
 fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: ServerPlayerEntity, player: EnginePlayer) {
-    val items = mutableListOf<ItemUuid>()
+    val items = mutableListOf<EngineItem>()
     for (stack in entity.inventory.mainStacks) {
-        val engineItem = stack.engine() ?: continue
-        val itemUuid = engineItem.uuid
-        if (items.contains(itemUuid)) {
-            engineServer.wrapItemStackCatching(player, engineItem.id, stack)
+        val engineItem = stack.engine()?.getItem() ?: continue
+        if (items.contains(engineItem)) {
+            engineServer.wrapItemStackCatching(player, engineItem.requireComponent<ItemMeta>().id, stack)
         } else {
-            items.add(itemUuid)
-        }
-    }
-}
-
-fun updateLegacyEngineItems(server: EngineMinecraftServer, player: EnginePlayer, itemStacks: List<ItemStack>) {
-    for (item in itemStacks) {
-        if (item.contains(ENGINE_ITEM_REFERENCE_COMPONENT_LEGACY)) {
-            val component = item.remove(ENGINE_ITEM_REFERENCE_COMPONENT_LEGACY)!!
-            server.wrapItemStackCatching(player, component.item, item)
+            items.add(engineItem)
         }
     }
 }
@@ -95,7 +85,7 @@ fun updateServerMinecraftSystems(
     val itemLoader = engine.itemLoader
     val notUpdatedPlayers = players.toMutableList()
 
-    removeHoldsByMarks(itemStorage.getAll())
+    server.engine.allWorlds().forEach { world -> world.prepareItemMinecraftSystem() }
     for (player in players) {
         val entity = table.getEntity(player)
         if (entity == null || checkIsAliveDuplicate(player, entity, server.minecraftServer)) {
@@ -110,7 +100,6 @@ fun updateServerMinecraftSystems(
 
         val screenHandler = entity.currentScreenHandler
         val itemStacks = entity.inventory + screenHandler.stacks + screenHandler.cursorStack
-        updateLegacyEngineItems(server, player, itemStacks)
         val items: MutableList<Pair<EngineItem, ItemStack>> = mutableListOf()
 
         for (itemStack in itemStacks) {
@@ -118,7 +107,7 @@ fun updateServerMinecraftSystems(
             val reference = itemStack.engine()
             if (reference != null) {
                 item = reference.getItem()
-                val uuid = reference.uuid
+                val uuid = reference.uuid.value
                 if (item == null) {
                     if (!itemLoader.isLoading(uuid)) {
                         itemLoader.loadItemStackWrapping(itemStack, player)
@@ -140,7 +129,7 @@ fun updateServerMinecraftSystems(
         updatePlayerMinecraftSystems(player, items.toSet(), entity, world, engine.itemStorage)
         player.remove<OpenBookTag>()
         if (entity is ServerPlayerEntity) {
-            excludeEngineItemDuplicates(server, entity, player)
+            with(world) { excludeEngineItemDuplicates(server, entity, player) }
         }
     }
     if (notUpdatedPlayers.isNotEmpty()) {
@@ -148,14 +137,9 @@ fun updateServerMinecraftSystems(
     }
 }
 
-fun removeHoldsByMarks(items: List<EngineItem>) {
-    items.forEach {
-        it.remove<HoldsBy>()
-        it.get<Location>()?.let { location ->
-            with(location.world) { it.entity.removeComponent<HoldsBy>() }
-        }
-        it.require<UpdateMeta>().adaptedThisTick = false
-    }
+fun World.prepareItemMinecraftSystem() = iterate<Item, UpdateMeta> { item, _, updateMeta ->
+    item.removeComponent<HoldsBy>()
+    updateMeta.adaptedThisTick = false
 }
 
 fun updatePlayerMinecraftSystems(
@@ -163,7 +147,7 @@ fun updatePlayerMinecraftSystems(
     items: Set<Pair<EngineItem, ItemStack>>,
     entity: PlayerEntity,
     world: World,
-    itemStorage: Storage<ItemUuid, EngineItem>
+    itemStorage: Storage<String, EngineItem>
 ) = with(world) {
     val items = items.toMutableList()
 
@@ -250,35 +234,39 @@ fun updatePlayerMinecraftSystems(
     }
 
     if (moveItemSignal != null && entity is ServerPlayerEntity) {
-        val item = itemStorage.get(moveItemSignal.item) ?: desync("Предмет для передачи ${moveItemSignal.item} не найден")
+        val item = moveItemSignal.item
         val itemStack = wrapEngineItemStack(item, ITEM_STACK_MATERIAL.copy())
         val slot = moveItemSignal.slot
         insertStack(item, itemStack, slot)
     }
 
     val mainItemStack = entity.mainHandStack
-    val mainHandStackId = mainItemStack.engine()?.uuid
-    val offHandStackId = entity.offHandStack.engine()?.uuid
+    val mainHandStackItem = mainItemStack.engine()?.uuid?.let { itemStorage.get(it.value) }
+    val offHandStackItem = entity.offHandStack.engine()?.uuid?.let { itemStorage.get(it.value) }
     var mainHandItem: EngineItem? = null
     var offHandItem: EngineItem? = null
 
     for ((item, itemStack) in items) {
-        if (mainHandStackId == item.uuid) {
+        if (mainHandStackItem == item) {
             mainHandItem = item
         }
-        if (offHandStackId == item.uuid) {
+        if (offHandStackItem == item) {
             offHandItem = item
         }
 
         playerInventory.items += item
         playerInventoryItems -= item
 
-        if (destroyItemSignal != null && destroyItemSignal.item == item.uuid) {
+        if (destroyItemSignal != null && destroyItemSignal.item == item) {
             itemStack.decrement(destroyItemSignal.count)
             player.remove<DestroyItemSignal>()
         }
 
-        val updateMeta = item.require<UpdateMeta>()
+        if (!item.hasComponent<UpdateMeta>()) {
+            println() //FOR DEBUG
+        }
+
+        val updateMeta = item.requireComponent<UpdateMeta>()
         if (updateMeta.adaptedThisTick) {
             continue
         }
@@ -286,7 +274,7 @@ fun updatePlayerMinecraftSystems(
 
         updateEngineItemStack(itemStack, item)
 
-        val countComponent = item.get<Count>()
+        val countComponent = item.getComponent<Count>()
         if (countComponent == null) {
             itemStack.count = 1
         } else {
@@ -315,9 +303,9 @@ fun updatePlayerOwnedItems(world: World, player: EnginePlayer) = with(world) {
     if (allItems.isNotEmpty()) {
         val component = HoldsBy(player)
         allItems.forEach {
-            it.getOrSet { component }
-            it.replaceOrSet(location)
-            it.entity.setComponent(component)
+            if (!it.hasComponent<HoldsBy>()) it.setComponent(component)
+            it.setComponent(location)
+            it.setComponent(component)
         }
     }
 }

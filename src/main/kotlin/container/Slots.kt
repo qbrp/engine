@@ -3,8 +3,10 @@ package org.lain.engine.container
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.Item
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -14,7 +16,7 @@ import org.lain.engine.world.World
 @Serializable data class OccupiedSlots(val slots: MutableSet<SlotId>) : Component
 
 // Назначать на сущность предмета
-@Serializable data class AssignedSlot(val slot: SlotId) : Component
+@Serializable data class AssignedSlot(val slot: SlotId) : ItemComponent
 
 // Операция
 data class AssignSlot(val item: EngineItem, val slot: SlotId) : Component
@@ -42,16 +44,16 @@ fun WriteComponentAccess.createSlotContainer(
     items.forEach { (slot, item) ->
         occupiedSlots += slot
         entries += item
-        item.entity.setComponent(ContainedIn(container))
-        item.entity.setComponent(AssignedSlot(slot))
+        item.setComponent(ContainedIn(container))
+        item.setComponent(AssignedSlot(slot))
     }
     return container
 }
 
 fun World.getContainerSlots(container: EntityId): Map<SlotId, EngineItem> {
     val items = mutableMapOf<SlotId, EngineItem>()
-    iterate<Item, ContainedIn, AssignedSlot> { i, item, (containedId), (attachedSlot) ->
-        if (containedId == container) items[attachedSlot] = item.engine
+    iterate<Item, ContainedIn, AssignedSlot> { item, _, (containedId), (attachedSlot) ->
+        if (containedId == container) items[attachedSlot] = item
     }
     return items
 }
@@ -67,9 +69,8 @@ fun updateSlotContainers(world: World) {
         if (slotToAttach !in slots) error("Слот $slotToAttach не существует в контейнере $container")
         container.removeComponent<AssignSlot>()
         if (slotToAttach !in occupiedSlots) {
-            container.setComponent(AssignItem(itemToAttach.uuid))
+            container.setComponent(AssignItem(itemToAttach.requireComponent<PersistentId>()))
 
-            val itemToAttach = itemToAttach.entity
             occupiedSlots += slotToAttach
             itemToAttach.setComponent(AssignedSlot(slotToAttach))
             itemToAttach.markDirty<AssignedSlot>()
@@ -82,18 +83,20 @@ fun updateSlotContainers(world: World) {
 
 fun detachSlotContainers(world: World) {
     world.iterate<Container, OccupiedSlots, DetachItem>() { container, _, (occupiedSlots), (detachedItem) ->
-        val slot = detachedItem.entity.removeComponent<AssignedSlot>()?.slot ?: return@iterate
+        val slot = detachedItem.removeComponent<AssignedSlot>()?.slot ?: return@iterate
         occupiedSlots.remove(slot)
     }
 }
 
-fun updateContainerSystems(world: World, itemStorage: ItemStorage) {
+context(world: World)
+fun updateContainerSystems(itemStorage: ItemStorage) {
     updateSlotContainers(world)
-    updateContainerOperations(world, itemStorage)
+    updateContainerOperationSystem(itemStorage)
     detachSlotContainers(world)
 }
 
-fun postUpdateContainerSystems(world: World) {
-    updateContainedPlayerInventoryItems(world)
+context(world: World)
+fun postUpdateContainerSystems() {
+    updatePlayerContainerSystem()
     clearAssignItemsOperations(world)
 }
