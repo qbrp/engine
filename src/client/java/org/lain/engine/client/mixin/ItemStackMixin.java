@@ -83,6 +83,8 @@ public abstract class ItemStackMixin {
             for (String line : ClientMixinAccess.INSTANCE.getTooltip(engineItem, type.isAdvanced())) {
                 textConsumer.accept(UtilKt.parseMiniMessageClient(line));
             }
+        }
+        if (engineItem != null || components.contains(ItemsKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
             ci.cancel();
         }
     }

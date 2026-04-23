@@ -7,10 +7,10 @@ import org.lain.engine.server.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.world.EngineChunk
 
-fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler, ) {
+fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler) {
     clientAcknowledgeHandler.run()
 
-    CLIENTBOUND_JOIN_GAME_ENDPOINT.registerClientReceiver { ctx ->
+    CLIENTBOUND_JOIN_GAME_ENDPOINT.registerClientReceiver { _ ->
         taskExecutor.add("join_game") { applyJoinGame(playerData, worldData, setupData, notifications) }
     }
 
@@ -52,37 +52,33 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyChatMessage(message)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) {
         applyDeleteChatMessage(message)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ITEM_ENDPOINT) { gameSession ->
-        applyItemPacket(item)
-    }
-
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_PACKET) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_PACKET) {
         updatePlayerDetailed(playerId) {
             applyInteractionPacket(it, interaction)
         }
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_INTERACTION_SELECTION_ENDPOINT) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_INTERACTION_SELECTION_ENDPOINT) {
         applyInteractionSelectionPacket(selection)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_SELECTION_SELECT_ENDPOINT) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_SELECTION_SELECT_ENDPOINT) {
         updatePlayerDetailed(player) {
             applyPlayerInteractionSelectionSelectPacket(it, variantId)
         }
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INPUT_PACKET) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INPUT_PACKET) { _ ->
         updatePlayerDetailed(playerId) {
             applyPlayerInputPacket(it, actions)
         }
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { _ ->
         applyPlaySoundPacket(play, context)
     }
 
@@ -90,23 +86,23 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         gameSession.onContentsUpdated()
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { _ ->
         applyAcousticDebugVolumePacket(volumes)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_VOXEL_EVENT_PACKET) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_VOXEL_EVENT_PACKET) { _ ->
         applyVoxelEvent(event)
     }
 
-    CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { ctx ->
+    CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { _ ->
         taskExecutor.add("chunk-load") { applyChunkPacket(pos, EngineChunk(decals.toMutableMap(), hints.toMutableMap())) }
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ENTITY_ENDPOINT) { gameSession ->
+    registerGameSessionReceiver(CLIENTBOUND_ENTITY_ENDPOINT) { _ ->
         applyEntity(persistentId, components)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { gameSession -> applyIntent(dto, intent) }
+    registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { _ -> applyIntent(dto, intent) }
 
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)

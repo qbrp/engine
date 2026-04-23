@@ -8,7 +8,10 @@ import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
-import org.lain.engine.client.handler.*
+import org.lain.engine.client.handler.ClientHandler
+import org.lain.engine.client.handler.isLowDetailed
+import org.lain.engine.client.handler.lowDetailedClientPlayerInstance
+import org.lain.engine.client.handler.mainClientPlayerInstance
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.util.LittleNotification
@@ -26,6 +29,7 @@ import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.WARNING_COLOR
+import org.lain.engine.util.component.ComponentState
 import org.lain.engine.world.*
 import java.util.*
 
@@ -87,7 +91,12 @@ class GameSession(
     }
 
     fun instantiateItem(clientboundItemData: ClientboundItemData): EngineItem = with(world) {
-        val item = clientItem(world, clientboundItemData)
+        val item = ProtoItem(
+            clientboundItemData.id,
+            clientboundItemData.uuid,
+            world,
+            ComponentState(clientboundItemData.components)
+        )
         return instantiateItem(item, itemStorage)
     }
 

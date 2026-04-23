@@ -81,7 +81,7 @@ fun loadItem(world: World, persistentId: PersistentId, components: List<Componen
  */
 data class ItemLoadResult(
     val protoItem: ProtoItem,
-    val container: PersistentId?
+    val container: PersistentId? = null,
 )
 
 /**

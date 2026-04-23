@@ -13,6 +13,7 @@ import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.server.EngineServer
+import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -144,6 +145,21 @@ fun dataFixItem(item: ProtoItem, storage: NamespacedStorage) {
     }
 }
 
+private val INVALID_ITEM_TOOLTIPS = listOf(
+    "Помните, обилие багов - симптом активной разработки<newline>(C) lain1wakura",
+    "i'm psyho",
+    "если бы все мужчины были гомосексуальны, немецкий народ исчез бы, но если бы все женщины были лесбиянками, «они бы все равно рожали детей»",
+    "Господи, храни америку!"
+)
+
+fun InvalidItem(uuid: PersistentId, world: World) = ProtoItem(
+    ItemId("core/error"), uuid, world,
+    ComponentState {
+        set(ItemName("Недействительный предмет"))
+        set(ItemTooltip(INVALID_ITEM_TOOLTIPS.random()))
+    }
+)
+
 class ItemLoader(
     private val server: EngineServer,
     private val database: Database
@@ -163,12 +179,15 @@ class ItemLoader(
     ): EngineItem? {
         server.itemStorage.getItem(uuid)?.let { item -> return item }
 
-        val result = database.loadEntity(uuid)?.let { components -> loadItem(world, uuid, components) }
-            ?: database.loadPersistentItemDataLegacy(uuid)?.let { (id, components) -> loadItemLegacy(components, world, id, uuid) }
-            ?: run {
-                notFound.add(uuid.value)
-                return null
-            }
+        val result = runCatching {
+            database.loadEntity(uuid)?.let { components -> loadItem(world, uuid, components) }
+                ?: database.loadPersistentItemDataLegacy(uuid)?.let { (id, components) -> loadItemLegacy(components, world, id, uuid) }
+                ?: run {
+                    notFound.add(uuid.value)
+                    return null
+                }
+        }
+            .getOrElse { ItemLoadResult(InvalidItem(uuid, world)) }
         val protoItem = result.protoItem
         val container = result.container?.let { database.loadEntity(it) ?: error("Контейнер $it не найден") }
         dataFixItem(protoItem, server.namespacedStorage)

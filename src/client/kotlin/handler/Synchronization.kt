@@ -2,11 +2,11 @@ package org.lain.engine.client.handler
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getOrSet
-import org.lain.engine.item.ProtoItem
-import org.lain.engine.item.itemInstance
 import org.lain.engine.player.*
-import org.lain.engine.transport.packet.*
-import org.lain.engine.util.component.ComponentState
+import org.lain.engine.transport.packet.ClientboundWorldData
+import org.lain.engine.transport.packet.DeveloperModeStatus
+import org.lain.engine.transport.packet.GeneralPlayerData
+import org.lain.engine.transport.packet.ServerPlayerData
 import org.lain.engine.util.component.ComponentWorld
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.World
@@ -61,16 +61,6 @@ fun mainClientPlayerInstance(
         ),
         id
     ).also { it.isLowDetailed = false }
-}
-
-fun clientItem(world: World, item: ClientboundItemData): ProtoItem {
-    val state = ComponentState(item.components)
-    return itemInstance(
-        world,
-        item.uuid,
-        item.id,
-        state,
-    )
 }
 
 fun clientWorld(thread: Thread, data: ClientboundWorldData) = World(data.id, componentManager = ComponentWorld(thread), isClient = true)

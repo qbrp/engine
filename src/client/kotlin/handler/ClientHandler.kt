@@ -21,6 +21,8 @@ import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.Item
+import org.lain.engine.item.addItemComponents
 import org.lain.engine.mc.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
@@ -359,19 +361,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         client.applyLittleNotification(notification)
     }
 
-    fun applyItemPacket(item: ClientboundItemData) = with(gameSession!!) {
-        fun add() = instantiateItem(item)
-
-        try {
-            add()
-        } catch (e: IdCollisionException) {
-            itemStorage.remove(item.uuid.value)
-            add()
-
-            LOGGER.warn("Предмет ${item.id} (${item.uuid}) был перезаписан")
-        }
-    }
-
     fun applyPlaySoundPacket(play: SoundPlay, context: SoundContext?): Unit = with(gameSession!!) {
         soundsToBroadcast += SoundBroadcast(play, listOf(), context)
     }
@@ -404,6 +393,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             e
         }
         entity.copyState(components)
+        if (entity.hasComponent<Item>()) {
+            val gameSession = gameSession!!
+            val itemStorage = gameSession.itemStorage
+            entity.addItemComponents()
+            if (itemStorage.get(persistentId.value) != null) itemStorage.remove(persistentId.value)
+            itemStorage.add(persistentId.value, entity)
+        }
     }
 
     fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {

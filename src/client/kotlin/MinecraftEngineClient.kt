@@ -140,14 +140,14 @@ class MinecraftEngineClient : ClientModInitializer {
             }
         }
 
-        ServerMixinAccess.blockInteractionCallback = callback@ { entity, world, blockPos ->
+        ServerMixinAccess.blockInteractionCallback = callback@ { _, world, blockPos ->
             val gameSession = engineClient.gameSession
             if (!world.isClient || !isInWorld(world) || gameSession == null) return@callback false
             val voxel = gameSession.world.chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return@callback false
             with(gameSession.world) { voxel.hasComponent(BuiltinScriptComponents.USE_RESTRICTION.ecsType) }
         }
 
-        ClientCommandRegistrationCallback.EVENT.register { dispatcher, env ->
+        ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
             dispatcher.register(
                 ClientCommandManager.literal("reloadenginecontents")
                     .executes { ctx ->
@@ -174,7 +174,7 @@ class MinecraftEngineClient : ClientModInitializer {
             )
         }
 
-        ClientPlayConnectionEvents.JOIN.register { handler, _, _ ->
+        ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
             if (engineClient.gameSessionActive) {
                 connectionLogger.warn("Сброс активной игровой сессии. Это баг, который не должен возникать в обычных условиях")
                 onDisconnect()
@@ -194,15 +194,15 @@ class MinecraftEngineClient : ClientModInitializer {
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
 
-        ClientLoginConnectionEvents.DISCONNECT.register { handler, client -> onDisconnect() }
+        ClientLoginConnectionEvents.DISCONNECT.register { _, _ -> onDisconnect() }
 
-        ClientPlayConnectionEvents.DISCONNECT.register { handler, client -> onDisconnect() }
+        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> onDisconnect() }
 
         ClientTickEvents.START_CLIENT_TICK.register { keybindManager.tick(engineClient) }
 
-        ClientTickEvents.END_CLIENT_TICK.register { client -> tickClient() }
+        ClientTickEvents.END_CLIENT_TICK.register { _ -> tickClient() }
 
-        ClientChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
+        ClientChunkEvents.CHUNK_UNLOAD.register { _, chunk ->
             chunks -= chunk
             decalsStorage.unloadTextures(chunk.pos.engine())
         }
@@ -244,11 +244,11 @@ class MinecraftEngineClient : ClientModInitializer {
             )
         }
 
-        ServerLifecycleEvents.SERVER_STOPPED.register { server ->
+        ServerLifecycleEvents.SERVER_STOPPED.register { _ ->
             this.server = null
         }
 
-        LivingEntityFeatureRendererRegistrationCallback.EVENT.register { type, renderer, helper, context ->
+        LivingEntityFeatureRendererRegistrationCallback.EVENT.register { _, renderer, helper, _ ->
             if (renderer is PlayerEntityRenderer) {
                 helper.register(EquipmentFeatureRenderer(renderer))
                 helper.register(HeadEquipmentFeatureRenderer(renderer))
@@ -260,7 +260,6 @@ class MinecraftEngineClient : ClientModInitializer {
         val profiler = Profilers.get()
         profiler.push("engineClientTick")
         val entity = client.player
-        val gameSession = engineClient.gameSession
 
         ClientMixinAccess.tick()
         window.handleResize()

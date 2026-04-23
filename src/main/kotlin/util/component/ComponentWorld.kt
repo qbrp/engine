@@ -1,5 +1,6 @@
 package org.lain.engine.util.component
 
+import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -9,8 +10,8 @@ typealias EntityId = Int
 
 class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComponentAccess {
     private val arrays = mutableMapOf<ComponentType<out Component>, ComponentArray<*>>()
-    private val arraysList = mutableListOf<ComponentArray<*>>()
-    private val deltaBitMasks = mutableListOf<LongArray?>()
+    private val arraysList = ArrayList<ComponentArray<*>>()
+    private val deltaBitMasks = ArrayList<LongArray?>()
 
     // Создание сущностей потокобезопасно. Добавление компонентов - нет
     private var destroyed = Collections.synchronizedList<Boolean>(mutableListOf())
@@ -38,7 +39,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
     }
 
     override fun markDirty(entity: EntityId, type: ComponentType<out Component>) {
-        getDeltaBitMask(entity).markDirty(getComponentArray(type).idx)
+        getOrCreateNetworkedDeltaBitMask(entity).markDirty(getComponentArray(type).idx)
     }
 
     override fun invalidateStates(entity: EntityId) {
@@ -46,7 +47,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
     }
 
     fun clearDirtyMask(entity: EntityId) {
-        val bitMask = getDeltaBitMask(entity)
+        val bitMask = getNetworkedDeltaBitMask(entity) ?: return
         for (i in bitMask.indices) {
             bitMask[i] = 0L
         }
@@ -70,15 +71,45 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         return bitMask
     }
 
-    fun getDeltaBitMask(entityId: EntityId): LongArray {
+    fun getNetworkedDeltaBitMask(entityId: EntityId): LongArray? {
         assertOnThread()
+        if (deltaBitMasks.size <= entityId) return null
+        return deltaBitMasks[entityId]
+    }
+
+    fun getOrCreateNetworkedDeltaBitMask(entityId: EntityId): LongArray {
         while(deltaBitMasks.size <= entityId) deltaBitMasks.add(null)
-        val bitMask = deltaBitMasks[entityId] ?: createBitMask().also { deltaBitMasks[entityId] = it }
-        return bitMask
+        return getNetworkedDeltaBitMask(entityId) ?: createBitMask()
+            .also { mask ->
+                getNetworkedArrays(entityId).forEach { mask.markDirty(it.idx) }
+                deltaBitMasks[entityId] = mask
+            }
+    }
+
+    fun getNetworkedArrays(entityId: EntityId): List<ComponentArray<*>> {
+        val output = mutableListOf<ComponentArray<*>>()
+        for (arr in arraysList) {
+            val component = arr.componentOf(entityId)
+            if (component != null && arr.meta.networking) {
+                output += arr
+            }
+        }
+        return output
+    }
+
+    fun getNetworkedComponents(entityId: EntityId): List<Component> {
+        val output = mutableListOf<Component>()
+        for (arr in arraysList) {
+            val component = arr.componentOf(entityId)
+            if (component != null && arr.meta.networking) {
+                output += component
+            }
+        }
+        return output
     }
 
     // Создаем массив из Long-ов, количество - общее число типов компонентов, делённое на 64 (сколько битов держит один Long)
-    private fun createBitMask() = LongArray(((arrays.size + 1) shr 6) + 1)
+    private fun createBitMask() = LongArray((arrays.size + 63) shr 6)
 
     private fun bitMaskIdxOf(idx: Int) = (idx shr 6)
 
@@ -117,6 +148,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         arrays.forEach { (_, array) -> array.removeComponent(entity) }
         freeIndexes.add(entity)
         destroyed[entity] = true
+        if (deltaBitMasks.size > entity) deltaBitMasks.removeAt(entity)
     }
 
     override fun exists(entity: EntityId): Boolean {
@@ -294,8 +326,8 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
     }
 }
 
+@Serializable
 object Networked : Component
-object Broadcast : Component
 
 class ComponentArray<T : Component>(val idx: Int, val meta: ComponentMeta) {
     internal val sparseArray = mutableListOf<Int?>()

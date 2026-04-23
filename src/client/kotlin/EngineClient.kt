@@ -176,7 +176,8 @@ class EngineClient(
     fun leaveGameSession() {
         val gameSession = gameSession ?: error("Game session is not active")
         gameSession.destroy()
-        compilationResult = null
+        //compilationResult = null
+        //с богом
         this.gameSession = null
     }
 }

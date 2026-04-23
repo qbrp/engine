@@ -137,11 +137,6 @@ fun updateServerMinecraftSystems(
     }
 }
 
-fun World.prepareItemMinecraftSystem() = iterate<Item, UpdateMeta> { item, _, updateMeta ->
-    item.removeComponent<HoldsBy>()
-    updateMeta.adaptedThisTick = false
-}
-
 fun updatePlayerMinecraftSystems(
     player: EnginePlayer,
     items: Set<Pair<EngineItem, ItemStack>>,
@@ -294,6 +289,12 @@ fun updatePlayerMinecraftSystems(
     }
 
     player.remove<MoveItemSignal>()
+}
+
+fun World.prepareItemMinecraftSystem() = iterate<Item, UpdateMeta> { item, _, updateMeta ->
+    item.removeComponent<HoldsBy>()
+    item.removeComponent<Location>()
+    updateMeta.adaptedThisTick = false
 }
 
 fun updatePlayerOwnedItems(world: World, player: EnginePlayer) = with(world) {

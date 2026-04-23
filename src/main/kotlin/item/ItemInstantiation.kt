@@ -56,12 +56,17 @@ fun WriteComponentAccess.instantiateItem(
 
 fun WriteComponentAccess.instantiateItem(item: ProtoItem, itemStorage: Storage<String, EngineItem>): EngineItem {
     val engineItem = addEntity()
-    engineItem.setComponent(Item)
-    engineItem.setComponent(Networked)
     engineItem.setComponent(PersistentId(item.uuid.toString()))
     engineItem.setComponent(ItemMeta(item.uuid, item.prefabId))
-    engineItem.setComponent(UpdateMeta(false))
+    engineItem.addItemComponents()
     engineItem.copyState(item.state)
     itemStorage.add(item.uuid.value, engineItem)
     return engineItem
+}
+
+context(world: WriteComponentAccess)
+fun EngineItem.addItemComponents() {
+    setComponent(Item)
+    setComponent(Networked)
+    setComponent(UpdateMeta(false))
 }

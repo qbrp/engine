@@ -1,5 +1,9 @@
 package org.lain.engine.mc
 
+import net.minecraft.entity.player.PlayerEntity
+import org.lain.engine.item.instantiateItem
+import org.lain.engine.storage.InvalidItem
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.saveItemsBlocking
 import org.lain.engine.util.getServerStats
 import org.lain.engine.util.injectMinecraftEngineServer
@@ -42,6 +46,21 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
                     .executeCatching { ctx ->
                         server.timers.items.activate()
                         ctx.sendFeedback("Вызвано сохранение предметов", true)
+                    }
+            )
+            .then(
+                literal("invalid-item")
+                    .executeCatching { ctx ->
+                        val player = ctx.requirePlayer()
+                        val world = player.world
+                        val item = world.instantiateItem(
+                            InvalidItem(PersistentId.next(), world),
+                            engine.itemStorage
+                        )
+                        val entity = ctx.requireEntity() as? PlayerEntity ?: return@executeCatching
+                        val itemStack = ITEM_STACK_MATERIAL.copy()
+                        with(world) { wrapEngineItemStack(item, itemStack) }
+                        entity.giveItemStack(itemStack)
                     }
             )
     )

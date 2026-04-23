@@ -2,9 +2,13 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerItems
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemMeta
 import org.lain.engine.player.*
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
@@ -14,7 +18,6 @@ import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.getEquipmentContainerSlots
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.transport.PacketCodec
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.world
@@ -84,6 +87,21 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
 }
 
 @Serializable
+data class ClientboundItemData(
+    val id: ItemId,
+    val uuid: PersistentId,
+    val components: List<Component>,
+) {
+    companion object {
+        context(world: World)
+        fun of(item: EngineItem): ClientboundItemData {
+            val itemMeta = item.requireComponent<ItemMeta>()
+            return ClientboundItemData(itemMeta.id, itemMeta.uuid, world.componentManager.getNetworkedComponents(item))
+        }
+    }
+}
+
+@Serializable
 data class ServerPlayerData(
     val general: GeneralPlayerData,
     val attributes: PlayerAttributes,
@@ -110,11 +128,11 @@ data class ServerPlayerData(
     }
 
     companion object {
+        context(world: World)
         fun of(player: EnginePlayer): ServerPlayerData {
             val movementStatus = player.require<MovementStatus>().copy()
             val voiceApparatus = player.require<VoiceApparatus>().copy()
             val defaults = player.require<DefaultPlayerAttributes>().copy()
-            val world = player.world
             return ServerPlayerData(
                 GeneralPlayerData.of(player),
                 player.require<PlayerAttributes>().copy(),
@@ -124,10 +142,10 @@ data class ServerPlayerData(
                 voiceApparatus.minVolume ?: defaults.minVolume,
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
-                player.items.map { ClientboundItemData.from(player.world, it) },
+                player.items.map { ClientboundItemData.of(it) },
                 world
                     .getEquipmentContainerSlots(player.equipmentContainer)
-                    .mapValues { (_, item) -> ClientboundItemData.from(world, item) },
+                    .mapValues { (_, item) -> ClientboundItemData.of(item) },
                 player.skinEyeY,
             )
         }
@@ -143,12 +161,7 @@ data class JoinGamePacket(
 ) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)
-val CLIENTBOUND_JOIN_GAME_ENDPOINT = Endpoint<JoinGamePacket>(
-    PacketCodec.Kotlinx(
-        JoinGamePacket.serializer(),
-        ItemProtobuf
-    ),
-)
+val CLIENTBOUND_JOIN_GAME_ENDPOINT = Endpoint<JoinGamePacket>()
 
 // Full player data (for synchronization)
 

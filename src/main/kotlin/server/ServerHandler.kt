@@ -8,6 +8,7 @@ import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getAll
 import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
 import org.lain.cyberia.ecs.require
@@ -276,36 +277,20 @@ class ServerHandler(
             val world = player.world
             val input = player.require<PlayerInput>()
             val state = player.network
-            val location = player.location
+            val playerLocation = player.location
+            val playerPosition = playerLocation.position
 
             debugPacket("Действия тика ${state.tick}: ${input.actions}")
 
-            val playersToSynchronize = filterNearestPlayers(location, playerSynchronizationRadius, players).toMutableList()
-            val playersToDesynchronize = state.players.filter { it.pos.squaredDistanceTo(player.pos) > squaredDesynchronizationRadius }
+            val playersToSynchronize = filterNearestPlayers(playerLocation, playerSynchronizationRadius, players).toMutableList()
+            val playersToDesynchronize = state.players.filter { it.pos.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
             state.players.removeAll(playersToDesynchronize)
 
             val items: HashSet<PersistentId> = hashSetOf()
-            world.iterate<Item, HoldsBy, PersistentId> { item, _, (owner), persistentId ->
-                items.add(persistentId)
-                if (persistentId !in state.items) {
-                    state.items += persistentId
-                    val packet = ItemPacket(ClientboundItemData.from(world, item))
-                    val task = CLIENTBOUND_ITEM_ENDPOINT.taskS2C(
-                        packet,
-                        player.id
-                    )
-                        .send()
-                        .withAcknowledge()
-                        .onTimeoutServerThread { state.items -= persistentId }
-                    coroutineScope.launch { task.run() }
-                }
-            }
-
-            state.items.removeIf { it !in items }
-
-            world.iterate<Networked, Location, PersistentId>() { entity, _, location, persistentId ->
-                if (location.position.squaredDistanceTo(location.position) < squaredSynchronizationRadius) {
-                    val delta = world.componentManager.getDeltaBitMask(entity)
+            world.iterate<Networked, Location, PersistentId>() { entity, _, entityLocation, persistentId ->
+                if (entity.hasComponent<Player>()) return@iterate
+                if (entityLocation.position.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
+                    val delta = world.componentManager.getOrCreateNetworkedDeltaBitMask(entity)
                     val componentsToSynchronize = entity.getAll(delta)
                     if (componentsToSynchronize.isNotEmpty()) {
                         CLIENTBOUND_ENTITY_ENDPOINT.sendS2C(
@@ -313,8 +298,12 @@ class ServerHandler(
                             player.id
                         )
                     }
+                    if (entity.hasComponent<Item>() && persistentId !in items) {
+                        items.add(persistentId)
+                    }
                 }
             }
+            state.items.removeIf { it !in items }
 
             tickSynchronizationComponent(playerStorage, player)
 
@@ -408,9 +397,8 @@ class ServerHandler(
         server.playerStorage.get(player)?.let { onServerNotification(it, notification, once) }
     }
 
-    fun onPlayerInstantiation(player: EnginePlayer, notifications: List<Notification> = listOf()) {
+    fun onPlayerInstantiation(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
         val playerId = player.id
-        val world = player.world
         val packet = PlayerJoinServerPacket(GeneralPlayerData.of(player))
 
         playerStorage.forEach {
@@ -424,7 +412,7 @@ class ServerHandler(
         val synchronization = player.network
         val joinGamePacket = JoinGamePacket(
             ServerPlayerData.of(player),
-            ClientboundWorldData.of(world),
+            ClientboundWorldData.of(this),
             ClientboundSetupData.create(server, player),
             notifications
         )

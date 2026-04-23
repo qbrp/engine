@@ -20,7 +20,7 @@ class ComponentSerializerNotRegisteredException(componentClass: KClass<out Compo
 @Suppress("UNCHECKED_CAST")
 fun PolymorphicModuleBuilder<Component>.componentSubclassSerializers() {
     val classes = ComponentTypeRegistry.listEntries()
-        .filter { (_, entry) -> entry.meta.savable }
+        .filter { (_, entry) -> entry.meta.savable || entry.meta.networking }
         .map { (_, entry) -> entry.meta.serializationClass }
     val exceptions = mutableListOf<ComponentSerializerNotRegisteredException>()
     classes.forEach {
