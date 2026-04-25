@@ -301,6 +301,7 @@ class ServerHandler(
                     if (entity.hasComponent<Item>() && persistentId !in items) {
                         items.add(persistentId)
                     }
+
                 }
             }
             state.items.removeIf { it !in items }
@@ -424,6 +425,7 @@ class ServerHandler(
         coroutineScope.launch {
             task.run()
             server.execute {
+                synchronization.disconnect = false
                 synchronization.authorized = true
                 synchronization.items += joinGamePacket.playerData.referencedItems.all
             }

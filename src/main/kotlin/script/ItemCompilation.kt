@@ -61,7 +61,7 @@ fun CompiledItem(
                     soundsComponent,
                     progressionAnimationsComponent,
                     writable?.let { Writable(it.pages, listOf(), it.texture) },
-                    flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance, it.light)) },
+                    flashlight?.let { Flashlight(false, ConeLightEmitterSettings(it.radius, it.distance)) },
                 ) + componentsFactory()
             }
         )

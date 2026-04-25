@@ -40,7 +40,9 @@ class EngineServer(
     savePath: File,
     database: Database
 ): Executor {
-    val globals: ServerGlobals = ServerGlobals(id, savePath=savePath)
+    @Volatile
+    var globals: ServerGlobals = ServerGlobals(id, savePath=savePath)
+        private set
     val handler = ServerHandler(this)
 
     private val taskQueue = ConcurrentLinkedQueue<Runnable>()
@@ -59,6 +61,10 @@ class EngineServer(
         get() = worlds.toList().first().second
 
     fun listWorlds() = worlds.values
+
+    fun assertOnThread(): Boolean {
+        return Thread.currentThread() === thread
+    }
 
     fun run() {
         handler.run()
@@ -130,14 +136,15 @@ class EngineServer(
         listWorlds().forEachWithContext({ it }) { world -> postUpdateContainerSystems() }
     }
 
-    fun updateGlobals(update: (ServerGlobals) -> Unit) = execute {
-        update(globals)
+    fun updateGlobals(update: (ServerGlobals) -> ServerGlobals) = execute {
+        globals = update(globals)
         chat.onSettingsUpdated(globals.chatSettings)
         handler.onServerSettingsUpdate()
     }
 
     fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
         player.entityId.setComponent(Player)
+        player.entityId.setComponent(player.location)
         eventListener.onPlayerInstantiated(player)
 
         player.startSpectating()

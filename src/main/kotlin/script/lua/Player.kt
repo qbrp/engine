@@ -1,6 +1,12 @@
 package org.lain.engine.script.lua
 
+import org.lain.cyberia.ecs.hasComponent
+import org.lain.cyberia.ecs.iterate
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.*
+import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.world.Location
+import org.lain.engine.world.World
 import org.lain.engine.world.world
 import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaTable
@@ -76,4 +82,40 @@ fun Globals.setupPlayer() {
             return NIL
         }
     })
+}
+
+context(world: World, luaContext: LuaContext)
+fun EnginePlayer.prepareLuaScriptComponents() {
+    entityId.setComponent(
+        LuaScriptComponent(luaTableOf(luaValue("object"), coerceToLua())),
+        CoreScriptComponents.PLAYER
+    )
+    entityId.setComponent(
+        LuaScriptComponent(
+            luaTableOf(luaValue("vector"), LuaValue.NIL),
+        ),
+        CoreScriptComponents.LOCATION
+    )
+}
+
+fun World.updatePlayerScriptSystem() {
+    val locationArray = componentManager.getComponentArray(CoreScriptComponents.LOCATION)
+    iterate(CoreScriptComponents.LOCATION) { entity, location ->
+        if (!entity.hasComponent<Location>()) {
+            val array = location.luaTable.get("vector")
+            entity.setComponent(Location(this@updatePlayerScriptSystem, array.toVector3f()))
+        }
+    }
+    iterate<Location>() { entity, location ->
+        val scriptLocation = locationArray.componentOf(entity) ?: return@iterate
+        val table = scriptLocation.luaTable
+        val vector = table.get("vector").nullable()?.checktable() ?: run {
+            val array = location.position.toLuaValue()
+            table.set("vector", array)
+            array
+        }
+        vector.set(1, location.x.toLuaValue())
+        vector.set(2, location.y.toLuaValue())
+        vector.set(3, location.z.toLuaValue())
+    }
 }

@@ -17,20 +17,18 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
     private var destroyed = Collections.synchronizedList<Boolean>(mutableListOf())
     private var freeIndexes = ConcurrentLinkedQueue<EntityId>()
     private var lastIndex = AtomicInteger()
+    private val entityInstantiationLock = Any()
 
     init { invalidateComponentArrays(ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }) }
 
     fun invalidateComponentArrays(entries: List<Pair<ComponentType<out Component>, ComponentMeta>>) {
         entries.forEach { (type, meta) ->
-            if (!arrays.containsKey(type)) addComponentArray(type, meta)
+            if (!arrays.containsKey(type)) {
+                val arr = ComponentArray<Component>(arrays.size, meta)
+                arrays[type] = arr
+                arraysList += arr
+            }
         }
-    }
-
-    private fun <T : Component> addComponentArray(type: ComponentType<T>, meta: ComponentMeta) {
-        assertOnThread()
-        val arr = ComponentArray<T>(arrays.size, meta)
-        arrays[type] = arr
-        arraysList += arr
     }
 
     private fun assertOnThread() {
@@ -133,7 +131,15 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         return list
     }
 
-    override fun addEntity(): EntityId {
+    // потокобезопасно?
+    override fun addEntity(builder: context(WriteComponentAccess) EntityId.() -> Unit): EntityId = with(this) {
+        val entity = addEntity()
+        entity.builder()
+        entity
+    }
+
+    // потокобезопасно
+    override fun addEntity(): EntityId = synchronized(entityInstantiationLock) {
         val idx = freeIndexes.poll() ?: run {
             destroyed.add(false)
             lastIndex.getAndIncrement()
@@ -142,23 +148,21 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         return idx
     }
 
+    // главный поток
     override fun destroy(entity: EntityId) {
-        assertOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         arrays.forEach { (_, array) -> array.removeComponent(entity) }
         freeIndexes.add(entity)
         destroyed[entity] = true
-        if (deltaBitMasks.size > entity) deltaBitMasks.removeAt(entity)
+        if (entity < deltaBitMasks.size) {
+            deltaBitMasks[entity] = null
+        }
     }
 
+    // главный поток
     override fun exists(entity: EntityId): Boolean {
-        return lastIndex.get() >= entity && !destroyed[entity]
-    }
-
-    override fun addEntity(builder: context(WriteComponentAccess) EntityId.() -> Unit): EntityId = with(this) {
-        val entity = addEntity()
-        entity.builder()
-        entity
+        assertOnThread()
+        return entity < destroyed.size && !destroyed[entity]
     }
 
     override fun getComponents(entity: EntityId, bitMask: LongArray?): List<Component> {
@@ -337,6 +341,17 @@ class ComponentArray<T : Component>(val idx: Int, val meta: ComponentMeta) {
         get() = denseArray
 
     fun entityOf(componentIdx: Int) = denseEntities[componentIdx]
+
+    fun getOrSet(entityId: EntityId, factory: () -> T): T {
+        val component = componentOf(entityId)
+        if (component != null) {
+            return component
+        } else {
+            val newComponent = factory()
+            setComponent(entityId, newComponent)
+            return newComponent
+        }
+    }
 
     fun componentOf(entityId: EntityId): T? {
         // А есть ли такая сущность вообще? Не удален ли у нее компонент?

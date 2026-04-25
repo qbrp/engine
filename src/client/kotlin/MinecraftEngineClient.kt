@@ -1,6 +1,5 @@
 package org.lain.engine.client
 
-import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
 import kotlinx.coroutines.*
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
@@ -29,19 +28,17 @@ import org.lain.engine.AuthPacket
 import org.lain.engine.EngineMinecraftServerDependencies
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.client.mc.*
-import org.lain.engine.client.mc.compat.LightSource
+import org.lain.engine.client.mc.compat.LightSystem
 import org.lain.engine.client.mc.compat.injectDynamicLightsContext
-import org.lain.engine.client.mc.compat.updateLights
 import org.lain.engine.client.mc.render.*
-import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
+import org.lain.engine.client.mc.render.world.DecalSystem
 import org.lain.engine.client.mc.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.mc.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.mc.render.world.registerWorldRenderEvents
 import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mc.sound.TinnitusSoundInstance
 import org.lain.engine.client.mixin.MinecraftClientAccessor
-import org.lain.engine.client.render.WARNING
-import org.lain.engine.client.render.Window
+import org.lain.engine.client.render.*
 import org.lain.engine.client.resources.OutfitTag
 import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
@@ -74,8 +71,6 @@ class MinecraftEngineClient : ClientModInitializer {
     private val fabricLoader = FabricLoader.getInstance()
     private val entityTable by injectEntityTable()
     private val dynamicLights by injectDynamicLightsContext()
-    private val dynamicLightSources = mutableSetOf<LightSource>()
-    private val dynamicLightBehaviours = mutableMapOf<LightSource, DynamicLightBehavior>()
     private val clientPlayerTable by lazy { entityTable.client }
     private var chunks = mutableListOf<Chunk>()
 
@@ -85,8 +80,9 @@ class MinecraftEngineClient : ClientModInitializer {
     private val camera = MinecraftCamera(client)
     val uiRenderPipeline = EngineUiRenderPipeline(client, fontRenderer)
 
+    private lateinit var lightSystem: LightSystem
     private lateinit var toolgunRenderer: ToolgunRenderer
-    private val decalsStorage: ChunkDecalsStorage = ChunkDecalsStorage()
+    private val decalsStorage: DecalSystem = DecalSystem()
     private val eventBus = MinecraftEngineClientEventBus(client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
@@ -144,7 +140,7 @@ class MinecraftEngineClient : ClientModInitializer {
             val gameSession = engineClient.gameSession
             if (!world.isClient || !isInWorld(world) || gameSession == null) return@callback false
             val voxel = gameSession.world.chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return@callback false
-            with(gameSession.world) { voxel.hasComponent(BuiltinScriptComponents.USE_RESTRICTION.ecsType) }
+            with(gameSession.world) { voxel.hasComponent(CoreScriptComponents.USE_RESTRICTION) }
         }
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
@@ -171,6 +167,26 @@ class MinecraftEngineClient : ClientModInitializer {
                         ctx.source.sendFeedback(Text.of("Контент скомпилирован"))
                         1
                     }
+            )
+            dispatcher.register(
+                ClientCommandManager.literal("edclient")
+                    .then(
+                        ClientCommandManager.literal("illuminate")
+                            .executes { ctx ->
+                                val gameSession = engineClient.gameSession ?: return@executes 0
+                                with(gameSession.world) {
+                                    val entity = gameSession.mainPlayer.entityId
+                                    if (entity.hasComponent<LightSource>()) {
+                                        entity.removeComponent<LightSource>()
+                                        entity.removeComponent<Luminance>()
+                                    } else {
+                                        entity.setComponent(LightSource(LightBehaviour.Sphere(6)))
+                                        entity.setComponent(Luminance(14))
+                                    }
+                                }
+                                1
+                            }
+                    )
             )
         }
 
@@ -365,8 +381,8 @@ class MinecraftEngineClient : ClientModInitializer {
         }
 
         updateBulletsVisual(gameSession.world, minecraftWorld)
-        updateLights(gameSession, dynamicLights, entityTable, dynamicLightSources, dynamicLightBehaviours)
-        decalsStorage.handleDecalsEvent(gameSession.world)
+        lightSystem.update(gameSession)
+        decalsStorage.update(gameSession.world)
         gameSession.world.clearEvents()
         audioManager.tick(gameSession)
     }
@@ -378,6 +394,8 @@ class MinecraftEngineClient : ClientModInitializer {
         )
         toolgunRenderer.init()
         Injector.register(toolgunRenderer)
+
+        lightSystem = LightSystem(dynamicLights)
 
         if (listOf("remii", "denterest").contains(client.gameProfile.name)) {
             audioManager.playPigScreamSound()
@@ -392,6 +410,7 @@ class MinecraftEngineClient : ClientModInitializer {
         uiRenderPipeline.invalidate()
         entityTable.client.invalidate()
         decalsStorage.unload()
+        lightSystem.invalidate()
 
         if (engineClient.gameSessionActive) {
             engineClient.leaveGameSession()
@@ -405,11 +424,11 @@ class MinecraftEngineClient : ClientModInitializer {
     private fun authorize(entity: ClientPlayerEntity) {
         val developerMode = DeveloperModeStatus(engineClient.developerMode, engineClient.acousticDebug)
         if (client.isInSingleplayer) {
-            val server = server ?: throw RuntimeException("Server not started")
-            val engine = server.engine
+            val engine = server?.engine ?: throw RuntimeException("Server not started")
+            val settings = engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId, developerMode, listOf())
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
                 engine.playerLoader.loadPreparing(
-                    settings = serverMinecraftPlayerLoadSettings(entity, entity.engineId, developerMode, listOf()),
+                    settings = settings,
                     exceptionHandler = { disconnectWithReason(DisconnectText(it)) }
                 )
             }

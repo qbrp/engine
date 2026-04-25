@@ -31,6 +31,7 @@ import org.lain.engine.server.desync
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
+import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Networked
 import org.lain.engine.world.*
 import org.slf4j.Logger
@@ -392,14 +393,16 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             e.setComponent(persistentId)
             e
         }
-        entity.copyState(components)
-        if (entity.hasComponent<Item>()) {
+        val state = ComponentState(components)
+        if (state.has<Item>()) { // addItemComponents перезаписывает некоторые компоненты, например Count
+            // поэтому обращаемся через state.has, и уже потом копируем его в entity
             val gameSession = gameSession!!
             val itemStorage = gameSession.itemStorage
             entity.addItemComponents()
             if (itemStorage.get(persistentId.value) != null) itemStorage.remove(persistentId.value)
             itemStorage.add(persistentId.value, entity)
         }
+        entity.copyState(state)
     }
 
     fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {

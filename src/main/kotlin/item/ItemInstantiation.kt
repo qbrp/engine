@@ -64,9 +64,13 @@ fun WriteComponentAccess.instantiateItem(item: ProtoItem, itemStorage: Storage<S
     return engineItem
 }
 
+/**
+ * Использовать перед добавлением компонентов
+ */
 context(world: WriteComponentAccess)
 fun EngineItem.addItemComponents() {
     setComponent(Item)
     setComponent(Networked)
     setComponent(UpdateMeta(false))
+    setComponent(Count(1, 1))
 }

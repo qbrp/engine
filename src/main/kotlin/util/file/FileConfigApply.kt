@@ -12,6 +12,7 @@ import org.lain.engine.mc.AcousticBlockData
 import org.lain.engine.mc.ServerMixinAccess
 import org.lain.engine.mc.registerServerChatCommand
 import org.lain.engine.player.*
+import org.lain.engine.server.ServerGlobals
 import org.lain.engine.util.Color
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -159,36 +160,42 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
 
     engine.updateGlobals {
         val volume = config.player.volume
-        it.defaultPlayerAttributes.apply {
-            movement = MovementDefaultAttributes(statuses)
-            minVolume = volume.min
-            maxVolume = volume.max
-            baseVolume = volume.base
-            tirednessMultiplier = volume.tirednessMultiplier
-        }
         val vocal = config.vocal
-        it.vocalSettings = VocalSettings(
-            vocal.breakThreshold,
-            vocal.breakChance,
-            vocal.regenerationTimeSeconds * 20,
-            vocal.regenerationTimeRandom,
-            vocal.tirednessThreshold,
-            vocal.tirednessGain,
-            vocal.tirednessDecreaseRateSeconds / 20
-        )
         val movement = config.movement
-        it.movementSettings = MovementSettings(
-            movement.sprintMultiplier,
-            movement.minSpeedFactor,
-            movement.slowdownStaminaThreshold,
-            if (movement.enableStamina) movement.staminaConsumeMinutes / 60 / 20 else 0f,
-            movement.staminaRegenMinutes / 60 / 20,
-            movement.minSpeedSprintFactor,
-            movement.intentionEffect,
-            if (movement.enableStamina) movement.jumpStaminaConsume else 0f
+        ServerGlobals(
+            it.serverId,
+            it.savePath,
+            it.playerSynchronizationRadius,
+            it.playerDesynchronizationThreshold,
+            DefaultPlayerAttributes(
+                movement = MovementDefaultAttributes(statuses),
+                minVolume = volume.min,
+                maxVolume = volume.max,
+                baseVolume = volume.base,
+                tirednessMultiplier = volume.tirednessMultiplier
+            ),
+            VocalSettings(
+                vocal.breakThreshold,
+                vocal.breakChance,
+                vocal.regenerationTimeSeconds * 20,
+                vocal.regenerationTimeRandom,
+                vocal.tirednessThreshold,
+                vocal.tirednessGain,
+                vocal.tirednessDecreaseRateSeconds / 20
+            ),
+            MovementSettings(
+                movement.sprintMultiplier,
+                movement.minSpeedFactor,
+                movement.slowdownStaminaThreshold,
+                if (movement.enableStamina) movement.staminaConsumeMinutes / 60 / 20 else 0f,
+                movement.staminaRegenMinutes / 60 / 20,
+                movement.minSpeedSprintFactor,
+                movement.intentionEffect,
+                if (movement.enableStamina) movement.jumpStaminaConsume else 0f
+            ),
+            chatSettings,
+            config.requireIdenticalNamespaces
         )
-        it.chatSettings = chatSettings
-
     }
 
     ServerMixinAccess.isDamageEnabled = config.player.damage

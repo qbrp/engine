@@ -1,13 +1,7 @@
 package org.lain.engine.script.lua
 
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.Player
 import org.lain.engine.script.*
-import org.lain.engine.world.Location
-import org.lain.engine.world.World
 import org.lain.engine.world.world
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
@@ -83,24 +77,3 @@ fun LuaValue.toKotlin(): Any? {
 fun LuaScriptComponent(value: LuaValue) = ScriptComponent(value)
 
 fun LuaUserdataComponent(component: Component) = LuaScriptComponent(CoerceJavaToLua.coerce(component))
-
-context(world: World, luaContext: LuaContext)
-fun EnginePlayer.prepareLuaScriptComponents() {
-    entityId.setScriptComponent(
-        LuaScriptComponent(luaTableOf(luaValue("object"), coerceToLua())),
-        BuiltinScriptComponents.PLAYER
-    )
-    entityId.setScriptComponent(
-        LuaScriptComponent(
-            luaTableOf(luaValue("vector"), LuaValue.NIL),
-        ),
-        BuiltinScriptComponents.LOCATION
-    )
-}
-
-fun updateScriptComponents(world: World) {
-    world.iterate<Player, Location>() { player, _, location ->
-        val scriptLocation = player.requireComponent(BuiltinScriptComponents.LOCATION.ecsType)
-        scriptLocation.luaTable.set("vector", location.position.toLuaValue())
-    }
-}

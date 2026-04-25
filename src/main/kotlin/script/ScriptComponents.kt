@@ -1,6 +1,7 @@
 package org.lain.engine.script
 
-import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.util.component.ComponentMeta
 
 @JvmInline
@@ -19,15 +20,24 @@ data class ScriptComponentType(
 
 fun String.toScriptComponentId(): ScriptComponentId = ScriptComponentId(this)
 
-object BuiltinScriptComponents {
-    val PLAYER = ScriptComponentType(ComponentType("core/player/component"))
-    val LOCATION = ScriptComponentType(ComponentType("core/player/location"))
-    val DYNAMIC_VOXEL = ScriptComponentType(ComponentType("core/voxel/dynamic_voxel"))
-    val USE_RESTRICTION = ScriptComponentType(ComponentType("core/voxel/use_restriction"))
-    val ALL = listOf(PLAYER, DYNAMIC_VOXEL, LOCATION, USE_RESTRICTION).associateBy { it.id }
-}
+object CoreScriptComponents {
+    private val all = mutableMapOf<ScriptComponentId, ScriptComponentType>()
 
-context(ctx: WriteComponentAccess)
-fun EntityId.setScriptComponent(scriptComponent: ScriptComponent, type: ScriptComponentType) {
-    setComponent(scriptComponent, type.ecsType)
+    val PLAYER = register("core/player/component")
+    val LOCATION = register("core/location")
+    val DYNAMIC_VOXEL = register("core/voxel/dynamic_voxel")
+    val USE_RESTRICTION = register("core/voxel/use_restriction")
+    val LIGHT_SOURCE = register("core/light/source")
+    val LUMINANCE = register("core/light/luminance")
+
+    fun get(id: ScriptComponentId) = all[id]
+
+    fun getAll() = all.values.toList()
+
+    private fun register(id: String): ComponentType<ScriptComponent> {
+        val ecsType = ComponentType<ScriptComponent>(id)
+        val type = ScriptComponentType(ecsType)
+        all[ScriptComponentId(id)] = type
+        return ecsType
+    }
 }

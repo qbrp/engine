@@ -4,7 +4,7 @@ import net.minecraft.client.MinecraftClient
 import net.minecraft.util.math.BlockPos
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftChat
-import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
+import org.lain.engine.client.mc.render.world.DecalSystem
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.mc.EntityTable
@@ -20,7 +20,7 @@ import java.util.*
 class MinecraftEngineClientEventBus(
     private val minecraft: MinecraftClient,
     private val table: EntityTable,
-    private val chunkDecalsStorage: ChunkDecalsStorage
+    private val decalSystem: DecalSystem
 ) : ClientEventBus {
     private data class PendingFullPlayerData(val player: EnginePlayer, val data: FullPlayerData)
     private val pendingFullPlayerData: MutableList<PendingFullPlayerData> = LinkedList()
@@ -83,6 +83,6 @@ class MinecraftEngineClientEventBus(
     }
 
     override fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk) {
-        chunkDecalsStorage.loadTextures(pos, chunk)
+        decalSystem.loadTextures(pos, chunk)
     }
 }

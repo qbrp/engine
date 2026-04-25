@@ -14,7 +14,9 @@ fun EngineItem.getTooltip(debug: Boolean): List<String> {
     val lines = mutableListOf<String>()
 
     getComponent<ItemTooltip>()?.let { tooltip ->
-        lines += "<gray>${tooltip.text}</gray>"
+        tooltip.text
+            .split("<newline>")
+            .forEach { line -> lines += "<gray>$line</gray>" }
     }
 
     getComponent<Gun>()?.let { gun ->

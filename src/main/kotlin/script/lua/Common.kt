@@ -68,7 +68,7 @@ class LazyScriptComponentType(
     val ecsType get() = requireComponent().ecsType
 
     fun getComponent(): ScriptComponentType? {
-        return storage.components[id] ?: BuiltinScriptComponents.ALL[id.id]
+        return storage.components[id] ?: CoreScriptComponents.get(id)
     }
 
     fun requireComponent(): ScriptComponentType {

@@ -57,10 +57,12 @@ open class LuaContext(val dependencies: LuaDependencies) {
     val callbacksFunctions: MutableList<LuaFunction> = mutableListOf()
     lateinit var playerTable: LuaTable
     lateinit var worldTable: LuaTable
+    lateinit var entityTable: LuaTable
 
     open fun setupTables() {
         playerTable = globals.get("Player").checktable()
         worldTable = globals.get("World").checktable()
+        entityTable = globals.get("Entity").checktable()
     }
 
     open fun setupGlobalsRuntime() {}
@@ -68,6 +70,7 @@ open class LuaContext(val dependencies: LuaDependencies) {
     open fun setupGlobals() {
         globals.setupPlayer()
         globals.setupWorld()
+        globals.setupEntity()
     }
 
     open fun setup(directory: File) {

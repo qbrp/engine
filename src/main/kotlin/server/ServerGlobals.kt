@@ -8,11 +8,12 @@ import java.io.File
 
 data class ServerGlobals(
     val serverId: ServerId,
-    var savePath: File,
-    var playerSynchronizationRadius: Int = 64,
-    var playerDesynchronizationThreshold: Int = 8,
+    val savePath: File,
+    val playerSynchronizationRadius: Int = 64,
+    val playerDesynchronizationThreshold: Int = 8,
     val defaultPlayerAttributes: DefaultPlayerAttributes = DefaultPlayerAttributes(),
-    var vocalSettings: VocalSettings = VocalSettings(),
-    var movementSettings: MovementSettings = MovementSettings(),
-    var chatSettings: EngineChatSettings = EngineChatSettings(),
+    val vocalSettings: VocalSettings = VocalSettings(),
+    val movementSettings: MovementSettings = MovementSettings(),
+    val chatSettings: EngineChatSettings = EngineChatSettings(),
+    val requireIdenticalNamespaces: Boolean = false,
 )

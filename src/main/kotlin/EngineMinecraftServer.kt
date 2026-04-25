@@ -109,7 +109,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.update()
         updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld)
         engine.listWorlds().forEachWithContext({ it }) { world ->
-            updateScriptComponents(world)
+            updatePlayerScriptSystem()
             world.updateVoxelEvents(engine.handler)
             world.clearEvents()
             updateUnloadSystem(world, timers)
@@ -214,12 +214,13 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 }
 
-fun serverMinecraftPlayerLoadSettings(
+fun EngineServer.serverMinecraftPlayerLoadSettings(
     entity: PlayerEntity,
     playerId: PlayerId,
     developerModeStatus: DeveloperModeStatus,
     notifications: List<Notification>
 ): PlayerLoadSettings {
+    assertOnThread()
     val stacks = entity.inventory.mainStacks
 
     return PlayerLoadSettings(
@@ -229,6 +230,6 @@ fun serverMinecraftPlayerLoadSettings(
         entity.entityPos.engine(),
         entity.name.string,
         developerModeStatus,
-        entity.entityWorld.engine
+        getWorld(entity.entityWorld.engine)
     )
 }

@@ -221,20 +221,23 @@ class ServerAuthorizationListener(
     }
 
     private fun onVerificationResponse(developerModeStatus: DeveloperModeStatus, playerNamespaces: NamespaceHashMap, entity: ServerPlayerEntity, playerId: PlayerId) {
+        val engine = server.engine
         val connection = connectionManager.getSession(playerId)
-        val serverNamespacesHash = server.engine.namespacedStorage.namespaceHashMap
-        if (playerNamespaces != serverNamespacesHash) {
-            val missing = serverNamespacesHash.keys.filter { it !in playerNamespaces }
-                .joinToString { it.value }
-            val invalid = serverNamespacesHash.filter { (id, hash) -> (playerNamespaces[id] ?: return@filter false) != hash }
-                .toList().joinToString { it.first.value }
+        if (engine.globals.requireIdenticalNamespaces) {
+            val serverNamespacesHash = engine.namespacedStorage.namespaceHashMap
+            if (playerNamespaces != serverNamespacesHash) {
+                val missing = serverNamespacesHash.keys.filter { it !in playerNamespaces }
+                    .joinToString { it.value }
+                val invalid =
+                    serverNamespacesHash.filter { (id, hash) -> (playerNamespaces[id] ?: return@filter false) != hash }
+                        .toList().joinToString { it.first.value }
 
-            val errorString = StringBuilder("<bold>Скрипты сервера отличаются от ваших</bold>")
-            if (missing.isNotEmpty()) errorString.append("<newline>Отсутствуют: $missing")
-            if (invalid.isNotEmpty()) errorString.append("<newline>Отличаются: $invalid")
-            friendlyError(errorString.toString())
+                val errorString = StringBuilder("<bold>Скрипты сервера отличаются от ваших</bold>")
+                if (missing.isNotEmpty()) errorString.append("<newline>Отсутствуют: $missing")
+                if (invalid.isNotEmpty()) errorString.append("<newline>Отличаются: $invalid")
+                friendlyError(errorString.toString())
+            }
         }
-
         val username = connection.username
         val notifications = mutableListOf<Notification>()
         if (connection.mods.contains("freecam")) {
@@ -242,9 +245,10 @@ class ServerAuthorizationListener(
             notifications += Notification.FREECAM
         }
 
+        val settings = engine.serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications)
         coroutineScope.launch {
-            server.engine.playerLoader.loadPreparing(
-                settings = serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications),
+            engine.playerLoader.loadPreparing(
+                settings = settings,
                 exceptionHandler = { connectionManager.disconnect(playerId, it) }
             )
         }

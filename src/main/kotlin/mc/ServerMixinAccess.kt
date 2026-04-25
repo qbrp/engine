@@ -16,7 +16,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.gunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
-import org.lain.engine.script.BuiltinScriptComponents
+import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectMovementSettings
@@ -41,7 +41,7 @@ object ServerMixinAccess {
         return if (!world.isClient) {
             val world = server.engine.getWorld(world.engine)
             val voxel = world.chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return false
-            with(world) { voxel.hasComponent(BuiltinScriptComponents.USE_RESTRICTION.ecsType) }
+            with(world) { voxel.hasComponent(CoreScriptComponents.USE_RESTRICTION) }
         } else {
             blockInteractionCallback?.invoke(entity, world, blockPos) ?: false
         }

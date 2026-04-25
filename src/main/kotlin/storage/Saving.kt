@@ -179,15 +179,29 @@ class ItemLoader(
     ): EngineItem? {
         server.itemStorage.getItem(uuid)?.let { item -> return item }
 
+        // Первый блок отвечает за обработку предмета в целом. Если что-то пойдет не так - это высветится в консоль и будет выдан недействителньый предмет
         val result = runCatching {
-            database.loadEntity(uuid)?.let { components -> loadItem(world, uuid, components) }
+            // Функция загрузки сущности может выбрасывать ошибки, если предмет был в старой базе данных
+            // Точно не знаю, с чем связано - в консоль бросается:
+            // kotlinx.serialization.MissingFieldException: Field 'value' is required for type with serial name 'org.lain.engine.storage.PersistentId', but it was missing
+            // (в EntityPersistent.deserializeEntityComponents)
+            // Если есть исключение в базе данных - ищем предмет в старой, если и там нет, выбрасываем ошибку
+            val entity = runCatching { database.loadEntity(uuid) }
+            entity
+                .getOrNull()?.let { components -> loadItem(world, uuid, components) }
                 ?: database.loadPersistentItemDataLegacy(uuid)?.let { (id, components) -> loadItemLegacy(components, world, id, uuid) }
                 ?: run {
-                    notFound.add(uuid.value)
-                    return null
+                    val e = entity.exceptionOrNull()
+                    if (e != null) throw e
+                    null
                 }
         }
-            .getOrElse { ItemLoadResult(InvalidItem(uuid, world)) }
+            .onFailure { err -> LOGGER.error("Не удалось загрузить предмет $uuid", err) }
+            .getOrNull()
+            ?: run {
+                notFound.add(uuid.value)
+                ItemLoadResult(InvalidItem(uuid, world))
+            }
         val protoItem = result.protoItem
         val container = result.container?.let { database.loadEntity(it) ?: error("Контейнер $it не найден") }
         dataFixItem(protoItem, server.namespacedStorage)

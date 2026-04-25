@@ -112,13 +112,11 @@ dependencies {
 
     // Тяжелые зависимости
     modImplementation("org.lain.cyberia:fabric:1.1")
-    modImplementation("org.lain.cyberia:ecs-api:1.3.1")
+    modImplementation("org.lain.cyberia:ecs-api:1.3.2")
     compileOnly("org.jetbrains.exposed:exposed-core:1.0.0")
     compileOnly("org.jetbrains.exposed:exposed-jdbc:1.0.0")
     compileOnly("org.xerial:sqlite-jdbc:3.51.1.0")
     shaded("org.reflections:reflections:0.10.2")
-//    shaded("com.google.guava:guava:33.3.1-jre")
-//    include(implementation("org.javassist:javassist:3.28.0-GA")!!)
 
     // Camera Overhaul совместимость
     modCompileOnly("maven.modrinth:cameraoverhaul:y8OOuYdV")

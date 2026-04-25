@@ -171,10 +171,9 @@ class GameSession(
         }
         updateFireTimeSystem()
         updateRecoilSystem()
-        tickNarrations(mainPlayer)
-
-        val items = itemStorage.getAll()
         updateShootShakeSystem(mainPlayer, client.camera)
+
+        tickNarrations(mainPlayer)
 
         chatBubbleList.cleanup()
         chatBubbleList.tick(mainPlayer)

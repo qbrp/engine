@@ -119,7 +119,7 @@ data class PlayerLoadSettings(
     val initialPosition: Pos,
     val username: String,
     val developerModeStatus: DeveloperModeStatus,
-    val world: WorldId
+    val world: World
 )
 
 class PlayerLoader(
@@ -143,8 +143,8 @@ class PlayerLoader(
         settings: PlayerLoadSettings,
         exceptionHandler: (Throwable) -> Unit
     ) {
+        val world = settings.world
         val persistent = server.globals.savePath.playerData.parsePersistentPlayerData(settings.playerId)
-        val world = server.getWorld(settings.world)
         val inventoryLoadResult = exceptionHandler.runCatchingSuspend { loadInventoryItems(world, settings.inventoryItems, persistent?.equipment ?: mapOf()) } ?: return
         val player = exceptionHandler.runCatchingSuspend { serverPlayerInstance(world, settings, inventoryLoadResult, persistent)  } ?: return
         with(EntityCommandBuffer(world)) {
@@ -248,6 +248,10 @@ fun EnginePlayer.prepareContainers(
         items = equipmentItems.mapKeys { (slot, _) -> slot.slotId },
         persistentId = persistentId
     )
+    // DEBUG
+    // if (!username.startsWith("Player")) {
+        // container.removeComponent<PersistentId>()
+    // }
     container.setComponent(PlayerEquipment(this@prepareContainers))
     set(Equipment(container))
 }

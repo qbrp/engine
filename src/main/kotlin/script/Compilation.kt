@@ -139,7 +139,7 @@ fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
 }
 
 fun World.registerScriptComponents(namespacesStorage: NamespacedStorage) {
-    registerScriptComponents(namespacesStorage.components.values.toList() + BuiltinScriptComponents.ALL.values)
+    registerScriptComponents(namespacesStorage.components.values.toList() + CoreScriptComponents.getAll())
 }
 
 fun EngineServer.applyContentsCompileResult(result: CompilationResult) {

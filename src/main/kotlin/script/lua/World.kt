@@ -1,9 +1,12 @@
 package org.lain.engine.script.lua
 
-import org.lain.engine.script.BuiltinScriptComponents
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.componentTypeOf
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
-import org.lain.engine.script.setScriptComponent
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.World
 import org.lain.engine.world.setDynamicVoxel
@@ -17,13 +20,16 @@ import org.luaj.vm2.lib.TwoArgFunction
 context(ctx: LuaContext)
 fun World.coerceToLua(): LuaUserdata {
     val userdata = LuaUserdata(this)
+    val idValue = luaValue(this@coerceToLua.id.toString())
+    val isClient = luaValue(isClient)
     val meta = object : LuaTable() {
         init {
             set("__index", object : TwoArgFunction() {
                 override fun call(self: LuaValue, key: LuaValue): LuaValue {
                     return when (key.tojstring()) {
-                        "id" -> luaValue(this@coerceToLua.id.toString())
-                        "is_client" -> luaValue(self.coerceToEngineWorld().isClient)
+                        "id" -> idValue
+                        "is_client" -> isClient
+                        "players" -> LuaTable.listOf(players.map { it.coerceToLua() }.toTypedArray())
                         else -> ctx.worldTable.get(key)
                     }
                 }
@@ -34,13 +40,46 @@ fun World.coerceToLua(): LuaUserdata {
     return userdata
 }
 
+data class LuaEntityComponent(val table: LuaValue) : Component {
+    companion object {
+        val TYPE by lazy { componentTypeOf(LuaEntityComponent::class) }
+    }
+}
+
+context(ctx: LuaContext, world: World)
+fun EntityId.coerceToLua(): LuaValue {
+    val idValue = luaValue(this)
+    val worldValue = world.coerceToLua()
+    return getComponent<LuaEntityComponent>()?.table ?: run {
+        val t = object : LuaTable() {
+            override fun get(key: LuaValue): LuaValue {
+                return when (key.tojstring()) {
+                    "id" -> idValue
+                    "world" -> worldValue
+                    else -> ctx.entityTable.get(key)
+                }
+            }
+        }
+        setComponent<LuaEntityComponent>(LuaEntityComponent(t))
+        t
+    }
+}
+
 fun LuaValue.coerceToEngineWorld() = this.checkuserdata() as World
+
+context(ctx: LuaContext)
+fun Globals.setupEntity() {
+    ctx.entityTable.set("_of", twoArgFunction { world, id ->
+        val world = world.coerceToEngineWorld()
+        with(world) { id.toint().coerceToLua() }
+    })
+}
 
 context(ctx: LuaContext)
 fun Globals.setupWorld() {
     ctx.worldTable.set("_add_entity", oneArgFunction { self ->
         val world = self.coerceToEngineWorld()
-        luaValue(world.addEntity())
+        with(world) { world.addEntity().coerceToLua() }
     })
     ctx.worldTable.set("_get_component", threeArgFunction { self, entityId, type ->
         val world = self.coerceToEngineWorld()
@@ -94,16 +133,22 @@ fun Globals.setupWorld() {
         val func = args.arg(2).checkfunction()
         val types = setOf(args.arg(3), args.arg(4), args.arg(5), args.arg(6), args.arg(7))
             .filter { !it.isnil() }
+        val entityArray = world.componentManager.getComponentArray(LuaEntityComponent.TYPE)
         when (types.size) {
             1 -> world.iterate1(types[0].coerceToScriptComponentType().ecsType) { entity, component ->
-                func.invoke(luaValue(entity), component.luaTable)
+                val luaEntity = entityArray.componentOf(entity) ?: return@iterate1
+                func.invoke(
+                    luaEntity.table,
+                    component.luaTable
+                )
             }
 
             2 -> world.iterate2(
                 types[0].coerceToScriptComponentType().ecsType,
                 types[1].coerceToScriptComponentType().ecsType
             ) { entity, component1, component2 ->
-                func.invoke(luaValue(entity), component1.luaTable, component2.luaTable)
+                val luaEntity = entityArray.componentOf(entity) ?: return@iterate2
+                func.invoke(luaEntity.table, component1.luaTable, component2.luaTable)
             }
 
             3 -> world.iterate3(
@@ -111,8 +156,9 @@ fun Globals.setupWorld() {
                 types[1].coerceToScriptComponentType().ecsType,
                 types[2].coerceToScriptComponentType().ecsType
             ) { entity, component1, component2, component3 ->
+                val luaEntity = entityArray.componentOf(entity) ?: return@iterate3
                 func.invoke(
-                    arrayOf(luaValue(entity), component1.luaTable, component2.luaTable, component3.luaTable)
+                    arrayOf(luaEntity.table, component1.luaTable, component2.luaTable, component3.luaTable)
                 )
             }
 
@@ -122,9 +168,10 @@ fun Globals.setupWorld() {
                 types[2].coerceToScriptComponentType().ecsType,
                 types[3].coerceToScriptComponentType().ecsType
             ) { entity, component1, component2, component3, component4 ->
+                val luaEntity = entityArray.componentOf(entity) ?: return@iterate4
                 func.invoke(
                     arrayOf(
-                        luaValue(entity),
+                        luaEntity.table,
                         component1.luaTable,
                         component2.luaTable,
                         component3.luaTable,
@@ -140,9 +187,10 @@ fun Globals.setupWorld() {
                 types[3].coerceToScriptComponentType().ecsType,
                 types[4].coerceToScriptComponentType().ecsType
             ) { entity, component1, component2, component3, component4, component5 ->
+                val luaEntity = entityArray.componentOf(entity) ?: return@iterate5
                 func.invoke(
                     arrayOf(
-                        luaValue(entity),
+                        luaEntity.table,
                         component1.luaTable,
                         component2.luaTable,
                         component3.luaTable,
@@ -159,11 +207,11 @@ fun Globals.setupWorld() {
         val voxelPos = pos.toVoxelPos()
         with(world) {
             val entity = setDynamicVoxel(voxelPos)
-            entity.setScriptComponent(
+            entity.setComponent(
                 LuaScriptComponent(voxelPos.toLuaValue()),
-                BuiltinScriptComponents.DYNAMIC_VOXEL
+                CoreScriptComponents.DYNAMIC_VOXEL
             )
-            luaValue(entity)
+            entity.coerceToLua()
         }
     })
 }
