@@ -10,8 +10,8 @@ import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.util.Colors
 import net.minecraft.util.math.ColorHelper
 import org.joml.Vector3f
-import org.lain.engine.util.EngineId
 import org.lain.cyberia.ecs.iterate
+import org.lain.engine.util.EngineId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
 import org.lain.engine.util.math.squaredDistanceTo
@@ -24,7 +24,7 @@ data class BlockDecalImageData(
     val gameTexture: DecalsTexture
 )
 
-class ChunkDecalsStorage {
+class DecalSystem {
     lateinit var textureManager: TextureManager
     private val images: MutableMap<EngineChunkPos, MutableMap<ImmutableVoxelPos, BlockDecalImageData>> = mutableMapOf()
     private val logger = LoggerFactory.getLogger("Engine Decals")
@@ -83,7 +83,7 @@ class ChunkDecalsStorage {
             .flatMap { it.value.toList() }
     }
 
-    fun handleDecalsEvent(world: World) = world.iterate<VoxelEvent> { _, event ->
+    fun update(world: World) = world.iterate<VoxelEvent> { _, event ->
         val updates = event.updates
         if (updates is VoxelUpdate.AttachDecal || updates is VoxelUpdate.DetachDecal || (updates is VoxelUpdate.Set && updates.decals != null)) {
             event.positions.forEach { pos ->

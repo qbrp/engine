@@ -4,28 +4,34 @@ import dev.lambdaurora.lambdynlights.api.DynamicLightsContext
 import dev.lambdaurora.lambdynlights.api.DynamicLightsInitializer
 import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
 import net.minecraft.block.ShapeContext
-import net.minecraft.client.MinecraftClient
-import net.minecraft.entity.Entity
 import net.minecraft.util.hit.HitResult
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.MathHelper
 import net.minecraft.world.RaycastContext
+import net.minecraft.world.World
+import org.jetbrains.annotations.Range
 import org.joml.Matrix3d
 import org.joml.Vector3d
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.requireComponent
+import org.lain.cyberia.ecs.*
 import org.lain.engine.chat.acoustic.Grid3b
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.render.LightBehaviour
+import org.lain.engine.client.render.LightSource
+import org.lain.engine.client.render.Luminance
 import org.lain.engine.item.ConeLightEmitterSettings
-import org.lain.engine.item.Flashlight
-import org.lain.engine.mc.EntityTable
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.handItem
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.item.getOwner
+import org.lain.engine.mc.toMinecraft
+import org.lain.engine.player.Orientation
 import org.lain.engine.util.Injector
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.inject
+import org.lain.engine.util.math.MutableVec3
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.smoothstepSDF
+import org.lain.engine.world.Location
+import org.lain.engine.world.location
+import java.util.*
 import kotlin.math.*
 
 fun injectDynamicLightsContext() = inject<DynamicLightsContext>()
@@ -36,58 +42,158 @@ class LambDynamicLights : DynamicLightsInitializer {
     }
 }
 
-data class LightSource(val owner: EnginePlayer, val item: PersistentId, val settings: ConeLightEmitterSettings)
+data class LamdLightSource(val behaivour: EngineDynamicLightBehavior) : Component
 
-fun updateLights(
-    gameSession: GameSession,
-    context: DynamicLightsContext,
-    entityTable: EntityTable,
-    lastSources: MutableSet<LightSource>,
-    behaviours: MutableMap<LightSource, DynamicLightBehavior>
-) = with(gameSession.world) {
-    val sourceList = mutableSetOf<LightSource>()
-    // Сбор источников света
-    gameSession.playerStorage.forEach { player ->
-        val handItem = player.handItem ?: return@forEach
+class LightSystem(private val context: DynamicLightsContext) {
+    private val dynamicLightBehaviours = IdentityHashMap<LamdLightSource, DynamicLightBehavior>()
 
-        val flashlight = handItem.getComponent<Flashlight>()
-        if (flashlight != null && flashlight.enabled) {
-            sourceList.add(LightSource(player, handItem.requireComponent(), flashlight.emitter))
+    fun invalidate() {
+        dynamicLightBehaviours.clear()
+    }
+
+    fun update(gameSession: GameSession) = with(gameSession.world) {
+        val sourceList = mutableSetOf<LamdLightSource>()
+        iterate<LightSource, Luminance, Location> { entity, lightSource, (luminance), location ->
+            val source = entity.getComponent<LamdLightSource>() ?: run {
+                val behaviour = getLamdDynLightsBehaviour(entity, lightSource.behaviour, luminance, location) ?: return@iterate
+                LamdLightSource(behaviour)
+                    .also { entity.setComponent(it) }
+            }
+            sourceList.add(source)
+        }
+
+        iterate<LightSource, LamdLightSource>() { entity, (engineBehaviour), source ->
+            val lamdBehaviour = source.behaivour
+            if (!dynamicLightBehaviours.contains(source)) {
+                context.dynamicLightBehaviorManager().add(lamdBehaviour)
+                dynamicLightBehaviours[source] = lamdBehaviour
+            }
+            lamdBehaviour.tick()
+            if (lamdBehaviour is SphereLightBehaviour && engineBehaviour is LightBehaviour.Sphere) {
+                lamdBehaviour.radius = engineBehaviour.radius
+            }
+        }
+
+        iterate<Luminance, LamdLightSource> { entity, luminance, (lamdBehaviour) ->
+            lamdBehaviour.luminance = luminance.value
+        }
+
+        iterate<Location, LamdLightSource> { entity, location, (lamdBehaviour) ->
+            lamdBehaviour.position.set(location.position)
+        }
+
+        val deletedSources = dynamicLightBehaviours.keys.filter { !sourceList.contains(it) }
+        deletedSources.forEach { source ->
+            val behavior = dynamicLightBehaviours.remove(source) ?: return@forEach
+            context.dynamicLightBehaviorManager().remove(behavior)
         }
     }
 
-    val newSources = sourceList.filter { !lastSources.contains(it) }
-    val deletedSources = lastSources.filter { !sourceList.contains(it) }
-    newSources.forEach {
-        val owner = entityTable.client.getEntity(it.owner) ?: return@forEach
-        val behaviour = FlashlightLightBehavior(owner, MinecraftClient, 0.02f, it.settings)
-        context.dynamicLightBehaviorManager().add(behaviour)
-        behaviours[it] = behaviour
-    }
-    deletedSources.forEach {
-        val behavior = behaviours[it] ?: return@forEach
-        context.dynamicLightBehaviorManager().remove(behavior)
-    }
-    lastSources.clear()
-    lastSources.addAll(sourceList)
-
-    behaviours.forEach { (source, behaviour) ->
-        if (behaviour is FlashlightLightBehavior) {
-            behaviour.tick()
+    context(world: org.lain.engine.world.World)
+    private fun getLamdDynLightsBehaviour(
+        entity: EntityId,
+        behaviour: LightBehaviour,
+        luminance: Int,
+        location: Location
+    ): EngineDynamicLightBehavior? = when (behaviour) {
+        is LightBehaviour.Cone -> {
+            val owner = entity.getOwner() ?: return null
+            val orientation = owner.get<Orientation>() ?: return null
+            val location = owner.location
+            val mcWorld = MinecraftClient.world ?: return null
+            FlashlightLightBehavior(
+                location.position,
+                luminance,
+                { orientation.yaw },
+                { orientation.pitch },
+                mcWorld,
+                behaviour.settings
+            )
         }
+        is LightBehaviour.Sphere -> SphereLightBehaviour(location.position, luminance, behaviour.radius)
     }
 }
 
+abstract class EngineDynamicLightBehavior(var luminance: Int, position: Pos) : DynamicLightBehavior {
+    protected val lastPosition = MutableVec3(position)
+    protected var lastLuminance = luminance
+    val position = MutableVec3(position)
+
+    open fun tick() {
+        lastPosition.set(position)
+        lastLuminance = luminance
+    }
+
+    override fun hasChanged(): Boolean {
+        return lastPosition != position || lastLuminance != luminance
+    }
+}
+
+class SphereLightBehaviour(
+    position: Pos,
+    luminance: Int,
+    var radius: Int,
+) : EngineDynamicLightBehavior(luminance, position) {
+    private var box = createBoundingbox()
+    private var lastRadius: Int = radius
+
+    private fun createBoundingbox(): DynamicLightBehavior.BoundingBox {
+        val x = position.x.toInt()
+        val y = position.y.toInt()
+        val z = position.z.toInt()
+
+        return DynamicLightBehavior.BoundingBox(
+            x - radius - 1,
+            y - radius - 1,
+            z - radius - 1,
+            x + radius + 1,
+            y + radius + 1,
+            z + radius + 1
+        )
+    }
+
+    override fun lightAtPos(
+        pos: BlockPos,
+        falloffRatio: Double
+    ): @Range(from = 0, to = 15) Double {
+        val dx: Double = pos.x - position.x + 0.5
+        val dy: Double = pos.y - position.y + 0.5
+        val dz: Double = pos.z - position.z + 0.5
+
+        val distanceSquared = dx * dx + dy * dy + dz * dz
+        return max(
+            this.luminance - sqrt(distanceSquared) * falloffRatio,
+            0.0
+        )
+    }
+
+    override fun getBoundingBox(): DynamicLightBehavior.BoundingBox = box
+
+    override fun tick() {
+        super.tick()
+        lastRadius = radius
+    }
+
+    override fun hasChanged(): Boolean {
+        val changed = super.hasChanged() || lastRadius != radius
+        if (changed) {
+            box = createBoundingbox()
+        }
+        return changed
+    }
+}
 
 class FlashlightLightBehavior(
-    private val entity: Entity,
-    private val client: MinecraftClient,
-    private val epsilon: Float,
-    val settings: ConeLightEmitterSettings
-) : DynamicLightBehavior {
+    position: Pos,
+    luminance: Int,
+    private val yawGetter: () -> Float,
+    private val pitchGetter: () -> Float,
+    private val world: World,
+    val settings: ConeLightEmitterSettings,
+    private val epsilon: Float = 0.02f,
+) : EngineDynamicLightBehavior(luminance, position) {
     private val radius = settings.radius
     private val depth = settings.distance
-    private val light = settings.light
 
     private var prevX = 0.0
     private var prevY = 0.0
@@ -106,7 +212,8 @@ class FlashlightLightBehavior(
         this.computeMatrices()
     }
 
-    fun tick() {
+    override fun tick() {
+        super.tick()
         if (!updatePassability) return
         updatePassability = false
         passability = Grid3b(
@@ -127,13 +234,13 @@ class FlashlightLightBehavior(
             if (sdf < 0) return@forEach
 
             val context = RaycastContext(
-                entity.eyePos,
+                position.toMinecraft(),
                 blockPos.toCenterPos(),
                 RaycastContext.ShapeType.VISUAL,
                 RaycastContext.FluidHandling.WATER,
                 ShapeContext.absent()
             )
-            val raycastResult = entity.entityWorld.raycast(context)
+            val raycastResult = world.raycast(context)
             val result = raycastResult != null && (raycastResult.type == HitResult.Type.MISS || raycastResult.blockPos == blockPos)
             passability[idx] = result
         }
@@ -167,7 +274,7 @@ class FlashlightLightBehavior(
 
         val lightLevel = if (intensity > 0.01f) {
            if (computeRaycastArrayValue(pos)) {
-               intensity * light
+               intensity * luminance
            } else {
                0.0
            }
@@ -233,23 +340,26 @@ class FlashlightLightBehavior(
     }
 
     override fun hasChanged(): Boolean {
-        val diffYaw = abs(entity.yaw - prevYaw)
-        val diffPitch = abs(entity.pitch - prevPitch)
+        if (super.hasChanged()) return true
+        val yaw = yawGetter()
+        val pitch = pitchGetter()
+        val diffYaw = abs(yaw - prevYaw)
+        val diffPitch = abs(pitch - prevPitch)
 
         if (
-            abs(entity.x - this.prevX) >= epsilon
-            || abs(entity.y - this.prevY) >= epsilon
-            || abs(entity.z - this.prevZ) >= epsilon
+            abs(position.x - this.prevX) >= epsilon
+            || abs(position.y - this.prevY) >= epsilon
+            || abs(position.z - this.prevZ) >= epsilon
             || diffYaw >= epsilon
             || diffPitch >= epsilon
         ) {
             this.updatePassability = true
 
-            this.prevX = entity.x
-            this.prevY = entity.y
-            this.prevZ = entity.z
-            this.prevYaw = entity.yaw
-            this.prevPitch = entity.pitch
+            this.prevX = position.x.toDouble()
+            this.prevY = position.y.toDouble()
+            this.prevZ = position.z.toDouble()
+            this.prevYaw = yaw
+            this.prevPitch = pitch
             this.computeMatrices()
 
             return true
@@ -259,9 +369,9 @@ class FlashlightLightBehavior(
 
     private fun computeMatrices() {
         val matrix = Matrix3d()
-        matrix.rotateZ(Math.toRadians(entity.getPitch().toDouble()))
+        matrix.rotateZ(Math.toRadians(pitchGetter().toDouble()))
         matrix.rotateZ(-MathHelper.HALF_PI.toDouble())
-        matrix.rotateY(Math.toRadians(entity.getYaw().toDouble()))
+        matrix.rotateY(Math.toRadians(yawGetter().toDouble()))
         matrix.rotateY(MathHelper.HALF_PI.toDouble())
         this.rotationMatrix = matrix
         this.inverseRotationMatrix = matrix.invert(Matrix3d())
@@ -269,7 +379,7 @@ class FlashlightLightBehavior(
 
     // ! mutates !
     private fun worldToEntitySpace(vec: Vector3d): Vector3d {
-        vec.sub(entity.getX(), entity.getEyeY(), entity.getZ())
+        vec.sub(position.x.toDouble(), position.y.toDouble(), position.z.toDouble())
         vec.mul(this.rotationMatrix)
         vec.y += depth / 2 - DISTANCE_DELTA
 
@@ -280,7 +390,7 @@ class FlashlightLightBehavior(
     private fun entityToWorldSpace(vec: Vector3d): Vector3d {
         vec.y -= depth / 2 - DISTANCE_DELTA
         vec.mul(this.inverseRotationMatrix)
-        vec.add(entity.getX(), entity.getEyeY(), entity.getZ())
+        vec.add(position.x.toDouble(), position.y.toDouble(), position.z.toDouble())
 
         return vec
     }

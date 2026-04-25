@@ -19,7 +19,7 @@ fun registerWorldRenderEvents(
     client: MinecraftClient,
     engineClient: EngineClient,
     eventBus: MinecraftEngineClientEventBus,
-    decalsStorage: ChunkDecalsStorage,
+    decalsStorage: DecalSystem,
     playerTable: EntityTable,
     toolgunRenderer: ToolgunRenderer
 ) {

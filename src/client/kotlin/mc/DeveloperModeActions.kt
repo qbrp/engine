@@ -5,7 +5,7 @@ import net.minecraft.util.ActionResult
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
 import org.lain.engine.client.mc.render.TransformationsEditorScreen
-import org.lain.engine.client.mc.render.world.ChunkDecalsStorage
+import org.lain.engine.client.mc.render.world.DecalSystem
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.util.LittleNotification
@@ -19,7 +19,7 @@ import org.lwjgl.glfw.GLFW
 
 private var developerModeKeyPressedTick = 0L
 
-fun registerDeveloperModeDecalsDebug(decalsStorage: ChunkDecalsStorage, engineClient: EngineClient) {
+fun registerDeveloperModeDecalsDebug(decalsStorage: DecalSystem, engineClient: EngineClient) {
     var debugDecalsVersion = 0
     UseBlockCallback.EVENT.register { entity, world, hand, result ->
         if (world.isClient && engineClient.developerMode && isControlDown()) {
