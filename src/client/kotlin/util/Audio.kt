@@ -19,7 +19,8 @@ data class AudioSource(
     var pitch: Float,
     var attenuate: Boolean,
     var slot: String? = null,
-    var isEnded: Boolean = false
+    var isEnded: Boolean = false,
+    var radius: Int,
 )
 
 interface EngineAudioManager {

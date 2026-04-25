@@ -3,6 +3,7 @@ package org.lain.engine.client
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
@@ -14,6 +15,7 @@ import org.lain.engine.client.handler.lowDetailedClientPlayerInstance
 import org.lain.engine.client.handler.mainClientPlayerInstance
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.updateShootShakeSystem
+import org.lain.engine.client.script.updateScriptLightSystem
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.processSoundPlayKeys
@@ -25,6 +27,7 @@ import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.lua.updatePlayerScriptSystem
 import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
@@ -184,8 +187,12 @@ class GameSession(
         updateContainerOperationSystem(itemStorage)
         updatePlayerContainerSystem()
         clearAssignItemsOperations(world)
+
+        // Scripts
         world.tickCallbacks(callbacks)
         world.updateVoxelEvents(null)
+        updatePlayerScriptSystem()
+        updateScriptLightSystem()
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
@@ -205,7 +212,11 @@ class GameSession(
         equipment: Map<EquipmentSlot, EngineItem> = emptyMap(),
     ) {
         playerStorage.add(player.id, player)
-        with(world) { player.prepareContainers(data.equipmentContainer, player.location, equipment) }
+        with(world) {
+            player.prepareContainers(data.equipmentContainer, player.location, equipment)
+            player.entityId.setComponent(Player)
+            player.entityId.setComponent(player.location)
+        }
     }
 
     fun destroy() {

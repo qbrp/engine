@@ -13,8 +13,7 @@ data class Flashlight(
 @Serializable
 data class ConeLightEmitterSettings(
     val radius: Float = 8f,
-    val distance: Float = 20f,
-    val light: Float = 15f,
+    val distance: Float = 20f
 )
 
 val LIGHT_TOGGLE = VerbType(

@@ -11,6 +11,7 @@ import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
+import org.luaj.vm2.lib.ThreeArgFunction
 import org.luaj.vm2.lib.TwoArgFunction
 import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
@@ -28,6 +29,22 @@ fun AudioSource.coerceToLua(): LuaUserdata {
                             ?: ctx.audioSourceTable.get(key)
                             ?: rawget(key) // важно!
                     }
+                }
+            })
+            set("__newindex", object : ThreeArgFunction() {
+                override fun call(self: LuaValue, key: LuaValue, value: LuaValue): LuaValue {
+                    when (key.tojstring()) {
+                        "x" -> this@coerceToLua.x = value.tofloat()
+                        "y" -> this@coerceToLua.y = value.tofloat()
+                        "z" -> this@coerceToLua.z = value.tofloat()
+                        "volume" -> this@coerceToLua.volume = value.tofloat()
+                        "pitch" -> this@coerceToLua.pitch = value.tofloat()
+                        "is_relative" -> this@coerceToLua.isRelative = value.toboolean()
+                        "attenuate" -> this@coerceToLua.attenuate = value.toboolean()
+                        "radius" -> this@coerceToLua.radius = value.toint()
+                        else -> rawset(key, value)
+                    }
+                    return NIL
                 }
             })
         }
@@ -52,6 +69,7 @@ fun Globals.setupAudio() {
             parameters.get("volume")?.nullable()?.tofloat() ?: 1f,
             parameters.get("pitch")?.nullable()?.tofloat() ?: 1f,
             parameters.get("attenuate")?.nullable()?.toboolean() ?: false,
+            radius = parameters.get("radius")?.nullable()?.toint() ?: 16
         ).coerceToLua()
     })
     ctx.audioSourceTable.set("_play", twoArgFunction { self, slotId ->

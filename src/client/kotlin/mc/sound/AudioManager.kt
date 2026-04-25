@@ -30,7 +30,9 @@ class MinecraftAudioManager(
     private val soundSystem get() = (soundManager as SoundManagerAccessor).`engine$getSoundSystem`()
     private val soundSetCache = SoundSetCache()
     private val audioSources: MutableMap<String, AudioSourcePlayback> = HashMap()
-    private val soundCache: MutableMap<String, Sound> = HashMap()
+    private val soundCache: MutableMap<SoundKey, Sound> = HashMap()
+
+    data class SoundKey(val radius: Int, val id: String)
 
     private class AudioSourcePlayback(val source: AudioSource, val instance: AudioSourceSoundInstance) {
         fun update() {
@@ -90,7 +92,7 @@ class MinecraftAudioManager(
             audioSource,
             AudioSourceSoundInstance(
                 slotId,
-                getSound(audioSource.sound.value),
+                getSound(audioSource.sound.value, attenuation = audioSource.radius),
                 audioSource.category.toMinecraft()
             )
         )
@@ -123,8 +125,13 @@ class MinecraftAudioManager(
         remove.forEach { audioSources.remove(it) }
     }
 
-    private fun getSound(id: String, stream: Boolean = false, preload: Boolean = false): Sound {
-        return soundCache.computeIfAbsent(id) {
+    private fun getSound(
+        id: String,
+        stream: Boolean = false,
+        preload: Boolean = false,
+        attenuation: Int,
+    ): Sound {
+        return soundCache.computeIfAbsent(SoundKey(attenuation, id)) {
             Sound(
                 EngineId(id),
                 { 1f },
@@ -133,7 +140,7 @@ class MinecraftAudioManager(
                 Sound.RegistrationType.FILE,
                 stream,
                 preload,
-                16
+                attenuation
             )
         }
     }
