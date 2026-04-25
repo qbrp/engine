@@ -70,8 +70,7 @@ class ChatBubbleList(
         val players = mutableMapOf<PlayerId, Boolean>()
         bubbles.forEach { bubble ->
             if (bubble.tick++ % 20 == 0) {
-                val canSeeAuthor = players.computeIfAbsent(bubble.player.id) { mainPlayer.canSee(VoxelPos(bubble.player.pos), true) }
-                if (!canSeeAuthor) updateChatBubbleCanSee(bubble)
+                bubble.canSee = players.computeIfAbsent(bubble.player.id) { mainPlayer.canSee(VoxelPos(bubble.player.pos), true) }
             }
         }
     }
@@ -111,8 +110,4 @@ fun updateChatBubble(bubble: ChatBubble, dt: Float, height: Float) {
     if (opacity <= 0.03f && fadeout) {
         bubble.remove = true
     }
-}
-
-fun updateChatBubbleCanSee(bubble: ChatBubble) {
-    bubble.canSee = bubble.player.canSee(VoxelPos(bubble.pos), true)
 }
