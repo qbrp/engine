@@ -3,8 +3,10 @@ package org.lain.engine.world
 import org.lain.cyberia.ecs.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.Callbacks
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptContext
+import org.lain.engine.storage.ComponentLoadSettings
 import org.lain.engine.util.component.ComponentWorld
 
 object Event : Component
@@ -15,9 +17,10 @@ class World(
     val players: MutableList<EnginePlayer> = mutableListOf(),
     val playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null,
     val isClient: Boolean = false,
+    val namespacedStorage: NamespacedStorage
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     private val scriptContext = ScriptContext.World(this)
-    val chunkStorage: ChunkStorage = ChunkStorage()
+    val chunkStorage: ChunkStorage = ChunkStorage(this, ComponentLoadSettings(null, namespacedStorage))
     var ticks = 0L
 
 
@@ -53,7 +56,17 @@ class World(
     }
 }
 
-fun world(id: WorldId, thread: Thread, playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null): World {
-    return World(id, playersWatchingChunkProvider=playersWatchingChunkProvider, componentManager = ComponentWorld(thread))
+fun world(
+    id: WorldId,
+    thread: Thread,
+    namespacedStorage: NamespacedStorage,
+    playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null
+): World {
+    return World(
+        id,
+        playersWatchingChunkProvider =playersWatchingChunkProvider,
+        componentManager = ComponentWorld(thread),
+        namespacedStorage = namespacedStorage
+    )
 }
 

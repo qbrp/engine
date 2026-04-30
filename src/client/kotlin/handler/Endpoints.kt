@@ -5,7 +5,6 @@ import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.server.*
 import org.lain.engine.transport.packet.*
-import org.lain.engine.world.EngineChunk
 
 fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler) {
     clientAcknowledgeHandler.run()
@@ -82,8 +81,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyPlaySoundPacket(play, context)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT) { gameSession ->
-        gameSession.onContentsUpdated()
+    registerGameSessionReceiver(CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT) { gameSession ->
+        gameSession.recompile()
     }
 
     registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { _ ->
@@ -94,12 +93,16 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyVoxelEvent(event)
     }
 
-    CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { _ ->
-        taskExecutor.add("chunk-load") { applyChunkPacket(pos, EngineChunk(decals.toMutableMap(), hints.toMutableMap())) }
+    registerGameSessionReceiver(CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT) { _ ->
+        applyDynamicVoxelDelta(voxelPos, components)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ENTITY_ENDPOINT) { _ ->
-        applyEntity(persistentId, components)
+    CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { _ ->
+        taskExecutor.add("chunk-load") { applyChunkPacket(chunk) }
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_ENTITY_DELTA_ENDPOINT) { _ ->
+        applyEntity(dto.persistentId, dto.components)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { _ -> applyIntent(dto, intent) }

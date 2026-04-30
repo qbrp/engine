@@ -30,6 +30,7 @@ class EngineClient(
     val ui: EngineUi,
     val eventBus: ClientEventBus,
 ) {
+    val namespacedStorage: NamespacedStorage = NamespacedStorage()
     lateinit var options: EngineOptions
     lateinit var thread: Thread
     val handler = ClientHandler(this, eventBus)
@@ -64,41 +65,38 @@ class EngineClient(
             field = value
         }
 
-    val namespacedStorage: NamespacedStorage = NamespacedStorage()
-
     var gameSession: GameSession? = null
     val gameSessionActive
         get() = gameSession != null
 
     private val luaDataStorage = LuaDataStorage()
-    private val luaGlobals = JsePlatform.standardGlobals()
     var compilationResult: CompilationResult? = null
     var luaContext: ClientLuaContext? = null
 
-    fun compileScripts(server: ServerId): CompilationResult {
-        val scriptsPath = resources.scripts.file
+    fun compileScripts(): CompilationResult {
         val contentsPath = resources.contents.file
-        luaContext = createLuaContext()
-        compilationResult = compileContents(contentsPath, scriptsPath.luaEntrypointDir(server), luaContext!!)
-        namespacedStorage.loadContentsCompileResult(compilationResult!!)
+        val result = compileContents(contentsPath, luaContext ?: error("Lua context not initialized"))
+        compilationResult = result
+        namespacedStorage.loadContentsCompileResult(result)
         return compilationResult!!
     }
 
     fun createLuaDependencies(scriptsPath: File): LuaDependencies {
         return LuaDependencies(
-            luaGlobals,
+            JsePlatform.standardGlobals(),
             namespacedStorage,
             scriptsPath,
             luaDataStorage
         )
     }
 
-    fun createLuaContext(): ClientLuaContext {
+    fun createLuaContext(serverId: ServerId): ClientLuaContext {
         val scriptsPath = resources.scripts.file
         return ClientLuaContext(
             this,
+            scriptsPath.luaEntrypointDir(serverId),
             createLuaDependencies(scriptsPath),
-        )
+        ).also { it.setup() }
     }
 
     var ticks = 0L

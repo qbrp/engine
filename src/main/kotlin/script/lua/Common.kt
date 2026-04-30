@@ -79,12 +79,10 @@ class LazyScriptComponentType(
 
 context(ctx: LuaContext)
 private fun Globals.setupComponentCommands() {
-    set("_component_type_of", object : OneArgFunction() {
-        override fun call(arg1: LuaValue): LuaValue {
-            val id = arg1.tojstring()
-            val type = LazyScriptComponentType(ctx.dependencies.namespacesStorage, ScriptComponentId(id))
-            return type.toLuaValue()
-        }
+    set("_component_type_of", oneArgFunction { arg ->
+        val id = arg.tojstring()
+        val type = LazyScriptComponentType(ctx.dependencies.namespacesStorage, ScriptComponentId(id))
+        type.toLuaValue()
     })
 }
 

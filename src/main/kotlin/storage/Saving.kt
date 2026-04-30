@@ -1,7 +1,6 @@
 package org.lain.engine.storage
 
 import kotlinx.coroutines.*
-import kotlinx.serialization.Serializable
 import net.minecraft.item.ItemStack
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.*
@@ -72,7 +71,7 @@ fun Database.saveItemsBlocking(world: World): Int = with(world) {
     val itemsToSave = itemPairsToSave.map { (_, state) ->
         EntityDto(
             state.require<PersistentId>(),
-            state.getComponents().map { it.toDto() }
+            state.getComponents().map { it.toCommonDto() }
         )
     }
     runBlocking {
@@ -80,15 +79,6 @@ fun Database.saveItemsBlocking(world: World): Int = with(world) {
         itemsToSave.count()
     }
 }
-
-context(world: World)
-fun Component.toDto() = when (this) {
-    is ContainedIn -> ContainedInDto(container.requireComponent())
-    else -> this
-}
-
-@Serializable
-data class ContainedInDto(val container: PersistentId) : Component
 
 context(world: World)
 fun updateSaveSystem(server: EngineMinecraftServer) {
@@ -108,7 +98,7 @@ fun updateSaveSystem(server: EngineMinecraftServer) {
 
             EntityDto(
                 persistentId,
-                state.getComponents().map { it.toDto() }
+                state.getComponents().map { it.toCommonDto() }
             )
         }
 
@@ -164,6 +154,7 @@ class ItemLoader(
     private val server: EngineServer,
     private val database: Database
 ) {
+    private val componentLoadSettings = ComponentLoadSettings(null, server.namespacedStorage)
     private val commandBuffers = ConcurrentLinkedQueue<Pair<WorldId, EntityCommandBuffer>>()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val items = mutableMapOf<String, Long>()
@@ -188,7 +179,7 @@ class ItemLoader(
             // Если есть исключение в базе данных - ищем предмет в старой, если и там нет, выбрасываем ошибку
             val entity = runCatching { database.loadEntity(uuid) }
             entity
-                .getOrNull()?.let { components -> loadItem(world, uuid, components) }
+                .getOrNull()?.let { components -> loadItem(world, uuid, components, componentLoadSettings) }
                 ?: database.loadPersistentItemDataLegacy(uuid)?.let { (id, components) -> loadItemLegacy(components, world, id, uuid) }
                 ?: run {
                     val e = entity.exceptionOrNull()
@@ -207,7 +198,16 @@ class ItemLoader(
         dataFixItem(protoItem, server.namespacedStorage)
 
         val commandBuffer = EntityCommandBuffer(world)
-        container?.let { components -> protoItem.state.set(ContainedIn(commandBuffer.instantiateEntity(result.container, components))) }
+        container?.let { components ->
+            protoItem.state.set(
+                ContainedIn(
+                    commandBuffer.instantiateEntity(
+                        result.container,
+                        components.mapNotNull { it.toDomain(componentLoadSettings) }
+                    )
+                )
+            )
+        }
         val item = commandBuffer.instantiateItem(protoItem, server.itemStorage)
         commandBuffers += world.id to commandBuffer
         return item

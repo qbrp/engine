@@ -22,7 +22,7 @@ data class Writable(
     val pages: Int,
     var contents: List<String>,
     val backgroundAsset: String? = null,
-) : ItemComponent
+) : Component
 
 const val WRITEABLE_OPEN_SOUND = "writable_open"
 

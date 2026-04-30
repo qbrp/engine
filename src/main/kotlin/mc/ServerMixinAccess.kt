@@ -126,10 +126,11 @@ object ServerMixinAccess {
 
     fun onChunkDataSent(chunk: WorldChunk, player: ServerPlayerEntity) {
         val player = table.server.getPlayer(player) ?: return
-        val chunkStorage = player.world.chunkStorage
+        val world = player.world
+        val chunkStorage = world.chunkStorage
         val chunkPos = chunk.pos.engine()
         val engineChunk = chunkStorage.requireChunk(chunkPos)
-        server.engine.handler.onChunkSend(engineChunk, chunkPos, player)
+        server.engine.handler.onChunkSend(world, engineChunk, chunkPos, player)
     }
 
     fun onBlockAdded(context: ItemPlacementContext, world: World, blockPos: BlockPos, state: BlockState) {

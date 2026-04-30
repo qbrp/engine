@@ -148,8 +148,9 @@ function World:__destroy_entity(entity) return self:_destroy_entity(entity) end
 ---@field has_tag fun(tag: string): boolean
 
 ---@param voxel_pos number[]
----@return number entity id
-function World:__set_dynamic_voxel(voxel_pos) return self:_set_dynamic_voxel(voxel_pos) end
+---@param networked boolean
+---@return Entity
+function World:__set_dynamic_voxel(voxel_pos, networked) return self:_set_dynamic_voxel(voxel_pos, networked) end
 
 --------------------------------------------------------------------------------
 ---- Реестры

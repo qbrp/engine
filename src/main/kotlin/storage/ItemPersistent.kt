@@ -6,7 +6,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.decodeFromByteArray
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.require
 import org.lain.engine.container.AssignedSlot
 import org.lain.engine.item.*
@@ -61,8 +60,25 @@ data class EntryVersion(val value: Int) : Component {
 /**
  * @see ItemLoader.loadWorldItem
  */
-fun loadItem(world: World, persistentId: PersistentId, components: List<Component>): ItemLoadResult {
-    val componentState = ComponentState(components)
+fun loadItem(
+    world: World,
+    persistentId: PersistentId,
+    components: List<ComponentDto>,
+    componentLoadSettings: ComponentLoadSettings,
+): ItemLoadResult {
+    val components2 = mutableListOf<Component>()
+    var container: PersistentId? = null
+    components.forEach {
+        if (it.data is ContainedInDto) {
+            container = it.data.container
+        } else { // контейнер подгрузится позже
+            components2.add(it.toDomain(componentLoadSettings) ?: run {
+                LOGGER.warn("При загрузке сущности $persistentId был пропущен компонент $it")
+                return@forEach
+            })
+        }
+    }
+    val componentState = ComponentState(components2)
     // использовать в будущем для версионирования
     // val entry = componentState.get<EntryVersion>() ?: EntryVersion.DEFAULT
     return ItemLoadResult(
@@ -72,7 +88,7 @@ fun loadItem(world: World, persistentId: PersistentId, components: List<Componen
             world,
             componentState,
         ),
-        componentState.remove<ContainedInDto>()?.container // контейнер подгрузиться позже
+        container
     )
 }
 

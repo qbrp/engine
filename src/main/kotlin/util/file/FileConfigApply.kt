@@ -10,7 +10,7 @@ import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.chat.*
 import org.lain.engine.mc.AcousticBlockData
 import org.lain.engine.mc.ServerMixinAccess
-import org.lain.engine.mc.registerServerChatCommand
+import org.lain.engine.mc.commands.registerServerChatCommand
 import org.lain.engine.player.*
 import org.lain.engine.server.ServerGlobals
 import org.lain.engine.util.Color

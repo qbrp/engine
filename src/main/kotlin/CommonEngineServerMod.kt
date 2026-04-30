@@ -19,6 +19,7 @@ import net.minecraft.world.Difficulty
 import net.minecraft.world.GameRules
 import org.lain.engine.SharedConstants.DEVELOPER_TEST_ENVIRONMENT
 import org.lain.engine.mc.*
+import org.lain.engine.mc.commands.registerEngineCommands
 import org.lain.engine.player.RaycastProvider
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector

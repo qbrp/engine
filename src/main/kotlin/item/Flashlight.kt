@@ -1,20 +1,11 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
 import org.lain.engine.player.VerbType
-import org.lain.engine.transport.packet.ItemComponent
 
 @Serializable
-data class Flashlight(
-    var enabled: Boolean,
-    val emitter: ConeLightEmitterSettings
-) : ItemComponent
-
-@Serializable
-data class ConeLightEmitterSettings(
-    val radius: Float = 8f,
-    val distance: Float = 20f
-)
+data class Flashlight(var enabled: Boolean) : Component
 
 val LIGHT_TOGGLE = VerbType(
     "light_toggle",

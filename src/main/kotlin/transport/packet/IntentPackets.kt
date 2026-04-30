@@ -1,7 +1,7 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.mc.CommandIntentBehaviour
+import org.lain.engine.mc.commands.CommandIntentBehaviour
 import org.lain.engine.player.PlayerId
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.transport.Endpoint

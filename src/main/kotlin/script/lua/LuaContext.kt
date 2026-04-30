@@ -6,6 +6,7 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.script.*
 import org.lain.engine.script.yaml.namespacedId
 import org.lain.engine.util.*
+import org.lain.engine.util.component.ComponentMeta
 import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -47,7 +48,13 @@ data class LuaRuntimeDependencies(
     val worlds: MutableMap<WorldId, World>
 )
 
-open class LuaContext(val dependencies: LuaDependencies) {
+open class LuaContext(
+    val dependencies: LuaDependencies,
+    val entrypoint: File
+) {
+    init { require(entrypoint.exists()) { "Входной скрипт сервера по директроии $entrypoint не найден" } }
+
+    private var initialized = false
     var runtimeDependencies: LuaRuntimeDependencies? = null
         private set
     val globals get() = dependencies.globals
@@ -73,13 +80,12 @@ open class LuaContext(val dependencies: LuaDependencies) {
         globals.setupEntity()
     }
 
-    open fun setup(directory: File) {
-        directory.parentFile.mkdirs()
+    open fun setup() {
+        if (initialized) error("Контекст Lua уже инициализирован")
+        entrypoint.parentFile.mkdirs()
 
         val libraryDir = BUILTIN_SCRIPTS_DIR
         val libraryBootDir = libraryDir.resolve("core/boot.lua")
-
-        require(directory.exists()) { "Входной скрипт сервера по директроии $directory не найден" }
         require(libraryBootDir.exists()) { "Скрипт загрузки стандартных библиотек $libraryBootDir не найден" }
         globals.setup()
 
@@ -88,9 +94,14 @@ open class LuaContext(val dependencies: LuaDependencies) {
         setupTables()
         setupGlobals()
 
-        globals.loadfile(directory.path).call()
-        // Загружаем второй раз, чтобы... чтобы всё точно загрузилось. Без повторения иногда всё ломается
-        setupTables()
+        initialized = true
+    }
+
+    open fun runEntrypoint() {
+        callbacksFunctions.clear()
+        val toRemove = compilationFunctions.subList(1, compilationFunctions.size)
+        compilationFunctions.removeAll(toRemove) // оставляем только функцию инициализации стандартной библиотеки
+        globals.loadfile(entrypoint.path).call()
     }
 
     open fun setupGame(dependencies: LuaRuntimeDependencies) {
@@ -159,7 +170,12 @@ open class LuaContext(val dependencies: LuaDependencies) {
                         val components = componentsArray?.toList { it.checktable() }
                             ?.associate { componentType ->
                                 val componentId = namespacedId(namespaceId, componentType.get("id").tojstring()).toScriptComponentId()
-                                componentId to ScriptComponentType(ComponentType(componentId.id))
+                                val isSavable = componentType.get("savable").nullable()?.toboolean() ?: false
+                                val isNetworking = componentType.get("networking").nullable()?.toboolean() ?: false
+                                componentId to ScriptComponentType(
+                                    ComponentType(componentId.id),
+                                    ComponentMeta(isSavable, null, isNetworking)
+                                )
                             } ?: emptyMap()
 
                         val intents = intentsArray?.toList { it.checktable() }

@@ -10,7 +10,7 @@ import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.mc.engine
-import org.lain.engine.mc.playerPositionsMessage
+import org.lain.engine.mc.commands.playerPositionsMessage
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.randomInteger
 import org.lain.engine.util.math.roundToInt

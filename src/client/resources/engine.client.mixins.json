@@ -47,7 +47,7 @@
     "resource.TransformationDeserializerMixin",
     "screen.BookEditScreenMixin",
     "screen.CreativeInventoryScreenMixin",
-    "ui.DownloadingTerrainScreenMixin",
+    "screen.DownloadingTerrainScreenMixin",
     "ui.InGameHudAcessor",
     "ui.InGameHudMixin"
   ],

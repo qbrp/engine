@@ -16,7 +16,11 @@ class ComponentState(components: List<Component> = emptyList()) : ComponentManag
     private val components = ConcurrentHashMap<ComponentType<out Component>, Component>()
     private val byName = ConcurrentHashMap<String, Component>()
 
-    init { components.forEach { setComponent(componentTypeOf(it::class) as ComponentType<Component>, it) } }
+    init {
+        components.forEach {
+            setComponent(componentTypeOfGeneral(it) as ComponentType<Component>, it)
+        }
+    }
 
     override fun getComponents(): List<Component> {
         return components.values.toList()

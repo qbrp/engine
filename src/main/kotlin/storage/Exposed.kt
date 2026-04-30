@@ -1,5 +1,6 @@
 package org.lain.engine.storage
 
+import kotlinx.serialization.Serializable
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.WorldSavePath
 import org.jetbrains.exposed.v1.core.Table
@@ -10,7 +11,6 @@ import org.jetbrains.exposed.v1.jdbc.batchUpsert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.lain.cyberia.ecs.Component
 import org.lain.engine.item.ItemId
 
 fun connectDatabase(server: MinecraftServer): Database {
@@ -36,7 +36,8 @@ object ItemsTable : Table() {
     val components = binary("components")
 }
 
-data class EntityDto(val persistentId: PersistentId, val components: List<Component>)
+@Serializable
+data class EntityDto(val persistentId: PersistentId, val components: List<ComponentDto>)
 
 suspend fun Database.saveEntitiesBatch(entities: List<EntityDto>) {
     suspendTransaction(this) {
@@ -47,7 +48,7 @@ suspend fun Database.saveEntitiesBatch(entities: List<EntityDto>) {
     }
 }
 
-suspend fun Database.loadEntity(id: PersistentId): List<Component>? {
+suspend fun Database.loadEntity(id: PersistentId): List<ComponentDto>? {
     return suspendTransaction(this) {
         EcsEntityTable
             .selectAll()

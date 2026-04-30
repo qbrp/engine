@@ -7,8 +7,6 @@ import org.lain.engine.item.ItemPrefab
 import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.script.lua.LuaContext
-import org.lain.engine.script.lua.LuaRuntimeDependencies
-import org.lain.engine.script.lua.writeDefaultLuaEntrypointScript
 import org.lain.engine.script.yaml.compileContentsYaml
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
@@ -76,7 +74,7 @@ data class CompilationResult(
         }
     }
 
-    fun withValidateIdentifiers(): CompilationResult {
+    fun withValidatedIdentifiers(): CompilationResult {
         val exceptions = exceptions.toMutableList()
         namespaces.forEach { (id, namespace) ->
             namespace.identifiers.forEach {
@@ -146,35 +144,30 @@ fun EngineServer.applyContentsCompileResult(result: CompilationResult) {
     result.callbacks?.let { callbacks = it }
     namespacedStorage.loadContentsCompileResult(result)
     listWorlds().forEach { it.registerScriptComponents(namespacedStorage) }
-    handler.onContentsUpdate()
+    handler.onScriptsCompiled()
 }
 
 fun EngineServer.loadContents(
     luaContext: LuaContext,
-    result: CompilationResult = compileContents(ENGINE_DIR.contents, luaEntrypointDir, luaContext)
+    result: CompilationResult = compileContents(ENGINE_DIR.contents, luaContext)
 ) {
     applyContentsCompileResult(result)
-    luaContext.setupGame(LuaRuntimeDependencies(playerStorage, worlds))
     eventListener.onCompiled(namespacedStorage)
     result.log()
 }
 
 // Функция с побочными эффектами
-fun compileContents(contents: File, entrypointScript: File, luaContext: LuaContext): CompilationResult {
+fun compileContents(contents: File, luaContext: LuaContext): CompilationResult {
     val start = Timestamp()
     val result1 = compileContentsYaml(contents)
-    if (!entrypointScript.exists()) {
-        entrypointScript.createNewFile()
-        entrypointScript.writeDefaultLuaEntrypointScript()
-    }
-    luaContext.setup(entrypointScript)
+    luaContext.runEntrypoint()
     val result2 = luaContext.compileContents()
     val result = CompilationResult(
         result1.namespaces + result2.namespaces,
         result1.exceptions + result2.exceptions,
         result2.callbacks,
         start.timeElapsed()
-    ).withValidateIdentifiers()
+    ).withValidatedIdentifiers()
 
     return result
 }

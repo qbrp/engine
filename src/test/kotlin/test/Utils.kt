@@ -5,6 +5,7 @@ import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.item.ItemProgressionAnimations
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.util.component.ComponentWorld
 import org.lain.engine.util.component.registerAll
@@ -16,6 +17,7 @@ import org.lain.engine.world.WorldId
 fun DummyWorld() = World(
     WorldId("dummy"),
     ComponentWorld(Thread.currentThread()),
+    namespacedStorage = NamespacedStorage()
 )
 
 fun DummyLocation(world: World) = Location(world, Vec3(0f))

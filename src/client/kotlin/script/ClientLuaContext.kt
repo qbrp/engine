@@ -6,11 +6,13 @@ import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.LuaDependencies
 import org.lain.engine.script.lua.LuaRuntimeDependencies
 import org.luaj.vm2.LuaTable
+import java.io.File
 
 class ClientLuaContext(
     val client: EngineClient,
+    entrypoint: File,
     dependencies: LuaDependencies,
-) : LuaContext(dependencies) {
+) : LuaContext(dependencies, entrypoint) {
     lateinit var audioSourceTable: LuaTable
 
     override fun setupTables() {

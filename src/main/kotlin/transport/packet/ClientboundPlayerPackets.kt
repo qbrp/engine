@@ -30,9 +30,9 @@ val CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT = Endpoint<ServerSettingsUpdateP
 // Contents update
 
 @Serializable
-object ContentsUpdatePacket : Packet
+object ScriptsRecompileEndpoint : Packet
 
-val CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT = Endpoint<ContentsUpdatePacket>()
+val CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT = Endpoint<ScriptsRecompileEndpoint>()
 
 // Acoustic debug
 

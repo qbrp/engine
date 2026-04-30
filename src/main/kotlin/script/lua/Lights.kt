@@ -1,11 +1,10 @@
-package org.lain.engine.client.script
+package org.lain.engine.script.lua
 
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.client.render.LightBehaviour
-import org.lain.engine.client.render.LightSource
-import org.lain.engine.client.render.Luminance
 import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.lua.luaTable
+import org.lain.engine.world.LightBehaviour
+import org.lain.engine.world.LightSource
+import org.lain.engine.world.Luminance
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaTable
 

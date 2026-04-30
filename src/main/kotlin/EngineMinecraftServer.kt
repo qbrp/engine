@@ -18,9 +18,13 @@ import org.lain.engine.item.ItemAccess
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.*
+import org.lain.engine.mc.commands.registerIntentCommands
 import org.lain.engine.player.*
-import org.lain.engine.script.*
+import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.loadContents
 import org.lain.engine.script.lua.*
+import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerEventListener
@@ -28,10 +32,12 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
-import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
 import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
-import org.lain.engine.util.file.*
+import org.lain.engine.util.file.CONFIG_LOGGER
+import org.lain.engine.util.file.ServerConfig
+import org.lain.engine.util.file.applyConfigCatching
+import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.forEachWithContext
 import org.lain.engine.world.*
 
@@ -75,15 +81,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     )
     protected var luaContext: LuaContext = dependencies.luaContext
 
-    fun recreateLuaContext(): LuaContext = LuaContext(
-        LuaDependencies(
-            luaContext.globals,
-            engine.namespacedStorage,
-            ENGINE_DIR.scripts,
-            luaContext.dependencies.dataStorage
-        )
-    ).also { it.setupGame(LuaRuntimeDependencies(engine.playerStorage, engine.worlds)) }
-
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
         val item = instantiateItem(
             this,
@@ -110,6 +107,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld)
         engine.listWorlds().forEachWithContext({ it }) { world ->
             updatePlayerScriptSystem()
+            updateScriptLightSystem()
             world.updateVoxelEvents(engine.handler)
             world.clearEvents()
             updateUnloadSystem(world, timers)
@@ -128,10 +126,11 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         Injector.register(engine.globals.movementSettings)
         applyConfigCatching(config)
         val compilationResult = dependencies.compilationResult
+        luaContext.setupGame(LuaRuntimeDependencies(playerStorage, engine.worlds))
         engine.loadContents(luaContext, compilationResult)
         minecraftServer.worlds.forEach {
             val id = it.engine
-            val world = world(id, engine.thread) { chunkPos ->
+            val world = world(id, engine.thread, engine.namespacedStorage) { chunkPos ->
                 it.chunkManager.chunkLoadingManager.getPlayersWatchingChunk(ChunkPos(chunkPos.x, chunkPos.z), false)
                     .mapNotNull { entity -> entityTable.getPlayer(entity) }
             }
@@ -140,24 +139,17 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             dependencies.entityTable.setWorld(id, it)
         }
         engine.run()
-        SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.registerReceiver { ctx -> onRequestReloadContents(ctx.sender) }
     }
 
-    private fun onRequestReloadContents(playerId: PlayerId) = playerStorage.get(playerId)?.let { player ->
-        if (player.hasPermission("reloadenginecontents") || minecraftServer.isRunning) {
-            try {
-                recompileEngineContents()
-            } catch (e: Throwable) {
-                CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
+    fun recompileEngineContents(player: EnginePlayer?) {
+        try {
+            engine.loadContents(luaContext)
+        } catch (e: Throwable) {
+            CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
+            if (player != null) {
                 engine.handler.onServerNotification(player, Notification.COMPILATION_ERROR, false)
             }
         }
-    }
-
-    fun recompileEngineContents() {
-        val luaContext = recreateLuaContext()
-        this.luaContext = luaContext
-        engine.loadContents(luaContext)
     }
 
     open fun disable() = runBlocking {
@@ -208,9 +200,22 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val pos = chunk.pos.engine()
         acousticSimulator.onChunkUnload(world.engine, chunk)
         engine.handler.onChunkUnload(pos)
-        val engineChunk = engine.getWorld(world).chunkStorage.getChunk(pos) ?: return
-        engine.getWorld(world).chunkStorage.removeChunk(pos)
-        saveChunk(engine, pos, engineChunk.decals.toMap(), engineChunk.hints.toMap())
+        val engineWorld = engine.getWorld(world)
+        val engineChunk = engineWorld.chunkStorage.getChunk(pos) ?: return
+        val componentManager = engineWorld.componentManager
+        val savableComponentArrays = componentManager.listArrays().filter { it.meta.savable }
+        engineWorld.chunkStorage.removeChunk(pos)
+        saveChunk(
+            engine,
+            pos,
+            engineChunk.decals.toMap(),
+            engineChunk.hints.toMap(),
+            engineChunk.dynamicVoxels.mapValues { (_, entity) ->
+                savableComponentArrays.mapNotNull {
+                    with(engineWorld) { it.componentOf(entity)?.toCommonDto() }
+                }
+            }
+        )
     }
 }
 

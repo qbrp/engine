@@ -15,7 +15,6 @@ import org.lain.engine.client.handler.lowDetailedClientPlayerInstance
 import org.lain.engine.client.handler.mainClientPlayerInstance
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.updateShootShakeSystem
-import org.lain.engine.client.script.updateScriptLightSystem
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.processSoundPlayKeys
@@ -28,6 +27,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.CompilationResult
 import org.lain.engine.script.lua.updatePlayerScriptSystem
+import org.lain.engine.script.lua.updateScriptLightSystem
 import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
@@ -124,8 +124,20 @@ class GameSession(
         onContentsUpdated()
     }
 
-    fun recompileContents() {
-        applyCompilation(client.compileScripts(server))
+    fun recompile() {
+        try {
+            applyCompilation(client.compileScripts())
+        } catch (e: Exception) {
+            client.applyLittleNotification(
+                LittleNotification(
+                    "Ошибка компиляции клиента",
+                    "${e.message ?: "Неизвестная ошибка"}<newline>Проверьте консоль для более подробной информации.",
+                    WARNING_COLOR,
+                    WARNING,
+                    lifeTime = 240
+                )
+            )
+        }
     }
 
     fun onContentsUpdated() {

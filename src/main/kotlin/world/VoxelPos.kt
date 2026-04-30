@@ -1,8 +1,10 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
+import net.fabricmc.loader.impl.lib.sat4j.core.Vec
 import net.minecraft.util.math.BlockPos
 import org.lain.engine.util.math.Pos
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.floorToInt
 
 interface VoxelPos {
@@ -10,6 +12,9 @@ interface VoxelPos {
     val y: Int
     val z: Int
 
+    fun toCenterPos(): Vec3 {
+        return Vec3(x + 0.5f, y + 0.5f, z + 0.5f)
+    }
     fun toShortString(): String = "$x, $y, $z"
     fun asLong(): Long = BlockPos.asLong(x, y, z)
 }

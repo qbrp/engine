@@ -19,19 +19,21 @@ import org.lain.engine.world.*
 import java.io.File
 
 private val ChunkIoCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-private val Module = Cbor {
+private val CborSerializer = Cbor {
     serializersModule = SerializersModule {
         polymorphic(VoxelPos::class) {
             subclass(MutableVoxelPos::class)
             subclass(ImmutableVoxelPos::class)
         }
+        polymorphicComponentSubclasses()
     }
 }
 
 @Serializable
 data class ChunkPersistent(
-    val decals: Map<VoxelPos, BlockDecals>,
-    val hints: Map<VoxelPos, BlockHint>
+    val decals: Map<VoxelPos, BlockDecals> = mapOf(),
+    val hints: Map<VoxelPos, BlockHint> = mapOf(),
+    val voxels: Map<VoxelPos, List<ComponentDto>> = mapOf()
 )
 
 private val EngineServer.chunkRegionsPath
@@ -51,13 +53,16 @@ fun saveChunk(
     server: EngineServer,
     pos: EngineChunkPos,
     decals: Map<VoxelPos, BlockDecals>,
-    hints: Map<VoxelPos, BlockHint>
+    hints: Map<VoxelPos, BlockHint>,
+    voxels: Map<VoxelPos, List<ComponentDto>>
 ) {
     ChunkIoCoroutineScope.launch {
         val file = server.chunkRegionPath(pos)
         file.ensureExists()
         file.writeBytes(
-            Module.encodeToByteArray(ChunkPersistent(decals, hints))
+            CborSerializer.encodeToByteArray(
+                ChunkPersistent(decals, hints, voxels)
+            )
         )
     }
 }
@@ -65,7 +70,7 @@ fun saveChunk(
 fun loadChunk(server: EngineServer, pos: EngineChunkPos): ChunkPersistent? {
     val file = server.chunkRegionPath(pos)
     return if (file.exists()) {
-        Module.decodeFromByteArray<ChunkPersistent>(file.readBytes())
+        CborSerializer.decodeFromByteArray<ChunkPersistent>(file.readBytes())
     } else {
         null
     }

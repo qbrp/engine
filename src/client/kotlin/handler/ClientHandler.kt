@@ -23,12 +23,15 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
 import org.lain.engine.item.addItemComponents
-import org.lain.engine.mc.ClientCommandIntentBehaviour
+import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.Notification
 import org.lain.engine.server.desync
+import org.lain.engine.storage.ComponentDto
+import org.lain.engine.storage.ComponentLoadSettings
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.toDomain
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
 import org.lain.engine.util.component.ComponentState
@@ -43,17 +46,19 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val handledNotifications = mutableSetOf<Notification>()
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
     private val synchronizedEntities = mutableMapOf<PersistentId, EntityId>()
+    private val componentLoadSettings = ComponentLoadSettings(synchronizedEntities, client.namespacedStorage)
     val taskExecutor = TaskExecutor()
     val processedSounds = mutableSetOf<SoundBroadcast>()
     val processedInteractions = FixedSizeList<InteractionId>(40)
     val pendingSnapshots = mutableListOf<Pair<InteractionId, Runnable>>()
     val pendingFullPlayerData = mutableListOf<Pair<EnginePlayer, FullPlayerData>>()
-    private val pendingChunks: Queue<Pair<EngineChunkPos, EngineChunk>> = LinkedList()
+    private val pendingChunks: Queue<Pair<EngineChunkPos, EngineChunkDto>> = LinkedList()
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
         CLIENTBOUND_VERIFICATION_ENDPOINT.registerClientReceiver { ctx ->
-            client.compileScripts(server.serverId)
+            client.createLuaContext(server.serverId)
+            client.compileScripts()
             SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
                 VerificationResponsePacket(
                     DeveloperModeStatus(client.developerMode, client.acousticDebug),
@@ -268,11 +273,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             error("Игровая сессия уже запущена!")
         }
 
-        if (client.luaContext == null) {
-            client.luaContext = client.createLuaContext()
-        }
-
-        val world = clientWorld(client.thread, worldData)
+        val world = clientWorld(client.thread, worldData, client.namespacedStorage)
         val gameSession = GameSession(
             data.serverId,
             world,
@@ -371,32 +372,60 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         eventBus.onAcousticDebugVolumes(volumes, this)
     }
 
-    fun applyChunkPacket(pos: EngineChunkPos, chunk: EngineChunk) {
+    fun applyChunkPacket(chunkDto: EngineChunkDto) {
         val session = gameSession
+        val pos = chunkDto.pos
         if (session == null) {
-            pendingChunks.add(pos to chunk)
+            pendingChunks.add(pos to chunkDto)
         } else {
             if (pendingChunks.isNotEmpty()) {
-                pendingChunks.flush { session.loadChunk(it.first, it.second) }
+                pendingChunks.flush { session.loadChunk(it.second) }
             }
-            session.loadChunk(pos, chunk)
+            session.loadChunk(chunkDto)
         }
+    }
+
+    private fun GameSession.loadChunk(chunkDto: EngineChunkDto) = with(gameSession!!.world) {
+        val pos = chunkDto.pos
+        val entities: MutableMap<VoxelPos, EntityId> = chunkDto.dynamicVoxels
+            .map { (pos, components) ->
+                val entity = world.addEntity()
+                entity.setDynamicVoxel(pos)
+                entity.copyState(components)
+                pos to entity
+            }
+            .toMap(mutableMapOf())
+        val chunk = EngineChunk(
+            chunkDto.decals.toMutableMap(),
+            chunkDto.hints.toMutableMap(),
+            entities
+        )
+        loadChunk(pos, chunk)
+    }
+
+    fun applyDynamicVoxelDelta(voxelPos: VoxelPos, components: List<ComponentDto>) = with(gameSession!!.world) {
+        val entity = chunkStorage.getDynamicVoxel(voxelPos) ?: run {
+            setDynamicVoxel(voxelPos, false)
+        }
+        entity.copyState(components.mapNotNull { it.toDomain(componentLoadSettings) })
     }
 
     fun applyVoxelEvent(event: VoxelEvent) = with(gameSession!!) {
         world.emitEvent(event)
     }
 
-    fun applyEntity(persistentId: PersistentId, components: List<Component>) = with(gameSession!!.world) {
+    fun applyEntity(persistentId: PersistentId, components: List<ComponentDto>) = with(gameSession!!.world) {
+        val gameSession = gameSession!!
         val entity = synchronizedEntities[persistentId] ?: run {
             val e = addEntity().also { synchronizedEntities[persistentId] = it }
             e.setComponent(persistentId)
             e
         }
-        val state = ComponentState(components)
+        val state = ComponentState(
+            components.map { it.toDomain(componentLoadSettings) ?: desync("Не удалось синхронизировать сущность. Пропущен компонент: $it") }
+        )
         if (state.has<Item>()) { // addItemComponents перезаписывает некоторые компоненты, например Count
             // поэтому обращаемся через state.has, и уже потом копируем его в entity
-            val gameSession = gameSession!!
             val itemStorage = gameSession.itemStorage
             entity.addItemComponents()
             if (itemStorage.get(persistentId.value) != null) itemStorage.remove(persistentId.value)

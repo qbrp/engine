@@ -21,8 +21,10 @@ import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.getVoidScript
+import org.lain.engine.storage.EntityDto
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.backupBookContent
+import org.lain.engine.storage.toCommonDto
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
@@ -293,8 +295,13 @@ class ServerHandler(
                     val delta = world.componentManager.getOrCreateNetworkedDeltaBitMask(entity)
                     val componentsToSynchronize = entity.getAll(delta)
                     if (componentsToSynchronize.isNotEmpty()) {
-                        CLIENTBOUND_ENTITY_ENDPOINT.sendS2C(
-                            EntityPacket(persistentId, componentsToSynchronize),
+                        CLIENTBOUND_ENTITY_DELTA_ENDPOINT.sendS2C(
+                            EntityDeltaPacket(
+                                EntityDto(
+                                    persistentId,
+                                    componentsToSynchronize.map { it.toCommonDto() }
+                                )
+                            ),
                             player.id
                         )
                     }
@@ -305,6 +312,22 @@ class ServerHandler(
                 }
             }
             state.items.removeIf { it !in items }
+
+            world.iterate<Networked, DynamicVoxel, ChunkedPos> { voxel, _, (voxelPos), (chunkPos, _, centerPos) ->
+                if (centerPos.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
+                    val delta = world.componentManager.getOrCreateNetworkedDeltaBitMask(voxel)
+                    val componentsToSynchronize = voxel.getAll(delta)
+                    if (componentsToSynchronize.isNotEmpty()) {
+                        CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT.sendS2C(
+                            DynamicVoxelDeltaPacket(
+                                voxelPos,
+                                componentsToSynchronize.map { it.toCommonDto() }
+                            ),
+                            player.id
+                        )
+                    }
+                }
+            }
 
             tickSynchronizationComponent(playerStorage, player)
 
@@ -351,20 +374,28 @@ class ServerHandler(
         )
     }
 
-    fun onChunkSend(chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer) {
+    fun onChunkSend(world: World, chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer) = with(world) {
         CLIENTBOUND_CHUNK_ENDPOINT.sendS2C(
             EngineChunkPacket(
-                pos,
-                chunk.decals.mapKeys { (k, v) -> ImmutableVoxelPos(k) },
-                chunk.hints.mapKeys { (k, v) -> ImmutableVoxelPos(k) }
+                EngineChunkDto(
+                    pos,
+                    chunk.decals.mapKeys { (k, v) -> ImmutableVoxelPos(k) },
+                    chunk.hints.mapKeys { (k, v) -> ImmutableVoxelPos(k) },
+                    chunk.dynamicVoxels
+                        .filterValues { it.hasComponent<Networked>() }
+                        .mapNotNull { (pos, entity) ->
+                            ImmutableVoxelPos(pos) to entity.getAll(world.componentManager.getOrCreateNetworkedDeltaBitMask(entity))
+                        }
+                        .toMap()
+                )
             ),
             player.id
         )
         player.network.chunks += pos
     }
 
-    fun onContentsUpdate() {
-        CLIENTBOUND_CONTENTS_UPDATE_ENDPOINT.broadcast(ContentsUpdatePacket)
+    fun onScriptsCompiled() {
+        CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT.broadcast(ScriptsRecompileEndpoint)
     }
 
     fun onSoundEvent(play: SoundPlay, context: SoundContext?, receivers: List<EnginePlayer>) {

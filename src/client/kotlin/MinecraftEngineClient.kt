@@ -1,16 +1,16 @@
 package org.lain.engine.client
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import net.fabricmc.api.ClientModInitializer
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.gui.screen.ingame.BookEditScreen
 import net.minecraft.client.network.ClientPlayerEntity
@@ -25,7 +25,6 @@ import net.minecraft.world.World
 import net.minecraft.world.chunk.Chunk
 import org.lain.cyberia.ecs.*
 import org.lain.engine.AuthPacket
-import org.lain.engine.EngineMinecraftServerDependencies
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.compat.LightSystem
@@ -38,30 +37,25 @@ import org.lain.engine.client.mc.render.world.registerWorldRenderEvents
 import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mc.sound.TinnitusSoundInstance
 import org.lain.engine.client.mixin.MinecraftClientAccessor
-import org.lain.engine.client.render.*
+import org.lain.engine.client.render.Window
 import org.lain.engine.client.resources.OutfitTag
-import org.lain.engine.client.server.ClientSingleplayerTransport
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
+import org.lain.engine.client.server.registerEngineIntegratedServerEvent
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
-import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.client.util.PlayerTickException
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
-import org.lain.engine.script.*
-import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.serverMinecraftPlayerLoadSettings
 import org.lain.engine.transport.packet.DeveloperModeStatus
-import org.lain.engine.transport.packet.ReloadContentsRequestPacket
-import org.lain.engine.transport.packet.SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT
-import org.lain.engine.util.*
+import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
-import org.lain.engine.util.file.ENGINE_DIR
-import org.lain.engine.util.file.loadOrCreateServerConfig
+import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.injectValue
 import org.lain.engine.world.ImmutableVoxelPos
 import org.slf4j.LoggerFactory
 import java.util.*
@@ -97,13 +91,13 @@ class MinecraftEngineClient : ClientModInitializer {
         .also { Injector.register(it) }
 
     private lateinit var keybindManager: KeybindManager
-    private var server: IntegratedEngineMinecraftServer? = null
     private val renderer
         get() = engineClient.renderer
 
     private val connectionLogger = LoggerFactory.getLogger("Engine Connection")
     private var inAuthorization = false
     var readyToAuthorize = false
+    var server: IntegratedEngineMinecraftServer? = null
 
     private fun isInWorld(world: World): Boolean = client.world?.registryKey?.value == world.registryKey.value
 
@@ -113,6 +107,7 @@ class MinecraftEngineClient : ClientModInitializer {
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engineClient)
         registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
+        registerClientEngineCommands(engineClient)
         OutfitTag.registerType() // lazy init
         TinnitusSoundInstance.registerEvents() // lazy init
 
@@ -141,53 +136,6 @@ class MinecraftEngineClient : ClientModInitializer {
             if (!world.isClient || !isInWorld(world) || gameSession == null) return@callback false
             val voxel = gameSession.world.chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return@callback false
             with(gameSession.world) { voxel.hasComponent(CoreScriptComponents.USE_RESTRICTION) }
-        }
-
-        ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
-            dispatcher.register(
-                ClientCommandManager.literal("reloadenginecontents")
-                    .executes { ctx ->
-                        SERVERBOUND_RELOAD_CONTENTS_REQUEST_ENDPOINT.sendC2SPacket(ReloadContentsRequestPacket)
-                        try {
-                            require(engineClient.gameSession != null) { friendlyError("Вы не находитесь на сервере") }
-                            engineClient.gameSession?.recompileContents()
-                        } catch (e: Exception) {
-                            engineClient.applyLittleNotification(
-                                LittleNotification(
-                                    "Ошибка компиляции клиента",
-                                    "${e.message ?: "Неизвестная ошибка"}<newline>Проверьте консоль для более подробной информации.",
-                                    WARNING_COLOR,
-                                    WARNING,
-                                    lifeTime = 240
-                                )
-                            )
-                            e.printStackTrace()
-                        }
-
-                        ctx.source.sendFeedback(Text.of("Контент скомпилирован"))
-                        1
-                    }
-            )
-            dispatcher.register(
-                ClientCommandManager.literal("edclient")
-                    .then(
-                        ClientCommandManager.literal("illuminate")
-                            .executes { ctx ->
-                                val gameSession = engineClient.gameSession ?: return@executes 0
-                                with(gameSession.world) {
-                                    val entity = gameSession.mainPlayer.entityId
-                                    if (entity.hasComponent<LightSource>()) {
-                                        entity.removeComponent<LightSource>()
-                                        entity.removeComponent<Luminance>()
-                                    } else {
-                                        entity.setComponent(LightSource(LightBehaviour.Sphere(6)))
-                                        entity.setComponent(Luminance(14))
-                                    }
-                                }
-                                1
-                            }
-                    )
-            )
         }
 
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
@@ -223,46 +171,7 @@ class MinecraftEngineClient : ClientModInitializer {
             decalsStorage.unloadTextures(chunk.pos.engine())
         }
 
-        ServerLifecycleEvents.SERVER_STARTING.register { server ->
-            val context = LuaContext(engineClient.createLuaDependencies(ENGINE_DIR.scripts))
-            val config = loadOrCreateServerConfig()
-            val entrypoint = getLuaEntrypointDir(config.server)
-            val compilationResult = compileContents(
-                ENGINE_DIR.contents,
-                entrypoint,
-                context
-            )
-
-            runBlocking {
-                withContext(MinecraftClientDispatcher) {
-                    val clientLuaContext = engineClient.createLuaContext()
-                    clientLuaContext.setup(entrypoint)
-
-                    engineClient.compilationResult = compilationResult
-                    engineClient.luaContext = clientLuaContext
-                    engineClient.namespacedStorage.loadContentsCompileResult(compilationResult)
-                }
-            }
-
-            val dependencies = EngineMinecraftServerDependencies(
-                server,
-                context,
-                compilationResult,
-                config
-            )
-            Injector.register<ClientTransportContext>(ClientSingleplayerTransport(engineClient))
-
-            registerMinecraftServer(
-                IntegratedEngineMinecraftServer(
-                    dependencies,
-                    engineClient
-                ).also { this.server = it }
-            )
-        }
-
-        ServerLifecycleEvents.SERVER_STOPPED.register { _ ->
-            this.server = null
-        }
+        registerEngineIntegratedServerEvent(engineClient)
 
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register { _, renderer, helper, _ ->
             if (renderer is PlayerEntityRenderer) {
@@ -406,7 +315,7 @@ class MinecraftEngineClient : ClientModInitializer {
         registerHudRenderEvent(client, engineClient, fontRenderer, renderer, uiRenderPipeline, toolgunRenderer)
     }
 
-    private fun onDisconnect() = client.execute {
+    private fun onDisconnect() = engineClient.execute {
         uiRenderPipeline.invalidate()
         entityTable.client.invalidate()
         decalsStorage.unload()

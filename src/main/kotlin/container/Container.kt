@@ -4,7 +4,6 @@ import org.lain.cyberia.ecs.*
 import org.lain.cyberia.ecs.copyState
 import org.lain.engine.item.EngineItem
 import org.lain.engine.storage.PersistentId
-import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Networked
 import org.lain.engine.world.Location
@@ -35,7 +34,7 @@ data class Entries(val items: MutableList<EngineItem>) : Component
  * ## Компоненты предметов
  * Крепятся к сущности в ComponentWorld
  */
-data class ContainedIn(val container: EntityId) : ItemComponent
+data class ContainedIn(val container: EntityId) : Component
 data class ContainerAnchor(val container: EntityId) : Component
 
 fun ReadComponentAccess.getContainerItems(container: EntityId): List<EngineItem> {

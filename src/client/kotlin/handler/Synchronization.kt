@@ -3,6 +3,7 @@ package org.lain.engine.client.handler
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getOrSet
 import org.lain.engine.player.*
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.transport.packet.ClientboundWorldData
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
@@ -63,4 +64,8 @@ fun mainClientPlayerInstance(
     ).also { it.isLowDetailed = false }
 }
 
-fun clientWorld(thread: Thread, data: ClientboundWorldData) = World(data.id, componentManager = ComponentWorld(thread), isClient = true)
+fun clientWorld(
+    thread: Thread,
+    data: ClientboundWorldData,
+    namespacedStorage: NamespacedStorage,
+) = World(data.id, componentManager = ComponentWorld(thread), isClient = true, namespacedStorage = namespacedStorage)

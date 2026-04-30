@@ -10,15 +10,19 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.crash.CrashException
 import net.minecraft.util.crash.CrashReport
-import org.lain.engine.mc.*
+import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.getPlayer
+import org.lain.engine.mc.hasPermission
+import org.lain.engine.mc.isOp
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.script.*
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.script.lua.LuaDependencies
+import org.lain.engine.script.lua.writeDefaultLuaEntrypointScript
 import org.lain.engine.server.Notification
-import org.lain.engine.server.ServerId
 import org.lain.engine.server.network
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -33,27 +37,35 @@ import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.registerMinecraftServer
 import org.lain.engine.util.text.parseMiniMessage
 import org.luaj.vm2.lib.jse.JsePlatform
+import java.io.File
 import java.util.*
 
 class SetupException(val exceptions: List<CompilationException>) : Exception()
 
 class DedicatedServerEngineMod : DedicatedServerModInitializer {
     private lateinit var luaContext: LuaContext
+    private val namespacedStorage = NamespacedStorage()
 
-    private fun createLuaContext(namespacedStorage: NamespacedStorage) = LuaContext(
+    private fun createLuaContext(entrypointScript: File) = LuaContext(
         LuaDependencies(
             JsePlatform.standardGlobals(),
             namespacedStorage,
             ENGINE_DIR.scripts,
             LuaDataStorage()
-        )
+        ),
+        entrypointScript,
     )
 
     override fun onInitializeServer() {
-        val namespacedStorage = NamespacedStorage()
         val config = loadOrCreateServerConfig()
-        luaContext = createLuaContext(namespacedStorage)
-        val compilationResult = setupContents(config.server, namespacedStorage)
+        val entrypointScript = getLuaEntrypointDir(config.server)
+        if (!entrypointScript.exists()) {
+            entrypointScript.createNewFile()
+            entrypointScript.writeDefaultLuaEntrypointScript()
+        }
+        luaContext = createLuaContext(entrypointScript)
+        luaContext.setup()
+        val compilationResult = setupContents(entrypointScript)
 
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
             val dependencies = EngineMinecraftServerDependencies(server, luaContext, compilationResult, config, namespacedStorage)
@@ -63,11 +75,11 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
         }
     }
 
-    fun setupContents(serverId: ServerId, namespacedStorage: NamespacedStorage): CompilationResult {
+    fun setupContents(entrypointScript: File): CompilationResult {
         val scanner = Scanner(System.`in`)
         error@ while (true) {
             try {
-                val result = compileContents(ENGINE_DIR.contents, getLuaEntrypointDir(serverId), luaContext)
+                val result = compileContents(ENGINE_DIR.contents, luaContext)
                 if (result.exceptions.isNotEmpty()) {
                     throw SetupException(result.exceptions)
                 }
@@ -87,7 +99,7 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
                 while (true) {
                     when (scanner.nextLine().lowercase()) {
                         "y" -> {
-                            luaContext = createLuaContext(namespacedStorage)
+                            luaContext = createLuaContext(entrypointScript)
                             continue@error
                         }
                         "n" -> throw CrashException(

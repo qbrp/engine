@@ -2,19 +2,34 @@ package org.lain.engine.util.component
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.ComponentTypeProvider
 import org.lain.cyberia.ecs.KClassComponentTypeProvider
 import org.lain.engine.container.*
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.storage.*
+import org.lain.engine.script.ScriptComponent
+import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.Savable
+import org.lain.engine.storage.SaveTag
+import org.lain.engine.storage.UnloadTag
 import org.lain.engine.world.*
 import kotlin.reflect.KClass
 
-data class ComponentMeta(val savable: Boolean, val serializationClass: KClass<out Component>, val networking: Boolean)
+data class ComponentMeta(val savable: Boolean, val serializationClass: KClass<out Any>?, val networking: Boolean)
+
+object CommonComponentTypeProvider : ComponentTypeProvider {
+    override fun componentTypeOf(component: Component): ComponentType<out Component> {
+        return if (component is ScriptComponent) {
+            component.type
+        } else {
+            ComponentTypeRegistry.componentTypeOf(component::class)
+        }
+    }
+}
 
 object ComponentTypeRegistry : KClassComponentTypeProvider {
-    private val types: MutableMap<String, Entry<out Component>> = mutableMapOf()
-    private val ids: MutableMap<KClass<out Component>, String> = mutableMapOf() // кеш ID
+    private val types: MutableMap<String, Entry<out Component>> = HashMap()
+    private val ids: MutableMap<KClass<out Component>, String> = HashMap() // кеш ID
 
     data class Entry<T : Component>(val type: ComponentType<T>, val meta: ComponentMeta)
 
@@ -22,11 +37,12 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
         return ids.getOrPut(this) { qualifiedName!!.replace(".", "_") }
     }
 
+    fun get(id: String) = types[id]
+
     inline fun <reified T : Component> registerComponent(
         isSavable: Boolean = false,
-        serializationClass: KClass<out Component> = T::class,
+        serializationClass: KClass<out Component>? = T::class,
         isNetworking: Boolean = false,
-        id: String? = null,
     ) {
         registerComponent(T::class, ComponentMeta(isSavable, serializationClass, isNetworking))
     }
@@ -74,14 +90,19 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<UnloadTag>()
     registerComponent<Location>()
     registerComponent<Savable>()
+    registerComponent<Player>()
+
     registerComponent<DynamicVoxel>()
-    registerComponent<Player>(id = "engine/player")
+    registerComponent<ChunkedPos>()
+
+    registerComponent<LightSource>(isSavable = true, isNetworking = true)
+    registerComponent<Luminance>(isSavable = true, isNetworking = true)
 
     registerComponent<HoldsBy>()
     registerComponent<Item>(isSavable = true, isNetworking = true)
     registerComponent<ItemMeta>(isSavable = true, isNetworking = true)
     registerComponent<PersistentId>(isSavable = true, isNetworking = true)
-    registerComponent<ContainedIn>(isSavable = true, isNetworking = true, serializationClass = ContainedInDto::class)
+    registerComponent<ContainedIn>(isSavable = true, isNetworking = true, serializationClass = null)
     registerComponent<AssignedSlot>(isSavable = true, isNetworking = true)
     registerComponent<ItemName>(isSavable = true, isNetworking = true)
     registerComponent<ItemTooltip>(isSavable = true, isNetworking = true)

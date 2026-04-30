@@ -1,11 +1,14 @@
 package org.lain.engine.client.mixin.render;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.ItemFrameEntityRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.ItemFrameEntityRenderState;
 import net.minecraft.entity.Entity;
+import net.minecraft.util.math.BlockPos;
 import org.lain.engine.client.resources.PropertiesKt;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -47,5 +50,20 @@ public abstract class EntityRendererMixin {
     public void engine$storeRenderModel(EntityRenderer instance, Entity entity, EntityRenderState state, float tickProgress) {
         instance.updateRenderState(entity, state, tickProgress);
         this.state = state;
+    }
+
+    @WrapOperation(
+            method = "getLight",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/render/entity/EntityRenderer;getBlockLight(Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/BlockPos;)I"
+            )
+    )
+    private int illuminated$onForceEntityLitUp(EntityRenderer<?, ?> instance, Entity entity, BlockPos pos, Operation<Integer> original) {
+//        if (Illuminated.isHoldingPoweredFlashlight(entity)) {
+//            return 15;
+//        }
+
+        return original.call(instance, entity, pos);
     }
 }

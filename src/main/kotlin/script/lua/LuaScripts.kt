@@ -1,12 +1,13 @@
 package org.lain.engine.script.lua
 
-import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.*
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.world
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaValue
-import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
 class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, private val luaFunction: LuaFunction) : Script<C, R> {
     override fun toString(): String {
@@ -74,6 +75,7 @@ fun LuaValue.toKotlin(): Any? {
     }
 }
 
-fun LuaScriptComponent(value: LuaValue) = ScriptComponent(value)
-
-fun LuaUserdataComponent(component: Component) = LuaScriptComponent(CoerceJavaToLua.coerce(component))
+context(writeComponentAccess: WriteComponentAccess)
+fun EntityId.setLuaComponent(value: LuaValue, type: ScriptComponentType) {
+    setComponent(ScriptComponent(value, type), type.ecsType)
+}

@@ -99,8 +99,10 @@ public abstract class ChatScreenMixin {
             ),
             cancellable = true)
     public void engine$sendChatMessage(String chatText, boolean addToHistory, CallbackInfo ci) {
-        ci.cancel();
-        ClientMixinAccess.INSTANCE.sendChatMessage(chatText);
+        if (ClientMixinAccess.INSTANCE.isEngineLoaded()) {
+            ci.cancel();
+            ClientMixinAccess.INSTANCE.sendChatMessage(chatText);
+        }
     }
 
     @Inject(

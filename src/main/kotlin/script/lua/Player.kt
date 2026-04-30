@@ -86,14 +86,12 @@ fun Globals.setupPlayer() {
 
 context(world: World, luaContext: LuaContext)
 fun EnginePlayer.prepareLuaScriptComponents() {
-    entityId.setComponent(
-        LuaScriptComponent(luaTableOf(luaValue("object"), coerceToLua())),
+    entityId.setLuaComponent(
+        luaTableOf(luaValue("object"), coerceToLua()),
         CoreScriptComponents.PLAYER
     )
-    entityId.setComponent(
-        LuaScriptComponent(
-            luaTableOf(luaValue("vector"), LuaValue.NIL),
-        ),
+    entityId.setLuaComponent(
+        luaTableOf(luaValue("vector"), LuaValue.NIL),
         CoreScriptComponents.LOCATION
     )
 }

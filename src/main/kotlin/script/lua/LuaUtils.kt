@@ -1,6 +1,6 @@
 package org.lain.engine.script.lua
 
-import org.lain.engine.script.ScriptComponentType
+import kotlinx.serialization.json.*
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.Input
 import org.lain.engine.util.IntentTarget
@@ -14,6 +14,7 @@ import org.luaj.vm2.LuaValue
 import org.luaj.vm2.Varargs
 import org.luaj.vm2.lib.*
 import java.io.File
+import java.util.*
 
 fun File.writeDefaultLuaEntrypointScript() {
     writeText(getBuiltinResource("entrypoint.lua")?.readText() ?: "")
@@ -152,6 +153,80 @@ fun LuaTable.toIntentInput(): Input<out Any> {
         else -> error("Unsupported table type $type")
     }
     return Input(id, type)
+}
+
+private val visited = Collections.newSetFromMap(IdentityHashMap<LuaValue, Boolean>())
+
+fun LuaValue.toJsonDeep(): JsonElement {
+    if (!visited.add(this)) {
+        return JsonNull
+    }
+    return when (val type = typename()) {
+        "nil" -> JsonNull
+        "string" -> JsonPrimitive(tojstring())
+        "number" -> JsonPrimitive(todouble())
+        "boolean" -> JsonPrimitive(toboolean())
+        "table" -> {
+            val table = checktable()
+            val keys = table.keys().toList()
+            val intKeys = keys.mapNotNull {
+                val s = it.tojstring()
+                s.toIntOrNull()
+            }
+
+            val isArray = intKeys.isNotEmpty() &&
+                        intKeys.minOrNull() == 1 &&
+                        intKeys.maxOrNull() == intKeys.size &&
+                        intKeys.size == keys.size
+
+            if (isArray) {
+                val arr = JsonArray(
+                    (1..intKeys.size).map { i ->
+                        table.get(i)?.toJsonDeep() ?: JsonNull
+                    }
+                )
+                arr
+            } else {
+                val obj = buildMap<String, JsonElement> {
+                    for (k in keys) {
+                        val v = table.get(k)
+                        put(k.tojstring(), v?.toJsonDeep() ?: JsonNull)
+                    }
+                }
+                JsonObject(obj)
+            }
+        }
+        else -> error("Unsupported type $type")
+    }.also {
+        visited.remove(this)
+    }
+}
+
+fun JsonElement.toLuaValue(): LuaValue {
+    return when (this) {
+        is JsonNull -> LuaValue.NIL
+        is JsonPrimitive -> {
+            when {
+                isString -> LuaValue.valueOf(content)
+                booleanOrNull != null -> LuaValue.valueOf(boolean)
+                else -> content.toDoubleOrNull()?.toLuaValue() ?: error("Invalid number: $content")
+            }
+        }
+        is JsonArray -> {
+            val table = LuaValue.tableOf()
+            this.forEachIndexed { index, element ->
+                table.set(index + 1, element.toLuaValue())
+            }
+            table
+        }
+        is JsonObject -> {
+            val table = LuaValue.tableOf()
+            for ((key, value) in this) {
+                table.set(key, value.toLuaValue())
+            }
+            table
+        }
+    }
 }
 
 fun zeroArgFunction(builder: () -> LuaValue) = object : ZeroArgFunction() {

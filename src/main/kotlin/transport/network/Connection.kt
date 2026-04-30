@@ -4,7 +4,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.EntityTable
-import org.lain.engine.mc.FriendlyException
+import org.lain.engine.mc.commands.FriendlyException
 import org.lain.engine.mc.getPlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerStorage

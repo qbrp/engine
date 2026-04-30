@@ -1,4 +1,4 @@
-package org.lain.engine.mc
+package org.lain.engine.mc.commands
 
 import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.DoubleArgumentType
@@ -13,6 +13,7 @@ import net.minecraft.util.hit.BlockHitResult
 import net.minecraft.util.hit.EntityHitResult
 import net.minecraft.util.hit.HitResult
 import net.minecraft.world.RaycastContext
+import org.lain.engine.mc.engine
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.SOCIAL_INTERACTION_DISTANCE
 import org.lain.engine.script.IntentBehaviour

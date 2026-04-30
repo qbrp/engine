@@ -6,22 +6,21 @@ import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
+import org.lain.engine.storage.ComponentLoadSettings
+import org.lain.engine.storage.copyComponentDtoState
 import org.lain.engine.storage.loadChunk
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt
 import org.slf4j.LoggerFactory
 
-/**
- * Дополнительные данные чанка
- */
-@Serializable
+
 data class EngineChunk(
     val decals: MutableMap<VoxelPos, BlockDecals> = mutableMapOf(),
     val hints: MutableMap<VoxelPos, BlockHint> = mutableMapOf(),
     val dynamicVoxels: MutableMap<VoxelPos, EntityId> = mutableMapOf(),
 ) {
-    fun isEmpty() = decals.isEmpty() && hints.isEmpty()
+    fun isEmpty() = decals.isEmpty() && hints.isEmpty() && dynamicVoxels.isEmpty()
 }
 
 @Serializable
@@ -77,7 +76,10 @@ fun getBlockCoord(sectionCoord: Int): Int {
     return sectionCoord shl 4
 }
 
-class ChunkStorage {
+class ChunkStorage(
+    private val world: World,
+    private val componentLoadSettings: ComponentLoadSettings,
+) {
     private val chunks = mutableMapOf<Long, EngineChunk>()
 
     fun setChunk(pos: EngineChunkPos, chunk: EngineChunk) {
@@ -129,13 +131,19 @@ class ChunkStorage {
         }
     }
 
-    private fun loadChunk(pos: EngineChunkPos): EngineChunk? {
+    private fun loadChunk(pos: EngineChunkPos): EngineChunk? = with(world) {
         val server by injectEngineServer()
         return try {
             loadChunk(server, pos)?.let {
                 EngineChunk(
                     it.decals.toMutableMap(),
-                    it.hints.toMutableMap()
+                    it.hints.toMutableMap(),
+                    it.voxels.mapValues { (pos, components) ->
+                        val entity = world.addEntity()
+                        entity.setDynamicVoxel(pos, true)
+                        entity.copyComponentDtoState(componentLoadSettings, components)
+                        entity
+                    }.toMutableMap()
                 )
             }
         } catch (e: Throwable) {

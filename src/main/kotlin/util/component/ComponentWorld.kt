@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger
 typealias EntityId = Int
 
 class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComponentAccess {
-    private val arrays = mutableMapOf<ComponentType<out Component>, ComponentArray<*>>()
+    private val arrays = HashMap<String, ComponentArray<*>>()
     private val arraysList = ArrayList<ComponentArray<*>>()
     private val deltaBitMasks = ArrayList<LongArray?>()
 
@@ -21,11 +21,22 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
 
     init { invalidateComponentArrays(ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }) }
 
+    inline fun <reified T : Component> getComponentArray(): ComponentArray<T> {
+        return getComponentArray(componentTypeOf(T::class))
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Component> getComponentArray(type: ComponentType<T>): ComponentArray<T> {
+        return arrays[type.id] as? ComponentArray<T> ?: error("No component array for $type")
+    }
+
+    fun listArrays(): List<ComponentArray<*>> = arraysList
+
     fun invalidateComponentArrays(entries: List<Pair<ComponentType<out Component>, ComponentMeta>>) {
         entries.forEach { (type, meta) ->
-            if (!arrays.containsKey(type)) {
-                val arr = ComponentArray<Component>(arrays.size, meta)
-                arrays[type] = arr
+            if (!arrays.containsKey(type.id)) {
+                val arr = ComponentArray(arrays.size, meta, type as ComponentType<Component>)
+                arrays[type.id] = arr
                 arraysList += arr
             }
         }
@@ -116,16 +127,16 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         statement: (ComponentArray<*>) -> Boolean
     ): List<Pair<EntityId, ComponentState>> {
         assertOnThread()
-        val filterArrays = filters.map { filter -> arrays[filter] ?: error("No component filter found for $filter") }
+        val filterArrays = filters.map { filter -> arrays[filter.id] ?: error("No component filter found for $filter") }
         val list = mutableListOf<Pair<EntityId, ComponentState>>()
         loop@ for (entityId in filterArrays.flatMap { it.denseEntities }.toSet()) {
             filterArrays.forEach { if (entityId !in it.denseEntities) continue@loop }
             val componentState = ComponentState()
             list += entityId to componentState
-            for ((kclass, array) in arrays) {
+            for ((id, array) in arrays) {
                 if (!statement(array)) continue
                 val component = array.componentOf(entityId) ?: continue
-                componentState.setComponent(kclass as ComponentType<Component>, component)
+                componentState.setComponent(array.type as ComponentType<Component>, component)
             }
         }
         return list
@@ -319,21 +330,16 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
             action(entity, componentA, componentB, componentC, componentD, componentE)
         }
     }
-
-    inline fun <reified T : Component> getComponentArray(): ComponentArray<T> {
-        return getComponentArray(componentTypeOf(T::class))
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun <T : Component> getComponentArray(type: ComponentType<T>): ComponentArray<T> {
-        return arrays[type] as? ComponentArray<T> ?: error("No component array for $type")
-    }
 }
 
 @Serializable
 object Networked : Component
 
-class ComponentArray<T : Component>(val idx: Int, val meta: ComponentMeta) {
+class ComponentArray<T : Component>(
+    val idx: Int,
+    val meta: ComponentMeta,
+    val type: ComponentType<T>
+) {
     internal val sparseArray = mutableListOf<Int?>()
     internal val denseEntities = mutableListOf<EntityId>()
     internal val denseArray = mutableListOf<T>()

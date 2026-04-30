@@ -16,10 +16,6 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.chat.acoustic.Grid3b
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.LightBehaviour
-import org.lain.engine.client.render.LightSource
-import org.lain.engine.client.render.Luminance
-import org.lain.engine.item.ConeLightEmitterSettings
 import org.lain.engine.item.getOwner
 import org.lain.engine.mc.toMinecraft
 import org.lain.engine.player.Orientation
@@ -29,8 +25,7 @@ import org.lain.engine.util.inject
 import org.lain.engine.util.math.MutableVec3
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.smoothstepSDF
-import org.lain.engine.world.Location
-import org.lain.engine.world.location
+import org.lain.engine.world.*
 import java.util.*
 import kotlin.math.*
 
@@ -104,10 +99,11 @@ class LightSystem(private val context: DynamicLightsContext) {
             FlashlightLightBehavior(
                 location.position,
                 luminance,
+                behaviour.radius,
+                behaviour.distance,
                 { orientation.yaw },
                 { orientation.pitch },
-                mcWorld,
-                behaviour.settings
+                mcWorld
             )
         }
         is LightBehaviour.Sphere -> SphereLightBehaviour(location.position, luminance, behaviour.radius)
@@ -186,14 +182,13 @@ class SphereLightBehaviour(
 class FlashlightLightBehavior(
     position: Pos,
     luminance: Int,
+    private val radius: Float,
+    private val depth: Float,
     private val yawGetter: () -> Float,
     private val pitchGetter: () -> Float,
     private val world: World,
-    val settings: ConeLightEmitterSettings,
     private val epsilon: Float = 0.02f,
 ) : EngineDynamicLightBehavior(luminance, position) {
-    private val radius = settings.radius
-    private val depth = settings.distance
 
     private var prevX = 0.0
     private var prevY = 0.0

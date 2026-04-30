@@ -1,4 +1,4 @@
-package org.lain.engine.mc
+package org.lain.engine.mc.commands
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.ArgumentType
@@ -28,14 +28,16 @@ import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.*
 import org.lain.engine.item.ItemId
+import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.engine
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.hasPermission
 import org.lain.engine.player.*
 import org.lain.engine.script.*
 import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.*
-import org.lain.engine.util.file.applyConfig
-import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.math.ImmutableVec3
 import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.util.text.parseMiniMessage
@@ -124,6 +126,7 @@ fun <T : ArgumentBuilder<ServerCommandSource, T>> ArgumentBuilder<ServerCommandS
 }
 
 fun ServerCommandSource.hasPermission(text: String): Boolean {
+    if (server.isSingleplayer) return true
     if (hasPermissionLevel(4)) return true
     if (player?.hasPermission(text) == true) return true
     return false
@@ -192,16 +195,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     val playerTable = injectValue<EntityTable>().server
     val server by injectMinecraftEngineServer()
 
-    if (isDedicated) {
-        register(
-            literal("recompilescripts")
-                .executeCatching { ctx ->
-                    server.recompileEngineContents()
-                    ctx.sendFeedback("Контент скомпилирован", true)
-                }
-        )
-    }
-
+    registerEngineReloadCommands(isDedicated)
     registerEngineDeveloperCommands()
 
     register(
@@ -313,19 +307,6 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             .executeCatching { ctx ->
                 val player = ctx.requirePlayer()
                 player.stopSpectating()
-            }
-    )
-
-    register(
-        CommandManager.literal("reloadengineconfig")
-            .requires { it.hasPermission("reloadengineconfig") }
-            .executeCatching { ctx ->
-                try {
-                    server.applyConfig(loadOrCreateServerConfig())
-                    ctx.sendFeedback("Конфигурация перезагружена", true)
-                } catch (e: Exception) {
-                    ctx.sendError("Возникла ошибка при применении конфигурации: ${e.message ?: "Unknown"}")
-                }
             }
     )
 

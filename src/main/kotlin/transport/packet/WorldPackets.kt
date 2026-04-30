@@ -3,12 +3,13 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
+import org.lain.cyberia.ecs.Component
 import org.lain.engine.storage.COMPONENT_SERIALIZERS_MODULE
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.ComponentDto
+import org.lain.engine.storage.EntityDto
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
-import org.lain.cyberia.ecs.Component
 import org.lain.engine.world.*
 
 @Serializable
@@ -20,11 +21,15 @@ data class SoundPlayPacket(
 val CLIENTBOUND_SOUND_PLAY_ENDPOINT = Endpoint<SoundPlayPacket>()
 
 @Serializable
-data class EngineChunkPacket(
+data class EngineChunkPacket(val chunk: EngineChunkDto) : Packet
+
+@Serializable
+data class EngineChunkDto(
     val pos: EngineChunkPos,
     val decals: Map<ImmutableVoxelPos, BlockDecals>,
-    val hints: Map<ImmutableVoxelPos, BlockHint>
-) : Packet
+    val hints: Map<ImmutableVoxelPos, BlockHint>,
+    val dynamicVoxels: Map<ImmutableVoxelPos, List<Component>>
+)
 
 val CLIENTBOUND_CHUNK_ENDPOINT = Endpoint<EngineChunkPacket>()
 
@@ -47,9 +52,17 @@ data class VoxelBlockHintPacket(val pos: VoxelPos, val action: Action) : Packet 
 val SERVERBOUND_VOXEL_BLOCK_HINT_PACKET = Endpoint<VoxelBlockHintPacket>()
 
 @Serializable
-data class EntityPacket(val persistentId: PersistentId, val components: List<Component>) : Packet
+data class EntityDeltaPacket(val dto: EntityDto) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)
-val CLIENTBOUND_ENTITY_ENDPOINT = Endpoint<EntityPacket>(
-    codec = PacketCodec.Kotlinx(EntityPacket.serializer(), ProtoBuf { serializersModule = COMPONENT_SERIALIZERS_MODULE }),
+val CLIENTBOUND_ENTITY_DELTA_ENDPOINT = Endpoint<EntityDeltaPacket>(
+    codec = PacketCodec.Kotlinx(EntityDeltaPacket.serializer(), ProtoBuf { serializersModule = COMPONENT_SERIALIZERS_MODULE }),
 )
+
+@Serializable
+data class DynamicVoxelDeltaPacket(
+    val voxelPos: VoxelPos,
+    val components: List<ComponentDto>
+) : Packet
+
+val CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT = Endpoint<DynamicVoxelDeltaPacket>()
