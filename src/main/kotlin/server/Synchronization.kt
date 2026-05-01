@@ -27,8 +27,8 @@ data class PlayerNetworkState(
     val players: MutableList<EnginePlayer> = mutableListOf(),
     val items: MutableList<PersistentId> = Collections.synchronizedList(mutableListOf()),
     val chunks: MutableList<EngineChunkPos> = mutableListOf(),
-    var disconnect: Boolean = false,
     var tick: Long = 0,
+    var tickTimeout: Int = 8_000
 ) : Component
 
 val EnginePlayer.network

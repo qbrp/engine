@@ -188,7 +188,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         acousticSimulator.removeBlock(pos, world)
         val engineWorld = engine.getWorld(world.engine)
         val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
-        engineWorld.chunkStorage.removeVoxel(voxelPos)?.let { dynamicVoxel -> engineWorld.destroy(dynamicVoxel) }
+        engineWorld.chunkStorage.removeVoxel(voxelPos)
     }
 
     fun onBlockAdd(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: net.minecraft.world.World) {
@@ -235,6 +235,7 @@ fun EngineServer.serverMinecraftPlayerLoadSettings(
         entity.entityPos.engine(),
         entity.name.string,
         developerModeStatus,
-        getWorld(entity.entityWorld.engine)
+        getWorld(entity.entityWorld.engine),
+
     )
 }

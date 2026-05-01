@@ -129,13 +129,17 @@ class DedicatedEngineMinecraftServer(
 
     override fun tick() {
         for (player in engine.playerStorage.getAll()) {
-            if (player.network.disconnect) {
-                val entity = entityTable.getEntity(player.id) as? ServerPlayerEntity ?: continue
-                connectionManager.disconnect(
-                    connectionManager.getSession(player.id),
-                    "Время ожидания подтверждения входа в игру истекло"
-                )
-                onLeavePlayer(entity)
+            val network = player.network
+            if (!network.authorized) {
+                network.tickTimeout -= 1
+                if (network.tickTimeout <= 0) {
+                    val entity = entityTable.getEntity(player.id) as? ServerPlayerEntity ?: continue
+                    connectionManager.disconnect(
+                        connectionManager.getSession(player.id),
+                        "Время ожидания подтверждения входа в игру истекло"
+                    )
+                    onLeavePlayer(entity)
+                }
             }
         }
         super.tick()

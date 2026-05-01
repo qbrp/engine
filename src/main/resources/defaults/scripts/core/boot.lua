@@ -12,6 +12,12 @@ compilation(function()
         id = "core/sound",
         components = ComponentList { "component", "repeatable" }
     }
+    result:namespace {
+        id = "core/light",
+        components = ComponentList {
+            { id = "flashing", savable = true, networking = true }
+        }
+    }
     return result
 end)
 

@@ -62,19 +62,13 @@ end
 --- Компоненты
 --------------------------------------------------------------------------------
 
----@param id string
----@return ComponentTypeSettings
-function SavableComponent(id)
-    return ComponentTypeSettings.of(id)
-end
-
 ---@param components ComponentTypeSettings[]|string[]
 ---@return ComponentTypeSettings[]
 function ComponentList(components)
     return map(components, function(elem)
         local elem_type = type(elem)
         if (elem_type == "string") then
-            return ComponentTypeSettings.of(elem)
+            return { id = elem }
         elseif (elem_type == "table") then
             return elem
         end
@@ -82,7 +76,7 @@ function ComponentList(components)
 end
 
 ---
-ComponentList { "component_1", "component_2", SavableComponent("component_3") }
+ComponentList { "component_1", "component_2", "component_3" }
 ---
 
 --------------------------------------------------------------------------------
@@ -118,11 +112,11 @@ end
 ------------------
 
 ---@param types ComponentType[]|Component[]
----@param fun fun(world: World, entity: number, ...)
+---@param fun fun(world: World, entity: Entity, ...)
 ---@param env string client or server
 ---@return Callbacks
 function Callbacks:system(types, fun, env)
-    local env = env or "server"
+    env = env or "server"
     if (self.systems == nil) then
         self.systems = {}
     end

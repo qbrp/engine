@@ -57,6 +57,7 @@ data class PersistentPlayerData(
     @SerialName("chat_heads") val chatHeads: Boolean = true,
     val equipment: Map<EquipmentSlot, PersistentId> = mapOf(),
     val skinEyeY: Float = 2f,
+    val components: List<ComponentDto> = listOf(),
 )
 
 fun World.getEquipmentContainerSlots(container: EntityId) = getContainerSlots(container)
@@ -85,6 +86,7 @@ fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
                 player.chatHeadsEnabled,
                 equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentId>() },
                 player.require<PlayerModel>().skinEyeY,
+                componentManager.getSavableComponents(player.entityId).map { it.toCommonDto() }
             )
         )
     )

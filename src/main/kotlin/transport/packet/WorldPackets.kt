@@ -3,7 +3,6 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
-import org.lain.cyberia.ecs.Component
 import org.lain.engine.storage.COMPONENT_SERIALIZERS_MODULE
 import org.lain.engine.storage.ComponentDto
 import org.lain.engine.storage.EntityDto
@@ -28,7 +27,7 @@ data class EngineChunkDto(
     val pos: EngineChunkPos,
     val decals: Map<ImmutableVoxelPos, BlockDecals>,
     val hints: Map<ImmutableVoxelPos, BlockHint>,
-    val dynamicVoxels: Map<ImmutableVoxelPos, List<Component>>
+    val dynamicVoxels: Map<ImmutableVoxelPos, List<ComponentDto>>
 )
 
 val CLIENTBOUND_CHUNK_ENDPOINT = Endpoint<EngineChunkPacket>()
@@ -61,7 +60,7 @@ val CLIENTBOUND_ENTITY_DELTA_ENDPOINT = Endpoint<EntityDeltaPacket>(
 
 @Serializable
 data class DynamicVoxelDeltaPacket(
-    val voxelPos: VoxelPos,
+    val voxelPos: ImmutableVoxelPos,
     val components: List<ComponentDto>
 ) : Packet
 

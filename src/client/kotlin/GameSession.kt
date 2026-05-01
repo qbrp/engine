@@ -120,6 +120,9 @@ class GameSession(
                     lifeTime = 240
                 )
             )
+            for (exception in exceptions) {
+                exception.log()
+            }
         }
         onContentsUpdated()
     }

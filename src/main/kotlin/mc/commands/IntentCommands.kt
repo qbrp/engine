@@ -16,6 +16,7 @@ import net.minecraft.world.RaycastContext
 import org.lain.engine.mc.engine
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.SOCIAL_INTERACTION_DISTANCE
+import org.lain.engine.script.ExecutionResult
 import org.lain.engine.script.IntentBehaviour
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptContext
@@ -25,28 +26,48 @@ import org.lain.engine.util.*
 fun ServerCommandDispatcher.registerIntentCommands(
     contents: NamespacedStorage,
     intents: List<Intent> = contents.intents.values.toList(),
-    handler: ServerHandler
+    handler: ServerHandler,
 ) = intents.forEach {
-    val (_, name, script, inputs) = it
+    val (_, name, script, inputs, actors, permission) = it
     val id = it.id.value.substringAfterLast('/')
     val node = literal(id)
-    var current: ArgumentBuilder<ServerCommandSource, *> = node
+    if (inputs.any { it.type is Input.Type.Table }) error("Can't create $id command intent: not supports table input type")
 
-    inputs.forEachIndexed { index, (inputId, inputType) ->
+    fun build(idx: Int): ArgumentBuilder<ServerCommandSource, *>? {
+        val (inputId, inputType) = inputs.getOrNull(idx) ?: return null
         val argType = when (inputType) {
             Input.Type.Logic -> BoolArgumentType.bool()
             Input.Type.Double -> DoubleArgumentType.doubleArg()
             Input.Type.Integer -> IntegerArgumentType.integer()
-            Input.Type.Table -> if (index == inputs.lastIndex) StringArgumentType.greedyString() else StringArgumentType.string()
-            is Input.Type.Text -> if (inputType.isSingleWord) StringArgumentType.word() else if (index == inputs.lastIndex) StringArgumentType.greedyString() else StringArgumentType.string()
+            Input.Type.Table ->
+                if (idx == inputs.lastIndex) StringArgumentType.greedyString()
+                else StringArgumentType.string()
+
+            is Input.Type.Text ->
+                if (inputType.isSingleWord) StringArgumentType.word()
+                else if (idx == inputs.lastIndex) StringArgumentType.greedyString()
+                else StringArgumentType.string()
         }
 
         val next = argument(inputId, argType)
-        current.then(next)
-        current = next
-    }
 
-    current.executeCatching { ctx -> executeIntent(it, ctx.getIntentScriptContext(inputs), contents, handler) }
+        val child = build(idx + 1)
+        if (child != null) {
+            next.then(child)
+        } else {
+            next
+                .requires { ctx -> permission == null || ctx.hasPermission(permission) }
+                .executeCatching { ctx ->
+                    val result = executeIntent(it, ctx.getIntentScriptContext(inputs), contents, handler)
+                    if (result is ExecutionResult.Failure) {
+                        ctx.sendError(result.error)
+                    }
+            }
+        }
+
+        return next
+    }
+    build(0)?.let { node.then(it) }
     register(node)
 }
 
@@ -61,7 +82,11 @@ fun Context.getIntentScriptContext(inputs: List<AnyInput>): ScriptContext.Intent
         null,
         inputs
             .filter { input -> command.nodes.find { it.node.name == input.id } != null }
-            .map { input -> (input as Input<Any>).valueOf(command.getArgument(input.id, input.type.kclass.java)) },
+            .map { input ->
+                val argument = command.getArgument(input.id, input.type.kclass.java)
+                (input as Input<Any>).valueOf(argument)
+
+            },
         CommandIntentBehaviour(requireEntity())
     )
 }

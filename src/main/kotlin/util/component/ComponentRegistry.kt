@@ -6,7 +6,10 @@ import org.lain.cyberia.ecs.ComponentTypeProvider
 import org.lain.cyberia.ecs.KClassComponentTypeProvider
 import org.lain.engine.container.*
 import org.lain.engine.item.*
-import org.lain.engine.player.*
+import org.lain.engine.player.Outfit
+import org.lain.engine.player.PlayerContainer
+import org.lain.engine.player.PlayerContainerTag
+import org.lain.engine.player.PlayerEquipment
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.Savable
@@ -43,8 +46,9 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
         isSavable: Boolean = false,
         serializationClass: KClass<out Component>? = T::class,
         isNetworking: Boolean = false,
+        id: String? = null
     ) {
-        registerComponent(T::class, ComponentMeta(isSavable, serializationClass, isNetworking))
+        registerComponent(T::class, ComponentMeta(isSavable, serializationClass, isNetworking), id)
     }
 
     fun isRegistered(type: KClass<out Component>): Boolean {
@@ -90,13 +94,16 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<UnloadTag>()
     registerComponent<Location>()
     registerComponent<Savable>()
-    registerComponent<Player>()
 
     registerComponent<DynamicVoxel>()
     registerComponent<ChunkedPos>()
 
     registerComponent<LightSource>(isSavable = true, isNetworking = true)
     registerComponent<Luminance>(isSavable = true, isNetworking = true)
+
+    registerComponent<WorldSoundPlayRequest.Item>(id = "sound_play_item")
+    registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_positioned")
+    registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_simple")
 
     registerComponent<HoldsBy>()
     registerComponent<Item>(isSavable = true, isNetworking = true)

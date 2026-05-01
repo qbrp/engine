@@ -5,6 +5,9 @@ require("core.component")
 ---@type World for EmmyLua
 local World = World
 
+---@type Entity for EmmyLua
+local Entity = Entity
+
 ---@param types ComponentType[]|Component[]
 ---@param fun fun(entity: number, ...)
 function World:iterate(types, fun)
@@ -24,6 +27,30 @@ end
 
 --------------------------------------------
 
+---@class LocationComponent : Component
+---@field vector number[]
+LocationComponent = Component.of("core/location")
+
+---@field x number
+---@field y number
+---@field z number
+---@return LocationComponent
+function LocationComponent.new(x, y, z)
+    assert(x ~= nil, "x must be not null")
+    assert(y ~= nil, "y must be not null")
+    assert(z ~= nil, "z must be not null")
+    return LocationComponent:construct({ vector = { x, y, z } })
+end
+
+---@field vector number[]
+---@return LocationComponent
+function LocationComponent.vector(vector)
+    assert(vector ~= nil, "vector must be not null")
+    return LocationComponent.new(vector[1], vector[2], vector[3])
+end
+
+--------------------------------------------
+
 ---@class DynamicVoxelComponent : Component
 ---@field pos number[]
 DynamicVoxelComponent = Component.of("core/voxel/dynamic_voxel")
@@ -32,11 +59,13 @@ DynamicVoxelComponent = Component.of("core/voxel/dynamic_voxel")
 UseRestrictionComponent = Component.of("core/voxel/use_restriction")
 
 ---@param voxel_pos number[]
----@return number entity id
-function World:set_dynamic_voxel(voxel_pos)
+---@param networked boolean default false
+---@return Entity
+function World:set_dynamic_voxel(voxel_pos, networked)
     assert(voxel_pos, "voxel pos must be not null")
-    local entity = self:__set_dynamic_voxel(voxel_pos)
-    debug("voxel", "(" .. entity .. ") created dynamic voxel")
+    networked = networked == true
+    local entity = self:__set_dynamic_voxel(voxel_pos, networked)
+    debug("voxel", "(" .. entity.id .. ") created dynamic voxel, networked = " .. tostring(networked))
     return entity
 end
 
@@ -87,7 +116,7 @@ end
 ---@param components Component[]?
 ---@return Entity
 function World:add_entity(components)
-    local entity = Entity.of(self, self:__add_entity())
+    local entity = self:__add_entity()
     if (components ~= nil) then
         for_each(components, function(component) entity:set_component(component) end)
     end
@@ -109,17 +138,10 @@ end
 
 --------------------------------------------
 
----@class Entity
----@field world World
----@field id number
-Entity = Entity or {}
-Entity.__index = Entity
-
 ---@param world World
+---@param id number
 ---@return Entity
-function Entity.of(world, id)
-    return setmetatable({ world = world, id = id }, Entity)
-end
+function Entity.of(world, id) return Entity.__of(world, id) end
 
 ---@param component Component?
 function Entity:set_component(component)

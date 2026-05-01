@@ -1,6 +1,7 @@
 package org.lain.engine.client.mixin;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.network.ClientPlayerEntity;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.mc.ClientMixinAccess;
@@ -40,5 +41,13 @@ public abstract class MinecraftClientMixin {
             cir.cancel();
             cir.setReturnValue(true);
         }
+    }
+
+    @Inject(
+            method = "disconnect(Lnet/minecraft/client/gui/screen/Screen;Z)V",
+            at = @At("HEAD")
+    )
+    public void engine$disconnect(Screen disconnectionScreen, boolean transferring, CallbackInfo ci) {
+        ClientMixinAccess.INSTANCE.onDisconnect();
     }
 }

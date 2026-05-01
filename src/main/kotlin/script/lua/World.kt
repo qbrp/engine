@@ -216,7 +216,7 @@ fun Globals.setupWorld() {
         with(world) {
             val entity = setDynamicVoxel(voxelPos, networked.toboolean())
             entity.setLuaComponent(
-                voxelPos.toLuaValue(),
+                voxelPos.toInputLuaValue(),
                 CoreScriptComponents.DYNAMIC_VOXEL
             )
             entity.coerceToLua()

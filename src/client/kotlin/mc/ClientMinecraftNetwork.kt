@@ -11,7 +11,6 @@ import org.lain.engine.mc.minecraftIdentifier
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.util.FixedSizeList
-import org.lain.engine.util.nextId
 import org.lain.engine.util.nextIdFast
 
 class ClientMinecraftNetwork : ClientTransportContext {
@@ -30,11 +29,11 @@ class ClientMinecraftNetwork : ClientTransportContext {
     ) {
         channels += endpoint
         ClientPlayNetworking.registerGlobalReceiver(PayloadRegistry.payloadOf(endpoint)) { payload, context ->
-            packetHistory.add(payload.packetId)
             val client = context.client()
             val packet = payload.packet
 
             client.execute {
+                packetHistory.add(payload.packetId)
                 if (client.world == null) return@execute
                 try {
                     with(ctx) {

@@ -97,29 +97,31 @@ function RepeatableComponent.new(repeats) return RepeatableComponent:construct({
 ---@param sound SoundComponent
 ---@param repeatable RepeatableComponent
 ---@param world World
+---@param entity Entity
 local function RepeatableSystem(world, entity, sound, repeatable)
     local audio_source = sound.source
     if (audio_source.is_ended) then
         repeatable.repeats_left = repeatable.repeats_left - 1
         if (repeatable.repeats_left > 0) then
             local copied_entity = world:add_entity()
-            for_each(world:components_of(entity), function(component)
+            for_each(entity:get_all(), function(component)
                 if (component.type ~= SoundComponent.type) then
                     copied_entity:set_component(component)
                 end
             end)
             copied_entity:set_component(SoundComponent:construct { source = sound.source })
             sound.source:play()
-            world:destroy_entity(entity)
+            entity:destroy()
         end
     end
 end
 
 ---@param sound SoundComponent
 ---@param world World
+---@param entity Entity
 local function PlaybackSystem(world, entity, sound)
     if (sound.source.is_ended) then
-        world:destroy_entity(entity)
+        entity:destroy()
     end
 end
 

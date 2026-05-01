@@ -28,10 +28,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.Notification
 import org.lain.engine.server.desync
-import org.lain.engine.storage.ComponentDto
-import org.lain.engine.storage.ComponentLoadSettings
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.toDomain
+import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
 import org.lain.engine.util.component.ComponentState
@@ -286,6 +283,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         client.joinGameSession(gameSession)
         gameSession.chatManager.updateSettings(data.settings.chat)
         notifications.forEach { applyNotification(it, false) }
+        SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.sendC2SPacket(ConfirmationPacket)
     }
 
     fun applyServerSettingsUpdate(settings: ClientboundServerSettings) = with(gameSession!!) {
@@ -391,7 +389,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             .map { (pos, components) ->
                 val entity = world.addEntity()
                 entity.setDynamicVoxel(pos)
-                entity.copyState(components)
+                entity.copyComponentDtoState(componentLoadSettings, components)
                 pos to entity
             }
             .toMap(mutableMapOf())

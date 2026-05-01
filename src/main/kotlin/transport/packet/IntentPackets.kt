@@ -33,7 +33,7 @@ fun InputValue<*>.toDto(): InputValueDto {
         Type.Double -> InputValueDto.Value.Double(doubleValue)
         Type.Integer -> InputValueDto.Value.Integer(intValue)
         Type.Logic -> InputValueDto.Value.Logic(booleanValue)
-        Type.Table -> InputValueDto.Value.Table(tableValue.map { it.toDto() })
+        Type.Table -> TODO()
         is Type.Text -> InputValueDto.Value.Text(stringValue)
     }
     return InputValueDto(this.input.id, type)
@@ -46,7 +46,7 @@ data class InputValueDto(val id: String, val value: Value<*>) {
         @Serializable data class Integer(val value: Int) : Value<Int>()
         @Serializable data class Double(val value: kotlin.Double) : Value<Double>()
         @Serializable data class Logic(val value: Boolean) : Value<Boolean>()
-        @Serializable data class Table(val value: List<InputValueDto>) : Value<List<InputValueDto>>()
+        @Serializable data class Table(val value: Map<String, InputValueDto>) : Value<Map<String, InputValueDto>>()
         @Serializable data class Text(val value: String) : Value<String>()
     }
 
@@ -55,8 +55,8 @@ data class InputValueDto(val id: String, val value: Value<*>) {
             is Value.Double -> v.value to Input.Type.Double
             is Value.Integer -> v.value to Input.Type.Integer
             is Value.Logic -> v.value to Input.Type.Logic
-            is Value.Table -> v.value.map { it.toDomain() } to Input.Type.Table
             is Value.Text -> v.value to Input.Type.Text(false)
+            is Value.Table -> v.value.map { it.key to it.value } to Input.Type.Table
         }
         return InputValue(
             Input(id, type as Type<Any>),

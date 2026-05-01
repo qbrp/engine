@@ -9,8 +9,10 @@ import java.util.concurrent.atomic.AtomicInteger
 typealias EntityId = Int
 
 class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComponentAccess {
-    private val arrays = HashMap<String, ComponentArray<*>>()
+    private val arrays = LinkedHashMap<String, ComponentArray<*>>()
     private val arraysList = ArrayList<ComponentArray<*>>()
+    private val savableArrays = HashMap<String, ComponentArray<*>>()
+    private val networkingArrays = HashMap<String, ComponentArray<*>>()
     private val deltaBitMasks = ArrayList<LongArray?>()
 
     // Создание сущностей потокобезопасно. Добавление компонентов - нет
@@ -34,10 +36,16 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
 
     fun invalidateComponentArrays(entries: List<Pair<ComponentType<out Component>, ComponentMeta>>) {
         entries.forEach { (type, meta) ->
-            if (!arrays.containsKey(type.id)) {
-                val arr = ComponentArray(arrays.size, meta, type as ComponentType<Component>)
-                arrays[type.id] = arr
+            val id = type.id
+            val existingArray = arrays[id]
+            if (existingArray == null || existingArray.meta != meta) {
+                networkingArrays.remove(id)
+                savableArrays.remove(id)
+                val arr = ComponentArray(arraysList.size, meta, type as ComponentType<Component>)
+                arrays[id] = arr
                 arraysList += arr
+                if (meta.savable) savableArrays[id] = arr
+                if (meta.networking) networkingArrays[id] = arr
             }
         }
     }
@@ -106,9 +114,20 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         return output
     }
 
+    fun getSavableComponents(entityId: EntityId): List<Component> {
+        val output = mutableListOf<Component>()
+        for (arr in savableArrays.values) {
+            val component = arr.componentOf(entityId)
+            if (component != null && arr.meta.networking) {
+                output += component
+            }
+        }
+        return output
+    }
+
     fun getNetworkedComponents(entityId: EntityId): List<Component> {
         val output = mutableListOf<Component>()
-        for (arr in arraysList) {
+        for (arr in networkingArrays.values) {
             val component = arr.componentOf(entityId)
             if (component != null && arr.meta.networking) {
                 output += component
@@ -184,16 +203,15 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         if (bitMask != null) {
             for (i in bitMask.indices) {
                 var bits = bitMask[i]
-                var bitIndex = 0
                 while (bits != 0L) {
-                    if ((bits and 1L) != 0L) {
-                        val arrayIndex = i * 64 + bitIndex
-                        if (arrayIndex < arraysList.size) {
-                            arraysList[arrayIndex].componentOf(entity)?.let { components.add(it) }
-                        }
+                    val bitIndex = java.lang.Long.numberOfTrailingZeros(bits)
+                    val arrayIndex = i * 64 + bitIndex
+
+                    if (arrayIndex < arraysList.size) {
+                        arraysList[arrayIndex].componentOf(entity)?.let { components.add(it) }
                     }
-                    bits = bits shr 1
-                    bitIndex++
+
+                    bits = bits and (bits - 1)
                 }
             }
         } else {
@@ -234,7 +252,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
     override fun <A : Component> iterate1(kclass1: ComponentType<A>, action: MutableComponentAccess.(EntityId, A) -> Unit) {
         assertOnThread()
         val arr1 = getComponentArray(kclass1)
-        for (i in arr1.denseEntities.lastIndex downTo 0) {
+        for (i in arr1.denseEntities.indices.reversed()) {
             val entity = arr1.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             action(entity, componentA)
@@ -251,7 +269,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         val arr2 = getComponentArray(kclass2)
         val smallerArr = listOf(arr1, arr2).minBy { it.components.size }
 
-        for (i in smallerArr.denseEntities.lastIndex downTo 0) {
+        for (i in smallerArr.denseEntities.indices.reversed()) {
             val entity = smallerArr.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             val componentB = arr2.componentOf(entity) ?: continue
@@ -271,7 +289,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         val arr3 = getComponentArray(kclass3)
         val smallerArr = listOf(arr1, arr2, arr3).minBy { it.components.size }
 
-        for (i in smallerArr.denseEntities.lastIndex downTo 0) {
+        for (i in smallerArr.denseEntities.indices.reversed()) {
             val entity = smallerArr.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             val componentB = arr2.componentOf(entity) ?: continue
@@ -294,7 +312,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         val arr4 = getComponentArray(kclass4)
         val smallerArr = listOf(arr1, arr2, arr3, arr4).minBy { it.components.size }
 
-        for (i in smallerArr.denseEntities.lastIndex downTo 0) {
+        for (i in smallerArr.denseEntities.indices.reversed()) {
             val entity = smallerArr.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             val componentB = arr2.componentOf(entity) ?: continue
@@ -320,7 +338,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         val arr5 = getComponentArray(kclass5)
         val smallerArr = listOf(arr1, arr2, arr3, arr4, arr5).minBy { it.components.size }
 
-        for (i in smallerArr.denseEntities.lastIndex downTo 0) {
+        for (i in smallerArr.denseEntities.indices.reversed()) {
             val entity = smallerArr.denseEntities[i]
             val componentA = arr1.componentOf(entity) ?: continue
             val componentB = arr2.componentOf(entity) ?: continue

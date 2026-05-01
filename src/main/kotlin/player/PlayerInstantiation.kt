@@ -126,6 +126,7 @@ class PlayerLoader(
     private val server: EngineServer,
     private val itemLoader: ItemLoader,
 ) {
+    private val componentLoadSettings = ComponentLoadSettings(null, server.namespacedStorage)
     private val commandBuffers = ConcurrentLinkedQueue<Pair<WorldId, EntityCommandBuffer>>()
 
     private suspend fun <R> ((Throwable) -> Unit).runCatchingSuspend(block: suspend () -> R): R? {
@@ -149,6 +150,7 @@ class PlayerLoader(
         val player = exceptionHandler.runCatchingSuspend { serverPlayerInstance(world, settings, inventoryLoadResult, persistent)  } ?: return
         with(EntityCommandBuffer(world)) {
             player.prepareContainers(PersistentId.next(), player.location, inventoryLoadResult.equipmentItems)
+            player.entityId.copyComponentDtoState(componentLoadSettings, persistent?.components ?: listOf())
             commandBuffers += world.id to this
         }
         server.execute {

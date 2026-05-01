@@ -8,7 +8,6 @@ import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
 import net.fabricmc.loader.api.FabricLoader
@@ -112,6 +111,7 @@ class MinecraftEngineClient : ClientModInitializer {
         TinnitusSoundInstance.registerEvents() // lazy init
 
         Injector.register(keybindManager)
+        Injector.register(this)
 
         ServerMixinAccess.blockRemovedCallback = callback@{ chunk, blockPos ->
             if (!chunk.world.isClient || !isInWorld(chunk.world)) return@callback
@@ -157,10 +157,6 @@ class MinecraftEngineClient : ClientModInitializer {
         }
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
-
-        ClientLoginConnectionEvents.DISCONNECT.register { _, _ -> onDisconnect() }
-
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> onDisconnect() }
 
         ClientTickEvents.START_CLIENT_TICK.register { keybindManager.tick(engineClient) }
 
@@ -315,7 +311,8 @@ class MinecraftEngineClient : ClientModInitializer {
         registerHudRenderEvent(client, engineClient, fontRenderer, renderer, uiRenderPipeline, toolgunRenderer)
     }
 
-    private fun onDisconnect() = engineClient.execute {
+    fun onDisconnect() {
+        if (engineClient.gameSession == null) return
         uiRenderPipeline.invalidate()
         entityTable.client.invalidate()
         decalsStorage.unload()

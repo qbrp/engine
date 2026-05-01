@@ -8,6 +8,7 @@ import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import net.minecraft.text.Text
 import net.minecraft.text.TextCodecs
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.MinecraftEngineClient
 import org.lain.engine.util.inject
 import org.lain.engine.util.text.TEXT_LOGGER
 import org.lain.engine.util.text.removeLegacyFormattingCodes
@@ -15,6 +16,8 @@ import org.lain.engine.util.text.removeLegacyFormattingCodes
 val MinecraftClient = net.minecraft.client.MinecraftClient.getInstance()!!
 
 fun injectClient() = inject<EngineClient>()
+
+fun injectMinecraftClient() = inject<MinecraftEngineClient>()
 
 fun String.parseMiniMessageClient(): Text {
     val text = this.removeLegacyFormattingCodes()

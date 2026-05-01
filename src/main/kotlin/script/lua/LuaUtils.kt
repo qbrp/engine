@@ -1,6 +1,7 @@
 package org.lain.engine.script.lua
 
 import kotlinx.serialization.json.*
+import org.lain.engine.storage.LOGGER
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.Input
 import org.lain.engine.util.IntentTarget
@@ -15,6 +16,7 @@ import org.luaj.vm2.Varargs
 import org.luaj.vm2.lib.*
 import java.io.File
 import java.util.*
+import kotlin.math.floor
 
 fun File.writeDefaultLuaEntrypointScript() {
     writeText(getBuiltinResource("entrypoint.lua")?.readText() ?: "")
@@ -44,47 +46,47 @@ fun luaTableOf(vararg values: LuaValue): LuaTable {
 
 fun luaValue(string: String) = LuaValue.valueOf(string)
 
-fun String.toLuaValue(): LuaValue = luaValue(this)
+fun String.toInputLuaValue(): LuaValue = luaValue(this)
 
 fun luaValueNullable(string: String?) = LuaValue.valueOf(string) ?: LuaValue.NIL
 
 fun luaValue(int: Int) = LuaValue.valueOf(int)
 
-fun Int.toLuaValue(): LuaValue = luaValue(this)
+fun Int.toInputLuaValue(): LuaValue = luaValue(this)
 
 fun luaValue(float: Float) = LuaValue.valueOf(float.toDouble())
 
-fun Float.toLuaValue(): LuaValue = luaValue(this)
+fun Float.toInputLuaValue(): LuaValue = luaValue(this)
 
 fun luaValue(boolean: Boolean) = LuaValue.valueOf(boolean)
 
-fun Boolean.toLuaValue(): LuaValue = luaValue(this)
+fun Boolean.toInputLuaValue(): LuaValue = luaValue(this)
 
 fun luaValue(double: Double) = LuaValue.valueOf(double)
 
-fun Double.toLuaValue(): LuaValue = luaValue(this)
+fun Double.toInputLuaValue(): LuaValue = luaValue(this)
 
 fun List<AnyInputValue>.toLuaTable(): LuaTable {
     val table = LuaTable()
-    forEach { table.set(luaValue(it.input.id), it.value.toLuaValue(it.input.type)) }
+    forEach { table.set(luaValue(it.input.id), it.value.toInputLuaValue(it.input.type)) }
     return table
 }
 
-private fun Any?.toLuaValue(type: Input.Type<*>): LuaValue {
+fun Any?.toInputLuaValue(type: Input.Type<*>): LuaValue {
     return when (type) {
-        Input.Type.Logic -> (this as Boolean).toLuaValue()
-        Input.Type.Integer -> (this as Int).toLuaValue()
-        Input.Type.Double -> (this as Double).toLuaValue()
-        Input.Type.Table -> (this as List<AnyInputValue>).toLuaTable()
-        is Input.Type.Text -> (this as String).toLuaValue()
+        Input.Type.Logic -> (this as Boolean).toInputLuaValue()
+        Input.Type.Integer -> (this as Int).toInputLuaValue()
+        Input.Type.Double -> (this as Double).toInputLuaValue()
+        Input.Type.Table -> TODO()
+        is Input.Type.Text -> (this as String).toInputLuaValue()
     }
 }
 
 context(ctx: LuaContext)
-fun IntentTarget.toLuaValue(): LuaTable = luaTableOf(
+fun IntentTarget.toInputLuaValue(): LuaTable = luaTableOf(
     luaValue("player"), player?.coerceToLua() ?: LuaValue.NIL,
-    luaValue("voxel_pos"), voxelPos.toLuaValue(),
-    luaValue("pos"), pos.asVec3().toLuaValue(),
+    luaValue("voxel_pos"), voxelPos.toInputLuaValue(),
+    luaValue("pos"), pos.asVec3().toInputLuaValue(),
 )
 
 fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
@@ -95,13 +97,13 @@ fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
     return list
 }
 
-fun VoxelPos.toLuaValue(): LuaTable {
+fun VoxelPos.toInputLuaValue(): LuaTable {
     return LuaValue.listOf(
         arrayOf(luaValue(x), luaValue(y), luaValue(z)),
     )
 }
 
-fun Vec3.toLuaValue(): LuaTable {
+fun Vec3.toInputLuaValue(): LuaTable {
     return LuaValue.listOf(
         arrayOf(luaValue(x), luaValue(y), luaValue(z))
     )
@@ -110,7 +112,11 @@ fun Vec3.toLuaValue(): LuaTable {
 fun LuaValue.toVoxelPos(): VoxelPos {
     val elements = checktable().toList { it.tofloat() }
     require(elements.size == 3) { "Invalid vector elements count: $elements" }
-    return VoxelPos(elements[0], elements[1], elements[2])
+    return VoxelPos(
+        floor(elements[0]),
+        floor(elements[1]),
+        floor(elements[2])
+    )
 }
 
 fun LuaValue.toVector3f(): Vec3 {
@@ -123,7 +129,7 @@ fun LuaValue.coerceToScriptComponentType(): LazyScriptComponentType {
     return checkuserdata(LazyScriptComponentType::class.java) as? LazyScriptComponentType ?: error("Invalid component type value")
 }
 
-fun LazyScriptComponentType.toLuaValue(): LuaValue {
+fun LazyScriptComponentType.toInputLuaValue(): LuaValue {
     val userdata = LuaUserdata(this)
 
     val meta = object : LuaTable() {
@@ -196,33 +202,45 @@ fun LuaValue.toJsonDeep(): JsonElement {
                 JsonObject(obj)
             }
         }
-        else -> error("Unsupported type $type")
+        else -> {
+            val userdata = this.touserdata()?.let { it::class }
+            val errorStr = StringBuilder()
+            errorStr.append("Lua value (")
+            if (userdata != null) {
+                errorStr.append(userdata.qualifiedName)
+            } else {
+                errorStr.append(this)
+            }
+            errorStr.append(") serialization exception: unsupported type $type")
+            LOGGER.error(errorStr.toString())
+            JsonNull
+        }
     }.also {
         visited.remove(this)
     }
 }
 
-fun JsonElement.toLuaValue(): LuaValue {
+fun JsonElement.toInputLuaValue(): LuaValue {
     return when (this) {
         is JsonNull -> LuaValue.NIL
         is JsonPrimitive -> {
             when {
                 isString -> LuaValue.valueOf(content)
                 booleanOrNull != null -> LuaValue.valueOf(boolean)
-                else -> content.toDoubleOrNull()?.toLuaValue() ?: error("Invalid number: $content")
+                else -> content.toDoubleOrNull()?.toInputLuaValue() ?: error("Invalid number: $content")
             }
         }
         is JsonArray -> {
             val table = LuaValue.tableOf()
             this.forEachIndexed { index, element ->
-                table.set(index + 1, element.toLuaValue())
+                table.set(index + 1, element.toInputLuaValue())
             }
             table
         }
         is JsonObject -> {
             val table = LuaValue.tableOf()
             for ((key, value) in this) {
-                table.set(key, value.toLuaValue())
+                table.set(key, value.toInputLuaValue())
             }
             table
         }

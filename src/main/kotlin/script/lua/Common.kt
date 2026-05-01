@@ -82,7 +82,7 @@ private fun Globals.setupComponentCommands() {
     set("_component_type_of", oneArgFunction { arg ->
         val id = arg.tojstring()
         val type = LazyScriptComponentType(ctx.dependencies.namespacesStorage, ScriptComponentId(id))
-        type.toLuaValue()
+        type.toInputLuaValue()
     })
 }
 

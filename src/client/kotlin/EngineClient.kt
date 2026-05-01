@@ -96,7 +96,10 @@ class EngineClient(
             this,
             scriptsPath.luaEntrypointDir(serverId),
             createLuaDependencies(scriptsPath),
-        ).also { it.setup() }
+        ).also {
+            luaContext = it
+            it.setup()
+        }
     }
 
     var ticks = 0L

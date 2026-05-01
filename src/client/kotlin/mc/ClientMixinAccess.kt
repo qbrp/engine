@@ -38,6 +38,7 @@ import org.lain.engine.util.injectValue
 
 object ClientMixinAccess {
     private val client by injectClient()
+    private val minecraftClient by injectMinecraftClient()
     private val mainPlayer get() = client.gameSession?.mainPlayer
     private var mainPlayerHearing: Hearing? = null
     private var resources: ResourceList? = null
@@ -45,6 +46,10 @@ object ClientMixinAccess {
     var takeOffEquipPressed = false
 
     fun getEngineClient() = client
+
+    fun onDisconnect() {
+        minecraftClient.onDisconnect()
+    }
 
     fun tick() {
         chatClipboardCopyTicksElapsed += 1

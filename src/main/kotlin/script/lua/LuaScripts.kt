@@ -32,7 +32,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                 luaTableOf(
                     luaValue("player"), context.player?.coerceToLua() ?: LuaValue.NIL,
                     luaValue("world"), context.world.coerceToLua(),
-                    luaValue("voxel_pos"), context.pos.toLuaValue(),
+                    luaValue("voxel_pos"), context.pos.toInputLuaValue(),
                     luaValue("voxel_meta"), context.meta.coerceToLua(),
                 )
             }
@@ -41,13 +41,13 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                 luaTableOf(
                     luaValue("world"), actor.player.world.coerceToLua(),
                     luaValue("actor"), luaTableOf(
-                        luaValue("type"), actor.type.name.lowercase().toLuaValue(),
+                        luaValue("type"), actor.type.name.lowercase().toInputLuaValue(),
                         luaValue("player"), actor.player.coerceToLua(),
-                        luaValue("entity"), actor.entity.toLuaValue(),
+                        luaValue("entity"), actor.entity.toInputLuaValue(),
                     ),
-                    luaValue("target"), target?.toLuaValue() ?: LuaValue.NIL,
+                    luaValue("target"), target?.toInputLuaValue() ?: LuaValue.NIL,
                     luaValue("inputs"), inputs.toLuaTable(),
-                    luaValue("gen_target"), zeroArgFunction { behaviour.generateTarget().toLuaValue() }
+                    luaValue("gen_target"), zeroArgFunction { behaviour.generateTarget().toInputLuaValue() }
                 )
             }
         }
@@ -70,7 +70,7 @@ fun LuaValue.toKotlin(): Any? {
         LuaValue.TINT -> toint()
         LuaValue.TSTRING -> tojstring()
         LuaValue.TFUNCTION -> { checkfunction().call() }
-        LuaValue.TTABLE -> { checktable().toMap {  } }
+        LuaValue.TTABLE -> { checktable().toMap { it.toKotlin() } }
         else -> error("Invalid type: " + type())
     }
 }

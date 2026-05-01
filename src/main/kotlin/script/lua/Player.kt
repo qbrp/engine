@@ -43,7 +43,7 @@ context(ctx: LuaContext)
 fun Globals.setupPlayer() {
     ctx.playerTable.set("_has_permission", twoArgFunction { self, permission ->
         val player = self.coerceToEnginePlayer()
-        player.hasPermission(permission.tojstring()).toLuaValue()
+        player.hasPermission(permission.tojstring()).toInputLuaValue()
     })
 
     ctx.playerTable.set("_is_game_master", object : OneArgFunction() {
@@ -108,12 +108,12 @@ fun World.updatePlayerScriptSystem() {
         val scriptLocation = locationArray.componentOf(entity) ?: return@iterate
         val table = scriptLocation.luaTable
         val vector = table.get("vector").nullable()?.checktable() ?: run {
-            val array = location.position.toLuaValue()
+            val array = location.position.toInputLuaValue()
             table.set("vector", array)
             array
         }
-        vector.set(1, location.x.toLuaValue())
-        vector.set(2, location.y.toLuaValue())
-        vector.set(3, location.z.toLuaValue())
+        vector.set(1, location.x.toInputLuaValue())
+        vector.set(2, location.y.toInputLuaValue())
+        vector.set(3, location.z.toInputLuaValue())
     }
 }

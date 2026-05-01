@@ -138,6 +138,20 @@ function World:__get_all_components(entity) return self:_get_all_components(enti
 ---@param entity number
 function World:__destroy_entity(entity) return self:_destroy_entity(entity) end
 
+------------------
+
+--- Userdata
+---@class Entity
+---@field world World
+---@field id number
+Entity = Entity or {}
+Entity.__index = Entity
+
+---@param world World
+---@param id number
+---@return Entity
+function Entity.__of(world, id) return Entity._of(world, id) end
+
 --------------------------------------------------------------------------------
 ---- Воксели
 --------------------------------------------------------------------------------
@@ -149,7 +163,7 @@ function World:__destroy_entity(entity) return self:_destroy_entity(entity) end
 
 ---@param voxel_pos number[]
 ---@param networked boolean
----@return Entity
+---@return number Entity
 function World:__set_dynamic_voxel(voxel_pos, networked) return self:_set_dynamic_voxel(voxel_pos, networked) end
 
 --------------------------------------------------------------------------------
@@ -217,13 +231,9 @@ Intent.__index = Intent
 
 ---@class ComponentTypeSettings
 ---@field id string
-ComponentTypeSettings = ComponentTypeSettings or {}
-ComponentTypeSettings.__index = ComponentTypeSettings
-
-function ComponentTypeSettings.of(id)
-    return setmetatable({ id = id}, ComponentTypeSettings)
-end
-
+---@field savable string
+---@field networking string
+---
 ------------------
 
 ---@class Namespace

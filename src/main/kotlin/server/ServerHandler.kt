@@ -3,7 +3,6 @@ package org.lain.engine.server
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getAll
@@ -114,6 +113,7 @@ class ServerHandler(
         }
         SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
         SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx -> onScriptBindings(ctx.sender, bindings) }
+        SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx -> onPlayerInstantiationConfirm(ctx.sender) }
     }
 
     fun invalidate() {
@@ -320,7 +320,7 @@ class ServerHandler(
                     if (componentsToSynchronize.isNotEmpty()) {
                         CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT.sendS2C(
                             DynamicVoxelDeltaPacket(
-                                voxelPos,
+                                ImmutableVoxelPos(voxelPos),
                                 componentsToSynchronize.map { it.toCommonDto() }
                             ),
                             player.id
@@ -334,18 +334,14 @@ class ServerHandler(
             for (playerToSynchronize in playersToSynchronize) {
                 if (playerToSynchronize !in state.players && playerToSynchronize.id != player.id) {
                     state.players += playerToSynchronize
-                    val task = CLIENTBOUND_FULL_PLAYER_ENDPOINT
-                            .taskS2C(
-                                FullPlayerPacket(
-                                    playerToSynchronize.id,
-                                    FullPlayerData.of(playerToSynchronize)
-                                ),
-                                player.id
-                            )
-                            .send()
-                            .withAcknowledge()
-                            .onTimeoutServerThread { state.players -= playerToSynchronize }
-                    coroutineScope.launch { task.run() }
+                    CLIENTBOUND_FULL_PLAYER_ENDPOINT
+                        .sendS2C(
+                            FullPlayerPacket(
+                                playerToSynchronize.id,
+                                FullPlayerData.of(playerToSynchronize)
+                            ),
+                            player.id
+                        )
                 }
             }
         }
@@ -384,7 +380,8 @@ class ServerHandler(
                     chunk.dynamicVoxels
                         .filterValues { it.hasComponent<Networked>() }
                         .mapNotNull { (pos, entity) ->
-                            ImmutableVoxelPos(pos) to entity.getAll(world.componentManager.getOrCreateNetworkedDeltaBitMask(entity))
+                            ImmutableVoxelPos(pos) to componentManager.getNetworkedComponents(entity)
+                                .map { it.toCommonDto() }
                         }
                         .toMap()
                 )
@@ -441,26 +438,19 @@ class ServerHandler(
             )
         }
 
-        val synchronization = player.network
+        val network = player.network
         val joinGamePacket = JoinGamePacket(
             ServerPlayerData.of(player),
             ClientboundWorldData.of(this),
             ClientboundSetupData.create(server, player),
             notifications
         )
-        val task = CLIENTBOUND_JOIN_GAME_ENDPOINT
-            .taskS2C(joinGamePacket, playerId)
-            .send()
-            .withAcknowledge()
-            .onTimeoutServerThread { synchronization.disconnect = true }
-        coroutineScope.launch {
-            task.run()
-            server.execute {
-                synchronization.disconnect = false
-                synchronization.authorized = true
-                synchronization.items += joinGamePacket.playerData.referencedItems.all
-            }
-        }
+        CLIENTBOUND_JOIN_GAME_ENDPOINT.sendS2C(joinGamePacket, player.id)
+        network.items += joinGamePacket.playerData.referencedItems.all
+    }
+
+    fun onPlayerInstantiationConfirm(playerId: PlayerId) = updatePlayer(playerId) {
+        network.authorized = true
     }
 
     fun onPlayerDestroy(player: EnginePlayer) {

@@ -3,6 +3,7 @@ package org.lain.engine.world
 import kotlinx.serialization.Serializable
 import net.fabricmc.loader.impl.lib.sat4j.core.Vec
 import net.minecraft.util.math.BlockPos
+import net.minecraft.util.math.Vec3d
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.floorToInt

@@ -163,6 +163,11 @@ data class JoinGamePacket(
 @OptIn(ExperimentalSerializationApi::class)
 val CLIENTBOUND_JOIN_GAME_ENDPOINT = Endpoint<JoinGamePacket>()
 
+@Serializable
+object ConfirmationPacket : Packet
+
+val SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT = Endpoint<ConfirmationPacket>()
+
 // Full player data (for synchronization)
 
 @Serializable

@@ -99,8 +99,10 @@ open class LuaContext(
 
     open fun runEntrypoint() {
         callbacksFunctions.clear()
-        val toRemove = compilationFunctions.subList(1, compilationFunctions.size)
-        compilationFunctions.removeAll(toRemove) // оставляем только функцию инициализации стандартной библиотеки
+        if (compilationFunctions.size > 1) {
+            val toRemove = compilationFunctions.subList(1, compilationFunctions.size)
+            compilationFunctions.removeAll(toRemove) // оставляем только функцию инициализации стандартной библиотеки
+        }
         globals.loadfile(entrypoint.path).call()
     }
 
@@ -164,7 +166,7 @@ open class LuaContext(
                             ?.associate { script ->
                                 val id = script.get("id").tojstring()
                                 val function = script.get("fun").checkfunction()
-                                namespacedId(namespaceId, id).toScriptId() to LuaScript<ScriptContext, Any>(this@LuaContext, function)
+                                namespacedId(namespaceId, id).toScriptId() to LuaScript<ScriptContext, Unit>(this@LuaContext, function)
                             } ?: emptyMap()
 
                         val components = componentsArray?.toList { it.checktable() }
@@ -186,7 +188,12 @@ open class LuaContext(
                                 val inputs = intent.get("inputs")?.nullable()?.checktable()
                                     ?.toList { it.checktable() }
                                     ?.map { it.toIntentInput() } ?: emptyList()
-                                id to Intent(id, name, script, inputs)
+                                val permission = if(intent.get("permission")?.nullable()?.toboolean() == true) {
+                                    "intent.${id.value.replace("/", ".")}"
+                                } else {
+                                    null
+                                }
+                                id to Intent(id, name, script, inputs, permission = permission)
                             } ?: emptyMap()
 
                         compilation.namespaces[namespaceId] = CompiledNamespace(

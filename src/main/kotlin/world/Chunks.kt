@@ -107,6 +107,7 @@ class ChunkStorage(
         chunk.hints.remove(pos)
         chunk.decals.remove(pos)
         return chunk.dynamicVoxels.remove(pos)
+            ?.also { world.destroy(it) }
     }
 
     fun getChunk(pos: EngineChunkPos): EngineChunk? = getChunk(pos.x, pos.z)
