@@ -16,7 +16,7 @@ import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.toJsonDeep
-import org.lain.engine.script.lua.toInputLuaValue
+import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.world.World
 import java.util.*
@@ -145,7 +145,7 @@ fun ComponentDto.toDomain(settings: ComponentLoadSettings): Component? {
                 ?: CoreScriptComponents.get(componentId)
                 ?: error("Component type $componentId is not registered")
             val type = scriptComponent
-            ScriptComponent(Json.decodeFromString<JsonElement>(data.jsonString).toInputLuaValue(), type)
+            ScriptComponent(Json.decodeFromString<JsonElement>(data.jsonString).toLuaValue(), type)
         }
         else -> error("Component ${this::class.simpleName} doesn't contains DTO mapper")
     }

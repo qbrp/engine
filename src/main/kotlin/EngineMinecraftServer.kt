@@ -136,6 +136,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
                     .mapNotNull { entity -> entityTable.getPlayer(entity) }
             }
             world.registerScriptComponents(engine.namespacedStorage)
+            with(world) { world.worldState.copyState(engine.loadWorldComponents(world)) }
             engine.addWorld(world)
             dependencies.entityTable.setWorld(id, it)
             luaContext.loadWorld(world)
@@ -218,6 +219,11 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
                 }
             }
         )
+    }
+
+    fun onWorldUnload(world: net.minecraft.world.World) {
+        val engineWorld = engine.getWorld(world)
+        engine.saveWorld(engineWorld)
     }
 }
 

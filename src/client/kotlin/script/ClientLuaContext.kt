@@ -26,5 +26,6 @@ class ClientLuaContext(
             LuaRuntimeDependencies(gameSession.playerStorage, mutableMapOf(world.id to world))
         )
         globals.setupAudio()
+        loadWorld(world)
     }
 }

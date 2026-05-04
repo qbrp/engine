@@ -32,7 +32,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                 luaTableOf(
                     luaValue("player"), context.player?.coerceToLua() ?: LuaValue.NIL,
                     luaValue("world"), context.world.coerceToLua(),
-                    luaValue("voxel_pos"), context.pos.toInputLuaValue(),
+                    luaValue("voxel_pos"), context.pos.toLuaValue(),
                     luaValue("voxel_meta"), context.meta.coerceToLua(),
                 )
             }
@@ -41,13 +41,18 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                 luaTableOf(
                     luaValue("world"), actor.player.world.coerceToLua(),
                     luaValue("actor"), luaTableOf(
-                        luaValue("type"), actor.type.name.lowercase().toInputLuaValue(),
+                        luaValue("type"), actor.type.name.lowercase().toLuaValue(),
                         luaValue("player"), actor.player.coerceToLua(),
-                        luaValue("entity"), actor.entity.toInputLuaValue(),
+                        luaValue("entity"), actor.entity.toLuaValue(),
                     ),
-                    luaValue("target"), target?.toInputLuaValue() ?: LuaValue.NIL,
+                    luaValue("target"), target?.toLuaValue() ?: LuaValue.NIL,
                     luaValue("inputs"), inputs.toLuaTable(),
-                    luaValue("gen_target"), zeroArgFunction { behaviour.generateTarget().toInputLuaValue() }
+                    luaValue("gen_target"), zeroArgFunction { behaviour.generateTarget().toLuaValue() },
+                    luaValue("gen_selection"), zeroArgFunction { behaviour.generateSelection()?.toLuaValue() ?: LuaValue.NIL },
+                    luaValue("feedback"), oneArgFunction {
+                        behaviour.feedback(it.tojstring())
+                        LuaValue.NIL
+                    }
                 )
             }
         }

@@ -8,6 +8,7 @@ import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.storage.ComponentLoadSettings
 import org.lain.engine.util.component.ComponentWorld
+import org.lain.engine.util.component.EntityId
 
 object Event : Component
 
@@ -17,7 +18,8 @@ class World(
     val players: MutableList<EnginePlayer> = mutableListOf(),
     val playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null,
     val isClient: Boolean = false,
-    val namespacedStorage: NamespacedStorage
+    val namespacedStorage: NamespacedStorage,
+    val worldState: EntityId = componentManager.addEntity(),
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     private val scriptContext = ScriptContext.World(this)
     val chunkStorage: ChunkStorage = ChunkStorage(this, ComponentLoadSettings(null, namespacedStorage))

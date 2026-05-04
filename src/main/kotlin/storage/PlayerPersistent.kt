@@ -21,7 +21,7 @@ val STORAGE_DIR = ENGINE_DIR.resolve("storage")
     .also { it.mkdirs() }
 
 val File.playerData
-    get() = this.resolve("engine_players")
+    get() = this.resolve("engine-players")
         .also { ensureExists() }
 
 private val PLAYERS_JSON = Json {

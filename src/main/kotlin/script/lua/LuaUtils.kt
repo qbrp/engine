@@ -4,6 +4,7 @@ import kotlinx.serialization.json.*
 import org.lain.engine.storage.LOGGER
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.Input
+import org.lain.engine.util.IntentSelection
 import org.lain.engine.util.IntentTarget
 import org.lain.engine.util.file.getBuiltinResource
 import org.lain.engine.util.math.Vec3
@@ -46,47 +47,52 @@ fun luaTableOf(vararg values: LuaValue): LuaTable {
 
 fun luaValue(string: String) = LuaValue.valueOf(string)
 
-fun String.toInputLuaValue(): LuaValue = luaValue(this)
+fun String.toLuaValue(): LuaValue = luaValue(this)
 
 fun luaValueNullable(string: String?) = LuaValue.valueOf(string) ?: LuaValue.NIL
 
 fun luaValue(int: Int) = LuaValue.valueOf(int)
 
-fun Int.toInputLuaValue(): LuaValue = luaValue(this)
+fun Int.toLuaValue(): LuaValue = luaValue(this)
 
 fun luaValue(float: Float) = LuaValue.valueOf(float.toDouble())
 
-fun Float.toInputLuaValue(): LuaValue = luaValue(this)
+fun Float.toLuaValue(): LuaValue = luaValue(this)
 
 fun luaValue(boolean: Boolean) = LuaValue.valueOf(boolean)
 
-fun Boolean.toInputLuaValue(): LuaValue = luaValue(this)
+fun Boolean.toLuaValue(): LuaValue = luaValue(this)
 
 fun luaValue(double: Double) = LuaValue.valueOf(double)
 
-fun Double.toInputLuaValue(): LuaValue = luaValue(this)
+fun Double.toLuaValue(): LuaValue = luaValue(this)
 
 fun List<AnyInputValue>.toLuaTable(): LuaTable {
     val table = LuaTable()
-    forEach { table.set(luaValue(it.input.id), it.value.toInputLuaValue(it.input.type)) }
+    forEach { table.set(luaValue(it.input.id), it.value.toLuaValue(it.input.type)) }
     return table
 }
 
-fun Any?.toInputLuaValue(type: Input.Type<*>): LuaValue {
+fun Any?.toLuaValue(type: Input.Type<*>): LuaValue {
     return when (type) {
-        Input.Type.Logic -> (this as Boolean).toInputLuaValue()
-        Input.Type.Integer -> (this as Int).toInputLuaValue()
-        Input.Type.Double -> (this as Double).toInputLuaValue()
+        Input.Type.Logic -> (this as Boolean).toLuaValue()
+        Input.Type.Integer -> (this as Int).toLuaValue()
+        Input.Type.Double -> (this as Double).toLuaValue()
         Input.Type.Table -> TODO()
-        is Input.Type.Text -> (this as String).toInputLuaValue()
+        is Input.Type.Text -> (this as String).toLuaValue()
     }
 }
 
 context(ctx: LuaContext)
-fun IntentTarget.toInputLuaValue(): LuaTable = luaTableOf(
+fun IntentTarget.toLuaValue(): LuaTable = luaTableOf(
     luaValue("player"), player?.coerceToLua() ?: LuaValue.NIL,
-    luaValue("voxel_pos"), voxelPos.toInputLuaValue(),
-    luaValue("pos"), pos.asVec3().toInputLuaValue(),
+    luaValue("voxel_pos"), voxelPos.toLuaValue(),
+    luaValue("pos"), pos.asVec3().toLuaValue(),
+)
+
+fun IntentSelection.toLuaValue() = luaTableOf(
+    luaValue("pos1"), pos1.toLuaValue(),
+    luaValue("pos2"), pos2.toLuaValue(),
 )
 
 fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
@@ -97,13 +103,13 @@ fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
     return list
 }
 
-fun VoxelPos.toInputLuaValue(): LuaTable {
+fun VoxelPos.toLuaValue(): LuaTable {
     return LuaValue.listOf(
         arrayOf(luaValue(x), luaValue(y), luaValue(z)),
     )
 }
 
-fun Vec3.toInputLuaValue(): LuaTable {
+fun Vec3.toLuaValue(): LuaTable {
     return LuaValue.listOf(
         arrayOf(luaValue(x), luaValue(y), luaValue(z))
     )
@@ -129,7 +135,7 @@ fun LuaValue.coerceToScriptComponentType(): LazyScriptComponentType {
     return checkuserdata(LazyScriptComponentType::class.java) as? LazyScriptComponentType ?: error("Invalid component type value")
 }
 
-fun LazyScriptComponentType.toInputLuaValue(): LuaValue {
+fun LazyScriptComponentType.toLuaValue(): LuaValue {
     val userdata = LuaUserdata(this)
 
     val meta = object : LuaTable() {
@@ -220,27 +226,27 @@ fun LuaValue.toJsonDeep(): JsonElement {
     }
 }
 
-fun JsonElement.toInputLuaValue(): LuaValue {
+fun JsonElement.toLuaValue(): LuaValue {
     return when (this) {
         is JsonNull -> LuaValue.NIL
         is JsonPrimitive -> {
             when {
                 isString -> LuaValue.valueOf(content)
                 booleanOrNull != null -> LuaValue.valueOf(boolean)
-                else -> content.toDoubleOrNull()?.toInputLuaValue() ?: error("Invalid number: $content")
+                else -> content.toDoubleOrNull()?.toLuaValue() ?: error("Invalid number: $content")
             }
         }
         is JsonArray -> {
             val table = LuaValue.tableOf()
             this.forEachIndexed { index, element ->
-                table.set(index + 1, element.toInputLuaValue())
+                table.set(index + 1, element.toLuaValue())
             }
             table
         }
         is JsonObject -> {
             val table = LuaValue.tableOf()
             for ((key, value) in this) {
-                table.set(key, value.toInputLuaValue())
+                table.set(key, value.toLuaValue())
             }
             table
         }
@@ -249,36 +255,36 @@ fun JsonElement.toInputLuaValue(): LuaValue {
 
 fun zeroArgFunction(builder: () -> LuaValue) = object : ZeroArgFunction() {
     override fun call(): LuaValue {
-        return builder.invoke()
+        return builder.invoke() ?: LuaValue.NIL
     }
 }
 
-fun oneArgFunction(builder: (LuaValue) -> LuaValue) = object : OneArgFunction() {
+fun oneArgFunction(builder: (LuaValue) -> LuaValue?) = object : OneArgFunction() {
     override fun call(arg: LuaValue): LuaValue {
-        return builder.invoke(arg)
+        return builder.invoke(arg) ?: LuaValue.NIL
     }
 }
 
-fun twoArgFunction(builder: (LuaValue, LuaValue) -> LuaValue) = object : TwoArgFunction() {
+fun twoArgFunction(builder: (LuaValue, LuaValue) -> LuaValue?) = object : TwoArgFunction() {
     override fun call(arg: LuaValue, arg2: LuaValue): LuaValue {
-        return builder.invoke(arg, arg2)
+        return builder.invoke(arg, arg2) ?: LuaValue.NIL
     }
 }
 
-fun threeArgFunction(builder: (LuaValue, LuaValue, LuaValue) -> LuaValue) = object : ThreeArgFunction() {
+fun threeArgFunction(builder: (LuaValue, LuaValue, LuaValue) -> LuaValue?) = object : ThreeArgFunction() {
     override fun call(arg: LuaValue, arg2: LuaValue, arg3: LuaValue): LuaValue {
-        return builder.invoke(arg, arg2, arg3)
+        return builder.invoke(arg, arg2, arg3) ?: LuaValue.NIL
     }
 }
 
-fun fourArgFunction(builder: (LuaValue, LuaValue, LuaValue, LuaValue) -> LuaValue) = object : VarArgFunction() {
+fun fourArgFunction(builder: (LuaValue, LuaValue, LuaValue, LuaValue) -> LuaValue?) = object : VarArgFunction() {
     override fun onInvoke(args: Varargs): Varargs {
-        return builder.invoke(args.arg(1), args.arg(2), args.arg(3), args.arg(4))
+        return builder.invoke(args.arg(1), args.arg(2), args.arg(3), args.arg(4)) ?: LuaValue.NIL
     }
 }
 
-fun varargsFunction(builder: (Varargs) -> LuaValue) = object : VarArgFunction() {
+fun varargsFunction(builder: (Varargs) -> LuaValue?) = object : VarArgFunction() {
     override fun onInvoke(args: Varargs): Varargs {
-        return builder.invoke(args)
+        return builder.invoke(args) ?: LuaValue.NIL
     }
 }

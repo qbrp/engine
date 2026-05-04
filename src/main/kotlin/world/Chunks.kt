@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
 data class EngineChunk(
     val decals: MutableMap<VoxelPos, BlockDecals> = mutableMapOf(),
     val hints: MutableMap<VoxelPos, BlockHint> = mutableMapOf(),
-    val dynamicVoxels: MutableMap<VoxelPos, EntityId> = mutableMapOf(),
+    val dynamicVoxels: MutableMap<VoxelPos, EntityId> = mutableMapOf()
 ) {
     fun isEmpty() = decals.isEmpty() && hints.isEmpty() && dynamicVoxels.isEmpty()
 }

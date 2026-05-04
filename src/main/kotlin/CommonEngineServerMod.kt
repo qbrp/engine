@@ -88,6 +88,10 @@ class CommonEngineServerMod : ModInitializer {
             engineServer.onChunkUnload(world, chunk)
         }
 
+        ServerWorldEvents.UNLOAD.register { server, world ->
+            engineServer.onWorldUnload(world)
+        }
+
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
             if (world.isClient) return@register ActionResult.PASS
             val hitPlayer = hitResult?.entity ?: return@register ActionResult.PASS

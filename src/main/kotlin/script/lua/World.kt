@@ -4,6 +4,7 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.player.username
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
@@ -19,9 +20,11 @@ import org.luaj.vm2.lib.TwoArgFunction
 
 context(ctx: LuaContext)
 fun World.coerceToLua(): LuaUserdata {
+    (ctx.worldsList[id.value] as? LuaUserdata) ?.let { return it }
     val userdata = LuaUserdata(this)
     val idValue = luaValue(this@coerceToLua.id.toString())
     val isClient = luaValue(isClient)
+    val worldState = worldState.coerceToLua(userdata)
     val meta = object : LuaTable() {
         init {
             set("__index", object : TwoArgFunction() {
@@ -29,7 +32,10 @@ fun World.coerceToLua(): LuaUserdata {
                     return when (key.tojstring()) {
                         "id" -> idValue
                         "is_client" -> isClient
-                        "players" -> LuaTable.listOf(players.map { it.coerceToLua() }.toTypedArray())
+                        "players" -> LuaTable.tableOf(
+                            players.flatMap { listOf(it.username.toLuaValue(), it.coerceToLua()) }.toTypedArray(),
+                        )
+                        "state" -> worldState
                         else -> ctx.worldTable.get(key)
                     }
                 }
@@ -47,9 +53,9 @@ data class LuaEntityComponent(val table: LuaValue) : Component {
 }
 
 context(ctx: LuaContext, world: World)
-fun EntityId.coerceToLua(): LuaValue {
+fun EntityId.coerceToLua(worldV: LuaValue? = null): LuaValue {
     val idValue = luaValue(this)
-    val worldValue = world.coerceToLua()
+    val worldValue = worldV ?: world.coerceToLua()
     return getComponent<LuaEntityComponent>()?.table ?: run {
         val t = object : LuaTable() {
             override fun get(key: LuaValue): LuaValue {
@@ -85,7 +91,7 @@ fun Globals.setupWorld() {
         val world = self.coerceToEngineWorld()
         val type = type.coerceToScriptComponentType()
         val entityId = entityId.toint()
-        luaValue(world.hasLuaComponent(entityId, type.requireComponent()))
+        world.getLuaComponent(entityId, type.requireComponent())
     })
 
     ctx.worldTable.set("_has_component", threeArgFunction { self, entityId, type ->
@@ -216,7 +222,7 @@ fun Globals.setupWorld() {
         with(world) {
             val entity = setDynamicVoxel(voxelPos, networked.toboolean())
             entity.setLuaComponent(
-                voxelPos.toInputLuaValue(),
+                voxelPos.toLuaValue(),
                 CoreScriptComponents.DYNAMIC_VOXEL
             )
             entity.coerceToLua()

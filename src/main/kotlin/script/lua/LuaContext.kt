@@ -65,6 +65,11 @@ open class LuaContext(
     lateinit var playerTable: LuaTable
     lateinit var worldTable: LuaTable
     lateinit var entityTable: LuaTable
+    internal val worldsList = LuaTable()
+
+    fun loadWorld(world: World) {
+        worldsList[world.id.value.toLuaValue()] = world.coerceToLua()
+    }
 
     open fun setupTables() {
         playerTable = globals.get("Player").checktable()
@@ -72,7 +77,9 @@ open class LuaContext(
         entityTable = globals.get("Entity").checktable()
     }
 
-    open fun setupGlobalsRuntime() {}
+    open fun setupGlobalsRuntime() {
+        globals.set("worlds", worldsList)
+    }
 
     open fun setupGlobals() {
         globals.setupPlayer()
