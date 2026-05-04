@@ -10,6 +10,10 @@ class EntityCommandBuffer(
     private val commands: MutableList<(WriteComponentAccess) -> Unit> = mutableListOf(),
 ) : WriteComponentAccess {
 
+    fun schedule(statement: WriteComponentAccess.() -> Unit) {
+        commands.add(statement)
+    }
+
     override fun <T : Component> removeComponent(
         entity: EntityId,
         type: ComponentType<T>

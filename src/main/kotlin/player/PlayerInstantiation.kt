@@ -151,10 +151,10 @@ class PlayerLoader(
         with(EntityCommandBuffer(world)) {
             player.prepareContainers(PersistentId.next(), player.location, inventoryLoadResult.equipmentItems)
             player.entityId.copyComponentDtoState(componentLoadSettings, persistent?.components ?: listOf())
+            schedule {
+                exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications) }
+            }
             commandBuffers += world.id to this
-        }
-        server.execute {
-            exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications) }
         }
     }
 

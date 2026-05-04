@@ -118,7 +118,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         val output = mutableListOf<Component>()
         for (arr in savableArrays.values) {
             val component = arr.componentOf(entityId)
-            if (component != null && arr.meta.networking) {
+            if (component != null && arr.meta.savable) {
                 output += component
             }
         }
