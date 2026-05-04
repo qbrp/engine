@@ -5,6 +5,9 @@ import com.mojang.brigadier.arguments.DoubleArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.ArgumentBuilder
+import com.sk89q.worldedit.WorldEdit
+import com.sk89q.worldedit.fabric.FabricAdapter
+import com.sk89q.worldedit.math.BlockVector3
 import net.minecraft.entity.Entity
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.entity.projectile.ProjectileUtil
@@ -14,6 +17,7 @@ import net.minecraft.util.hit.EntityHitResult
 import net.minecraft.util.hit.HitResult
 import net.minecraft.world.RaycastContext
 import org.lain.engine.mc.engine
+import org.lain.engine.mc.isWorldEditAvailable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.SOCIAL_INTERACTION_DISTANCE
 import org.lain.engine.script.ExecutionResult
@@ -22,16 +26,26 @@ import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.*
+import org.lain.engine.world.VoxelPos
 
 fun ServerCommandDispatcher.registerIntentCommands(
     contents: NamespacedStorage,
     intents: List<Intent> = contents.intents.values.toList(),
     handler: ServerHandler,
 ) = intents.forEach {
-    val (_, name, script, inputs, actors, permission) = it
+    val (rawId, name, script, inputs, actors, permission) = it
     val id = it.id.value.substringAfterLast('/')
     val node = literal(id)
+        .requires { ctx -> permission == null || ctx.hasPermission(permission) }
     if (inputs.any { it.type is Input.Type.Table }) error("Can't create $id command intent: not supports table input type")
+
+    fun ArgumentBuilder<ServerCommandSource, *>.executeIntent() = this.executeCatching { ctx ->
+        val intent = contents.intents[rawId]!!
+        val result = executeIntent(intent, ctx.getIntentScriptContext(inputs), contents, handler)
+        if (result is ExecutionResult.Failure) {
+            ctx.sendError(result.error)
+        }
+    }
 
     fun build(idx: Int): ArgumentBuilder<ServerCommandSource, *>? {
         val (inputId, inputType) = inputs.getOrNull(idx) ?: return null
@@ -55,19 +69,12 @@ fun ServerCommandDispatcher.registerIntentCommands(
         if (child != null) {
             next.then(child)
         } else {
-            next
-                .requires { ctx -> permission == null || ctx.hasPermission(permission) }
-                .executeCatching { ctx ->
-                    val result = executeIntent(it, ctx.getIntentScriptContext(inputs), contents, handler)
-                    if (result is ExecutionResult.Failure) {
-                        ctx.sendError(result.error)
-                    }
-            }
+            next.executeIntent()
         }
 
         return next
     }
-    build(0)?.let { node.then(it) }
+    build(0)?.let { node.then(it) } ?: node.executeIntent()
     register(node)
 }
 
@@ -85,9 +92,8 @@ fun Context.getIntentScriptContext(inputs: List<AnyInput>): ScriptContext.Intent
             .map { input ->
                 val argument = command.getArgument(input.id, input.type.kclass.java)
                 (input as Input<Any>).valueOf(argument)
-
             },
-        CommandIntentBehaviour(requireEntity())
+        CommandIntentBehaviour(this, requireEntity())
     )
 }
 
@@ -102,10 +108,10 @@ private val Input.Type<*>.kclass
 
 fun ClientCommandIntentBehaviour(player: EnginePlayer): CommandIntentBehaviour {
     val table by injectEntityTable()
-    return CommandIntentBehaviour(table.client.getEntity(player.id)!!)
+    return CommandIntentBehaviour(null, table.client.getEntity(player.id)!!)
 }
 
-class CommandIntentBehaviour(private val entity: Entity) : IntentBehaviour {
+class CommandIntentBehaviour(private val context: Context?, private val entity: Entity) : IntentBehaviour {
     override fun generateTarget(): IntentTarget {
         val playerTable by injectEntityTable()
         return when(val result = raycastPlayerOrBlock(
@@ -117,6 +123,23 @@ class CommandIntentBehaviour(private val entity: Entity) : IntentBehaviour {
             is EntityHitResult -> IntentTarget(playerTable.getGeneralPlayer(result.entity as PlayerEntity), result.entity.blockPos.engine(), result.pos.engine())
             else -> error("Unexpected raycast hit result type ${result.type}")
         }
+    }
+
+    override fun generateSelection(): IntentSelection? {
+        if (!isWorldEditAvailable()) friendlyError("World edit API is not available")
+        val source = context?.source ?: friendlyError("World edit API is not available from client")
+        val actor = FabricAdapter.adaptCommandSource(source)
+        val session = WorldEdit.getInstance().sessionManager.get(actor)
+
+        fun BlockVector3.engine() = VoxelPos(x(), y(), z())
+
+        return runCatching { session.selection }.getOrNull()?.let {
+            IntentSelection(it.minimumPoint.engine(), it.maximumPoint.engine())
+        }
+    }
+
+    override fun feedback(string: String) {
+        context?.sendFeedback(string, false)
     }
 }
 

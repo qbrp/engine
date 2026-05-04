@@ -6,6 +6,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionComponent
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.IntentActor
+import org.lain.engine.util.IntentSelection
 import org.lain.engine.util.IntentTarget
 import org.lain.engine.world.VoxelMeta
 import org.lain.engine.world.VoxelPos
@@ -13,6 +14,8 @@ import org.lain.engine.world.World as EngineWorld
 
 interface IntentBehaviour {
     fun generateTarget(): IntentTarget
+    fun generateSelection(): IntentSelection?
+    fun feedback(string: String)
 }
 
 sealed class ScriptContext {

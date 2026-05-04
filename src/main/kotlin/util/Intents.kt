@@ -43,6 +43,11 @@ data class InputValue<T : Any>(val input: Input<T>, val value: T) {
 
 typealias AnyInputValue = InputValue<*>
 
+data class IntentSelection(
+    val pos1: VoxelPos,
+    val pos2: VoxelPos
+)
+
 data class IntentTarget(
     val player: EnginePlayer?,
     val voxelPos: VoxelPos,
