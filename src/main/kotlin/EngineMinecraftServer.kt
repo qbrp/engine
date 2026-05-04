@@ -10,6 +10,7 @@ import net.minecraft.util.WorldSavePath
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.chunk.Chunk
+import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.IncomingMessage
@@ -79,7 +80,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )
-    protected var luaContext: LuaContext = dependencies.luaContext
+    val luaContext: LuaContext = dependencies.luaContext
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
         val item = instantiateItem(
@@ -137,6 +138,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             world.registerScriptComponents(engine.namespacedStorage)
             engine.addWorld(world)
             dependencies.entityTable.setWorld(id, it)
+            luaContext.loadWorld(world)
         }
         engine.run()
     }
