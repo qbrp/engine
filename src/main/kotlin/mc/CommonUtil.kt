@@ -22,6 +22,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.level.GameType
+import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.phys.HitResult
@@ -32,11 +33,9 @@ import org.lain.engine.CommonEngineServerMod
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.ScriptContext
-import org.lain.engine.util.Color
+import org.lain.engine.server.EngineServer
 import org.lain.engine.util.injectMinecraftEngineServer
-import org.lain.engine.util.math.MutableEVec3
-import org.lain.engine.util.math.Pos
-import org.lain.engine.util.math.asVec3
+import org.lain.engine.util.math.*
 import org.lain.engine.world.*
 
 fun MinecraftUsername(player: Player) = Username(player.name.string)
@@ -127,7 +126,14 @@ object McGameModes {
     val SURVIVAL = GameType.SURVIVAL
 }
 
-val Player.items get() = inventory.iterator().asSequence().toList()
+val Player.ownedItems get() = inventory.iterator().asSequence().toList()
+
+val Player.visibleInventoryItems: Set<ItemStack>
+    get() {
+        return (containerMenu.items + ownedItems).toSet()
+    }
+
+val Player.carriedItem get() = containerMenu.carried
 
 fun Player.sendActionBarMessage(messageMm: String) {
     displayClientMessage(messageMm.parseMiniMessage(), true)
@@ -141,10 +147,10 @@ val EnginePlayer.displayNameMiniMessage
     get() = this.require<DisplayName>().let { it.custom?.textMiniMessage ?: it.username.value }
 
 val CustomName.textMiniMessage
-    get() = "<gradient:#${hex(color1)}:#${hex(color2 ?: color1)}>$string</gradient>"
+    get() = "<gradient:#${color1.hexString()}:#${(color2 ?: color1).hexString()}>$string</gradient>"
 
-private fun hex(color: Color): String {
-    return "%06x".format(color.integer and 0xFFFFFF)
+fun EngineServer.getWorld(world: Level): World {
+    return getWorld(world.engine)
 }
 
 // ID
@@ -184,6 +190,9 @@ fun <T : Any> registerDataComponentType(
         .build()
 )
 
+val Level.engine
+    get() = WorldId(this.dimensionTypeRegistration().registeredName)
+
 // MATH
 
 typealias MathMc = Mth
@@ -207,6 +216,9 @@ fun Direction.engine() = when(this) {
     Direction.EAST -> EDirection.EAST
 }
 
+fun EVec3.toMinecraft(): Vec3 = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
+
+fun Vec3.engine(): EVec3 = Vec3(x.toFloat(), y.toFloat(), z.toFloat())
 
 // TEXT
 

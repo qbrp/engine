@@ -3,49 +3,28 @@ package org.lain.engine.mc
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.util.Unit
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
-import net.minecraft.world.level.Level
-import net.minecraft.world.phys.Vec3
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.server.EngineServer
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.util.Storage
-import org.lain.engine.util.math.EVec3
-import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
 import org.lain.engine.world.location
 import org.slf4j.LoggerFactory
-
-fun EVec3.toMinecraft(): Vec3 = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
-
-fun Vec3.engine(): EVec3 = Vec3(x.toFloat(), y.toFloat(), z.toFloat())
-
-val Level.engine
-    get() = WorldId(this.dimensionTypeRegistration().registeredName)
-
-
-fun EngineServer.getWorld(world: Level): World {
-    return getWorld(world.engine)
-}
-
-fun Username(text: Component) = Username(text.string)
 
 context(world: World)
 fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: ServerPlayer, player: EnginePlayer) {
     val items = mutableListOf<EngineItem>()
-    for (stack in entity.inventory.iterator()) {
+    for (stack in entity.visibleInventoryItems) {
         val engineItem = stack.engineItem() ?: continue
         if (items.contains(engineItem)) {
             engineServer.wrapItemStackCatching(player, engineItem.requireComponent<ItemMeta>().id, stack)
@@ -102,7 +81,7 @@ fun updateServerMinecraftSystems(
         notUpdatedPlayers.remove(player)
 
         val screenHandler = entity.containerMenu
-        val itemStacks = entity.inventory + screenHandler.items + screenHandler.carried
+        val itemStacks = entity.visibleInventoryItems + screenHandler.carried
         val items: MutableList<EngineItemStack> = mutableListOf()
         val itemStacksToLoad = mutableListOf<NotLoadedEngineItemStack>() // ВАЖНО: здесь храним копии стаков, иначе будут проблемы с потоками
 

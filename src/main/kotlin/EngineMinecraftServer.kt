@@ -235,7 +235,7 @@ fun EngineServer.serverMinecraftPlayerLoadSettings(
     notifications: List<Notification>
 ): PlayerLoadSettings {
     assertOnThread()
-    val stacks = entity.inventory.iterator().asSequence().toList()
+    val stacks = entity.ownedItems
 
     return PlayerLoadSettings(
         playerId,
@@ -245,6 +245,5 @@ fun EngineServer.serverMinecraftPlayerLoadSettings(
         entity.name.string,
         developerModeStatus,
         getWorld(entity.level().engine),
-
     )
 }

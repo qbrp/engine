@@ -227,7 +227,7 @@ class MinecraftEngineClient : ClientModInitializer {
 
         world.prepareItemMinecraftSystem()
         players.forEach { (entity, player) ->
-            val itemStacks = (entity.inventory + entity.containerMenu.carried).toSet()
+            val itemStacks = (entity.visibleInventoryItems + entity.carriedItem).toSet()
             val items = itemStacks.mapNotNull { itemStack ->
                 val item = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getClientItem() ?: return@mapNotNull null
                 EngineItemStack(item, itemStack)

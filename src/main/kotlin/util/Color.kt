@@ -10,6 +10,10 @@ value class Color(val integer: Int) {
     val alpha
         get() = integer ushr 24 and 0xFF
 
+    fun hexString(): String {
+        return "%06x".format(integer and 0xFFFFFF)
+    }
+
     fun blend(
         other: Color?,
         colorA: Float?,
