@@ -2,10 +2,12 @@ package org.lain.engine.mc
 
 import com.google.gson.JsonParser
 import com.mojang.serialization.JsonOps
+import net.kyori.adventure.platform.modcommon.MinecraftServerAudiences
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.ComponentSerialization
+import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.math.parseHexColor
 import org.slf4j.LoggerFactory
 
@@ -39,18 +41,17 @@ fun String.removeLegacyFormattingCodes(): String {
 
 val TEXT_LOGGER = LoggerFactory.getLogger("Engine Text Serialization")
 
-//fun EngineServerServerTextAudiences(): MinecraftServerAudiences {
-//    val server by injectMinecraftEngineServer()
-//    return MinecraftServerAudiences.of(server.minecraftServer)
-//}
+fun EngineServerServerTextAudiences(): MinecraftServerAudiences {
+    val server by injectMinecraftEngineServer()
+    return MinecraftServerAudiences.of(server.minecraftServer)
+}
 
 fun String.parseMiniMessage(): Component {
     val text = this.removeLegacyFormattingCodes()
 
     val component = MiniMessage.miniMessage().deserialize(text)
     return try {
-//        EngineServerServerTextAudiences().asNative(component)
-        TODO()
+        EngineServerServerTextAudiences().asNative(component)
     } catch (e: Throwable) {
         TEXT_LOGGER.error("Возникла ошибка при десериализации текста MiniMessage:\n$this", e)
         val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))
