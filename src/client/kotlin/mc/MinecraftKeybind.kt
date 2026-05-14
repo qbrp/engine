@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.minecraft.client.KeyMapping
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.control.*
-import org.lain.engine.client.mc.render.InteractionSelectionScreen
+import org.lain.engine.client.render.ui.InteractionSelectionScreen
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.InputAction
 import org.lain.engine.player.input

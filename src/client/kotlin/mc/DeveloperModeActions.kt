@@ -4,8 +4,8 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.minecraft.world.InteractionResult
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
-import org.lain.engine.client.mc.render.TransformationsEditorScreen
-import org.lain.engine.client.mc.render.world.DecalSystem
+import org.lain.engine.client.render.ui.TransformationsEditorScreen
+import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.util.LittleNotification

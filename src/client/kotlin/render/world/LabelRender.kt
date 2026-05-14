@@ -1,11 +1,10 @@
-package org.lain.engine.client.mc.render.world
+package org.lain.engine.client.render.world
 
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Camera
 import net.minecraft.client.gui.Font
 import net.minecraft.util.FormattedCharSequence
 import org.lain.engine.client.mc.ImmediateVertexConsumers
-import org.lain.engine.client.mc.render.TextCache
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.EVec3

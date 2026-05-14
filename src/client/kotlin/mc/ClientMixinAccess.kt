@@ -15,9 +15,9 @@ import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
-import org.lain.engine.client.mc.render.world.RenderStateComponent
-import org.lain.engine.client.mc.render.world.modelPartOf
-import org.lain.engine.client.mc.render.world.setEngineState
+import org.lain.engine.client.render.world.RenderStateComponent
+import org.lain.engine.client.render.world.modelPartOf
+import org.lain.engine.client.render.world.setEngineState
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets

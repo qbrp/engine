@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render.world
+package org.lain.engine.client.render.world
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Axis

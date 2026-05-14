@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render.world
+package org.lain.engine.client.render.world
 
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
 import net.minecraft.client.model.geom.ModelPart
@@ -12,9 +12,9 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.isLowDetailed
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.render.EngineItemDisplayContext
-import org.lain.engine.client.mc.render.updateForLivingEntity
-import org.lain.engine.client.resources.engineOutfit
+import org.lain.engine.client.render.item.EngineItemDisplayContext
+import org.lain.engine.client.render.item.engineOutfit
+import org.lain.engine.client.render.item.updateForLivingEntity
 import org.lain.engine.container.Entries
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.FireMode

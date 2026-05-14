@@ -1,7 +1,7 @@
 package org.lain.engine.client.render
 
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.render.ui.*
+import org.lain.engine.client.render.legacy.*
 import org.lain.engine.player.isSpectating
 import org.lain.engine.util.Color
 import org.lain.engine.util.SPEED_COLOR
@@ -49,7 +49,8 @@ fun MovementBar(gameSession: GameSession): Fragment {
         ),
         pivot = Pivot.BOTTOM_LEFT,
         onRender = {
-            it.visible = !renderer.hudHidden && renderer.isFirstPerson && !gameSession.mainPlayer.isSpectating && !renderer.chatOpen
+            it.visible =
+                !renderer.hudHidden && renderer.isFirstPerson && !gameSession.mainPlayer.isSpectating && !renderer.chatOpen
         }
     )
 }

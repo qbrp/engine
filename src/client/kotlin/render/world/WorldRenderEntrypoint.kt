@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render.world
+package org.lain.engine.client.render.world
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.minecraft.client.Minecraft

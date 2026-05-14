@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render.world
+package org.lain.engine.client.render.world
 
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.renderer.LightTexture
@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.texture.TextureManager
 import net.minecraft.util.CommonColors
 import org.joml.Vector3f
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.client.mc.render.ColorMc
+import org.lain.engine.client.render.ui.ColorMc
 import org.lain.engine.mc.engineId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo

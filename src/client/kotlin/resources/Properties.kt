@@ -1,7 +1,6 @@
 package org.lain.engine.client.resources
 
 import com.mojang.serialization.MapCodec
-import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.renderer.block.model.ItemTransform
 import net.minecraft.client.renderer.item.ItemModel
@@ -13,27 +12,11 @@ import net.minecraft.world.item.ItemDisplayContext
 import net.minecraft.world.item.ItemStack
 import org.joml.Vector3fc
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.render.EngineItemDisplayContext
+import org.lain.engine.client.render.item.EngineItemDisplayContext
+import org.lain.engine.client.render.item.culling
+import org.lain.engine.client.render.item.engineOutfit
+import org.lain.engine.client.render.item.engineTransformation
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
-import org.lain.engine.player.Outfit
-
-private val CULLING = RenderStateDataKey.create<Boolean> { "Engine culling" }
-
-var ItemStackRenderState.culling: Boolean?
-    get() = this.getData(CULLING)
-    set(value) { setData(CULLING, value) }
-
-private val ENGINE_TRANSFORMATION = RenderStateDataKey.create<ItemTransform> { "Engine transformation" }
-
-var ItemStackRenderState.engineTransformation: ItemTransform?
-    get() = this.getData(ENGINE_TRANSFORMATION)
-    set(value) { setData(ENGINE_TRANSFORMATION, value) }
-
-private val ENGINE_OUTFIT = RenderStateDataKey.create<Outfit> { "Engine outfit" }
-
-var ItemStackRenderState.engineOutfit: Outfit?
-    get() = this.getData(ENGINE_OUTFIT)
-    set(value) { setData(ENGINE_OUTFIT, value) }
 
 class EngineItemModel(
     val asset: Asset,

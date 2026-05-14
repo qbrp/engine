@@ -4,10 +4,8 @@ import com.google.gson.*
 import net.minecraft.client.renderer.block.model.ItemTransform
 import org.joml.Vector3f
 import org.lain.engine.client.mc.JsonMc
-import org.lain.engine.client.mc.render.EngineTransformation
-import org.lain.engine.client.mc.render.Transformations
-import org.lain.engine.client.mc.render.isIdentity
-import org.lain.engine.client.mc.render.isZero
+import org.lain.engine.client.render.item.EngineTransformation
+import org.lain.engine.client.render.item.EngineTransformationsBundle
 import org.lain.engine.mc.MathMc
 import org.lain.engine.util.math.MutableEVec3
 import java.io.File
@@ -77,12 +75,12 @@ fun MutableEVec3.toJsonArray(divide: Float = 1f): JsonArray {
 }
 
 fun JsonObject.addIfNotIdentity(name: String, transformation: EngineTransformation) {
-    if (!transformation.isIdentity()) {
+    if (!transformation.isIdentity) {
         add(name, transformation.toJson())
     }
 }
 
-fun Transformations.toDisplayJson(): JsonObject {
+fun EngineTransformationsBundle.toDisplayJson(): JsonObject {
     val display = JsonObject()
 
     display.addIfNotIdentity("thirdperson_righthand", thirdPersonRightHand)
@@ -97,7 +95,7 @@ fun Transformations.toDisplayJson(): JsonObject {
     return display
 }
 
-fun Transformations.toAssetJson(jsonObject: JsonObject) {
+fun EngineTransformationsBundle.toAssetJson(jsonObject: JsonObject) {
     jsonObject.addIfNotIdentity("transformation_outfit", outfit)
 }
 
@@ -108,7 +106,7 @@ private fun File.withExtension(newExt: String): File {
     return File(parentDir, "$nameWithoutExt.$cleanExt")
 }
 
-fun exportEngineModelTransformations(model: EngineItemModel, transformations: Transformations) {
+fun exportEngineModelTransformations(model: EngineItemModel, transformations: EngineTransformationsBundle) {
     val assetSource = model.asset.source
     val modelSource = assetSource.file
         .withExtension("json")

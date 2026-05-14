@@ -28,6 +28,8 @@ import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.CollisionContext
+import org.joml.Vector3f
+import org.joml.Vector3fc
 import org.lain.cyberia.ecs.require
 import org.lain.engine.CommonEngineServerMod
 import org.lain.engine.player.*
@@ -219,6 +221,10 @@ fun Direction.engine() = when(this) {
 fun EVec3.toMinecraft(): Vec3 = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
 
 fun Vec3.engine(): EVec3 = Vec3(x.toFloat(), y.toFloat(), z.toFloat())
+
+fun Vector3fc.engine() = MutableEVec3(x(), y(), z())
+
+fun MutableEVec3.minecraft(): Vector3fc = Vector3f(x, y, z)
 
 // TEXT
 

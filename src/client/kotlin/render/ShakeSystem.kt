@@ -7,11 +7,22 @@ import org.lain.engine.item.HoldsBy
 import org.lain.engine.item.Recoil
 import org.lain.engine.item.recoilSpeed
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.util.math.Pos
 import org.lain.engine.world.World
 
 const val SHOOT_SHAKE_DURATION = 0.3f
 const val SHOOT_SHAKE_TRAUMA = 0.7f
 const val SHOOT_SHAKE_FREQ = 0.5f
+
+data class ShakeEffect(
+    val trauma: Float,
+    val frequency: Float,
+    val duration: Float,
+    val location: ShakeLocation? = null,
+    var startTime: Long = System.currentTimeMillis()
+)
+
+data class ShakeLocation(val position: Pos, val radius: Float)
 
 fun World.updateShootShakeSystem(mainPlayer: EnginePlayer, camera: Camera) {
     iterate<Recoil, HoldsBy> { item, recoil, (owner) ->

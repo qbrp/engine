@@ -1,12 +1,12 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.render.ui
 
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.resources.Identifier
 import net.minecraft.util.CommonColors
-import org.lain.engine.mc.Text
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
+import org.lain.engine.mc.Text
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.InteractionComponent

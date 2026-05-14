@@ -1,8 +1,6 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.legacy
 
 import net.minecraft.client.gui.Font
-import org.lain.engine.client.mc.parseMiniMessageClient
-import org.lain.engine.client.mc.render.TextCache
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.sumOf
 import kotlin.math.ceil
@@ -10,8 +8,6 @@ import kotlin.math.max
 import kotlin.math.min
 
 data class UiContext(val font: Font, val windowSize: Size)
-
-private val cache = TextCache()
 
 fun updateCompositionUiState(
     composition: Composition,
@@ -39,7 +35,7 @@ fun updateCompositionUiState(
     features.text = fragment.text?.let { text ->
         TextState(
             context.font.split(
-                text.content.parseMiniMessageClient(),
+                text.content,
                 ceil(layout.size.width / text.scale).toInt()
             ),
             Color.WHITE,
@@ -88,7 +84,7 @@ fun resolveSize(context: UiContext, fragment: Fragment, constraints: Size): Size
     }
 
     fragment.text?.let { text ->
-        val lines = context.font.split(text.content.parseMiniMessageClient(), ceil(constraints.width / text.scale).toInt())
+        val lines = context.font.split(text.content, ceil(constraints.width / text.scale).toInt())
         val textWidth = lines.maxOf { context.font.width(it) }
         totalSize.stretch(
             textWidth.toFloat(),
@@ -107,13 +103,13 @@ fun measure(
     val fragment = composition.fragment
     val sizing = fragment.sizing
 
-    val innerConstraints = Size(
+    val innerConstraints = sizeOf(
         constraintsAxis(sizing.width, constraints.width - fragment.padding.horizontal()),
         constraintsAxis(sizing.height, constraints.height - fragment.padding.vertical())
     )
 
     val intrinsicSize = resolveSize(context, fragment, constraints).let {
-        Size(
+        sizeOf(
             leafSizeAxis(sizing.width, it.width, innerConstraints.width) + fragment.padding.horizontal(),
             leafSizeAxis(sizing.height, it.height, innerConstraints.height) + fragment.padding.vertical()
         )
@@ -167,5 +163,5 @@ fun measure(
     totalWidth = min(totalWidth, constraints.width)
     totalHeight = min(totalHeight, constraints.height)
 
-    composition.measuredLayout = MeasuredLayout(Size(totalWidth, totalHeight))
+    composition.measuredLayout = MeasuredLayout(sizeOf(totalWidth, totalHeight))
 }

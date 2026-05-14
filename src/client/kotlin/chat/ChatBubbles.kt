@@ -2,7 +2,7 @@ package org.lain.engine.client.chat
 
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
-import org.lain.engine.client.mc.render.world.LabelRenderState
+import org.lain.engine.client.render.world.LabelRenderState
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId

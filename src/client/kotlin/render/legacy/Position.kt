@@ -1,4 +1,4 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.legacy
 
 import org.lain.engine.util.math.Vec2
 

@@ -1,7 +1,7 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.legacy
 
 import org.lain.engine.client.render.EngineSprite
-import org.lain.engine.client.render.ui.UiState.Companion.DEFAULT_SCALE
+import org.lain.engine.mc.Text
 import org.lain.engine.player.PlayerId
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.Vec2
@@ -97,7 +97,7 @@ data class Fragment(
     val padding: FloatBorders = FloatBorders(),
     val borders: LineBorders = LineBorders(),
     val pivot: Pivot = Pivot.TOP_LEFT,
-    val scale: Vec2 = DEFAULT_SCALE,
+    val scale: Vec2 = UiState.Companion.DEFAULT_SCALE,
     val children: List<Fragment> = listOf(),
     val text: TextArea? = null,
     val image: Image? = null,
@@ -158,7 +158,7 @@ data class Fragment(
 }
 
 data class TextArea(
-    val content: String,
+    val content: Text,
     val scale: Float = 1f
 )
 

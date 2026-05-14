@@ -9,7 +9,7 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.ItemFrameRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
-import org.lain.engine.client.resources.PropertiesKt;
+import org.lain.engine.client.render.item.RenderStateKt;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,7 +32,7 @@ public abstract class EntityRendererMixin {
     public void engine$disableCulling(Entity entity, Frustum frustum, double x, double y, double z, CallbackInfoReturnable<Boolean> cir) {
         if ((((Object)this) instanceof ItemFrameRenderer<?>) && state != null) {
             ItemFrameRenderState renderState = (ItemFrameRenderState)state;
-            Boolean culling = PropertiesKt.getCulling(renderState.item);
+            Boolean culling = RenderStateKt.getCulling(renderState.item);
             if (culling != null && !culling) {
                 cir.setReturnValue(true);
                 cir.cancel();

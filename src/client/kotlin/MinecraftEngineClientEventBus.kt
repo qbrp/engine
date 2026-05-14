@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftChat
-import org.lain.engine.client.mc.render.world.DecalSystem
+import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.mc.EntityTable

@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.render.item
 
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.renderer.item.ItemStackRenderState

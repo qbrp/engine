@@ -1,4 +1,4 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.legacy
 
 import net.minecraft.util.FormattedCharSequence
 import org.lain.engine.client.render.EngineSprite
@@ -33,7 +33,7 @@ fun clampedSize(
     return mutable
 }
 
-fun Size(width: Float = 0f, height: Float = 0f): Size = MutableSize(width, height)
+fun sizeOf(width: Float = 0f, height: Float = 0f): Size = MutableSize(width, height)
 
 data class MutableSize(override var width: Float = 0f, override var height: Float = 0f) : Size {
     constructor(size: Size) : this(size.width, size.height)
@@ -57,21 +57,6 @@ typealias RenderListener = (UiState) -> Unit
 typealias RecomposeListener = (Composition) -> Unit
 typealias HoverListener = (UiState, Float, Float) -> Unit
 typealias ClickListener = (UiState, Float, Float) -> InputResult
-typealias KeyListener = (UiState, KeyEvent) -> Unit
-typealias CharListener = (UiState, CharEvent) -> Unit
-
-data class KeyEvent(val key: Int, val action: KeyAction, val modifiers: Set<Modifier>)
-
-data class CharEvent(val code: Int, val modifiers: Set<Modifier>)
-
-// TODO: Запилить поддержку REPEAT в будущем
-enum class KeyAction {
-    PRESS, RELEASE
-}
-
-enum class Modifier {
-    SHIFT, CTRL, ALT, SUPER, CAPS_LOCK, NUM_LOCK
-}
 
 enum class InputResult {
     CONTINUE, FINISH
@@ -119,9 +104,7 @@ data class UiFeatures(
 data class UiListeners(
     var click: ClickListener? = null,
     var hover: HoverListener? = null,
-    var render: RenderListener? = null,
-    var key: KeyListener? = null,
-    var char: CharListener? = null
+    var render: RenderListener? = null
 )
 
 data class UiState(

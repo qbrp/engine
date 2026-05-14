@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.render.ui
 
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.minecraft.client.Minecraft
@@ -8,6 +8,7 @@ import org.lain.cyberia.ecs.handle
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.ScreenRenderer
+import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.Narration

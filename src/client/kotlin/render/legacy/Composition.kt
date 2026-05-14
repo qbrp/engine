@@ -1,4 +1,4 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.legacy
 
 import org.lain.engine.util.math.ZeroVec2
 import kotlin.reflect.KProperty
@@ -137,8 +137,8 @@ class Composition internal constructor(
     var slotLastIndex: Int = 0,
     var children: MutableList<Composition> = mutableListOf(),
     var id: CompositionId = CompositionId.next(),
-    var measuredLayout: MeasuredLayout = MeasuredLayout(Size()),
-    var positionedLayout: PositionedLayout = PositionedLayout(Size(), ZeroVec2(), ZeroVec2()),
+    var measuredLayout: MeasuredLayout = MeasuredLayout(sizeOf()),
+    var positionedLayout: PositionedLayout = PositionedLayout(sizeOf(), ZeroVec2(), ZeroVec2()),
     var parent: Composition? = null
 )
 

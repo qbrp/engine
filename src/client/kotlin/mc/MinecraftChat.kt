@@ -9,7 +9,7 @@ import org.lain.engine.mc.Text
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
-import org.lain.engine.client.mc.render.ChatChannelsBar
+import org.lain.engine.client.render.ui.ChatChannelsBar
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.mc.displayNameMiniMessage

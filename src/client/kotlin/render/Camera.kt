@@ -1,9 +1,8 @@
 package org.lain.engine.client.render
 
 import org.joml.Quaternionf
-import org.lain.engine.util.math.Pos
-import org.lain.engine.util.math.Vec2
 import org.lain.engine.util.math.EVec3
+import org.lain.engine.util.math.Vec2
 
 interface Camera {
     val rotation: Quaternionf
@@ -19,13 +18,3 @@ interface Camera {
         dt: Float
     )
 }
-
-data class ShakeEffect(
-    val trauma: Float,
-    val frequency: Float,
-    val duration: Float,
-    val location: ShakeLocation? = null,
-    var startTime: Long = System.currentTimeMillis()
-)
-
-data class ShakeLocation(val position: Pos, val radius: Float)

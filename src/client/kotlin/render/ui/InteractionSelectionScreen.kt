@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.render.ui
 
 import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.api.EnvType

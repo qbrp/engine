@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render.world
+package org.lain.engine.client.render.world
 
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.renderer.LightTexture
@@ -6,7 +6,7 @@ import net.minecraft.client.renderer.OrderedSubmitNodeCollector
 import net.minecraft.client.renderer.state.CameraRenderState
 import net.minecraft.core.BlockPos
 import net.minecraft.util.CommonColors
-import org.lain.engine.client.mc.render.ColorMc
+import org.lain.engine.client.render.ui.ColorMc
 import org.lain.engine.mc.Text
 
 import kotlin.math.abs

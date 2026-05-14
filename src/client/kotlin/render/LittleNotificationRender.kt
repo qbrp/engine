@@ -1,7 +1,10 @@
 package org.lain.engine.client.render
 
-import org.lain.engine.client.render.ui.*
+import org.lain.engine.client.render.legacy.*
+import org.lain.engine.client.render.ui.descriptionText
+import org.lain.engine.client.render.ui.titleText
 import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.mc.Text
 import org.lain.engine.util.BLACK_TRANSPARENT_BG_COLOR
 import org.lain.engine.util.math.clampDelta
 import org.lain.engine.util.math.easeInStep
@@ -85,9 +88,9 @@ private fun LittleNotification(notification: LittleNotification) = Fragment(
         Fragment(
             layout = VerticalLayout(2f),
             children = listOfNotNull(
-                Fragment(text = TextArea(notification.title)),
+                Fragment(text = TextArea(notification.titleText)),
                 notification.description?.let {
-                    Fragment(text = TextArea(it, 0.7f))
+                    Fragment(text = TextArea(notification.descriptionText ?: Text.empty(), 0.7f))
                 }
             )
         )

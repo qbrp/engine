@@ -4,7 +4,7 @@ import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.*
-import org.lain.engine.client.render.ui.EngineUi
+import org.lain.engine.client.render.legacy.EngineUi
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.script.ClientLuaContext
 import org.lain.engine.client.util.EngineAudioManager

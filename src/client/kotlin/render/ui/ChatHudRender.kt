@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.render.ui
 
 import net.minecraft.client.GuiMessage
 import net.minecraft.client.gui.Font

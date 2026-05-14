@@ -1,10 +1,9 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.render.ui
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractSliderButton
 import net.minecraft.client.gui.components.Button
@@ -12,179 +11,38 @@ import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.components.StringWidget
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.client.renderer.block.model.ItemTransform
-import net.minecraft.client.renderer.block.model.ItemTransforms
 import net.minecraft.client.renderer.item.BlockModelWrapper
 import net.minecraft.client.renderer.item.ItemModel
-import net.minecraft.client.renderer.item.ItemStackRenderState
 import net.minecraft.core.component.DataComponents
-import net.minecraft.resources.Identifier
-import net.minecraft.world.item.ItemDisplayContext
 import net.minecraft.world.item.ItemStack
-import org.joml.Vector3f
-import org.joml.Vector3fc
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.render.AdditionalTransformationsBank.get
 import org.lain.engine.client.mixin.render.BlockModelWrapperAccessor
 import org.lain.engine.client.mixin.render.GameRendererAccessor
 import org.lain.engine.client.mixin.render.GuiRendererAccessor
-import org.lain.engine.client.mixin.render.ItemStackRenderStateAccessor
+import org.lain.engine.client.render.item.*
 import org.lain.engine.client.resources.EngineItemModel
 import org.lain.engine.client.resources.exportEngineModelTransformations
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.literalText
-import org.lain.engine.util.math.MutableEVec3
 import kotlin.math.abs
 import kotlin.math.max
-
-object AdditionalTransformationsBank {
-    private val modelToTransformations: MutableMap<Identifier, Transformations> = mutableMapOf()
-    var clipboardSingleTransform: EngineTransformation? = null
-    var clipboardFullTransform: Transformations? = null
-    var lastDisplayContext: EngineItemDisplayContext? = null
-
-    fun set(model: Identifier, transformations: Transformations) {
-        modelToTransformations[model] = transformations
-    }
-
-    fun remove(model: Identifier) = modelToTransformations.remove(model)
-
-    fun get(model: Identifier) = modelToTransformations[model]
-}
-
-enum class EngineItemDisplayContext(val minecraft: ItemDisplayContext) {
-    NONE(ItemDisplayContext.NONE),
-    THIRD_PERSON_LEFT_HAND(ItemDisplayContext.THIRD_PERSON_LEFT_HAND),
-    THIRD_PERSON_RIGHT_HAND(ItemDisplayContext.THIRD_PERSON_RIGHT_HAND),
-    FIRST_PERSON_LEFT_HAND(ItemDisplayContext.FIRST_PERSON_LEFT_HAND),
-    FIRST_PERSON_RIGHT_HAND(ItemDisplayContext.FIRST_PERSON_RIGHT_HAND),
-    HEAD(ItemDisplayContext.HEAD),
-    GUI(ItemDisplayContext.GUI),
-    GROUND(ItemDisplayContext.GROUND),
-    FIXED(ItemDisplayContext.FIXED),
-    OUTFIT(ItemDisplayContext.NONE)
-}
-
-data class Transformations(
-    val firstPersonRightHand: EngineTransformation = EngineTransformation.Identity(),
-    val firstPersonLeftHand: EngineTransformation = EngineTransformation.Identity(),
-    val thirdPersonRightHand: EngineTransformation = EngineTransformation.Identity(),
-    val thirdPersonLeftHand: EngineTransformation = EngineTransformation.Identity(),
-    val head: EngineTransformation = EngineTransformation.Identity(),
-    val gui: EngineTransformation = EngineTransformation.Identity(),
-    val ground: EngineTransformation = EngineTransformation.Identity(),
-    val fixed: EngineTransformation = EngineTransformation.Identity(),
-    val outfit: EngineTransformation = EngineTransformation.Identity(),
-) {
-    fun getTransformation(renderMode: EngineItemDisplayContext): EngineTransformation {
-        return when (renderMode) {
-            EngineItemDisplayContext.THIRD_PERSON_LEFT_HAND -> this.thirdPersonLeftHand
-            EngineItemDisplayContext.THIRD_PERSON_RIGHT_HAND -> this.thirdPersonRightHand
-            EngineItemDisplayContext.FIRST_PERSON_LEFT_HAND -> this.firstPersonLeftHand
-            EngineItemDisplayContext.FIRST_PERSON_RIGHT_HAND -> this.firstPersonRightHand
-            EngineItemDisplayContext.HEAD -> this.head
-            EngineItemDisplayContext.GUI -> this.gui
-            EngineItemDisplayContext.GROUND -> this.ground
-            EngineItemDisplayContext.FIXED -> this.fixed
-            EngineItemDisplayContext.OUTFIT -> this.outfit
-            else -> EngineTransformation.Identity()
-        }
-    }
-}
-
-data class EngineTransformation(
-    val translation: MutableEVec3,
-    val rotation: MutableEVec3,
-    val scale: MutableEVec3
-) {
-    companion object {
-        fun Identity() = EngineTransformation(
-            MutableEVec3(0f, 0f, 0f),
-            MutableEVec3(0f, 0f, 0f),
-            MutableEVec3(1f, 1f, 1f)
-        )
-    }
-}
-
-fun ItemTransform.engine(): EngineTransformation {
-    return EngineTransformation(translation.engine(), rotation.engine(), scale.engine())
-}
-
-fun EngineTransformation.minecraft() = ItemTransform(rotation.minecraft(), translation.minecraft(), scale.minecraft())
-
-private fun Vector3fc.engine() = MutableEVec3(x(), y(), z())
-
-private fun MutableEVec3.minecraft(): Vector3fc = Vector3f(x, y, z)
-
-private val RENDER_STATE_KEY = RenderStateDataKey.create<ItemTransform> { "Engine Additional Transformations" }
-
-fun Transformations.minecraft() = ItemTransforms(
-    thirdPersonLeftHand.minecraft(),
-    thirdPersonRightHand.minecraft(),
-    firstPersonLeftHand.minecraft(),
-    firstPersonRightHand.minecraft(),
-    head.minecraft(),
-    gui.minecraft(),
-    ground.minecraft(),
-    fixed.minecraft(),
-    fixed.minecraft(), // ???
-)
-
-fun MutableEVec3.isZero(): Boolean =
-    x == 0f && y == 0f && z == 0f
-
-fun EngineTransformation.isIdentity(): Boolean =
-    translation.isZero() && rotation.isZero() && scale.isZero()
-
-
-fun ItemStackRenderState.LayerRenderState.setAdditionalTransformationsVanillaPipeline(transformations: Transformations, context: ItemDisplayContext) {
-    setData(RENDER_STATE_KEY, transformations.minecraft().getTransform(context))
-}
-
-fun ItemStackRenderState.LayerRenderState.setAdditionalTransformationsEnginePipeline(transformations: Transformations, context: EngineItemDisplayContext) {
-    setData(RENDER_STATE_KEY, transformations.getTransformation(context).minecraft())
-}
-
-fun ItemStackRenderState.LayerRenderState.getAdditionalTransformations(): ItemTransform? {
-    return getData(RENDER_STATE_KEY)
-}
-
-fun ItemStackRenderState.setupAdditionalTransformationsVanilla(stack: ItemStack, displayContext: ItemDisplayContext) {
-    val transformations = stack.get(DataComponents.ITEM_MODEL)?.let { get(it) }
-    if (transformations != null) {
-        val layers = (this as ItemStackRenderStateAccessor).`engine$getLayers`()
-        for (layer in layers) {
-            layer.setAdditionalTransformationsVanillaPipeline(transformations, displayContext)
-        }
-    }
-}
-
-fun ItemStackRenderState.setupAdditionalTransformationsEngine(stack: ItemStack, displayContext: EngineItemDisplayContext) {
-    val transformations = get(stack.get(DataComponents.ITEM_MODEL)!!)
-    if (transformations != null) {
-        val layers = (this as ItemStackRenderStateAccessor).`engine$getLayers`()
-        for (layer in layers) {
-            layer.setAdditionalTransformationsEnginePipeline(transformations, displayContext)
-        }
-    }
-}
 
 private val guiRenderer get() = (MinecraftClient.gameRenderer as GameRendererAccessor).`engine$getGuiRenderer`() as GuiRendererAccessor
 
 class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(literalText("Transformation editor")) {
     private val modelId = ClientMixinAccess.getEngineItemModel(itemStack) ?: itemStack.get(DataComponents.ITEM_MODEL)!!
     private val model = MinecraftClient.modelManager.getItemModel(modelId)
-    private var transformations = get(modelId) ?: computeTransformations(model)
+    private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)
     private val sliders
         get() = this@TransformationsEditorScreen.children().filterIsInstance<TransformationSliderWidget>()
 
-    private fun computeTransformations(model: ItemModel): Transformations {
+    private fun computeTransformations(model: ItemModel): EngineTransformationsBundle {
         val engineModel = model as? EngineItemModel
         val basicModel = (model as? BlockModelWrapper) ?: engineModel?.itemModel as? BlockModelWrapper
 
         return (basicModel as? BlockModelWrapperAccessor)?.`engine$getModelSettings`()?.transforms()?.let {
-            Transformations(
+            EngineTransformationsBundle(
                 it.firstPersonRightHand.engine(),
                 it.firstPersonLeftHand.engine(),
                 it.thirdPersonRightHand.engine(),
@@ -195,7 +53,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
                 it.fixed.engine(),
                 engineModel?.outfitTransformation?.engine() ?: EngineTransformation.Identity(),
             )
-        }  ?: Transformations()
+        }  ?: EngineTransformationsBundle()
     }
 
     private var context = AdditionalTransformationsBank.lastDisplayContext ?: EngineItemDisplayContext.FIRST_PERSON_RIGHT_HAND

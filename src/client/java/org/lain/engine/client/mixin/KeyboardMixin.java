@@ -11,7 +11,7 @@ import net.minecraft.client.input.KeyEvent;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.DeveloperModeActionsKt;
 import org.lain.engine.client.mc.KeybindManager;
-import org.lain.engine.client.mc.render.InteractionSelectionScreen;
+import org.lain.engine.client.render.ui.InteractionSelectionScreen;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

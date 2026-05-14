@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render
+package org.lain.engine.client.render.legacy
 
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
@@ -8,7 +8,8 @@ import net.minecraft.network.chat.FormattedText
 import org.joml.Matrix3x2f
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mc.parseMiniMessageClient
-import org.lain.engine.client.render.ui.*
+import org.lain.engine.client.render.ui.drawEngineSprite
+import org.lain.engine.client.render.ui.fill
 import org.lain.engine.util.Color
 import org.lain.engine.util.injectEntityTable
 import kotlin.math.ceil

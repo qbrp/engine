@@ -1,4 +1,4 @@
-package org.lain.engine.client.mc.render.world
+package org.lain.engine.client.render.world
 
 import net.minecraft.client.Camera
 import net.minecraft.client.renderer.LightTexture

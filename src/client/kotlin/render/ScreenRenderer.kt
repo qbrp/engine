@@ -3,8 +3,8 @@ package org.lain.engine.client.render
 import org.lain.cyberia.ecs.require
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.mc.render.InteractionProgressionRenderState
-import org.lain.engine.client.mc.render.NarrationMessageRenderState
+import org.lain.engine.client.render.ui.InteractionProgressionRenderState
+import org.lain.engine.client.render.ui.NarrationMessageRenderState
 import org.lain.engine.player.Narration
 
 class ScreenRenderer(private val client: EngineClient) {
