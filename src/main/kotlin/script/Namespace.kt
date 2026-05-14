@@ -83,9 +83,11 @@ class NamespacedStorage : ContentStorage {
             "Недействительный предмет",
             ItemAssets.withDefaultAsset(INVALID_ITEM_ID),
             null,
-            { ItemTooltip(INVALID_ITEM_TOOLTIPS.random()) },
+            {
+                ItemTooltip(INVALID_ITEM_TOOLTIPS.random())
+            }
         )
-        val coreErrorNamespaceItems = mapOf(ItemId("item") to invalidItem)
+        val coreErrorNamespaceItems = mapOf(ItemId("core/error/item") to invalidItem)
         namespacesMap[coreErrorNamespaceId] = namespacesMap.computeIfAbsent(
             coreErrorNamespaceId,
             {
@@ -122,6 +124,6 @@ val INVALID_ITEM_ID = "core/error/item"
 private val INVALID_ITEM_TOOLTIPS = listOf(
     "Помните, обилие багов - симптом активной разработки<newline>(C) lain1wakura",
     "i'm psyho",
-    "если бы все мужчины были гомосексуальны, немецкий народ исчез бы, но если бы все женщины были лесбиянками, «они бы все равно рожали детей»",
+    "если бы все мужчины были гомосексуальны, немецкий народ исчез бы,<newline>но если бы все женщины были лесбиянками, «они бы все равно рожали детей»",
     "Господи, храни америку!"
 )

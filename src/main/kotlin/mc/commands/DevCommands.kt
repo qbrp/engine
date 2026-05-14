@@ -2,7 +2,7 @@ package org.lain.engine.mc.commands
 
 import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.world.entity.player.Player
-import org.lain.engine.item.bakeInvalidItem
+import org.lain.engine.item.bakeInvalidProtoItem
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.wrapEngineItemStack
@@ -79,7 +79,7 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
                         val player = ctx.requirePlayer()
                         val world = player.world
                         val item = world.instantiateItem(
-                            engine.bakeInvalidItem(world),
+                            engine.bakeInvalidProtoItem(world),
                             engine.itemStorage
                         )
                         val entity = ctx.requireEntity() as? Player ?: return@executeCatching

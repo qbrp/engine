@@ -1,9 +1,6 @@
 package org.lain.engine.item
 
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.WriteComponentAccess
-import org.lain.cyberia.ecs.copyState
-import org.lain.cyberia.ecs.setComponent
+import org.lain.cyberia.ecs.*
 import org.lain.engine.script.INVALID_ITEM_ID
 import org.lain.engine.server.EngineServer
 import org.lain.engine.storage.PersistentId
@@ -23,6 +20,7 @@ data class ItemPrefab(
 )
 
 // Неинициализированный предмет
+// Создаётся на сервере. Клиент лишь получает список компонентов через EntityDeltaPacket
 data class ProtoItem(
     val prefabId: ItemId,
     val uuid: PersistentId,
@@ -30,20 +28,24 @@ data class ProtoItem(
     val state: ComponentState
 )
 
-fun EngineServer.bakeInvalidItem(world: World): ProtoItem {
-    return bakeItem(world, namespacedStorage.items[ItemId(INVALID_ITEM_ID)]!!)
+fun EngineServer.bakeInvalidProtoItem(world: World): ProtoItem {
+    return bakeProtoItem(world, namespacedStorage.items[ItemId(INVALID_ITEM_ID)]!!)
 }
 
-fun bakeItem(world: World, prefab: ItemPrefab): ProtoItem {
-    return itemInstance(world, PersistentId.next(), prefab)
+fun bakeProtoItem(world: World, prefab: ItemPrefab): ProtoItem {
+    return protoItemInstance(world, PersistentId.next(), prefab)
 }
 
-fun itemInstance(world: World, uuid: PersistentId, prefab: ItemPrefab): ProtoItem {
+fun protoItemInstance(world: World, uuid: PersistentId, prefab: ItemPrefab): ProtoItem {
     val state = ComponentState(prefab.componentsFactory())
-    return itemInstance(world, uuid, prefab.id, state)
+    state.set(ItemName(prefab.name))
+    state.setNullable(prefab.progressionAnimations)
+    state.setNullable(prefab.assets)
+    state.setNullable(prefab.tooltipFactory.invoke())
+    return protoItemInstance(world, uuid, prefab.id, state)
 }
 
-fun itemInstance(
+fun protoItemInstance(
     world: World,
     uuid: PersistentId,
     id: ItemId,
@@ -53,12 +55,14 @@ fun itemInstance(
     return item
 }
 
+// INSTANTIATION
+
 fun WriteComponentAccess.instantiateItem(
     world: World,
     prefab: ItemPrefab,
     itemStorage: Storage<String, EngineItem>,
 ): EngineItem {
-    return instantiateItem(bakeItem(world, prefab), itemStorage)
+    return instantiateItem(bakeProtoItem(world, prefab), itemStorage)
 }
 
 fun WriteComponentAccess.instantiateItem(item: ProtoItem, itemStorage: Storage<String, EngineItem>): EngineItem {

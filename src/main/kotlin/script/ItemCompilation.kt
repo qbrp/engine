@@ -55,12 +55,8 @@ fun CompiledItem(
             {
                 listOfNotNull(
                     Count(1, maxCount),
-                    nameComponent,
-                    tooltipComponent,
                     massComponent,
-                    assetsComponent,
                     soundsComponent,
-                    progressionAnimationsComponent,
                     writable?.let { Writable(it.pages, listOf(), it.texture) },
                     flashlight?.let { Flashlight(false) },
                 ) + componentsFactory()

@@ -162,7 +162,7 @@ class ItemLoader(
         }
             .onFailure { err -> LOGGER.error("Не удалось загрузить предмет $uuid", err) }
             .getOrNull()
-            ?: ItemLoadResult(server.bakeInvalidItem(world))
+            ?: ItemLoadResult(server.bakeInvalidProtoItem(world))
         val protoItem = result.protoItem
         val container = result.container?.let { database.loadEntity(it) ?: error("Контейнер $it не найден") }
         dataFixItem(protoItem, server.namespacedStorage)

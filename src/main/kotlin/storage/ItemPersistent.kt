@@ -163,7 +163,7 @@ fun loadItemLegacy(data: PersistentItemData, world: World, id: ItemId, uuid: Per
     data.components.forEach { processComponent(it) }
 
     return ItemLoadResult(
-        itemInstance(
+        protoItemInstance(
             world,
             uuid, id,
             ComponentState(components.toList() + entityComponents.toList()),

@@ -1,13 +1,13 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.world.World
 
 @Serializable
-data class ItemTooltip(val text: String) : ItemComponent
+data class ItemTooltip(val text: String) : Component
 
 context(world: World)
 fun EngineItem.getTooltip(debug: Boolean): List<String> {
