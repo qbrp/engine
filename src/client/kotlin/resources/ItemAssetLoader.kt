@@ -9,7 +9,6 @@ import de.javagl.obj.Obj
 import net.minecraft.client.renderer.block.model.ItemTransform
 import net.minecraft.client.renderer.item.BlockModelWrapper
 import net.minecraft.client.resources.model.Material
-import net.minecraft.data.AtlasIds
 import net.minecraft.resources.Identifier
 import org.joml.Vector3f
 import org.joml.Vector3fc
@@ -78,7 +77,7 @@ enum class ModelType {
 }
 
 internal val LOGGER = LoggerFactory.getLogger("Engine Model Loader")
-internal val MISSING_SPRITE = Material(AtlasIds.BLOCKS, MissingSpriteId)
+internal val MISSING_SPRITE = Material(ITEMS_ATLAS, MissingSpriteId)
 
 data class ResourceList(
     // Спрайт атлас -> текстуры

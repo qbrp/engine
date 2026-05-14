@@ -5,7 +5,6 @@ import net.minecraft.client.renderer.block.model.TextureSlots
 import net.minecraft.client.resources.model.Material
 import net.minecraft.client.resources.model.UnbakedGeometry
 import net.minecraft.client.resources.model.UnbakedModel
-import net.minecraft.data.AtlasIds
 import net.minecraft.resources.Identifier
 import org.lain.engine.client.mc.JsonMc
 import org.lain.engine.client.mixin.resource.JsonUnbakedModelAccessor
@@ -57,7 +56,7 @@ fun autogenerateModels(
     return models.associate { model ->
         val id = model.registrationId
         val textureId = model.texture.registrationId
-        val sprite = Material(AtlasIds.BLOCKS, textureId)
+        val sprite = Material(ITEMS_ATLAS, textureId)
         id to BlockModel(
             UnbakedGeometry.EMPTY,
             UnbakedModel.GuiLight.FRONT,

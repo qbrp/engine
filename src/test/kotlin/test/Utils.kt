@@ -30,6 +30,7 @@ fun DummyItemPrefab() = ItemPrefab(
     "Dummy Item Name",
     ItemAssets(mapOf("default" to "dummy")),
     ItemProgressionAnimations(mapOf()),
+    { null },
     { emptyList() }
 )
 

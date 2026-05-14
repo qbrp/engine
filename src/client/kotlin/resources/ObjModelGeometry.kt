@@ -11,11 +11,13 @@ import net.fabricmc.fabric.api.renderer.v1.model.MeshBakedGeometry
 import net.fabricmc.fabric.impl.client.indigo.renderer.IndigoRenderer
 import net.minecraft.client.renderer.block.model.ItemTransforms
 import net.minecraft.client.renderer.block.model.TextureSlots
+import net.minecraft.client.renderer.texture.TextureAtlas
 import net.minecraft.client.resources.model.*
-import net.minecraft.data.AtlasIds
 import net.minecraft.resources.Identifier
 import org.joml.Vector3f
 import org.lain.engine.mc.engineId
+
+val ITEMS_ATLAS = TextureAtlas.LOCATION_ITEMS
 
 class ObjGeometry(
     val obj: Obj,
@@ -43,7 +45,7 @@ class ObjGeometry(
 
         materialGroups.forEach { (name: String, objModel: Obj) ->
             val mtl = mtl[name]
-            val sprite = mtl?.mapKd?.let { Material(AtlasIds.BLOCKS, engineId(it)) } ?: MISSING_SPRITE
+            val sprite = mtl?.mapKd?.let { Material(ITEMS_ATLAS, engineId(it)) } ?: MISSING_SPRITE
             val emissive = name == "emissive"
 
             for (i in 0..<objModel.numFaces) {

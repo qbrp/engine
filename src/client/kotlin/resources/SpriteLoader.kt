@@ -23,7 +23,7 @@ data class EngineTexture(val asset: Asset) {
  */
 @Serializable
 data class SpriteAtlasRules(
-    val default: String = "blocks",
+    val default: String = "items",
     val directories: Map<String, String> = mapOf()
 )
 
@@ -43,7 +43,9 @@ class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
     override fun codec(): MapCodec<out SpriteSource> = CODEC
 
     companion object {
-        val CODEC = MapCodec.unit { TODO() }
+        // Этот источник создаётся непосредственно в рантайме и нужен только для кастомных текстур Engine
+        // Не поддерживает JSON
+        val CODEC = MapCodec.unit { throw NotImplementedError() }
 
         fun openSprite(id: Identifier, path: Asset): SpriteContents? {
             val file = path.source.file
