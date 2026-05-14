@@ -7,7 +7,7 @@ import org.lain.engine.item.FireMode
 import org.lain.engine.item.Gun
 import org.lain.engine.item.getCount
 import org.lain.engine.item.getName
-import org.lain.engine.util.text.displayNameMiniMessage
+import org.lain.engine.mc.displayNameMiniMessage
 import org.lain.engine.world.World
 
 const val SOCIAL_INTERACTION_DISTANCE = 15

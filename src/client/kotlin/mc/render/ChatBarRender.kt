@@ -1,15 +1,12 @@
 package org.lain.engine.client.mc.render
 
-import net.minecraft.client.gui.Click
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.Selectable
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder
-import net.minecraft.client.gui.widget.ClickableWidget
-import net.minecraft.client.input.CharInput
-import net.minecraft.client.input.KeyInput
-import net.minecraft.text.Text
-import net.minecraft.util.Colors
-import net.minecraft.util.math.ColorHelper
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.AbstractWidget
+import net.minecraft.client.gui.narration.NarrationElementOutput
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
+import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.util.CommonColors
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.ChatBarSection
 import org.lain.engine.client.chat.ClientEngineChatManager
@@ -20,12 +17,14 @@ import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.HAND
 import org.lain.engine.client.render.MENTION
 import org.lain.engine.client.render.Rect2
+import org.lain.engine.mc.Text
+import org.lain.engine.mc.literalText
 import org.lain.engine.player.extendArm
 import org.lain.engine.util.Color
 
-class HandStatusButtonWidget(val client: EngineClient, x: Int, y: Int, width: Int, height: Int, message: Text) : ClickableWidget(x, y, width, height, message) {
+class HandStatusButtonWidget(val client: EngineClient, x: Int, y: Int, width: Int, height: Int, message: Text) : AbstractWidget(x, y, width, height, message) {
     override fun renderWidget(
-        context: DrawContext,
+        context: GuiGraphics,
         mouseX: Int,
         mouseY: Int,
         deltaTicks: Float
@@ -37,38 +36,34 @@ class HandStatusButtonWidget(val client: EngineClient, x: Int, y: Int, width: In
         if (isMouseOver(mouseX.toDouble(), mouseY.toDouble())) {
             alpha += 0.1f
         }
-        context.fill(x, y, width + x, height + y, MinecraftClient.options.getTextBackgroundColor(Int.MIN_VALUE))
+        context.fill(x, y, width + x, height + y, MinecraftClient.options.getBackgroundColor(Int.MIN_VALUE))
         context.drawEngineSprite(
             HAND,
             x.toFloat(),
             y.toFloat(),
             width.toFloat(),
             height.toFloat(),
-            Color(ColorHelper.withAlpha(alpha, Colors.WHITE))
+            Color(ColorMc.color(alpha, CommonColors.WHITE))
         )
     }
 
-    override fun onClick(click: Click, doubled: Boolean) {
+    override fun onClick(click: MouseButtonEvent, doubled: Boolean) {
         client.gameSession?.apply { extendArm = !extendArm }
     }
 
-    override fun charTyped(input: CharInput): Boolean {
-        return (MinecraftClient.currentScreen as? ChatScreenAccessor)?.`engine$getChatField`()?.charTyped(input) ?: false
+    override fun charTyped(input: CharacterEvent): Boolean {
+        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.charTyped(input) ?: false
     }
 
-    override fun keyPressed(input: KeyInput?): Boolean {
-        return (MinecraftClient.currentScreen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyPressed(input) ?: false
+    override fun keyPressed(input: KeyEvent): Boolean {
+        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyPressed(input) ?: false
     }
 
-    override fun keyReleased(input: KeyInput?): Boolean {
-        return (MinecraftClient.currentScreen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyReleased(input) ?: false
+    override fun keyReleased(input: KeyEvent): Boolean {
+        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyReleased(input) ?: false
     }
 
-    override fun getType(): Selectable.SelectionType {
-        return Selectable.SelectionType.NONE
-    }
-
-    override fun appendClickableNarrations(builder: NarrationMessageBuilder?) {}
+    override fun updateWidgetNarration(narrationElementOutput: NarrationElementOutput) {}
 }
 
 data class ChatChannelButton(val textWidth: Int, val rect: Rect2, val text: Text, val section: ChatBarSection)
@@ -83,9 +78,9 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
     private var sections = listOf<ChatBarSection>()
 
     private val chatHud
-        get() = MinecraftClient.inGameHud.chatHud
+        get() = MinecraftClient.gui.chat
 
-    val height get() = MinecraftClient.textRenderer.fontHeight + (padding * 2)
+    val height get() = MinecraftClient.font.lineHeight + (padding * 2)
     var width = 0f
         private set
 
@@ -95,13 +90,13 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
     }
 
     fun measure() {
-        val textRenderer = MinecraftClient.textRenderer
+        val textRenderer = MinecraftClient.font
         var cursorX = 0f
         val result = mutableListOf<ChatChannelButton>()
 
         sections.forEach { section ->
-            val text = Text.of(section.name)
-            val textWidth = textRenderer.getWidth(text)
+            val text = literalText(section.name)
+            val textWidth = textRenderer.width(text)
 
             val buttonWidth = textWidth + padding * 2 + iconReserve
 
@@ -136,12 +131,12 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
         }
     }
 
-    fun renderChatChannelsBar(context: DrawContext, mouseX: Float, mouseY: Float) {
+    fun renderChatChannelsBar(context: GuiGraphics, mouseX: Float, mouseY: Float) {
         val client = MinecraftClient
         val chatBar = chatManager?.chatBar ?: return
 
-        val textRenderer = client.textRenderer
-        val background = client.options.getTextBackgroundColor(Int.MIN_VALUE)
+        val textRenderer = client.font
+        val background = client.options.getBackgroundColor(Int.MIN_VALUE)
 
         buttons
             .forEach { button ->
@@ -164,7 +159,7 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
                 val rectWidth = x2 - x1
 
                 context.fill(x1, y1, x2, y2, background)
-                context.drawTextWithShadow(
+                context.drawString(
                     textRenderer,
                     button.text,
                     x1 + padding.toInt(),

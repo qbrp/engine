@@ -4,6 +4,8 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.script.INVALID_ITEM_ID
+import org.lain.engine.server.EngineServer
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentState
@@ -16,7 +18,8 @@ data class ItemPrefab(
     val name: String,
     val assets: ItemAssets?,
     val progressionAnimations: ItemProgressionAnimations?,
-    val componentsFactory: () -> List<Component>,
+    val tooltipFactory: () -> ItemTooltip?,
+    val componentsFactory: () -> List<Component> = { emptyList() },
 )
 
 // Неинициализированный предмет
@@ -26,6 +29,10 @@ data class ProtoItem(
     val world: World,
     val state: ComponentState
 )
+
+fun EngineServer.bakeInvalidItem(world: World): ProtoItem {
+    return bakeItem(world, namespacedStorage.items[ItemId(INVALID_ITEM_ID)]!!)
+}
 
 fun bakeItem(world: World, prefab: ItemPrefab): ProtoItem {
     return itemInstance(world, PersistentId.next(), prefab)

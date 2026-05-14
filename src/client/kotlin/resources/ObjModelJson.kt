@@ -5,11 +5,12 @@ import de.javagl.obj.Mtl
 import de.javagl.obj.MtlReader
 import de.javagl.obj.ObjReader
 import de.javagl.obj.ObjUtils
-import net.minecraft.client.render.model.UnbakedModel.GuiLight
-import net.minecraft.client.render.model.json.ModelTransformation
-import net.minecraft.util.Identifier
-import net.minecraft.util.JsonHelper
+import net.minecraft.client.renderer.block.model.ItemTransforms
+import net.minecraft.client.resources.model.UnbakedModel
+import net.minecraft.resources.Identifier
+import org.lain.engine.client.mc.JsonMc
 import org.lain.engine.client.mixin.resource.JsonUnbakedModelAccessor
+import org.lain.engine.mc.parseId
 import java.io.File
 import java.io.IOException
 
@@ -72,24 +73,26 @@ fun loadMtl(directory: File, mtlName: String): List<Mtl> {
 }
 
 fun parseObjJsonModelOptions(modelJson: JsonObject): ObjModelOptions {
-    var transform = ModelTransformation.NONE
+    var transform = ItemTransforms.NO_TRANSFORMS
 
     if (modelJson.has("display")) {
         val jo = modelJson.getAsJsonObject("display")
-        transform = JsonUnbakedModelAccessor.`engine$getGson`().fromJson(jo, ModelTransformation::class.java)
+        transform = JsonUnbakedModelAccessor.`engine$getGson`().fromJson(jo, ItemTransforms::class.java)
     }
 
-    var guiLight: GuiLight? = null
-    if (modelJson.has("gui_light")) guiLight = GuiLight.byName(JsonHelper.asString(modelJson, "gui_light"))
+    var guiLight: UnbakedModel.GuiLight? = null
+    if (modelJson.has("gui_light")) guiLight = UnbakedModel.GuiLight.getByName(
+        JsonMc.getAsString(modelJson, "gui_light")
+    )
 
     var particle: Identifier? = null
-    if (modelJson.has("particle")) particle = Identifier.tryParse(JsonHelper.asString(modelJson, "particle"))
+    if (modelJson.has("particle")) particle = parseId(JsonMc.getAsString(modelJson, "particle"))
 
-    val flipV = JsonHelper.getBoolean(modelJson, "flip_v", false)
-    val mtlOverride = JsonHelper.getString(modelJson, "mtl_override", null)
+    val flipV = JsonMc.getAsBoolean(modelJson, "flip_v", false)
+    val mtlOverride = JsonMc.getAsString(modelJson, "mtl_override", null)
 
-    val useAmbientOcclusion = JsonHelper.getBoolean(modelJson, "ambient_occlusion", true)
-    val disableCulling = JsonHelper.getBoolean(modelJson, "disable_culling", false)
+    val useAmbientOcclusion = JsonMc.getAsBoolean(modelJson, "ambient_occlusion", true)
+    val disableCulling = JsonMc.getAsBoolean(modelJson, "disable_culling", false)
 
     return ObjModelOptions(
         useAmbientOcclusion,

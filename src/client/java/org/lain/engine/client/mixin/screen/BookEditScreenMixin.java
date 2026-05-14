@@ -1,21 +1,21 @@
 package org.lain.engine.client.mixin.screen;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.screen.ingame.BookEditScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.component.type.WritableBookContentComponent;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
-import net.minecraft.text.TranslatableTextContent;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.ActiveTextCollector;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.inventory.BookEditScreen;
+import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.WritableBookContent;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mixin.render.ScreenAccessor;
 import org.lain.engine.item.Writable;
+import org.lain.engine.mc.CommonUtilKt;
 import org.lain.engine.util.IdKt;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,13 +28,17 @@ import java.util.List;
 import java.util.Objects;
 
 @Mixin(BookEditScreen.class)
-public class BookEditScreenMixin {
+public abstract class BookEditScreenMixin {
     @Shadow
     @Final
-    private ItemStack stack;
+    private ItemStack book;
     @Shadow
     @Final
     private List<String> pages;
+
+    @Shadow
+    protected abstract void visitText(ActiveTextCollector activeTextCollector);
+
     @Unique
     private Writable writable;
     @Unique
@@ -44,7 +48,7 @@ public class BookEditScreenMixin {
             method = "<init>",
             at = @At("TAIL")
     )
-    public void engine$initialize(PlayerEntity player, ItemStack stack, Hand hand, WritableBookContentComponent writableBookContent, CallbackInfo ci) {
+    public void engine$initialize(Player player, ItemStack stack, InteractionHand hand, WritableBookContent writableBookContent, CallbackInfo ci) {
         writable = ClientMixinAccess.INSTANCE.getWriteable(stack);
     }
 
@@ -52,13 +56,13 @@ public class BookEditScreenMixin {
             method = "init",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screen/ingame/BookEditScreen;addDrawableChild(Lnet/minecraft/client/gui/Element;)Lnet/minecraft/client/gui/Element;"
+                    target = "Lnet/minecraft/client/gui/screens/inventory/BookEditScreen;addRenderableWidget(Lnet/minecraft/client/gui/components/events/GuiEventListener;)Lnet/minecraft/client/gui/components/events/GuiEventListener;"
             )
     )
-    public Element engine$removeDoneButton(BookEditScreen instance, Element element) {
+    public GuiEventListener engine$removeDoneButton(BookEditScreen instance, GuiEventListener element) {
         if (writable != null) {
-            if (element instanceof ButtonWidget && ((ButtonWidget)element).getMessage().getContent() instanceof TranslatableTextContent) {
-                TranslatableTextContent content = (TranslatableTextContent)((ButtonWidget)element).getMessage().getContent();
+            if (element instanceof Button && ((Button)element).getMessage().getContents() instanceof TranslatableContents) {
+                TranslatableContents content = (TranslatableContents)((Button)element).getMessage().getContents();
                 if (Objects.equals(content.getKey(), "book.signButton")) {
                     return element;
                 }
@@ -74,7 +78,7 @@ public class BookEditScreenMixin {
     )
     public void engine$init(CallbackInfo ci) {
         if (writable != null && writable.getBackgroundAsset() != null) {
-            backgroundTextureId = IdKt.EngineId(writable.getBackgroundAsset());
+            backgroundTextureId = CommonUtilKt.engineId(writable.getBackgroundAsset());
         }
     }
 
@@ -82,32 +86,31 @@ public class BookEditScreenMixin {
             method = "renderBackground",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/DrawContext;drawTexture(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/util/Identifier;IIFFIIII)V"
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIII)V"
             )
     )
-    public void engine$redirectRenderBackground(DrawContext instance, RenderPipeline pipeline, Identifier sprite, int x, int y, float u, float v, int width, int height, int textureWidth, int textureHeight) {
+    public void engine$redirectRenderBackground(GuiGraphics instance, RenderPipeline pipeline, Identifier sprite, int x, int y, float u, float v, int width, int height, int textureWidth, int textureHeight) {
         if (backgroundTextureId != null) {
-            instance.drawGuiTexture(pipeline, backgroundTextureId, textureWidth, textureHeight, Math.round(u * textureWidth), Math.round(v * textureHeight), x, y, width, height);
+            instance.blitSprite(pipeline, backgroundTextureId, textureWidth, textureHeight, Math.round(u * textureWidth), Math.round(v * textureHeight), x, y, width, height);
         } else {
-            instance.drawTexture(pipeline, sprite, x, y, u, v, width, height, textureWidth, textureHeight);
+            instance.blit(pipeline, sprite, x, y, u, v, width, height, textureWidth, textureHeight);
         }
     }
 
-    @Redirect(
-            method = "render",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/DrawContext;drawText(Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/text/Text;IIIZ)V"
-            )
-    )
-    public void engine$redirectRenderBackground(DrawContext instance, TextRenderer textRenderer, Text text, int x, int y, int color, boolean shadow) {
-        if (writable == null) {
-            instance.drawText(textRenderer, text, x, y, color, shadow);
-        }
-    }
+//    @Inject(
+//            method = "render",
+//            at = @At("HEAD"),
+//            cancellable = true
+//    )
+//    public void engine$redirectRenderBackground(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
+//        ci.cancel();
+//        if (writable == null) {
+//            visitText(guiGraphics.textRenderer());
+//        }
+//    }
 
     @ModifyConstant(
-            method = "appendNewPage",
+            method = "appendPageToBook",
             constant = @Constant(intValue = 100)
     )
     public int engine$clampPages(int constant) {
@@ -119,7 +122,7 @@ public class BookEditScreenMixin {
     }
 
     @Inject(
-            method = "finalizeBook",
+            method = "saveChanges",
             at = @At(
                     value = "RETURN",
                     target = "Lnet/minecraft/client/gui/screen/ingame/BookEditScreen;writeNbtData()V"
@@ -128,7 +131,7 @@ public class BookEditScreenMixin {
     )
     public void engine$finalize(CallbackInfo ci) {
         if (writable != null) {
-            ClientMixinAccess.INSTANCE.onBookClose(stack, writable, pages);
+            ClientMixinAccess.INSTANCE.onBookClose(book, writable, pages);
             ci.cancel();
         }
     }

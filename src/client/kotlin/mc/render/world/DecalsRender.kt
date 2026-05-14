@@ -1,17 +1,17 @@
 package org.lain.engine.client.mc.render.world
 
-import net.minecraft.client.render.LightmapTextureManager
-import net.minecraft.client.render.OverlayTexture
-import net.minecraft.client.render.RenderLayer
-import net.minecraft.client.render.command.OrderedRenderCommandQueue
-import net.minecraft.client.texture.NativeImageBackedTexture
-import net.minecraft.client.texture.TextureManager
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.util.Colors
-import net.minecraft.util.math.ColorHelper
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.client.renderer.LightTexture
+import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.rendertype.RenderTypes
+import net.minecraft.client.renderer.texture.DynamicTexture
+import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.client.renderer.texture.TextureManager
+import net.minecraft.util.CommonColors
 import org.joml.Vector3f
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.util.EngineId
+import org.lain.engine.client.mc.render.ColorMc
+import org.lain.engine.mc.engineId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
 import org.lain.engine.util.math.squaredDistanceTo
@@ -36,7 +36,7 @@ class DecalSystem {
     fun unloadTexture(voxelPos: VoxelPos, chunkPos: EngineChunkPos = EngineChunkPos(voxelPos)) {
         textures(chunkPos).remove(voxelPos)?.let {
             val texture = it.gameTexture
-            textureManager.destroyTexture(texture.id)
+            textureManager.release(texture.id)
             texture.close()
         }
     }
@@ -106,14 +106,14 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
     // Полная развёртка всех сторон блока
     val width = 3 * resolution
     val height = 2 * resolution
-    private val texture = NativeImageBackedTexture(
+    private val texture = DynamicTexture(
         "Block Decals ${blockPos.toShortString()}",
         width,
         height,
         true
     )
-    val id = EngineId("decals/${blockPos.x}/${blockPos.y}/${blockPos.z}")
-    val depths = mutableMapOf<Direction, MutableMap<Float, Area>>()
+    val id = engineId("decals/${blockPos.x}/${blockPos.y}/${blockPos.z}")
+    val depths = mutableMapOf<EDirection, MutableMap<Float, Area>>()
 
     data class Area(var x1: Int, var y1: Int, var x2: Int, var y2: Int) {
         fun stretch(x: Int, y: Int) {
@@ -129,7 +129,7 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
     }
 
     fun register(textureManager: TextureManager) {
-        textureManager.registerTexture(id, texture)
+        textureManager.register(id, texture)
     }
 
     fun compile(layers: Map<DecalsLayerType, DecalsLayer>) {
@@ -137,7 +137,7 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
             error("Слои должны иметь разрешение в степенях двойки (16, 32, 64...)")
         }
 
-        val image = texture.image ?: return
+        val image = texture.pixels ?: return
         image.fillRect(0, 0, width, height, 0)
         for ((type, layer) in layers) {
             val scale = resolution / type.resolution
@@ -165,10 +165,10 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
                                     val px = decal.x - halfRadius + i
                                     val py = decal.y - halfRadius + j
                                     if (px in 0 until resolution && py in 0 until resolution) {
-                                        image.setColorArgb(
+                                        image.setPixel(
                                             x0 + px,
                                             y0 + py,
-                                            ColorHelper.withAlpha(contents.opacity, Colors.BLACK)
+                                            ColorMc.color(contents.opacity, CommonColors.BLACK)
                                         )
                                         depthArea.stretch(px, py,)
                                     }
@@ -190,31 +190,31 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
     }
 }
 
-private fun Direction.getStartPos(resolution: Int) = when(this) {
-    Direction.DOWN -> 0 to 0
-    Direction.UP -> 0 to resolution
-    Direction.NORTH -> resolution to 0
-    Direction.SOUTH -> resolution to resolution
-    Direction.WEST -> resolution * 2 to 0
-    Direction.EAST -> resolution * 2 to resolution
+private fun EDirection.getStartPos(resolution: Int) = when(this) {
+    EDirection.DOWN -> 0 to 0
+    EDirection.UP -> 0 to resolution
+    EDirection.NORTH -> resolution to 0
+    EDirection.SOUTH -> resolution to resolution
+    EDirection.WEST -> resolution * 2 to 0
+    EDirection.EAST -> resolution * 2 to resolution
 }
 
-fun renderBlockDecals(texture: DecalsTexture, blockPos: VoxelPos, matrices: MatrixStack, queue: OrderedRenderCommandQueue) {
-    matrices.push()
+fun renderBlockDecals(texture: DecalsTexture, blockPos: VoxelPos, matrices: PoseStack, queue: SubmitNodeCollector) {
+    matrices.pushPose()
     matrices.translate(blockPos.x.toDouble(), blockPos.y.toDouble(), blockPos.z.toDouble())
-    for (direction in Direction.entries) {
+    for (direction in EDirection.entries) {
         queue.drawSide(texture, matrices, direction)
     }
-    matrices.pop()
+    matrices.popPose()
 }
 
-private fun OrderedRenderCommandQueue.drawSide(
+private fun SubmitNodeCollector.drawSide(
     layerTexture: DecalsTexture,
-    matrices: MatrixStack,
-    side: Direction
+    matrices: PoseStack,
+    side: EDirection
 ) {
     val (x0, y0) = side.getStartPos(layerTexture.resolution)
-    val light = LightmapTextureManager.MAX_LIGHT_COORDINATE
+    val light = LightTexture.FULL_BRIGHT
     val normal = side.normal.let { Vector3f(it.x, it.y, it.z) }
     val epsilon = 0.001f
     val depthMap = layerTexture.depths[side] ?: return
@@ -234,24 +234,24 @@ private fun OrderedRenderCommandQueue.drawSide(
         val px1 = (area.x2 + 1) / resolution
         val py1 = (area.y2 + 1) / resolution
 
-        submitCustom(matrices, RenderLayer.getEntityTranslucent(layerTexture.id)) { entry, vc ->
+        submitCustomGeometry(matrices, RenderTypes.entityTranslucent(layerTexture.id)) { entry, vc ->
             fun submitVertex(x: Float, y: Float, z: Float, u: Float, v: Float) {
-                vc.vertex(
+                vc.addVertex(
                     entry,
                     x + normal.x * (epsilon - depth),
                     y + normal.y * (epsilon - depth),
                     z + normal.z * (epsilon - depth)
                 )
-                    .texture(u, v)
-                    .overlay(OverlayTexture.DEFAULT_UV)
-                    .color(Colors.WHITE)
-                    .light(light)
-                    .normal(entry, normal)
+                    .setUv(u, v)
+                    .setOverlay(OverlayTexture.NO_OVERLAY)
+                    .setColor(CommonColors.WHITE)
+                    .setLight(light)
+                    .setNormal(entry, normal)
             }
 
             when (side) {
-                Direction.UP, Direction.DOWN -> {
-                    val y = if (side == Direction.UP) 1f else 0f
+                EDirection.UP, EDirection.DOWN -> {
+                    val y = if (side == EDirection.UP) 1f else 0f
 
                     submitVertex(px0, y, py0, u0, v0)
                     submitVertex(px0, y, py1, u0, v1)
@@ -259,8 +259,8 @@ private fun OrderedRenderCommandQueue.drawSide(
                     submitVertex(px1, y, py0, u1, v0)
                 }
 
-                Direction.NORTH, Direction.SOUTH -> {
-                    val z = if (side == Direction.NORTH) 0f else 1f
+                EDirection.NORTH, EDirection.SOUTH -> {
+                    val z = if (side == EDirection.NORTH) 0f else 1f
 
                     submitVertex(px0, py0, z, u0, v0)
                     submitVertex(px0, py1, z, u0, v1)
@@ -268,8 +268,8 @@ private fun OrderedRenderCommandQueue.drawSide(
                     submitVertex(px1, py0, z, u1, v0)
                 }
 
-                Direction.EAST, Direction.WEST -> {
-                    val x = if (side == Direction.EAST) 1f else 0f
+                EDirection.EAST, EDirection.WEST -> {
+                    val x = if (side == EDirection.EAST) 1f else 0f
 
                     submitVertex(x, py0, px0, u0, v0)
                     submitVertex(x, py1, px0, u0, v1)

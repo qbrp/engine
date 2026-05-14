@@ -1,8 +1,5 @@
 package org.lain.engine.server
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getAll
@@ -36,11 +33,6 @@ import org.lain.engine.world.*
 import kotlin.let
 import kotlin.math.pow
 
-sealed class AttributeUpdate() {
-    object Reset : AttributeUpdate()
-    class Value(val value: Float) : AttributeUpdate()
-}
-
 enum class Notification {
     INVALID_SOURCE_POS,
     ACOUSTIC_ERROR,
@@ -56,7 +48,6 @@ class ServerHandler(
     private val server: EngineServer,
 ) {
     private val transportContext by injectServerTransportContext()
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val playerStorage: PlayerStorage get() = server.playerStorage
     private val itemStorage: ItemStorage get() = server.itemStorage
     private val globals: ServerGlobals get() = server.globals

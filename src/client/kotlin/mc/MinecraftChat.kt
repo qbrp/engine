@@ -1,17 +1,19 @@
 package org.lain.engine.client.mc
 
-import net.minecraft.client.gui.hud.ChatHudLine
-import net.minecraft.client.network.PlayerListEntry
-import net.minecraft.client.util.ChatMessages
-import net.minecraft.entity.player.SkinTextures
-import net.minecraft.text.OrderedText
-import net.minecraft.text.Text
+import net.minecraft.client.GuiMessage
+import net.minecraft.client.gui.components.ComponentRenderUtils
+import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.util.FormattedCharSequence
+import net.minecraft.world.entity.player.PlayerSkin
+import org.lain.engine.mc.Text
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
 import org.lain.engine.client.mc.render.ChatChannelsBar
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
 import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.mc.displayNameMiniMessage
+import org.lain.engine.mc.literalText
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT
@@ -20,16 +22,14 @@ import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.HIGH_VOLUME_COLOR
 import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.util.math.lerp
-import org.lain.engine.util.text.EngineText
-import org.lain.engine.util.text.displayNameMiniMessage
 import java.util.*
 import kotlin.math.pow
 import kotlin.random.Random
 
 object MinecraftChat : ChatEventBus {
     private val client by injectClient()
-    private val chatLines = IdentityHashMap<ChatHudLine.Visible, ChatLineData>()
-    private val chatMessages = IdentityHashMap<ChatHudLine, ChatMessageData>()
+    private val chatLines = IdentityHashMap<GuiMessage.Line, ChatLineData>()
+    private val chatMessages = IdentityHashMap<GuiMessage, ChatMessageData>()
     private val contentToEngineMessages = mutableMapOf<String, AcceptedMessage>()
 
     private data class MessageIdentity(val tick: Int, val content: String)
@@ -38,7 +38,7 @@ object MinecraftChat : ChatEventBus {
     private var allMessages = mutableListOf<ChatLineData>()
     private val spy get() = chatManager?.spy ?: false
 
-    private val chatHud get() =  MinecraftClient.inGameHud.chatHud
+    private val chatHud get() =  MinecraftClient.gui.chat
     val chatManager get() = client.gameSession?.chatManager
     var selectedMessage: ChatMessageData? = null
     val channelsBar = ChatChannelsBar()
@@ -61,7 +61,7 @@ object MinecraftChat : ChatEventBus {
     var isWritingCommand = false
     val typingPlayers = mutableSetOf<TypingPlayer>()
 
-    data class TypingPlayer(val id: PlayerId, val skinTextures: SkinTextures, val name: Text) {
+    data class TypingPlayer(val id: PlayerId, val skinTextures: PlayerSkin, val name: Text) {
         override fun equals(other: Any?): Boolean {
             return other is TypingPlayer && id == other.id
         }
@@ -70,11 +70,17 @@ object MinecraftChat : ChatEventBus {
     fun registerEndpoints() {
         CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.registerClientReceiver {
             val gameSession = client.gameSession ?: return@registerClientReceiver
-            val playerListEntry = getPlayerListEntry(player) ?: return@registerClientReceiver
+            val playerListEntry = getPlayerInfo(player) ?: return@registerClientReceiver
             val enginePlayer = gameSession.playerStorage.get(player) ?: return@registerClientReceiver
 
             if (enginePlayer != gameSession.mainPlayer || client.developerMode) {
-                typingPlayers.add(TypingPlayer(player, playerListEntry.skinTextures, enginePlayer.displayNameMiniMessage.parseMiniMessageClient()))
+                typingPlayers.add(
+                    TypingPlayer(
+                        player,
+                        playerListEntry.skin,
+                        enginePlayer.displayNameMiniMessage.parseMiniMessageClient()
+                    )
+                )
             }
         }
 
@@ -87,23 +93,23 @@ object MinecraftChat : ChatEventBus {
         }
     }
 
-    private fun getPlayerListEntry(id: PlayerId): PlayerListEntry? {
-        return MinecraftClient.networkHandler?.playerList?.find { it.profile.id == id.value }
+    private fun getPlayerInfo(id: PlayerId): PlayerInfo? {
+        return MinecraftClient.connection?.onlinePlayers?.find { it.profile.id == id.value }
     }
 
     data class ChatMessageData(
-        val node: ChatHudLine,
-        val author: PlayerListEntry?,
-        val brokenChatBubbleLines: List<OrderedText>,
+        val node: GuiMessage,
+        val author: PlayerInfo?,
+        val brokenChatBubbleLines: List<FormattedCharSequence>,
         val engineMessage: AcceptedMessage
     ) {
         val debugText: Text? by lazy {
             val volume = engineMessage.volume
-            volume?.let { (input, result) -> Text.of(" [input $input, result $result]")  }
+            volume?.let { (input, result) -> literalText(" [input $input, result $result]") }
         }
     }
 
-    data class ChatLineData(val line: ChatHudLine.Visible, val isFirst: Boolean, val isLast: Boolean, val message: ChatMessageData) {
+    data class ChatLineData(val line: GuiMessage.Line, val isFirst: Boolean, val isLast: Boolean, val message: ChatMessageData) {
         val channelId get() = message.engineMessage.channel.id
         val messageId get() = message.engineMessage.id.value
     }
@@ -112,8 +118,8 @@ object MinecraftChat : ChatEventBus {
         chatManager?.endTyping()
     }
 
-    fun updateSelectedMessage(chatHudLine: ChatHudLine.Visible?) {
-        val toSet = chatHudLine?.let { getChatHudLineData(it) }?.message
+    fun updateSelectedMessage(chatHudLine: GuiMessage.Line?) {
+        val toSet = chatHudLine?.let { getGuiMessageData(it) }?.message
         selectedMessage = if (selectedMessage == toSet) {
             null
         } else {
@@ -121,20 +127,20 @@ object MinecraftChat : ChatEventBus {
         }
     }
 
-    fun isMessageStored(chatHudLine: ChatHudLine) = chatMessages.contains(chatHudLine)
+    fun isMessageStored(chatHudLine: GuiMessage) = chatMessages.contains(chatHudLine)
 
-    fun isEngineMessage(chatHudLine: ChatHudLine) = identityContentToEngineMessages[MessageIdentity(chatHudLine.creationTick, chatHudLine.content.string)] != null
+    fun isEngineMessage(chatHudLine: GuiMessage) = identityContentToEngineMessages[MessageIdentity(chatHudLine.addedTime, chatHudLine.content.string)] != null
 
-    fun getChatHudLineData(visible: ChatHudLine.Visible): ChatLineData? {
+    fun getGuiMessageData(visible: GuiMessage.Line): ChatLineData? {
         return chatLines[visible]
     }
 
     /**
      * @return Отменить ли добавление сообщения в чат
      */
-    fun storeChatHudLine(
-        node: ChatHudLine,
-        chatHudLine: ChatHudLine.Visible,
+    fun storeGuiMessage(
+        node: GuiMessage,
+        chatHudLine: GuiMessage.Line,
         isFirst: Boolean,
         isLast: Boolean,
         index: Int
@@ -168,15 +174,15 @@ object MinecraftChat : ChatEventBus {
         } ?: return false
 
         val author = engineMessage.source.player
-        val authorEntity = author?.let { MinecraftClient.networkHandler?.getPlayerListEntry(it.id.value) }
+        val authorEntity = author?.let { MinecraftClient.connection?.getPlayerInfo(it.id.value) }
         val messageData = chatMessages.getOrPut(node) {
             ChatMessageData(
                 node,
                 authorEntity,
-                ChatMessages.breakRenderedChatMessageLines(
+                ComponentRenderUtils.wrapComponents(
                     engineMessage.text.parseMiniMessageClient(),
                     client.options.chatBubbleLineWidth,
-                    MinecraftClient.textRenderer
+                    MinecraftClient.font
                 ),
                 engineMessage
             )
@@ -190,7 +196,7 @@ object MinecraftChat : ChatEventBus {
         return (!visible || isRepeat)
     }
 
-    fun deleteChatHudLine(line: ChatHudLine.Visible) {
+    fun deleteGuiMessage(line: GuiMessage.Line) {
         val data = chatLines.remove(line) ?: return
         chatMessages.remove(data.message.node)
         allMessages.remove(data)
@@ -204,7 +210,7 @@ object MinecraftChat : ChatEventBus {
             val line = message.line
             accessor.`engine$getVisibleMessages`().remove(line)
             accessor.`engine$getMessages`().remove(message.message.node)
-            deleteChatHudLine(line)
+            deleteGuiMessage(line)
         }
     }
 
@@ -233,7 +239,7 @@ object MinecraftChat : ChatEventBus {
     /* FIXME: Последние строки сообщений дублируются, если это компоненты с какой-либо логикой. Поведение было замечено у достижений. */
     override fun onMessageAdd(message: AcceptedMessage) {
         val displayText = message.display.parseMiniMessageClient()
-        val added = storeMessageContent(displayText.string, MinecraftClient.inGameHud.ticks, message)
+        val added = storeMessageContent(displayText.string, MinecraftClient.gui.guiTicks, message)
         if (added && !message.isVanilla) {
             chatHud.addMessage(displayText)
         }
@@ -311,10 +317,5 @@ object MinecraftChat : ChatEventBus {
         if (delta > 0) {
             textShakingBoost = (delta * chatInputTextShaking * 70).coerceAtMost(2f)
         }
-    }
-
-    override fun getChatBubbleText(content: String): EngineText {
-        val text = content.parseMiniMessageClient()
-        return EngineText(text = text.string)
     }
 }

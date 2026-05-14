@@ -5,34 +5,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
-import net.minecraft.client.gui.Click
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.gui.widget.ButtonWidget
-import net.minecraft.client.gui.widget.SliderWidget
-import net.minecraft.client.gui.widget.TextFieldWidget
-import net.minecraft.client.gui.widget.TextWidget
-import net.minecraft.client.render.item.ItemRenderState
-import net.minecraft.client.render.item.model.BasicItemModel
-import net.minecraft.client.render.item.model.ItemModel
-import net.minecraft.client.render.model.json.ModelTransformation
-import net.minecraft.component.DataComponentTypes
-import net.minecraft.item.ItemDisplayContext
-import net.minecraft.item.ItemStack
-import net.minecraft.text.Text
-import net.minecraft.util.Identifier
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.AbstractSliderButton
+import net.minecraft.client.gui.components.Button
+import net.minecraft.client.gui.components.EditBox
+import net.minecraft.client.gui.components.StringWidget
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.client.renderer.block.model.ItemTransform
+import net.minecraft.client.renderer.block.model.ItemTransforms
+import net.minecraft.client.renderer.item.BlockModelWrapper
+import net.minecraft.client.renderer.item.ItemModel
+import net.minecraft.client.renderer.item.ItemStackRenderState
+import net.minecraft.core.component.DataComponents
+import net.minecraft.resources.Identifier
+import net.minecraft.world.item.ItemDisplayContext
+import net.minecraft.world.item.ItemStack
 import org.joml.Vector3f
 import org.joml.Vector3fc
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.render.AdditionalTransformationsBank.get
-import org.lain.engine.client.mixin.render.BasicItemModelAccessor
+import org.lain.engine.client.mixin.render.BlockModelWrapperAccessor
 import org.lain.engine.client.mixin.render.GameRendererAccessor
 import org.lain.engine.client.mixin.render.GuiRendererAccessor
-import org.lain.engine.client.mixin.render.ItemRenderStateAccessor
+import org.lain.engine.client.mixin.render.ItemStackRenderStateAccessor
 import org.lain.engine.client.resources.EngineItemModel
 import org.lain.engine.client.resources.exportEngineModelTransformations
-import org.lain.engine.util.math.MutableVec3
+import org.lain.engine.mc.Text
+import org.lain.engine.mc.literalText
+import org.lain.engine.util.math.MutableEVec3
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -92,32 +94,32 @@ data class Transformations(
 }
 
 data class EngineTransformation(
-    val translation: MutableVec3,
-    val rotation: MutableVec3,
-    val scale: MutableVec3
+    val translation: MutableEVec3,
+    val rotation: MutableEVec3,
+    val scale: MutableEVec3
 ) {
     companion object {
         fun Identity() = EngineTransformation(
-            MutableVec3(0f, 0f, 0f),
-            MutableVec3(0f, 0f, 0f),
-            MutableVec3(1f, 1f, 1f)
+            MutableEVec3(0f, 0f, 0f),
+            MutableEVec3(0f, 0f, 0f),
+            MutableEVec3(1f, 1f, 1f)
         )
     }
 }
 
-fun net.minecraft.client.render.model.json.Transformation.engine(): EngineTransformation {
+fun ItemTransform.engine(): EngineTransformation {
     return EngineTransformation(translation.engine(), rotation.engine(), scale.engine())
 }
 
-fun EngineTransformation.minecraft() = net.minecraft.client.render.model.json.Transformation(rotation.minecraft(), translation.minecraft(), scale.minecraft())
+fun EngineTransformation.minecraft() = ItemTransform(rotation.minecraft(), translation.minecraft(), scale.minecraft())
 
-private fun Vector3fc.engine() = MutableVec3(x(), y(), z())
+private fun Vector3fc.engine() = MutableEVec3(x(), y(), z())
 
-private fun MutableVec3.minecraft(): Vector3fc = Vector3f(x, y, z)
+private fun MutableEVec3.minecraft(): Vector3fc = Vector3f(x, y, z)
 
-private val RENDER_STATE_KEY = RenderStateDataKey.create<net.minecraft.client.render.model.json.Transformation> { "Engine Additional Transformations" }
+private val RENDER_STATE_KEY = RenderStateDataKey.create<ItemTransform> { "Engine Additional Transformations" }
 
-fun Transformations.minecraft() = ModelTransformation(
+fun Transformations.minecraft() = ItemTransforms(
     thirdPersonLeftHand.minecraft(),
     thirdPersonRightHand.minecraft(),
     firstPersonLeftHand.minecraft(),
@@ -129,39 +131,39 @@ fun Transformations.minecraft() = ModelTransformation(
     fixed.minecraft(), // ???
 )
 
-fun MutableVec3.isZero(): Boolean =
+fun MutableEVec3.isZero(): Boolean =
     x == 0f && y == 0f && z == 0f
 
 fun EngineTransformation.isIdentity(): Boolean =
     translation.isZero() && rotation.isZero() && scale.isZero()
 
 
-fun ItemRenderState.LayerRenderState.setAdditionalTransformationsVanillaPipeline(transformations: Transformations, context: ItemDisplayContext) {
-    setData(RENDER_STATE_KEY, transformations.minecraft().getTransformation(context))
+fun ItemStackRenderState.LayerRenderState.setAdditionalTransformationsVanillaPipeline(transformations: Transformations, context: ItemDisplayContext) {
+    setData(RENDER_STATE_KEY, transformations.minecraft().getTransform(context))
 }
 
-fun ItemRenderState.LayerRenderState.setAdditionalTransformationsEnginePipeline(transformations: Transformations, context: EngineItemDisplayContext) {
+fun ItemStackRenderState.LayerRenderState.setAdditionalTransformationsEnginePipeline(transformations: Transformations, context: EngineItemDisplayContext) {
     setData(RENDER_STATE_KEY, transformations.getTransformation(context).minecraft())
 }
 
-fun ItemRenderState.LayerRenderState.getAdditionalTransformations(): net.minecraft.client.render.model.json.Transformation? {
+fun ItemStackRenderState.LayerRenderState.getAdditionalTransformations(): ItemTransform? {
     return getData(RENDER_STATE_KEY)
 }
 
-fun ItemRenderState.setupAdditionalTransformationsVanilla(stack: ItemStack, displayContext: ItemDisplayContext) {
-    val transformations = get(stack.get(DataComponentTypes.ITEM_MODEL)!!)
+fun ItemStackRenderState.setupAdditionalTransformationsVanilla(stack: ItemStack, displayContext: ItemDisplayContext) {
+    val transformations = stack.get(DataComponents.ITEM_MODEL)?.let { get(it) }
     if (transformations != null) {
-        val layers = (this as ItemRenderStateAccessor).`engine$getLayers`()
+        val layers = (this as ItemStackRenderStateAccessor).`engine$getLayers`()
         for (layer in layers) {
             layer.setAdditionalTransformationsVanillaPipeline(transformations, displayContext)
         }
     }
 }
 
-fun ItemRenderState.setupAdditionalTransformationsEngine(stack: ItemStack, displayContext: EngineItemDisplayContext) {
-    val transformations = get(stack.get(DataComponentTypes.ITEM_MODEL)!!)
+fun ItemStackRenderState.setupAdditionalTransformationsEngine(stack: ItemStack, displayContext: EngineItemDisplayContext) {
+    val transformations = get(stack.get(DataComponents.ITEM_MODEL)!!)
     if (transformations != null) {
-        val layers = (this as ItemRenderStateAccessor).`engine$getLayers`()
+        val layers = (this as ItemStackRenderStateAccessor).`engine$getLayers`()
         for (layer in layers) {
             layer.setAdditionalTransformationsEnginePipeline(transformations, displayContext)
         }
@@ -170,18 +172,18 @@ fun ItemRenderState.setupAdditionalTransformationsEngine(stack: ItemStack, displ
 
 private val guiRenderer get() = (MinecraftClient.gameRenderer as GameRendererAccessor).`engine$getGuiRenderer`() as GuiRendererAccessor
 
-class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Text.of("Transformation editor")) {
-    private val modelId = ClientMixinAccess.getEngineItemModel(itemStack) ?: itemStack.get(DataComponentTypes.ITEM_MODEL)!!
-    private val model = MinecraftClient.bakedModelManager.getItemModel(modelId)
+class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(literalText("Transformation editor")) {
+    private val modelId = ClientMixinAccess.getEngineItemModel(itemStack) ?: itemStack.get(DataComponents.ITEM_MODEL)!!
+    private val model = MinecraftClient.modelManager.getItemModel(modelId)
     private var transformations = get(modelId) ?: computeTransformations(model)
     private val sliders
         get() = this@TransformationsEditorScreen.children().filterIsInstance<TransformationSliderWidget>()
 
     private fun computeTransformations(model: ItemModel): Transformations {
         val engineModel = model as? EngineItemModel
-        val basicModel = (model as? BasicItemModel) ?: engineModel?.itemModel as? BasicItemModel
+        val basicModel = (model as? BlockModelWrapper) ?: engineModel?.itemModel as? BlockModelWrapper
 
-        return (basicModel as? BasicItemModelAccessor)?.`engine$getModelSettings`()?.transforms()?.let {
+        return (basicModel as? BlockModelWrapperAccessor)?.`engine$getModelSettings`()?.transforms()?.let {
             Transformations(
                 it.firstPersonRightHand.engine(),
                 it.firstPersonLeftHand.engine(),
@@ -204,7 +206,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
     private val translation
         get() = transformations.getTransformation(context).translation
 
-    private val contextList = SingleSelectionListWidget<EngineItemDisplayContext>(MinecraftClient, MinecraftClient.window.scaledWidth - 100 - 2, 2, 100, 150)
+    private val contextList = SingleSelectionListWidget<EngineItemDisplayContext>(MinecraftClient, MinecraftClient.window.guiScaledWidth - 100 - 2, 2, 100, 150)
         .apply {
             onSelect = { index, ctx ->
                 context = ctx
@@ -222,41 +224,41 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
             setter,
             model
         )
-        addDrawableChild(slider)
+        addRenderableWidget(slider)
         val textField = TransformationTextFieldWidget(getWidgetY(i))
-        textField.setChangedListener { _ ->
-            val text = textField.text
+        textField.setResponder { _ ->
+            val text = textField.value
             if (text.isNotEmpty()) {
                 runCatching { text.toFloat() }.onSuccess { slider.updateValue(it) }
             }
         }
         textField.setMaxLength(16)
-        addDrawableChild(textField)
-        addDrawableChild(
-            ButtonWidget.builder(Text.of("R")) {
+        addRenderableWidget(textField)
+        addRenderableWidget(
+            Button.builder(literalText("R")) {
                 slider.updateValue(getter(computeTransformations(model).getTransformation(context)))
             }
-                .position(PADDING * 3 + SLIDER_WIDTH + textField.width, getWidgetY(i))
+                .pos(PADDING * 3 + SLIDER_WIDTH + textField.width, getWidgetY(i))
                 .size(16, LINE_HEIGHT)
                 .build()
         )
     }
 
     fun addClipboardButton(text: String, callback: String, x: Int, y: Int, setter: () -> Boolean) {
-        val text = Text.of(text)
-        addDrawableChild(
-            ButtonWidget.builder(text) { button ->
+        val text = literalText(text)
+        addRenderableWidget(
+            Button.builder(text) { button ->
                 if (model == null) return@builder
                 val results = setter()
                 if (!results) return@builder
-                button.message = Text.of(callback)
+                button.message = literalText(callback)
                 CoroutineScope(Dispatchers.Default).launch {
                     delay(500)
-                    client?.execute { button.message = text }
+                    minecraft?.execute { button.message = text }
                 }
             }
                 .size(SLIDER_WIDTH, LINE_HEIGHT)
-                .position(x, y)
+                .pos(x, y)
                 .build()
         )
     }
@@ -277,9 +279,9 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         addSliderWithField(11, "Translation X", MAX_TRANSLATION, { it.translation.x }, { translation.x = it })
         addText(12, "Translation")
 
-        addDrawableChild(
-            ButtonWidget.builder(
-                Text.of("Reset"),
+        addRenderableWidget(
+            Button.builder(
+                literalText("Reset"),
                 {
                     if (model == null) return@builder
                     transformations = computeTransformations(model)
@@ -288,20 +290,20 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
                 }
             )
                 .size(SLIDER_WIDTH, LINE_HEIGHT)
-                .position(PADDING, PADDING)
+                .pos(PADDING, PADDING)
                 .build()
         )
 
-        addDrawableChild(
-            ButtonWidget.builder(
-                Text.of("Export engine model")
+        addRenderableWidget(
+            Button.builder(
+                literalText("Export engine model")
             ) {
                 if (model as? EngineItemModel == null) return@builder
                 exportEngineModelTransformations(model, transformations)
                 AdditionalTransformationsBank.remove(modelId)
             }
                 .size(SLIDER_WIDTH, LINE_HEIGHT)
-                .position(PADDING, PADDING + LINE_HEIGHT)
+                .pos(PADDING, PADDING + LINE_HEIGHT)
                 .build()
         )
 
@@ -333,11 +335,11 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
 
         AdditionalTransformationsBank.set(modelId, transformations)
         contextList.clear()
-        addDrawableChild(contextList)
+        addRenderableWidget(contextList)
         var w = 0
 
         fun addDisplayContext(text: String, context: EngineItemDisplayContext) {
-            val text = Text.of(
+            val text = literalText(
                 text
                     .lowercase()
                     .replace("gui", "GUI")
@@ -345,7 +347,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
                     .replace("_", " ")
             )
             contextList.add(text, context)
-            w = max(w, MinecraftClient.textRenderer.getWidth(text) + 6)
+            w = max(w, MinecraftClient.font.width(text) + 6)
         }
 
         for (entry in EngineItemDisplayContext.entries) {
@@ -354,7 +356,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         }
 
         contextList.width = w
-        contextList.x = MinecraftClient.window.scaledWidth - w - 2
+        contextList.x = MinecraftClient.window.guiScaledHeight - w - 2
         contextList.setSelectedByValue(context)
     }
 
@@ -363,7 +365,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         sliders.forEach { it.tick++ }
     }
 
-    override fun mouseClicked(click: Click, doubled: Boolean): Boolean {
+    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
         super.mouseClicked(click, doubled)
         return contextList.mouseClicked(click, doubled)
     }
@@ -378,25 +380,34 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         return contextList.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)
     }
 
-    override fun close() {
-        super.close()
+    override fun onClose() {
+        super.onClose()
         if (computeTransformations(model) == transformations) {
             AdditionalTransformationsBank.remove(modelId)
         }
     }
 
-    override fun shouldPause(): Boolean {
+    override fun isPauseScreen(): Boolean {
         return false
     }
 
-    override fun renderBackground(context: DrawContext?, mouseX: Int, mouseY: Int, deltaTicks: Float) {}
+    override fun renderBackground(context: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {}
 
     private fun addText(i: Int, text: String) {
         val client = MinecraftClient
-        addDrawableChild(TextWidget(PADDING, getWidgetY(i) + client.textRenderer.fontHeight - 1, client.window.scaledWidth, client.textRenderer.fontHeight, Text.of(text), client.textRenderer))
+        addRenderableWidget(
+            StringWidget(
+                PADDING,
+                getWidgetY(i) + client.font.lineHeight - 1,
+                client.window.guiScaledWidth,
+                client.font.lineHeight,
+                literalText(text),
+                client.font
+            )
+        )
     }
 
-    private fun getWidgetY(i: Int) = MinecraftClient.window.scaledHeight - (LINE_HEIGHT + PADDING) * i
+    private fun getWidgetY(i: Int) = MinecraftClient.window.guiScaledHeight - (LINE_HEIGHT + PADDING) * i
 
 
     private class TransformationSliderWidget(
@@ -406,14 +417,14 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         private val getter: () -> Float,
         private val setter: (Float) -> Unit,
         private val model: ItemModel,
-    ): SliderWidget(PADDING, y, SLIDER_WIDTH, LINE_HEIGHT, Text.of(option), getter().toDouble()) {
+    ): AbstractSliderButton(PADDING, y, SLIDER_WIDTH, LINE_HEIGHT, literalText(option), getter().toDouble()) {
         private var lastValue: Float = getter()
         private val epsilon = 0.001f
         var tick = 0
         init { refresh() }
 
         override fun updateMessage() {
-            message = Text.of("$option: " + String.format("%.2f", validatedValue()))
+            message = literalText("$option: " + String.format("%.2f", validatedValue()))
         }
 
         override fun applyValue() {
@@ -442,9 +453,16 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(Tex
         private fun validatedValue() = ((value - 0.5f) / 0.5f * maxValue).toFloat()
     }
 
-    private class TransformationTextFieldWidget(y: Int) : TextFieldWidget(MinecraftClient.textRenderer, PADDING * 2 + SLIDER_WIDTH, y, 60, LINE_HEIGHT, Text.empty()) {
-        override fun getText(): String {
-            return super.getText().replace(Regex("[^0-9.-]"), "")
+    private class TransformationTextFieldWidget(y: Int) : EditBox(
+        MinecraftClient.font,
+        PADDING * 2 + SLIDER_WIDTH,
+        y,
+        60,
+        LINE_HEIGHT,
+        Text.empty()
+    ) {
+        override fun getValue(): String {
+            return super.value.replace(Regex("[^0-9.-]"), "")
         }
     }
 

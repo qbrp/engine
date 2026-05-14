@@ -1,11 +1,9 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
-import net.fabricmc.loader.impl.lib.sat4j.core.Vec
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.floorToInt
 
 interface VoxelPos {
@@ -13,11 +11,10 @@ interface VoxelPos {
     val y: Int
     val z: Int
 
-    fun toCenterPos(): Vec3 {
+    fun toCenterPos(): EVec3 {
         return Vec3(x + 0.5f, y + 0.5f, z + 0.5f)
     }
     fun toShortString(): String = "$x, $y, $z"
-    fun asLong(): Long = BlockPos.asLong(x, y, z)
 }
 
 @Serializable
@@ -37,10 +34,6 @@ data class MutableVoxelPos(
 ) : VoxelPos {
     override fun equals(other: Any?): Boolean {
         return other is VoxelPos && this.x == other.x && this.y == other.y && this.z == other.z
-    }
-
-    companion object {
-        fun fromLong(long: Long) = BlockPos.fromLong(long).let { MutableVoxelPos(it.x, it.y, it.z) }
     }
 }
 

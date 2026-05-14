@@ -1,23 +1,21 @@
 package org.lain.engine.client.mc
 
-import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.client.render.entity.model.PlayerEntityModel
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState
-import net.minecraft.client.sound.SoundInstance
-import net.minecraft.entity.PlayerLikeEntity
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.item.ItemStack
-import net.minecraft.sound.SoundCategory
-import net.minecraft.util.Identifier
+import net.minecraft.client.model.player.PlayerModel
+import net.minecraft.client.player.LocalPlayer
+import net.minecraft.client.renderer.entity.state.AvatarRenderState
+import net.minecraft.client.resources.sounds.SoundInstance
+import net.minecraft.resources.Identifier
+import net.minecraft.sounds.SoundSource
+import net.minecraft.world.entity.Avatar
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
-import org.lain.engine.client.mc.render.ToolgunRenderer
 import org.lain.engine.client.mc.render.world.RenderStateComponent
-import org.lain.engine.client.mc.render.world.beforeWorldProjectionMatrix
 import org.lain.engine.client.mc.render.world.modelPartOf
 import org.lain.engine.client.mc.render.world.setEngineState
 import org.lain.engine.client.resources.Assets
@@ -28,11 +26,10 @@ import org.lain.engine.item.Writable
 import org.lain.engine.item.getTooltip
 import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.engine
+import org.lain.engine.mc.engineId
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
 import org.lain.engine.player.processLeftClickInteraction
-import org.lain.engine.util.EngineId
-import org.lain.engine.util.inject
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 
@@ -55,10 +52,7 @@ object ClientMixinAccess {
         chatClipboardCopyTicksElapsed += 1
     }
 
-    fun onSetWorldProjectionMatrix() {
-        val toolgunRenderer by inject<ToolgunRenderer>()
-        beforeWorldProjectionMatrix(toolgunRenderer)
-    }
+    fun onSetWorldProjectionMatrix() {}
 
     fun getTooltip(engineItem: EngineItem, advanced: Boolean): List<String> {
         with(client.gameSession?.world ?: return emptyList()) {
@@ -78,9 +72,9 @@ object ClientMixinAccess {
         with(gameSession.world) { client.handler.onWriteableContentsUpdate(item.requireComponent(), pages) }
     }
 
-    fun editVolume(sound: SoundInstance, volume: Float, category: SoundCategory): Float? {
-        if (category == SoundCategory.UI || category == SoundCategory.MUSIC) return null
-        if (sound.sound?.identifier?.path == "builtin/tinnitus") return null
+    fun editVolume(sound: SoundInstance, volume: Float, category: SoundSource): Float? {
+        if (category == SoundSource.UI || category == SoundSource.MUSIC) return null
+        if (sound.sound?.location?.path == "builtin/tinnitus") return null
         val loss = mainPlayerHearing?.loss ?: return null
         return volume * (1f - loss).coerceIn(0.01f, 1f)
     }
@@ -89,8 +83,8 @@ object ClientMixinAccess {
         mainPlayerHearing = mainPlayer.require<Hearing>()
     }
 
-    fun updatePlayerRenderState(playerLikeEntity: PlayerLikeEntity, playerEntityRenderState: PlayerEntityRenderState, model: PlayerEntityModel) {
-        if (playerLikeEntity !is PlayerEntity) return
+    fun updatePlayerRenderState(playerLikeEntity: Avatar, playerEntityRenderState: AvatarRenderState, model: PlayerModel) {
+        if (playerLikeEntity !is Player) return
         val entityTable by injectEntityTable()
         val enginePlayer = entityTable.client.getPlayer(playerLikeEntity) ?: return
         val renderState = enginePlayer.get<RenderStateComponent>()?.renderState ?: return
@@ -105,7 +99,7 @@ object ClientMixinAccess {
         val engineItem = itemStack.engine()?.getClientItem() ?: return null
         return with(client.gameSession?.world ?: return null) {
             resolveItemAsset(engineItem).let { path ->
-                identifierCache.computeIfAbsent(resolveItemAsset(engineItem)) { EngineId(path) }
+                identifierCache.computeIfAbsent(resolveItemAsset(engineItem)) { engineId(path) }
             }
         }
     }
@@ -144,7 +138,7 @@ object ClientMixinAccess {
 
     fun isCrosshairAttackIndicatorVisible() = client.options.crosshairIndicatorVisible
 
-    fun onClientPlayerEntityInitialized(entity: ClientPlayerEntity) {
+    fun onClientPlayerEntityInitialized(entity: LocalPlayer) {
         val entityTable by injectEntityTable()
         val table = entityTable.client
         val player = table.getPlayer(entity)

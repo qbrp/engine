@@ -51,6 +51,7 @@ fun CompiledItem(
             nameComponent.text,
             assetsComponent,
             progressionAnimationsComponent,
+            { tooltipComponent },
             {
                 listOfNotNull(
                     Count(1, maxCount),

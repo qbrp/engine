@@ -5,15 +5,29 @@ import com.mojang.serialization.JsonOps
 import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
-import net.minecraft.text.Text
-import net.minecraft.text.TextCodecs
+import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.item.ClientItem
+import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite
+import net.minecraft.network.chat.ComponentSerialization
+import net.minecraft.util.GsonHelper
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.MinecraftEngineClient
+import org.lain.engine.mc.TEXT_LOGGER
+import org.lain.engine.mc.Text
+import org.lain.engine.mc.removeLegacyFormattingCodes
 import org.lain.engine.util.inject
-import org.lain.engine.util.text.TEXT_LOGGER
-import org.lain.engine.util.text.removeLegacyFormattingCodes
 
-val MinecraftClient = net.minecraft.client.MinecraftClient.getInstance()!!
+typealias ItemAsset = ClientItem
+
+typealias ItemAssetProperties = ClientItem.Properties
+
+typealias JsonMc = GsonHelper
+
+typealias ImmediateVertexConsumers = MultiBufferSource.BufferSource
+
+val MinecraftClient = net.minecraft.client.Minecraft.getInstance()!!
+
+val MissingSpriteId get() = MissingTextureAtlasSprite.getLocation()
 
 fun injectClient() = inject<EngineClient>()
 
@@ -28,7 +42,7 @@ fun String.parseMiniMessageClient(): Text {
     } catch (e: Throwable) {
         TEXT_LOGGER.error("Возникла ошибка при десериализации текста MiniMessage:\n$this", e)
         val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))
-        TextCodecs.CODEC
+        ComponentSerialization.CODEC
             .parse(JsonOps.INSTANCE, jsonObject)
             .getOrThrow()
     }

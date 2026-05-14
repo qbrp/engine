@@ -2,7 +2,7 @@ package org.lain.engine.client.handler
 
 import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.runBlocking
-import net.minecraft.client.gui.screen.ingame.CreativeInventoryScreen
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
 import org.lain.cyberia.ecs.*
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
@@ -89,7 +89,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 val input = gameSession.mainPlayer.require<PlayerInput>()
                 val actions = input.actions.toMutableSet()
 
-                if (MinecraftClient.currentScreen !is CreativeInventoryScreen) {
+                if (MinecraftClient.screen !is CreativeModeInventoryScreen) {
                     actions.removeIf { it is InputAction.SlotClick }
                 }
 

@@ -5,7 +5,6 @@ import org.lain.engine.client.render.ui.UiState.Companion.DEFAULT_SCALE
 import org.lain.engine.player.PlayerId
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.Vec2
-import org.lain.engine.util.text.EngineText
 
 data class Pivot(
     val x: Float,
@@ -159,7 +158,7 @@ data class Fragment(
 }
 
 data class TextArea(
-    val content: EngineText,
+    val content: String,
     val scale: Float = 1f
 )
 

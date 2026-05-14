@@ -4,22 +4,22 @@
   "package": "org.lain.engine.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "AbstractBlockMixin",
+    "BlockStateBaseMixin",
     "BlockItemMixin",
-    "ChunkDataSenderMixin",
-    "ItemFrameEntityMixin",
+    "PlayerChunkSenderMixin",
+    "ItemFrameMixin",
     "ItemStackMixin",
     "LivingEntityMixin",
     "MeCommandMixin",
-    "PlayerAdvancementTrackerMixin",
-    "PlayerEntityMixin",
-    "PlayerManagerMixin",
-    "ServerPlayerEntityMixin",
-    "ServerPlayNetworkHandlerMixin",
-    "StyleAccessor",
+    "PlayerAdvancementsMixin",
+    "PlayerMixin",
+    "PlayerListMixin",
+    "ServerPlayerMixin",
+    "ServerGamePacketListenerImpl",
     "WhisperCommandMixin",
-    "WorldMixin"
+    "LevelMixin"
   ],
+  "accessWidener": "engine.classtweaker",
   "injectors": {
     "defaultRequire": 1
   },

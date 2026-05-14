@@ -4,14 +4,14 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.Networked
-import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.EVec3
 
 data class DynamicVoxel(val pos: VoxelPos) : Component
 
 data class ChunkedPos(
     val pos: EngineChunkPos,
     val voxelPos: VoxelPos,
-    val centerPos: Vec3
+    val centerPos: EVec3
 ) : Component
 
 fun World.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false): EntityId {

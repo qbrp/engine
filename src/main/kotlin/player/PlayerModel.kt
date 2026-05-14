@@ -5,6 +5,7 @@ import org.lain.engine.server.markDirty
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.EVec3
 import org.lain.engine.world.Location
 
 @Serializable
@@ -15,7 +16,7 @@ data class PlayerModel(
     var skinEyeY: Float = 0f,
 ) : Component
 
-val EnginePlayer.eyePos: Vec3
+val EnginePlayer.eyePos: EVec3
     get() {
         val location = require<Location>()
         val standingEyeHeight = require<PlayerModel>().standingEyeHeight

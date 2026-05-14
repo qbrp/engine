@@ -10,16 +10,16 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.server.PlayerConfigEntry
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.text.Text
-import net.minecraft.util.ActionResult
-import net.minecraft.util.Formatting
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.players.NameAndId
 import net.minecraft.world.Difficulty
-import net.minecraft.world.GameRules
-import org.lain.engine.SharedConstants.DEVELOPER_TEST_ENVIRONMENT
+import net.minecraft.world.InteractionResult
+import net.minecraft.world.level.gamerules.GameRules
+import org.lain.cyberia.ecs.require
+import org.lain.engine.Constants.DEVELOPER_TEST_ENVIRONMENT
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.registerEngineCommands
+import org.lain.engine.player.DisplayName
 import org.lain.engine.player.RaycastProvider
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
@@ -54,14 +54,15 @@ class CommonEngineServerMod : ModInitializer {
             Injector.register<RaycastProvider>(MinecraftRaycastProvider(injectValue()))
             engineServer.run()
             if (DEVELOPER_TEST_ENVIRONMENT) {
-                server.gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(false, server)
+                val gameRules = server.worldData.gameRules
+                gameRules.set(GameRules.ADVANCE_TIME, false, server)
                 server.setDifficulty(Difficulty.PEACEFUL, true)
             }
         }
 
         ServerWorldEvents.LOAD.register { server, world ->
             if (DEVELOPER_TEST_ENVIRONMENT) {
-                world.timeOfDay = 0
+                world.dayTime = 0
             }
         }
 
@@ -71,7 +72,7 @@ class CommonEngineServerMod : ModInitializer {
 
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
             if (DEVELOPER_TEST_ENVIRONMENT) {
-                server.playerManager.addToOperators(PlayerConfigEntry(handler.player.gameProfile))
+                server.playerList.op(NameAndId(handler.player.gameProfile))
             }
             engineServer.onJoinPlayer(handler.player)
         }
@@ -93,32 +94,25 @@ class CommonEngineServerMod : ModInitializer {
         }
 
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
-            if (world.isClient) return@register ActionResult.PASS
-            val hitPlayer = hitResult?.entity ?: return@register ActionResult.PASS
-            if (hitPlayer !is ServerPlayerEntity) return@register ActionResult.PASS
-            player.sendMessage(
-                Text.empty().apply {
-                    val styled = hitPlayer.styledDisplayName
-                    val name = hitPlayer.name
-                    val similar = styled == name
+            if (world.isClientSide) return@register InteractionResult.PASS
+            val hitPlayer = hitResult?.entity ?: return@register InteractionResult.PASS
+            if (hitPlayer !is ServerPlayer) return@register InteractionResult.PASS
+            val enginePlayer = entityTable.getGeneralPlayer(player) ?: return@register InteractionResult.PASS
 
-                    append(if (similar) name else hitPlayer.styledDisplayName)
+            val name = enginePlayer.require<DisplayName>()
+            val username = name.username.value
+            val customName = name.custom
 
-                    if (!similar) {
-                        append(
-                            Text.empty()
-                                .append(" (${hitPlayer.name.string})")
-                                .formatted(Formatting.GRAY)
-                        )
-                    }
-                },
-                true
-            )
-            ActionResult.PASS
+            val message = StringBuilder()
+            message.append(customName?.textMiniMessage ?: username)
+            if (customName != null) { message.append(" <gray>($username)</gray>") }
+
+            player.sendActionBarMessage(message.toString())
+            InteractionResult.PASS
         }
 
         CommandRegistrationCallback.EVENT.register { dispatcher, _, env ->
-            dispatcher.registerEngineCommands(env.dedicated)
+            dispatcher.registerEngineCommands(env.includeDedicated)
             if (isWorldEditAvailable()) dispatcher.registerWorldEditCommands()
         }
 

@@ -1,8 +1,8 @@
 package org.lain.engine.chat
 
+import org.lain.engine.mc.displayNameMiniMessage
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.username
-import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.world
 
 fun EngineChat.trySendJoinMessage(player: EnginePlayer) {

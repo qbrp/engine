@@ -3,12 +3,11 @@ package org.lain.engine.client.mc.compat
 import dev.lambdaurora.lambdynlights.api.DynamicLightsContext
 import dev.lambdaurora.lambdynlights.api.DynamicLightsInitializer
 import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
-import net.minecraft.block.ShapeContext
-import net.minecraft.util.hit.HitResult
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.MathHelper
-import net.minecraft.world.RaycastContext
-import net.minecraft.world.World
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.ClipContext
+import net.minecraft.world.level.Level
+import net.minecraft.world.phys.HitResult
+import net.minecraft.world.phys.shapes.CollisionContext
 import org.jetbrains.annotations.Range
 import org.joml.Matrix3d
 import org.joml.Vector3d
@@ -17,12 +16,14 @@ import org.lain.engine.chat.acoustic.Grid3b
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.item.getOwner
+import org.lain.engine.mc.MathMc
+import org.lain.engine.mc.MutableBlockPos
 import org.lain.engine.mc.toMinecraft
 import org.lain.engine.player.Orientation
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.inject
-import org.lain.engine.util.math.MutableVec3
+import org.lain.engine.util.math.MutableEVec3
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.smoothstepSDF
 import org.lain.engine.world.*
@@ -95,7 +96,7 @@ class LightSystem(private val context: DynamicLightsContext) {
             val owner = entity.getOwner() ?: return null
             val orientation = owner.get<Orientation>() ?: return null
             val location = owner.location
-            val mcWorld = MinecraftClient.world ?: return null
+            val mcWorld = MinecraftClient.level ?: return null
             FlashlightLightBehavior(
                 location.position,
                 luminance,
@@ -111,9 +112,9 @@ class LightSystem(private val context: DynamicLightsContext) {
 }
 
 abstract class EngineDynamicLightBehavior(var luminance: Int, position: Pos) : DynamicLightBehavior {
-    protected val lastPosition = MutableVec3(position)
+    protected val lastPosition = MutableEVec3(position)
     protected var lastLuminance = luminance
-    val position = MutableVec3(position)
+    val position = MutableEVec3(position)
 
     open fun tick() {
         lastPosition.set(position)
@@ -186,7 +187,7 @@ class FlashlightLightBehavior(
     private val depth: Float,
     private val yawGetter: () -> Float,
     private val pitchGetter: () -> Float,
-    private val world: World,
+    private val world: Level,
     private val epsilon: Float = 0.02f,
 ) : EngineDynamicLightBehavior(luminance, position) {
 
@@ -217,7 +218,7 @@ class FlashlightLightBehavior(
             abs(boundingBox.endZ - boundingBox.startZ)
         ) { false }
 
-        val blockPos = BlockPos.Mutable()
+        val blockPos = MutableBlockPos()
         val vector = Vector3d()
         passability.forEach { idx, x, y, z ->
             blockPos.set(x + boundingBox.startX, y + boundingBox.startY, z + boundingBox.startZ)
@@ -228,14 +229,14 @@ class FlashlightLightBehavior(
             val sdf: Double = (radius * (0.5f - coord.y() / depth) - sqrt(coord.x() * coord.x() + coord.z() * coord.z())).coerceAtMost(depth * 0.5f - abs(coord.y()))
             if (sdf < 0) return@forEach
 
-            val context = RaycastContext(
+            val context = ClipContext(
                 position.toMinecraft(),
-                blockPos.toCenterPos(),
-                RaycastContext.ShapeType.VISUAL,
-                RaycastContext.FluidHandling.WATER,
-                ShapeContext.absent()
+                blockPos.center,
+                ClipContext.Block.VISUAL,
+                ClipContext.Fluid.WATER,
+                CollisionContext.empty()
             )
-            val raycastResult = world.raycast(context)
+            val raycastResult = world.clip(context)
             val result = raycastResult != null && (raycastResult.type == HitResult.Type.MISS || raycastResult.blockPos == blockPos)
             passability[idx] = result
         }
@@ -325,12 +326,12 @@ class FlashlightLightBehavior(
         }
 
         return DynamicLightBehavior.BoundingBox(
-            MathHelper.floor(minX),
-            MathHelper.floor(minY),
-            MathHelper.floor(minZ),
-            MathHelper.ceil(maxX),
-            MathHelper.ceil(maxY),
-            MathHelper.ceil(maxZ)
+            MathMc.floor(minX),
+            MathMc.floor(minY),
+            MathMc.floor(minZ),
+            MathMc.ceil(maxX),
+            MathMc.ceil(maxY),
+            MathMc.ceil(maxZ)
         ).also { boundingBox = it }
     }
 
@@ -365,9 +366,9 @@ class FlashlightLightBehavior(
     private fun computeMatrices() {
         val matrix = Matrix3d()
         matrix.rotateZ(Math.toRadians(pitchGetter().toDouble()))
-        matrix.rotateZ(-MathHelper.HALF_PI.toDouble())
+        matrix.rotateZ(-MathMc.HALF_PI.toDouble())
         matrix.rotateY(Math.toRadians(yawGetter().toDouble()))
-        matrix.rotateY(MathHelper.HALF_PI.toDouble())
+        matrix.rotateY(MathMc.HALF_PI.toDouble())
         this.rotationMatrix = matrix
         this.inverseRotationMatrix = matrix.invert(Matrix3d())
     }

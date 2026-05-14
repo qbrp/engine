@@ -11,7 +11,7 @@ import org.lain.engine.util.Input.Type
 import org.lain.engine.util.InputValue
 import org.lain.engine.util.IntentActor
 import org.lain.engine.util.IntentId
-import org.lain.engine.util.math.ImmutableVec3
+import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.ImmutableVoxelPos
 
 @Serializable
@@ -75,7 +75,7 @@ sealed class IntentBehaviourDto {
 data class IntentTargetDto(
     val player: PlayerId?,
     val voxelPos: ImmutableVoxelPos,
-    val pos: ImmutableVec3
+    val pos: ImmutableEVec3
 )
 
 @Serializable
@@ -93,7 +93,7 @@ fun ScriptContext.IntentExecution.toDto() = IntentExecuteDto(
         IntentTargetDto(
             target.player?.id,
             ImmutableVoxelPos(target.voxelPos),
-            ImmutableVec3(target.pos)
+            ImmutableEVec3(target.pos)
         )
     },
     inputValues.map { it.toDto() },

@@ -1,7 +1,7 @@
 package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
-import net.minecraft.util.ActionResult
+import net.minecraft.world.InteractionResult
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
 import org.lain.engine.client.mc.render.TransformationsEditorScreen
@@ -9,8 +9,8 @@ import org.lain.engine.client.mc.render.world.DecalSystem
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.mc.engine
 import org.lain.engine.mc.commands.playerPositionsMessage
+import org.lain.engine.mc.voxelPos
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.randomInteger
 import org.lain.engine.util.math.roundToInt
@@ -22,7 +22,7 @@ private var developerModeKeyPressedTick = 0L
 fun registerDeveloperModeDecalsDebug(decalsStorage: DecalSystem, engineClient: EngineClient) {
     var debugDecalsVersion = 0
     UseBlockCallback.EVENT.register { entity, world, hand, result ->
-        if (world.isClient && engineClient.developerMode && isControlDown()) {
+        if (world.isClientSide && engineClient.developerMode && isControlDown()) {
             val pos = result.blockPos
             val decals = List(10) {
                 Decal(
@@ -36,13 +36,13 @@ fun registerDeveloperModeDecalsDebug(decalsStorage: DecalSystem, engineClient: E
                 BlockDecals(
                     debugDecalsVersion++,
                     mapOf(
-                        BULLET_DAMAGE_DECALS_LAYER to DecalsLayer(Direction.entries.associateWith { decals })
+                        BULLET_DAMAGE_DECALS_LAYER to DecalsLayer(EDirection.entries.associateWith { decals })
                     )
                 ),
-                ImmutableVoxelPos(pos.engine())
+                ImmutableVoxelPos(pos.voxelPos())
             )
         }
-        ActionResult.PASS
+        InteractionResult.PASS
     }
 }
 
@@ -61,8 +61,8 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                 )
             } else if (key == GLFW.GLFW_KEY_2) {
                 val player = MinecraftClient.player ?: return@with true
-                val mainHandItemStack = player.mainHandStack
-                val offHandItemStack = player.offHandStack
+                val mainHandItemStack = player.mainHandItem
+                val offHandItemStack = player.offhandItem
                 val itemStack = if (mainHandItemStack.isEmpty) offHandItemStack else mainHandItemStack
                 if (developerMode && player.activeItem != null && !itemStack.isEmpty) {
                     MinecraftClient.setScreen(TransformationsEditorScreen(itemStack))
@@ -88,7 +88,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                 acousticDebug = !acousticDebug
             } else if (key == GLFW.GLFW_KEY_5) {
                 val gameSession = gameSession ?: return@with true
-                playerPositionsMessage(gameSession.playerStorage, MinecraftClient.world ?: return@with true).forEach { message ->
+                playerPositionsMessage(gameSession.playerStorage, MinecraftClient.level ?: return@with true).forEach { message ->
                     gameSession.chatManager.addMessage(LiteralSystemEngineChatMessage(gameSession, message))
                 }
             } else {

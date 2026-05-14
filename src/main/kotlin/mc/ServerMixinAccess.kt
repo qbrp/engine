@@ -1,15 +1,15 @@
 package org.lain.engine.mc
 
-import net.minecraft.block.BlockState
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.item.ItemPlacementContext
-import net.minecraft.item.ItemStack
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.text.Text
-import net.minecraft.util.ClickType
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.World
-import net.minecraft.world.chunk.WorldChunk
+import net.minecraft.core.BlockPos
+import net.minecraft.network.chat.Component
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.inventory.ClickAction
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.context.BlockPlaceContext
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.chunk.LevelChunk
 import org.lain.cyberia.ecs.getOrSet
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.engine.item.EngineItem
@@ -20,8 +20,6 @@ import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectMovementSettings
-import org.lain.engine.util.text.displayNameMiniMessage
-import org.lain.engine.util.text.parseMiniMessageLegacy
 import org.lain.engine.world.world
 
 object ServerMixinAccess {
@@ -31,16 +29,16 @@ object ServerMixinAccess {
     private val chatSettings get() = chat.settings
     var disableAchievementMessages = false
     var isDamageEnabled = false
-    var blockRemovedCallback: ((WorldChunk, BlockPos) -> Unit)? = null
-    var blockPlacedCallback: ((PlayerEntity?, BlockPos, BlockState, World) -> Unit)? = null
-    var blockInteractionCallback: ((entity: PlayerEntity, world: World, blockPos: BlockPos) -> Boolean)? = null
+    var blockRemovedCallback: ((LevelChunk, BlockPos) -> Unit)? = null
+    var blockPlacedCallback: ((Player?, BlockPos, BlockState, Level) -> Unit)? = null
+    var blockInteractionCallback: ((entity: Player, world: Level, blockPos: BlockPos) -> Boolean)? = null
 
-    fun inEnginePlayer(player: ServerPlayerEntity) = table.server.getPlayer(player) != null
+    fun inEnginePlayer(player: ServerPlayer) = table.server.getPlayer(player) != null
 
-    fun onBlockInteraction(entity: PlayerEntity, world: World, blockPos: BlockPos): Boolean {
-        return if (!world.isClient) {
+    fun onBlockInteraction(entity: Player, world: Level, blockPos: BlockPos): Boolean {
+        return if (!world.isClientSide) {
             val world = server.engine.getWorld(world.engine)
-            val voxel = world.chunkStorage.getDynamicVoxel(blockPos.engine()) ?: return false
+            val voxel = world.chunkStorage.getDynamicVoxel(blockPos.voxelPos()) ?: return false
             with(world) { voxel.hasComponent(CoreScriptComponents.USE_RESTRICTION) }
         } else {
             blockInteractionCallback?.invoke(entity, world, blockPos) ?: false
@@ -52,19 +50,19 @@ object ServerMixinAccess {
         item: EngineItem,
         slotStack: ItemStack,
         cursorStack: ItemStack,
-        player: PlayerEntity,
-        clickType: ClickType
+        player: Player,
+        clickType: ClickAction
     ): Boolean {
         val world = player.engine?.world ?: return false
-        val space = slotStack.maxCount - slotStack.count
+        val space = slotStack.maxStackSize - slotStack.count
         if (world.merge(item, cursorItem) && space > 0) {
             when (clickType) {
-                ClickType.LEFT -> {
+                ClickAction.PRIMARY  -> {
                     val toMove = minOf(cursorStack.count, space)
                     slotStack.increment(toMove)
                     cursorStack.decrement(toMove)
                 }
-                ClickType.RIGHT -> {
+                ClickAction.SECONDARY -> {
                     slotStack.increment(1)
                     cursorStack.decrement(1)
                 }
@@ -79,32 +77,30 @@ object ServerMixinAccess {
         }
 
         val enginePlayer = table.getGeneralPlayer(player) ?: return success
-        enginePlayer.input.add(
-            InputAction.SlotClick(cursorItem, item)
-        )
+        enginePlayer.input.add(InputAction.SlotClick(cursorItem, item))
 
         return success
     }
 
     fun isAchievementMessagesDisabled() = disableAchievementMessages
 
-    fun getDisplayName(player: PlayerEntity): Text? {
+    fun getDisplayName(player: Player): Component? {
         return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name
     }
 
-    fun getSpeed(player: PlayerEntity): Double {
+    fun getSpeed(player: Player): Double {
         return player.engine?.speed?.toDouble() ?: 0.1
     }
 
-    fun getJumpStrength(player: PlayerEntity): Double {
+    fun getJumpStrength(player: Player): Double {
         return player.engine?.jumpStrength?.toDouble() ?: 0.1
     }
 
-    fun onServerPlayerEntityInitialized(entity: ServerPlayerEntity) {
-        onPlayerEntityInstantiated(entity, table.server)
+    fun onServerPlayerInitialized(entity: ServerPlayer) {
+        onPlayerInstantiated(entity, table.server)
     }
 
-    fun <P : PlayerEntity> onPlayerEntityInstantiated(entity: P, table: EntityTable.Entity2PlayerTable<P>) {
+    fun <P : Player> onPlayerInstantiated(entity: P, table: EntityTable.Entity2PlayerTable<P>) {
         val oldEntity = table.getEntity(entity.engineId) as? P
         if (oldEntity != null && oldEntity !== entity) {
             val player = table.getPlayer(oldEntity) ?: error("Игрок не существует")
@@ -113,37 +109,37 @@ object ServerMixinAccess {
         }
     }
 
-    fun onPlayerJump(entity: PlayerEntity) {
+    fun onPlayerJump(entity: Player) {
         entity.engine?.getOrSet { Jump }
     }
 
-    fun canJump(entity: PlayerEntity): Boolean {
+    fun canJump(entity: Player): Boolean {
         return entity.engine?.let { player ->
             val settings by injectMovementSettings()
             canPlayerJump(player, settings)
         } ?: true
     }
 
-    fun onChunkDataSent(chunk: WorldChunk, player: ServerPlayerEntity) {
+    fun onChunkDataSent(chunk: LevelChunk, player: ServerPlayer) {
         val player = table.server.getPlayer(player) ?: return
         val world = player.world
         val chunkStorage = world.chunkStorage
-        val chunkPos = chunk.pos.engine()
+        val chunkPos = chunk.pos.engineChunkPos()
         val engineChunk = chunkStorage.requireChunk(chunkPos)
         server.engine.handler.onChunkSend(world, engineChunk, chunkPos, player)
     }
 
-    fun onBlockAdded(context: ItemPlacementContext, world: World, blockPos: BlockPos, state: BlockState) {
+    fun onBlockAdded(context: BlockPlaceContext, world: Level, blockPos: BlockPos, state: BlockState) {
         val playerEntity = context.player
-        if (!world.isClient) server.onBlockAdd(playerEntity?.engine, blockPos, state, world)
+        if (!world.isClientSide) server.onBlockAdd(playerEntity?.engine, blockPos, state, world)
         blockPlacedCallback?.invoke(playerEntity, blockPos, state, world)
     }
 
-    fun onBlockRemoved(world: World, pos: BlockPos) {
-        val chunk = world.getWorldChunk(pos)
+    fun onBlockRemoved(world: Level, pos: BlockPos) {
+        val chunk = world.getChunkAt(pos)
         blockRemovedCallback?.invoke(chunk, pos)
 
-        if (!world.isClient) {
+        if (!world.isClientSide) {
             server.onBlockBreak(pos, world)
         }
     }
@@ -154,6 +150,6 @@ object ServerMixinAccess {
 
     fun shouldCancelDamage() = !isDamageEnabled
 
-    private val PlayerEntity.engine: EnginePlayer?
+    private val Player.engine: EnginePlayer?
         get() = table.getGeneralPlayer(this)
 }

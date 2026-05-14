@@ -1,15 +1,14 @@
 package org.lain.engine.client.chat
 
+import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.mc.render.world.LabelRenderState
-import org.lain.engine.client.render.FontRenderer
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.canSee
 import org.lain.engine.player.eyePos
-import org.lain.engine.util.math.MutableVec3
-import org.lain.engine.util.text.EngineText
-import org.lain.engine.util.text.toMinecraft
+import org.lain.engine.util.math.MutableEVec3
 import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.pos
 import kotlin.math.pow
@@ -20,8 +19,8 @@ data class ChatBubble(
     val height: Float,
     val player: EnginePlayer,
     var offsetY: Float,
-    val pos: MutableVec3,
-    val targetPos: MutableVec3,
+    val pos: MutableEVec3,
+    val targetPos: MutableEVec3,
     var opacity: Float,
     val expiration: Int,
     var lifetime: Float,
@@ -31,17 +30,18 @@ data class ChatBubble(
     var squaredDistanceToCamera: Float = 0f,
 )
 
-class ChatBubbleList(
-    private val options: EngineOptions,
-    private val fontRenderer: FontRenderer
-) {
+class ChatBubbleList(private val options: EngineOptions) {
     private val _bubbles = mutableListOf<ChatBubble>()
     val bubbles: List<ChatBubble>
         get() = _bubbles
 
-    fun setChatBubble(player: EnginePlayer, text: EngineText) {
-        val lines = fontRenderer.breakTextByLines(text, options.chatBubbleLineWidth.toFloat())
-        val height = lines.count() * fontRenderer.fontHeight
+    fun setChatBubble(player: EnginePlayer, text: String) {
+        val font = MinecraftClient.font
+        val lines = font.split(
+            text.parseMiniMessageClient(),
+            options.chatBubbleLineWidth
+        )
+        val height = lines.count() * font.lineHeight
 
         // Все прошлые чат-баблы сдвигаем вверх
         _bubbles
@@ -51,14 +51,14 @@ class ChatBubbleList(
         _bubbles.add(
             ChatBubble(
                 lines
-                    .map { LabelRenderState.Line(it.toMinecraft(), fontRenderer.getWidth(it).toInt()) }
+                    .map { LabelRenderState.Line(it, font.width(it)) }
                     .reversed()
                     .toMutableList(),
-                height,
+                height.toFloat(),
                 player,
                 0f,
-                MutableVec3(player.eyePos),
-                MutableVec3(player.pos),
+                MutableEVec3(player.eyePos),
+                MutableEVec3(player.pos),
                 0f,
                 options.chatBubbleLifeTime,
                 0f

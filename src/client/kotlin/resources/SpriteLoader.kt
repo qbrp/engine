@@ -1,13 +1,12 @@
 package org.lain.engine.client.resources
 
+import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.serialization.MapCodec
 import kotlinx.serialization.Serializable
-import net.minecraft.client.texture.NativeImage
-import net.minecraft.client.texture.SpriteContents
-import net.minecraft.client.texture.SpriteDimensions
-import net.minecraft.client.texture.atlas.AtlasSource
-import net.minecraft.resource.ResourceManager
-import net.minecraft.util.Identifier
+import net.minecraft.client.renderer.texture.SpriteContents
+import net.minecraft.client.renderer.texture.atlas.SpriteSource
+import net.minecraft.client.resources.metadata.animation.FrameSize
+import net.minecraft.resources.Identifier
 import org.lain.engine.util.Timestamp
 
 /**
@@ -28,20 +27,20 @@ data class SpriteAtlasRules(
     val directories: Map<String, String> = mapOf()
 )
 
-class EngineAtlasSource(val textures: List<EngineTexture>) : AtlasSource {
-    override fun load(
-        resourceManager: ResourceManager,
-        regions: AtlasSource.SpriteRegions
+class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
+    override fun run(
+        resourceManager: net.minecraft.server.packs.resources.ResourceManager,
+        output: SpriteSource.Output
     ) {
         val start = Timestamp()
         textures.forEach { texture ->
             val id = texture.registrationId
-            regions.add(id) { openSprite(id, texture.asset) }
+            output.add(id) { openSprite(id, texture.asset) }
         }
         LOGGER.info("Ассеты загружены за {} мл.", start.timeElapsed())
     }
 
-    override fun getCodec(): MapCodec<out AtlasSource> = CODEC
+    override fun codec(): MapCodec<out SpriteSource> = CODEC
 
     companion object {
         val CODEC = MapCodec.unit { TODO() }
@@ -53,7 +52,7 @@ class EngineAtlasSource(val textures: List<EngineTexture>) : AtlasSource {
             val nativeImage = NativeImage.read(input)
             val width = nativeImage.width
             val height = nativeImage.height
-            val spriteDimensions = SpriteDimensions(width, height)
+            val spriteDimensions = FrameSize(width, height)
             input.close()
             return SpriteContents(id, spriteDimensions, nativeImage)
         }

@@ -1,15 +1,17 @@
 package org.lain.engine.client.render.ui
 
-import org.lain.engine.client.render.FontRenderer
+import net.minecraft.client.gui.Font
+import org.lain.engine.client.mc.parseMiniMessageClient
+import org.lain.engine.client.mc.render.TextCache
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.sumOf
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
-data class UiContext(
-    val fontRenderer: FontRenderer,
-    val windowSize: Size
-)
+data class UiContext(val font: Font, val windowSize: Size)
+
+private val cache = TextCache()
 
 fun updateCompositionUiState(
     composition: Composition,
@@ -36,9 +38,9 @@ fun updateCompositionUiState(
 
     features.text = fragment.text?.let { text ->
         TextState(
-            context.fontRenderer.breakTextByLines(
-                text.content,
-                layout.size.width / text.scale
+            context.font.split(
+                text.content.parseMiniMessageClient(),
+                ceil(layout.size.width / text.scale).toInt()
             ),
             Color.WHITE,
             text.scale
@@ -46,11 +48,6 @@ fun updateCompositionUiState(
     }
 
     features.head = fragment.playerHead
-
-    if (textInput == null && fragment.textInput != null) {
-        textInput = TextInputState()
-    }
-
     listeners.apply {
         click = fragment.onClick
         render = fragment.onRender
@@ -91,9 +88,12 @@ fun resolveSize(context: UiContext, fragment: Fragment, constraints: Size): Size
     }
 
     fragment.text?.let { text ->
-        val lines = context.fontRenderer.breakTextByLines(text.content, constraints.width / text.scale)
-        val textWidth = lines.maxOf { context.fontRenderer.getWidth(it) }
-        totalSize.stretch(textWidth, context.fontRenderer.fontHeight * lines.count())
+        val lines = context.font.split(text.content.parseMiniMessageClient(), ceil(constraints.width / text.scale).toInt())
+        val textWidth = lines.maxOf { context.font.width(it) }
+        totalSize.stretch(
+            textWidth.toFloat(),
+            context.font.lineHeight * lines.count().toFloat()
+        )
     }
     return totalSize
 }

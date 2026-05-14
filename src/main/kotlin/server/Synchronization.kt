@@ -79,7 +79,7 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
         componentType.id,
         PacketCodec.Binary(
             {
-                val id = readString()
+                val id = readUtf()
                 val interaction = readNullable { it.readLong() }
                 ComponentSynchronizationPacket<C>(
                     id,
@@ -88,7 +88,7 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
                 )
             },
             {
-                writeString(it.id)
+                writeUtf(it.id)
                 writeNullable(it.interaction?.value) { buf, value -> buf.writeLong(value) }
                 writeByteArray(ProtoBuf.encodeToByteArray(serializer, it.component))
             }

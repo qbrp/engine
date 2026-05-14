@@ -2,21 +2,18 @@ package org.lain.engine.mc
 
 import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
-import net.minecraft.component.ComponentType
-import net.minecraft.component.DataComponentTypes
-import net.minecraft.component.type.LoreComponent
-import net.minecraft.item.ItemStack
-import net.minecraft.item.Items
-import net.minecraft.registry.Registries
-import net.minecraft.registry.Registry
-import net.minecraft.text.Text
+import net.minecraft.core.Registry
+import net.minecraft.core.component.DataComponentType
+import net.minecraft.core.component.DataComponents
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.util.Unit
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import net.minecraft.world.item.component.ItemLore
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.*
 import org.lain.engine.storage.PersistentId
-import org.lain.engine.util.EngineId
 import org.lain.engine.util.injectItemAccess
-import org.lain.engine.util.text.parseMiniMessage
 import org.lain.engine.world.World
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
@@ -26,8 +23,8 @@ val ITEM_STACK_MATERIAL = ItemStack(Items.STICK)
 fun detachEngineItemStack(itemStack: ItemStack) {
     itemStack.remove(ENGINE_ITEM_REFERENCE_COMPONENT)
     itemStack.set(
-        DataComponentTypes.LORE,
-        LoreComponent(
+        DataComponents.LORE,
+        ItemLore(
             listOf(
                 "<reset><red>Предмет отключен из-за ошибки Engine".parseMiniMessage(),
                 "<reset><red>Он не будет отвечать на действия игрока и обновлять состояние".parseMiniMessage()
@@ -45,22 +42,22 @@ fun wrapEngineItemStackVisual(
     itemStack: ItemStack,
     name: String? = null
 ) {
-    val currentName = itemStack.get(DataComponentTypes.ITEM_NAME)
+    val currentName = itemStack.get(DataComponents.ITEM_NAME)
     if (currentName?.string != name) {
         itemStack.set(
-            DataComponentTypes.ITEM_NAME,
-            Text.of(name)
+            DataComponents.ITEM_NAME,
+            name?.let { literalText(it) } ?: literalText("Предмет")
         )
     }
 }
 
 fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int) {
     itemStack.set(
-        DataComponentTypes.UNBREAKABLE,
+        DataComponents.UNBREAKABLE,
         Unit.INSTANCE
     )
     itemStack.set(
-        DataComponentTypes.MAX_STACK_SIZE,
+        DataComponents.MAX_STACK_SIZE,
         maxStackSize
     )
 }
@@ -84,21 +81,34 @@ fun ItemStack.engine() = get(ENGINE_ITEM_REFERENCE_COMPONENT)
 
 fun ItemStack.engineItem() = get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getItem()
 
-val ENGINE_ITEM_INSTANTIATE_COMPONENT: ComponentType<String> = Registry.register(
-    Registries.DATA_COMPONENT_TYPE,
-    EngineId("initialize-component"),
-    ComponentType
-        .builder<String>()
-        .codec(Codec.STRING)
+fun ItemStack.decrement(i: Int) = shrink(i)
+
+fun ItemStack.increment(i: Int) = grow(i)
+
+val ENGINE_ITEM_LOADING_COMPONENT: DataComponentType<Unit> = Registry.register(
+    BuiltInRegistries.DATA_COMPONENT_TYPE,
+    engineId("loading-component"),
+    DataComponentType
+        .builder<Unit>()
+        .persistent(Unit.CODEC)
         .build()
 )
 
-val ENGINE_ITEM_REFERENCE_COMPONENT: ComponentType<EngineItemReferenceComponent> = Registry.register(
-    Registries.DATA_COMPONENT_TYPE,
-    EngineId("reference-component-v2"),
-    ComponentType
+val ENGINE_ITEM_INSTANTIATE_COMPONENT: DataComponentType<String> = Registry.register(
+    BuiltInRegistries.DATA_COMPONENT_TYPE,
+    engineId("initialize-component"),
+    DataComponentType
+        .builder<String>()
+        .persistent(Codec.STRING)
+        .build()
+)
+
+val ENGINE_ITEM_REFERENCE_COMPONENT: DataComponentType<EngineItemReferenceComponent> = Registry.register(
+    BuiltInRegistries.DATA_COMPONENT_TYPE,
+    engineId("reference-component-v2"),
+    DataComponentType
         .builder<EngineItemReferenceComponent>()
-        .codec(
+        .persistent(
             RecordCodecBuilder.create { instance ->
                 instance.group(
                     Codec.STRING.xmap(

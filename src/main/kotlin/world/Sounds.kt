@@ -10,23 +10,23 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.math.ImmutableVec3
-import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.EVec3
+import org.lain.engine.util.math.ImmutableEVec3
 
 @Serializable
-data class SoundEvent(val id: SoundEventId, val sources: List<SoundSource>)
+data class SoundEvent(val id: SoundEventId, val sources: List<ESoundSource>)
 
 @Serializable
 data class SoundPlay(
     val sound: SoundEvent,
-    val pos: ImmutableVec3,
+    val pos: ImmutableEVec3,
     val category: EngineSoundCategory,
     val volume: Float = 1f,
     val pitch: Float = 1f,
 )
 
-fun SoundPlay(sound: SoundEvent, pos: Vec3, category: EngineSoundCategory = EngineSoundCategory.AMBIENT, volume: Float = 1f, pitch: Float = 1f) =
-    SoundPlay(sound, ImmutableVec3(pos), category, volume, pitch)
+fun SoundPlay(sound: SoundEvent, pos: EVec3, category: EngineSoundCategory = EngineSoundCategory.AMBIENT, volume: Float = 1f, pitch: Float = 1f) =
+    SoundPlay(sound, ImmutableEVec3(pos), category, volume, pitch)
 
 enum class EngineSoundCategory {
     MASTER, WEATHER, BLOCKS, HOSTILE, NEUTRAL, PLAYERS, AMBIENT, VOICE;
@@ -43,7 +43,7 @@ value class SoundEventId(val value: String) {
 }
 
 @Serializable
-data class SoundSource(
+data class ESoundSource(
     val id: SoundId,
     val volume: Float = 1f,
     val pitch: Float = 1f,
@@ -61,7 +61,7 @@ value class SoundId(val value: String) {
 fun NamespacedStorage.getOrSingleSound(id: SoundEventId) = this.sounds[id] ?: SoundEvent(
     id,
     listOf(
-        SoundSource(
+        ESoundSource(
             SoundId(id.value)
         )
     )
@@ -71,7 +71,7 @@ sealed class WorldSoundPlayRequest : Component {
     data class Simple(val play: SoundPlay) : WorldSoundPlayRequest()
     data class Positioned(
         val eventId: SoundEventId,
-        val pos: Vec3,
+        val pos: EVec3,
         val category: EngineSoundCategory,
         val volume: Float = 1f,
         val pitch: Float = 1f
@@ -120,7 +120,7 @@ fun processWorldSounds(
                     storage.getOrSingleSound(
                         request.item.getComponent<ItemSounds>()?.sounds?.get(request.key) ?: SoundEventId.MISSING,
                     ),
-                    request.item.getComponent<Location>()?.position ?: ImmutableVec3(),
+                    request.item.getComponent<Location>()?.position ?: ImmutableEVec3(),
                     request.category,
                     request.volume,
                     request.pitch
@@ -145,7 +145,7 @@ fun World.emitPlaySoundEvent(sound: SoundPlay) = emitEvent<WorldSoundPlayRequest
 
 fun World.emitPlaySoundEvent(
     event: SoundEventId,
-    pos: Vec3,
+    pos: EVec3,
     category: EngineSoundCategory,
     volume: Float = 1f,
     pitch: Float = 1f

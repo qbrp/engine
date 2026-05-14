@@ -5,7 +5,7 @@ import kotlinx.serialization.BinaryFormat
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.protobuf.ProtoBuf
-import net.minecraft.network.PacketByteBuf
+import net.minecraft.network.FriendlyByteBuf
 import org.lain.engine.storage.COMPONENT_SERIALIZERS_MODULE
 
 sealed class PacketCodec<P : Packet> {
@@ -14,8 +14,8 @@ sealed class PacketCodec<P : Packet> {
         val format: BinaryFormat? = null,
     ) : PacketCodec<P>()
     class Binary<P : Packet>(
-        val deserializer: PacketByteBuf.() -> P,
-        val serializer: PacketByteBuf.(P) -> Unit
+        val deserializer: FriendlyByteBuf.() -> P,
+        val serializer: FriendlyByteBuf.(P) -> Unit
     ) : PacketCodec<P>()
 }
 
@@ -23,7 +23,7 @@ private val PACKET_PROTOBUF = ProtoBuf {
     serializersModule = COMPONENT_SERIALIZERS_MODULE
 }
 
-fun <P : Packet> deserializePacket(buf: PacketByteBuf, codec: PacketCodec<P>): P {
+fun <P : Packet> deserializePacket(buf: FriendlyByteBuf, codec: PacketCodec<P>): P {
     return when (codec) {
         is PacketCodec.Binary<P> -> {
             codec.deserializer.invoke(buf)
@@ -35,7 +35,7 @@ fun <P : Packet> deserializePacket(buf: PacketByteBuf, codec: PacketCodec<P>): P
     }
 }
 
-fun <P : Packet> serializePacket(buf: PacketByteBuf, packet: P, codec: PacketCodec<P>) {
+fun <P : Packet> serializePacket(buf: FriendlyByteBuf, packet: P, codec: PacketCodec<P>) {
     when (codec) {
         is PacketCodec.Binary<P> -> {
             codec.serializer.invoke(buf, packet)

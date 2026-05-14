@@ -1,9 +1,12 @@
 package org.lain.engine.script
 
+import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
+import org.lain.engine.item.ItemTooltip
 import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
+import org.lain.engine.script.Namespace.Holder
 import org.lain.engine.util.Intent
 import org.lain.engine.util.IntentId
 import org.lain.engine.util.NamespaceId
@@ -17,12 +20,12 @@ import org.lain.engine.world.SoundEventId
  */
 data class Namespace(
     val id: NamespaceId,
-    val items: Holder<ItemId, ItemPrefab>,
-    val sounds: Holder<SoundEventId, SoundEvent>,
-    val progressionAnimations: Holder<ProgressionAnimationId, ProgressionAnimation>,
-    val scripts: Holder<ScriptId, Script<*, *>>,
-    val components: Holder<ScriptComponentId, ScriptComponentType>,
-    val intents: Holder<IntentId, Intent>
+    val items: Holder<ItemId, ItemPrefab> = Holder(),
+    val sounds: Holder<SoundEventId, SoundEvent> = Holder(),
+    val progressionAnimations: Holder<ProgressionAnimationId, ProgressionAnimation> = Holder(),
+    val scripts: Holder<ScriptId, Script<*, *>> = Holder(),
+    val components: Holder<ScriptComponentId, ScriptComponentType> = Holder(),
+    val intents: Holder<IntentId, Intent> = Holder()
 ) {
     val holders = listOf(items, sounds, scripts, progressionAnimations, components, intents)
     val hash by lazy { holders.hashCode() }
@@ -72,7 +75,30 @@ class NamespacedStorage : ContentStorage {
     private fun hashMap() = namespaces.map { (id, namespace) -> id to namespace.hash }.toMap()
 
     fun upload(namespaces: List<Namespace>) {
-        this.namespaces = namespaces.associateBy { it.id }
+        val namespacesMap = namespaces.associateBy { it.id }.toMutableMap()
+
+        val coreErrorNamespaceId = NamespaceId("core/error")
+        val invalidItem = ItemPrefab(
+            ItemId(INVALID_ITEM_ID), 64,
+            "Недействительный предмет",
+            ItemAssets.withDefaultAsset(INVALID_ITEM_ID),
+            null,
+            { ItemTooltip(INVALID_ITEM_TOOLTIPS.random()) },
+        )
+        val coreErrorNamespaceItems = mapOf(ItemId("item") to invalidItem)
+        namespacesMap[coreErrorNamespaceId] = namespacesMap.computeIfAbsent(
+            coreErrorNamespaceId,
+            {
+                Namespace(
+                    coreErrorNamespaceId,
+                    Holder()
+                )
+            }
+        ).let {
+            it.copy(items = Holder(it.items + coreErrorNamespaceItems))
+        }
+
+        this.namespaces = namespacesMap
         items = collect { it.items }
         sounds = collect { it.sounds }
         progressionAnimations = collect { it.progressionAnimations }
@@ -90,3 +116,12 @@ class NamespacedStorage : ContentStorage {
         return Namespace.Holder(entries)
     }
 }
+
+val INVALID_ITEM_ID = "core/error/item"
+
+private val INVALID_ITEM_TOOLTIPS = listOf(
+    "Помните, обилие багов - симптом активной разработки<newline>(C) lain1wakura",
+    "i'm psyho",
+    "если бы все мужчины были гомосексуальны, немецкий народ исчез бы, но если бы все женщины были лесбиянками, «они бы все равно рожали детей»",
+    "Господи, храни америку!"
+)

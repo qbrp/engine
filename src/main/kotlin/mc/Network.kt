@@ -2,13 +2,11 @@ package org.lain.engine.mc
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
-import net.minecraft.network.PacketByteBuf
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.ValueFirstEncoder
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.util.Identifier
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.resources.Identifier
+import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -16,10 +14,7 @@ import org.lain.engine.transport.deserializePacket
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.serializePacket
-import org.lain.engine.util.EngineId
 import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.injectMinecraftEngineServer
-import org.lain.engine.util.text.parseMiniMessageLegacy
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 
@@ -51,24 +46,27 @@ fun <P : Packet> sendClientboundPacketInternal(endpoint: Endpoint<P>, player: Pl
         packet,
         PayloadRegistry.payloadOf(endpoint),
     )
-    val player = ENTITY_TABLE.server.getEntity(player) as? ServerPlayerEntity ?: return
+    val player = ENTITY_TABLE.server.getEntity(player) as? ServerPlayer ?: return
     ServerPlayNetworking.send(player, payload)
 }
+
+typealias PayloadId<T> = CustomPacketPayload.Type<T>
+typealias Payload = CustomPacketPayload
 
 data class EnginePayload<P : Packet>(
     val packetId: Long,
     val packet: P,
-    val payloadId: CustomPayload.Id<EnginePayload<P>>
-) : CustomPayload {
-    override fun getId(): CustomPayload.Id<out CustomPayload?> = payloadId
+    val payloadId: PayloadId<EnginePayload<P>>
+) : Payload {
+    override fun type(): PayloadId<out Payload> = payloadId
 }
 
 object PayloadRegistry {
-    private val map: ConcurrentHashMap<String, CustomPayload.Id<*>> = ConcurrentHashMap()
+    private val map: ConcurrentHashMap<String, PayloadId<*>> = ConcurrentHashMap()
 
     @Suppress("UNCHECKED_CAST")
-    fun <P : Packet> payloadOf(endpoint: Endpoint<P>): CustomPayload.Id<EnginePayload<P>> {
-        map[endpoint.identifier]?.let { return it as CustomPayload.Id<EnginePayload<P>> }
+    fun <P : Packet> payloadOf(endpoint: Endpoint<P>): PayloadId<EnginePayload<P>> {
+        map[endpoint.identifier]?.let { return it as PayloadId<EnginePayload<P>> }
         val s2c = PayloadTypeRegistry.playS2C().registerPayload(endpoint)
         try {
             PayloadTypeRegistry.playC2S().registerPayload(endpoint)
@@ -83,14 +81,14 @@ object PayloadRegistry {
 }
 
 val Endpoint<*>.minecraftIdentifier: Identifier
-    get() = EngineId(identifier.lowercase())
+    get() = engineId(identifier.lowercase())
 
-fun <P : Packet> PayloadTypeRegistry<RegistryByteBuf>.registerPayload(endpoint: Endpoint<P>): CustomPayload.Id<EnginePayload<P>> {
-    val payloadId = CustomPayload.Id<EnginePayload<P>>(endpoint.minecraftIdentifier)
+fun <P : Packet> PayloadTypeRegistry<RegistryFriendlyByteBuf>.registerPayload(endpoint: Endpoint<P>): PayloadId<EnginePayload<P>> {
+    val payloadId = PayloadId<EnginePayload<P>>(endpoint.minecraftIdentifier)
     register(
         payloadId,
-        PacketCodec<PacketByteBuf, EnginePayload<P>>.of(
-            ValueFirstEncoder { payload, buf ->
+        StreamCodec<RegistryFriendlyByteBuf, EnginePayload<P>>.of(
+            { buf, payload ->
                 buf.writeLong(payload.packetId)
                 serializePacket(buf, payload.packet, endpoint.codec)
             },

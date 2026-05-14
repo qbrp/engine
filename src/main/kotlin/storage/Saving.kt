@@ -1,22 +1,17 @@
 package org.lain.engine.storage
 
 import kotlinx.coroutines.*
-import net.minecraft.item.ItemStack
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.container.ContainedIn
 import org.lain.engine.item.*
-import org.lain.engine.mc.engine
-import org.lain.engine.mc.wrapEngineItemStack
-import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.EntityCommandBuffer
+import org.lain.engine.util.flush
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
-import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -135,42 +130,20 @@ fun dataFixItem(item: ProtoItem, storage: NamespacedStorage) {
     }
 }
 
-private val INVALID_ITEM_TOOLTIPS = listOf(
-    "Помните, обилие багов - симптом активной разработки<newline>(C) lain1wakura",
-    "i'm psyho",
-    "если бы все мужчины были гомосексуальны, немецкий народ исчез бы, но если бы все женщины были лесбиянками, «они бы все равно рожали детей»",
-    "Господи, храни америку!"
-)
-
-fun InvalidItem(uuid: PersistentId, world: World) = ProtoItem(
-    ItemId("core/error"), uuid, world,
-    ComponentState {
-        set(ItemName("Недействительный предмет"))
-        set(ItemTooltip(INVALID_ITEM_TOOLTIPS.random()))
-    }
-)
-
 class ItemLoader(
     private val server: EngineServer,
     private val database: Database
 ) {
     private val componentLoadSettings = ComponentLoadSettings(null, server.namespacedStorage)
     private val commandBuffers = ConcurrentLinkedQueue<Pair<WorldId, EntityCommandBuffer>>()
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val items = mutableMapOf<String, Long>()
-    private val notFound = mutableSetOf<String>()
-
-    fun isLoading(item: String) = item in items
-
-    fun isNotFound(item: String) = item in notFound
 
     suspend fun loadWorldItem(
         uuid: PersistentId,
         world: World,
-    ): EngineItem? {
+    ): EngineItem {
         server.itemStorage.getItem(uuid)?.let { item -> return item }
 
-        // Первый блок отвечает за обработку предмета в целом. Если что-то пойдет не так - это высветится в консоль и будет выдан недействителньый предмет
+        // Первый блок отвечает за обработку предмета в целом. Если что-то пойдет не так - это высветится в консоль и будет выдан недействительный предмет
         val result = runCatching {
             // Функция загрузки сущности может выбрасывать ошибки, если предмет был в старой базе данных
             // Точно не знаю, с чем связано - в консоль бросается:
@@ -189,10 +162,7 @@ class ItemLoader(
         }
             .onFailure { err -> LOGGER.error("Не удалось загрузить предмет $uuid", err) }
             .getOrNull()
-            ?: run {
-                notFound.add(uuid.value)
-                ItemLoadResult(InvalidItem(uuid, world))
-            }
+            ?: ItemLoadResult(server.bakeInvalidItem(world))
         val protoItem = result.protoItem
         val container = result.container?.let { database.loadEntity(it) ?: error("Контейнер $it не найден") }
         dataFixItem(protoItem, server.namespacedStorage)
@@ -213,35 +183,9 @@ class ItemLoader(
         return item
     }
 
-    suspend fun loadItemStack(itemStack: ItemStack, world: World): EngineItem? {
-        val reference = itemStack.engine() ?: return null
-        val uuid = reference.uuid
-        return loadWorldItem(PersistentId(uuid.value), world)
-    }
-
-    fun loadItemStackWrapping(itemStack: ItemStack, owner: EnginePlayer) = with(owner.world) {
-        val uuid = itemStack.engine()?.uuid?.value ?: return
-        val time = items[uuid]
-        val currentTimeMillis = System.currentTimeMillis()
-        if (time == null || currentTimeMillis - time > TIMEOUT) {
-            items[uuid] = currentTimeMillis
-            coroutineScope.launch {
-                val item = loadItemStack(itemStack, this@with) ?: run {
-                    notFound.add(uuid)
-                    return@launch
-                }
-                server.execute { wrapEngineItemStack(item, itemStack) }
-            }
-        }
-    }
-
     fun applyCommands(world: World) {
-        commandBuffers.forEach { (worldId, buffer) ->
+        commandBuffers.flush { (worldId, buffer) ->
             if (world.id == worldId) buffer.apply(world)
         }
-    }
-
-    companion object {
-        private const val TIMEOUT = 10 * 1000
     }
 }

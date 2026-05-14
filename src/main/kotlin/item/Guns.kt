@@ -5,9 +5,9 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.player.*
 import org.lain.engine.transport.packet.ItemComponent
-import org.lain.engine.util.math.ImmutableVec3
+import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.VEC3_ZERO
-import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.World
 import org.lain.engine.world.pos
@@ -20,7 +20,7 @@ data class Gun(
     val barrel: Barrel = Barrel(0, 2),
     var clicked: Boolean = false,
     val ammunition: ItemId?,
-    val smoke: ImmutableVec3? = null,
+    val smoke: ImmutableEVec3? = null,
     val rate: Int = 10,
     var fireTime: Int = 0,
     var mode: FireMode = FireMode.SELECTOR,
@@ -56,11 +56,11 @@ fun EngineItem.gunAmmoConsumeCount(world: World, item: EngineItem): Int = with(w
     return count.coerceAtMost(barrel.maxBullets - barrel.bullets)
 }
 
-data class GunShoot(val start: Vec3, val vector: Vec3) : Component
+data class GunShoot(val start: EVec3, val vector: EVec3) : Component
 
 data class BulletFire(val shoot: GunShoot, val bullet: BulletParameters, val smoke: Smoke) : Component
 
-data class Smoke(val offset: Vec3, val velocity: Vec3)
+data class Smoke(val offset: EVec3, val velocity: EVec3)
 
 data class Recoil(
     val shoot: GunShoot,

@@ -56,12 +56,11 @@ class GameSession(
         field = value
     }
 
-    var admin = false
     var acousticDebugVolumes = listOf<Pair<VoxelPos, Float>>()
     val playerStorage = ClientPlayerStorage()
     val itemStorage = ClientItemStorage()
     val movementManager = MovementManager(this)
-    val chatBubbleList = ChatBubbleList(client.options, client.fontRenderer)
+    val chatBubbleList = ChatBubbleList(client.options)
     val chatManager = ClientEngineChatManager(
         chatEventBus,
         client,

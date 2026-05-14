@@ -8,15 +8,16 @@ import com.mojang.brigadier.builder.ArgumentBuilder
 import com.sk89q.worldedit.WorldEdit
 import com.sk89q.worldedit.fabric.FabricAdapter
 import com.sk89q.worldedit.math.BlockVector3
-import net.minecraft.entity.Entity
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.entity.projectile.ProjectileUtil
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.hit.EntityHitResult
-import net.minecraft.util.hit.HitResult
-import net.minecraft.world.RaycastContext
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.entity.projectile.ProjectileUtil
+import net.minecraft.world.level.ClipContext
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.EntityHitResult
+import net.minecraft.world.phys.HitResult
 import org.lain.engine.mc.engine
+import org.lain.engine.mc.voxelPos
 import org.lain.engine.mc.isWorldEditAvailable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.SOCIAL_INTERACTION_DISTANCE
@@ -39,7 +40,7 @@ fun ServerCommandDispatcher.registerIntentCommands(
         .requires { ctx -> permission == null || ctx.hasPermission(permission) }
     if (inputs.any { it.type is Input.Type.Table }) error("Can't create $id command intent: not supports table input type")
 
-    fun ArgumentBuilder<ServerCommandSource, *>.executeIntent() = this.executeCatching { ctx ->
+    fun ArgumentBuilder<CommandSourceStack, *>.executeIntent() = this.executeCatching { ctx ->
         val intent = contents.intents[rawId]!!
         val result = executeIntent(intent, ctx.getIntentScriptContext(inputs), contents, handler)
         if (result is ExecutionResult.Failure) {
@@ -47,7 +48,7 @@ fun ServerCommandDispatcher.registerIntentCommands(
         }
     }
 
-    fun build(idx: Int): ArgumentBuilder<ServerCommandSource, *>? {
+    fun build(idx: Int): ArgumentBuilder<CommandSourceStack, *>? {
         val (inputId, inputType) = inputs.getOrNull(idx) ?: return null
         val argType = when (inputType) {
             Input.Type.Logic -> BoolArgumentType.bool()
@@ -119,9 +120,13 @@ class CommandIntentBehaviour(private val context: Context?, private val entity: 
             SOCIAL_INTERACTION_DISTANCE.toDouble(),
             0f)
         ) {
-            is BlockHitResult -> IntentTarget(null, result.blockPos.engine(), result.pos.engine())
-            is EntityHitResult -> IntentTarget(playerTable.getGeneralPlayer(result.entity as PlayerEntity), result.entity.blockPos.engine(), result.pos.engine())
-            else -> error("Unexpected raycast hit result type ${result.type}")
+            is BlockHitResult -> IntentTarget(null, result.blockPos.voxelPos(), result.location.engine())
+            is EntityHitResult -> IntentTarget(
+                playerTable.getGeneralPlayer(result.entity as Player),
+                result.entity.blockPosition().voxelPos(),
+                result.location.engine()
+            )
+            else -> error("Unexpected raycast hit result type $result")
         }
     }
 
@@ -147,41 +152,41 @@ private fun raycastPlayerOrBlock(
     source: Entity,
     maxDistance: Double,
     tickDelta: Float
-): HitResult = with(source.entityWorld) {
-    val start = source.getCameraPosVec(tickDelta)
-    val direction = source.getRotationVec(tickDelta)
-    val end = start.add(direction.multiply(maxDistance))
+): HitResult = with(source.level()) {
+    val start = source.getEyePosition(tickDelta)
+    val direction = source.getViewVector(tickDelta)
+    val end = start.add(direction.scale(maxDistance))
 
-    val blockHit = raycast(
-        RaycastContext(
+    val blockHit = clip(
+        ClipContext(
             start,
             end,
-            RaycastContext.ShapeType.OUTLINE,
-            RaycastContext.FluidHandling.NONE,
+            ClipContext.Block.OUTLINE,
+            ClipContext.Fluid.NONE,
             source
         )
     )
 
     val searchBox = source.boundingBox
-        .stretch(direction.multiply(maxDistance))
-        .expand(1.0)
+        .expandTowards(direction.scale(maxDistance))
+        .inflate(1.0)
 
-    val entityHit = ProjectileUtil.getEntityCollision(
+    val entityHit = ProjectileUtil.getEntityHitResult(
         this,
         source,
         start,
         end,
         searchBox,
-        { entity -> entity is PlayerEntity && entity != source },
+        { entity -> entity is Player && entity != source },
         0f
     )
 
     if (entityHit != null) {
-        val entityDist = start.squaredDistanceTo(entityHit.pos)
+        val entityDist = start.distanceToSqr(entityHit.location)
         if (blockHit.type == HitResult.Type.MISS) {
             return entityHit
         }
-        val blockDist = start.squaredDistanceTo(blockHit.pos)
+        val blockDist = start.distanceToSqr(blockHit.location)
         if (entityDist < blockDist) {
             return entityHit
         }

@@ -7,14 +7,11 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.fabricmc.api.DedicatedServerModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.util.crash.CrashException
-import net.minecraft.util.crash.CrashReport
+import net.minecraft.CrashReport
+import net.minecraft.ReportedException
+import net.minecraft.server.level.ServerPlayer
+import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.friendlyError
-import org.lain.engine.mc.engineId
-import org.lain.engine.mc.getPlayer
-import org.lain.engine.mc.hasPermission
-import org.lain.engine.mc.isOp
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.script.*
@@ -35,7 +32,6 @@ import org.lain.engine.transport.packet.*
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.registerMinecraftServer
-import org.lain.engine.util.text.parseMiniMessage
 import org.luaj.vm2.lib.jse.JsePlatform
 import java.io.File
 import java.util.*
@@ -102,9 +98,7 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
                             luaContext = createLuaContext(entrypointScript)
                             continue@error
                         }
-                        "n" -> throw CrashException(
-                            CrashReport("Engine compilation", e)
-                        )
+                        "n" -> throw ReportedException(CrashReport("Engine compilation", e))
                         else -> LOGGER.warn("y - да, n - выключить сервер")
                     }
                 }
@@ -133,7 +127,7 @@ class DedicatedEngineMinecraftServer(
             if (!network.authorized) {
                 network.tickTimeout -= 1
                 if (network.tickTimeout <= 0) {
-                    val entity = entityTable.getEntity(player.id) as? ServerPlayerEntity ?: continue
+                    val entity = entityTable.getEntity(player.id) as? ServerPlayer ?: continue
                     connectionManager.disconnect(
                         connectionManager.getSession(player.id),
                         "Время ожидания подтверждения входа в игру истекло"
@@ -150,7 +144,7 @@ class DedicatedEngineMinecraftServer(
         authorizationListener.run()
     }
 
-    override fun onJoinPlayer(entity: ServerPlayerEntity) {
+    override fun onJoinPlayer(entity: ServerPlayer) {
         connectionManager.addConnectionSession(
             ConnectionSession(
                 SessionId(UUID.randomUUID()),
@@ -162,7 +156,7 @@ class DedicatedEngineMinecraftServer(
         super.onJoinPlayer(entity)
     }
 
-    override fun onLeavePlayer(entity: ServerPlayerEntity) {
+    override fun onLeavePlayer(entity: ServerPlayer) {
         // Уничтожаем в первую очередь запись PlayerId -> Entity
         // Она создаётся до инстанцирования игрока (см. ServerAuthorizationListener)
         val id = entity.engineId
@@ -202,13 +196,13 @@ class ServerAuthorizationListener(
         }
     }
 
-    private fun onAuth(packet: AuthPacket, entity: ServerPlayerEntity, id: PlayerId) {
+    private fun onAuth(packet: AuthPacket, entity: ServerPlayer, id: PlayerId) {
         val connection = connectionManager.getSession(id)
-        if (packet.version !in SharedConstants.ALLOWED_VERSIONS) {
-            val versionsText = if (SharedConstants.ALLOWED_VERSIONS.size == 1) {
-                SharedConstants.ALLOWED_VERSIONS.first()
+        if (packet.version !in Constants.ALLOWED_VERSIONS) {
+            val versionsText = if (Constants.ALLOWED_VERSIONS.size == 1) {
+                Constants.ALLOWED_VERSIONS.first()
             } else {
-                "одна из следующих: ${SharedConstants.ALLOWED_VERSIONS.map { "<newline>$it" }}"
+                "одна из следующих: ${Constants.ALLOWED_VERSIONS.map { "<newline>$it" }}"
             }
             friendlyError("Несовместимая версия. Установлена ${packet.version}, в то время как требуется $versionsText")
         }
@@ -236,7 +230,7 @@ class ServerAuthorizationListener(
         )
     }
 
-    private fun onVerificationResponse(developerModeStatus: DeveloperModeStatus, playerNamespaces: NamespaceHashMap, entity: ServerPlayerEntity, playerId: PlayerId) {
+    private fun onVerificationResponse(developerModeStatus: DeveloperModeStatus, playerNamespaces: NamespaceHashMap, entity: ServerPlayer, playerId: PlayerId) {
         val engine = server.engine
         val connection = connectionManager.getSession(playerId)
         if (engine.globals.requireIdenticalNamespaces) {
@@ -271,11 +265,9 @@ class ServerAuthorizationListener(
     }
 
     internal fun notifyOperators(id: String, username: Username) {
-        server.minecraftServer.playerManager.playerList
+        server.minecraftServer.players
             .filter { it.isOp }
-            .forEach {
-                it.sendMessage("<red>[!]<reset><gold> $username зашел на сервер с $id</gold>".parseMiniMessage())
-            }
+            .forEach { it.sendMessage("<red>[!]<reset><gold> $username зашел на сервер с $id</gold>") }
     }
 
     companion object {

@@ -1,6 +1,6 @@
 package org.lain.engine.script.lua
 
-import org.lain.engine.SharedConstants
+import org.lain.engine.Constants
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.script.*
@@ -29,7 +29,7 @@ fun Globals.setup() {
     })
     set("_debug", object : TwoArgFunction() {
         override fun call(arg1: LuaValue, arg2: LuaValue): LuaValue {
-            if (SharedConstants.DEBUG_ALL) {
+            if (Constants.DEBUG_ALL) {
                 LOGGER.info("[${arg1.tojstring()}] ${arg2.tojstring()}")
             }
             return NIL

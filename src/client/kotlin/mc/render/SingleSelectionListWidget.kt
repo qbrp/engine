@@ -1,22 +1,27 @@
 package org.lain.engine.client.mc.render
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gui.*
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder
-import net.minecraft.text.Text
-import net.minecraft.util.Colors
-import net.minecraft.util.math.MathHelper
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.Renderable
+import net.minecraft.client.gui.components.events.ContainerEventHandler
+import net.minecraft.client.gui.components.events.GuiEventListener
+import net.minecraft.client.gui.narration.NarratableEntry
+import net.minecraft.client.gui.narration.NarrationElementOutput
+import net.minecraft.client.input.MouseButtonEvent
+import net.minecraft.util.CommonColors
+import org.lain.engine.mc.MathMc
+import org.lain.engine.mc.Text
 
 /* !! VIBE CODING WARNING !! */
 
 class SingleSelectionListWidget<T>(
-    private val client: MinecraftClient,
+    private val client: Minecraft,
     var x: Int,
     var y: Int,
     var width: Int,
     var height: Int,
     private val itemHeight: Int = 15
-) : ParentElement, Drawable, Selectable {
+) : ContainerEventHandler, Renderable, NarratableEntry {
     data class Entry<T>(val value: T, val text: Text)
 
     private val entries = mutableListOf<Entry<T>>()
@@ -58,12 +63,12 @@ class SingleSelectionListWidget<T>(
     fun moveSelection(delta: Int) {
         if (entries.isEmpty()) return
         if (selectedIndex == -1) selectedIndex = 0
-        selectedIndex = MathHelper.clamp(selectedIndex + delta, 0, entries.lastIndex)
+        selectedIndex = MathMc.clamp(selectedIndex + delta, 0, entries.lastIndex)
         ensureVisible(selectedIndex)
     }
 
     // --- рендер ---
-    override fun render(ctx: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun render(ctx: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         // фон
         ctx.fill(x, y, x + width, y + height, 0x77000000) // полупрозрачный фон
 
@@ -93,8 +98,8 @@ class SingleSelectionListWidget<T>(
 
             // текст элемента
             val textX = x + 4
-            val textY = itemTop + (itemHeight / 2) - (client.textRenderer.fontHeight / 2)
-            ctx.drawText(client.textRenderer, entries[i].text, textX, textY, Colors.WHITE, true)
+            val textY = itemTop + (itemHeight / 2) - (client.font.lineHeight / 2)
+            ctx.drawString(client.font, entries[i].text, textX, textY, CommonColors.WHITE, true)
         }
 
         // простая полоса прокрутки (если нужно)
@@ -108,7 +113,7 @@ class SingleSelectionListWidget<T>(
         }
     }
 
-    override fun mouseClicked(click: Click, doubled: Boolean): Boolean {
+    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
         val mouseX = click.x.toInt()
         val mouseY = click.y.toInt()
         if (mouseX !in x..(x + width) || mouseY !in y..(y + height)) return false
@@ -122,7 +127,7 @@ class SingleSelectionListWidget<T>(
         return true
     }
 
-    override fun children(): List<Element?> = listOf()
+    override fun children(): List<GuiEventListener> = listOf()
 
     override fun isDragging(): Boolean = false
 
@@ -140,9 +145,9 @@ class SingleSelectionListWidget<T>(
         return true
     }
 
-    override fun getFocused(): Element { return this }
+    override fun getFocused(): GuiEventListener { return this }
 
-    override fun setFocused(focused: Element?) {}
+    override fun setFocused(focused: GuiEventListener?) {}
 
     override fun setFocused(focused: Boolean) {}
 
@@ -163,7 +168,7 @@ class SingleSelectionListWidget<T>(
         if (scroll > max) scroll = max.toFloat()
     }
 
-    override fun getType(): Selectable.SelectionType = Selectable.SelectionType.NONE
+    override fun narrationPriority(): NarratableEntry.NarrationPriority = NarratableEntry.NarrationPriority.NONE
 
-    override fun appendNarrations(builder: NarrationMessageBuilder) {}
+    override fun updateNarration(narrationElementOutput: NarrationElementOutput) {}
 }

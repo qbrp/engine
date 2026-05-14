@@ -34,14 +34,14 @@ class ClientMinecraftNetwork : ClientTransportContext {
 
             client.execute {
                 packetHistory.add(payload.packetId)
-                if (client.world == null) return@execute
+                if (client.level == null) return@execute
                 try {
                     with(ctx) {
                         packet.handler(ctx)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    client.disconnect(DisconnectText(e.message ?: "Unknown error"))
+                    client.disconnectFromWorld(DisconnectText(e.message ?: "Unknown error"))
                 }
             }
         }

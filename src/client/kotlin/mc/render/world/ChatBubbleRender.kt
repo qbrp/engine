@@ -1,7 +1,7 @@
 package org.lain.engine.client.mc.render.world
 
-import net.minecraft.client.render.Camera
-import net.minecraft.client.render.LightmapTextureManager
+import net.minecraft.client.Camera
+import net.minecraft.client.renderer.LightTexture
 import org.lain.engine.client.chat.ChatBubble
 import org.lain.engine.client.chat.updateChatBubble
 import org.lain.engine.client.mc.MinecraftClient
@@ -22,13 +22,13 @@ fun renderChatBubbles(
 ) {
     val client = MinecraftClient
     val entityTable by injectEntityTable()
-    if (client.player == null || client.world == null) {
+    if (client.player == null || client.level == null) {
         return
     }
 
     for (bubble in bubbles) {
         updateChatBubble(bubble, dt, height)
-        bubble.squaredDistanceToCamera = bubble.pos.squaredDistanceTo(camera.pos.engine())
+        bubble.squaredDistanceToCamera = bubble.pos.squaredDistanceTo(camera.position().engine())
         val easing = { bubble.canSee }.then { LabelEasing(bubble.squaredDistanceToCamera, easingDistance*easingDistance) }
         val player = entityTable.client.getEntity(bubble.player)
         val bubblePos = bubble.pos
@@ -39,13 +39,13 @@ fun renderChatBubbles(
             LabelRenderState(bubblePos, alpha, bubble.lines, scale),
             backgroundOpacity,
             if (!ignoreLightLevel && player != null) {
-                LightmapTextureManager.applyEmission(
-                    client.entityRenderDispatcher.getLight(player, client.renderTickCounter.getTickProgress(true)
+                LightTexture.lightCoordsWithEmission(
+                    client.entityRenderDispatcher.getPackedLightCoords(player, client.deltaTracker.getGameTimeDeltaPartialTick(true)
                     ),
                     2
                 )
             } else {
-                LightmapTextureManager.MAX_LIGHT_COORDINATE
+                LightTexture.FULL_BRIGHT
             },
             easing
         )

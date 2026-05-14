@@ -1,6 +1,6 @@
 package org.lain.engine.client.mc
 
-import net.minecraft.client.MinecraftClient
+import net.minecraft.client.Minecraft
 import org.joml.Quaternionf
 import org.lain.engine.client.mc.compat.createCameraOverhaulShakeSlot
 import org.lain.engine.client.mc.compat.isCameraOverhaulAvailable
@@ -13,9 +13,9 @@ import kotlin.math.pow
 
 
 class MinecraftCamera(
-    private val client: MinecraftClient,
+    private val client: Minecraft,
     override var shakeFrequency: Float = 15f,
-    override var maxShakeTranslation: Vec3 = Vec3(1f).mul(3f),
+    override var maxShakeTranslation: EVec3 = Vec3(1f).mul(3f),
     override var maxShakeRotation: Vec2 = Vec2(1f).scale(3f),
 ) : Camera {
     private var time = 0f
@@ -30,9 +30,9 @@ class MinecraftCamera(
     private var shakeEffects: MutableList<ShakeEffect> = mutableListOf()
 
     override val rotation: Quaternionf
-        get() = client.gameRenderer.camera.rotation
-    override val pos: Vec3
-        get() = client.cameraEntity?.entityPos?.engine() ?: VEC3_ZERO
+        get() = client.gameRenderer.mainCamera.rotation()
+    override val pos: EVec3
+        get() = client.cameraEntity?.position()?.engine() ?: VEC3_ZERO
 
     override fun shake(effect: ShakeEffect) {
         if (isCameraOverhaulAvailable()) {
@@ -54,10 +54,10 @@ class MinecraftCamera(
         impulseY += y
     }
 
-    override fun update(positionConsumer: (Vec3) -> Unit, rotationConsumer: (Vec2) -> Unit, dt: Float) {
+    override fun update(positionConsumer: (EVec3) -> Unit, rotationConsumer: (Vec2) -> Unit, dt: Float) {
         time += dt
 
-        val noise = MutableVec3(0.0f)
+        val noise = MutableEVec3(0.0f)
         val noiseRot = MutableVec2(0.0f, 0.0f)
 
         shakeEffects.removeIf { effect ->

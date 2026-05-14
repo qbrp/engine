@@ -1,7 +1,7 @@
 package org.lain.engine.transport.network
 
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.commands.FriendlyException
@@ -44,8 +44,8 @@ class ServerConnectionManager(
 
     fun disconnect(connectionSession: ConnectionSession, reason: String)  {
         val playerId = connectionSession.playerId
-        val entity = entityTable.server.getEntity(playerId) as? ServerPlayerEntity ?: minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
-        val networkHandler = entity.networkHandler
+        val entity = entityTable.server.getEntity(playerId) as? ServerPlayer ?: minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
+        val networkHandler = entity.connection
         networkHandler.disconnect(DisconnectText(reason))
     }
 

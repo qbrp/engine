@@ -1,66 +1,29 @@
 package org.lain.engine.client.mc.sound
 
-import net.minecraft.client.sound.*
-import net.minecraft.client.sound.SoundInstance.AttenuationType
-import net.minecraft.sound.SoundCategory
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.random.Random
-import org.lain.engine.player.Hearing
-import org.lain.engine.player.TINNITUS_HEAR_THRESHOLD
-import org.lain.engine.util.EngineId
-import org.lain.engine.util.math.ImmutableVec3
-import org.lain.engine.util.math.lerp
-
-class TinnitusSoundInstance(private val hearing: Hearing) : AbstractSoundInstance(EVENT, SoundCategory.AMBIENT, Random.create()), TickableSoundInstance {
-    private var ticks = 0
-    private val loss
-        get() = (hearing.loss - TINNITUS_HEAR_THRESHOLD) / (1f - TINNITUS_HEAR_THRESHOLD)
-    private val targetVolume
-        get() = 0.1f + loss
-
-    init { volume = targetVolume }
-
-    override fun isDone(): Boolean {
-        return volume < 0.01 && hearing.loss < 0.01
-    }
-
-    override fun tick() {
-        ticks++
-        val loss = hearing.loss
-        if (loss > 0.05f) {
-            this.volume = lerp(volume, targetVolume, 0.5f)
-        } else {
-            this.volume = lerp(volume, 0f, 0.05f)
-        }
-    }
-
-    override fun shouldAlwaysPlay(): Boolean {
-        return true
-    }
-
-    companion object {
-        val EVENT = registerSoundEvent("tinnitus")
-
-        // lazy
-        fun registerEvents() {}
-    }
-}
+import net.minecraft.client.resources.sounds.Sound
+import net.minecraft.client.resources.sounds.SoundInstance
+import net.minecraft.client.sounds.SoundManager
+import net.minecraft.client.sounds.WeighedSoundEvents
+import net.minecraft.resources.Identifier
+import net.minecraft.sounds.SoundSource
+import org.lain.engine.mc.engineId
+import org.lain.engine.util.math.ImmutableEVec3
 
 class ServerSoundInstance(
     val engineId: Identifier,
     val engineVolume: Float,
     val enginePitch: Float,
-    val soundSet: WeightedSoundSet,
-    val engineCategory: SoundCategory,
-    val pos: ImmutableVec3,
+    val soundSet: WeighedSoundEvents,
+    val engineCategory: SoundSource,
+    val pos: ImmutableEVec3,
     val static: Boolean = false
 ) : SoundInstance {
-    private var random = SoundInstance.createRandom()
+    private var random = SoundInstance.createUnseededRandom()
     private var sound: Sound? = null
 
-    override fun getId(): Identifier = engineId
+    override fun getIdentifier(): Identifier = engineId
 
-    override fun getSoundSet(soundManager: SoundManager): WeightedSoundSet {
+    override fun resolve(soundManager: SoundManager): WeighedSoundEvents {
         this.sound = soundSet.getSound(random)
         return soundSet
     }
@@ -72,17 +35,17 @@ class ServerSoundInstance(
         return sound!!
     }
 
-    override fun getCategory(): SoundCategory = engineCategory
+    override fun getSource(): SoundSource = engineCategory
 
-    override fun isRepeatable(): Boolean = false
+    override fun isLooping(): Boolean = false
 
     override fun isRelative(): Boolean = static
 
-    override fun getRepeatDelay(): Int = 0
+    override fun getDelay(): Int = 0
 
-    override fun getVolume(): Float = engineVolume * (sound?.volume?.get(this.random) ?: 1f)
+    override fun getVolume(): Float = engineVolume * (sound?.volume?.sample(this.random) ?: 1f)
 
-    override fun getPitch(): Float = enginePitch * (sound?.pitch?.get(this.random) ?: 1f)
+    override fun getPitch(): Float = enginePitch * (sound?.pitch?.sample(this.random) ?: 1f)
 
     override fun getX(): Double = pos.x.toDouble()
 
@@ -90,16 +53,16 @@ class ServerSoundInstance(
 
     override fun getZ(): Double = pos.z.toDouble()
 
-    override fun getAttenuationType(): AttenuationType = when(static) {
-        true -> AttenuationType.NONE
-        false -> AttenuationType.LINEAR
+    override fun getAttenuation(): SoundInstance.Attenuation = when(static) {
+        true -> SoundInstance.Attenuation.NONE
+        false -> SoundInstance.Attenuation.LINEAR
     }
 }
 
 class AudioSourceSoundInstance(
     private val engineId: Identifier,
     private val sound: Sound,
-    private val engineCategory: SoundCategory,
+    private val engineCategory: SoundSource,
     var _isRelative: Boolean = false,
     var _x: Float = 0f,
     var _y: Float = 0f,
@@ -108,23 +71,23 @@ class AudioSourceSoundInstance(
     var _pitch: Float = 1f,
     var attenuate: Boolean = false
 ) : SoundInstance {
-    override fun getId(): Identifier = engineId
+    override fun getIdentifier(): Identifier = engineId
 
-    override fun getSoundSet(soundManager: SoundManager): WeightedSoundSet = SOUND_SET
+    override fun resolve(soundManager: SoundManager): WeighedSoundEvents = SOUND_SET
 
     override fun getSound(): Sound = sound
 
-    override fun getCategory(): SoundCategory = engineCategory
+    override fun getSource(): SoundSource = engineCategory
 
-    override fun isRepeatable(): Boolean = false
+    override fun isLooping(): Boolean = false
 
     override fun isRelative(): Boolean = _isRelative
 
-    override fun getRepeatDelay(): Int = 0
+    override fun getDelay(): Int = 0
 
-    override fun getVolume(): Float = _volume * sound.volume.get(RANDOM)
+    override fun getVolume(): Float = _volume * sound.volume.sample(RANDOM)
 
-    override fun getPitch(): Float = _pitch * sound.pitch.get(RANDOM)
+    override fun getPitch(): Float = _pitch * sound.pitch.sample(RANDOM)
 
     override fun getX(): Double = _x.toDouble()
 
@@ -132,13 +95,13 @@ class AudioSourceSoundInstance(
 
     override fun getZ(): Double = _z.toDouble()
 
-    override fun getAttenuationType(): AttenuationType = when(attenuate) {
-        true -> AttenuationType.LINEAR
-        false -> AttenuationType.NONE
+    override fun getAttenuation(): SoundInstance.Attenuation = when(attenuate) {
+        true -> SoundInstance.Attenuation.LINEAR
+        false -> SoundInstance.Attenuation.NONE
     }
 
     companion object {
-        private val RANDOM = Random.create()
-        private val SOUND_SET = WeightedSoundSet(EngineId("engine"), "engine")
+        private val RANDOM = SoundInstance.createUnseededRandom()
+        private val SOUND_SET = WeighedSoundEvents(engineId("sound_set"), "engine")
     }
 }

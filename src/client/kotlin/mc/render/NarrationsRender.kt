@@ -1,8 +1,7 @@
 package org.lain.engine.client.mc.render
 
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.util.Colors
-import net.minecraft.util.math.ColorHelper
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.util.CommonColors
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.player.Narration
@@ -19,19 +18,19 @@ data class NarrationMessageRenderState(
 private const val NARRATION_FADE_TIME = 10f
 
 fun renderNarrations(
-    context: DrawContext,
+    context: GuiGraphics,
     narrations: List<NarrationMessageRenderState>,
     component: Narration,
     dt: Float
 ) {
-    val textRenderer = MinecraftClient.textRenderer
+    val textRenderer = MinecraftClient.font
     var y = 20
     for (renderState in narrations) {
         val narration = component.get(renderState.id) ?: return
         val content = narration.content
         val text = content.text.parseMiniMessageClient()
         val duration = content.duration
-        val textWidth = textRenderer.getWidth(text)
+        val textWidth = textRenderer.width(text)
         val time = narration.time
 
         val t1 = (time / NARRATION_FADE_TIME).coerceIn(0f, 1f)
@@ -42,14 +41,14 @@ fun renderNarrations(
         val shakeX = ((randomFloat() * tShake * 2) - tShake) * 3f
         val shakeY = ((randomFloat() * tShake * 2) - tShake) * 3f
 
-        context.drawTextWithShadow(
+        context.drawString(
             textRenderer,
             text,
-            context.scaledWindowWidth / 2 - textWidth / 2 + shakeX.toInt(),
+            context.guiWidth() / 2 - textWidth / 2 + shakeX.toInt(),
             y + shakeY.toInt(),
-            ColorHelper.withAlpha(renderState.opacity, Colors.WHITE),
+            ColorMc.color(renderState.opacity, CommonColors.WHITE),
         )
-        y += textRenderer.fontHeight + 1
+        y += textRenderer.lineHeight + 1
         renderState.opacity = lerp(renderState.opacity, t, 1f - 0.3f.pow(dt))
     }
 }

@@ -1,21 +1,21 @@
 package org.lain.engine.client.mc.render
 
-import net.minecraft.client.render.item.ItemRenderState
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.component.DataComponentTypes
-import net.minecraft.entity.Entity
-import net.minecraft.entity.LivingEntity
-import net.minecraft.item.ItemStack
-import net.minecraft.util.HeldItemContext
-import net.minecraft.util.Identifier
-import net.minecraft.world.World
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.client.renderer.item.ItemStackRenderState
+import net.minecraft.core.component.DataComponents
+import net.minecraft.resources.Identifier
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.ItemOwner
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.Level
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.resources.EngineItemModel
 
-private val BAKED_MODEL_MANAGER = MinecraftClient.bakedModelManager
+private val BAKED_MODEL_MANAGER = MinecraftClient.modelManager
 
 fun updateForLivingEntity(
-    renderState: ItemRenderState,
+    renderState: ItemStackRenderState,
     stack: ItemStack,
     displayContext: EngineItemDisplayContext,
     entity: LivingEntity
@@ -24,27 +24,27 @@ fun updateForLivingEntity(
         renderState,
         stack,
         displayContext,
-        entity.entityWorld,
-        entity as HeldItemContext,
+        entity.level(),
+        entity as ItemOwner,
         entity.id + displayContext.ordinal
     )
 }
 
 fun updateForNonLivingEntity(
-    renderState: ItemRenderState,
+    renderState: ItemStackRenderState,
     stack: ItemStack,
     displayContext: EngineItemDisplayContext,
     entity: Entity
 ) {
-    clearAndUpdate(renderState, stack, displayContext, entity.entityWorld, null, entity.id)
+    clearAndUpdate(renderState, stack, displayContext, entity.level(), null, entity.id)
 }
 
 fun clearAndUpdate(
-    renderState: ItemRenderState,
+    renderState: ItemStackRenderState,
     stack: ItemStack,
     displayContext: EngineItemDisplayContext,
-    world: World?,
-    heldItemContext: HeldItemContext?,
+    world: Level?,
+    heldItemContext: ItemOwner?,
     seed: Int
 ) {
     renderState.clear()
@@ -54,15 +54,15 @@ fun clearAndUpdate(
 }
 
 fun update(
-    renderState: ItemRenderState,
+    renderState: ItemStackRenderState,
     stack: ItemStack,
     displayContext: EngineItemDisplayContext,
-    world: World?,
-    heldItemContext: HeldItemContext?,
+    world: Level?,
+    heldItemContext: ItemOwner?,
     seed: Int
 ) {
-    val clientWorld = world as? ClientWorld
-    val identifier = stack.get(DataComponentTypes.ITEM_MODEL) ?: return
+    val clientWorld = world as? ClientLevel
+    val identifier = stack.get(DataComponents.ITEM_MODEL) ?: return
     renderState.isOversizedInGui = BAKED_MODEL_MANAGER.getItemProperties(identifier).oversizedInGui()
     renderState.setupAdditionalTransformationsEngine(stack, displayContext)
     (BAKED_MODEL_MANAGER.getItemModel(identifier) as? EngineItemModel)?.updateEngine(
@@ -76,15 +76,15 @@ fun update(
 }
 
 fun updateItemRenderState(
-    renderState: ItemRenderState,
+    renderState: ItemStackRenderState,
     itemModel: Identifier,
     oversizedInGui: Boolean,
     displayContext: EngineItemDisplayContext,
-    world: World?,
-    heldItemContext: HeldItemContext?,
+    world: Level?,
+    heldItemContext: ItemOwner?,
     seed: Int
 ) {
-    val clientWorld = world as? ClientWorld
+    val clientWorld = world as? ClientLevel
     renderState.isOversizedInGui = oversizedInGui
     (BAKED_MODEL_MANAGER.getItemModel(itemModel) as? EngineItemModel)?.updateEngine(
         renderState,

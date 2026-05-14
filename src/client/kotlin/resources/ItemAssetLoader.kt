@@ -6,18 +6,19 @@ import com.google.gson.JsonParseException
 import com.mojang.serialization.JsonOps
 import de.javagl.obj.Mtl
 import de.javagl.obj.Obj
-import net.minecraft.client.item.ItemAsset
-import net.minecraft.client.render.item.model.BasicItemModel
-import net.minecraft.client.render.model.json.Transformation
-import net.minecraft.client.texture.MissingSprite
-import net.minecraft.client.util.SpriteIdentifier
-import net.minecraft.util.Atlases
-import net.minecraft.util.Identifier
-import net.minecraft.util.JsonHelper
+import net.minecraft.client.renderer.block.model.ItemTransform
+import net.minecraft.client.renderer.item.BlockModelWrapper
+import net.minecraft.client.resources.model.Material
+import net.minecraft.data.AtlasIds
+import net.minecraft.resources.Identifier
 import org.joml.Vector3f
 import org.joml.Vector3fc
 import org.lain.engine.client.EngineClient
-import org.lain.engine.util.EngineId
+import org.lain.engine.client.mc.ItemAsset
+import org.lain.engine.client.mc.ItemAssetProperties
+import org.lain.engine.client.mc.JsonMc
+import org.lain.engine.client.mc.MissingSpriteId
+import org.lain.engine.mc.engineId
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.injectValue
 import org.slf4j.LoggerFactory
@@ -36,7 +37,7 @@ fun Asset.prepareIdentifier(): String {
 
 fun String.normalizeSlashes() = replace('\\', '/')
 
-fun String.toEngineIdentifier(): Identifier = EngineId(this)
+fun String.toEngineIdentifier(): Identifier = engineId(this)
 
 sealed class EngineItemAsset {
     data class Generated(val texture: EngineTexture, val type: String) : EngineItemAsset() {
@@ -77,7 +78,7 @@ enum class ModelType {
 }
 
 internal val LOGGER = LoggerFactory.getLogger("Engine Model Loader")
-internal val MISSING_SPRITE = SpriteIdentifier(Atlases.BLOCKS, MissingSprite.getMissingSpriteId())
+internal val MISSING_SPRITE = Material(AtlasIds.BLOCKS, MissingSpriteId)
 
 data class ResourceList(
     // Спрайт атлас -> текстуры
@@ -113,7 +114,7 @@ fun findAssets(): ResourceList {
             if (isJson) {
                 val asset = packer()
                 val reader = file.reader()
-                val json = JsonHelper.deserialize(reader)
+                val json = JsonMc.parse(reader)
                 if (file.nameWithoutExtension.endsWith(".asset")) {
                     json.substituteEngineRelativePathItemAsset(asset)
                     itemsAssets += EngineItemAsset.FileDefinition(packer(), json)
@@ -228,16 +229,16 @@ fun parseEngineItemAssets(
 
                     if (itemAsset == null) continue
 
-                    val disableCulling = JsonHelper.getBoolean(item.json, "disable_culling", false)
+                    val disableCulling = JsonMc.getAsBoolean(item.json, "disable_culling", false)
                     val markers = mutableMapOf<String, Vector3fc>()
                     if (item.json.has("markers")) {
-                        JsonHelper.getObject(item.json, "markers")
+                        JsonMc.getAsJsonObject(item.json, "markers")
                             .entrySet()
                             .forEach { (key, value) ->
                                 markers[key] = deserializeVec3f(value.asJsonArray)
                             }
                     }
-                    var transformationOutfit: Transformation? = null
+                    var transformationOutfit: ItemTransform? = null
                     if (item.json.has("transformation_outfit")) {
                         transformationOutfit = parseTransformation(item.json.get("transformation_outfit"))
                     }
@@ -258,11 +259,11 @@ fun parseEngineItemAssets(
             }
             is EngineItemAsset.Generated -> {
                 contents[item.registrationId] = ItemAsset(
-                    BasicItemModel.Unbaked(
+                    BlockModelWrapper.Unbaked(
                         item.registrationId,
                         listOf()
                     ),
-                    ItemAsset.Properties(false, false)
+                    ItemAssetProperties(false, false, 1f)
                 )
             }
         }

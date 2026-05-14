@@ -3,8 +3,6 @@ package org.lain.engine.client.render
 import org.lain.engine.client.MinecraftEngineClient
 import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.render.DrawableRoot
-import org.lain.engine.util.Injector
 import org.lwjgl.glfw.GLFW
 
 class Window(val mod: MinecraftEngineClient) {
@@ -16,11 +14,11 @@ class Window(val mod: MinecraftEngineClient) {
     private var lastWindowHeight: Float = -1.0f
 
     val widthDp: Float
-        get() = client.window.scaledWidth.toFloat()
+        get() = client.window.guiScaledWidth.toFloat()
     val heightDp: Float
-        get() = client.window.scaledHeight.toFloat()
+        get() = client.window.guiScaledHeight.toFloat()
     val scale: Float
-        get() = client.window.scaleFactor.toFloat()
+        get() = client.window.guiScale.toFloat()
 
     fun handleResize() {
         val currentW = widthDp
@@ -35,13 +33,12 @@ class Window(val mod: MinecraftEngineClient) {
     }
 
     fun isMinimized(): Boolean {
-        val handle = window.handle
+        val handle = window.handle()
         return GLFW.glfwGetWindowAttrib(handle, GLFW.GLFW_ICONIFIED) == 1
     }
 
     fun onResize() {
         MinecraftChat.channelsBar.measure()
         mod.uiRenderPipeline.resizeRoot()
-        Injector.resolveOrNull(DrawableRoot::class)?.resize(widthDp.toInt(), heightDp.toInt())
     }
 }

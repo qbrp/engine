@@ -1,15 +1,16 @@
 package org.lain.engine
 
 import kotlinx.coroutines.runBlocking
-import net.minecraft.block.BlockState
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.item.ItemStack
+import net.minecraft.core.BlockPos
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.util.WorldSavePath
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.ChunkPos
-import net.minecraft.world.chunk.Chunk
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.ChunkPos
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.chunk.ChunkAccess
+import net.minecraft.world.level.storage.LevelResource
 import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.setComponent
@@ -69,8 +70,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         acousticSimulator,
         this,
         dependencies.namespacedStorage,
-        minecraftServer.thread,
-        minecraftServer.getSavePath(WorldSavePath.ROOT).toFile(),
+        minecraftServer.runningThread,
+        minecraftServer.getWorldPath(LevelResource.ROOT).toFile(),
         database
     )
 
@@ -105,7 +106,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         updateServerMinecraftSystems(this, entityTable, players, connectionManager)
         engine.listWorlds().forEach { world -> world.players.forEach { player -> updatePlayerOwnedItems(world, player) } }
         engine.update()
-        updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld)
+        updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld())
         engine.listWorlds().forEachWithContext({ it }) { world ->
             updatePlayerScriptSystem()
             updateScriptLightSystem()
@@ -129,10 +130,10 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val compilationResult = dependencies.compilationResult
         luaContext.setupGame(LuaRuntimeDependencies(playerStorage, engine.worlds))
         engine.loadContents(luaContext, compilationResult)
-        minecraftServer.worlds.forEach {
+        minecraftServer.allLevels.forEach {
             val id = it.engine
             val world = world(id, engine.thread, engine.namespacedStorage) { chunkPos ->
-                it.chunkManager.chunkLoadingManager.getPlayersWatchingChunk(ChunkPos(chunkPos.x, chunkPos.z), false)
+                it.chunkSource.chunkMap.getPlayers(ChunkPos(chunkPos.x, chunkPos.z), false)
                     .mapNotNull { entity -> entityTable.getPlayer(entity) }
             }
             world.registerScriptComponents(engine.namespacedStorage)
@@ -160,9 +161,9 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.stop()
     }
 
-    open fun onJoinPlayer(entity: ServerPlayerEntity) {}
+    open fun onJoinPlayer(entity: ServerPlayer) {}
 
-    open fun onLeavePlayer(entity: ServerPlayerEntity) {
+    open fun onLeavePlayer(entity: ServerPlayer) {
         val player = entityTable.getPlayer(entity) ?: return
         engine.destroyPlayer(player)
         entityTable.removePlayer(entity)
@@ -171,7 +172,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     context(world: World)
     override fun onPlayerInstantiated(player: EnginePlayer) {
-        val entity = minecraftServer.playerManager.getPlayer(player.id.value) ?: return
+        val entity = minecraftServer.playerList.getPlayer(player.id.value) ?: return
         entityTable.setPlayer(entity, player)
         with(luaContext) {
             player.prepareLuaScriptComponents()
@@ -182,25 +183,25 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     override fun onChatMessage(message: IncomingMessage) {}
 
     override fun onCompiled(contents: NamespacedStorage) {
-        val commandManager = minecraftServer.commandManager
+        val commandManager = minecraftServer.commands
         commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler=engine.handler)
-        minecraftServer.playerManager.playerList.forEach { commandManager.sendCommandTree(it) }
+        minecraftServer.players.forEach { commandManager.sendCommands(it) }
     }
 
-    fun onBlockBreak(pos: BlockPos, world: net.minecraft.world.World) {
+    fun onBlockBreak(pos: BlockPos, world: Level) {
         acousticSimulator.removeBlock(pos, world)
         val engineWorld = engine.getWorld(world.engine)
         val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
         engineWorld.chunkStorage.removeVoxel(voxelPos)
     }
 
-    fun onBlockAdd(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: net.minecraft.world.World) {
+    fun onBlockAdd(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: Level) {
         acousticSimulator.updateBlock(state, pos, world)
-        engine.callbacks.executePlaceVoxelCallback(player, engine.getWorld(world), pos.engine(), state)
+        engine.callbacks.executePlaceVoxelCallback(player, engine.getWorld(world), pos.voxelPos(), state)
     }
 
-    fun onChunkUnload(world: net.minecraft.world.World, chunk: Chunk) {
-        val pos = chunk.pos.engine()
+    fun onChunkUnload(world: Level, chunk: ChunkAccess) {
+        val pos = chunk.pos.engineChunkPos()
         acousticSimulator.onChunkUnload(world.engine, chunk)
         engine.handler.onChunkUnload(pos)
         val engineWorld = engine.getWorld(world)
@@ -208,7 +209,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val componentManager = engineWorld.componentManager
         val savableComponentArrays = componentManager.listArrays().filter { it.meta.savable }
         engineWorld.chunkStorage.removeChunk(pos)
-        saveChunk(
+        saveChunkAsync(
             engine,
             pos,
             engineChunk.decals.toMap(),
@@ -221,29 +222,29 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         )
     }
 
-    fun onWorldUnload(world: net.minecraft.world.World) {
+    fun onWorldUnload(world: Level) {
         val engineWorld = engine.getWorld(world)
         engine.saveWorld(engineWorld)
     }
 }
 
 fun EngineServer.serverMinecraftPlayerLoadSettings(
-    entity: PlayerEntity,
+    entity: Player,
     playerId: PlayerId,
     developerModeStatus: DeveloperModeStatus,
     notifications: List<Notification>
 ): PlayerLoadSettings {
     assertOnThread()
-    val stacks = entity.inventory.mainStacks
+    val stacks = entity.inventory.iterator().asSequence().toList()
 
     return PlayerLoadSettings(
         playerId,
         stacks.mapNotNull { it.engine()?.uuid },
         notifications,
-        entity.entityPos.engine(),
+        entity.position().engine(),
         entity.name.string,
         developerModeStatus,
-        getWorld(entity.entityWorld.engine),
+        getWorld(entity.level().engine),
 
     )
 }

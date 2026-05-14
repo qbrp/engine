@@ -3,6 +3,7 @@ package org.lain.engine.player
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.EVec3
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -10,7 +11,7 @@ data class Orientation(
     var yaw: Float = 0f,
     var pitch: Float = 0f
 ) : Component {
-    val rotationVector: Vec3
+    val rotationVector: EVec3
         get() {
             val f = pitch * (Math.PI.toFloat() / 180)
             val g = -yaw * (Math.PI.toFloat() / 180)

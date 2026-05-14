@@ -4,14 +4,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import net.minecraft.block.Block
-import net.minecraft.block.BlockState
-import net.minecraft.registry.tag.TagKey
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.ChunkPos
-import net.minecraft.world.World
-import net.minecraft.world.chunk.Chunk
+import net.minecraft.core.BlockPos
+import net.minecraft.resources.Identifier
+import net.minecraft.tags.TagKey
+import net.minecraft.world.level.ChunkPos
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.chunk.ChunkAccess
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.chat.acoustic.*
 import org.lain.engine.player.EnginePlayer
@@ -29,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.jvm.optionals.getOrNull
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.min
@@ -38,9 +37,13 @@ class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Mess
 
 const val SEGMENT_SIZE = 16
 
-fun World.segmentOf(y: Int) = ceil((y - bottomY.toFloat()) / SEGMENT_SIZE).toInt().coerceAtMost(segmentCount) - 1
+fun Level.segmentOf(y: Int): Int {
+    val relativeY = y - minY.toFloat()
+    val segmentIndex = ceil(relativeY / SEGMENT_SIZE).toInt()
+    return segmentIndex.coerceAtMost(segmentCount) - 1
+}
 
-val World.segmentCount get() = ceil(height / SEGMENT_SIZE.toFloat()).toInt()
+val Level.segmentCount get() = ceil(height / SEGMENT_SIZE.toFloat()).toInt()
 
 data class AcousticBlockData(
     val solid: Float,
@@ -49,14 +52,14 @@ data class AcousticBlockData(
     val blocks: Map<Identifier, Float>,
     val tags: Map<TagKey<Block>, Float>,
 ) {
-    fun getPassability(pos: BlockPos, world: World, blockstate: BlockState): Float {
-        val blockRegistryKey = blockstate.registryEntry.key.getOrNull()
+    fun getPassability(pos: BlockPos, world: Level, blockstate: BlockState): Float {
+        val blockRegistryKey = blockstate.registryKey.identifier()
 
         val tag = tags
-            .filter { (tag, _) -> blockstate.isIn(tag) }
+            .filter { (tag, _) -> blockstate.`is`(tag) }
             .maxOfOrNull { (_, volume) -> volume }
 
-        val isFullCube = blockstate.isFullCube(world, pos)
+        val isFullCube = blockstate.isCollisionShapeFullBlock(world, pos)
         val isSolid = blockstate.isSolid
 
         val default = if (isSolid) {
@@ -69,9 +72,7 @@ data class AcousticBlockData(
             air
         }
 
-        val blockId = blockRegistryKey?.value
-
-        return blocks[blockId] ?: tag ?: default
+        return blocks[blockRegistryKey] ?: tag ?: default
     }
 
     companion object {
@@ -85,7 +86,7 @@ class MinecraftChunkAcousticScene private constructor(
     val x: Int,
     val y: Int,
     val z: Int,
-    val chunk: Chunk
+    val chunk: ChunkAccess
 ) {
     private val actors = AtomicInteger(0)
     private val shouldDestroy = AtomicBoolean(false)
@@ -138,19 +139,19 @@ class MinecraftChunkAcousticScene private constructor(
 
     companion object {
         fun create(
-            world: World,
-            chunk: Chunk,
+            world: Level,
+            chunk: ChunkAccess,
             acousticBlockData: AcousticBlockData,
             x0: Int = 0, x1: Int = 16,
             y0: Int, y1: Int,
             z0: Int = 0, z1: Int = 16
         ): MinecraftChunkAcousticScene {
-            val pos = BlockPos.Mutable()
-            val startX = chunk.pos.startX
-            val startZ = chunk.pos.startZ
+            val pos = MutableBlockPos()
+            val startX = chunk.startX
+            val startZ = chunk.startZ
             val startY = y0
             val height = chunk.height
-            val minY = chunk.bottomY
+            val minY = chunk.minY
 
             val sceneWidth = x1 - x0
             val sceneHeight = y1 - y0
@@ -270,9 +271,9 @@ class ConcurrentAcousticSceneBank {
 
     private val chunkMap = ConcurrentHashMap<WorldChunkKey, AcousticSceneSegmentCompound>()
 
-    fun addChunk(world: World, chunk: Chunk, acousticBlockData: AcousticBlockData): AcousticSceneSegmentCompound {
-        val topY = chunk.topYInclusive
-        val bottomY = chunk.bottomY
+    fun addChunk(world: Level, chunk: ChunkAccess, acousticBlockData: AcousticBlockData): AcousticSceneSegmentCompound {
+        val topY = chunk.maxY
+        val bottomY = chunk.minY
         val segments = world.segmentCount
         val segmentSize = SEGMENT_SIZE
 
@@ -322,7 +323,7 @@ class ConcurrentAcousticSceneBank {
             }
     }
 
-    fun setPassability(world: World, pos: BlockPos, value: Float): MinecraftChunkAcousticScene? {
+    fun setPassability(world: Level, pos: BlockPos, value: Float): MinecraftChunkAcousticScene? {
         val chunkPos = ChunkPos(pos)
         val oldSegment = getChunkSegment(world, chunkPos, pos.y) ?: return null
 
@@ -341,7 +342,7 @@ class ConcurrentAcousticSceneBank {
     }
 
     fun getChunkedView(
-        world: World,
+        world: Level,
         acousticBlockData: AcousticBlockData,
         x0: Int, z0: Int,
         x1: Int, z1: Int,
@@ -382,7 +383,7 @@ class ConcurrentAcousticSceneBank {
         )
     }
 
-    fun getChunkSegment(world: World, pos: ChunkPos, y: Int) = getChunk(world.engine, pos)?.getScene(world.segmentOf(y))
+    fun getChunkSegment(world: Level, pos: ChunkPos, y: Int) = getChunk(world.engine, pos)?.getScene(world.segmentOf(y))
 
     private fun getChunk(world: WorldId, pos: ChunkPos) = chunkMap[WorldChunkKey(world, pos)]
 }
@@ -399,15 +400,15 @@ class MinecraftAcousticManager(
     var range = AtomicInteger(32)
     var performanceDebug = AtomicBoolean(false)
 
-    fun updateBlock(block: BlockState, pos: BlockPos, world: World) {
+    fun updateBlock(block: BlockState, pos: BlockPos, world: Level) {
         setPassabilityAt(world, pos, acousticBlockData.get().getPassability(pos, world, block))
     }
 
-    fun removeBlock(pos: BlockPos, world: World) {
+    fun removeBlock(pos: BlockPos, world: Level) {
         setPassabilityAt(world, pos, acousticBlockData.get().air)
     }
 
-    fun setPassabilityAt(world: World, pos: BlockPos, value: Float) = coroutineScope.launch {
+    fun setPassabilityAt(world: Level, pos: BlockPos, value: Float) = coroutineScope.launch {
         try {
             acousticSceneBank.setPassability(world, pos, value)
         } catch (e: Throwable) {
@@ -417,7 +418,7 @@ class MinecraftAcousticManager(
         }
     }
 
-    fun onChunkUnload(world: WorldId, chunk: Chunk) = coroutineScope.launch {
+    fun onChunkUnload(world: WorldId, chunk: ChunkAccess) = coroutineScope.launch {
         acousticSceneBank.removeChunk(world, chunk.pos)
     }
 
@@ -439,7 +440,7 @@ class MinecraftAcousticManager(
 
         val blockPos = pos.toBlockPos()
         val y = blockPos.y
-        if (y > mcWorld.topYInclusive || y < mcWorld.bottomY) {
+        if (y > mcWorld.maxY || y < mcWorld.minY) {
             throw InvalidMessageSourcePositionException(pos.y.toInt())
         }
         val x = blockPos.x
@@ -488,7 +489,7 @@ class MinecraftAcousticManager(
 
         try {
             for (offset in NEIGHBOURS_VON_NEUMANN + intArrayOf(0, 0, 0)) {
-                val blockPosRelative = blockPos.add(offset[0], offset[1], offset[2])
+                val blockPosRelative = blockPos.offset(offset[0], offset[1], offset[2])
                 val passability = acousticBlockData.getPassability(
                     blockPosRelative,
                     mcWorld,

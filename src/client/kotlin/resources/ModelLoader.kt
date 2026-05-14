@@ -1,14 +1,15 @@
 package org.lain.engine.client.resources
 
-import net.minecraft.client.render.model.Geometry
-import net.minecraft.client.render.model.ModelTextures
-import net.minecraft.client.render.model.UnbakedModel
-import net.minecraft.client.render.model.json.JsonUnbakedModel
-import net.minecraft.client.util.SpriteIdentifier
-import net.minecraft.util.Atlases
-import net.minecraft.util.Identifier
-import net.minecraft.util.JsonHelper
+import net.minecraft.client.renderer.block.model.BlockModel
+import net.minecraft.client.renderer.block.model.TextureSlots
+import net.minecraft.client.resources.model.Material
+import net.minecraft.client.resources.model.UnbakedGeometry
+import net.minecraft.client.resources.model.UnbakedModel
+import net.minecraft.data.AtlasIds
+import net.minecraft.resources.Identifier
+import org.lain.engine.client.mc.JsonMc
 import org.lain.engine.client.mixin.resource.JsonUnbakedModelAccessor
+import org.lain.engine.mc.vanillaId
 import org.lain.engine.util.Timestamp
 import org.slf4j.LoggerFactory
 
@@ -28,10 +29,10 @@ fun parseEngineItemModels(
         val id = model.registrationId
         try {
             val unbakedModel = when(model.type){
-                ModelType.JSON -> JsonHelper.deserialize(
+                ModelType.JSON -> JsonMc.fromJson(
                     gson,
                     text,
-                    JsonUnbakedModel::class.java
+                    BlockModel::class.java
                 )
                 ModelType.OBJ -> parseObjUnbakedModel(
                     objFiles,
@@ -56,16 +57,16 @@ fun autogenerateModels(
     return models.associate { model ->
         val id = model.registrationId
         val textureId = model.texture.registrationId
-        val sprite = SpriteIdentifier(Atlases.BLOCKS, textureId)
-        id to JsonUnbakedModel(
-            Geometry.EMPTY,
-            UnbakedModel.GuiLight.ITEM,
+        val sprite = Material(AtlasIds.BLOCKS, textureId)
+        id to BlockModel(
+            UnbakedGeometry.EMPTY,
+            UnbakedModel.GuiLight.FRONT,
             false,
             null,
-            ModelTextures.Textures.Builder()
-                .addSprite("layer0", sprite)
+            TextureSlots.Data.Builder()
+                .addTexture("layer0", sprite)
                 .build(),
-            Identifier.ofVanilla(model.type)
+            vanillaId(model.type)
         )
     }.also {
         LOGGER.info("Генерируемые модели предметов созданы за {} мл.", start.timeElapsed())

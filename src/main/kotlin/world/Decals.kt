@@ -1,10 +1,7 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.math.Pos
-import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.math.floorToInt
-import org.lain.engine.util.math.randomFloat
+import org.lain.engine.util.math.*
 
 /**
  * # Декали
@@ -27,8 +24,8 @@ sealed class DecalContents {
 typealias Decals = List<Decal>
 
 @Serializable
-data class DecalsLayer(val directions: Map<Direction, Decals> = mapOf()) {
-    fun withDecal(direction: Direction, decal: Decal): DecalsLayer {
+data class DecalsLayer(val directions: Map<EDirection, Decals> = mapOf()) {
+    fun withDecal(direction: EDirection, decal: Decal): DecalsLayer {
         val map = directions.toMutableMap()
         val list = map.computeIfAbsent(direction) { listOf() }.toMutableList()
         list.add(decal)
@@ -42,7 +39,7 @@ data class DecalsLayer(val directions: Map<Direction, Decals> = mapOf()) {
 @Serializable
 data class DecalsLayerType(val name: String, val resolution: Int)
 
-enum class Direction(val index: Int, val normal: Vec3) {
+enum class EDirection(val index: Int, val normal: EVec3) {
     DOWN(1, Vec3(0f, -1f, 0f)),
     UP(2, Vec3(0f, 1f, 0f)),
     NORTH(3, Vec3(0f, 0f, -1f)),
@@ -65,7 +62,7 @@ enum class Direction(val index: Int, val normal: Vec3) {
 
 @Serializable
 data class BlockDecals(val version: Int = 0, val layers: Map<DecalsLayerType, DecalsLayer> = mapOf()) {
-    fun withDecalAtLayer(layer: DecalsLayerType, direction: Direction, decal: Decal): BlockDecals {
+    fun withDecalAtLayer(layer: DecalsLayerType, direction: EDirection, decal: Decal): BlockDecals {
         val layers = layers.toMutableMap()
         val newLayer = (layers[layer] ?: DecalsLayer()).withDecal(direction, decal)
         layers[layer] = newLayer
@@ -90,7 +87,7 @@ data class BlockDecals(val version: Int = 0, val layers: Map<DecalsLayerType, De
 val BULLET_DAMAGE_DECALS_LAYER = DecalsLayerType("bullet-damage", 16)
 const val MINIMUM_BULLET_DECAL_OPACITY = 0.7f
 
-fun World.attachBulletDamageDecal(direction: Direction, pos: Pos, voxelPos: VoxelPos) {
+fun World.attachBulletDamageDecal(direction: EDirection, pos: Pos, voxelPos: VoxelPos) {
     attachDecal(
         BULLET_DAMAGE_DECALS_LAYER,
         DecalContents.Chip(
@@ -122,7 +119,7 @@ fun World.removeDecals(
 fun World.attachDecal(
     layer: DecalsLayerType,
     contents: DecalContents,
-    direction: Direction,
+    direction: EDirection,
     pos: Pos,
     voxelPos: VoxelPos
 )  {
@@ -147,7 +144,7 @@ fun World.setDecals(voxelPos: VoxelPos, decals: BlockDecals?) {
 
 fun projectedDecal(
     contents: DecalContents,
-    direction: Direction,
+    direction: EDirection,
     pos: Pos,
     voxelPos: VoxelPos,
 ): Decal {
@@ -156,25 +153,25 @@ fun projectedDecal(
     val localZ = pos.z - voxelPos.z
 
     val (u, v) = when (direction) {
-        Direction.UP    -> localX to localZ
-        Direction.DOWN  -> localX to localZ
+        EDirection.UP    -> localX to localZ
+        EDirection.DOWN  -> localX to localZ
 
-        Direction.NORTH -> localX to localY
-        Direction.SOUTH -> localX to localY
+        EDirection.NORTH -> localX to localY
+        EDirection.SOUTH -> localX to localY
 
-        Direction.WEST  -> localZ to localY
-        Direction.EAST  -> localZ to localY
+        EDirection.WEST  -> localZ to localY
+        EDirection.EAST  -> localZ to localY
     }
 
     val depth = when (direction) {
-        Direction.DOWN  -> localY
-        Direction.UP    -> 1f - localY
+        EDirection.DOWN  -> localY
+        EDirection.UP    -> 1f - localY
 
-        Direction.NORTH -> localZ
-        Direction.SOUTH -> 1f - localZ
+        EDirection.NORTH -> localZ
+        EDirection.SOUTH -> 1f - localZ
 
-        Direction.WEST  -> localX
-        Direction.EAST  -> 1f - localX
+        EDirection.WEST  -> localX
+        EDirection.EAST  -> 1f - localX
     }
 
     return Decal(

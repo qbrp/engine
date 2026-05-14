@@ -2,7 +2,7 @@ package org.lain.engine.client.mixin;
 
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Lifecycle;
-import net.minecraft.text.ClickEvent;
+import net.minecraft.network.chat.ClickEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -13,7 +13,7 @@ public class ClickEventActionMixin {
 
     // Потенциальная дыра в безопасности, лучше убрать в будущем
     @Inject(
-            method = "validate",
+            method = "filterForSerialization",
             at = @At("HEAD"),
             cancellable = true
     )

@@ -1,80 +1,91 @@
 package org.lain.engine.client.mc.render.world
 
-import net.minecraft.client.render.OverlayTexture
-import net.minecraft.client.render.command.OrderedRenderCommandQueue
-import net.minecraft.client.render.entity.feature.FeatureRenderer
-import net.minecraft.client.render.entity.feature.FeatureRendererContext
-import net.minecraft.client.render.entity.model.ModelWithHead
-import net.minecraft.client.render.entity.model.PlayerEntityModel
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.util.math.RotationAxis
+import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.math.Axis
+import net.minecraft.client.model.HeadedModel
+import net.minecraft.client.model.player.PlayerModel
+import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.entity.RenderLayerParent
+import net.minecraft.client.renderer.entity.layers.RenderLayer
+import net.minecraft.client.renderer.entity.state.AvatarRenderState
+import net.minecraft.client.renderer.texture.OverlayTexture
 
-/**
- * @see net.minecraft.client.render.entity.feature.HeadFeatureRenderer
- */
 class EquipmentFeatureRenderer(
-    context: FeatureRendererContext<PlayerEntityRenderState, PlayerEntityModel>,
-) : FeatureRenderer<PlayerEntityRenderState, PlayerEntityModel>(context) {
-    override fun render(
-        matrixStack: MatrixStack,
-        orderedRenderCommandQueue: OrderedRenderCommandQueue,
+    context: RenderLayerParent<AvatarRenderState, PlayerModel>,
+) : RenderLayer<AvatarRenderState, PlayerModel>(context) {
+    override fun submit(
+        poseStack: PoseStack,
+        submitNodeCollector: SubmitNodeCollector,
         i: Int,
-        livingEntityRenderState: PlayerEntityRenderState,
+        entityRenderState: AvatarRenderState,
         f: Float,
         g: Float
     ) {
-        matrixStack.push()
-        contextModel.rootPart.applyTransform(matrixStack)
-        val items = livingEntityRenderState.getEngineState()?.detachedEquipment
+        poseStack.pushPose()
+        parentModel.root().translateAndRotate(poseStack)
+        val items = entityRenderState.getEngineState()?.detachedEquipment
         if (items != null) {
             for (equip in items) {
-                matrixStack.push()
-                if (equip.playerModelPart !== (contextModel as ModelWithHead).head) {
-                    equip.playerModelPart?.applyTransform(matrixStack)
-                    matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0f))
-                    equip.itemRenderState.render(matrixStack, orderedRenderCommandQueue, i, OverlayTexture.DEFAULT_UV, livingEntityRenderState.outlineColor)
+                poseStack.pushPose()
+                if (equip.playerModelPart !== (parentModel as HeadedModel).head) {
+                    equip.playerModelPart?.translateAndRotate(poseStack)
+                    poseStack.mulPose(Axis.YP.rotationDegrees(180.0f))
+                    equip.itemRenderState.submit(
+                        poseStack,
+                        submitNodeCollector,
+                        i,
+                        OverlayTexture.NO_OVERLAY,
+                        entityRenderState.outlineColor
+                    )
                 }
-                matrixStack.pop()
+                poseStack.popPose()
             }
         }
-        matrixStack.pop()
+        poseStack.popPose()
     }
 }
 
 class HeadEquipmentFeatureRenderer(
-    context: FeatureRendererContext<PlayerEntityRenderState, PlayerEntityModel>,
-) : FeatureRenderer<PlayerEntityRenderState, PlayerEntityModel>(context) {
+    context: RenderLayerParent<AvatarRenderState, PlayerModel>,
+) : RenderLayer<AvatarRenderState, PlayerModel>(context) {
     private val headTransformation: HeadTransformation = HeadTransformation.DEFAULT
 
-    override fun render(
-        matrixStack: MatrixStack,
-        orderedRenderCommandQueue: OrderedRenderCommandQueue,
+    override fun submit(
+        poseStack: PoseStack,
+        submitNodeCollector: SubmitNodeCollector,
         i: Int,
-        livingEntityRenderState: PlayerEntityRenderState,
+        entityRenderState: AvatarRenderState,
         f: Float,
         g: Float
     ) {
-        matrixStack.push()
-        contextModel.rootPart.applyTransform(matrixStack)
-        val renderState = livingEntityRenderState.getEngineState()
+        poseStack.pushPose()
+        parentModel.root().translateAndRotate(poseStack)
+        val renderState = entityRenderState.getEngineState()
         val items = renderState?.detachedEquipment
         if (items != null) {
             for (equip in items) {
-                matrixStack.push()
-                if (equip.playerModelPart == (contextModel as ModelWithHead).head) {
-                    (contextModel as ModelWithHead).applyTransform(matrixStack)
+                poseStack.pushPose()
+                if (equip.playerModelPart == (parentModel as HeadedModel).head) {
+                    equip.playerModelPart?.translateAndRotate(poseStack)
+                    (parentModel as HeadedModel).translateToHead(poseStack)
                     val skinEyeY = renderState.skinEyeY
                     if (equip.dependsEyeY) {
-                        matrixStack.translate(0f, -skinEyeY.toFloat(), 0f)
+                        poseStack.translate(0f, -skinEyeY, 0f)
                     }
-                    translate(matrixStack, headTransformation)
-                    equip.itemRenderState.render(matrixStack, orderedRenderCommandQueue, i, OverlayTexture.DEFAULT_UV, livingEntityRenderState.outlineColor)
+                    translate(poseStack, headTransformation)
+
+                    equip.itemRenderState.submit(
+                        poseStack,
+                        submitNodeCollector,
+                        i,
+                        OverlayTexture.NO_OVERLAY,
+                        entityRenderState.outlineColor
+                    )
                 }
-                matrixStack.pop()
+                poseStack.popPose()
             }
         }
-        matrixStack.pop()
+        poseStack.popPose()
     }
 
     data class HeadTransformation(val yOffset: Float, val skullYOffset: Float, val horizontalScale: Float) {
@@ -84,9 +95,9 @@ class HeadEquipmentFeatureRenderer(
     }
 
     companion object {
-        fun translate(matrices: MatrixStack, transformation: HeadTransformation) {
+        fun translate(matrices: PoseStack, transformation: HeadTransformation) {
             matrices.translate(0.0f, -0.25f + transformation.yOffset, 0.0f)
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0f))
+            matrices.mulPose(Axis.YP.rotationDegrees(180.0f))
             matrices.scale(0.625f, -0.625f, -0.625f)
         }
     }

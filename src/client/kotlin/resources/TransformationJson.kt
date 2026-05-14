@@ -1,51 +1,51 @@
 package org.lain.engine.client.resources
 
 import com.google.gson.*
-import net.minecraft.client.render.model.json.Transformation
-import net.minecraft.util.JsonHelper
-import net.minecraft.util.math.MathHelper
+import net.minecraft.client.renderer.block.model.ItemTransform
 import org.joml.Vector3f
+import org.lain.engine.client.mc.JsonMc
 import org.lain.engine.client.mc.render.EngineTransformation
 import org.lain.engine.client.mc.render.Transformations
 import org.lain.engine.client.mc.render.isIdentity
 import org.lain.engine.client.mc.render.isZero
-import org.lain.engine.util.math.MutableVec3
+import org.lain.engine.mc.MathMc
+import org.lain.engine.util.math.MutableEVec3
 import java.io.File
 
 val DEFAULT_ROTATION = Vector3f(0.0f, 0.0f, 0.0f)
 val DEFAULT_TRANSLATION = Vector3f(0.0f, 0.0f, 0.0f)
 val DEFAULT_SCALE = Vector3f(1.0f, 1.0f, 1.0f)
 
-fun parseTransformation(jsonElement: JsonElement): Transformation {
+fun parseTransformation(jsonElement: JsonElement): ItemTransform {
     val jsonObject = jsonElement.getAsJsonObject()
     val vector3f: Vector3f = parseVector3f(jsonObject, "rotation", DEFAULT_ROTATION)
     val vector3f2: Vector3f = parseVector3f(jsonObject, "translation", DEFAULT_TRANSLATION)
     vector3f2.mul(0.0625f)
     vector3f2.set(
-        MathHelper.clamp(vector3f2.x, -5.0f, 5.0f),
-        MathHelper.clamp(vector3f2.y, -5.0f, 5.0f),
-        MathHelper.clamp(vector3f2.z, -5.0f, 5.0f)
+        MathMc.clamp(vector3f2.x, -5.0f, 5.0f),
+        MathMc.clamp(vector3f2.y, -5.0f, 5.0f),
+        MathMc.clamp(vector3f2.z, -5.0f, 5.0f)
     )
     val vector3f3: Vector3f = parseVector3f(jsonObject, "scale", DEFAULT_SCALE)
     vector3f3.set(
-        MathHelper.clamp(vector3f3.x, -4.0f, 4.0f),
-        MathHelper.clamp(vector3f3.y, -4.0f, 4.0f),
-        MathHelper.clamp(vector3f3.z, -4.0f, 4.0f)
+        MathMc.clamp(vector3f3.x, -4.0f, 4.0f),
+        MathMc.clamp(vector3f3.y, -4.0f, 4.0f),
+        MathMc.clamp(vector3f3.z, -4.0f, 4.0f)
     )
-    return Transformation(vector3f, vector3f2, vector3f3)
+    return ItemTransform(vector3f, vector3f2, vector3f3)
 }
 
 fun parseVector3f(json: JsonObject, key: String, fallback: Vector3f): Vector3f {
     if (!json.has(key)) {
         return fallback
     }
-    val jsonArray = JsonHelper.getArray(json, key)
+    val jsonArray = JsonMc.getAsJsonArray(json, key)
     if (jsonArray.size() != 3) {
         throw JsonParseException("Expected 3 " + key + " values, found: " + jsonArray.size())
     }
     val fs = FloatArray(3)
     for (i in fs.indices) {
-        fs[i] = JsonHelper.asFloat(jsonArray.get(i), ("$key[$i]"))
+        fs[i] = jsonArray.get(i).asFloat
     }
     return Vector3f(fs[0], fs[1], fs[2])
 }
@@ -68,7 +68,7 @@ fun EngineTransformation.toJson(): JsonObject {
     return json
 }
 
-fun MutableVec3.toJsonArray(divide: Float = 1f): JsonArray {
+fun MutableEVec3.toJsonArray(divide: Float = 1f): JsonArray {
     val array = JsonArray()
     array.add(x / divide)
     array.add(y / divide)
@@ -114,7 +114,7 @@ fun exportEngineModelTransformations(model: EngineItemModel, transformations: Tr
         .withExtension("json")
 
     modelSource.reader().use { reader ->
-        val json = JsonHelper.deserialize(reader).asJsonObject
+        val json = JsonMc.parse(reader).asJsonObject
         json.add(
             "display",
             transformations.toDisplayJson()
@@ -123,7 +123,7 @@ fun exportEngineModelTransformations(model: EngineItemModel, transformations: Tr
     }
 
     assetSource.file.reader().use { reader ->
-        val json = JsonHelper.deserialize(reader).asJsonObject
+        val json = JsonMc.parse(reader).asJsonObject
         transformations.toAssetJson(json)
         assetSource.file.writeText(Gson().toJson(json))
     }

@@ -85,8 +85,8 @@ private fun LittleNotification(notification: LittleNotification) = Fragment(
         Fragment(
             layout = VerticalLayout(2f),
             children = listOfNotNull(
-                Fragment(text = TextArea(notification.titleTextNode)),
-                notification.descriptionTextNode?.let {
+                Fragment(text = TextArea(notification.title)),
+                notification.description?.let {
                     Fragment(text = TextArea(it, 0.7f))
                 }
             )

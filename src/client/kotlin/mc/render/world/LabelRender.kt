@@ -1,31 +1,29 @@
 package org.lain.engine.client.mc.render.world
 
-import net.minecraft.client.font.TextRenderer
-import net.minecraft.client.render.Camera
-import net.minecraft.client.render.VertexConsumerProvider
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.text.OrderedText
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.client.Camera
+import net.minecraft.client.gui.Font
+import net.minecraft.util.FormattedCharSequence
+import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.render.TextCache
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.util.Color
-import org.lain.engine.util.math.Vec3
-
-private val LABEL_TEXT_CACHE = TextCache()
+import org.lain.engine.util.math.EVec3
 
 data class ImmediateWorldRenderContext(
     val entityTable: EntityTable,
-    val vertexConsumers: VertexConsumerProvider.Immediate,
-    val textRenderer: TextRenderer,
-    val matrices: MatrixStack,
+    val vertexConsumers: ImmediateVertexConsumers,
+    val textRenderer: Font,
+    val matrices: PoseStack,
 )
 
 data class LabelRenderState(
-    val labelPos: Vec3,
+    val labelPos: EVec3,
     val labelAlpha: Float,
     val labelLines: List<Line>,
     val scale: Float
 ) {
-    data class Line(val text: OrderedText, val width: Int)
+    data class Line(val text: FormattedCharSequence, val width: Int)
 }
 
 data class LabelEasing(val squaredDistanceToCamera: Float, val squaredDistance: Float)
@@ -38,19 +36,19 @@ fun renderLabel(
     light: Int,
     easing: LabelEasing? = null,
 ) {
-    val cameraX = camera.pos.x
-    val cameraY = camera.pos.y
-    val cameraZ = camera.pos.z
+    val cameraX = camera.position().x
+    val cameraY = camera.position().y
+    val cameraZ = camera.position().z
     val (labelPos, labelAlpha, labelLines) = renderState
     if (labelAlpha <= 0f) return
 
-    ctx.matrices.push()
+    ctx.matrices.pushPose()
     ctx.matrices.translate(
         (labelPos.x - cameraX),
         (labelPos.y - cameraY) + 0.07f,
         (labelPos.z - cameraZ)
     )
-    ctx.matrices.multiply(camera.rotation)
+    ctx.matrices.mulPose(camera.rotation())
     ctx.matrices.scale(renderState.scale, -renderState.scale, renderState.scale)
 
     var alpha = labelAlpha
@@ -70,10 +68,10 @@ fun renderLabel(
         val offset = -(line.width / 2.0f)
         val textColor = Color.WHITE.withAlpha((alpha * 255).toInt())
         val backgroundColor = Color.BLACK.withAlpha((backgroundOpacity * alpha * 255f).toInt())
-        y -= ctx.textRenderer.fontHeight
+        y -= ctx.textRenderer.lineHeight
 
-        val matrix = ctx.matrices.peek().positionMatrix
-        ctx.textRenderer.draw(
+        val matrix = ctx.matrices.last().pose()
+        ctx.textRenderer.drawInBatch(
             line.text,
             offset,
             y,
@@ -81,11 +79,11 @@ fun renderLabel(
             false,
             matrix,
             ctx.vertexConsumers,
-            TextRenderer.TextLayerType.SEE_THROUGH,
+            Font.DisplayMode.SEE_THROUGH,
             backgroundColor.integer,
             light
         )
     }
 
-    ctx.matrices.pop()
+    ctx.matrices.popPose()
 }

@@ -6,48 +6,45 @@ import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.ArgumentBuilder
+import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import net.minecraft.command.argument.EntityArgumentType
-import net.minecraft.command.argument.Vec3ArgumentType
-import net.minecraft.entity.Entity
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.text.Text
-import net.minecraft.util.Colors
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.World
-import net.minecraft.world.chunk.WorldChunk
+import net.minecraft.ChatFormatting
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.Commands
+import net.minecraft.commands.arguments.EntityArgument
+import net.minecraft.commands.arguments.coordinates.Vec3Argument
+import net.minecraft.core.BlockPos
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.permissions.Permission
+import net.minecraft.server.permissions.PermissionLevel
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.chunk.LevelChunk
+import net.minecraft.world.phys.Vec3
 import org.lain.cyberia.ecs.apply
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.*
 import org.lain.engine.item.ItemId
-import org.lain.engine.mc.EntityTable
-import org.lain.engine.mc.engine
-import org.lain.engine.mc.engineId
-import org.lain.engine.mc.hasPermission
+import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.*
 import org.lain.engine.server.markDirty
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.*
-import org.lain.engine.util.math.ImmutableVec3
-import org.lain.engine.util.text.displayNameMiniMessage
-import org.lain.engine.util.text.parseMiniMessage
+import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 
-fun playerPositionsMessage(playerStorage: PlayerStorage, world: World): List<String> {
+fun playerPositionsMessage(playerStorage: PlayerStorage, world: Level): List<String> {
     val enginePlayers = playerStorage.getAll()
-    val minecraftPlayers = world.players.toList()
+    val minecraftPlayers = world.players().toList()
     return minecraftPlayers.mapNotNull { mcPlayer ->
         val enginePlayer = enginePlayers.find { it.id == mcPlayer.engineId } ?: return@mapNotNull null
         val enginePosFormatted = "%.2f, %.2f, %.2f".format(
@@ -57,9 +54,9 @@ fun playerPositionsMessage(playerStorage: PlayerStorage, world: World): List<Str
         )
 
         val minecraftPosFormatted = "%.2f, %.2f, %.2f".format(
-            mcPlayer.entityPos.x,
-            mcPlayer.entityPos.y,
-            mcPlayer.entityPos.z
+            mcPlayer.position().x,
+            mcPlayer.position().y,
+            mcPlayer.position().z
         )
 
         "<aqua>-<reset> ${enginePlayer.displayName} (${enginePlayer.username})<newline>" +
@@ -68,18 +65,18 @@ fun playerPositionsMessage(playerStorage: PlayerStorage, world: World): List<Str
     }
 }
 
-typealias ServerCommandDispatcher = CommandDispatcher<ServerCommandSource>
+typealias ServerCommandDispatcher = CommandDispatcher<CommandSourceStack>
 
-typealias ServerCommandContext = CommandContext<ServerCommandSource>
+typealias ServerCommandContext = CommandContext<CommandSourceStack>
 
 private val LOGGER = LoggerFactory.getLogger("Engine Fabric Commands")
 
-fun ServerCommandContext.getPlayers(id: String): List<ServerPlayerEntity> {
-    return EntityArgumentType.getPlayers(this, id).toList()
+fun ServerCommandContext.getPlayers(id: String): List<ServerPlayer> {
+    return EntityArgument.getPlayers(this, id).toList()
 }
 
-fun ServerCommandContext.getPlayerEntity(id: String): ServerPlayerEntity {
-    return EntityArgumentType.getPlayer(this, id)
+fun ServerCommandContext.getPlayerEntity(id: String): ServerPlayer {
+    return EntityArgument.getPlayer(this, id)
 }
 
 fun ServerCommandContext.getPlayer(id: String): EnginePlayer {
@@ -99,12 +96,12 @@ fun ServerCommandContext.getString(id: String): String {
     return StringArgumentType.getString(this, id)
 }
 
-fun ServerCommandContext.getVec3(id: String): Vec3d {
-    return Vec3ArgumentType.getVec3(this, id)
+fun ServerCommandContext.getVec3(id: String): Vec3 {
+    return Vec3Argument.getVec3(this, id)
 }
 
 
-fun <T : ArgumentBuilder<ServerCommandSource, T>> ArgumentBuilder<ServerCommandSource, T>.executeCatching(todo: (Context) -> Unit): T {
+fun <T : ArgumentBuilder<CommandSourceStack, T>> ArgumentBuilder<CommandSourceStack, T>.executeCatching(todo: (Context) -> Unit): T {
     val playerTable = injectValue<EntityTable>().server
     return executes {
         val source = it.source
@@ -116,18 +113,17 @@ fun <T : ArgumentBuilder<ServerCommandSource, T>> ArgumentBuilder<ServerCommandS
             )
             todo(ctx)
         } catch (e: FriendlyException) {
-            source.sendError(e.message!!.parseMiniMessage())
+            source.sendFailure(e.message!!.parseMiniMessage())
         } catch (e: Throwable) {
-            source.sendError(Text.of { e.message ?: "Неизвестная ошибка" })
+            source.sendFailure(literalText(e.message ?: "Неизвестная ошибка"))
             LOGGER.error("Возникла ошибка при выполнении команды ${e.message}", e)
         }
         1
     }
 }
 
-fun ServerCommandSource.hasPermission(text: String): Boolean {
-    if (server.isSingleplayer) return true
-    if (hasPermissionLevel(4)) return true
+fun CommandSourceStack.hasPermission(text: String): Boolean {
+    if (permissions().hasPermission(Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS))) return true
     if (player?.hasPermission(text) == true) return true
     return false
 }
@@ -136,11 +132,11 @@ class FriendlyException(message: String) : Exception(message)
 
 fun friendlyError(message: String): Nothing = throw FriendlyException(message)
 
-fun List<ServerPlayerEntity>.formatPlayerList() = joinToString(separator = ", ") { it.name.string }
+fun List<ServerPlayer>.formatPlayerList() = joinToString(separator = ", ") { it.name.string }
 
 data class Context(
     val player: EnginePlayer?,
-    val source: ServerCommandSource,
+    val source: CommandSourceStack,
     val command: ServerCommandContext
 ) {
     fun requirePlayer(): EnginePlayer {
@@ -152,21 +148,21 @@ data class Context(
     }
 
     fun sendFeedback(text: String, broadcastToOps: Boolean) {
-        source.sendFeedback({ text.parseMiniMessage() }, broadcastToOps)
+        source.sendSuccess({ text.parseMiniMessage() }, broadcastToOps)
     }
 
     fun sendError(text: String) {
-        source.sendError(text.parseMiniMessage())
+        source.sendFailure(text.parseMiniMessage())
     }
 
     fun sendError(exception: Throwable) {
-        source.sendError(Text.of(exception.message ?: "При выполнении команды возникла ошибка. Свяжитесь с администратором"))
+        source.sendFailure(literalText(exception.message ?: "При выполнении команды возникла ошибка. Свяжитесь с администратором"))
     }
 }
 
-fun literal(name: String) = CommandManager.literal(name)
+fun literal(name: String) = Commands.literal(name)
 
-fun <T> argument(name: String, argumentType: ArgumentType<T>) = CommandManager.argument(name, argumentType)
+fun <T : Any> argument(name: String, argumentType: ArgumentType<T>): RequiredArgumentBuilder<CommandSourceStack, T> = Commands.argument<T>(name, argumentType)
 
 fun stringArgument(name: String) = argument(name, StringArgumentType.string())
 
@@ -179,9 +175,9 @@ fun floatArgument(name: String, min: Float, max: Float) = argument(name, FloatAr
 fun selection(name: String, variants: List<String>) = argument(name, StringArgumentType.word())
     .suggests(StringListSuggestionProvider(variants))
 
-class StringListSuggestionProvider(val variants: List<String>) : SuggestionProvider<ServerCommandSource> {
+class StringListSuggestionProvider(val variants: List<String>) : SuggestionProvider<CommandSourceStack> {
     override fun getSuggestions(
-        context: CommandContext<ServerCommandSource>,
+        context: CommandContext<CommandSourceStack>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
         variants
@@ -202,9 +198,9 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         literal("speed")
             .requires { it.hasPermission("attributecommand.speed") }
             .then(
-                CommandManager.argument("players", EntityArgumentType.players())
+                Commands.argument("players", EntityArgument.players())
                     .then(
-                        CommandManager.literal("reset")
+                        Commands.literal("reset")
                             .executeCatching { ctx ->
                                 val players = ctx.command.getPlayers("players")
                                 val playerNameList = players.formatPlayerList()
@@ -218,7 +214,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                     .then(
                         literal("set")
                             .then(
-                                CommandManager.argument("value", FloatArgumentType.floatArg())
+                                Commands.argument("value", FloatArgumentType.floatArg())
                                     .executeCatching { ctx ->
                                         val players = ctx.command.getPlayers("players")
                                         val speed = ctx.command.getFloat("value")
@@ -235,14 +231,14 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     )
 
     register(
-        CommandManager.literal("jumpstrength")
+        literal("jumpstrength")
             .requires { it.hasPermission("attributecommand.jumpstrength") }
             .then(
-                CommandManager.argument("players", EntityArgumentType.players())
+                Commands.argument("players", EntityArgument.players())
                     .then(
-                        CommandManager.literal("set")
+                        literal("set")
                             .then(
-                                CommandManager.argument("value", FloatArgumentType.floatArg())
+                                argument("value", FloatArgumentType.floatArg())
                                     .executeCatching { ctx ->
                                         val players = ctx.command.getPlayers("players")
                                         val speed = ctx.command.getFloat("value")
@@ -256,7 +252,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                             )
                     )
                     .then(
-                        CommandManager.literal("reset")
+                        literal("reset")
                             .executeCatching { ctx ->
                                 val players = ctx.command.getPlayers("players")
                                 val playerNameList = players.formatPlayerList()
@@ -271,9 +267,9 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     )
 
     register(
-        CommandManager.literal("setname")
+        literal("setname")
             .then(
-                CommandManager.argument("args", StringArgumentType.greedyString())
+                argument("args", StringArgumentType.greedyString())
                     .executeCatching { ctx ->
                         val raw = ctx.command.getString("args")
                         val player = ctx.requirePlayer()
@@ -303,7 +299,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
 
 
     register(
-        CommandManager.literal("spawn")
+        literal("spawn")
             .executeCatching { ctx ->
                 val player = ctx.requirePlayer()
                 player.stopSpectating()
@@ -311,25 +307,25 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     )
 
     register(
-        CommandManager.literal("sourcemessage")
+        literal("sourcemessage")
             .requires { it.hasPermission("sourcemessage") }
             .then(
-                CommandManager.argument("pos", Vec3ArgumentType.vec3())
+                argument("pos", Vec3Argument.vec3())
                     .then(
-                        CommandManager.argument("author", StringArgumentType.string()
+                        Commands.argument("author", StringArgumentType.string()
                         )
                             .then(
-                                CommandManager.argument("volume", FloatArgumentType.floatArg())
+                                Commands.argument("volume", FloatArgumentType.floatArg())
                                     .then(
-                                        CommandManager.argument("text", StringArgumentType.greedyString())
+                                        Commands.argument("text", StringArgumentType.greedyString())
                                             .executeCatching { ctx ->
                                                 val source = ctx.source
                                                 val engine = server.engine
-                                                val world = engine.getWorld(source.world.engine)
+                                                val world = engine.getWorld(source.level.engine)
                                                 val text = ctx.command.getString("text")
                                                 val author = ctx.command.getString("author")
                                                 val volume = ctx.command.getFloat("volume")
-                                                val pos = Vec3ArgumentType.getPosArgument(ctx.command, "pos").getPos(source)
+                                                val pos = Vec3Argument.getVec3(ctx.command, "pos")
                                                 val chat = engine.chat
 
                                                 val channel = chat.settings.defaultChannel
@@ -341,7 +337,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                                         world,
                                                         author,
                                                         channel,
-                                                        ImmutableVec3(pos.engine())
+                                                        ImmutableEVec3(pos.engine())
                                                     )
                                                 )
 
@@ -354,13 +350,13 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     )
 
     register(
-        CommandManager.literal("speak")
+        literal("speak")
             .requires { it.hasPermission("speak") }
             .then(
-                CommandManager.argument("player", EntityArgumentType.player(),
+                argument("player", EntityArgument.player(),
                 )
                     .then(
-                        CommandManager.argument("text", StringArgumentType.greedyString())
+                        argument("text", StringArgumentType.greedyString())
                             .executeCatching { ctx ->
                                 val text = ctx.command.getString("text")
                                 val entity = ctx.command.getPlayerEntity("player")
@@ -381,7 +377,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     )
 
     register(
-        CommandManager.literal("reloadacousticchunks")
+        literal("reloadacousticchunks")
             .requires { it.hasPermission("reloadacousticchunks") }
             .executeCatching { ctx ->
                 server.acousticSimulator.invalidate()
@@ -390,12 +386,12 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     )
 
     register(
-        CommandManager.literal("voicebreak")
+        Commands.literal("voicebreak")
             .requires { it.hasPermission("voicebreak") }
             .then(
-                CommandManager.argument("player", EntityArgumentType.player())
+                argument("player", EntityArgument.player())
                     .then(
-                        CommandManager.literal("status")
+                        literal("status")
                             .executeCatching { ctx ->
                                 val player = ctx.command.getPlayer("player")
                                 val voiceLoose = player.get<VoiceLoose>()
@@ -415,7 +411,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                             }
                     )
                     .then(
-                        CommandManager.literal("remove")
+                        literal("remove")
                             .executeCatching { ctx ->
                                 val player = ctx.command.getPlayer("player")
 
@@ -427,10 +423,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     )
 
     register(
-        CommandManager.literal("engineitem")
+        literal("engineitem")
             .requires { it.hasPermission("engineitem") }
             .then(
-                CommandManager.argument("id", StringArgumentType.string())
+                argument("id", StringArgumentType.string())
                     .suggests(
                         NamespacedIdProvider { it.items.ids }
                     )
@@ -456,7 +452,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                         prefabs.forEach { prefab ->
                             server.createItemStack(ctx.requirePlayer(), prefab.id) { itemStack, item ->
                                 val copy = itemStack.copy()
-                                player.giveItemStack(copy)
+                                player.addItem(copy)
                                 copy
                             }
                         }
@@ -468,12 +464,12 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                         }
 
                         val text = String.format(format, argument, player.displayName?.string)
-                        ctx.source.sendFeedback({ Text.of(text) }, true)
+                        ctx.sendFeedback(text, true)
                     }
             )
     )
 
-    fun executeEngineSoundCommand(ctx: Context, id: String, pos: Vec3d? = null, volume: Float = 1f) {
+    fun executeEngineSoundCommand(ctx: Context, id: String, pos: Vec3? = null, volume: Float = 1f) {
         val storage = server.engine.namespacedStorage
         val id = SoundEventId(id)
         val player = ctx.requirePlayer()
@@ -493,10 +489,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     }
 
     register(
-        CommandManager.literal("enginesound")
+        literal("enginesound")
             .requires { it.hasPermission("enginesound") }
             .then(
-                CommandManager.argument("id", StringArgumentType.string())
+                argument("id", StringArgumentType.string())
                     .suggests(
                         NamespacedIdProvider { it.sounds.ids }
                     )
@@ -505,14 +501,14 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                         executeEngineSoundCommand(ctx, argument)
                     }
                     .then(
-                        CommandManager.argument("pos", Vec3ArgumentType.vec3())
+                        argument("pos", Vec3Argument.vec3())
                             .executeCatching { ctx ->
                                 val argument = ctx.command.getString("id")
                                 val pos = ctx.command.getVec3("pos")
                                 executeEngineSoundCommand(ctx, argument, pos)
                             }
                             .then(
-                                CommandManager.argument("volume", FloatArgumentType.floatArg())
+                                argument("volume", FloatArgumentType.floatArg())
                                     .executeCatching { ctx ->
                                         val argument = ctx.command.getString("id")
                                         val pos = ctx.command.getVec3("pos")
@@ -525,7 +521,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     )
 
     register(
-        CommandManager.literal("chatheads")
+        Commands.literal("chatheads")
             .requires { it.hasPermission(CHAT_HEADS_PERMISSION) }
             .executeCatching {
                 val player = it.requirePlayer()
@@ -534,16 +530,16 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             }
     )
 
-    fun getLookedBlock(entity: Entity): Pair<BlockPos, WorldChunk> {
-        val lookPos = entity.raycast(10.0, 0.0f, false).pos
-        val blockPos = BlockPos.ofFloored(lookPos)
-        val chunkPos = entity.chunkPos
-        val chunk = entity.entityWorld.getChunk(chunkPos.x, chunkPos.z)
+    fun getLookedBlock(entity: Entity): Pair<BlockPos, LevelChunk> {
+        val lookPos = entity.pick(10.0, 0.0f, false).location
+        val blockPos = BlockPos.containing(lookPos)
+        val chunkPos = entity.chunkPosition()
+        val chunk = entity.level().getChunk(chunkPos.x, chunkPos.z)
         return blockPos to chunk
     }
 
     register(
-        CommandManager.literal("interactions")
+        Commands.literal("interactions")
             .executeCatching { ctx ->
                 val player = ctx.requirePlayer()
                 val actions = mutableSetOf(InputAction.Base, InputAction.Attack)
@@ -559,7 +555,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                 val text = Text.empty()
                 text.append(
                     Text.literal("Список доступных взаимодействий:")
-                        .withColor(Colors.GREEN)
+                        .withStyle(ChatFormatting.GREEN)
                 )
                 for (variant in lookup.verbs.sortedBy { it.verb.priority }) {
                     val action = when(variant.action) {
@@ -571,10 +567,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                     val verb = variant.verb
                     val name = verb.name
                     text.append("\n")
-                    text.append("- ").withColor(Colors.GRAY)
-                    text.append("$action: $name").withColor(Colors.WHITE)
+                    text.append("- ").withStyle(ChatFormatting.GRAY)
+                    text.append("$action: $name").withStyle(ChatFormatting.WHITE)
                 }
-                ctx.command.source.sendFeedback({ text }, false)
+                ctx.command.source.sendSuccess({ text }, false)
             }
     )
 
@@ -644,12 +640,12 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
 class NamespacedIdProvider(
     val additional: List<String> = listOf(),
     val provider: (NamespacedStorage) -> List<String>,
-) : SuggestionProvider<ServerCommandSource> {
+) : SuggestionProvider<CommandSourceStack> {
     private val server by injectEngineServer()
     private val storage get() = server.namespacedStorage
 
     override fun getSuggestions(
-        context: CommandContext<ServerCommandSource>,
+        context: CommandContext<CommandSourceStack>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
         val input = builder.remainingLowerCase.replace(""""""", "")
@@ -672,10 +668,10 @@ class NamespacedIdProvider(
 fun ServerCommandDispatcher.registerServerChatCommand(name: String, channel: ChatChannel, argument: String = "text", permission: Boolean = false) {
     val engine by injectEngineServer()
     register(
-        CommandManager.literal(name)
+        Commands.literal(name)
             .requires { !permission || it.player?.hasPermission("chat.$name") == true }
             .then(
-                CommandManager.argument(argument, StringArgumentType.greedyString())
+                Commands.argument(argument, StringArgumentType.greedyString())
                     .executeCatching { ctx ->
                         val text = ctx.command.getString(argument)
                         val player = ctx.requirePlayer()
@@ -690,11 +686,11 @@ fun ServerCommandDispatcher.registerServerPmCommand() {
     val table by injectEntityTable()
 
     register(
-        CommandManager.literal("pm")
+        Commands.literal("pm")
             .then(
-                CommandManager.argument("player", EntityArgumentType.player())
+                Commands.argument("player", EntityArgument.player())
                     .then(
-                        CommandManager.argument("text", StringArgumentType.greedyString())
+                        Commands.argument("text", StringArgumentType.greedyString())
                             .executeCatching { ctx ->
                                 val text = ctx.command.getString("text")
                                 val recipient = ctx.command.getPlayerEntity("player")
@@ -702,7 +698,7 @@ fun ServerCommandDispatcher.registerServerPmCommand() {
                                 val recipientPlayer = table.server.requirePlayer(recipient)
 
                                 if (recipientPlayer == authorPlayer && !authorPlayer.developerMode) {
-                                    ctx.source.sendError(Text.of("Вы не можете написать самому себе"))
+                                    ctx.sendError("Вы не можете написать самому себе")
                                     return@executeCatching
                                 }
 

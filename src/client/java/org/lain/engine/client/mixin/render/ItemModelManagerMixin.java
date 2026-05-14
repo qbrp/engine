@@ -1,14 +1,15 @@
 package org.lain.engine.client.mixin.render;
 
-import net.minecraft.client.item.ItemModelManager;
-import net.minecraft.client.render.item.ItemRenderState;
-import net.minecraft.client.render.item.model.ItemModel;
-import net.minecraft.component.ComponentType;
-import net.minecraft.item.ItemDisplayContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.HeldItemContext;
-import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
+import net.minecraft.client.renderer.item.ItemModel;
+import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.client.resources.model.ModelManager;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.ItemOwner;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.render.TransformationsEditorScreenKt;
 import org.spongepowered.asm.mixin.Final;
@@ -21,28 +22,28 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.Function;
 
-@Mixin(ItemModelManager.class)
+@Mixin(ItemModelResolver.class)
 public class ItemModelManagerMixin {
     @Shadow @Final private Function<Identifier, ItemModel> modelGetter;
 
     @Inject(
-            method = "update",
+            method = "updateForTopItem",
             at = @At(
                     value = "TAIL"
             )
     )
-    public void engine$setTransformations(ItemRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, World world, HeldItemContext heldItemContext, int seed, CallbackInfo ci) {
+    public void engine$setTransformations(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, Level world, ItemOwner heldItemContext, int seed, CallbackInfo ci) {
         TransformationsEditorScreenKt.setupAdditionalTransformationsVanilla(renderState, stack, displayContext);
     }
 
     @Redirect(
-            method = "update",
+            method = "appendItemLayers",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/item/ItemStack;get(Lnet/minecraft/component/ComponentType;)Ljava/lang/Object;"
+                    target = "Lnet/minecraft/world/item/ItemStack;get(Lnet/minecraft/core/component/DataComponentType;)Ljava/lang/Object;"
             )
     )
-    public Object engine$updateRenderModel(ItemStack instance, ComponentType componentType) {
+    public Object engine$updateRenderModel(ItemStack instance, DataComponentType componentType) {
         Identifier engineItemModel = ClientMixinAccess.INSTANCE.getEngineItemModel(instance);
         if (engineItemModel != null) {
             return engineItemModel;

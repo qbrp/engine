@@ -7,13 +7,13 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import org.lain.engine.mc.displayNameMiniMessage
 import org.lain.engine.player.*
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
-import org.lain.engine.util.math.ImmutableVec3
+import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.snapshot
-import org.lain.engine.util.text.displayNameMiniMessage
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.pos
@@ -47,7 +47,7 @@ data class MessageSource(
     val world: World,
     val author: MessageAuthor,
     val time: Timestamp,
-    val position: ImmutableVec3? = null,
+    val position: ImmutableEVec3? = null,
 ) {
     val player
         get() = author.player
@@ -60,10 +60,10 @@ data class MessageSource(
     @Serializable
     data class Player(
         val id: PlayerId,
-        val pos: ImmutableVec3,
+        val pos: ImmutableEVec3,
         val isSpectating: Boolean,
         val chatHeadsEnabled: Boolean,
-        val eyePos: ImmutableVec3,
+        val eyePos: ImmutableEVec3,
         val displayName: String,
         val displayNameMiniMessage: String,
         val userName: String,
@@ -84,7 +84,7 @@ data class MessageSource(
             world: org.lain.engine.world.World,
             author: String,
             channel: ChatChannel,
-            pos: ImmutableVec3? = null,
+            pos: ImmutableEVec3? = null,
             time: Long = System.currentTimeMillis()
         ): MessageSource {
             return MessageSource(world.messageSource(channel), MessageAuthor(author), Timestamp(time), pos)
@@ -99,7 +99,7 @@ data class MessageSource(
                 player.world.messageSource(channel),
                 MessageAuthor(player.displayNameMiniMessage, player.messageSource(channel)),
                 Timestamp(time),
-                ImmutableVec3(player.pos)
+                ImmutableEVec3(player.pos)
             )
         }
     }

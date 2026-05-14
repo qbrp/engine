@@ -1,12 +1,10 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.util.Color
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.require
-import org.lain.engine.util.text.EngineText
-import org.lain.engine.util.text.TextColor
+import org.lain.engine.util.Color
 
 @JvmInline
 @Serializable
@@ -38,16 +36,13 @@ data class CustomName(
             throw InvalidCustomNameException("Имя не должно содержать символы <, # и /")
         }
     }
-    val text by lazy { EngineText(string, TextColor(color1, color2)) }
 }
 
 @Serializable
 data class DisplayName(
     val username: Username,
     var custom: CustomName? = null
-) : Component {
-    val usernameText by lazy { EngineText(username.value, TextColor(Color.WHITE)) }
-}
+) : Component
 
 fun EnginePlayer.removeCustomName() {
     get<DisplayName>()?.custom = null
@@ -61,9 +56,6 @@ var EnginePlayer.customName
 
 val EnginePlayer.displayName
     get() = this.require<DisplayName>().let { it.custom?.string ?: it.username.value }
-
-val EnginePlayer.displayNameText
-    get() = this.require<DisplayName>().let { it.custom?.text ?: it.usernameText }
 
 val EnginePlayer.username
     get() = this.require<DisplayName>().username.value

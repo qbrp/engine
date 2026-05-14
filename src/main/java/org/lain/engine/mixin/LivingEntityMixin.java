@@ -1,13 +1,13 @@
 package org.lain.engine.mixin;
 
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.attribute.EntityAttribute;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
 import org.lain.engine.mc.ServerMixinAccess;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -26,30 +26,34 @@ public class LivingEntityMixin {
             at = @At(value = "RETURN"),
             cancellable = true
     )
-    public void engine$getAttributeValue(RegistryEntry<EntityAttribute> attribute, CallbackInfoReturnable<Double> cir) {
-        if ((Object) this instanceof PlayerEntity player) {
+    public void engine$getAttributeValue(Holder<Attribute> holder, CallbackInfoReturnable<Double> cir) {
+        if ((Object) this instanceof Player player) {
             ServerMixinAccess engine = ServerMixinAccess.INSTANCE;
 
-            if (is(attribute, EntityAttributes.MOVEMENT_SPEED)) {
+            if (is(holder, Attributes.MOVEMENT_SPEED)) {
                 cir.setReturnValue(engine.getSpeed(player));
-            } else if (is(attribute, EntityAttributes.JUMP_STRENGTH)) {
+            } else if (is(holder, Attributes.JUMP_STRENGTH)) {
                 cir.setReturnValue(engine.getJumpStrength(player));
             }
         }
     }
 
     @Unique
-    private boolean is(RegistryEntry<EntityAttribute> entry, RegistryEntry<EntityAttribute> entry2) {
-        Optional<RegistryKey<EntityAttribute>> key = entry2.getKey();
-        return key.map(entityAttributeRegistryKey -> entry.getKey().map(k -> k == entityAttributeRegistryKey).orElse(false)).orElse(false);
+    private boolean is(Holder<Attribute> entry, Holder<Attribute> entry2) {
+        Optional<ResourceKey<Attribute>> key = entry2.unwrapKey();
+        return key.map(
+                entityAttributeRegistryKey ->entry.unwrapKey()
+                        .map(k -> k == entityAttributeRegistryKey).orElse(false)).
+                orElse(false
+        );
     }
 
     @Inject(
-            method = "damage",
+            method = "hurtServer",
             at = @At("HEAD"),
             cancellable = true
     )
-    public void onDamage(ServerWorld world, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
+    public void onDamage(ServerLevel serverLevel, DamageSource damageSource, float f, CallbackInfoReturnable<Boolean> cir) {
         if (ServerMixinAccess.INSTANCE.shouldCancelDamage()) {
             cir.setReturnValue(false);
             cir.cancel();
@@ -57,12 +61,12 @@ public class LivingEntityMixin {
     }
 
     @Inject(
-            method = "jump",
+            method = "jumpFromGround",
             at = @At("HEAD"),
             cancellable = true
     )
     public void engine$jump(CallbackInfo ci) {
-        if ((Object) this instanceof PlayerEntity player) {
+        if ((Object) this instanceof Player player) {
             if (ServerMixinAccess.INSTANCE.canJump(player)) {
                 ServerMixinAccess.INSTANCE.onPlayerJump(player);
             } else {

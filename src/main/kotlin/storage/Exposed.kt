@@ -2,7 +2,7 @@ package org.lain.engine.storage
 
 import kotlinx.serialization.Serializable
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.WorldSavePath
+import net.minecraft.world.level.storage.LevelResource
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -14,7 +14,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.lain.engine.item.ItemId
 
 fun connectDatabase(server: MinecraftServer): Database {
-    val path = server.getSavePath(WorldSavePath.ROOT)
+    val path = server.getWorldPath(LevelResource.ROOT)
     val oldEngineDbFile = path.toFile().resolve("engine.db")
     if (oldEngineDbFile.exists()) {
         oldEngineDbFile.renameTo(path.toFile().resolve("engine-players.db"))

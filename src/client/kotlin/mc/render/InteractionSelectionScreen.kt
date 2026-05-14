@@ -1,32 +1,34 @@
 package org.lain.engine.client.mc.render
 
+import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.Environment
-import net.minecraft.client.gl.RenderPipelines
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder
-import net.minecraft.client.gui.widget.ClickableWidget
-import net.minecraft.client.input.KeyInput
-import net.minecraft.client.util.InputUtil
-import net.minecraft.client.util.NarratorManager
-import net.minecraft.text.Text
-import net.minecraft.util.Colors
-import net.minecraft.util.Formatting
-import net.minecraft.util.Identifier
-import org.lain.engine.client.GameSession
-import org.lain.engine.client.mc.KeybindManager
-import org.lain.engine.player.InteractionComponent
-import org.lain.engine.player.InteractionSelection
-import org.lain.engine.util.EngineId
+import net.minecraft.ChatFormatting
+import net.minecraft.client.GameNarrator
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.AbstractWidget
+import net.minecraft.client.gui.narration.NarrationElementOutput
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.KeyEvent
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.resources.Identifier
+import net.minecraft.util.CommonColors
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.handle
+import org.lain.engine.client.GameSession
+import org.lain.engine.client.mc.KeybindManager
+import org.lain.engine.mc.Text
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.literalText
+import org.lain.engine.mc.vanillaId
+import org.lain.engine.player.InteractionComponent
+import org.lain.engine.player.InteractionSelection
 
 class InteractionSelectionScreen(
     val gameSession: GameSession,
     val selection: InteractionSelection,
     val keybindManager: KeybindManager,
-) : Screen(NarratorManager.EMPTY) {
+) : Screen(GameNarrator.NO_TITLE) {
     private var lastMouseX = 0
     private var lastMouseY = 0
     private var mouseUsedForSelection = false
@@ -56,20 +58,20 @@ class InteractionSelectionScreen(
         ticks++
     }
 
-    override fun render(context: DrawContext, mouseX: Int, mouseY: Int, deltaTicks: Float) {
-        context.drawCenteredTextWithShadow(
-            this.textRenderer,
+    override fun render(context: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {
+        context.drawCenteredString(
+            this.font,
             this.variant.name,
             this.width / 2,
             this.height / 2 - 31 - 20,
-            Colors.WHITE
+            CommonColors.WHITE
         )
-        context.drawCenteredTextWithShadow(
-            this.textRenderer,
+        context.drawCenteredString(
+            this.font,
             SELECT_NEXT_TEXT,
             this.width / 2,
             this.height / 2 + 5,
-            Colors.WHITE
+            CommonColors.WHITE
         )
         if (!this.mouseUsedForSelection) {
             this.lastMouseX = mouseX
@@ -78,17 +80,17 @@ class InteractionSelectionScreen(
         }
         val bl = this.lastMouseX == mouseX && this.lastMouseY == mouseY
         for (buttonWidget in variantButtons) {
-            buttonWidget.render(context, mouseX, mouseY, deltaTicks)
+            buttonWidget.renderWidget(context, mouseX, mouseY, deltaTicks)
             buttonWidget.setSelected(this.variant == buttonWidget.variant)
-            if (bl || !buttonWidget.isSelected) continue
+            if (bl || !buttonWidget.isActive) continue
             this.variant = buttonWidget.variant
         }
     }
 
-    override fun renderBackground(context: DrawContext, mouseX: Int, mouseY: Int, deltaTicks: Float) {
+    override fun renderBackground(context: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {
         val i = this.width / 2 - 62
         val j = this.height / 2 - 31 - 27
-        context.drawTexture(
+        context.blit(
             RenderPipelines.GUI_TEXTURED,
             TEXTURE,
             i,
@@ -120,23 +122,23 @@ class InteractionSelectionScreen(
         }
     }
 
-    override fun keyPressed(input: KeyInput): Boolean {
-        if (input.key() == InputUtil.GLFW_KEY_F4) {
+    override fun keyPressed(input: KeyEvent): Boolean {
+        if (input.key() == InputConstants.KEY_F4) {
             this.mouseUsedForSelection = false
             val index = variants.indexOf(variant) + 1
             variant = variants[index % variants.size]
             return true
-        } else if (input.key() == InputUtil.GLFW_KEY_ENTER) {
+        } else if (input.key() == InputConstants.KEY_RETURN) {
             this.apply()
-            this.client!!.setScreen(null)
-        } else if (input.key() == InputUtil.GLFW_KEY_ESCAPE) {
+            this.minecraft!!.setScreen(null)
+        } else if (input.key() == InputConstants.KEY_ESCAPE) {
             discard()
-            this.client!!.setScreen(null)
+            this.minecraft!!.setScreen(null)
         }
         return super.keyPressed(input)
     }
 
-    override fun shouldPause(): Boolean {
+    override fun isPauseScreen(): Boolean {
         return false
     }
 
@@ -145,11 +147,11 @@ class InteractionSelectionScreen(
         val variant: InteractionSelection.Variant,
         x: Int,
         y: Int
-    ) : ClickableWidget(x, y, 26, 26, Text.of(variant.name)) {
-        private val textureId = EngineId(variant.asset)
+    ) : AbstractWidget(x, y, 26, 26, literalText(variant.name)) {
+        private val textureId = engineId(variant.asset)
         private var selected = false
 
-        public override fun renderWidget(context: DrawContext, mouseX: Int, mouseY: Int, deltaTicks: Float) {
+        public override fun renderWidget(context: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {
             this.drawBackground(context)
             if (this.selected) {
                 this.drawSelectionBox(context)
@@ -157,7 +159,7 @@ class InteractionSelectionScreen(
             if (variant.isItem) {
                 context.drawFakeEngineItem(textureId, this.variant.name, this.x + 5, this.y + 5)
             } else {
-                context.drawGuiTexture(
+                context.blitSprite(
                     RenderPipelines.GUI_TEXTURED,
                     textureId,
                     x + 5,
@@ -168,20 +170,18 @@ class InteractionSelectionScreen(
             }
         }
 
-        public override fun appendClickableNarrations(builder: NarrationMessageBuilder?) {
-            this.appendDefaultNarrations(builder)
-        }
+        override fun updateWidgetNarration(narrationElementOutput: NarrationElementOutput) {}
 
-        override fun isSelected(): Boolean {
-            return super.isSelected() || this.selected
+        override fun isActive(): Boolean {
+            return super.isActive() || this.selected
         }
 
         fun setSelected(selected: Boolean) {
             this.selected = selected
         }
 
-        private fun drawBackground(context: DrawContext) {
-            context.drawGuiTexture(
+        private fun drawBackground(context: GuiGraphics) {
+            context.blitSprite(
                 RenderPipelines.GUI_TEXTURED,
                 SLOT_TEXTURE,
                 x,
@@ -191,8 +191,8 @@ class InteractionSelectionScreen(
             )
         }
 
-        private fun drawSelectionBox(context: DrawContext) {
-            context.drawGuiTexture(
+        private fun drawSelectionBox(context: GuiGraphics) {
+            context.blitSprite(
                 RenderPipelines.GUI_TEXTURED,
                 SELECTION_TEXTURE,
                 x,
@@ -204,15 +204,14 @@ class InteractionSelectionScreen(
     }
 
     companion object {
-        val SLOT_TEXTURE: Identifier = Identifier.ofVanilla("gamemode_switcher/slot")
-        val SELECTION_TEXTURE: Identifier = Identifier.ofVanilla("gamemode_switcher/selection")
-        private val TEXTURE: Identifier = Identifier.ofVanilla("textures/gui/container/gamemode_switcher.png")
+        val SLOT_TEXTURE: Identifier = vanillaId("gamemode_switcher/slot")
+        val SELECTION_TEXTURE: Identifier = vanillaId("gamemode_switcher/selection")
+        private val TEXTURE: Identifier = vanillaId("textures/gui/container/gamemode_switcher.png")
         private val SELECT_NEXT_TEXT: Text = Text.translatable(
-            "debug.gamemodes.select_next", *arrayOf<Any?>(
+            "debug.gamemodes.select_next",
                 Text.translatable(
                     "debug.gamemodes.press_f4"
-                ).formatted(Formatting.AQUA)
+                ).withStyle(ChatFormatting.AQUA)
             )
-        )
     }
 }

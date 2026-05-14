@@ -184,7 +184,7 @@ data class Setter<T>(val value: T?, val remove: Boolean) {
 @Serializable
 sealed class VoxelUpdate {
     @Serializable
-    data class AttachDecal(val direction: Direction, val decal: Decal, val layer: DecalsLayerType) : VoxelUpdate()
+    data class AttachDecal(val direction: EDirection, val decal: Decal, val layer: DecalsLayerType) : VoxelUpdate()
     @Serializable
     data class DetachDecal(val layers: List<DecalsLayerType>) : VoxelUpdate()
     @Serializable

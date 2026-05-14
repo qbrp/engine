@@ -1,6 +1,6 @@
 package org.lain.engine.util.file
 
-import org.lain.engine.SharedConstants
+import org.lain.engine.Constants
 import org.lain.engine.script.contents
 import org.lain.engine.script.scripts
 import java.io.File
@@ -53,7 +53,7 @@ fun listBuiltinResourcesRecursive(path: String): List<Path> {
 }
 
 fun loadStdLuaLibrary() {
-    if (SharedConstants.DEVELOPER_TEST_ENVIRONMENT && !SharedConstants.LOAD_LUA_LIBRARIES) return
+    if (Constants.DEVELOPER_TEST_ENVIRONMENT && !Constants.LOAD_LUA_LIBRARIES) return
     val targetRoot = BUILTIN_SCRIPTS_DIR
     listBuiltinResourcesRecursive("scripts").forEach { source ->
         println("Loading script ${source.toString()}")

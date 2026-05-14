@@ -1,9 +1,9 @@
 package org.lain.engine.script
 
-import net.minecraft.util.Identifier
-import net.minecraft.util.InvalidIdentifierException
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
+import org.lain.engine.mc.InvalidIdException
+import org.lain.engine.mc.isIdPathValid
 import org.lain.engine.player.ProgressionAnimation
 import org.lain.engine.player.ProgressionAnimationId
 import org.lain.engine.script.lua.LuaContext
@@ -114,10 +114,7 @@ data class CompiledNamespace(
 }
 
 fun assertIdentifierValid(namespaceId: NamespaceId, id: String) {
-    if (!Identifier.isPathValid(id)) throw CompilationException(
-        namespaceId,
-        InvalidIdentifierException("Non [a-z0-9/._-] character in path of location: $id")
-    )
+    if (!isIdPathValid(id)) throw CompilationException(namespaceId, InvalidIdException(id))
 }
 
 fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {

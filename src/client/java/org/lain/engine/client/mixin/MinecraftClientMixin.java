@@ -1,8 +1,8 @@
 package org.lain.engine.client.mixin;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.spongepowered.asm.mixin.Mixin;
@@ -12,14 +12,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(MinecraftClient.class)
+@Mixin(Minecraft.class)
 public abstract class MinecraftClientMixin {
-    @Shadow @Nullable public ClientPlayerEntity player;
+    @Shadow @Nullable public LocalPlayer player;
 
-    @Shadow protected abstract boolean doAttack();
+    @Shadow protected abstract boolean startAttack();
 
     @Inject(
-            method = "handleBlockBreaking",
+            method = "continueAttack",
             at = @At("HEAD"),
             cancellable = true
     )
@@ -31,7 +31,7 @@ public abstract class MinecraftClientMixin {
     }
 
     @Inject(
-            method = "doAttack",
+            method = "startAttack",
             at = @At("HEAD"),
             cancellable = true
     )
@@ -44,10 +44,10 @@ public abstract class MinecraftClientMixin {
     }
 
     @Inject(
-            method = "disconnect(Lnet/minecraft/client/gui/screen/Screen;Z)V",
+            method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;Z)V",
             at = @At("HEAD")
     )
-    public void engine$disconnect(Screen disconnectionScreen, boolean transferring, CallbackInfo ci) {
+    public void engine$disconnect(Screen screen, boolean bl, CallbackInfo ci) {
         ClientMixinAccess.INSTANCE.onDisconnect();
     }
 }

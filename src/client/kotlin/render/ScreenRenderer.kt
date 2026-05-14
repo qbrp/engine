@@ -1,11 +1,11 @@
 package org.lain.engine.client.render
 
+import org.lain.cyberia.ecs.require
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.render.InteractionProgressionRenderState
 import org.lain.engine.client.mc.render.NarrationMessageRenderState
 import org.lain.engine.player.Narration
-import org.lain.cyberia.ecs.require
 
 class ScreenRenderer(private val client: EngineClient) {
     private val window = client.window
@@ -17,16 +17,11 @@ class ScreenRenderer(private val client: EngineClient) {
     val narrations = mutableListOf<NarrationMessageRenderState>()
     val interactionProgression = InteractionProgressionRenderState(0f)
     var chatOpen = false
-//    val consoleRenderState = ConsoleRenderState(
-//        MutableVec2(window.widthDp - 200, 0f),
-//        200,
-//        mutableListOf()
-//    )
 
-    fun renderScreen(painter: Painter) {
+    fun renderScreen(tickDelta: Float) {
         val gameSession = client.gameSession
         if (!hudHidden && gameSession != null) {
-            littleNotificationsRenderer.update(painter.tickDelta)
+            littleNotificationsRenderer.update(tickDelta)
 
             val narrationMessages = gameSession.mainPlayer.require<Narration>()
             narrationMessages.messages.forEach { message ->

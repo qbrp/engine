@@ -1,21 +1,21 @@
 package org.lain.engine.client.mc.render
 
-import net.minecraft.client.font.TextRenderer
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.hud.ChatHudLine.Visible
-import net.minecraft.client.gui.widget.TextFieldWidget
-import net.minecraft.client.input.CharInput
-import net.minecraft.client.input.KeyInput
-import net.minecraft.text.Text
+import net.minecraft.client.GuiMessage
+import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.EditBox
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
 import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.parseMiniMessageClient
+import org.lain.engine.mc.Text
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.util.Color
 
 // Зачем нужна вся эта хуйня? А потому-что инкапсуляция, сученька, всё скрываем, ООП нахуй
 
 fun interface EngineLineConsumer {
-    fun accept(var1: Int, var2: Int, var3: Int, var4: Visible?, var5: Int, var6: Float)
+    fun accept(var1: Int, var2: Int, var3: Int, var4: GuiMessage.Line?, var5: Int, var6: Float)
 }
 
 fun interface MessageOpacityMultiplierProvider {
@@ -30,7 +30,7 @@ fun forEachVisibleLine(
     focused: Boolean,
     windowHeight: Int,
     lineHeight: Int,
-    visibleMessages: List<Visible>,
+    visibleMessages: List<GuiMessage.Line>,
     scrolledLines: Int,
     multiplierProvider: MessageOpacityMultiplierProvider,
     consumer: EngineLineConsumer,
@@ -39,8 +39,7 @@ fun forEachVisibleLine(
     for (k in (visibleMessages.size - scrolledLines).coerceAtMost(visibleLineCount) - 1 downTo 0) {
         val f: Float
         val l: Int = k + scrolledLines
-        val visible: Visible? = visibleMessages[l]
-        if (visible == null) continue
+        val visible: GuiMessage.Line = visibleMessages.getOrNull(l) ?: continue
         val m = currentTick - visible.addedTime()
         f = if (focused) 1.0f else multiplierProvider.getMessageOpacityMultiplier(m).toFloat()
         if (!(f > 1.0E-5f)) continue
@@ -52,10 +51,12 @@ fun forEachVisibleLine(
     return j
 }
 
-open class ShakingTextFieldWidget(private val textRenderer: TextRenderer, x: Int, y: Int, width: Int, height: Int, text: Text) : TextFieldWidget(textRenderer, x, y, width, height, text) {
+open class ShakingTextFieldWidget(private val textRenderer: Font, x: Int, y: Int, width: Int, height: Int, text: Text) : EditBox(
+    textRenderer, x, y, width, height, text
+) {
     private var channelAnim = 0f
     private var channelAnimTarget = 0f
-    private var channelText: Text? = null
+    private var channelText: Text = "Канал".parseMiniMessageClient()
     private var channelTextWidth = 0
     private var fadeOut = false
 
@@ -66,7 +67,7 @@ open class ShakingTextFieldWidget(private val textRenderer: TextRenderer, x: Int
             this.channelText = channel.name.parseMiniMessageClient()
         }
         channelTextWidth = if (channel != null) {
-            textRenderer.getWidth(this.channelText) + 4
+            textRenderer.width(this.channelText) + 4
         } else {
             0
         }
@@ -83,20 +84,20 @@ open class ShakingTextFieldWidget(private val textRenderer: TextRenderer, x: Int
         channelAnim = channelAnim.coerceIn(0f, 1f)
     }
 
-    override fun renderWidget(context: DrawContext, mouseX: Int, mouseY: Int, deltaTicks: Float) {
+    override fun renderWidget(context: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {
         tickAnimation(deltaTicks)
-        context.matrices.pushMatrix()
-        context.matrices.translate(MinecraftChat.getRandomShakeTranslation(), MinecraftChat.getRandomShakeTranslation())
+        context.pose().pushMatrix()
+        context.pose().translate(MinecraftChat.getRandomShakeTranslation(), MinecraftChat.getRandomShakeTranslation())
         super.renderWidget(context, mouseX, mouseY, deltaTicks)
-        context.matrices.popMatrix()
+        context.pose().popMatrix()
 
-        if (channelText != null && channelAnim > 0.01f) {
-            val textWidth = textRenderer.getWidth(channelText)
+        if (channelAnim > 0.01f) {
+            val textWidth = textRenderer.width(channelText)
 
             val alpha = (channelAnim * 255).toInt().coerceIn(0, 255)
             val color = Color.of(alpha, 160, 160, 160).integer
 
-            context.drawTextWithShadow(
+            context.drawString(
                 textRenderer,
                 channelText,
                 x + width - textWidth - 6,
@@ -106,20 +107,20 @@ open class ShakingTextFieldWidget(private val textRenderer: TextRenderer, x: Int
         }
     }
 
-    override fun charTyped(input: CharInput?): Boolean {
+    override fun charTyped(input: CharacterEvent): Boolean {
         return if (super.charTyped(input)) {
-            updateChannel(MinecraftChat.chatManager?.onTextInput(this.text))
+            updateChannel(MinecraftChat.chatManager?.onTextInput(this.value))
             true
         } else {
             false
         }
     }
 
-    override fun keyPressed(input: KeyInput): Boolean {
+    override fun keyPressed(input: KeyEvent): Boolean {
         val result = super.keyPressed(input)
         if (input.key == 259 || input.key == 261) {
-            updateChannel(MinecraftChat.chatManager?.onTextInput(this.text))
-        } else if (input.isEnter) {
+            updateChannel(MinecraftChat.chatManager?.onTextInput(this.value))
+        } else if (input.isConfirmation) {
             updateChannel(null)
         }
         return result

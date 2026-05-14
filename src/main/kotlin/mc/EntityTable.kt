@@ -1,12 +1,12 @@
 package org.lain.engine.mc
 
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.Level
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.world.WorldId
 import java.util.concurrent.ConcurrentHashMap
-import net.minecraft.world.World as McWorld
 
 /**
  * # Таблица сущностей
@@ -21,19 +21,19 @@ import net.minecraft.world.World as McWorld
  * @see org.lain.engine.CommonEngineServerMod
  */
 class EntityTable {
-    private val worldMap: ConcurrentHashMap<WorldId, McWorld> = ConcurrentHashMap()
-    val client = Entity2PlayerTable<PlayerEntity>()
-    val server = Entity2PlayerTable<ServerPlayerEntity>()
+    private val worldMap: ConcurrentHashMap<WorldId, Level> = ConcurrentHashMap()
+    val client = Entity2PlayerTable<Player>()
+    val server = Entity2PlayerTable<ServerPlayer>()
 
-    fun getGeneralPlayer(entity: PlayerEntity): EnginePlayer? {
-        return if (entity is ServerPlayerEntity) {
+    fun getGeneralPlayer(entity: Player): EnginePlayer? {
+        return if (entity is ServerPlayer) {
             server.getPlayer(entity)
         } else {
             client.getPlayer(entity)
         }
     }
 
-    class Entity2PlayerTable<T : PlayerEntity> {
+    class Entity2PlayerTable<T : Player> {
         private val playerToEntityMap: ConcurrentHashMap<PlayerId, T> = ConcurrentHashMap()
         private val entityToPlayerMap: ConcurrentHashMap<T, EnginePlayer> = ConcurrentHashMap()
 
@@ -58,11 +58,11 @@ class EntityTable {
             }
         }
 
-        fun getEntity(playerId: PlayerId): PlayerEntity? {
+        fun getEntity(playerId: PlayerId): Player? {
             return playerToEntityMap[playerId]
         }
 
-        fun getEntity(player: EnginePlayer): PlayerEntity? {
+        fun getEntity(player: EnginePlayer): Player? {
             return getEntity(player.id)
         }
 
@@ -80,16 +80,16 @@ class EntityTable {
         }
     }
 
-    fun setWorld(id: WorldId, world: McWorld) {
+    fun setWorld(id: WorldId, world: Level) {
         worldMap[id] = world
     }
 
-    fun getMcWorld(id: WorldId): McWorld? {
+    fun getMcWorld(id: WorldId): Level? {
         return worldMap[id]
     }
 }
 
 
-typealias ServerPlayerTable = EntityTable.Entity2PlayerTable<ServerPlayerEntity>
+typealias ServerPlayerTable = EntityTable.Entity2PlayerTable<ServerPlayer>
 
-typealias ClientPlayerTable = EntityTable.Entity2PlayerTable<PlayerEntity>
+typealias ClientPlayerTable = EntityTable.Entity2PlayerTable<Player>

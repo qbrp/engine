@@ -1,7 +1,7 @@
 package org.lain.engine.client
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.util.math.BlockPos
+import net.minecraft.client.Minecraft
+import net.minecraft.core.BlockPos
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.render.world.DecalSystem
@@ -18,7 +18,7 @@ import org.lain.engine.world.VoxelPos
 import java.util.*
 
 class MinecraftEngineClientEventBus(
-    private val minecraft: MinecraftClient,
+    private val minecraft: Minecraft,
     private val table: EntityTable,
     private val decalSystem: DecalSystem
 ) : ClientEventBus {
@@ -44,7 +44,7 @@ class MinecraftEngineClientEventBus(
     }
 
     private fun tryApplyFullPlayerData(player: EnginePlayer, data: FullPlayerData) {
-        val entity = minecraft.world?.players?.firstOrNull { it.uuid == player.id.value } ?: run {
+        val entity = minecraft.level?.players()?.firstOrNull { it.uuid == player.id.value } ?: run {
             pendingFullPlayerData.add(PendingFullPlayerData(player, data))
             return
         }
@@ -67,11 +67,11 @@ class MinecraftEngineClientEventBus(
         table.client.setPlayer(minecraft.player!!, player)
         Injector.register(gameSession.itemStorage)
         Injector.register(gameSession.movementSettings)
-        if (!minecraft.isInSingleplayer) {
+        if (!minecraft.isSingleplayer) {
             Injector.register<ItemAccess>(gameSession.itemStorage)
         }
         ClientMixinAccess.onMainPlayerInstantiated(player)
-        table.setWorld(gameSession.world.id, minecraft.world!!)
+        table.setWorld(gameSession.world.id, minecraft.level!!)
     }
 
     override fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession) {

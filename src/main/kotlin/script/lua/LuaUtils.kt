@@ -8,6 +8,7 @@ import org.lain.engine.util.IntentSelection
 import org.lain.engine.util.IntentTarget
 import org.lain.engine.util.file.getBuiltinResource
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.asVec3
 import org.lain.engine.world.VoxelPos
 import org.luaj.vm2.LuaTable
@@ -109,7 +110,7 @@ fun VoxelPos.toLuaValue(): LuaTable {
     )
 }
 
-fun Vec3.toLuaValue(): LuaTable {
+fun EVec3.toLuaValue(): LuaTable {
     return LuaValue.listOf(
         arrayOf(luaValue(x), luaValue(y), luaValue(z))
     )
@@ -125,7 +126,7 @@ fun LuaValue.toVoxelPos(): VoxelPos {
     )
 }
 
-fun LuaValue.toVector3f(): Vec3 {
+fun LuaValue.toVector3f(): EVec3 {
     val elements = checktable().toList { it.tofloat() }
     require(elements.size == 3) { "Invalid vector elements count: $elements" }
     return Vec3(elements[0], elements[1], elements[2])

@@ -1,20 +1,20 @@
 package org.lain.engine.client.mc.render.world
 
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
-import net.minecraft.client.model.ModelPart
-import net.minecraft.client.render.entity.model.PlayerEntityModel
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState
-import net.minecraft.client.render.item.ItemRenderState
-import net.minecraft.component.DataComponentTypes
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.item.ItemStack
+import net.minecraft.client.model.geom.ModelPart
+import net.minecraft.client.model.player.PlayerModel
+import net.minecraft.client.renderer.entity.state.AvatarRenderState
+import net.minecraft.client.renderer.item.ItemStackRenderState
+import net.minecraft.core.component.DataComponents
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.isLowDetailed
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.render.EngineItemDisplayContext
 import org.lain.engine.client.mc.render.updateForLivingEntity
-import org.lain.engine.client.resources.OutfitTag
+import org.lain.engine.client.resources.engineOutfit
 import org.lain.engine.container.Entries
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.FireMode
@@ -22,14 +22,14 @@ import org.lain.engine.item.Gun
 import org.lain.engine.item.ItemAssets
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.engineId
 import org.lain.engine.player.*
 import org.lain.engine.storage.PersistentId
-import org.lain.engine.util.EngineId
 import org.lain.engine.world.World
 
 data class EnginePlayerRenderState(
     val player: EnginePlayer,
-    val entity: PlayerEntity,
+    val entity: Player,
     var mainArmPose: ArmPose = ArmPose.NEUTRAL,
     var minorArmPose: ArmPose = ArmPose.NEUTRAL,
     var detachedEquipment: List<EquipmentRenderState> = emptyList(),
@@ -40,21 +40,21 @@ private val ENGINE_PLAYER_RENDER_STATE_KEY = RenderStateDataKey<EnginePlayerRend
 
 data class RenderStateComponent(val renderState: EnginePlayerRenderState) : Component
 
-fun PlayerEntityRenderState.setEngineState(state: EnginePlayerRenderState) {
+fun AvatarRenderState.setEngineState(state: EnginePlayerRenderState) {
     setData(ENGINE_PLAYER_RENDER_STATE_KEY, state)
 }
 
-fun PlayerEntityRenderState.getEngineState() = getData(ENGINE_PLAYER_RENDER_STATE_KEY)
+fun AvatarRenderState.getEngineState() = getData(ENGINE_PLAYER_RENDER_STATE_KEY)
 
 data class EquipmentRenderState(
-    val itemRenderState: ItemRenderState,
+    val itemRenderState: ItemStackRenderState,
     val dependsEyeY: Boolean,
     val playerPart: PlayerPart,
     var playerModelPart: ModelPart? = null,
 )
 
 fun GameSession.updatePlayerEntityRenderStates(playerTable: EntityTable) = with(world) {
-    val renderStates = (MinecraftClient.world?.players ?: return)
+    val renderStates = (MinecraftClient.level?.players() ?: return)
         .mapNotNull { it to (playerTable.client.getPlayer(it) ?: return@mapNotNull null) }
         .filter { (entity, player) -> !player.isLowDetailed }
         .associate { (entity, player) ->
@@ -89,26 +89,23 @@ private fun isGunWithoutSelector(item: EngineItem?): Boolean {
 data class PlayerEquipmentItemStacks(val stacks: MutableMap<PersistentId, ItemStack>) : Component
 
 context(world: World)
-fun createModelPartEquipmentRenderStates(items: List<EngineItem>, entity: PlayerEntity, player: EnginePlayer): List<EquipmentRenderState> {
+fun createModelPartEquipmentRenderStates(items: List<EngineItem>, entity: Player, player: EnginePlayer): List<EquipmentRenderState> {
     return items
         .map {
             val outfit = it.requireComponent<Outfit>()
             val model = it.requireComponent<ItemAssets>()
             val part = outfit.parts.first()
-            val state = ItemRenderState()
+            val state = ItemStackRenderState()
             val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
             val itemStack = equipmentStacks.computeIfAbsent(it.requireComponent()) {
                 val stack = ITEM_STACK_MATERIAL.copy()
                 stack.set(
-                    DataComponentTypes.ITEM_MODEL,
-                    EngineId(model.assets["default"] ?: "missingno")
-                )
-                stack.set(
-                    OutfitTag.TYPE,
-                    OutfitTag(outfit)
+                    DataComponents.ITEM_MODEL,
+                    engineId(model.assets["default"] ?: "missingno")
                 )
                 stack
             }
+            state.engineOutfit = outfit
             updateForLivingEntity(
                 state,
                 itemStack,
@@ -119,7 +116,7 @@ fun createModelPartEquipmentRenderStates(items: List<EngineItem>, entity: Player
         }
 }
 
-fun modelPartOf(part: PlayerPart, model: PlayerEntityModel) = when(part) {
+fun modelPartOf(part: PlayerPart, model: PlayerModel) = when(part) {
     PlayerPart.HEAD -> model.head
     PlayerPart.LEFT_ARM -> model.leftArm
     PlayerPart.RIGHT_ARM -> model.rightArm

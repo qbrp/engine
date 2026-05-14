@@ -1,16 +1,16 @@
 package org.lain.engine.client.mc.render
 
-import net.minecraft.client.gl.RenderPipelines
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.text.Text
-import net.minecraft.util.Colors
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.ColorHelper
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.renderer.RenderPipelines
+import net.minecraft.resources.Identifier
+import net.minecraft.util.CommonColors
+import org.lain.engine.mc.Text
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.literalText
 import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.ProgressionType
-import org.lain.engine.util.EngineId
 import org.lain.engine.util.math.lerp
 import kotlin.math.pow
 
@@ -24,16 +24,16 @@ data class InteractionProgressionRenderState(
 )
 
 private val DOTS = listOf(
-    Text.of("."),
-    Text.of(".."),
-    Text.of("...")
+    literalText("."),
+    literalText(".."),
+    literalText("...")
 )
 
 private const val DOT_ANIMATION_SPEED = 5
 private const val FADE_DELAY = 20
 
 fun renderInteractionProgression(
-    context: DrawContext,
+    context: GuiGraphics,
     renderState: InteractionProgressionRenderState,
     interaction: InteractionComponent?,
     dt: Float
@@ -51,7 +51,7 @@ fun renderInteractionProgression(
         val index = (size * progress)
             .toInt()
             .coerceIn(0, size - 1)
-        renderState.texture = if (frames.isEmpty()) null else EngineId(frames[index])
+        renderState.texture = if (frames.isEmpty()) null else engineId(frames[index])
         renderState.opacity = lerp(renderState.opacity, 1f, 1f - 0.7f.pow(dt))
         var text: String
         if (progress < 1f) {
@@ -75,31 +75,31 @@ fun renderInteractionProgression(
         val scale = 16
         renderState.texture?.let { texture ->
             fun draw(color: Int, offset: Int = 0) {
-                context.drawGuiTexture(
+                context.blitSprite(
                     RenderPipelines.GUI_TEXTURED,
                     texture,
                     2 + offset,
-                    context.scaledWindowHeight - 10 - scale + offset,
+                    context.guiHeight() - 10 - scale + offset,
                     scale,
                     scale,
-                    ColorHelper.withAlpha(renderState.opacity, color)
+                    ColorMc.color(renderState.opacity, color)
                 )
             }
 
-            draw(Colors.BLACK, 1)
-            draw(Colors.WHITE)
+            draw(CommonColors.BLACK, 1)
+            draw(CommonColors.WHITE)
         }
 
-        val textRenderer = MinecraftClient.textRenderer
+        val textRenderer = MinecraftClient.font
         renderState.text?.let { text ->
-            val y = context.scaledWindowHeight - 2 - 10 - (scale / 2)
-            val color = ColorHelper.withAlpha(renderState.opacity, Colors.WHITE)
-            context.drawTextWithShadow(textRenderer, text, 2 + scale + 4, y, color)
-            val width = textRenderer.getWidth(text)
+            val y = context.guiHeight() - 2 - 10 - (scale / 2)
+            val color = ColorMc.color(renderState.opacity, CommonColors.WHITE)
+            context.drawString(textRenderer, text, 2 + scale + 4, y, color)
+            val width = textRenderer.width(text)
             if (progress < 1f && interaction != null && interaction.text == null) {
                 val dotIndex = ((renderState.time / DOT_ANIMATION_SPEED).toInt()) % DOTS.size
                 val dot = DOTS[dotIndex]
-                context.drawTextWithShadow(
+                context.drawString(
                     textRenderer,
                     dot,
                     2 + scale + 4 + width + 1,

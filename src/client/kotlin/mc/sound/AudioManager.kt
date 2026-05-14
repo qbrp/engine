@@ -1,31 +1,28 @@
 package org.lain.engine.client.mc.sound
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.sound.*
-import net.minecraft.registry.Registries
-import net.minecraft.registry.Registry
-import net.minecraft.registry.entry.RegistryEntry
-import net.minecraft.sound.SoundEvents
-import net.minecraft.util.math.floatprovider.ConstantFloatProvider
-import org.lain.cyberia.ecs.require
+import net.minecraft.client.Minecraft
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
+import net.minecraft.client.resources.sounds.Sound
+import net.minecraft.client.sounds.WeighedSoundEvents
+import net.minecraft.core.Holder
+import net.minecraft.core.Registry
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.sounds.SoundEvents
+import net.minecraft.util.valueproviders.ConstantFloat
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mixin.SoundManagerAccessor
-import org.lain.engine.client.mixin.SoundSystemAccessor
 import org.lain.engine.client.util.AudioSource
 import org.lain.engine.client.util.EngineAudioManager
-import org.lain.engine.player.Hearing
-import org.lain.engine.util.EngineId
-import org.lain.engine.util.math.ImmutableVec3
+import org.lain.engine.mc.engineId
+import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 import org.lain.engine.world.SoundPlay
 import kotlin.random.Random
 
 class MinecraftAudioManager(
-    private val client: MinecraftClient
+    private val client: Minecraft
 ) : EngineAudioManager {
-    private var tinnitus: TinnitusSoundInstance? = null
     private val soundManager get() = client.soundManager
     private val soundSystem get() = (soundManager as SoundManagerAccessor).`engine$getSoundSystem`()
     private val soundSetCache = SoundSetCache()
@@ -63,7 +60,6 @@ class MinecraftAudioManager(
 
     override fun invalidateCache() {
         soundSetCache.invalidate()
-        tinnitus = null
     }
 
     override fun playSound(player: SoundPlay) {
@@ -71,12 +67,12 @@ class MinecraftAudioManager(
         val soundSet = soundSetCache.get(event)
         soundManager.play(
             ServerSoundInstance(
-                EngineId(event.id.value),
+                engineId(event.id.value),
                 player.volume,
                 player.pitch,
                 soundSet,
                 player.category.toMinecraft(),
-                ImmutableVec3(player.pos)
+                ImmutableEVec3(player.pos)
             )
         )
     }
@@ -87,7 +83,7 @@ class MinecraftAudioManager(
 
     override fun addAudioSource(audioSource: AudioSource, slot: String) {
         if (audioSources.contains(slot)) error("Duplicate audio source $slot")
-        val slotId = EngineId(slot)
+        val slotId = engineId(slot)
         val playback = AudioSourcePlayback(
             audioSource,
             AudioSourceSoundInstance(
@@ -115,7 +111,7 @@ class MinecraftAudioManager(
         audioSources.forEach { (slot, playback) ->
             playback.update()
             val source = playback.source
-            if (!soundManager.isPlaying(playback.instance)) {
+            if (!soundManager.isActive(playback.instance)) {
                 source.isEnded = true
                 remove += slot
             } else {
@@ -133,11 +129,11 @@ class MinecraftAudioManager(
     ): Sound {
         return soundCache.computeIfAbsent(SoundKey(attenuation, id)) {
             Sound(
-                EngineId(id),
+                engineId(id),
                 { 1f },
                 { 1f },
                 1,
-                Sound.RegistrationType.FILE,
+                Sound.Type.FILE,
                 stream,
                 preload,
                 attenuation
@@ -145,64 +141,42 @@ class MinecraftAudioManager(
         }
     }
 
-    private fun playMaster(sound: net.minecraft.sound.SoundEvent, pitch: Float, volume: Float = 0.25f) {
-        soundManager.play(PositionedSoundInstance.master(sound, pitch, volume))
+    private fun playMaster(sound: net.minecraft.sounds.SoundEvent, pitch: Float, volume: Float = 0.25f) {
+        soundManager.play(SimpleSoundInstance.forUI(sound, pitch, volume))
     }
 
-    private fun playMaster(sound: RegistryEntry<net.minecraft.sound.SoundEvent>, pitch: Float) {
-        soundManager.play(PositionedSoundInstance.master(sound, pitch))
+    private fun playMaster(sound: Holder.Reference<net.minecraft.sounds.SoundEvent>, pitch: Float) {
+        soundManager.play(SimpleSoundInstance.forUI(sound, pitch))
     }
 
     fun tick(gameSession: GameSession) {
-        updatePlayerTinnitus(gameSession)
         tickAudioSources()
     }
 
-    private fun updatePlayerTinnitus(gameSession: GameSession) {
-        val hearing = gameSession.mainPlayer.require<Hearing>()
-        if (hearing.loss > 0.01f) {
-            if (tinnitus == null) {
-                val soundInstance = TinnitusSoundInstance(hearing)
-                soundManager.play(soundInstance)
-                tinnitus = soundInstance
-            }
-            soundSystem.updateVolume()
-        } else if (hearing.loss < 0.01f) {
-            tinnitus = null
-        }
-    }
-
-    /** @see ClientMixinAccess.editVolume **/
-    private fun SoundSystem.updateVolume() {
-        (this as SoundSystemAccessor).`engine$getSources`().forEach { (source, manager) ->
-            manager.run { it.setVolume(`engine$getAdjustedVolume`(source)) }
-        }
-    }
-
     class SoundSetCache {
-        private val sets: MutableMap<SoundEventId, WeightedSoundSet> = mutableMapOf()
+        private val sets: MutableMap<SoundEventId, WeighedSoundEvents> = mutableMapOf()
 
         fun invalidate() {
             sets.clear()
         }
 
-        fun get(event: SoundEvent): WeightedSoundSet {
+        fun get(event: SoundEvent): WeighedSoundEvents {
             return sets.computeIfAbsent(event.id) {
-                val set = WeightedSoundSet(EngineId(event.id.value), null)
+                val set = WeighedSoundEvents(engineId(event.id.value), null)
                 event.sources
                     .map {
                         Sound(
-                            EngineId(it.id.value),
-                            ConstantFloatProvider.create(it.volume),
+                            engineId(it.id.value),
+                            ConstantFloat.of(it.volume),
                             { random -> it.pitch + (it.pitchRandom * random.nextFloat() * 2 - it.pitchRandom) },
                             it.weight,
-                            Sound.RegistrationType.FILE,
+                            Sound.Type.FILE,
                             false,
                             false,
                             it.distance
-                        ) as SoundContainer<Sound>
+                        )
                     }
-                    .forEach { set.add(it) }
+                    .forEach { set.addSound(it) }
                 set
             }
         }
@@ -214,6 +188,10 @@ class MinecraftAudioManager(
     }
 }
 
-fun registerSoundEvent(id: String): net.minecraft.sound.SoundEvent {
-    return Registry.register(Registries.SOUND_EVENT, EngineId(id), net.minecraft.sound.SoundEvent.of(EngineId(id)))
+fun registerSoundEvent(id: String): net.minecraft.sounds.SoundEvent {
+    return Registry.register(
+        BuiltInRegistries.SOUND_EVENT,
+        engineId(id),
+        net.minecraft.sounds.SoundEvent.createVariableRangeEvent(engineId(id))
+    )
 }

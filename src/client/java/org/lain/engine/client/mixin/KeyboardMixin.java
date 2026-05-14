@@ -1,13 +1,13 @@
 package org.lain.engine.client.mixin;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.Keyboard;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.option.GameOptions;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.KeyboardHandler;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.input.KeyEvent;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.DeveloperModeActionsKt;
 import org.lain.engine.client.mc.KeybindManager;
@@ -21,61 +21,61 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(Keyboard.class)
+@Mixin(KeyboardHandler.class)
 public class KeyboardMixin {
-    @Shadow @Final private MinecraftClient client;
+    @Shadow @Final private Minecraft minecraft;
 
     @Redirect(
-            method = "onKey",
+            method = "keyPress",
             at = @At(
                     value = "FIELD",
                     opcode = Opcodes.PUTFIELD,
-                    target = "Lnet/minecraft/client/option/GameOptions;hudHidden:Z"
+                    target = "Lnet/minecraft/client/Options;hideGui:Z"
             )
     )
-    private void engine$cancelHidingHud(GameOptions instance, boolean value) {}
+    private void engine$cancelHidingHud(Options instance, boolean value) {}
 
     @Redirect(
-            method = "onKey",
+            method = "keyPress",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/util/InputUtil;fromKeyCode(Lnet/minecraft/client/input/KeyInput;)Lnet/minecraft/client/util/InputUtil$Key;"
+                    target = "Lcom/mojang/blaze3d/platform/InputConstants;getKey(Lnet/minecraft/client/input/KeyEvent;)Lcom/mojang/blaze3d/platform/InputConstants$Key;"
             )
     )
-    public InputUtil.Key engine$invokeChatScreenKeybindings(KeyInput input) {
-        InputUtil.Key key = InputUtil.fromKeyCode(input);
+    public InputConstants.Key engine$invokeChatScreenKeybindings(net.minecraft.client.input.KeyEvent keyEvent) {
+        InputConstants.Key key = InputConstants.getKey(keyEvent);
         KeybindManager keybindManager = ClientMixinAccess.INSTANCE.getKeybindManager();
-        KeyBinding[] keybindings = new KeyBinding[] {};
-        if (client.currentScreen instanceof ChatScreen) {
-            keybindings = new KeyBinding[]{
+        KeyMapping[] keybindings = new KeyMapping[] {};
+        if (minecraft.screen instanceof ChatScreen) {
+            keybindings = new KeyMapping[]{
                     keybindManager.getAdjustChatVolume().getMinecraft(),
                     keybindManager.getDecreaseChatVolume().getMinecraft(),
                     keybindManager.getResetChatVolume().getMinecraft()
             };
-        } else if (client.currentScreen instanceof InteractionSelectionScreen) {
-            keybindings = new KeyBinding[]{
+        } else if (minecraft.screen instanceof InteractionSelectionScreen) {
+            keybindings = new KeyMapping[]{
                     keybindManager.getBase().getMinecraft(),
                     keybindManager.getAttack().getMinecraft(),
                     keybindManager.getTakeOffEquip().getMinecraft()
             };
         }
 
-        for (KeyBinding keybinding : keybindings) {
-            keybinding.setPressed(KeyBindingHelper.getBoundKeyOf(keybinding) == key);
+        for (KeyMapping keybinding : keybindings) {
+            keybinding.setDown(KeyBindingHelper.getBoundKeyOf(keybinding) == key);
         }
 
         return key;
     }
 
     @Inject(
-            method = "onKey",
+            method = "keyPress",
             at = @At(
                     value = "HEAD"
             ),
             cancellable = true
     )
-    public void engine$onKey(long window, int action, KeyInput input, CallbackInfo ci) {
-        if (DeveloperModeActionsKt.onKeyDeveloperMode(input.key())) {
+    public void engine$onKey(long l, int i, KeyEvent keyEvent, CallbackInfo ci) {
+        if (DeveloperModeActionsKt.onKeyDeveloperMode(keyEvent.key())) {
             ci.cancel();
         }
     }

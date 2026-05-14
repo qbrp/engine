@@ -1,29 +1,20 @@
 package org.lain.engine.client.mixin.chat;
 
-import net.minecraft.client.gui.hud.ChatHudLine;
-import net.minecraft.client.gui.hud.MessageIndicator;
+import net.minecraft.client.GuiMessage;
+import net.minecraft.client.GuiMessageTag;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(ChatHudLine.class)
+@Mixin(GuiMessage.class)
 public class ChatHudLineMixin {
     @Inject(
-            method = "indicator",
+            method = "tag",
             at = @At(value = "RETURN"),
             cancellable = true
     )
-    public void engine$indicator(CallbackInfoReturnable<MessageIndicator> cir) {
-        cir.setReturnValue(null);
-    }
-
-    @Inject(
-            method = "getIcon",
-            at = @At(value = "RETURN"),
-            cancellable = true
-    )
-    public void engine$icon(CallbackInfoReturnable<MessageIndicator> cir) {
+    public void engine$tag(CallbackInfoReturnable<GuiMessageTag> cir) {
         cir.setReturnValue(null);
     }
 }

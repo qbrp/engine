@@ -1,5 +1,8 @@
 package org.lain.engine.util
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
 import org.lain.engine.storage.ItemData
 import java.util.Queue
 import kotlin.collections.ArrayDeque
@@ -16,6 +19,14 @@ fun <T : Any, R : Any> Queue<T>.flushMap(todo: (T) -> R): List<R> {
         output += todo(poll())
     }
     return output
+}
+
+suspend fun <T> List<T>.mapAsyncTasks(statement: suspend (T) -> Unit) = withContext(Dispatchers.IO) {
+    map {
+        async {
+            statement(it)
+        }
+    }
 }
 
 class FixedSizeList<T>(private val maxSize: Int, private val list: ArrayDeque<T> = ArrayDeque()) : List<T> by list {

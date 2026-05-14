@@ -2,23 +2,23 @@ package org.lain.engine.client.mc
 
 import com.daqem.yamlconfig.api.config.IConfig
 import com.daqem.yamlconfig.client.gui.screen.ConfigScreen
+import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
-import net.minecraft.client.option.KeyBinding
-import net.minecraft.client.util.InputUtil
+import net.minecraft.client.KeyMapping
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.control.*
 import org.lain.engine.client.mc.render.InteractionSelectionScreen
+import org.lain.engine.mc.engineId
 import org.lain.engine.player.InputAction
 import org.lain.engine.player.input
-import org.lain.engine.util.EngineId
 import org.lwjgl.glfw.GLFW
 
-fun isControlDown() = InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
+fun isControlDown() = InputConstants.isKeyDown(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
 
-fun isShiftDown() = InputUtil.isKeyPressed(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_SHIFT)
+fun isShiftDown() = InputConstants.isKeyDown(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_SHIFT)
 
 class KeybindManager(
-    private val category: KeyBinding.Category = KeyBinding.Category.create(EngineId("category")),
+    private val category: KeyMapping.Category = KeyMapping.Category.register(engineId("keybindings")),
     private val config: IConfig
 ) {
     private val keybinds = mutableMapOf<KeybindId, EngineKeybind>()
@@ -35,7 +35,6 @@ class KeybindManager(
         ALLOW_SPEED_INTENTION_CHANGE.register()
         TOGGLE_CHAT_SPY.register()
         EXTEND_HAND.register()
-        EDIT_BLOCK_HINT.register()
 
         KeybindSettings(
             name = "Настройки",
@@ -51,11 +50,11 @@ class KeybindManager(
 
     fun registerKeybinding(keybinding: KeybindSettings): EngineKeybind {
         val type = when(keybinding.isMouse) {
-            true -> InputUtil.Type.MOUSE
-            false -> InputUtil.Type.KEYSYM
+            true -> InputConstants.Type.MOUSE
+            false -> InputConstants.Type.KEYSYM
         }
         val fabricKeybinding = KeyBindingHelper.registerKeyBinding(
-            KeyBinding(
+            KeyMapping(
                 keybinding.name,
                 type,
                 keybinding.key,
@@ -75,7 +74,7 @@ class KeybindManager(
             val requireWorld = settings.requireWorld
 
             if (dev && !engineClient.developerMode) continue
-            if (MinecraftClient.world == null && requireWorld) continue
+            if (MinecraftClient.level == null && requireWorld) continue
             if (modifiers.contains(KeyBindModifier.Control) && !isControlDown()) continue
 
             val isPressed = keybind.isPressed
@@ -87,7 +86,7 @@ class KeybindManager(
             if (isPressed && wasPressed) {
                 settings.onHold(engineClient)
             }
-            if (!isPressed && wasPressed && MinecraftClient.currentScreen !is InteractionSelectionScreen) {
+            if (!isPressed && wasPressed && MinecraftClient.screen !is InteractionSelectionScreen) {
                 settings.onRelease(engineClient)
             }
 
@@ -129,8 +128,8 @@ data class KeybindSettings(
 
 data class EngineKeybind(
     val settings: KeybindSettings,
-    val minecraft: KeyBinding
+    val minecraft: KeyMapping,
 ) {
     var wasPressed = false
-    val isPressed get() = minecraft.isPressed
+    val isPressed get() = minecraft.isDown
 }

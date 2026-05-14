@@ -5,7 +5,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm") version "2.2.21"
     id("fabric-loom") version "1.15-SNAPSHOT"
-    id("maven-publish")
     kotlin("plugin.serialization") version "2.1.0"
     id("com.gradleup.shadow") version "9.3.0"
 }
@@ -16,11 +15,13 @@ group = project.property("maven_group") as String
 base {
     archivesName.set(project.property("archives_base_name") as String)
 }
-
-val targetJavaVersion = 21
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     withSourcesJar()
+}
+
+val jdkVersion = 21
+kotlin {
+    jvmToolchain(jdkVersion)
 }
 
 loom {
@@ -32,6 +33,8 @@ loom {
             sourceSet("client")
         }
     }
+
+    accessWidenerPath = file("src/client/resources/engine.classtweaker")
 }
 
 repositories {
@@ -64,9 +67,11 @@ repositories {
         name = "EngineHub"
         url = uri("https://maven.enginehub.org/repo/")
     }
-    maven("https://maven.wispforest.io/releases/")
+    maven("https://maven.wispforest.io/releases/2412")
     maven("https://jitpack.io")
+    maven("https://oss.sonatype.org/content/repositories/snapshots/")
 }
+
 
 val transitive by configurations.creating
 
@@ -79,7 +84,7 @@ dependencies {
     val minecraft_version = project.property("minecraft")
 
     minecraft("com.mojang:minecraft:$minecraft_version")
-    mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
+    mappings(loom.officialMojangMappings())
     modImplementation("net.fabricmc:fabric-loader:${project.property("fabric_loader")}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader")}")
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_api")}")
@@ -90,12 +95,13 @@ dependencies {
     modImplementation("maven.modrinth:ui-lib:${project.property("ui_lib")}-fabric")
     modApi("maven.modrinth:architectury-api:${project.property("architectury_api")}+fabric")
 
+
     // Kyori Adventure
     val adventure = project.property("adventure_lib_version")
     val adventurePlatform = project.property("adventure_platform_version")
-    include(implementation("net.kyori:adventure-text-minimessage:$adventure")!!)
-    include(implementation("net.kyori:adventure-text-serializer-gson:$adventure")!!)
-    include(implementation("net.kyori:adventure-api:$adventure")!!)
+    //include(implementation("net.kyori:adventure-text-minimessage:$adventure")!!)
+    //include(implementation("net.kyori:adventure-text-serializer-gson:$adventure")!!)
+    //include(implementation("net.kyori:adventure-api:$adventure")!!)
     modImplementation(include("net.kyori:adventure-platform-fabric:$adventurePlatform")!!)
 
     // Kaml
@@ -111,19 +117,26 @@ dependencies {
     testImplementation(kotlin("test"))
 
     // Тяжелые зависимости
-    modImplementation("org.lain.cyberia:fabric:1.1")
+    val cyberiaDependencyVersion = project.property("cyberia_version")!!
+    modImplementation("org.lain.cyberia:fabric:$cyberiaDependencyVersion")
     modImplementation("org.lain.cyberia:ecs-api:1.3.4")
     compileOnly("org.jetbrains.exposed:exposed-core:1.0.0")
     compileOnly("org.jetbrains.exposed:exposed-jdbc:1.0.0")
     compileOnly("org.xerial:sqlite-jdbc:3.51.1.0")
     shaded("org.reflections:reflections:0.10.2")
 
-    // Camera Overhaul совместимость
-    modCompileOnly("maven.modrinth:cameraoverhaul:y8OOuYdV")
+    // Camera Overhaul
+    val (cameraOverhaulVersion, cameraOverhaulMinecraftVersion) = project.property("camera_overhaul_version")
+        .toString()
+        .split("+")
+        .let { it[0] to it[1] }
+    modCompileOnly("maven.modrinth:cameraoverhaul:${cameraOverhaulVersion}-fabric+mc.$cameraOverhaulMinecraftVersion-plus")
 
     // API Lamb Dynamic Lights
-    modImplementation("maven.modrinth:lambdynamiclights:${project.property("lambdynamiclights_version")}")
-    modImplementation("dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime:${project.property("lambdynamiclights_version")}")
+    modCompileOnly("dev.lambdaurora.lambdynamiclights:lambdynamiclights-api:${project.property("lambdynamiclights_version")}")
+    modLocalRuntime("dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime:${project.property("lambdynamiclights_version")}")
+    //modImplementation("maven.modrinth:lambdynamiclights:${project.property("lambdynamiclights_version")}")
+    //modImplementation("dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime:${project.property("lambdynamiclights_version")}")
 
     // API WorldEdit
     modCompileOnly("com.sk89q.worldedit:worldedit-core:${project.property("worldedit_version")}")
@@ -141,6 +154,7 @@ tasks.processResources {
     inputs.property("version", project.version)
     inputs.property("minecraft_version", project.property("minecraft"))
     inputs.property("loader_version", project.property("fabric_loader"))
+    inputs.property("cyberia_version", project.property("cyberia_version"))
     filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
@@ -148,7 +162,8 @@ tasks.processResources {
             "version" to project.version,
             "minecraft_version" to project.property("minecraft")!!,
             "loader_version" to project.property("fabric_loader")!!,
-            "kotlin_loader_version" to project.property("kotlin_loader")!!
+            "kotlin_loader_version" to project.property("kotlin_loader")!!,
+            "cyberia_version" to project.property("cyberia_version")!!
         )
     }
 }
@@ -171,15 +186,12 @@ tasks.remapJar {
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.release.set(targetJavaVersion)
-}
-
-tasks.withType<KotlinCompile>().configureEach {
-    compilerOptions.jvmTarget.set(JvmTarget.fromTarget(targetJavaVersion.toString()))
+    options.release.set(jdkVersion)
 }
 
 tasks.withType<KotlinCompile> {
     compilerOptions {
+        jvmTarget.set(JvmTarget.fromTarget(jdkVersion.toString()))
         freeCompilerArgs.add("-Xcontext-parameters")
     }
 }

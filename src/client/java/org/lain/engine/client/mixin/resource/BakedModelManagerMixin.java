@@ -1,11 +1,11 @@
 package org.lain.engine.client.mixin.resource;
 
-import net.minecraft.client.item.ItemAsset;
-import net.minecraft.client.item.ItemAssetsLoader;
-import net.minecraft.client.render.model.BakedModelManager;
-import net.minecraft.client.render.model.UnbakedModel;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.renderer.item.ClientItem;
+import net.minecraft.client.resources.model.ClientItemInfoLoader;
+import net.minecraft.client.resources.model.ModelManager;
+import net.minecraft.client.resources.model.UnbakedModel;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.ResourceManager;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.resources.ItemAssetLoaderKt;
 import org.lain.engine.client.resources.ModelLoaderKt;
@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-@Mixin(BakedModelManager.class)
+@Mixin(ModelManager.class)
 public class BakedModelManagerMixin {
     @Unique
     private static ResourceList resources() {
@@ -30,7 +30,7 @@ public class BakedModelManagerMixin {
     }
 
     @Inject(
-            method = "reloadModels",
+            method = "loadBlockModels",
             at = @At(
                     value = "RETURN"
             ),
@@ -52,14 +52,14 @@ public class BakedModelManagerMixin {
             method = "reload",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/item/ItemAssetsLoader;load(Lnet/minecraft/resource/ResourceManager;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"
+                    target = "Lnet/minecraft/client/resources/model/ClientItemInfoLoader;scheduleLoad(Lnet/minecraft/server/packs/resources/ResourceManager;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"
             )
     )
-    private static CompletableFuture<ItemAssetsLoader.Result> engine$loadItemAssets(ResourceManager resourceManager, Executor executor) {
-        return ItemAssetsLoader.load(resourceManager, executor).thenApply((r) -> {
-            Map<Identifier, ItemAsset> contents = r.contents();
+    private static CompletableFuture<ClientItemInfoLoader.LoadedClientInfos> engine$loadItemAssets(ResourceManager resourceManager, Executor executor) {
+        return ClientItemInfoLoader.scheduleLoad(resourceManager, executor).thenApply((r) -> {
+            Map<Identifier, ClientItem> contents = r.contents();
             contents.putAll(ItemAssetLoaderKt.parseEngineItemAssets(resources().getAllItemAssets()));
-            new ItemAssetsLoader.Result(contents);
+            new ClientItemInfoLoader.LoadedClientInfos(contents);
             return r;
         });
     }

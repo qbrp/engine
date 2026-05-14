@@ -23,7 +23,6 @@ import java.io.File
 
 class EngineClient(
     val window: Window,
-    val fontRenderer: FontRenderer,
     val camera: Camera,
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
@@ -141,7 +140,7 @@ class EngineClient(
     }
 
     fun onScroll(delta: Float) {
-        if (MinecraftClient.currentScreen != null) return
+        if (MinecraftClient.screen != null) return
         gameSession?.movementManager?.roll(delta)
     }
 

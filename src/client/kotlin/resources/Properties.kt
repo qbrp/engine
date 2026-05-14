@@ -1,93 +1,75 @@
 package org.lain.engine.client.resources
 
-import com.mojang.serialization.Codec
 import com.mojang.serialization.MapCodec
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
-import net.minecraft.client.item.ItemModelManager
-import net.minecraft.client.render.item.ItemRenderState
-import net.minecraft.client.render.item.model.ItemModel
-import net.minecraft.client.render.model.ResolvableModel
-import net.minecraft.client.render.model.json.Transformation
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.component.ComponentType
-import net.minecraft.item.ItemDisplayContext
-import net.minecraft.item.ItemStack
-import net.minecraft.registry.Registries
-import net.minecraft.registry.Registry
-import net.minecraft.util.HeldItemContext
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.client.renderer.block.model.ItemTransform
+import net.minecraft.client.renderer.item.ItemModel
+import net.minecraft.client.renderer.item.ItemModelResolver
+import net.minecraft.client.renderer.item.ItemStackRenderState
+import net.minecraft.client.resources.model.ResolvableModel
+import net.minecraft.world.entity.ItemOwner
+import net.minecraft.world.item.ItemDisplayContext
+import net.minecraft.world.item.ItemStack
 import org.joml.Vector3fc
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.render.EngineItemDisplayContext
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.player.Outfit
-import org.lain.engine.util.EngineId
 
 private val CULLING = RenderStateDataKey.create<Boolean> { "Engine culling" }
 
-var ItemRenderState.culling: Boolean?
+var ItemStackRenderState.culling: Boolean?
     get() = this.getData(CULLING)
     set(value) { setData(CULLING, value) }
 
-private val ENGINE_TRANSFORMATION = RenderStateDataKey.create<Transformation> { "Engine transformation" }
+private val ENGINE_TRANSFORMATION = RenderStateDataKey.create<ItemTransform> { "Engine transformation" }
 
-var ItemRenderState.engineTransformation: Transformation?
+var ItemStackRenderState.engineTransformation: ItemTransform?
     get() = this.getData(ENGINE_TRANSFORMATION)
     set(value) { setData(ENGINE_TRANSFORMATION, value) }
 
-data class OutfitTag(val outfit: Outfit) {
-    companion object {
-        val TYPE = Registry.register(
-            Registries.DATA_COMPONENT_TYPE,
-            EngineId("outfit-tag"),
-            ComponentType
-                .builder<OutfitTag>()
-                .codec(
-                    Codec.unit(OutfitTag(Outfit ()))
-                )
-                .build()
-        )
+private val ENGINE_OUTFIT = RenderStateDataKey.create<Outfit> { "Engine outfit" }
 
-        // lazy
-        fun registerType() {}
-    }
-}
+var ItemStackRenderState.engineOutfit: Outfit?
+    get() = this.getData(ENGINE_OUTFIT)
+    set(value) { setData(ENGINE_OUTFIT, value) }
 
 class EngineItemModel(
     val asset: Asset,
     val itemModel: ItemModel,
     val disableCulling: Boolean,
     val markers: Map<String, Vector3fc>,
-    val outfitTransformation: Transformation?
+    val outfitTransformation: ItemTransform?
 ) : ItemModel by itemModel {
     override fun update(
-        state: ItemRenderState,
+        state: ItemStackRenderState,
         stack: ItemStack,
-        resolver: ItemModelManager,
+        resolver: ItemModelResolver,
         displayContext: ItemDisplayContext,
-        world: ClientWorld?,
-        heldItemContext: HeldItemContext?,
+        world: ClientLevel?,
+        heldItemContext: ItemOwner?,
         seed: Int
     ) {
         itemModel.update(state, stack, resolver, displayContext, world, heldItemContext, seed)
         state.culling = !disableCulling
-        val outfitTag = stack.get(OutfitTag.TYPE)
-        if (outfitTag != null && outfitTransformation != null) {
+        if (state.engineOutfit != null && outfitTransformation != null) {
             state.engineTransformation = outfitTransformation
         }
     }
 
     fun updateEngine(
-        state: ItemRenderState,
+        state: ItemStackRenderState,
         stack: ItemStack?,
         displayContext: EngineItemDisplayContext,
-        world: ClientWorld?,
-        heldItemContext: HeldItemContext?,
+        world: ClientLevel?,
+        heldItemContext: ItemOwner?,
         seed: Int
     ) {
         itemModel.update(
             state,
             stack ?: ITEM_STACK_MATERIAL,
-            MinecraftClient.itemModelManager,
+            MinecraftClient.itemModelResolver,
             displayContext.minecraft,
             world,
             heldItemContext,
@@ -104,22 +86,22 @@ class EngineItemModel(
         val model: ItemModel.Unbaked,
         val disableCulling: Boolean,
         val markers: Map<String, Vector3fc>,
-        val outfitTransformation: Transformation?
+        val outfitTransformation: ItemTransform?
     ) : ItemModel.Unbaked {
-        override fun getCodec(): MapCodec<out ItemModel.Unbaked> { throw AssertionError() }
+        override fun type(): MapCodec<out ItemModel.Unbaked> { throw AssertionError() }
 
-        override fun bake(context: ItemModel.BakeContext): ItemModel {
+        override fun bake(bakingContext: ItemModel.BakingContext): ItemModel {
             return EngineItemModel(
                 asset,
-                model.bake(context),
+                model.bake(bakingContext),
                 disableCulling,
                 markers,
                 outfitTransformation
             )
         }
 
-        override fun resolve(resolver: ResolvableModel.Resolver?) {
-            model.resolve(resolver)
+        override fun resolveDependencies(resolver: ResolvableModel.Resolver) {
+            model.resolveDependencies(resolver)
         }
     }
 }

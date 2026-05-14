@@ -49,7 +49,7 @@ fun EngineServer.chunkRegionPath(chunkPos: EngineChunkPos): File {
     return chunkRegionsPath.resolve("r.$regionX.$regionZ/c.$x.$z.bin")
 }
 
-fun saveChunk(
+fun saveChunkAsync(
     server: EngineServer,
     pos: EngineChunkPos,
     decals: Map<VoxelPos, BlockDecals>,

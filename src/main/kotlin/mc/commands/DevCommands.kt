@@ -1,15 +1,14 @@
 package org.lain.engine.mc.commands
 
 import com.mojang.brigadier.arguments.StringArgumentType
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.world.entity.player.Player
+import org.lain.engine.item.bakeInvalidItem
 import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.script.LOGGER
 import org.lain.engine.script.lua.coerceToLua
 import org.lain.engine.script.lua.toLuaValue
-import org.lain.engine.storage.InvalidItem
-import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.saveItemsBlocking
 import org.lain.engine.util.getServerStats
 import org.lain.engine.util.injectMinecraftEngineServer
@@ -48,7 +47,7 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
             .then(
                 literal("positions")
                     .executeCatching { ctx ->
-                        val lines = playerPositionsMessage(engine.playerStorage, ctx.source.world)
+                        val lines = playerPositionsMessage(engine.playerStorage, ctx.source.level)
                         lines.forEach { ctx.sendFeedback(it, false) }
                     }
             )
@@ -80,13 +79,13 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
                         val player = ctx.requirePlayer()
                         val world = player.world
                         val item = world.instantiateItem(
-                            InvalidItem(PersistentId.next(), world),
+                            engine.bakeInvalidItem(world),
                             engine.itemStorage
                         )
-                        val entity = ctx.requireEntity() as? PlayerEntity ?: return@executeCatching
+                        val entity = ctx.requireEntity() as? Player ?: return@executeCatching
                         val itemStack = ITEM_STACK_MATERIAL.copy()
                         with(world) { wrapEngineItemStack(item, itemStack) }
-                        entity.giveItemStack(itemStack)
+                        entity.addItem(itemStack)
                     }
             )
     )

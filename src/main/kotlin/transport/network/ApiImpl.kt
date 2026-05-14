@@ -30,11 +30,11 @@ class ServerNetworkTransport(
     }
 
     override fun isOnThread(): Boolean {
-        return server.isOnThread
+        return server.isSameThread
     }
 
     override fun executeOnThread(runnable: () -> Unit) {
-        if (server.isOnThread) {
+        if (server.isSameThread) {
             runnable()
         } else {
             server.execute(runnable)

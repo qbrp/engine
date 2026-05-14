@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 import org.lain.engine.world.SoundId
-import org.lain.engine.world.SoundSource
+import org.lain.engine.world.ESoundSource
 
 @Serializable
 data class SoundEventConfig(
@@ -25,7 +25,7 @@ data class SoundEventConfig(
         return SoundEvent(
             id,
             entries.map {
-                SoundSource(
+                ESoundSource(
                     SoundId(it.audio.replaceToRelative(namespace)),
                     it.volume ?: volume ?: 1f,
                     it.pitch ?: pitch ?: 1f,

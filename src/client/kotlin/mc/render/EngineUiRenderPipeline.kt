@@ -1,34 +1,26 @@
 package org.lain.engine.client.mc.render
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.PlayerSkinDrawer
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.input.CharInput
-import net.minecraft.client.input.KeyInput
-import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.text.OrderedText
-import net.minecraft.text.Text
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.PlayerFaceRenderer
+import net.minecraft.client.player.LocalPlayer
+import net.minecraft.network.chat.FormattedText
 import org.joml.Matrix3x2f
 import org.lain.engine.client.mc.injectClient
-import org.lain.engine.client.render.FontRenderer
+import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.render.ui.*
 import org.lain.engine.util.Color
 import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.text.EngineOrderedText
-import org.lain.engine.util.text.toMinecraft
-import org.lwjgl.glfw.GLFW
 import kotlin.math.ceil
 import kotlin.math.max
 
 class EngineUiRenderPipeline(
-    private val client: MinecraftClient,
-    private val fontRenderer: FontRenderer
+    private val client: Minecraft,
 ) : EngineUi {
     override val elements = mutableListOf<UiElement>()
     private val textCache = TextCache()
     private val rootSize = MutableSize(0f, 0f)
-    private val context by lazy { UiContext(fontRenderer, rootSize) }
+    private val context by lazy { UiContext(client.font, rootSize) }
     private val engine by injectClient()
     private val entityTable by injectEntityTable()
     private val alphaStack = ArrayDeque<Int>()
@@ -39,28 +31,10 @@ class EngineUiRenderPipeline(
     private val developerMode
         get() = engine.developerMode
 
-    override fun focusAppropriateElement(composition: Composition?): Boolean {
-        val compositions = composition?.let { listOf(it) } ?: elements.map { it.composition }
-        for (composition in compositions) {
-            if (composition.render.handlesKeyboard) {
-                focus = composition
-                client.setScreen(Focus(this))
-                return true
-            }
-            for (child in composition.children) {
-                if (focusAppropriateElement(child)) {
-                    return true
-                }
-            }
-        }
-        return false
-    }
-
     override fun addFragment(clear: Boolean, focus: Boolean, fragment: () -> Fragment): Composition {
         val composition = Composition(fragment)
         recompose(composition, context)
         elements += UiElement(composition, clear)
-        if (focus) focusAppropriateElement(composition)
         return composition
     }
 
@@ -80,18 +54,18 @@ class EngineUiRenderPipeline(
         textCache.clear()
     }
 
-    fun render(context: DrawContext, dt: Float, mouseX: Float, mouseY: Float) {
+    fun render(context: GuiGraphics, dt: Float, mouseX: Float, mouseY: Float) {
         elements.forEach {
             val pos = it.composition.render.position
             collectVertexes(it.composition, context, dt, mouseX - pos.x, mouseY - pos.y)
         }
     }
 
-    fun collectVertexes(composition: Composition, context: DrawContext, dt: Float, mouseX: Float, mouseY: Float) {
+    fun collectVertexes(composition: Composition, context: GuiGraphics, dt: Float, mouseX: Float, mouseY: Float) {
         CompositionRenderContext.startRendering(composition, this.context)
         val state = composition.render
         state.update() //перенести
-        val matrices = context.matrices
+        val matrices = context.pose()
         val position = state.position
         val origin = state.origin
         val scale = state.scale
@@ -143,8 +117,8 @@ class EngineUiRenderPipeline(
             renderBorders(borders, width, height, context)
 
             for (child in composition.children) {
-                context.createNewRootLayer()
-                context.state.goUpLayer()
+                context.nextStratum()
+                context.guiRenderState.up()
                 val pos = child.render.position
                 collectVertexes(child, context, dt, localMouseX - pos.x, localMouseY - pos.y)
             }
@@ -166,7 +140,7 @@ class EngineUiRenderPipeline(
         alphaStack.removeLast()
     }
 
-    fun renderBorders(borders: LineBorders, width: Float, height: Float, context: DrawContext) {
+    fun renderBorders(borders: LineBorders, width: Float, height: Float, context: GuiGraphics) {
         borders.top?.let { context.fill(0f, 0f, width, it.thickness, it.color.integer) }
         borders.bottom?.let { context.fill(0f, height - it.thickness, width, height, it.color.integer) }
         borders.left?.let { context.fill(0f, 0f, it.thickness, height, it.color.integer) }
@@ -178,7 +152,7 @@ class EngineUiRenderPipeline(
         listeners: UiListeners,
         width: Float, height: Float,
         mouseX: Float, mouseY: Float,
-        context: DrawContext
+        context: GuiGraphics
     ) {
         listeners.hover?.let {
             if (inHover(mouseX, mouseY, width, height)) {
@@ -190,22 +164,14 @@ class EngineUiRenderPipeline(
 
     fun inHover(mouseX: Float, mouseY: Float, width: Float, height: Float) = mouseX in 0f..width && mouseY in 0f..height
 
-    //TODO
-//    fun renderTextInput(
-//        textInput: TextInputState,
-//        context: DrawContext
-//    ) {
-//        context.drawTexturedQuad()
-//    }
-
     fun renderFeatures(
         width: Float, height: Float,
         ceilWidth: Int, ceilHeight: Int,
         features: UiFeatures,
-        context: DrawContext,
+        context: GuiGraphics,
         dt: Float
     ) {
-        context.matrices.pushMatrix()
+        context.pose().pushMatrix()
         val tint = features.tint
 
         fun getColor(color: Color): Color {
@@ -228,22 +194,22 @@ class EngineUiRenderPipeline(
         features.text?.let { text ->
             var textY = 0
             val color = getColor(text.color)
-            context.matrices.scale(text.scale)
+            context.pose().scale(text.scale)
             text.lines.forEach { line ->
-                context.drawTextWithShadow(
-                    client.textRenderer,
-                    textCache.get(line),
+                context.drawString(
+                    client.font,
+                    line,
                     0,
                     textY,
                     color.integer
                 )
-                textY += client.textRenderer.fontHeight
+                textY += client.font.lineHeight
             }
         }
 
         features.head?.let { head ->
-            val player = entityTable.client.getEntity(head) as? ClientPlayerEntity ?: return@let
-            PlayerSkinDrawer.draw(
+            val player = entityTable.client.getEntity(head) as? LocalPlayer ?: return@let
+            PlayerFaceRenderer.draw(
                 context,
                 player.skin,
                 1,
@@ -251,7 +217,7 @@ class EngineUiRenderPipeline(
                 width.toInt(),
                 Color.of(80, 80, 80).integer
             )
-            PlayerSkinDrawer.draw(
+            PlayerFaceRenderer.draw(
                 context,
                 player.skin,
                 0,
@@ -261,66 +227,24 @@ class EngineUiRenderPipeline(
             )
         }
 
-        context.matrices.popMatrix()
+        context.pose().popMatrix()
     }
 
     fun resizeRoot() = with(rootSize) {
-        width = client.window.scaledWidth.toFloat()
-        height = client.window.scaledHeight.toFloat()
+        width = client.window.guiScaledWidth.toFloat()
+        height = client.window.guiScaledHeight.toFloat()
         recomposeAll()
     }
 }
 
 class TextCache {
-    private val map = mutableMapOf<EngineOrderedText, OrderedText>()
+    private val map = mutableMapOf<String, FormattedText>()
 
     internal fun clear() {
         map.clear()
     }
 
-    fun get(text: EngineOrderedText): OrderedText {
-        return map.getOrPut(text) { text.toMinecraft() }
+    fun get(text: String): FormattedText {
+        return map.getOrPut(text) { text.parseMiniMessageClient() }
     }
-}
-
-fun keyModsSet(mods: Int): Set<Modifier> {
-    val result = mutableSetOf<Modifier>()
-    if (mods and GLFW.GLFW_MOD_SHIFT != 0) result.add(Modifier.SHIFT)
-    if (mods and GLFW.GLFW_MOD_CONTROL != 0) result.add(Modifier.CTRL)
-    if (mods and GLFW.GLFW_MOD_ALT != 0) result.add(Modifier.ALT)
-    if (mods and GLFW.GLFW_MOD_SUPER != 0) result.add(Modifier.SUPER)
-    if (mods and GLFW.GLFW_MOD_CAPS_LOCK != 0) result.add(Modifier.CAPS_LOCK)
-    if (mods and GLFW.GLFW_MOD_NUM_LOCK != 0) result.add(Modifier.NUM_LOCK)
-    return result
-}
-
-fun KeyInput.toEngineKeyEvent(action: KeyAction) = KeyEvent(key, action, keyModsSet(modifiers))
-
-class Focus(private val ui: EngineUiRenderPipeline) : Screen(Text.of("Focus")) {
-    override fun keyPressed(input: KeyInput): Boolean {
-        return emitKeyEvent(
-            input.toEngineKeyEvent(KeyAction.PRESS)
-        )
-    }
-
-    override fun keyReleased(input: KeyInput): Boolean {
-        return emitKeyEvent(
-            input.toEngineKeyEvent(KeyAction.RELEASE)
-        )
-    }
-
-    override fun charTyped(input: CharInput): Boolean {
-        val focusedElement = ui.focus
-        val renderState = focusedElement?.render
-        return renderState?.onChar(CharEvent(input.codepoint, keyModsSet(input.modifiers))) ?: false
-    }
-
-    private fun emitKeyEvent(event: KeyEvent): Boolean {
-        val focusedElement = ui.focus
-        val renderState = focusedElement?.render
-        return renderState?.onKey(event) ?: false
-    }
-
-    override fun shouldPause(): Boolean = false
-    override fun renderBackground(context: DrawContext?, mouseX: Int, mouseY: Int, deltaTicks: Float) {}
 }

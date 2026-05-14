@@ -6,7 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.serializer
-import org.lain.engine.SharedConstants
+import org.lain.engine.Constants
 import org.lain.engine.debugPacket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
@@ -15,7 +15,6 @@ import org.lain.engine.transport.packet.InputPacket
 import org.lain.engine.transport.packet.ServerAcknowledgeTask
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.randomLong
-import org.lain.engine.util.nextId
 import org.lain.engine.util.nextIdFast
 import kotlin.reflect.KClass
 
@@ -34,7 +33,7 @@ class Endpoint<P : Packet>(
     }
 
     fun sendS2C(packet: P, player: PlayerId, id: Long = nextIdFast()) = executeOnThread {
-        if (SharedConstants.SIMULATE_LATENCY) {
+        if (Constants.SIMULATE_LATENCY) {
             val endpoint = this
             CoroutineScope(Dispatchers.IO).launch {
                 delay(randomLong(250))

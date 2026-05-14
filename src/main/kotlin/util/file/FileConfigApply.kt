@@ -2,14 +2,10 @@ package org.lain.engine.util.file
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
-import net.minecraft.registry.Registries
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.registry.tag.TagKey
-import net.minecraft.util.Identifier
+import net.minecraft.core.registries.Registries
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.chat.*
-import org.lain.engine.mc.AcousticBlockData
-import org.lain.engine.mc.ServerMixinAccess
+import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.registerServerChatCommand
 import org.lain.engine.player.*
 import org.lain.engine.server.ServerGlobals
@@ -101,7 +97,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         chat.pm,
     )
 
-    val dispatcher = minecraftServer.commandManager.dispatcher
+    val dispatcher = minecraftServer.commands.dispatcher
     channels.forEach {
         val channel = it.value
         val name = it.key
@@ -110,13 +106,13 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
     }
 
     val blockAcousticConfig = chat.acoustic.passability
-    val blocks = blockAcousticConfig.blocks.map { (id, value) -> Identifier.of(id) to value }.toMap()
-    val tags = blockAcousticConfig.tags.map { (id, value) -> TagKey.of(RegistryKeys.BLOCK, Identifier.of(id)) to value }.toMap()
+    val blocks = blockAcousticConfig.blocks.map { (id, value) -> parseId(id) to value }.toMap()
+    val tags = blockAcousticConfig.tags.map { (id, value) -> blockTag(id) to value }.toMap()
 
     // Проверка
-    val unidentifiedBlocks = mutableListOf<Identifier>()
+    val unidentifiedBlocks = mutableListOf<McIdentifier>()
     blocks.forEach { (blockId, value) ->
-        if (Registries.BLOCK.getOptionalValue(blockId).getOrNull() == null) {
+        if (registryOf(Registries.BLOCK).getOptional(blockId).getOrNull() == null) {
             unidentifiedBlocks += blockId
         }
     }

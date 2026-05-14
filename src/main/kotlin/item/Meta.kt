@@ -31,6 +31,12 @@ fun EngineItem.emitPlaySoundEvent(
 data class ItemAssets(val assets: Map<String, String>) : ItemComponent {
     val default = assets["default"] ?: "missingno"
     fun copy() = ItemAssets(assets.toMap())
+
+    companion object {
+        fun withDefaultAsset(asset: String): ItemAssets {
+            return ItemAssets(mapOf("default" to asset))
+        }
+    }
 }
 
 @Serializable

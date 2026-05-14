@@ -1,30 +1,31 @@
 package org.lain.engine.client.mc
 
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.particle.ParticleTypes
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.core.particles.ParticleTypes
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.item.BulletFire
 import org.lain.engine.item.BulletParameters
 import org.lain.engine.item.DEFAULT_BULLET_MASS
 import org.lain.engine.item.DEFAULT_BULLET_SPEED
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.raycastBulletEvent
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.iterate
+import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.World
 
 fun updateBulletsVisual(
     world: World,
-    mcWorld: ClientWorld,
+    mcWorld: ClientLevel,
 ) = world.iterate<BulletFire> { _, event ->
     val shoot = event.shoot
     mcWorld.spawnGunSmokeParticle(shoot.start, event.smoke.velocity, shoot.vector, event.smoke.offset)
     val hitResult = raycastBulletEvent(mcWorld, shoot) ?: return@iterate
     val blockPos = hitResult.blockPos
-    repeat(5) { mcWorld.spawnBlockBreakingParticle(blockPos, hitResult.side) }
+    repeat(5) { mcWorld.addBreakingBlockEffect(blockPos, hitResult.direction) }
 
-    val pos = hitResult.pos.engine()
+    val pos = hitResult.location.engine()
     world.emitEvent(
         BulletHit(
             pos,
@@ -35,11 +36,11 @@ fun updateBulletsVisual(
 
 data class BulletHit(val pos: Pos, val bullet: BulletParameters) : Component
 
-fun ClientWorld.spawnGunSmokeParticle(
-    pos: Vec3,
-    velocity: Vec3,
-    direction: Vec3,
-    offset: Vec3
+fun ClientLevel.spawnGunSmokeParticle(
+    pos: EVec3,
+    velocity: EVec3,
+    direction: EVec3,
+    offset: EVec3
 ) {
     val look = direction.normalize()
 
@@ -55,7 +56,7 @@ fun ClientWorld.spawnGunSmokeParticle(
     val spawnVelocity = look.mul(0.35f).add(velocity)
 
     repeat(1) {
-        addParticleClient(
+        addParticle(
             ParticleTypes.SMOKE,
             false,
             false,
