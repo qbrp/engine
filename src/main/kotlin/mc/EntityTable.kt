@@ -21,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @see org.lain.engine.CommonEngineServerMod
  */
 class EntityTable {
+    // Только для сервера
     private val worldMap: ConcurrentHashMap<WorldId, Level> = ConcurrentHashMap()
     val client = Entity2PlayerTable<Player>()
     val server = Entity2PlayerTable<ServerPlayer>()
@@ -58,11 +59,11 @@ class EntityTable {
             }
         }
 
-        fun getEntity(playerId: PlayerId): Player? {
+        fun getEntity(playerId: PlayerId): T? {
             return playerToEntityMap[playerId]
         }
 
-        fun getEntity(player: EnginePlayer): Player? {
+        fun getEntity(player: EnginePlayer): T? {
             return getEntity(player.id)
         }
 

@@ -16,7 +16,7 @@ import org.lain.engine.world.World
 @Serializable data class OccupiedSlots(val slots: MutableSet<SlotId>) : Component
 
 // Назначать на сущность предмета
-@Serializable data class AssignedSlot(val slot: SlotId) : ItemComponent
+@Serializable data class AssignedSlot(val slot: SlotId) : Component
 
 // Операция
 data class AssignSlot(val item: EngineItem, val slot: SlotId) : Component

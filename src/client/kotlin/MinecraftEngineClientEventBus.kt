@@ -4,8 +4,8 @@ import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftChat
-import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
+import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.EnginePlayer
@@ -71,7 +71,6 @@ class MinecraftEngineClientEventBus(
             Injector.register<ItemAccess>(gameSession.itemStorage)
         }
         ClientMixinAccess.onMainPlayerInstantiated(player)
-        table.setWorld(gameSession.world.id, minecraft.level!!)
     }
 
     override fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession) {

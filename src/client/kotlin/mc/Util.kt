@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite
 import net.minecraft.network.chat.ComponentSerialization
 import net.minecraft.util.GsonHelper
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.MinecraftEngineClient
+import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.mc.TEXT_LOGGER
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.removeLegacyFormattingCodes
@@ -31,7 +31,7 @@ val MissingSpriteId get() = MissingTextureAtlasSprite.getLocation()
 
 fun injectClient() = inject<EngineClient>()
 
-fun injectMinecraftClient() = inject<MinecraftEngineClient>()
+fun injectMinecraftClient() = inject<EngineMinecraftClient>()
 
 fun String.parseMiniMessageClient(): Text {
     val text = this.removeLegacyFormattingCodes()

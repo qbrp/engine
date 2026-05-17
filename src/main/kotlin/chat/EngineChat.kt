@@ -2,6 +2,7 @@ package org.lain.engine.chat
 
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.acoustic.NEIGHBOURS_26
 import org.lain.engine.mc.InvalidMessageSourcePositionException
@@ -13,7 +14,6 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
-import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.roundToInt
 import org.lain.engine.world.World
@@ -334,7 +334,9 @@ class EngineChat(
         val multiplier = acousticLevel.multiplier * settings.acousticAttenuation
 
         val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, multiplier) { exception ->
-            if (author != null) server.handler.onServerNotification(author.id, Notification.ACOUSTIC_ERROR, false)
+            if (author != null) {
+                server.execute { server.handler.onServerNotification(author.id, Notification.ACOUSTIC_ERROR, false) }
+            }
             exception.printStackTrace()
         }
 

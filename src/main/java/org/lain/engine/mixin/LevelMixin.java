@@ -12,10 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Level.class)
 public class LevelMixin {
     @Inject(
-            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Z",
+            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
             at = @At("RETURN")
     )
-    public void engine$setBlockState(BlockPos blockPos, BlockState blockState, int i, CallbackInfoReturnable<Boolean> cir) {
+    public void engine$setBlockState(BlockPos blockPos, BlockState blockState, int i, int j, CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValue() == true && blockState.isAir()) {
             ServerMixinAccess.INSTANCE.onBlockRemoved((Level) (Object)this, blockPos);
         }

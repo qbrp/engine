@@ -3,7 +3,7 @@ package org.lain.engine.world
 import org.lain.cyberia.ecs.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.Callbacks
-import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.storage.ComponentLoadSettings
@@ -18,7 +18,7 @@ class World(
     val players: MutableList<EnginePlayer> = mutableListOf(),
     val playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null,
     val isClient: Boolean = false,
-    val namespacedStorage: NamespacedStorage,
+    val namespacedStorage: NamespacedStorageAccess,
     val worldState: EntityId = componentManager.addEntity(),
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     private val scriptContext = ScriptContext.World(this)
@@ -42,15 +42,15 @@ class World(
      * Создает сущность с компонентами `event` и Event. Следует использовать как альтернативу очередям событий.
      * Последний сигнализирует о том, что сущность нужно уничтожить в конце тика
      */
-    inline fun <reified T : Component> emitEvent(event: T, type: ComponentType<T>) {
-        componentManager.addEntity {
+    inline fun <reified T : Component> emitEvent(event: T, type: ComponentType<T>): EntityId {
+        return componentManager.addEntity {
             setComponent(event, type)
             setComponent(Event)
         }
     }
 
-    inline fun <reified T : Component> emitEvent(event: T) {
-        emitEvent(event, componentTypeOf(T::class))
+    inline fun <reified T : Component> emitEvent(event: T): EntityId {
+        return emitEvent(event, componentTypeOf(T::class))
     }
 
     fun clearEvents() {
@@ -61,7 +61,7 @@ class World(
 fun world(
     id: WorldId,
     thread: Thread,
-    namespacedStorage: NamespacedStorage,
+    namespacedStorage: NamespacedStorageAccess,
     playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null
 ): World {
     return World(

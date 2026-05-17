@@ -74,7 +74,7 @@ value class IntentId(val value: String) {
 fun executeIntent(
     intent: Intent,
     ctx: ScriptContext.IntentExecution,
-    storage: NamespacedStorage,
+    storage: NamespacedStorageAccess,
     handler: ServerHandler? = null,
 ): ExecutionResult<Unit> {
     val scriptId = intent.script

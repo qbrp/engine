@@ -15,7 +15,7 @@ import org.lain.engine.container.updateContainerSystems
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
-import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.storage.playerData
@@ -35,7 +35,7 @@ class EngineServer(
     val playerStorage: PlayerStorage,
     val acousticSimulator: AcousticSimulator,
     val eventListener: ServerEventListener,
-    val namespacedStorage: NamespacedStorage,
+    val namespacedStorage: NamespacedStorageAccess,
     val thread: Thread,
     savePath: File,
     database: Database
@@ -133,21 +133,24 @@ class EngineServer(
     }
 
     fun postUpdate() {
-        listWorlds().forEachWithContext({ it }) { world -> postUpdateContainerSystems() }
+        listWorlds().forEachWithContext({ it }) { world ->
+            postUpdateContainerSystems()
+        }
     }
 
     fun updateGlobals(update: (ServerGlobals) -> ServerGlobals) = execute {
         globals = update(globals)
         chat.onSettingsUpdated(globals.chatSettings)
         handler.onServerSettingsUpdate()
+        //playerStorage.forEach { player -> player.replace(globals.defaultPlayerAttributes) }
     }
 
     fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
-        player.entityId.setComponent(Player)
+        player.entityId.setComponent(Player(player))
         player.entityId.setComponent(player.location)
         eventListener.onPlayerInstantiated(player)
 
-        player.startSpectating()
+        if (globals.spectateOnJoin) player.startSpectating()
         playerStorage.add(player.id, player)
         players += player
         handler.onPlayerInstantiation(player, notifications)
@@ -169,6 +172,7 @@ class EngineServer(
         handler.onPlayerDestroy(player)
         callbacks.playerDestroy.execute(player.scriptContext)
         globals.savePath.playerData.savePersistentPlayerData(player)
+        player.entityId.destroy()
     }
 
     override fun execute(r: Runnable) {

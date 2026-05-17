@@ -54,7 +54,7 @@ fun handleSocialInteractions(player: EnginePlayer) {
         if (raycastPlayer.extendArm) {
             if (raycastPlayer.handFree) {
                 player.set(DestroyItemSignal(handItem, handItem.getCount()))
-                raycastPlayer.set(MoveItemSignal(handItem, raycastPlayer.selectedSlot))
+                raycastPlayer.set(GiveItemSignal(handItem, raycastPlayer.selectedSlot))
                 raycastPlayer.serverNarration("$playerName передал вам $itemName", 60)
             } else {
                 player.serverNarration("$raycastPlayerName не может принять предмет, так как его руки заняты", 160)

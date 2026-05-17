@@ -6,7 +6,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.container.ContainedIn
 import org.lain.engine.item.*
-import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.util.flush
@@ -66,7 +66,7 @@ fun Database.saveItemsBlocking(world: World): Int = with(world) {
     val itemsToSave = itemPairsToSave.map { (_, state) ->
         EntityDto(
             state.require<PersistentId>(),
-            state.getComponents().map { it.toCommonDto() }
+            state.getComponents().map { it.toSnapshotDto() }
         )
     }
     runBlocking {
@@ -93,7 +93,7 @@ fun updateSaveSystem(server: EngineMinecraftServer) {
 
             EntityDto(
                 persistentId,
-                state.getComponents().map { it.toCommonDto() }
+                state.getComponents().map { it.toSnapshotDto() }
             )
         }
 
@@ -107,13 +107,12 @@ fun updateSaveSystem(server: EngineMinecraftServer) {
     }
 
     itemsDestroyed.forEach { server.engine.itemStorage.remove(it.value) }
-    engine.handler.onItemsBatchDestroy(itemsDestroyed)
 
     world.iterate<SaveTag> { item, _ -> item.removeComponent<SaveTag>() }
     world.iterate<UnloadTag> { item, _ -> item.destroy() }
 }
 
-fun dataFixItem(item: ProtoItem, storage: NamespacedStorage) {
+fun dataFixItem(item: ProtoItem, storage: NamespacedStorageAccess) {
     val itemState = item.state
     if (!itemState.has<ItemAssets>()) {
         val prefab = storage.items[item.prefabId] ?: return

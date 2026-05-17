@@ -28,7 +28,7 @@ object PlayerContainerTag : Component
 // Уничтожить предмет в инвентаре игрока, обработать игрой
 data class DestroyItemSignal(val item: EngineItem, val count: Int = 1) : Component
 
-data class MoveItemSignal(val item: EngineItem, val slot: Int?) : Component
+data class GiveItemSignal(val item: EngineItem, val slot: Int?) : Component
 
 val EnginePlayer.items: Set<EngineItem>
     get() = this.require<PlayerInventory>().let { it.items + listOfNotNull(it.cursorItem) }

@@ -54,6 +54,7 @@ data class ChannelConfig(
     val notify: Boolean = false,
     val permission: Boolean = false,
     @SerialName("invoke_permission") val invokePermission: Boolean = false, // Только для команд
+    val aliases: List<String> = listOf(), // Только для команд
     val heads: Boolean = false,
     val background: String? = null,
     @SerialName("type_radius") val chatTypeRadius: Int? = null,
@@ -107,7 +108,8 @@ data class AcousticBlockConfig(
 @Serializable
 data class AcousticSimulationConfig(
     val range: Int,
-    @SerialName("performance-debug") val performanceDebug: Boolean
+    @SerialName("performance-debug") val performanceDebug: Boolean,
+    @SerialName("rebuild-debug") val rebuildDebug: Boolean = false,
 )
 
 @Serializable
@@ -149,7 +151,8 @@ data class MovementConfig(
 data class PlayerConfig(
     val attributes: Map<String, Map<String, Float>>,
     val volume: VocalVolumeConfig,
-    val damage: Boolean
+    val damage: Boolean,
+    @SerialName("spectate_on_join") val spectateOnJoin: Boolean = true,
 )
 
 @Serializable

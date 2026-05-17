@@ -1,19 +1,27 @@
 package org.lain.engine.client.mixin.chat;
 
 import com.llamalad7.mixinextras.sugar.Local;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.GuiMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.gui.components.ComponentRenderUtils;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.CommonColors;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.entity.player.Player;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.MinecraftChat;
 import org.lain.engine.client.render.ui.ChatHudRenderKt;
+import org.lain.engine.util.Color;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -25,6 +33,9 @@ import java.util.List;
 public abstract class ChatHudMixin {
     @Unique
     String MAXIMUM_REPEATS_TEXT = "x999+";
+
+    @Unique
+    GuiGraphics guiGraphics = null;
 
     @Shadow protected abstract int getLineHeight();
 
@@ -77,7 +88,23 @@ public abstract class ChatHudMixin {
             cancellable = true
     )
     public void engine$indentWidth(CallbackInfoReturnable<Integer> cir) {
-        cir.setReturnValue(cir.getReturnValue() + ChatHudRenderKt.LINE_INDENT);
+        cir.setReturnValue(cir.getReturnValue() + ChatHudRenderKt.CHAT_HEAD_SIZE);
+    }
+
+    @Inject(
+            method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/gui/Font;IIIZZ)V",
+            at = @At("HEAD")
+    )
+    public void engine$captureGuiGraphics(GuiGraphics guiGraphics, Font font, int i, int j, int k, boolean bl, boolean bl2, CallbackInfo ci) {
+        this.guiGraphics = guiGraphics;
+    }
+
+    @Inject(
+            method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/gui/Font;IIIZZ)V",
+            at = @At("TAIL")
+    )
+    public void engine$flushGuiGraphics(CallbackInfo ci) {
+        this.guiGraphics = null;
     }
 
     /**
@@ -136,6 +163,37 @@ public abstract class ChatHudMixin {
             );
         });
 
+        if (guiGraphics != null) {;
+            int windowHeight = guiGraphics.guiHeight();
+            int bottomY = Mth.floor((float)(windowHeight - 40) / chatScale);
+            List<MinecraftChat.TypingPlayer> entities = MinecraftChat.INSTANCE.getTypingPlayers().stream().toList();
+            if (!entities.isEmpty()) {
+                guiGraphics.fill(
+                        -4,
+                        bottomY,
+                        chatWidth + 8,
+                        bottomY + getLineHeight(),
+                        ARGB.color(backgroundOpacity, CommonColors.BLACK)
+                );
+
+                int textX = 0;
+                for (MinecraftChat.TypingPlayer player : entities) {
+                    Component name = player.getName();
+                    PlayerFaceRenderer.draw(guiGraphics, player.getSkinTextures(), textX + 1, bottomY + 1, 8, ARGB.color(CommonColors.WHITE, ARGB.color(80, 80, 80)));
+                    PlayerFaceRenderer.draw(guiGraphics, player.getSkinTextures(), textX, bottomY, 8, CommonColors.WHITE);
+                    textX += 10;
+                    guiGraphics.drawString(minecraft.font, name, textX, bottomY + 1, CommonColors.WHITE);
+                    textX += minecraft.font.width(name);
+                    if (player != entities.getLast()) {
+                        textX += 1;
+                        guiGraphics.drawString(minecraft.font, ",", textX, bottomY + 1, CommonColors.LIGHT_GRAY);
+                    }
+                    textX += 4;
+                }
+                guiGraphics.drawString(minecraft.font, "печатает...", textX, bottomY + 1, CommonColors.LIGHT_GRAY);
+            }
+        }
+
         /*
          * Message rendering
          */
@@ -144,11 +202,49 @@ public abstract class ChatHudMixin {
             public void accept(GuiMessage.Line line, int lineIndex, float alpha) {
                 int lineBottomY = chatBottomY - lineIndex * lineHeight;
                 int textY = lineBottomY - textYOffset;
+                if (guiGraphics != null) {
+                    MinecraftChat.ChatLineData engineLine = MinecraftChat.INSTANCE.getGuiMessageData(line);
+                    if (engineLine != null) {
+                        PlayerInfo author = engineLine.getMessage().getAuthor();
+                        int darkenColor = ARGB.color(CommonColors.WHITE, ARGB.color(80, 80, 80));
+                        if (author != null && engineLine.isFirst()) {
+                            PlayerFaceRenderer.draw(guiGraphics, author.getSkin(), 1, textY + 1, 8, ARGB.color(alpha * textOpacity, darkenColor));
+                            PlayerFaceRenderer.draw(guiGraphics, author.getSkin(), 0, textY, 8, ARGB.color(alpha * textOpacity, CommonColors.WHITE));
+                        }
+                        if (engineLine.isLast()) {
+                            int repeats = engineLine.getMessage().getEngineMessage().getRepeat();
+                            if (repeats > 1) {
+                                String string = "x" + repeats;
+                                if (repeats > 999) { string = MAXIMUM_REPEATS_TEXT; }
+                                Component text = Component.literal(string).withStyle(ChatFormatting.GOLD);
+                                int width = minecraft.font.width(text);
+                                int x0 = chatWidth - width;
+                                guiGraphics.drawString(minecraft.font, text, x0, textY, ARGB.color(alpha * textOpacity, CommonColors.BLACK), true);
+                            }
+                            Component debugText = engineLine.getMessage().getDebugText();
+                            if (debugText != null && MinecraftChat.INSTANCE.shouldRenderDebugInfo()) {
+                                guiGraphics.drawString(
+                                        minecraft.font,
+                                        debugText,
+                                        8 + minecraft.font.width(line.content()) + 4,
+                                        textY,
+                                        ARGB.color(alpha * textOpacity, CommonColors.GRAY)
+                                );
+                            }
+                        }
+                    }
+                }
+                graphics.updatePose(matrix -> {
+                    matrix.translate(ChatHudRenderKt.CHAT_HEAD_SIZE + 2, 0.0F);
+                });
                 graphics.handleMessage(
                         textY,
                         alpha * textOpacity,
                         line.content()
                 );
+                graphics.updatePose(matrix -> {
+                    matrix.translate(-ChatHudRenderKt.CHAT_HEAD_SIZE - 2, 0.0F);
+                });
             }
         });
 

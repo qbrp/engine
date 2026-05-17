@@ -10,6 +10,7 @@ import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.World
+import org.lain.engine.world.invokeCommand
 import org.lain.engine.world.setDynamicVoxel
 import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaTable
@@ -83,6 +84,12 @@ fun Globals.setupEntity() {
 
 context(ctx: LuaContext)
 fun Globals.setupWorld() {
+    ctx.worldTable.set("_invoke_command", twoArgFunction { self, command ->
+        val world = self.coerceToEngineWorld()
+        val commandStr = command.tojstring()
+        world.invokeCommand(commandStr)
+        LuaValue.NIL
+    })
     ctx.worldTable.set("_add_entity", oneArgFunction { self ->
         val world = self.coerceToEngineWorld()
         with(world) { world.addEntity().coerceToLua() }
@@ -123,7 +130,7 @@ fun Globals.setupWorld() {
             world.getComponents(entityId.toint())
                 .filterIsInstance<ScriptComponent>()
                 .filter { it.field is LuaTable }
-                .map { it.luaTable }
+                .map { it.luaValue }
                 .toTypedArray()
         )
     })
@@ -153,7 +160,7 @@ fun Globals.setupWorld() {
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
                     luaEntity.table,
-                    component.luaTable
+                    component.luaValue
                 )
             }
 
@@ -162,7 +169,7 @@ fun Globals.setupWorld() {
                 types[1].coerceToScriptComponentType().ecsType
             ) { entity, component1, component2 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
-                func.invoke(luaEntity.table, component1.luaTable, component2.luaTable)
+                func.invoke(luaEntity.table, component1.luaValue, component2.luaValue)
             }
 
             3 -> world.iterate3(
@@ -172,7 +179,7 @@ fun Globals.setupWorld() {
             ) { entity, component1, component2, component3 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
-                    arrayOf(luaEntity.table, component1.luaTable, component2.luaTable, component3.luaTable)
+                    arrayOf(luaEntity.table, component1.luaValue, component2.luaValue, component3.luaValue)
                 )
             }
 
@@ -186,10 +193,10 @@ fun Globals.setupWorld() {
                 func.invoke(
                     arrayOf(
                         luaEntity.table,
-                        component1.luaTable,
-                        component2.luaTable,
-                        component3.luaTable,
-                        component4.luaTable
+                        component1.luaValue,
+                        component2.luaValue,
+                        component3.luaValue,
+                        component4.luaValue
                     )
                 )
             }
@@ -205,17 +212,18 @@ fun Globals.setupWorld() {
                 func.invoke(
                     arrayOf(
                         luaEntity.table,
-                        component1.luaTable,
-                        component2.luaTable,
-                        component3.luaTable,
-                        component4.luaTable,
-                        component5.luaTable
+                        component1.luaValue,
+                        component2.luaValue,
+                        component3.luaValue,
+                        component4.luaValue,
+                        component5.luaValue
                     )
                 )
             }
         }
         NIL
     })
+
     ctx.worldTable.set("_set_dynamic_voxel", threeArgFunction { self, pos, networked ->
         val world = self.coerceToEngineWorld()
         val voxelPos = pos.toVoxelPos()
@@ -228,9 +236,16 @@ fun Globals.setupWorld() {
             entity.coerceToLua()
         }
     })
+
+    ctx.worldTable.set("mark_dirty", threeArgFunction { self, entityId, type ->
+        val world = self.coerceToEngineWorld()
+        val entity = entityId.toint()
+        world.markDirty(entity, type.coerceToScriptComponentType().requireComponent().ecsType)
+        LuaValue.NIL
+    })
 }
 
-val ScriptComponent.luaTable
+val ScriptComponent.luaValue
     get() = field as? LuaValue ?: error("Component not supports lua")
 
 private fun World.hasLuaComponent(entityId: EntityId, componentType: ScriptComponentType): Boolean {

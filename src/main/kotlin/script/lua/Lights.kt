@@ -20,11 +20,11 @@ fun World.updateScriptLightSystem() {
     val luminanceArray = componentManager.getComponentArray<Luminance>()
     val lightSourceArray = componentManager.getComponentArray<LightSource>()
     iterate(CoreScriptComponents.LIGHT_SOURCE) { entity, lightSource ->
-        val behaivour = lightSource.luaTable.get("behaviour").checktable()
+        val behaivour = lightSource.luaValue.get("behaviour").checktable()
         lightSourceArray.getOrSet(entity) { LightSource(behaivour.toLightBehaviour()) }
     }
     iterate(CoreScriptComponents.LUMINANCE) { entity, luminance ->
-        val level = luminance.luaTable.get("level").toint()
+        val level = luminance.luaValue.get("level").toint()
         luminanceArray.getOrSet(entity, { Luminance(level) }).let {
             it.value = level
         }

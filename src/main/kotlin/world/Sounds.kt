@@ -8,7 +8,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemSounds
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionId
-import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.ImmutableEVec3
@@ -58,7 +58,7 @@ value class SoundId(val value: String) {
     override fun toString(): String = value
 }
 
-fun NamespacedStorage.getOrSingleSound(id: SoundEventId) = this.sounds[id] ?: SoundEvent(
+fun NamespacedStorageAccess.getOrSingleSound(id: SoundEventId) = this.sounds[id] ?: SoundEvent(
     id,
     listOf(
         ESoundSource(
@@ -96,7 +96,7 @@ data class SoundContext(
 data class SoundBroadcast(val play: SoundPlay, val listeners: List<EnginePlayer>, val context: SoundContext?)
 
 fun processWorldSounds(
-    storage: NamespacedStorage,
+    storage: NamespacedStorageAccess,
     world: World
 ): List<SoundBroadcast> {
     val broadcasts = mutableListOf<SoundBroadcast>()

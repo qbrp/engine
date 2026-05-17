@@ -1,11 +1,11 @@
 package org.lain.engine.client.render
 
-import org.lain.engine.client.MinecraftEngineClient
+import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.mc.MinecraftChat
 import org.lain.engine.client.mc.MinecraftClient
 import org.lwjgl.glfw.GLFW
 
-class Window(val mod: MinecraftEngineClient) {
+class Window(val mod: EngineMinecraftClient) {
     private val client = MinecraftClient
     private val window
         get() = client.window

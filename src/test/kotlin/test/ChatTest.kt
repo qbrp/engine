@@ -39,7 +39,6 @@ class ChatTest {
             "Dummy message",
         )
 
-
         // Кейс #2: Обычное сообщение во включенном системном канале
         chatBar.toggleHide(SYSTEM_CHANNEL.id, null)
 

@@ -65,10 +65,10 @@ value class ScriptId(val string: String) {
 fun String.toScriptId(): ScriptId = ScriptId(this)
 
 @Suppress("UNCHECKED_CAST")
-fun <C : ScriptContext, R : Any> NamespacedStorage.getScript(id: ScriptId): Script<C, R>? {
+fun <C : ScriptContext, R : Any> NamespacedStorageAccess.getScript(id: ScriptId): Script<C, R>? {
     return scripts[id] as? Script<C, R>
 }
 
-fun <C : ScriptContext> NamespacedStorage.getVoidScript(id: ScriptId): Script<C, Unit>? {
+fun <C : ScriptContext> NamespacedStorageAccess.getVoidScript(id: ScriptId): Script<C, Unit>? {
     return getScript(id)
 }

@@ -27,6 +27,9 @@ import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.compat.LightSystem
 import org.lain.engine.client.mc.compat.injectDynamicLightsContext
+import org.lain.engine.client.mc.sound.MinecraftAudioManager
+import org.lain.engine.client.mixin.MinecraftClientAccessor
+import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.client.render.ui.InteractionSelectionScreen
 import org.lain.engine.client.render.ui.registerHudRenderEvent
@@ -34,9 +37,6 @@ import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.world.registerWorldRenderEvents
-import org.lain.engine.client.mc.sound.MinecraftAudioManager
-import org.lain.engine.client.mixin.MinecraftClientAccessor
-import org.lain.engine.client.render.Window
 import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.server.registerEngineIntegratedServerEvent
 import org.lain.engine.client.transport.ClientTransportContext
@@ -58,7 +58,7 @@ import org.lain.engine.world.ImmutableVoxelPos
 import org.slf4j.LoggerFactory
 import java.util.*
 
-class MinecraftEngineClient : ClientModInitializer {
+class EngineMinecraftClient : ClientModInitializer {
     private val client = MinecraftClient
     private val fabricLoader = FabricLoader.getInstance()
     private val entityTable by injectEntityTable()
@@ -106,15 +106,6 @@ class MinecraftEngineClient : ClientModInitializer {
         Injector.register(keybindManager)
         Injector.register(this)
 
-        ServerMixinAccess.blockRemovedCallback = callback@{ chunk, blockPos ->
-            if (!chunk.level.isClientSide || !isInWorld(chunk.level)) return@callback
-            client.execute {
-                val pos = ImmutableVoxelPos(blockPos.voxelPos())
-                engineClient.gameSession?.world?.chunkStorage?.removeVoxel(pos)
-                decalsStorage.unloadTexture(pos)
-            }
-        }
-
         ServerMixinAccess.blockPlacedCallback = callback@{ player, blockPos, blockState, world ->
             val gameSession = engineClient.gameSession
             if (!world.isClientSide || !isInWorld(world) || gameSession == null) return@callback
@@ -129,6 +120,15 @@ class MinecraftEngineClient : ClientModInitializer {
             if (!world.isClientSide || !isInWorld(world) || gameSession == null) return@callback false
             val voxel = gameSession.world.chunkStorage.getDynamicVoxel(blockPos.voxelPos()) ?: return@callback false
             with(gameSession.world) { voxel.hasComponent(CoreScriptComponents.USE_RESTRICTION) }
+        }
+
+        ServerMixinAccess.blockRemovedCallback = callback@{ chunk, blockPos ->
+            if (!chunk.level.isClientSide || !isInWorld(chunk.level)) return@callback
+            client.execute {
+                val pos = ImmutableVoxelPos(blockPos.voxelPos())
+                engineClient.gameSession?.world?.chunkStorage?.removeVoxel(pos)
+                decalsStorage.unloadTexture(pos)
+            }
         }
 
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
@@ -172,29 +172,40 @@ class MinecraftEngineClient : ClientModInitializer {
     private fun tickClient() {
         val profiler = Profiler.get()
         profiler.push("engineClientTick")
-        val entity = client.player
+        val mainPlayerEntity = client.player
 
         ClientMixinAccess.tick()
         window.handleResize()
 
         try {
-            if (readyToAuthorize && entity != null && !inAuthorization) {
-                authorize(entity)
+            if (readyToAuthorize && mainPlayerEntity != null && !inAuthorization) {
+                authorize(mainPlayerEntity)
                 inAuthorization = true
             }
-            val players = mutableMapOf<Player, EnginePlayer>()
-            val skippedPlayers = mutableListOf<Player>()
-            entity?.level()?.players()  ?.forEach { entity ->
-                val player = clientPlayerTable.getPlayer(entity) ?: run {
-                    skippedPlayers += entity
-                    return@forEach
-                }
-                players[entity] = player
+
+            val gameSession = engineClient.gameSession
+            val syncedLevelPlayerEntities = mutableMapOf<Player, EnginePlayer>()
+            val skippedPlayers = mutableSetOf<Player>()
+            if (gameSession != null && mainPlayerEntity != null) {
+                val synchronizationRadiusSqr = gameSession.synchronizationRadius * gameSession.synchronizationRadius
+                val levelPlayerEntities = mainPlayerEntity.level().players()
+                val mainPlayerPos = mainPlayerEntity.position()
+                syncedLevelPlayerEntities.putAll(
+                    levelPlayerEntities
+                        .mapNotNull { entity ->
+                            clientPlayerTable.getPlayer(entity)?.let { player -> entity to player }
+                        }
+                        .toMap()
+                )
+                skippedPlayers.addAll(
+                    levelPlayerEntities
+                        .filter { it !in syncedLevelPlayerEntities && it.position().distanceToSqr(mainPlayerPos) < synchronizationRadiusSqr }
+                )
             }
 
-            preEngineTick(players)
+            preEngineTick(syncedLevelPlayerEntities)
             engineClient.tick()
-            postEngineTick(players)
+            postEngineTick(syncedLevelPlayerEntities)
 
             if (skippedPlayers.isNotEmpty()) {
                 connectionLogger.warn("Состояние Minecraft не было обновлено для игроков: {}", skippedPlayers.joinToString { it.plainTextName })

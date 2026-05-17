@@ -20,8 +20,9 @@ data class PlayerAttributes(
     var jumpStrength: AttributeValue = AttributeValue(0.37f),
     var gravity: AttributeValue = AttributeValue(0.98f),
     val maxSpeed: AttributeValue = AttributeValue(1.5f),
+    val flySpeed: AttributeValue = AttributeValue(1f),
 ) : Component {
-    fun copy() = PlayerAttributes(speed.copy(), jumpStrength.copy(), gravity.copy(), maxSpeed.copy())
+    fun copy() = PlayerAttributes(speed.copy(), jumpStrength.copy(), gravity.copy(), maxSpeed.copy(), flySpeed.copy())
 }
 
 @Serializable
@@ -107,4 +108,16 @@ fun EnginePlayer.setCustomMaxSpeed(speed: Float) {
 fun EnginePlayer.resetCustomMaxSpeed() {
     attributes.maxSpeed.resetCustom()
     markDirty<PlayerAttributes>()
+}
+
+val EnginePlayer.flyingSpeed
+    get() = attributes.flySpeed.get()
+
+fun EnginePlayer.setFlyingSpeed(speed: Float) {
+    val attr = attributes.flySpeed
+    val oldCustom = attr.default
+    if (oldCustom != speed) {
+        attr.default = speed
+        markDirty<PlayerAttributes>()
+    }
 }

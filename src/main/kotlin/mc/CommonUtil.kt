@@ -81,7 +81,7 @@ class MinecraftRaycastProvider(private val playerTable: EntityTable) : RaycastPr
     override fun canSee(player: EnginePlayer, voxelPos: VoxelPos, isClient: Boolean): Boolean {
         val table = if (isClient) playerTable.client else playerTable.server
         val entity = table.getEntity(player) ?: return false
-        val blockPos =BlockPos(voxelPos.x, voxelPos.y, voxelPos.z)
+        val blockPos = BlockPos(voxelPos.x, voxelPos.y, voxelPos.z)
         val context = ClipContext(
             entity.eyePosition,
             blockPos.center,

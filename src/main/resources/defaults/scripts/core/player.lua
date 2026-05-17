@@ -26,11 +26,6 @@ function Player:set_custom_max_speed(speed) self:__set_custom_max_speed(speed) e
 
 function Player:reset_custom_max_speed() self:__reset_custom_max_speed() end
 
-------------------
-
----@return boolean
-function Player:is_game_master() self:__is_game_master() end
-
 --------------------------------------------------------------------------------
 ---- Работа с компонентами
 --------------------------------------------------------------------------------

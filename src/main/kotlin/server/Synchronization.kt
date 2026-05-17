@@ -16,6 +16,7 @@ import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.component.Entity
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.EngineChunkPos
+import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.Location
 import org.lain.engine.world.location
 import org.slf4j.LoggerFactory
@@ -25,10 +26,11 @@ import kotlin.reflect.KClass
 data class PlayerNetworkState(
     var authorized: Boolean,
     val players: MutableList<EnginePlayer> = mutableListOf(),
-    val items: MutableList<PersistentId> = Collections.synchronizedList(mutableListOf()),
     val chunks: MutableList<EngineChunkPos> = mutableListOf(),
     var tick: Long = 0,
-    var tickTimeout: Int = 8_000
+    var tickTimeout: Int = 8_000,
+    val entities: MutableSet<PersistentId> = mutableSetOf(),
+    val voxels: MutableSet<ImmutableVoxelPos> = mutableSetOf(),
 ) : Component
 
 val EnginePlayer.network

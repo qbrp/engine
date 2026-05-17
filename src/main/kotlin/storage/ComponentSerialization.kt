@@ -10,14 +10,21 @@ import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.polymorphic
 import org.lain.cyberia.ecs.*
 import org.lain.engine.container.ContainedIn
+import org.lain.engine.container.Entries
+import org.lain.engine.container.OccupiedSlots
+import org.lain.engine.item.Count
+import org.lain.engine.item.Flashlight
+import org.lain.engine.item.Gun
+import org.lain.engine.item.Writable
 import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentId
-import org.lain.engine.script.lua.luaTable
+import org.lain.engine.script.lua.luaValue
 import org.lain.engine.script.lua.toJsonDeep
 import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.util.component.ComponentTypeRegistry
+import org.lain.engine.world.Luminance
 import org.lain.engine.world.World
 import java.util.*
 import kotlin.reflect.KClass
@@ -110,14 +117,21 @@ fun ScriptComponentDto(json: JsonElement): ScriptComponentDto {
 
 data class ComponentLoadSettings(
     val referencedEntities: Map<PersistentId, EntityId>?,
-    val namespacedStorage: NamespacedStorage
+    val namespacedStorage: NamespacedStorageAccess
 )
 
 context(world: World)
-fun Component.toCommonDto(): ComponentDto {
+fun Component.toSnapshotDto(): ComponentDto {
     val data = when (this) {
         is ContainedIn -> ContainedInDto(container.requireComponent())
-        is ScriptComponent -> { ScriptComponentDto(luaTable.toJsonDeep()) }
+        is ScriptComponent -> { ScriptComponentDto(luaValue.toJsonDeep()) }
+        is Count -> CopyComponentDto(this.copy())
+        is Entries -> CopyComponentDto(Entries(items.toMutableList()))
+        is Flashlight -> CopyComponentDto(this.copy())
+        is Gun -> CopyComponentDto(this.copy())
+        is Luminance -> CopyComponentDto(this.copy())
+        is OccupiedSlots -> CopyComponentDto(OccupiedSlots(slots.toMutableSet()))
+        is Writable -> CopyComponentDto(this.copy())
         else -> CopyComponentDto(this)
     }
     val type = when (this) {

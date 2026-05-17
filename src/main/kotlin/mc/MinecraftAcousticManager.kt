@@ -1,5 +1,7 @@
 package org.lain.engine.mc
 
+import kotlinx.atomicfu.locks.ReentrantLock
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +22,7 @@ import org.lain.engine.util.PrimitiveArrayPool
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
+import org.lain.engine.util.then
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.pos
@@ -29,6 +32,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.min
@@ -88,11 +94,12 @@ class MinecraftChunkAcousticScene private constructor(
     val z: Int,
     val chunk: ChunkAccess
 ) {
-    private val actors = AtomicInteger(0)
-    private val shouldDestroy = AtomicBoolean(false)
-    private val destroyed = AtomicBoolean(false)
+    val lock = ReentrantReadWriteLock()
+    var actors = 0
+    var shouldDestroy = false
+    var destroyed = false
 
-    fun copy(): MinecraftChunkAcousticScene {
+    fun copy(): MinecraftChunkAcousticScene = lock.read {
         val newPassabilityGrid = PrimitiveArrayPool.getGrid3f(size.width, size.height, size.depth)
         passability.arraycopy(newPassabilityGrid)
         return MinecraftChunkAcousticScene(
@@ -103,38 +110,38 @@ class MinecraftChunkAcousticScene private constructor(
         )
     }
 
-    fun setPassability(x: Int, y: Int, z: Int, value: Float) {
+    fun setPassability(x: Int, y: Int, z: Int, value: Float) = lock.write {
         assertVacant()
         passability[x - this.x, y - this.y, z - this.z] = value
     }
 
-    fun getPassability(x: Int, y: Int, z: Int) = passability[x - this.x, y - this.y, z - this.z]
+    fun getPassability(x: Int, y: Int, z: Int) = lock.read { passability[x - this.x, y - this.y, z - this.z] }
 
-    fun occupy() {
-        actors.incrementAndGet()
+    fun occupy() = lock.write {
+        actors += 1
     }
 
-    fun vacant() {
-        if (actors.decrementAndGet() == 0 && shouldDestroy.get()) {
-            _destroy()
+    fun vacant() = lock.write {
+        if (--actors == 0 && shouldDestroy) {
+            destroyUnsafe()
         }
     }
 
-    fun destroy() {
-        shouldDestroy.set(true)
-        if (actors.get() == 0) {
-            _destroy()
+    fun destroy() = lock.write {
+        shouldDestroy = true
+        if (actors == 0) {
+            destroyUnsafe()
         }
     }
 
-    private fun _destroy() {
-        if (destroyed.get()) return
+    private fun destroyUnsafe() {
+        if (destroyed) return
         PrimitiveArrayPool.freeGrid3f(passability)
-        destroyed.set(true)
+        destroyed = true
     }
 
     private fun assertVacant() {
-        if (actors.get() > 0) throw IllegalStateException("Сцена не может быть изменена во время использования")
+        if (actors > 0) throw IllegalStateException("Сцена не может быть изменена во время использования")
     }
 
     companion object {
@@ -204,7 +211,7 @@ data class ChunkedAcousticView(
         fun chunkZ(z: Int) = z shr depthTrailingZeros
     }
 
-    data class ChunkPos(var x: Int, var y: Int, var z: Int)
+    data class ChunkPos(val x: Int, val y: Int, val z: Int)
 
     val minX = scenes.minOf { it.x }
     val minY = scenes.minOf { it.y }
@@ -260,7 +267,8 @@ data class ChunkedAcousticView(
 
 class ConcurrentAcousticSceneBank {
     data class AcousticSceneSegmentCompound(
-        val scenes: MutableList<MinecraftChunkAcousticScene> = Collections.synchronizedList(mutableListOf())
+        val scenes: MutableList<MinecraftChunkAcousticScene> = Collections.synchronizedList(mutableListOf()),
+        val rebuildLock: ReentrantLock = ReentrantLock(),
     ) {
         fun getScene(segment: Int): MinecraftChunkAcousticScene {
             return scenes[segment]
@@ -323,23 +331,24 @@ class ConcurrentAcousticSceneBank {
             }
     }
 
-    fun setPassability(world: Level, pos: BlockPos, value: Float): MinecraftChunkAcousticScene? {
-        val chunkPos = ChunkPos(pos)
-        val oldSegment = getChunkSegment(world, chunkPos, pos.y) ?: return null
+    fun setPassability(world: Level, chunkPos: ChunkPos, pos: BlockPos, value: Float, logger: org.slf4j.Logger?): MinecraftChunkAcousticScene? {
+        val chunkCompound = getChunk(world.engine, chunkPos) ?: return null
+        val oldSegment = chunkCompound.getScene(world.segmentOf(pos.y))
 
         if (oldSegment.getPassability(pos.x, pos.y, pos.z) == value) return null
-
-        synchronized(oldSegment) {
+        logger?.info("Перестройка акустической сцены $chunkPos")
+        return chunkCompound.rebuildLock.withLock {
             val newSegment = oldSegment.copy()
             oldSegment.destroy()
             newSegment.setPassability(pos.x, pos.y, pos.z, value)
+            val list = chunkCompound.scenes
 
-            val list = chunkMap[WorldChunkKey(world.engine, chunkPos)]?.scenes ?: return null
             list[world.segmentOf(pos.y)] = newSegment
-
-            return newSegment
+            newSegment
         }
     }
+
+    val chunkCreationLock = Any()
 
     fun getChunkedView(
         world: Level,
@@ -360,27 +369,29 @@ class ConcurrentAcousticSceneBank {
         val segments = world.segmentCount
         val bottomSegment = segment - extend
         val chunks = mutableListOf<MinecraftChunkAcousticScene>()
-        for (x in chunkX0..chunkX1) {
-            for (z in chunkZ0..chunkZ1) {
-                val chunkPos = ChunkPos(x, z)
-                val compound = getChunk(world.engine, chunkPos) ?: addChunk(
-                    world,
-                    world.getChunk(x, z),
-                    acousticBlockData
-                )
+        return synchronized(chunkCreationLock) {
+            for (x in chunkX0..chunkX1) {
+                for (z in chunkZ0..chunkZ1) {
+                    val chunkPos = ChunkPos(x, z)
+                    val compound = getChunk(world.engine, chunkPos) ?: addChunk(
+                        world,
+                        world.getChunk(x, z),
+                        acousticBlockData
+                    )
 
-                repeat(1 + extend * 2) { i ->
-                    val segmentIndex = bottomSegment + i
-                    if (segmentIndex < segments - 1 && segmentIndex >= 0) {
-                        chunks.add(compound.getScene(segmentIndex))
+                    repeat(1 + extend * 2) { i ->
+                        val segmentIndex = bottomSegment + i
+                        if (segmentIndex < segments - 1 && segmentIndex >= 0) {
+                            chunks.add(compound.getScene(segmentIndex))
+                        }
                     }
                 }
             }
+            ChunkedAcousticView(
+                ChunkedAcousticView.ChunkSize(16, SEGMENT_SIZE, 16),
+                chunks
+            )
         }
-        return ChunkedAcousticView(
-            ChunkedAcousticView.ChunkSize(16, SEGMENT_SIZE, 16),
-            chunks
-        )
     }
 
     fun getChunkSegment(world: Level, pos: ChunkPos, y: Int) = getChunk(world.engine, pos)?.getScene(world.segmentOf(y))
@@ -399,26 +410,31 @@ class MinecraftAcousticManager(
     var acousticBlockData = AtomicReference(acousticBlockData)
     var range = AtomicInteger(32)
     var performanceDebug = AtomicBoolean(false)
+    var rebuildDebug = false
 
     fun updateBlock(block: BlockState, pos: BlockPos, world: Level) {
-        setPassabilityAt(world, pos, acousticBlockData.get().getPassability(pos, world, block))
+        setPassabilityAtAsync(world, pos, acousticBlockData.get().getPassability(pos, world, block))
     }
 
     fun removeBlock(pos: BlockPos, world: Level) {
-        setPassabilityAt(world, pos, acousticBlockData.get().air)
+        setPassabilityAtAsync(world, pos, acousticBlockData.get().air)
     }
 
-    fun setPassabilityAt(world: Level, pos: BlockPos, value: Float) = coroutineScope.launch {
-        try {
-            acousticSceneBank.setPassability(world, pos, value)
-        } catch (e: Throwable) {
-            val (x, y, z) = Triple(pos.x, pos.y, pos.z)
-            logger.error("При изменении акустической сцены ($world $x $y $z на $value) возникла непредвиденная ошибка. Сцена перезаписывается.", e)
-            acousticSceneBank.addChunk(world, world.getChunk(pos), acousticBlockData.get())
+    private fun setPassabilityAtAsync(world: Level, pos: BlockPos, value: Float) {
+        val doDebug = rebuildDebug
+        coroutineScope.launch {
+            val chunkPos = ChunkPos(pos)
+            try {
+                acousticSceneBank.setPassability(world, chunkPos, pos, value, { doDebug }.then { logger })
+            } catch (e: Throwable) {
+                val (x, y, z) = Triple(pos.x, pos.y, pos.z)
+                logger.error("При изменении акустической сцены ($world $x $y $z на $value) возникла непредвиденная ошибка. Сцена перезаписывается.", e)
+                acousticSceneBank.addChunk(world, world.getChunk(pos), acousticBlockData.get())
+            }
         }
     }
 
-    fun onChunkUnload(world: WorldId, chunk: ChunkAccess) = coroutineScope.launch {
+    fun unloadChunkAsync(world: WorldId, chunk: ChunkAccess) = coroutineScope.launch {
         acousticSceneBank.removeChunk(world, chunk.pos)
     }
 
@@ -476,11 +492,11 @@ class MinecraftAcousticManager(
         )
 
         val freed = AtomicBoolean(false)
-        val use = AtomicBoolean(false)
+        val inDebug = AtomicBoolean(false)
 
         fun _finish() {
-            if (freed.get() || use.get()) return
-            freed.set(true)
+            if (!freed.compareAndSet(false, true)) return
+            if (inDebug.get()) return
             PrimitiveArrayPool.freeGrid3f(generation.volume)
             scene.free()
         }
@@ -498,7 +514,7 @@ class MinecraftAcousticManager(
                 val (lX, lY, lZ) = scene.worldToLocal(blockPosRelative.x, blockPosRelative.y, blockPosRelative.z)
                 generation.volume[lX, lY, lZ] = volume * passability
             }
-            simulateAsyncDijkstra(
+            simulateDijkstra(
                 scene,
                 generation,
                 maxVolume,
@@ -521,7 +537,7 @@ class MinecraftAcousticManager(
         return object : AcousticSimulationResult {
             // Максимально не оптимизировано, но кому какое дело?
             override fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float) {
-                use.set(true)
+                inDebug.set(true)
                 server.engine.execute {
                     val minX = scene.minX.toFloat()
                     val minY = scene.minY.toFloat()
@@ -535,8 +551,10 @@ class MinecraftAcousticManager(
                             .map { (x, y, z) ->
                                 ImmutableVoxelPos(x + scene.minX, y + scene.minY, z + scene.minZ) to generation.volume[x, y, z]
                             }
-                        handler.onPersonalVolumeAcousticDebug(player, volumes)
-                        use.set(false)
+                        server.engine.execute {
+                            handler.onPersonalVolumeAcousticDebug(player, volumes)
+                        }
+                        inDebug.set(false)
                         finish()
                     }
                 }

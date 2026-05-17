@@ -6,10 +6,9 @@ import org.lain.engine.client.render.world.LabelRenderState
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.player.canSee
 import org.lain.engine.player.eyePos
+import org.lain.engine.player.whoSee
 import org.lain.engine.util.math.MutableEVec3
-import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.pos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -58,7 +57,7 @@ class ChatBubbleList(private val options: EngineOptions) {
                 player,
                 0f,
                 MutableEVec3(player.eyePos),
-                MutableEVec3(player.pos),
+                MutableEVec3(player.eyePos),
                 0f,
                 options.chatBubbleLifeTime,
                 0f
@@ -69,8 +68,11 @@ class ChatBubbleList(private val options: EngineOptions) {
     fun tick(mainPlayer: EnginePlayer) {
         val players = mutableMapOf<PlayerId, Boolean>()
         bubbles.forEach { bubble ->
-            if (bubble.tick++ % 20 == 0) {
-                bubble.canSee = players.computeIfAbsent(bubble.player.id) { mainPlayer.canSee(VoxelPos(bubble.player.pos), true) }
+            if (!bubble.canSee && (bubble.tick == 0 || bubble.tick++ % 20 == 0)) {
+                val author = bubble.player
+                bubble.canSee = players.computeIfAbsent(author.id) {
+                    mainPlayer.pos.squaredDistanceTo(author.pos) < 6*6 || mainPlayer.whoSee(64, true) == author
+                }
             }
         }
     }
@@ -98,10 +100,12 @@ fun updateChatBubble(bubble: ChatBubble, dt: Float, height: Float) {
     if (bubble.canSee) {
         bubble.targetPos.set(
             playerPos.x,
-            playerPos.y + height + lift + bubble.offsetY,
+            playerPos.y + height + bubble.offsetY,
             playerPos.z
         )
     }
+    bubble.targetPos.add(y = lift)
+
     bubble.pos.mutateLerp(bubble.targetPos, 1f - 0.8f.pow(dt))
     val opacity = 1 - sin(t2 * (Math.PI / 2)).toFloat()
     bubble.opacity = opacity

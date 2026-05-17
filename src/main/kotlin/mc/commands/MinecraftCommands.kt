@@ -17,18 +17,20 @@ import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
 import net.minecraft.core.BlockPos
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.server.permissions.Permission
 import net.minecraft.server.permissions.PermissionLevel
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraft.world.phys.Vec3
-import org.lain.cyberia.ecs.apply
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.remove
-import org.lain.cyberia.ecs.require
-import org.lain.engine.chat.*
+import org.lain.cyberia.ecs.*
+import org.lain.engine.chat.CHAT_HEADS_PERMISSION
+import org.lain.engine.chat.IncomingMessage
+import org.lain.engine.chat.MessageSource
+import org.lain.engine.chat.chatChannelOf
 import org.lain.engine.item.ItemId
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
@@ -41,6 +43,24 @@ import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
+
+fun World.updateCommandInvokeSystem(table: EntityTable) {
+    val mcWorld = table.getMcWorld(id) as? ServerLevel ?: error("World $id not found")
+    val server = mcWorld.server ?: error("Minecraft server is not available")
+    val commandDispatcher = server.commands
+    iterate<Event, CommandInvoke>() { _, _, (command) ->
+        commandDispatcher.performPrefixedCommand(server.createCommandSourceStack(), command)
+    }
+    iterate<PlayerCommandAccess, CommandInvoke>() { componentAccess, (player, root), (command) ->
+        val mcPlayer = table.server.getEntity(player) ?: error("Player $player not found")
+        var commandSourceStack = mcPlayer.createCommandSourceStack()
+        if (root) commandSourceStack = commandSourceStack.withPermission(LevelBasedPermissionSet.OWNER)
+        commandDispatcher.performPrefixedCommand(
+            commandSourceStack,
+            command
+        )
+    }
+}
 
 fun playerPositionsMessage(playerStorage: PlayerStorage, world: Level): List<String> {
     val enginePlayers = playerStorage.getAll()
@@ -99,7 +119,6 @@ fun ServerCommandContext.getString(id: String): String {
 fun ServerCommandContext.getVec3(id: String): Vec3 {
     return Vec3Argument.getVec3(this, id)
 }
-
 
 fun <T : ArgumentBuilder<CommandSourceStack, T>> ArgumentBuilder<CommandSourceStack, T>.executeCatching(todo: (Context) -> Unit): T {
     val playerTable = injectValue<EntityTable>().server
@@ -435,7 +454,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                         val id = ItemId(argument)
                         val player = ctx.source.player ?: friendlyError("Команда доступна только игроку")
 
-                        val storage = server.engine.namespacedStorage
+                        val storage = server.engine.namespacedStorage.get()
                         val items = mutableListOf<ItemId>()
                         val namespace = storage.namespaces[NamespaceId(id.toString())]
                         if (namespace != null) {
@@ -639,7 +658,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
 
 class NamespacedIdProvider(
     val additional: List<String> = listOf(),
-    val provider: (NamespacedStorage) -> List<String>,
+    val provider: (NamespacedStorageAccess) -> List<String>,
 ) : SuggestionProvider<CommandSourceStack> {
     private val server by injectEngineServer()
     private val storage get() = server.namespacedStorage
@@ -657,65 +676,4 @@ class NamespacedIdProvider(
             .forEach { builder.suggest('"' + it + '"') }
         return builder.buildFuture()
     }
-}
-
-/**
- * Регистрация команды типа `/<название> <содержание>`, отправляющий содержание в чат-каналs
- * @param name Название команды (/команда)
- * @param channel В какой канал будет отправляться `содержание`
- * @param argument Название аргумента команды
- */
-fun ServerCommandDispatcher.registerServerChatCommand(name: String, channel: ChatChannel, argument: String = "text", permission: Boolean = false) {
-    val engine by injectEngineServer()
-    register(
-        Commands.literal(name)
-            .requires { !permission || it.player?.hasPermission("chat.$name") == true }
-            .then(
-                Commands.argument(argument, StringArgumentType.greedyString())
-                    .executeCatching { ctx ->
-                        val text = ctx.command.getString(argument)
-                        val player = ctx.requirePlayer()
-                        engine.chat.processMessage(channel, MessageSource.getPlayer(player, channel), text)
-                    }
-            )
-    )
-}
-
-fun ServerCommandDispatcher.registerServerPmCommand() {
-    val engine by injectEngineServer()
-    val table by injectEntityTable()
-
-    register(
-        Commands.literal("pm")
-            .then(
-                Commands.argument("player", EntityArgument.player())
-                    .then(
-                        Commands.argument("text", StringArgumentType.greedyString())
-                            .executeCatching { ctx ->
-                                val text = ctx.command.getString("text")
-                                val recipient = ctx.command.getPlayerEntity("player")
-                                val authorPlayer = ctx.requirePlayer()
-                                val recipientPlayer = table.server.requirePlayer(recipient)
-
-                                if (recipientPlayer == authorPlayer && !authorPlayer.developerMode) {
-                                    ctx.sendError("Вы не можете написать самому себе")
-                                    return@executeCatching
-                                }
-
-                                val channel = engine.chat.settings.pmChannel
-                                engine.chat.sendMessage(
-                                    text,
-                                    MessageSource.getPlayer(authorPlayer, channel),
-                                    channel,
-                                    recipientPlayer.messageSource(channel),
-                                    boomerang = true,
-                                    placeholders = mapOf(
-                                        "pm_receiver_username" to recipientPlayer.username,
-                                        "pm_receiver_name" to recipientPlayer.displayNameMiniMessage
-                                    )
-                                )
-                            }
-                    )
-            )
-    )
 }

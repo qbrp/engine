@@ -2,14 +2,10 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.script.ScriptContext
-import org.lain.engine.script.ScriptId
-import org.lain.engine.script.getVoidScript
-import org.lain.engine.script.interactionScriptContext
-import org.lain.engine.script.NamespacedStorage
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.require
+import org.lain.engine.script.*
 
 data class DeveloperMode(var enabled: Boolean, var acoustic: Boolean = false) : Component
 
@@ -44,7 +40,7 @@ fun appendScriptBindingVerbs(player: EnginePlayer) = player.handle<VerbLookup>()
     }
 }
 
-context(contents: NamespacedStorage, interaction: InteractionComponent)
+context(contents: NamespacedStorageAccess, interaction: InteractionComponent)
 fun handleHandScriptInteractions(player: EnginePlayer) {
     val bindings = player.require<ScriptBindings>()
     player.handleInteraction(ATTACK_SCRIPT_VERB) {

@@ -27,7 +27,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.apply
 
-object Player : Component
+data class Player(val obj: EnginePlayer) : Component
 
 data class PlayerInstantiateSettings(
     val world: World,
@@ -43,12 +43,13 @@ data class PlayerInstantiateSettings(
 )
 
 data class DefaultPlayerAttributes(
-    var movement: MovementDefaultAttributes = MovementDefaultAttributes(),
-    var minVolume: Float = 0.2f,
-    var maxVolume: Float = 1.3f,
-    var baseVolume: Float = 5f,
-    var gravity: Float = 0.087f,
-    var tirednessMultiplier: Float = 1f,
+    val movement: MovementDefaultAttributes = MovementDefaultAttributes(),
+    val minVolume: Float = 0.2f,
+    val maxVolume: Float = 1.3f,
+    val baseVolume: Float = 5f,
+    val gravity: Float = 0.087f,
+    val flyingSpeed: Float = 1f,
+    val tirednessMultiplier: Float = 1f,
 ) : Component
 
 fun commonPlayerInstance(

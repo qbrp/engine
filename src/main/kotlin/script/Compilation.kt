@@ -117,23 +117,25 @@ fun assertIdentifierValid(namespaceId: NamespaceId, id: String) {
     if (!isIdPathValid(id)) throw CompilationException(namespaceId, InvalidIdException(id))
 }
 
-fun NamespacedStorage.loadContentsCompileResult(result: CompilationResult) {
-    upload(
-        result.namespaces.map { (id, namespace) ->
-            Namespace(
-                id,
-                Namespace.Holder(namespace.items.mapValues { it.value.prefab }),
-                Namespace.Holder(namespace.sounds),
-                Namespace.Holder(namespace.progressionAnimations),
-                Namespace.Holder(namespace.scripts),
-                Namespace.Holder(namespace.components),
-                Namespace.Holder(namespace.intents),
-            )
-        }
+fun NamespacedStorageAccess.loadContentsCompileResult(result: CompilationResult) {
+    update(
+        namespacedStorageWithBuiltins(
+            result.namespaces.map { (id, namespace) ->
+                Namespace(
+                    id,
+                    Namespace.Holder(namespace.items.mapValues { it.value.prefab }),
+                    Namespace.Holder(namespace.sounds),
+                    Namespace.Holder(namespace.progressionAnimations),
+                    Namespace.Holder(namespace.scripts),
+                    Namespace.Holder(namespace.components),
+                    Namespace.Holder(namespace.intents),
+                )
+            }
+        )
     )
 }
 
-fun World.registerScriptComponents(namespacesStorage: NamespacedStorage) {
+fun World.registerScriptComponents(namespacesStorage: NamespacedStorageAccess) {
     registerScriptComponents(namespacesStorage.components.values.toList() + CoreScriptComponents.getAll())
 }
 
@@ -149,7 +151,7 @@ fun EngineServer.loadContents(
     result: CompilationResult = compileContents(ENGINE_DIR.contents, luaContext)
 ) {
     applyContentsCompileResult(result)
-    eventListener.onCompiled(namespacedStorage)
+    eventListener.onCompiled(namespacedStorage.get())
     result.log()
 }
 

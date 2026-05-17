@@ -18,4 +18,13 @@ public abstract class PlayerMixin {
     private void replaceName(CallbackInfoReturnable<Component> cir) {
         cir.setReturnValue(ServerMixinAccess.INSTANCE.getDisplayName((Player) ((Object)this)));
     }
+
+    @Inject(
+            method = "getFlyingSpeed",
+            at = @At("RETURN"),
+            cancellable = true
+    )
+    public void engine$modifyFlyingSpeed(CallbackInfoReturnable<Float> cir) {
+        cir.setReturnValue(cir.getReturnValue() * ServerMixinAccess.INSTANCE.getFlyingSpeed((Player)(Object)this));
+    }
 }

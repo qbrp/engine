@@ -55,60 +55,55 @@ interface ContentStorage {
     val intents: Namespace.Holder<IntentId, Intent>
 }
 
-
 typealias NamespaceHashMap = Map<NamespaceId, Int>
 
-class NamespacedStorage : ContentStorage {
-    var namespaces: Map<NamespaceId, Namespace> = mapOf()
-        private set
-    override var sounds: Namespace.Holder<SoundEventId, SoundEvent> = Namespace.Holder()
-    override var items: Namespace.Holder<ItemId, ItemPrefab> = Namespace.Holder()
-    override var progressionAnimations: Namespace.Holder<ProgressionAnimationId, ProgressionAnimation> = Namespace.Holder()
-    override var scripts: Namespace.Holder<ScriptId, Script<*, *>> = Namespace.Holder()
-    override var components: Namespace.Holder<ScriptComponentId, ScriptComponentType> = Namespace.Holder()
-    override var intents: Namespace.Holder<IntentId, Intent> = Namespace.Holder()
+interface NamespacedStorageAccess : ContentStorage {
+    fun get(): NamespacedStorage
+    fun update(storage: NamespacedStorage)
+}
 
-    @get:Synchronized
-    @set:Synchronized
-    var namespaceHashMap: NamespaceHashMap = hashMap()
-
-    private fun hashMap() = namespaces.map { (id, namespace) -> id to namespace.hash }.toMap()
-
-    fun upload(namespaces: List<Namespace>) {
-        val namespacesMap = namespaces.associateBy { it.id }.toMutableMap()
-
-        val coreErrorNamespaceId = NamespaceId("core/error")
-        val invalidItem = ItemPrefab(
-            ItemId(INVALID_ITEM_ID), 64,
-            "Недействительный предмет",
-            ItemAssets.withDefaultAsset(INVALID_ITEM_ID),
-            null,
-            {
-                ItemTooltip(INVALID_ITEM_TOOLTIPS.random())
-            }
-        )
-        val coreErrorNamespaceItems = mapOf(ItemId("core/error/item") to invalidItem)
-        namespacesMap[coreErrorNamespaceId] = namespacesMap.computeIfAbsent(
-            coreErrorNamespaceId,
-            {
-                Namespace(
-                    coreErrorNamespaceId,
-                    Holder()
-                )
-            }
-        ).let {
-            it.copy(items = Holder(it.items + coreErrorNamespaceItems))
-        }
-
-        this.namespaces = namespacesMap
-        items = collect { it.items }
-        sounds = collect { it.sounds }
-        progressionAnimations = collect { it.progressionAnimations }
-        scripts = collect { it.scripts }
-        components = collect { it.components }
-        intents = collect { it.intents }
-        namespaceHashMap = hashMap()
+class ThreadSafeNamespaceStorageAccessImpl(
+    @Volatile var namespacedStorage: NamespacedStorage
+) : NamespacedStorageAccess, ContentStorage by namespacedStorage {
+    override fun get(): NamespacedStorage = namespacedStorage
+    override fun update(storage: NamespacedStorage) {
+        namespacedStorage = storage
     }
+}
+
+fun emptyNamespacedStorage() = NamespacedStorage(emptyList())
+
+fun namespacedStorageWithBuiltins(namespaces: List<Namespace>): NamespacedStorage {
+    val namespacesWithBuiltins = namespaces.toMutableList()
+    val coreErrorNamespaceId = NamespaceId("core/error")
+    val invalidItem = ItemPrefab(
+        ItemId(INVALID_ITEM_ID), 64,
+        "Недействительный предмет",
+        ItemAssets.withDefaultAsset(INVALID_ITEM_ID),
+        null,
+        {
+            ItemTooltip(INVALID_ITEM_TOOLTIPS.random())
+        }
+    )
+    val coreErrorNamespaceItems = mapOf(ItemId("core/error/item") to invalidItem)
+    namespacesWithBuiltins += Namespace(
+        coreErrorNamespaceId,
+        Holder(coreErrorNamespaceItems)
+    )
+    return NamespacedStorage(namespacesWithBuiltins)
+}
+
+class NamespacedStorage internal constructor(namespacesList: List<Namespace>) : ContentStorage {
+    val namespaces: Map<NamespaceId, Namespace> = namespacesList.associateBy { it.id }.toMutableMap()
+
+    override val sounds: Namespace.Holder<SoundEventId, SoundEvent> = collect { it.sounds }
+    override val items: Namespace.Holder<ItemId, ItemPrefab> = collect { it.items }
+    override val progressionAnimations: Namespace.Holder<ProgressionAnimationId, ProgressionAnimation> = collect { it.progressionAnimations }
+    override val scripts: Namespace.Holder<ScriptId, Script<*, *>> = collect { it.scripts }
+    override val components: Namespace.Holder<ScriptComponentId, ScriptComponentType> = collect { it.components }
+    override val intents: Namespace.Holder<IntentId, Intent> = collect { it.intents }
+
+    val namespaceHashMap: NamespaceHashMap = namespaces.map { (id, namespace) -> id to namespace.hash }.toMap()
 
     private fun <K, V> collect(property: (Namespace) -> Namespace.Holder<K, V>): Namespace.Holder<K, V> {
         val entries = mutableMapOf<K, V>()

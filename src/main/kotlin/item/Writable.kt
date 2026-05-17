@@ -6,7 +6,6 @@ import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.set
 import org.lain.engine.player.*
-import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.world.World
 
 @Serializable

@@ -22,11 +22,8 @@ import org.lain.engine.item.instantiateItem
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.registerIntentCommands
 import org.lain.engine.player.*
-import org.lain.engine.script.CompilationResult
-import org.lain.engine.script.NamespacedStorage
-import org.lain.engine.script.loadContents
+import org.lain.engine.script.*
 import org.lain.engine.script.lua.*
-import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerEventListener
@@ -48,7 +45,7 @@ data class EngineMinecraftServerDependencies(
     val luaContext: LuaContext,
     val compilationResult: CompilationResult,
     val config: ServerConfig = loadOrCreateServerConfig(),
-    val namespacedStorage: NamespacedStorage = NamespacedStorage(),
+    val namespacedStorage: NamespacedStorageAccess,
     val playerStorage: PlayerStorage = ConcurrentStorage(),
     val entityTable: EntityTable = Injector.resolve(EntityTable::class),
     val acousticSceneBank: ConcurrentAcousticSceneBank = ConcurrentAcousticSceneBank(),
@@ -202,7 +199,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     fun onChunkUnload(world: Level, chunk: ChunkAccess) {
         val pos = chunk.pos.engineChunkPos()
-        acousticSimulator.onChunkUnload(world.engine, chunk)
+        acousticSimulator.unloadChunkAsync(world.engine, chunk)
         engine.handler.onChunkUnload(pos)
         val engineWorld = engine.getWorld(world)
         val engineChunk = engineWorld.chunkStorage.getChunk(pos) ?: return
@@ -216,7 +213,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             engineChunk.hints.toMap(),
             engineChunk.dynamicVoxels.mapValues { (_, entity) ->
                 savableComponentArrays.mapNotNull {
-                    with(engineWorld) { it.componentOf(entity)?.toCommonDto() }
+                    with(engineWorld) { it.componentOf(entity)?.toSnapshotDto() }
                 }
             }
         )

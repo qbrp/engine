@@ -1,17 +1,18 @@
 package org.lain.engine.client.mc
 
 import net.minecraft.client.GuiMessage
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.ComponentRenderUtils
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.util.FormattedCharSequence
 import net.minecraft.world.entity.player.PlayerSkin
-import org.lain.engine.mc.Text
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
-import org.lain.engine.client.render.ui.ChatChannelsBar
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
+import org.lain.engine.client.render.ui.ChatChannelsBar
 import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.mc.Text
 import org.lain.engine.mc.displayNameMiniMessage
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.PlayerId
@@ -27,6 +28,7 @@ import kotlin.math.pow
 import kotlin.random.Random
 
 object MinecraftChat : ChatEventBus {
+    var guiGraphics: GuiGraphics? = null
     private val client by injectClient()
     private val chatLines = IdentityHashMap<GuiMessage.Line, ChatLineData>()
     private val chatMessages = IdentityHashMap<GuiMessage, ChatMessageData>()

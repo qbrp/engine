@@ -12,7 +12,10 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.set
 import org.lain.engine.chat.*
 import org.lain.engine.debugPacket
-import org.lain.engine.item.*
+import org.lain.engine.item.ItemMeta
+import org.lain.engine.item.ItemStorage
+import org.lain.engine.item.Writable
+import org.lain.engine.item.getOwner
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
@@ -20,7 +23,7 @@ import org.lain.engine.script.getVoidScript
 import org.lain.engine.storage.EntityDto
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.backupBookContent
-import org.lain.engine.storage.toCommonDto
+import org.lain.engine.storage.toSnapshotDto
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
@@ -170,7 +173,7 @@ class ServerHandler(
         if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
 
         if (writable.contents != contents) {
-            writable.contents = contents
+            writable.contents = contents.map { it.trim() }
             item.markDirty<Writable>()
             backupBookContent(username, item.requireComponent<ItemMeta>().id, contents)
         }
@@ -272,57 +275,67 @@ class ServerHandler(
             val state = player.network
             val playerLocation = player.location
             val playerPosition = playerLocation.position
+            val worldComponents = world.componentManager
 
             debugPacket("Действия тика ${state.tick}: ${input.actions}")
 
-            val playersToSynchronize = filterNearestPlayers(playerLocation, playerSynchronizationRadius, players).toMutableList()
+            val nearbyPlayers = filterNearestPlayers(playerLocation, playerSynchronizationRadius, players).toMutableList()
             val playersToDesynchronize = state.players.filter { it.pos.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
             state.players.removeAll(playersToDesynchronize)
 
-            val items: HashSet<PersistentId> = hashSetOf()
+            val entitiesInRadius: HashSet<PersistentId> = hashSetOf()
             world.iterate<Networked, Location, PersistentId>() { entity, _, entityLocation, persistentId ->
                 if (entity.hasComponent<Player>()) return@iterate
                 if (entityLocation.position.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
-                    val delta = world.componentManager.getOrCreateNetworkedDeltaBitMask(entity)
-                    val componentsToSynchronize = entity.getAll(delta)
+                    val componentsToSynchronize = if (state.entities.contains(persistentId)) {
+                        val delta = worldComponents.getOrCreateNetworkedDeltaBitMask(entity)
+                        entity.getAll(delta)
+                    } else {
+                        worldComponents.getNetworkedComponents(entity)
+                    }
                     if (componentsToSynchronize.isNotEmpty()) {
                         CLIENTBOUND_ENTITY_DELTA_ENDPOINT.sendS2C(
                             EntityDeltaPacket(
                                 EntityDto(
                                     persistentId,
-                                    componentsToSynchronize.map { it.toCommonDto() }
+                                    componentsToSynchronize.map { it.toSnapshotDto() }
                                 )
                             ),
                             player.id
                         )
                     }
-                    if (entity.hasComponent<Item>() && persistentId !in items) {
-                        items.add(persistentId)
-                    }
-
+                    entitiesInRadius.add(persistentId)
+                    state.entities.add(persistentId)
                 }
             }
-            state.items.removeIf { it !in items }
+            state.entities.retainAll(entitiesInRadius)
 
+            val voxelsInRadius = mutableSetOf<ImmutableVoxelPos>()
             world.iterate<Networked, DynamicVoxel, ChunkedPos> { voxel, _, (voxelPos), (chunkPos, _, centerPos) ->
                 if (centerPos.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
-                    val delta = world.componentManager.getOrCreateNetworkedDeltaBitMask(voxel)
-                    val componentsToSynchronize = voxel.getAll(delta)
+                    val componentsToSynchronize = if (state.voxels.contains(voxelPos)) {
+                        val delta = worldComponents.getOrCreateNetworkedDeltaBitMask(voxel)
+                        voxel.getAll(delta)
+                    } else {
+                        worldComponents.getNetworkedComponents(voxel)
+                    }
                     if (componentsToSynchronize.isNotEmpty()) {
                         CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT.sendS2C(
                             DynamicVoxelDeltaPacket(
-                                ImmutableVoxelPos(voxelPos),
-                                componentsToSynchronize.map { it.toCommonDto() }
+                                voxelPos,
+                                componentsToSynchronize.map { it.toSnapshotDto() }
                             ),
                             player.id
                         )
                     }
+                    voxelsInRadius += voxelPos
+                    state.voxels += voxelPos
                 }
             }
+            state.voxels.retainAll(voxelsInRadius)
 
             tickSynchronizationComponent(playerStorage, player)
-
-            for (playerToSynchronize in playersToSynchronize) {
+            for (playerToSynchronize in nearbyPlayers) {
                 if (playerToSynchronize !in state.players && playerToSynchronize.id != player.id) {
                     state.players += playerToSynchronize
                     CLIENTBOUND_FULL_PLAYER_ENDPOINT
@@ -372,7 +385,7 @@ class ServerHandler(
                         .filterValues { it.hasComponent<Networked>() }
                         .mapNotNull { (pos, entity) ->
                             ImmutableVoxelPos(pos) to componentManager.getNetworkedComponents(entity)
-                                .map { it.toCommonDto() }
+                                .map { it.toSnapshotDto() }
                         }
                         .toMap()
                 )
@@ -437,7 +450,6 @@ class ServerHandler(
             notifications
         )
         CLIENTBOUND_JOIN_GAME_ENDPOINT.sendS2C(joinGamePacket, player.id)
-        network.items += joinGamePacket.playerData.referencedItems.all
     }
 
     fun onPlayerInstantiationConfirm(playerId: PlayerId) = updatePlayer(playerId) {
@@ -449,10 +461,6 @@ class ServerHandler(
             PlayerDestroyPacket(player.id)
         )
         playerStorage.forEach { it.network.players.remove(player) }
-    }
-
-    fun onItemsBatchDestroy(item: List<PersistentId>) {
-        playerStorage.forEach { it.network.items.removeAll(item) }
     }
 
     fun onChunkUnload(chunk: EngineChunkPos) {

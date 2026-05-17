@@ -13,7 +13,7 @@
   "environment": "*",
   "entrypoints": {
     "client": [
-      "org.lain.engine.client.MinecraftEngineClient"
+      "org.lain.engine.client.EngineMinecraftClient"
     ],
     "server": [
       "org.lain.engine.DedicatedServerEngineMod"

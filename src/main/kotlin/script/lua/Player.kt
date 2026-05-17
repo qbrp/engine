@@ -7,6 +7,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
+import org.lain.engine.world.invokeCommand
 import org.lain.engine.world.world
 import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaTable
@@ -20,6 +21,10 @@ fun LuaValue.coerceToEnginePlayer() = this.checkuserdata() as EnginePlayer
 context(context: LuaContext)
 fun EnginePlayer.coerceToLua(): LuaUserdata {
     val userdata = LuaUserdata(this)
+    val world = world
+    val worldLua = world.coerceToLua()
+    val entity = with(world) { entityId.coerceToLua() }
+    val entityIdLua = entityId.toLuaValue()
     val meta = object : LuaTable() {
         init {
             set("__index", object : TwoArgFunction() {
@@ -27,7 +32,10 @@ fun EnginePlayer.coerceToLua(): LuaUserdata {
                     return when (key.tojstring()) {
                         "id" -> luaValue(this@coerceToLua.id.toString())
                         "entity_id" -> luaValue(this@coerceToLua.entityId)
-                        "world" -> this@coerceToLua.world.coerceToLua()
+                        "entity" -> entity
+                        "world" -> worldLua
+                        "is_spectating" -> isSpectating.toLuaValue()
+                        "is_game_master" -> isInGameMasterMode.toLuaValue()
                         else -> context.playerTable.get(key)
                     }
                 }
@@ -41,15 +49,17 @@ fun EnginePlayer.coerceToLua(): LuaUserdata {
 
 context(ctx: LuaContext)
 fun Globals.setupPlayer() {
-    ctx.playerTable.set("_has_permission", twoArgFunction { self, permission ->
+    ctx.playerTable.set("has_permission", twoArgFunction { self, permission ->
         val player = self.coerceToEnginePlayer()
         player.hasPermission(permission.tojstring()).toLuaValue()
     })
 
-    ctx.playerTable.set("_is_game_master", object : OneArgFunction() {
-        override fun call(self: LuaValue): LuaValue {
+    ctx.playerTable.set("set_flying_speed", object : TwoArgFunction() {
+        override fun call(self: LuaValue, arg2: LuaValue): LuaValue? {
             val player = self.coerceToEnginePlayer()
-            return luaValue(player.isInGameMasterMode)
+            val speed = arg2.tofloat()
+            player.setFlyingSpeed(speed)
+            return NIL
         }
     })
 
@@ -82,6 +92,14 @@ fun Globals.setupPlayer() {
             return NIL
         }
     })
+
+    ctx.playerTable.set("invoke_command", threeArgFunction { self, command, root ->
+        val player = self.coerceToEnginePlayer()
+        val commandStr = command.tojstring()
+        val rootBl = root.nullable()?.toboolean() ?: false
+        player.invokeCommand(commandStr, rootBl)
+        LuaValue.NIL
+    })
 }
 
 context(world: World, luaContext: LuaContext)
@@ -100,13 +118,13 @@ fun World.updatePlayerScriptSystem() {
     val locationArray = componentManager.getComponentArray(CoreScriptComponents.LOCATION)
     iterate(CoreScriptComponents.LOCATION) { entity, location ->
         if (!entity.hasComponent<Location>()) {
-            val array = location.luaTable.get("vector")
+            val array = location.luaValue.get("vector")
             entity.setComponent(Location(this@updatePlayerScriptSystem, array.toVector3f()))
         }
     }
     iterate<Location>() { entity, location ->
         val scriptLocation = locationArray.componentOf(entity) ?: return@iterate
-        val table = scriptLocation.luaTable
+        val table = scriptLocation.luaValue
         val vector = table.get("vector").nullable()?.checktable() ?: run {
             val array = location.position.toLuaValue()
             table.set("vector", array)

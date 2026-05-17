@@ -24,7 +24,7 @@ fun EngineServer.worldSavePath(world: World) = globals.savePath.worldData.resolv
 fun EngineServer.saveWorld(world: World) = with(world) {
     val persistent = WorldPersistent(
         world.componentManager.getSavableComponents(world.worldState)
-            .map { it.toCommonDto() }
+            .map { it.toSnapshotDto() }
     )
     worldSavePath(world).writeText(WorldJson.encodeToString(persistent))
 }

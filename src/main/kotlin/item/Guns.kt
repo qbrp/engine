@@ -5,9 +5,9 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.player.*
 import org.lain.engine.transport.packet.ItemComponent
+import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.VEC3_ZERO
-import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.World
 import org.lain.engine.world.pos
@@ -25,7 +25,7 @@ data class Gun(
     var fireTime: Int = 0,
     var mode: FireMode = FireMode.SELECTOR,
     val modes: List<FireMode> = listOf(FireMode.SELECTOR, FireMode.SINGLE, FireMode.AUTO),
-) : ItemComponent {
+) : Component {
     fun copy(): Gun {
         return Gun(
             Barrel(barrel.bullets, barrel.maxBullets),

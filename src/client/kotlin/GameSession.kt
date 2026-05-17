@@ -1,9 +1,6 @@
 package org.lain.engine.client
 
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.has
-import org.lain.cyberia.ecs.setComponent
+import org.lain.cyberia.ecs.*
 import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
@@ -26,9 +23,11 @@ import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.script.lua.updatePlayerScriptSystem
 import org.lain.engine.script.lua.updateScriptLightSystem
 import org.lain.engine.script.registerScriptComponents
+import org.lain.engine.script.scriptContext
 import org.lain.engine.server.ServerId
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.WARNING_COLOR
@@ -46,7 +45,7 @@ class GameSession(
 ) {
     val renderer = client.renderer
     val chatEventBus = client.chatEventBus
-    var playerSynchronizationRadius: Int = setup.settings.playerSynchronizationRadius
+    var synchronizationRadius: Int = setup.settings.synchronizationRadius
     var playerDesynchronizationThreshold: Int = setup.settings.playerDesynchronizationThreshold
 
     var extendArm = false
@@ -83,13 +82,13 @@ class GameSession(
     var callbacks: Callbacks = Callbacks()
 
     init {
+        applyCompilation(client.compilationResult ?: error("Compilation is not initialized"))
         val equipmentItems = player.equipment.mapValues { (_, item) -> instantiateItem(item) }
         player.items.forEach { item -> instantiateItem(item) }
         instantiatePlayer(mainPlayer, player.general, equipmentItems)
         client.eventBus.onMainPlayerInstantiated(client, this, mainPlayer)
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
-        applyCompilation(client.compilationResult ?: error("Compilation is not initialized"))
     }
 
     fun instantiateItem(clientboundItemData: ClientboundItemData): EngineItem = with(world) {
@@ -161,7 +160,7 @@ class GameSession(
         }
 
         for (player in players) {
-            if (player.pos.squaredDistanceTo(mainPlayer.pos) > playerSynchronizationRadius * playerSynchronizationRadius) {
+            if (player.pos.squaredDistanceTo(mainPlayer.pos) > synchronizationRadius * synchronizationRadius) {
                 player.isLowDetailed = true
                 continue
             } else {
@@ -227,9 +226,12 @@ class GameSession(
     ) {
         playerStorage.add(player.id, player)
         with(world) {
+            with(luaContext) { player.prepareLuaScriptComponents() }
             player.prepareContainers(data.equipmentContainer, player.location, equipment)
-            player.entityId.setComponent(Player)
+            player.entityId.setComponent(Player(player))
             player.entityId.setComponent(player.location)
+            player.entityId.setComponent(player.require<Location>())
+            callbacks.playerInstantiate.execute(player.scriptContext)
         }
     }
 

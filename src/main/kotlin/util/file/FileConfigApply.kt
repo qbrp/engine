@@ -101,8 +101,10 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
     channels.forEach {
         val channel = it.value
         val name = it.key
-        if (!commandChannels.contains(name)) return@forEach
-        dispatcher.registerServerChatCommand(name, channel, permission = commandChannels[name]!!.invokePermission)
+        val command = commandChannels[name]
+        if (command != null) {
+            dispatcher.registerServerChatCommand(name, channel, permission = command.invokePermission, aliases = command.aliases)
+        }
     }
 
     val blockAcousticConfig = chat.acoustic.passability
@@ -132,6 +134,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
     val simulationConfig = chat.acoustic.simulation
     acousticSimulator.range.set(simulationConfig.range)
     acousticSimulator.performanceDebug.set(simulationConfig.performanceDebug)
+    acousticSimulator.rebuildDebug = simulationConfig.rebuildDebug
 
     val statuses = mutableMapOf<PlayerStatus, Map<PrimaryAttribute, Float>>()
     config.player.attributes.forEach { (status, value) ->
@@ -190,7 +193,8 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
                 if (movement.enableStamina) movement.jumpStaminaConsume else 0f
             ),
             chatSettings,
-            config.requireIdenticalNamespaces
+            config.requireIdenticalNamespaces,
+            config.player.spectateOnJoin
         )
     }
 

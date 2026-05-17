@@ -29,7 +29,7 @@ class EngineClient(
     val ui: EngineUi,
     val eventBus: ClientEventBus,
 ) {
-    val namespacedStorage: NamespacedStorage = NamespacedStorage()
+    val namespacedStorage: NamespacedStorageAccess = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
     lateinit var options: EngineOptions
     lateinit var thread: Thread
     val handler = ClientHandler(this, eventBus)

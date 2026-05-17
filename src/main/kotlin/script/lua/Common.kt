@@ -61,7 +61,7 @@ fun Globals.setup() {
 }
 
 class LazyScriptComponentType(
-    private val storage: NamespacedStorage,
+    private val storage: NamespacedStorageAccess,
     val id: ScriptComponentId
 ) {
     private var componentType: ScriptComponentType? = null

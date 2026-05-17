@@ -1,6 +1,5 @@
 package org.lain.engine.client.render.ui
 
-import net.minecraft.client.GuiMessage
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.EditBox
@@ -12,44 +11,7 @@ import org.lain.engine.mc.Text
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.util.Color
 
-// Зачем нужна вся эта хуйня? А потому-что инкапсуляция, сученька, всё скрываем, ООП нахуй
-
-fun interface EngineLineConsumer {
-    fun accept(var1: Int, var2: Int, var3: Int, var4: GuiMessage.Line?, var5: Int, var6: Float)
-}
-
-fun interface MessageOpacityMultiplierProvider {
-    fun getMessageOpacityMultiplier(age: Int): Float
-}
-
-const val LINE_INDENT = 8
-
-fun forEachVisibleLine(
-    visibleLineCount: Int,
-    currentTick: Int,
-    focused: Boolean,
-    windowHeight: Int,
-    lineHeight: Int,
-    visibleMessages: List<GuiMessage.Line>,
-    scrolledLines: Int,
-    multiplierProvider: MessageOpacityMultiplierProvider,
-    consumer: EngineLineConsumer,
-): Int {
-    var j = 0
-    for (k in (visibleMessages.size - scrolledLines).coerceAtMost(visibleLineCount) - 1 downTo 0) {
-        val f: Float
-        val l: Int = k + scrolledLines
-        val visible: GuiMessage.Line = visibleMessages.getOrNull(l) ?: continue
-        val m = currentTick - visible.addedTime()
-        f = if (focused) 1.0f else multiplierProvider.getMessageOpacityMultiplier(m).toFloat()
-        if (!(f > 1.0E-5f)) continue
-        ++j
-        val n = windowHeight - k * lineHeight
-        val o = n - lineHeight
-        consumer.accept(0, o, n, visible, k, f)
-    }
-    return j
-}
+const val CHAT_HEAD_SIZE = 8
 
 open class ShakingTextFieldWidget(private val textRenderer: Font, x: Int, y: Int, width: Int, height: Int, text: Text) : EditBox(
     textRenderer, x, y, width, height, text

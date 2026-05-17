@@ -61,7 +61,7 @@ fun updatePlayerContainerSystem() {
         } else if (item !in owner.items) {
             val inventory = owner.require<PlayerInventory>()
             val slot = if (inventory.mainHandFree) inventory.selectedSlot else null
-            owner.getOrSet { MoveItemSignal(item, slot) }
+            owner.getOrSet { GiveItemSignal(item, slot) }
             container.requireComponent<Entries>().items -= item
             item.removeComponent<ContainedIn>()
         }

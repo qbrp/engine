@@ -40,7 +40,7 @@ class SetupException(val exceptions: List<CompilationException>) : Exception()
 
 class DedicatedServerEngineMod : DedicatedServerModInitializer {
     private lateinit var luaContext: LuaContext
-    private val namespacedStorage = NamespacedStorage()
+    private var namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
 
     private fun createLuaContext(entrypointScript: File) = LuaContext(
         LuaDependencies(
@@ -127,7 +127,7 @@ class DedicatedEngineMinecraftServer(
             if (!network.authorized) {
                 network.tickTimeout -= 1
                 if (network.tickTimeout <= 0) {
-                    val entity = entityTable.getEntity(player.id) as? ServerPlayer ?: continue
+                    val entity = entityTable.getEntity(player.id) ?: continue
                     connectionManager.disconnect(
                         connectionManager.getSession(player.id),
                         "Время ожидания подтверждения входа в игру истекло"
@@ -234,7 +234,7 @@ class ServerAuthorizationListener(
         val engine = server.engine
         val connection = connectionManager.getSession(playerId)
         if (engine.globals.requireIdenticalNamespaces) {
-            val serverNamespacesHash = engine.namespacedStorage.namespaceHashMap
+            val serverNamespacesHash = engine.namespacedStorage.get().namespaceHashMap
             if (playerNamespaces != serverNamespacesHash) {
                 val missing = serverNamespacesHash.keys.filter { it !in playerNamespaces }
                     .joinToString { it.value }

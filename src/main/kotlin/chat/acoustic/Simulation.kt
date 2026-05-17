@@ -34,7 +34,7 @@ data class Node(
     val z: Int,
     val volume: Float
 )
-fun simulateAsyncDijkstra(
+fun simulateDijkstra(
     view: ChunkedAcousticView,
     generation: AcousticGeneration,
     maxVolume: Float,

@@ -94,6 +94,8 @@ fun parseObjJsonModelOptions(modelJson: JsonObject): ObjModelOptions {
     val useAmbientOcclusion = JsonMc.getAsBoolean(modelJson, "ambient_occlusion", true)
     val disableCulling = JsonMc.getAsBoolean(modelJson, "disable_culling", false)
 
+    val offset = JsonMc.getAsBoolean(modelJson, "offset", false)
+
     return ObjModelOptions(
         useAmbientOcclusion,
         guiLight,
@@ -101,6 +103,7 @@ fun parseObjJsonModelOptions(modelJson: JsonObject): ObjModelOptions {
         transform!!,
         flipV,
         mtlOverride,
-        disableCulling
+        disableCulling,
+        offset
     )
 }

@@ -38,7 +38,7 @@ class LuaDataStorage {
 
 data class LuaDependencies(
     val globals: Globals,
-    val namespacesStorage: NamespacedStorage,
+    val namespacesStorage: NamespacedStorageAccess,
     val scriptsPath: File,
     val dataStorage: LuaDataStorage,
 )

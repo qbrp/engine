@@ -59,7 +59,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
                 VerificationResponsePacket(
                     DeveloperModeStatus(client.developerMode, client.acousticDebug),
-                    client.namespacedStorage.namespaceHashMap
+                    client.namespacedStorage.get().namespaceHashMap
                 )
             )
         }
@@ -110,13 +110,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                     }
                 }
 
-                for (i in pendingFullPlayerData.indices) {
+                for (i in pendingFullPlayerData.indices.reversed()) {
                     val (player, pendingFullData) = pendingFullPlayerData[i]
                     if (pendingFullData.referencedItems.isPresent()) {
                         pendingFullPlayerData.removeAt(i)
                         applyFullPlayerDataInternal(player, pendingFullData)
-                    } else {
-                        continue
                     }
                 }
             }
@@ -294,7 +292,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
         movementDefaultAttributes = defaultAttributes.movement
         movementSettings = settings.movement
-        playerSynchronizationRadius = settings.playerSynchronizationRadius
+        synchronizationRadius = settings.synchronizationRadius
         playerDesynchronizationThreshold = settings.playerDesynchronizationThreshold
         chatManager.updateSettings(settings.chat)
     }

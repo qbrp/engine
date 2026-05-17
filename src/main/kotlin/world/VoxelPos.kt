@@ -37,9 +37,9 @@ data class MutableVoxelPos(
     }
 }
 
-fun VoxelPos(x: Int, y: Int, z: Int): VoxelPos = MutableVoxelPos(x, y, z)
+fun VoxelPos(x: Int, y: Int, z: Int): VoxelPos = ImmutableVoxelPos(x, y, z)
 
-fun VoxelPos(x: Float, y: Float, z: Float): MutableVoxelPos = MutableVoxelPos(
+fun VoxelPos(x: Float, y: Float, z: Float) = ImmutableVoxelPos(
     floorToInt(x),
     floorToInt(y),
     floorToInt(z)

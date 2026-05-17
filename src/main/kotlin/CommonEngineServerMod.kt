@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
@@ -97,7 +98,7 @@ class CommonEngineServerMod : ModInitializer {
             if (world.isClientSide) return@register InteractionResult.PASS
             val hitPlayer = hitResult?.entity ?: return@register InteractionResult.PASS
             if (hitPlayer !is ServerPlayer) return@register InteractionResult.PASS
-            val enginePlayer = entityTable.getGeneralPlayer(player) ?: return@register InteractionResult.PASS
+            val enginePlayer = entityTable.getGeneralPlayer(hitPlayer) ?: return@register InteractionResult.PASS
 
             val name = enginePlayer.require<DisplayName>()
             val username = name.username.value

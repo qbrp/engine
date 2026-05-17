@@ -6,6 +6,7 @@ import de.javagl.obj.ObjFace
 import de.javagl.obj.ObjSplitting
 import net.fabricmc.fabric.api.renderer.v1.Renderer
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadAtlas
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter
 import net.fabricmc.fabric.api.renderer.v1.model.MeshBakedGeometry
 import net.fabricmc.fabric.impl.client.indigo.renderer.IndigoRenderer
@@ -22,9 +23,10 @@ val ITEMS_ATLAS = TextureAtlas.LOCATION_ITEMS
 class ObjGeometry(
     val obj: Obj,
     val mtl: Map<String, Mtl>,
-    val flipV: Boolean
+    val flipV: Boolean,
+    val offset: Boolean
 ) : UnbakedGeometry {
-    private val flg = if (flipV) MutableQuadView.BAKE_NORMALIZED or MutableQuadView.BAKE_FLIP_V else MutableQuadView.BAKE_NORMALIZED
+    private val flg = MutableQuadView.BAKE_NORMALIZED or (if (flipV) MutableQuadView.BAKE_FLIP_V else 0)
 
     override fun bake(
         textures: TextureSlots,
@@ -45,13 +47,14 @@ class ObjGeometry(
 
         materialGroups.forEach { (name: String, objModel: Obj) ->
             val mtl = mtl[name]
-            val sprite = mtl?.mapKd?.let { Material(ITEMS_ATLAS, engineId(it)) } ?: MISSING_SPRITE
+            val sprite = mtl?.mapKd?.let { Material(ModelManager.BLOCK_OR_ITEM, engineId(it)) } ?: MISSING_SPRITE
             val emissive = name == "emissive"
 
             for (i in 0..<objModel.numFaces) {
                 emitFace(
                     emitter,
                     settings,
+                    offset,
                     spriteGetter,
                     modelDebugName,
                     sprite,
@@ -68,6 +71,7 @@ class ObjGeometry(
     private fun emitFace(
         emitter: QuadEmitter,
         settings: ModelState,
+        offset: Boolean,
         spriteGetter: SpriteGetter,
         modelDebugName: ModelDebugName,
         sprite: Material,
@@ -76,10 +80,11 @@ class ObjGeometry(
         face: ObjFace
     ) {
         for (i in 0..<face.numVertices) {
-            emitVertex(i, i, emitter, settings, emissive, fObj, face)
+            emitVertex(i, i, emitter, settings, offset, emissive, fObj, face)
         }
+        if (face.numVertices == 3) emitVertex(3, 2, emitter, settings, offset, emissive, fObj, face)
 
-        if (face.numVertices == 3) emitVertex(3, 2, emitter, settings, emissive, fObj, face)
+        emitter.atlas(QuadAtlas.ITEM)
         emitter.spriteBake(spriteGetter.get(sprite, modelDebugName), flg)
         emitter.color(-1, -1, -1, -1)
         emitter.emit()
@@ -90,16 +95,14 @@ class ObjGeometry(
         vertexNum: Int,
         emitter: QuadEmitter,
         settings: ModelState,
+        offset: Boolean,
         emissive: Boolean,
         fObj: Obj,
         face: ObjFace
     ) {
         val vt = fObj.getVertex(face.getVertexIndex(vertexNum))
         val vertex = Vector3f(vt.x, vt.y, vt.z)
-
-        vertex.add(-0.5f, -0.5f, -0.5f)
-        vertex.rotate(settings.transformation().leftRotation)
-        vertex.add(0.5f, 0.5f, 0.5f)
+        if (offset) vertex.add(0.5f, 0.5f, 0.5f)
 
         val normal = fObj.getNormal(face.getNormalIndex(vertexNum))
         val tex = fObj.getTexCoord(face.getTexCoordIndex(vertexNum))
@@ -118,7 +121,7 @@ class ObjUnbakedModel(
     val mtl: Map<String, Mtl>,
     val options: ObjModelOptions
 ): UnbakedModel {
-    private val objGeometry = ObjGeometry(obj, mtl, options.flipV)
+    private val objGeometry = ObjGeometry(obj, mtl, options.flipV, options.offset)
     override fun geometry(): UnbakedGeometry = objGeometry
     override fun transforms(): ItemTransforms = options.transforms
 }
@@ -130,5 +133,6 @@ data class ObjModelOptions(
     val transforms: ItemTransforms,
     val flipV: Boolean,
     val mtlOverride: String?,
-    val disableCulling: Boolean
+    val disableCulling: Boolean,
+    val offset: Boolean
 )

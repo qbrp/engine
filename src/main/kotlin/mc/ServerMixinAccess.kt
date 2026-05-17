@@ -88,6 +88,10 @@ object ServerMixinAccess {
         return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name
     }
 
+    fun getFlyingSpeed(player: Player): Float {
+        return player.engine?.flyingSpeed ?: 1f
+    }
+
     fun getSpeed(player: Player): Double {
         return player.engine?.speed?.toDouble() ?: 0.1
     }

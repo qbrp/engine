@@ -29,7 +29,6 @@ class PlayerVocalRegulator(
 
     fun set(value: Float) {
         val old = volume.value
-        if (old == value) return
         val value = volume.updateVolume(value)
         gameSession.chatEventBus.onMessageVolumeUpdate(old, value)
         gameSession.handler.onVolumeUpdate(value)
