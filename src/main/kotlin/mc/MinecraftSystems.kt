@@ -12,6 +12,7 @@ import net.minecraft.world.level.GameType
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.*
+import org.lain.engine.mc.commands.updateCommandInvokeSystem
 import org.lain.engine.player.*
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.network.ServerConnectionManager
@@ -59,16 +60,18 @@ data class NotLoadedEngineItemStack(val world: World, val itemUuid: PersistentId
 
 fun updateServerMinecraftSystems(
     server: EngineMinecraftServer,
-    table: ServerPlayerTable,
+    entityTable: EntityTable,
     players: List<EnginePlayer>,
     connectionManager: ServerConnectionManager?,
 ) {
+    val table = entityTable.server
     val engine = server.engine
     val itemLoader = engine.itemLoader
     val notUpdatedPlayers = players.toMutableList()
     val itemStacksToLoad = mutableListOf<NotLoadedEngineItemStack>() // ВАЖНО: здесь храним копии стаков, иначе будут проблемы с потоками
 
     server.engine.allWorlds().forEachWithContext({ it }) { world ->
+        world.updateCommandInvokeSystem(entityTable)
         world.prepareItemMinecraftSystem()
         world.players.forEach { player ->
             val entity = table.getEntity(player)

@@ -112,7 +112,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     registerPlayerSynchronizerEndpoint(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_NARRATION_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_ATTRIBUTES_SYNCHRONIZER)
-    registerPlayerSynchronizerEndpoint(PLAYER_EQUIPMENT_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_MODEL_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_HEARING_SYNCHRONIZER)
 }

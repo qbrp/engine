@@ -51,6 +51,7 @@ class ClientMinecraftNetwork : ClientTransportContext {
         endpoint: Endpoint<P>,
         packet: P
     ) {
+        if (MinecraftClient.connection == null) return
         val payload = PayloadRegistry.payloadOf(endpoint)
         ClientPlayNetworking.send(
             EnginePayload(

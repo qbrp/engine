@@ -119,8 +119,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 }
             }
         }
-        taskExecutor.flush()
-        clientAcknowledgeHandler.tick()
+        if (MinecraftClient.connection != null) {
+            taskExecutor.flush()
+            clientAcknowledgeHandler.tick()
+        } else if (taskExecutor.notEmpty()) {
+            taskExecutor.clear()
+        }
     }
 
     fun postTick() {

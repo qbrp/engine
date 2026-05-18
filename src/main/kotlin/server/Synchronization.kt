@@ -20,7 +20,6 @@ import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.Location
 import org.lain.engine.world.location
 import org.slf4j.LoggerFactory
-import java.util.*
 import kotlin.reflect.KClass
 
 data class PlayerNetworkState(
@@ -202,6 +201,5 @@ val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(Playe
     }
 }
 val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.ALL) { player, component -> player.replace(component.copy()) }
-val PLAYER_EQUIPMENT_SYNCHRONIZER = PlayerComponentSynchronizer<Equipment>(PlayerPredicate.ALL) { player, component -> player.replace(component.copy()) }
 val PLAYER_MODEL_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerModel>(PlayerPredicate.ALL) { player, component -> player.require<PlayerModel>().skinEyeY = component.skinEyeY }
 val PLAYER_HEARING_SYNCHRONIZER = PlayerComponentSynchronizer<Hearing>(PlayerPredicate.SELF) { player, component -> player.require<Hearing>().tinnitus = component.tinnitus }

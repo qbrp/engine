@@ -23,6 +23,12 @@ class TaskExecutor(
         }
     }
 
+    fun clear() {
+        tasks.clear()
+    }
+
+    fun notEmpty() = tasks.isNotEmpty()
+
     fun add(task: Task) {
         tasks += task
     }
