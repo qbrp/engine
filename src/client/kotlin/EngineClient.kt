@@ -13,6 +13,7 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.player.developerMode
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.FileScriptSource
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.script.lua.LuaDependencies
 import org.lain.engine.server.ServerId
@@ -84,7 +85,7 @@ class EngineClient(
         return LuaDependencies(
             JsePlatform.standardGlobals(),
             namespacedStorage,
-            scriptsPath,
+            scriptsPath.path,
             luaDataStorage
         )
     }
@@ -93,7 +94,7 @@ class EngineClient(
         val scriptsPath = resources.scripts.file
         return ClientLuaContext(
             this,
-            scriptsPath.luaEntrypointDir(serverId),
+            FileScriptSource(scriptsPath.luaEntrypointDir(serverId)),
             createLuaDependencies(scriptsPath),
         ).also {
             luaContext = it

@@ -41,7 +41,6 @@ import org.lain.engine.client.server.IntegratedEngineMinecraftServer
 import org.lain.engine.client.server.registerEngineIntegratedServerEvent
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
-import org.lain.engine.client.util.PlayerTickException
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.OpenBookTag
 import org.lain.engine.item.Writable
@@ -185,7 +184,7 @@ class EngineMinecraftClient : ClientModInitializer {
 
             val gameSession = engineClient.gameSession
             val syncedLevelPlayerEntities = mutableMapOf<Player, EnginePlayer>()
-            val skippedPlayers = mutableSetOf<Player>()
+            val skippedPlayers = mutableListOf<Pair<Player, Double>>()
             if (gameSession != null && mainPlayerEntity != null) {
                 val synchronizationRadiusSqr = gameSession.synchronizationRadius * gameSession.synchronizationRadius
                 val levelPlayerEntities = mainPlayerEntity.level().players()
@@ -199,7 +198,11 @@ class EngineMinecraftClient : ClientModInitializer {
                 )
                 skippedPlayers.addAll(
                     levelPlayerEntities
-                        .filter { it !in syncedLevelPlayerEntities && it.position().distanceToSqr(mainPlayerPos) < synchronizationRadiusSqr }
+                        .filter { it !in syncedLevelPlayerEntities }
+                        .mapNotNull { player ->
+                            val distance = player.position().distanceToSqr(mainPlayerPos)
+                            player.takeIf { distance < synchronizationRadiusSqr }?.let { it to distance }
+                        }
                 )
             }
 
@@ -208,18 +211,19 @@ class EngineMinecraftClient : ClientModInitializer {
             postEngineTick(syncedLevelPlayerEntities)
 
             if (skippedPlayers.isNotEmpty()) {
-                connectionLogger.warn("Состояние Minecraft не было обновлено для игроков: {}", skippedPlayers.joinToString { it.plainTextName })
+                connectionLogger.warn(
+                    "Состояние Minecraft не было обновлено для игроков: {}",
+                    skippedPlayers.joinToString { (player, distance) -> "${player.plainTextName} (до игрока: $distance)" }
+                )
             }
 
         } catch (e: Throwable) {
-            connectionLogger.error("При тике Engine возникла ошибка: ", e)
-
-            val text = when (e) {
-                is PlayerTickException -> "Ошибка при обновлении игрока ${e.player.username} (${e.player.id}): ${e.message}"
-                else -> e.message ?: "Неизвестная ошибка"
+            when (e) {
+                is PlayerTickException -> e.log(connectionLogger)
+                else -> connectionLogger.error("При тике Engine возникла ошибка: ", e)
             }
 
-            disconnectWithReason(DisconnectText(text))
+            disconnectWithReason(DisconnectText(e.message ?: "Неизвестная ошибка"))
             onDisconnect()
         }
         profiler.pop()
@@ -238,14 +242,18 @@ class EngineMinecraftClient : ClientModInitializer {
 
         world.prepareItemMinecraftSystem()
         players.forEach { (entity, player) ->
-            val itemStacks = (entity.visibleInventoryItems + entity.carriedItem).toSet()
-            val items = itemStacks.mapNotNull { itemStack ->
-                val item = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getClientItem() ?: return@mapNotNull null
-                EngineItemStack(item, itemStack)
-            }.toSet()
+            try {
+                val itemStacks = (entity.visibleInventoryItems + entity.carriedItem).toSet()
+                val items = itemStacks.mapNotNull { itemStack ->
+                    val item = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getClientItem() ?: return@mapNotNull null
+                    EngineItemStack(item, itemStack)
+                }.toSet()
 
-            updatePlayerMinecraftSystems(player, items, entity, world, gameSession.itemStorage)
-            updatePlayerOwnedItems(world, player)
+                updatePlayerMinecraftSystems(player, items, entity, world, gameSession.itemStorage)
+                updatePlayerOwnedItems(world, player)
+            } catch (e: Exception) {
+                throw PlayerTickException(player, e)
+            }
         }
 
         if (engineClient.ticks % 20L == 0L) {

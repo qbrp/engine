@@ -106,7 +106,6 @@ private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
     submit(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     submit(PLAYER_NARRATION_SYNCHRONIZER)
     submit(PLAYER_ATTRIBUTES_SYNCHRONIZER)
-    submit(PLAYER_EQUIPMENT_SYNCHRONIZER)
     submit(PLAYER_MODEL_SYNCHRONIZER)
     submit(PLAYER_HEARING_SYNCHRONIZER)
 }

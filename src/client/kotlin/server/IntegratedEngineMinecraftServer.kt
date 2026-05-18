@@ -10,6 +10,7 @@ import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.FileScriptSource
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
@@ -29,7 +30,7 @@ fun EngineMinecraftClient.registerEngineIntegratedServerEvent(engineClient: Engi
         val config = loadOrCreateServerConfig()
         val serverId = config.server
         val entrypoint = getLuaEntrypointDir(serverId)
-        val context = LuaContext(engineClient.createLuaDependencies(ENGINE_DIR.scripts), entrypoint)
+        val context = LuaContext(engineClient.createLuaDependencies(ENGINE_DIR.scripts), FileScriptSource(entrypoint))
         context.setup()
         val compilationResult = compileContents(ENGINE_DIR.contents, context)
 
