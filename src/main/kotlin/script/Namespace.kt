@@ -64,7 +64,20 @@ interface NamespacedStorageAccess : ContentStorage {
 
 class ThreadSafeNamespaceStorageAccessImpl(
     @Volatile var namespacedStorage: NamespacedStorage
-) : NamespacedStorageAccess, ContentStorage by namespacedStorage {
+) : NamespacedStorageAccess {
+    override val intents: Holder<IntentId, Intent>
+        get() = namespacedStorage.intents
+    override val components: Holder<ScriptComponentId, ScriptComponentType>
+        get() = namespacedStorage.components
+    override val sounds: Holder<SoundEventId, SoundEvent>
+        get() = namespacedStorage.sounds
+    override val progressionAnimations: Holder<ProgressionAnimationId, ProgressionAnimation>
+        get() = namespacedStorage.progressionAnimations
+    override val scripts: Holder<ScriptId, Script<*, *>>
+        get() = namespacedStorage.scripts
+    override val items: Holder<ItemId, ItemPrefab>
+        get() = namespacedStorage.items
+
     override fun get(): NamespacedStorage = namespacedStorage
     override fun update(storage: NamespacedStorage) {
         namespacedStorage = storage

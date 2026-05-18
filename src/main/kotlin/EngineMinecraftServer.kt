@@ -100,7 +100,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         if (!minecraftServer.isRunning) return
         engine.preUpdate()
         val players = engine.playerStorage.getAll()
-        updateServerMinecraftSystems(this, entityTable, players, connectionManager)
+        updateServerMinecraftSystems(this, dependencies.entityTable, players, connectionManager)
         engine.listWorlds().forEach { world -> world.players.forEach { player -> updatePlayerOwnedItems(world, player) } }
         engine.update()
         updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld())

@@ -15,10 +15,7 @@ import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.script.*
-import org.lain.engine.script.lua.LuaContext
-import org.lain.engine.script.lua.LuaDataStorage
-import org.lain.engine.script.lua.LuaDependencies
-import org.lain.engine.script.lua.writeDefaultLuaEntrypointScript
+import org.lain.engine.script.lua.*
 import org.lain.engine.server.Notification
 import org.lain.engine.server.network
 import org.lain.engine.transport.Endpoint
@@ -46,10 +43,10 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
         LuaDependencies(
             JsePlatform.standardGlobals(),
             namespacedStorage,
-            ENGINE_DIR.scripts,
+            ENGINE_DIR.scripts.path,
             LuaDataStorage()
         ),
-        entrypointScript,
+        FileScriptSource(entrypointScript),
     )
 
     override fun onInitializeServer() {

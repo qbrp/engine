@@ -20,7 +20,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                 context.player.coerceToLua()
             }
             is ScriptContext.World -> {
-                context.world.coerceToLua()
+                context.world.getLuaValue()
             }
             is ScriptContext.Interaction -> {
                 luaTableOf(
@@ -31,7 +31,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
             is ScriptContext.VoxelAction -> {
                 luaTableOf(
                     luaValue("player"), context.player?.coerceToLua() ?: LuaValue.NIL,
-                    luaValue("world"), context.world.coerceToLua(),
+                    luaValue("world"), context.world.getLuaValue(),
                     luaValue("voxel_pos"), context.pos.toLuaValue(),
                     luaValue("voxel_meta"), context.meta.coerceToLua(),
                 )
@@ -39,7 +39,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
             is ScriptContext.IntentExecution -> {
                 val (actor, target, inputs, behaviour) = context
                 luaTableOf(
-                    luaValue("world"), actor.player.world.coerceToLua(),
+                    luaValue("world"), actor.player.world.getLuaValue(),
                     luaValue("actor"), luaTableOf(
                         luaValue("type"), actor.type.name.lowercase().toLuaValue(),
                         luaValue("player"), actor.player.coerceToLua(),
@@ -81,6 +81,6 @@ fun LuaValue.toKotlin(): Any? {
 }
 
 context(writeComponentAccess: WriteComponentAccess)
-fun EntityId.setLuaComponent(value: LuaValue, type: ScriptComponentType) {
+fun EntityId.setScriptComponent(value: LuaValue, type: ScriptComponentType) {
     setComponent(ScriptComponent(value, type), type.ecsType)
 }

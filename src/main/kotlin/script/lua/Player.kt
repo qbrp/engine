@@ -22,7 +22,7 @@ context(context: LuaContext)
 fun EnginePlayer.coerceToLua(): LuaUserdata {
     val userdata = LuaUserdata(this)
     val world = world
-    val worldLua = world.coerceToLua()
+    val worldLua = world.getLuaValue()
     val entity = with(world) { entityId.coerceToLua() }
     val entityIdLua = entityId.toLuaValue()
     val meta = object : LuaTable() {
@@ -104,11 +104,11 @@ fun Globals.setupPlayer() {
 
 context(world: World, luaContext: LuaContext)
 fun EnginePlayer.prepareLuaScriptComponents() {
-    entityId.setLuaComponent(
+    entityId.setScriptComponent(
         luaTableOf(luaValue("object"), coerceToLua()),
         CoreScriptComponents.PLAYER
     )
-    entityId.setLuaComponent(
+    entityId.setScriptComponent(
         luaTableOf(luaValue("vector"), LuaValue.NIL),
         CoreScriptComponents.LOCATION
     )

@@ -15,6 +15,8 @@ import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import java.io.File
+import java.io.InputStream
+import java.net.URL
 
 data class LuaCompilationContext(
     val namespaces: MutableMap<NamespaceId, CompiledNamespace> = mutableMapOf(),
@@ -39,7 +41,7 @@ class LuaDataStorage {
 data class LuaDependencies(
     val globals: Globals,
     val namespacesStorage: NamespacedStorageAccess,
-    val scriptsPath: File,
+    val scriptsPath: String,
     val dataStorage: LuaDataStorage,
 )
 
@@ -48,9 +50,39 @@ data class LuaRuntimeDependencies(
     val worlds: MutableMap<WorldId, World>
 )
 
+interface ScriptSource {
+    val chunkName: String
+    fun open(): InputStream
+    fun exists(): Boolean
+}
+
+class FileScriptSource(val file: File): ScriptSource {
+    override val chunkName: String get() = file.nameWithoutExtension
+
+    override fun open(): InputStream {
+        return file.inputStream()
+    }
+    override fun exists(): Boolean {
+        return file.exists()
+    }
+}
+
+class ResourceScriptSource(val path: String) : ScriptSource {
+    private val resource: URL? = Thread.currentThread()
+        .contextClassLoader
+        .getResource(path)
+
+    override val chunkName: String get() = File(path).nameWithoutExtension
+    override fun open(): InputStream = resource
+        ?.openStream()
+        ?: error("Module not found: $path")
+
+    override fun exists(): Boolean = resource != null
+}
+
 open class LuaContext(
     val dependencies: LuaDependencies,
-    val entrypoint: File
+    val entrypoint: ScriptSource
 ) {
     init { require(entrypoint.exists()) { "Входной скрипт сервера по директроии $entrypoint не найден" } }
 
@@ -62,19 +94,21 @@ open class LuaContext(
 
     var compilationFunctions: MutableList<LuaFunction> = mutableListOf()
     val callbacksFunctions: MutableList<LuaFunction> = mutableListOf()
-    lateinit var playerTable: LuaTable
-    lateinit var worldTable: LuaTable
-    lateinit var entityTable: LuaTable
-    internal val worldsList = LuaTable()
+    val playerTable: LuaTable = LuaTable()
+    val worldMetaTable: LuaTable = WorldMetaTable()
+    val entityMetaTable: LuaTable = EntityMetaTable()
+    val worldsList = LuaTable()
 
     fun loadWorld(world: World) {
-        worldsList[world.id.value.toLuaValue()] = world.coerceToLua()
+        val worldTable = world.coerceToLua()
+        worldsList[world.id.value.toLuaValue()] = worldTable
+        setupWorldTableState(world, worldTable)
     }
 
     open fun setupTables() {
-        playerTable = globals.get("Player").checktable()
-        worldTable = globals.get("World").checktable()
-        entityTable = globals.get("Entity").checktable()
+        globals.set("Player", playerTable)
+        globals.set("World", worldMetaTable)
+        globals.set("Entity", entityMetaTable)
     }
 
     open fun setupGlobalsRuntime() {
@@ -83,22 +117,67 @@ open class LuaContext(
 
     open fun setupGlobals() {
         globals.setupPlayer()
-        globals.setupWorld()
-        globals.setupEntity()
     }
 
-    open fun setup() {
+    open fun setup(
+        standardLibrary: ScriptSource = FileScriptSource(BUILTIN_SCRIPTS_DIR.resolve("core/boot.lua"))
+    ) {
         if (initialized) error("Контекст Lua уже инициализирован")
-        entrypoint.parentFile.mkdirs()
-
-        val libraryDir = BUILTIN_SCRIPTS_DIR
-        val libraryBootDir = libraryDir.resolve("core/boot.lua")
-        require(libraryBootDir.exists()) { "Скрипт загрузки стандартных библиотек $libraryBootDir не найден" }
         globals.setup()
+        globals.get("package").get("searchers").set(4, varargsFunction { args ->
+            val moduleName = args.checkjstring(1)
+            val packagePath = globals.get("package")
+                .get("path")
+                .tojstring()
+            val resourceName = moduleName.replace('.', '/')
+            val templates = packagePath.split(";")
 
-        // Загрузка стандартной библиотеки
-        globals.loadfile(libraryBootDir.path).call()
+            for (template in templates) {
+                val path = template.replace("?", resourceName)
+
+                try {
+                    val scriptSource = ResourceScriptSource(path)
+
+                    scriptSource.open().use { stream ->
+                        val result = globals.load(
+                            stream.reader(),
+                            scriptSource.chunkName
+                        )
+
+                        val func = result.arg1()
+
+                        return@varargsFunction if (func.isfunction()) {
+                            LuaValue.varargsOf(
+                                func,
+                                LuaValue.valueOf(scriptSource.chunkName)
+                            )
+                        } else {
+                            LuaValue.varargsOf(
+                                LuaValue.NIL,
+                                LuaValue.valueOf(
+                                    "'${scriptSource.chunkName}': ${result.arg(2).tojstring()}"
+                                )
+                            )
+                        }
+                    }
+                } catch (_: Exception) {
+                }
+            }
+
+            LuaValue.varargsOf(
+                LuaValue.NIL,
+                LuaValue.valueOf(
+                    "\n\tno resource found for module '$moduleName'"
+                )
+            )
+        })
+
         setupTables()
+        require(standardLibrary.exists()) { "Скрипт загрузки стандартнойй библиотеки не найден" }
+        // Загрузка стандартной библиотеки
+        standardLibrary.open().use {
+            globals.load(it.reader(), standardLibrary.chunkName).call()
+        }
         setupGlobals()
 
         initialized = true
@@ -110,7 +189,9 @@ open class LuaContext(
             val toRemove = compilationFunctions.subList(1, compilationFunctions.size)
             compilationFunctions.removeAll(toRemove) // оставляем только функцию инициализации стандартной библиотеки
         }
-        globals.loadfile(entrypoint.path).call()
+        val inputStream = entrypoint.open()
+        globals.load(inputStream.reader(), entrypoint.chunkName).call()
+        inputStream.close()
     }
 
     open fun setupGame(dependencies: LuaRuntimeDependencies) {

@@ -7,8 +7,8 @@ import org.lain.engine.util.Input
 import org.lain.engine.util.IntentSelection
 import org.lain.engine.util.IntentTarget
 import org.lain.engine.util.file.getBuiltinResource
-import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.EVec3
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.asVec3
 import org.lain.engine.world.VoxelPos
 import org.luaj.vm2.LuaTable
@@ -96,6 +96,10 @@ fun IntentSelection.toLuaValue() = luaTableOf(
     luaValue("pos2"), pos2.toLuaValue(),
 )
 
+fun <T> List<T>.toLuaArray(transform: (T) -> LuaValue): LuaTable {
+    return LuaTable.listOf(map(transform).toTypedArray())
+}
+
 fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
     val list = mutableListOf<V>()
     for (i in 1..this.length()) {
@@ -132,7 +136,7 @@ fun LuaValue.toVector3f(): EVec3 {
     return Vec3(elements[0], elements[1], elements[2])
 }
 
-fun LuaValue.coerceToScriptComponentType(): LazyScriptComponentType {
+fun LuaValue.asEngineScriptComponentType(): LazyScriptComponentType {
     return checkuserdata(LazyScriptComponentType::class.java) as? LazyScriptComponentType ?: error("Invalid component type value")
 }
 
@@ -144,7 +148,7 @@ fun LazyScriptComponentType.toLuaValue(): LuaValue {
             set("__index", object : TwoArgFunction() {
                 override fun call(self: LuaValue, key: LuaValue): LuaValue {
                     return when (key.tojstring()) {
-                        "id" -> { luaValue(requireComponent().id) }
+                        "id" -> { luaValue(requireType().id) }
                         else -> NIL
                     }
                 }
@@ -284,7 +288,7 @@ fun fourArgFunction(builder: (LuaValue, LuaValue, LuaValue, LuaValue) -> LuaValu
     }
 }
 
-fun varargsFunction(builder: (Varargs) -> LuaValue?) = object : VarArgFunction() {
+fun varargsFunction(builder: (Varargs) -> Varargs?) = object : VarArgFunction() {
     override fun onInvoke(args: Varargs): Varargs {
         return builder.invoke(args) ?: LuaValue.NIL
     }

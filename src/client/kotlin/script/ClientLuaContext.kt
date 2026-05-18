@@ -5,12 +5,12 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.LuaDependencies
 import org.lain.engine.script.lua.LuaRuntimeDependencies
+import org.lain.engine.script.lua.ScriptSource
 import org.luaj.vm2.LuaTable
-import java.io.File
 
 class ClientLuaContext(
     val client: EngineClient,
-    entrypoint: File,
+    entrypoint: ScriptSource,
     dependencies: LuaDependencies,
 ) : LuaContext(dependencies, entrypoint) {
     lateinit var audioSourceTable: LuaTable

@@ -16,10 +16,16 @@ import org.luaj.vm2.lib.ThreeArgFunction
 import org.luaj.vm2.lib.TwoArgFunction
 import org.luaj.vm2.lib.ZeroArgFunction
 
+fun debugScript(module: String, info: String) {
+    if (Constants.DEBUG_ALL) {
+        LOGGER.info("[$module] $info")
+    }
+}
+
 context(ctx: LuaContext)
 fun Globals.setup() {
     setupComponentCommands()
-    set("SCRIPTS_PATH", ctx.scriptsPath.path)
+    set("SCRIPTS_PATH", ctx.scriptsPath)
     set("LIBRARY_PATH", BUILTIN_SCRIPTS_DIR.path)
     set("_info", object : OneArgFunction() {
         override fun call(arg: LuaValue): LuaValue {
@@ -29,9 +35,7 @@ fun Globals.setup() {
     })
     set("_debug", object : TwoArgFunction() {
         override fun call(arg1: LuaValue, arg2: LuaValue): LuaValue {
-            if (Constants.DEBUG_ALL) {
-                LOGGER.info("[${arg1.tojstring()}] ${arg2.tojstring()}")
-            }
+            debugScript(arg1.tojstring(), arg1.tojstring())
             return NIL
         }
     })
@@ -65,14 +69,14 @@ class LazyScriptComponentType(
     val id: ScriptComponentId
 ) {
     private var componentType: ScriptComponentType? = null
-    val ecsType get() = requireComponent().ecsType
+    val ecsType get() = requireType().ecsType
 
-    fun getComponent(): ScriptComponentType? {
+    fun getType(): ScriptComponentType? {
         return storage.components[id] ?: CoreScriptComponents.get(id)
     }
 
-    fun requireComponent(): ScriptComponentType {
-        return componentType ?: (getComponent() ?: error("Component $id not registered in system"))
+    fun requireType(): ScriptComponentType {
+        return componentType ?: (getType() ?: error("Component $id not registered in system"))
             .also { componentType = it }
     }
 }
