@@ -4,8 +4,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "2.2.21"
-    id("fabric-loom") version "1.15-SNAPSHOT"
     kotlin("plugin.serialization") version "2.1.0"
+    id("fabric-loom") version "1.16-SNAPSHOT"
     id("com.gradleup.shadow") version "9.3.0"
 }
 
@@ -135,12 +135,13 @@ dependencies {
     // API Lamb Dynamic Lights
     modCompileOnly("dev.lambdaurora.lambdynamiclights:lambdynamiclights-api:${project.property("lambdynamiclights_version")}")
     modLocalRuntime("dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime:${project.property("lambdynamiclights_version")}")
-    //modImplementation("maven.modrinth:lambdynamiclights:${project.property("lambdynamiclights_version")}")
-    //modImplementation("dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime:${project.property("lambdynamiclights_version")}")
 
     // API WorldEdit
     modCompileOnly("com.sk89q.worldedit:worldedit-core:${project.property("worldedit_version")}")
     modCompileOnly("com.sk89q.worldedit:worldedit-fabric-mc$minecraft_version:${project.property("worldedit_version")}")
+
+    // Grapgene
+    modImplementation("io.github.trethore:graphene-ui:1.7.2")
 
     // Lua
     compileOnly("org.luaj:luaj-jse:3.0.1")

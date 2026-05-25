@@ -1,4 +1,4 @@
-package org.lain.engine.storage
+ package org.lain.engine.storage
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.decodeFromByteArray
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.engine.container.AssignedSlot
 import org.lain.engine.item.*
 import org.lain.engine.player.EquipmentSlot
@@ -14,10 +14,8 @@ import org.lain.engine.player.Outfit
 import org.lain.engine.player.OutfitDisplay
 import org.lain.engine.player.PlayerPart
 import org.lain.engine.util.addIfNotNull
-import org.lain.engine.util.component.ComponentState
-import org.lain.engine.world.World
 
-/////////////// LEGACY SAVING
+ /////////////// LEGACY SAVING
 
 @Serializable
 data class PersistentItemData(val components: List<ItemData>)
@@ -58,63 +56,22 @@ data class EntryVersion(val value: Int) : Component {
 }
 
 /**
- * @see ItemLoader.loadWorldItem
- */
-fun loadItem(
-    world: World,
-    persistentId: PersistentId,
-    components: List<ComponentDto>,
-    componentLoadSettings: ComponentLoadSettings,
-): ItemLoadResult {
-    val components2 = mutableListOf<Component>()
-    var container: PersistentId? = null
-    components.forEach {
-        if (it.data is ContainedInDto) {
-            container = it.data.container
-        } else { // контейнер подгрузится позже
-            components2.add(it.toDomain(componentLoadSettings) ?: run {
-                LOGGER.warn("При загрузке сущности $persistentId был пропущен компонент $it")
-                return@forEach
-            })
-        }
-    }
-    val componentState = ComponentState(components2)
-    // использовать в будущем для версионирования
-    // val entry = componentState.get<EntryVersion>() ?: EntryVersion.DEFAULT
-    return ItemLoadResult(
-        ProtoItem(
-        componentState.require<ItemMeta>().id,
-        persistentId,
-            world,
-            componentState,
-        ),
-        container
-    )
-}
-
-/**
- * @param container Используемый предметом контейнеры для корректной работы. После загрузки контейнеров требуется создать компоненты для предмета
- */
-data class ItemLoadResult(
-    val protoItem: ProtoItem,
-    val container: PersistentId? = null,
-)
-
-/**
- * Чистая функция.
  * @deprecated C 22.04.2026 предметы загружаются как обычные сущности и не нуждаются в отдельном пайплайне
  */
-fun loadItemLegacy(data: PersistentItemData, world: World, id: ItemId, uuid: PersistentId): ItemLoadResult {
+fun WriteComponentAccess.loadItemLegacy(data: PersistentItemData, id: ItemId, uuid: PersistentId): EngineItem {
     val components = mutableSetOf<Component>()
     val entityComponents = mutableSetOf<Component>()
-    var container: PersistentId? = null
+    var count: Count? = null
+    var assets: ItemAssets? = null
+    var tooltip: ItemTooltip? = null
+    var name: ItemName? = null
 
     fun processComponent(component: ItemData) {
         when(component) {
             is ItemData.Display -> {
-                components.addIfNotNull(component.name)
-                components.addIfNotNull(component.tooltip)
-                components.addIfNotNull(component.assets)
+                name = component.name
+                tooltip = component.tooltip
+                assets = component.assets
             }
             is ItemData.Guns -> {
                 components.addIfNotNull(component.data)
@@ -145,29 +102,28 @@ fun loadItemLegacy(data: PersistentItemData, world: World, id: ItemId, uuid: Per
             is ItemData.Lights ->
                 components.add(component.flashlight)
             is ItemData.Count -> {
-                components.addIfNotNull(Count(component.value, 16))
+                count = Count(component.value, 16)
             }
             is ItemData.Mass ->
                 components.add(Mass(component.value))
-            is ItemData.Contained -> {
-                container = PersistentId(component.containedIn)
-                entityComponents.addIfNotNull(component.assignedSLot)
-            }
-            is ItemData.Container -> {
-                container = component.persistentId
-            }
+            // Контейнеры в легаси-системе не поддерживаются
+            is ItemData.Contained -> {}
+            is ItemData.Container -> {}
             is ItemData.EntityComponents -> component.components.forEach { processComponent(it) }
         }
     }
-
     data.components.forEach { processComponent(it) }
 
-    return ItemLoadResult(
-        protoItemInstance(
-            world,
-            uuid, id,
-            ComponentState(components.toList() + entityComponents.toList()),
+    return createItem(
+        ItemPrefab(
+            id,
+            count?.max ?: 1,
+            name?.text ?: "Предмет",
+            assets ?: ItemAssets(mutableMapOf()),
+            ItemProgressionAnimations(mutableMapOf()),
+            { tooltip },
+            { components.toList() + entityComponents.toList() }
         ),
-        container
+        uuid
     )
 }

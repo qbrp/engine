@@ -2,8 +2,7 @@ package org.lain.engine.mc.commands
 
 import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.world.entity.player.Player
-import org.lain.engine.item.bakeInvalidProtoItem
-import org.lain.engine.item.instantiateItem
+import org.lain.engine.item.createInvalidItem
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.script.LOGGER
@@ -12,7 +11,6 @@ import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.storage.saveItemsBlocking
 import org.lain.engine.util.getServerStats
 import org.lain.engine.util.injectMinecraftEngineServer
-import org.lain.engine.world.world
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaValue
 
@@ -78,10 +76,7 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
                     .executeCatching { ctx ->
                         val player = ctx.requirePlayer()
                         val world = player.world
-                        val item = world.instantiateItem(
-                            engine.bakeInvalidProtoItem(world),
-                            engine.itemStorage
-                        )
+                        val item = server.engine.createInvalidItem(world)
                         val entity = ctx.requireEntity() as? Player ?: return@executeCatching
                         val itemStack = ITEM_STACK_MATERIAL.copy()
                         with(world) { wrapEngineItemStack(item, itemStack) }

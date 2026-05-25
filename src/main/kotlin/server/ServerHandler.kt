@@ -1,5 +1,6 @@
 package org.lain.engine.server
 
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getAll
@@ -12,22 +13,17 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.set
 import org.lain.engine.chat.*
 import org.lain.engine.debugPacket
-import org.lain.engine.item.ItemMeta
-import org.lain.engine.item.ItemStorage
-import org.lain.engine.item.Writable
-import org.lain.engine.item.getOwner
+import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.getVoidScript
-import org.lain.engine.storage.EntityDto
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.backupBookContent
-import org.lain.engine.storage.toSnapshotDto
+import org.lain.engine.storage.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.Intent
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.Networked
 import org.lain.engine.util.forEachWithContext
 import org.lain.engine.util.injectServerTransportContext
@@ -46,6 +42,10 @@ enum class Notification {
 class DesynchronizationException(message: String) : RuntimeException(message)
 
 fun desync(message: String): Nothing = throw DesynchronizationException(message)
+
+data class Parent(val entity: EntityId) : Component
+
+data class Children(val entities: MutableSet<EntityId>) : Component
 
 class ServerHandler(
     private val server: EngineServer,
@@ -159,6 +159,7 @@ class ServerHandler(
         playerInput.actions.addAll(actions)
 
         CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
+            world,
             location,
             playerSynchronizationRadius,
             exclude = listOf(this),
@@ -166,16 +167,16 @@ class ServerHandler(
         )
     }
 
-    private fun onWriteableContentsUpdate(playerId: PlayerId, PersistentId: PersistentId, contents: List<String>) = updatePlayerWithContext(playerId) {
+    private fun onWriteableContentsUpdate(playerId: PlayerId, persistentId: PersistentId, contents: List<String>) = updatePlayerWithContext(playerId) {
         val item = this.handItem
         val writable = this.handItem?.getComponent<Writable>()
-        if (item?.requireComponent<PersistentId>() != PersistentId || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
+        if (item?.requireComponent<PersistentIdComponent>() != persistentId || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
         if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
 
         if (writable.contents != contents) {
             writable.contents = contents.map { it.trim() }
             item.markDirty<Writable>()
-            backupBookContent(username, item.requireComponent<ItemMeta>().id, contents)
+            backupBookContent(username, item.requireComponent<Item>().id, contents)
         }
     }
 
@@ -242,7 +243,7 @@ class ServerHandler(
     // FIXME: Искать предметы по инвентарю игрока, а не глобально
     private fun onPlayerCursorItem(playerId: PlayerId, itemId: PersistentId?) = updatePlayerWithContext(playerId) {
         val item = itemId?.let {
-            val result = itemStorage.get(it.value) ?: desync("Установленный курсором предмет $itemId не найден")
+            val result = itemStorage.get(it) ?: desync("Установленный курсором предмет $itemId не найден")
             val owner = result.getOwner()
             if (!hasPermission("invsee") && owner != null && owner.id != playerId) {
                 desync("Захвачен чужой предмет")
@@ -279,16 +280,30 @@ class ServerHandler(
 
             debugPacket("Действия тика ${state.tick}: ${input.actions}")
 
-            val nearbyPlayers = filterNearestPlayers(playerLocation, playerSynchronizationRadius, players).toMutableList()
+            val worldState = world.state
+            val worldEntityComponentsToSync = when(state.worldSynced) {
+                true -> worldComponents.getOrCreateEmptyDeltaBitMask(worldState)
+                    .let { bitMask -> worldState.getAll(bitMask) }
+                false -> worldComponents.getNetworkedComponents(worldState)
+            }
+            if (worldEntityComponentsToSync.isNotEmpty()) {
+                CLIENTBOUND_WORLD_STATE_DELTA_PACKET.sendS2C(
+                        WorldStateDeltaPacket(worldEntityComponentsToSync.map { it.toSnapshotDto() }),
+                    player.id
+                )
+            }
+            state.worldSynced = true
+
+            val nearbyPlayers = filterNearestPlayers(world, playerPosition, playerSynchronizationRadius, players).toMutableList()
             val playersToDesynchronize = state.players.filter { it.pos.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
             state.players.removeAll(playersToDesynchronize)
 
             val entitiesInRadius: HashSet<PersistentId> = hashSetOf()
-            world.iterate<Networked, Location, PersistentId>() { entity, _, entityLocation, persistentId ->
+            world.iterate<Networked, Location, PersistentIdComponent>() { entity, _, entityLocation, (persistentId) ->
                 if (entity.hasComponent<Player>()) return@iterate
                 if (entityLocation.position.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
                     val componentsToSynchronize = if (state.entities.contains(persistentId)) {
-                        val delta = worldComponents.getOrCreateNetworkedDeltaBitMask(entity)
+                        val delta = worldComponents.getOrCreateEmptyDeltaBitMask(entity)
                         entity.getAll(delta)
                     } else {
                         worldComponents.getNetworkedComponents(entity)
@@ -303,6 +318,9 @@ class ServerHandler(
                             ),
                             player.id
                         )
+                        if (entity.hasComponent<Item>()) {
+                            println("Synchronized item ${entity.getName()}")
+                        }
                     }
                     entitiesInRadius.add(persistentId)
                     state.entities.add(persistentId)
@@ -314,7 +332,7 @@ class ServerHandler(
             world.iterate<Networked, DynamicVoxel, ChunkedPos> { voxel, _, (voxelPos), (chunkPos, _, centerPos) ->
                 if (centerPos.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
                     val componentsToSynchronize = if (state.voxels.contains(voxelPos)) {
-                        val delta = worldComponents.getOrCreateNetworkedDeltaBitMask(voxel)
+                        val delta = worldComponents.getOrCreateEmptyDeltaBitMask(voxel)
                         voxel.getAll(delta)
                     } else {
                         worldComponents.getNetworkedComponents(voxel)
@@ -350,8 +368,9 @@ class ServerHandler(
             }
         }
 
-        server.listWorlds().forEach {
+        server.listWorlds().forEachWithContext({ it }) {
             it.iterate<Networked>() { entity, _ -> entity.clearMetaState() }
+            it.state.clearMetaState()
         }
     }
 
@@ -365,6 +384,7 @@ class ServerHandler(
 
     fun onPlayerInteraction(player: EnginePlayer, component: InteractionComponent) = with(player.world) {
         CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastInRadius(
+            this,
             player.location,
             playerSynchronizationRadius,
             packet = PlayerInteractionPacket(
@@ -393,6 +413,10 @@ class ServerHandler(
             player.id
         )
         player.network.chunks += pos
+    }
+
+    fun onItemsUnload(items: List<PersistentId>) {
+        CLIENTBOUND_ITEM_UNLOAD_ENDPOINT.broadcast(ItemUnloadPacket(items))
     }
 
     fun onScriptsCompiled() {
@@ -442,7 +466,6 @@ class ServerHandler(
             )
         }
 
-        val network = player.network
         val joinGamePacket = JoinGamePacket(
             ServerPlayerData.of(player),
             ClientboundWorldData.of(this),
@@ -507,27 +530,16 @@ class ServerHandler(
         }
     }
 
-    fun <P : Packet> Endpoint<P>.broadcastInRadiusFor(
-        center: Location,
-        radius: Int,
-        players: List<EnginePlayer>,
-        packet: P
-    ) {
-        for (player in players) {
-            if (player.world == center.world && player.pos.squaredDistanceTo(center.position) <= radius * radius) {
-                sendS2C(packet, player.id)
-            }
-        }
-    }
 
     fun <P : Packet> Endpoint<P>.broadcastInRadius(
+        world: World,
         center: Location,
         radius: Int,
         exclude: List<EnginePlayer> = emptyList(),
         packet: P
     ) {
-        for (player in playerStorage) {
-            if (player !in exclude && player.world == center.world && player.pos.squaredDistanceTo(center.position) <= radius * radius) {
+        for (player in world.players) {
+            if (player !in exclude && player.pos.squaredDistanceTo(center.position) <= radius * radius) {
                 sendS2C(packet, player.id)
             }
         }
@@ -538,7 +550,7 @@ class ServerHandler(
         radius: Int = playerSynchronizationRadius,
         packet: P
     ) {
-        broadcastInRadius(player.location, radius, packet=packet)
+        broadcastInRadius(player.world, player.location, radius, packet=packet)
     }
 
     fun <P : Packet> Endpoint<P>.broadcastInRadius(
@@ -547,6 +559,6 @@ class ServerHandler(
         excludeSelf: Boolean = false,
         radius: Int = playerSynchronizationRadius
     ) {
-        broadcastInRadius(player.location, radius, exclude=if (excludeSelf) listOf(player) else emptyList(), packet=packet)
+        broadcastInRadius(player.world, player.location, radius, exclude=if (excludeSelf) listOf(player) else emptyList(), packet=packet)
     }
 }

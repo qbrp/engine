@@ -12,10 +12,15 @@ import org.lain.engine.transport.Packet
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.Entity
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Executor
 
 class TaskExecutor(
     private val tasks: ConcurrentLinkedQueue<Task> = ConcurrentLinkedQueue()
-) {
+) : Executor {
+    override fun execute(command: Runnable) {
+        tasks.add(Task("Unnamed command") { command.run() })
+    }
+
     fun flush() {
         while (tasks.isNotEmpty()) {
             val task = tasks.poll() ?: continue

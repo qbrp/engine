@@ -71,6 +71,7 @@ data class CompilationResult(
 
         if (exceptions.isNotEmpty()) {
             CONFIG_LOGGER.warn("Во время компиляции возникло ${exceptions.count()} ошибок")
+            logExceptions()
         }
     }
 

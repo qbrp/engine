@@ -5,6 +5,7 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.player.*
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.transport.packet.InputActionDto.*
 import org.lain.engine.util.Storage
 import org.lain.engine.world.World
@@ -56,7 +57,7 @@ context(world: World)
 fun InteractionComponent.toDto(): InteractionDto = InteractionDto(
     id = id,
     type = type,
-    item = handItem?.requireComponent<PersistentId>(),
+    item = handItem?.requireComponent<PersistentIdComponent>()?.id,
     handFree = handFree,
     raycastPlayer = raycastPlayer?.id,
     action = action.toDto(),

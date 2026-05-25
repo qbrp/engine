@@ -99,7 +99,7 @@ class MinecraftRaycastProvider(private val playerTable: EntityTable) : RaycastPr
 val Player.selectedStack: ItemStack?
     get() = containerMenu.carried
 
-val MinecraftServer.players
+val MinecraftServer.players: List<ServerPlayer>
     get() = playerList.players
 
 fun MinecraftServer.getPlayer(id: PlayerId) = playerList.getPlayer(id.value)
@@ -115,7 +115,7 @@ var Player.pitch
 val Entity.bodyHeight
     get() = bbHeight
 
-val ServerPlayer.currentGameMode
+val ServerPlayer.currentGameMode: GameType
     get() = this.gameMode.gameModeForPlayer
 
 val ServerPlayer.previousGameMode
@@ -135,7 +135,7 @@ val Player.visibleInventoryItems: Set<ItemStack>
         return (containerMenu.items + ownedItems).toSet()
     }
 
-val Player.carriedItem get() = containerMenu.carried
+val Player.carriedItem: ItemStack get() = containerMenu.carried
 
 fun Player.sendActionBarMessage(messageMm: String) {
     displayClientMessage(messageMm.parseMiniMessage(), true)
@@ -232,6 +232,7 @@ typealias Text = Component
 
 fun literalText(text: String) = Component.literal(text)
 fun literalTextNullable(text: String?) = text?.let { literalText(it) } ?: Text.EMPTY
+fun emptyText() = Component.empty()
 
 // BLOCKS
 

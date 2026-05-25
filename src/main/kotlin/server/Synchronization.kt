@@ -6,8 +6,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.serializer
 import org.lain.cyberia.ecs.*
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.HoldsBy
 import org.lain.engine.player.*
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
@@ -15,11 +13,7 @@ import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
 import org.lain.engine.util.component.Entity
 import org.lain.engine.util.math.filterNearestPlayers
-import org.lain.engine.world.EngineChunkPos
-import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.Location
-import org.lain.engine.world.location
-import org.slf4j.LoggerFactory
+import org.lain.engine.world.*
 import kotlin.reflect.KClass
 
 data class PlayerNetworkState(
@@ -30,6 +24,7 @@ data class PlayerNetworkState(
     var tickTimeout: Int = 8_000,
     val entities: MutableSet<PersistentId> = mutableSetOf(),
     val voxels: MutableSet<ImmutableVoxelPos> = mutableSetOf(),
+    var worldSynced: Boolean = false,
 ) : Component
 
 val EnginePlayer.network
@@ -60,11 +55,6 @@ enum class PlayerPredicate {
     ALL, SELF, OTHERS
 }
 
-
-enum class SynchronizationTarget {
-    PLAYER, ITEM
-}
-
 enum class Propagation {
     DISTANCE, GLOBAL
 }
@@ -72,7 +62,6 @@ enum class Propagation {
 class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerializationApi::class) constructor(
     val componentType: ComponentType<C>,
     val serializer: KSerializer<C>,
-    val target: SynchronizationTarget,
     val propagation: Propagation,
     val resolver: (T, C) -> Unit,
     val predicate: PlayerPredicate,
@@ -99,14 +88,12 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
 
 @OptIn(InternalSerializationApi::class)
 inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
-    target: SynchronizationTarget,
     propagation: Propagation,
     predicate: PlayerPredicate,
     noinline resolver: (T, C) -> Unit,
 ) = ComponentSynchronizer<T, C>(
     componentTypeOf(C::class),
     C::class.serializer(),
-    target,
     propagation,
     resolver,
     predicate
@@ -117,24 +104,11 @@ inline fun <reified C : Component> PlayerComponentSynchronizer(
     propagation: Propagation = Propagation.DISTANCE,
     noinline resolver: (EnginePlayer, C) -> Unit,
 ) = ComponentSynchronizer(
-    SynchronizationTarget.PLAYER,
     propagation,
     predicate,
     resolver,
 )
 
-inline fun <reified C : Component> ItemComponentSynchronizer(
-    predicate: PlayerPredicate,
-    propagation: Propagation = Propagation.DISTANCE,
-    noinline resolver: (EngineItem, C) -> Unit,
-) = ComponentSynchronizer(
-    SynchronizationTarget.ITEM,
-    propagation,
-    predicate,
-    resolver,
-)
-
-private val LOGGER = LoggerFactory.getLogger("Engine Synchronization")
 
 fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStorage, entity: T, component: Synchronizations<T> = entity.require()) {
     component.state.forEach { (id, state) ->
@@ -144,7 +118,7 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
             val component = entity.getComponent(synchronizer.componentType) ?: error("Dirty component ${synchronizer.componentType} not found")
             val packet = ComponentSynchronizationPacket(entity.stringId, state.dirty?.interaction, component)
 
-            fun broadcast(location: Location, player: EnginePlayer?) {
+            fun broadcast(world: World, location: Location, player: EnginePlayer?) {
                 var players = when (synchronizer.predicate) {
                     PlayerPredicate.ALL -> players
                     PlayerPredicate.SELF -> listOf(player)
@@ -152,29 +126,15 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
                 }.toList().filterNotNull()
 
                 players = when(synchronizer.propagation) {
-                    Propagation.DISTANCE -> filterNearestPlayers(location, playerSynchronizationRadius, players)
+                    Propagation.DISTANCE -> filterNearestPlayers(world, location.position, playerSynchronizationRadius, players)
                     Propagation.GLOBAL -> players
                 }
 
                 players.forEach { endpoint.sendS2C(packet, it.id) }
             }
 
-            when (synchronizer.target) {
-                SynchronizationTarget.PLAYER -> {
-                    broadcast(entity.location, entity as? EnginePlayer)
-                }
-
-                SynchronizationTarget.ITEM -> {
-                    // Ищем владельца. В будущем можно будет рассылать обновление ближайшим игрокам в мире, если у предмета есть позиция
-                    // Пока что о любых отклонениях предупреждаем
-                    val owner = entity.get<HoldsBy>()?.owner ?: run {
-                        LOGGER.warn("Не удалось синхронизировать состояние $id сущности $entity - не найден владелец")
-                        return@forEach
-                    }
-                    broadcast(owner.location, entity as? EnginePlayer)
-                }
-            }
-
+            val player = entity as EnginePlayer
+            broadcast(player.world, player.location, entity as? EnginePlayer)
             state.dirty = null
         }
     }

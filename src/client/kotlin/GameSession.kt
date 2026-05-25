@@ -1,5 +1,6 @@
 package org.lain.engine.client
 
+import kotlinx.coroutines.runBlocking
 import org.lain.cyberia.ecs.*
 import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
@@ -19,7 +20,10 @@ import org.lain.engine.container.clearAssignItemsOperations
 import org.lain.engine.container.updateContainerOperationSystem
 import org.lain.engine.container.updatePlayerContainerSystem
 import org.lain.engine.container.updateSlotContainers
-import org.lain.engine.item.*
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.handleWriteableInteractions
+import org.lain.engine.item.updateFireTimeSystem
+import org.lain.engine.item.updateRecoilSystem
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.CompilationResult
@@ -29,20 +33,30 @@ import org.lain.engine.script.lua.updateScriptLightSystem
 import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.ServerId
+import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.toDomainSuspend
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.WARNING_COLOR
-import org.lain.engine.util.component.ComponentState
 import org.lain.engine.world.*
 import java.util.*
 
 class GameSession(
     val server: ServerId,
-    val world: World,
     setup: ClientboundSetupData,
+    world: ClientboundWorldData,
     player: ServerPlayerData,
     val handler: ClientHandler,
     val client: EngineClient,
 ) {
+    val itemStorage = ClientItemStorage()
+    val world = World(
+        world.id,
+        thread = client.thread,
+        isClient = true,
+        namespacedStorage = namespacedStorage,
+        itemStorage = itemStorage
+    )
+
     val renderer = client.renderer
     val chatEventBus = client.chatEventBus
     var synchronizationRadius: Int = setup.settings.synchronizationRadius
@@ -57,7 +71,6 @@ class GameSession(
 
     var acousticDebugVolumes = listOf<Pair<VoxelPos, Float>>()
     val playerStorage = ClientPlayerStorage()
-    val itemStorage = ClientItemStorage()
     val movementManager = MovementManager(this)
     val chatBubbleList = ChatBubbleList(client.options)
     val chatManager = ClientEngineChatManager(
@@ -73,7 +86,7 @@ class GameSession(
         PlayerVolume(player.volume, player.maxVolume, player.baseVolume),
         this
     )
-    val mainPlayer = mainClientPlayerInstance(player.id, world, player, DeveloperModeStatus(client.developerMode, client.acousticDebug))
+    val mainPlayer = mainClientPlayerInstance(player.id, this.world, player, DeveloperModeStatus(client.developerMode, client.acousticDebug))
     var ticks = 0L
         private set
     val namespacedStorage get() = client.namespacedStorage
@@ -83,22 +96,33 @@ class GameSession(
 
     init {
         applyCompilation(client.compilationResult ?: error("Compilation is not initialized"))
-        val equipmentItems = player.equipment.mapValues { (_, item) -> instantiateItem(item) }
-        player.items.forEach { item -> instantiateItem(item) }
-        instantiatePlayer(mainPlayer, player.general, equipmentItems)
+
+        val items = (player.items + player.equipment.values).associateBy { it.persistentId }
+        preloadPlayerItems(items)
+        instantiatePlayer(mainPlayer, player.general, mutableMapOf())
+
         client.eventBus.onMainPlayerInstantiated(client, this, mainPlayer)
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
     }
 
-    fun instantiateItem(clientboundItemData: ClientboundItemData): EngineItem = with(world) {
-        val item = ProtoItem(
-            clientboundItemData.id,
-            clientboundItemData.uuid,
-            world,
-            ComponentState(clientboundItemData.components)
-        )
-        return instantiateItem(item, itemStorage)
+    private fun preloadPlayerItems(items: Map<PersistentId, ClientboundItemData>) = with(world) {
+        val itemEntities = items.mapValues { (_, item) -> item to addEntity() }
+        runBlocking {
+            itemEntities.forEach { (persistentId, pair) ->
+                val (clientboundItemData, itemEntity) = pair
+                itemEntity.copyState(
+                    clientboundItemData.components.toDomainSuspend {
+                        toDomainSuspend(
+                            componentLoadSettings,
+                            { persistentId ->
+                                itemEntities[persistentId]?.second ?: playerJoinException("Предмет $persistentId требует несуществующую связь $persistentId")
+                            }
+                        )
+                    }
+                )
+            }
+        }
     }
 
     fun applyCompilation(result: CompilationResult) {
@@ -150,6 +174,7 @@ class GameSession(
         ticks++
         chatManager.tick()
 
+        val itemAccess = this@GameSession.itemStorage
         val players = playerStorage.getAll()
         world.players.clear()
         world.players.addAll(players)
@@ -197,7 +222,7 @@ class GameSession(
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()
         updateSlotContainers(world)
-        updateContainerOperationSystem(itemStorage)
+        updateContainerOperationSystem(itemAccess)
         updatePlayerContainerSystem()
         clearAssignItemsOperations(world)
 

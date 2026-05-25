@@ -1,7 +1,7 @@
 package org.lain.engine.util.math
 
-import org.lain.engine.player.EnginePlayer
 import org.lain.cyberia.ecs.get
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import kotlin.math.abs
@@ -76,21 +76,21 @@ fun filterNearestPlayers(
 ): List<EnginePlayer> {
     return players.filter {
         val l = it.get<Location>() ?: return@filter false
-        l.world == world && l.position.squaredDistanceTo(pos) <= radius*radius
+        l.position.squaredDistanceTo(pos) <= radius*radius
     }
 }
 
 fun filterNearestPlayers(
+    world: World,
     location: Location,
     radius: Int,
-    players: List<EnginePlayer> = location.world.players
 ): List<EnginePlayer> {
-    return filterNearestPlayers(location.world, location.position, radius, players)
+    return filterNearestPlayers(world, location.position, radius)
 }
 
 fun EnginePlayer.filterNearestPlayers(radius: Int): List<EnginePlayer> {
     val location = get<Location>() ?: return emptyList()
-    return filterNearestPlayers(location, radius)
+    return filterNearestPlayers(world, location, radius)
 }
 
 inline fun <T> Iterable<T>.sumOf(selector: (T) -> Float): Float {

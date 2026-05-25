@@ -8,8 +8,10 @@ import org.lain.engine.world.SoundId
 import org.lain.engine.world.SoundPlay
 import java.util.*
 
-data class AudioSource(
-    val sound: SoundId,
+data class SoundParameters(val id: SoundId, val stream: Boolean)
+
+class AudioSource(
+    val sound: SoundParameters,
     val category: EngineSoundCategory,
     var x: Float,
     var y: Float,

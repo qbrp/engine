@@ -2,12 +2,14 @@ package org.lain.engine.client.mc.sound
 
 import net.minecraft.client.resources.sounds.Sound
 import net.minecraft.client.resources.sounds.SoundInstance
+import net.minecraft.client.resources.sounds.TickableSoundInstance
 import net.minecraft.client.sounds.SoundManager
 import net.minecraft.client.sounds.WeighedSoundEvents
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundSource
 import org.lain.engine.mc.engineId
 import org.lain.engine.util.math.ImmutableEVec3
+import org.lain.engine.util.math.MutableEVec3
 
 class ServerSoundInstance(
     val engineId: Identifier,
@@ -60,6 +62,7 @@ class ServerSoundInstance(
 }
 
 class AudioSourceSoundInstance(
+    private val mainPlayerPos: MutableEVec3,
     private val engineId: Identifier,
     private val sound: Sound,
     private val engineCategory: SoundSource,
@@ -70,7 +73,19 @@ class AudioSourceSoundInstance(
     var _volume: Float = 1f,
     var _pitch: Float = 1f,
     var attenuate: Boolean = false
-) : SoundInstance {
+) : TickableSoundInstance {
+    private var k = 1f
+    private var pos = MutableEVec3(_x, _y, _z)
+
+    override fun tick() {
+        pos.set(_x, _y, _z)
+        if (!_isRelative && attenuate) {
+            k = 1f - (mainPlayerPos.squaredDistanceTo(pos) / (16 * 16))
+        }
+    }
+
+    override fun isStopped(): Boolean { return false }
+
     override fun getIdentifier(): Identifier = engineId
 
     override fun resolve(soundManager: SoundManager): WeighedSoundEvents = SOUND_SET
@@ -85,9 +100,9 @@ class AudioSourceSoundInstance(
 
     override fun getDelay(): Int = 0
 
-    override fun getVolume(): Float = _volume * sound.volume.sample(RANDOM)
+    override fun getVolume(): Float = _volume * k
 
-    override fun getPitch(): Float = _pitch * sound.pitch.sample(RANDOM)
+    override fun getPitch(): Float = _pitch
 
     override fun getX(): Double = _x.toDouble()
 
@@ -95,10 +110,7 @@ class AudioSourceSoundInstance(
 
     override fun getZ(): Double = _z.toDouble()
 
-    override fun getAttenuation(): SoundInstance.Attenuation = when(attenuate) {
-        true -> SoundInstance.Attenuation.LINEAR
-        false -> SoundInstance.Attenuation.NONE
-    }
+    override fun getAttenuation(): SoundInstance.Attenuation = SoundInstance.Attenuation.NONE
 
     companion object {
         private val RANDOM = SoundInstance.createUnseededRandom()

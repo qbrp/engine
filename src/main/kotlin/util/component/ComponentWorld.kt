@@ -2,13 +2,23 @@ package org.lain.engine.util.component
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.Item
+import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.util.Storage
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 typealias EntityId = Int
 
-class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComponentAccess {
+class ComponentWorld(
+    val thread: Thread,
+    val persistentIdToEntity: ConcurrentHashMap<PersistentId, EntityId>,
+    val itemStorage: Storage<PersistentId, EngineItem>
+) : MutableComponentAccess, IterationComponentAccess {
     private val arrays = LinkedHashMap<String, ComponentArray<*>>()
     private val arraysList = ArrayList<ComponentArray<*>>()
     private val savableArrays = HashMap<String, ComponentArray<*>>()
@@ -41,7 +51,22 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
             if (existingArray == null || existingArray.meta != meta) {
                 networkingArrays.remove(id)
                 savableArrays.remove(id)
+
                 val arr = ComponentArray(arraysList.size, meta, type as ComponentType<Component>)
+                if (type == componentTypeOf(PersistentIdComponent::class)) {
+                    arr.onAdded = { component, entity -> persistentIdToEntity[(component as PersistentIdComponent).id] = entity }
+                    arr.onRemoved = { component, entity -> persistentIdToEntity.remove((component as PersistentIdComponent).id) }
+                } else if (type == componentTypeOf(Item::class)) {
+                    arr.onAdded = { component, entity ->
+                        val persistentId = (component as Item).uuid
+                        if (itemStorage.get(persistentId) != entity) {
+                            itemStorage.remove(persistentId)
+                            itemStorage.add(persistentId, entity)
+                        }
+                    }
+                    arr.onRemoved = { component, entity -> itemStorage.remove((component as Item).uuid) }
+                }
+
                 arrays[id] = arr
                 arraysList += arr
                 if (meta.savable) savableArrays[id] = arr
@@ -56,7 +81,7 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
     }
 
     override fun markDirty(entity: EntityId, type: ComponentType<out Component>) {
-        getOrCreateNetworkedDeltaBitMask(entity).markDirty(getComponentArray(type).idx)
+        getOrCreateEmptyDeltaBitMask(entity).markDirty(getComponentArray(type).idx)
     }
 
     override fun invalidateStates(entity: EntityId) {
@@ -94,13 +119,10 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
         return deltaBitMasks[entityId]
     }
 
-    fun getOrCreateNetworkedDeltaBitMask(entityId: EntityId): LongArray {
+    fun getOrCreateEmptyDeltaBitMask(entityId: EntityId): LongArray {
         while(deltaBitMasks.size <= entityId) deltaBitMasks.add(null)
         return getNetworkedDeltaBitMask(entityId) ?: createBitMask()
-            .also { mask ->
-                getNetworkedArrays(entityId).forEach { mask.markDirty(it.idx) }
-                deltaBitMasks[entityId] = mask
-            }
+            .also { mask -> deltaBitMasks[entityId] = mask }
     }
 
     fun getNetworkedArrays(entityId: EntityId): List<ComponentArray<*>> {
@@ -181,7 +203,12 @@ class ComponentWorld(val thread: Thread) : MutableComponentAccess, IterationComp
     // главный поток
     override fun destroy(entity: EntityId) {
         require(exists(entity)) { "Entity $entity does not exist" }
-        arrays.forEach { (_, array) -> array.removeComponent(entity) }
+        arrays.forEach { (_, array) ->
+            val removedComponent = array.removeComponent(entity)
+            if (removedComponent != null && removedComponent is PersistentId) {
+                persistentIdToEntity.remove(removedComponent)
+            }
+        }
         freeIndexes.add(entity)
         destroyed[entity] = true
         if (entity < deltaBitMasks.size) {
@@ -356,7 +383,9 @@ object Networked : Component
 class ComponentArray<T : Component>(
     val idx: Int,
     val meta: ComponentMeta,
-    val type: ComponentType<T>
+    val type: ComponentType<T>,
+    var onAdded: ((T, EntityId) -> Unit)? = null,
+    var onRemoved: ((T, EntityId) -> Unit)? = null
 ) {
     internal val sparseArray = mutableListOf<Int?>()
     internal val denseEntities = mutableListOf<EntityId>()
@@ -392,6 +421,7 @@ class ComponentArray<T : Component>(
         }
         denseArray[denseIndex] = component
         sparseArray[entityId] = denseIndex
+        onAdded?.invoke(component, entityId)
     }
 
     fun removeComponent(entityId: EntityId): T? {
@@ -409,6 +439,7 @@ class ComponentArray<T : Component>(
         val component = denseArray.removeAt(lastIndex)
         denseEntities.removeAt(lastIndex)
         sparseArray[entityId] = null
+        onRemoved?.invoke(component, entityId)
         return component
     }
 }

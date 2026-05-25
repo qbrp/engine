@@ -2,8 +2,7 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.protobuf.ProtoBuf
-import org.lain.engine.storage.COMPONENT_SERIALIZERS_MODULE
+import org.lain.engine.storage.COMPONENT_CBOR
 import org.lain.engine.storage.ComponentDto
 import org.lain.engine.storage.EntityDto
 import org.lain.engine.transport.Endpoint
@@ -55,7 +54,7 @@ data class EntityDeltaPacket(val dto: EntityDto) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)
 val CLIENTBOUND_ENTITY_DELTA_ENDPOINT = Endpoint<EntityDeltaPacket>(
-    codec = PacketCodec.Kotlinx(EntityDeltaPacket.serializer(), ProtoBuf { serializersModule = COMPONENT_SERIALIZERS_MODULE }),
+    codec = PacketCodec.Kotlinx(EntityDeltaPacket.serializer(), COMPONENT_CBOR),
 )
 
 @Serializable
@@ -65,3 +64,11 @@ data class DynamicVoxelDeltaPacket(
 ) : Packet
 
 val CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT = Endpoint<DynamicVoxelDeltaPacket>()
+
+@Serializable
+data class WorldStateDeltaPacket(val components: List<ComponentDto>) : Packet
+
+@OptIn(ExperimentalSerializationApi::class)
+val CLIENTBOUND_WORLD_STATE_DELTA_PACKET = Endpoint<WorldStateDeltaPacket>(
+    codec = PacketCodec.Kotlinx(WorldStateDeltaPacket.serializer(), COMPONENT_CBOR),
+)

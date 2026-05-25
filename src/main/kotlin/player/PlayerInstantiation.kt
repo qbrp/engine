@@ -56,8 +56,8 @@ fun commonPlayerInstance(
     settings: PlayerInstantiateSettings,
     id: PlayerId
 ): EnginePlayer {
-    return EnginePlayer(id, settings.world.addEntity()).apply {
-        set(Location(settings.world, settings.pos))
+    return EnginePlayer(id, settings.world.addEntity(), world = settings.world).apply {
+        set(Location(settings.pos))
         set(Velocity())
         set(Orientation())
         set(PlayerModel(skinEyeY = settings.skinEyeY))
@@ -126,7 +126,6 @@ class PlayerLoader(
     private val server: EngineServer,
     private val itemLoader: ItemLoader,
 ) {
-    private val componentLoadSettings = ComponentLoadSettings(null, server.namespacedStorage)
     private val commandBuffers = ConcurrentLinkedQueue<Pair<WorldId, EntityCommandBuffer>>()
 
     private suspend fun <R> ((Throwable) -> Unit).runCatchingSuspend(block: suspend () -> R): R? {
@@ -148,9 +147,10 @@ class PlayerLoader(
         val persistent = server.globals.savePath.playerData.parsePersistentPlayerData(settings.playerId)
         val inventoryLoadResult = exceptionHandler.runCatchingSuspend { loadInventoryItems(world, settings.inventoryItems, persistent?.equipment ?: mapOf()) } ?: return
         val player = exceptionHandler.runCatchingSuspend { serverPlayerInstance(world, settings, inventoryLoadResult, persistent)  } ?: return
+        val componentsToLoad = persistent?.components ?: emptyList()
         with(EntityCommandBuffer(world)) {
-            player.prepareContainers(PersistentId.next(), player.location, inventoryLoadResult.equipmentItems)
-            player.entityId.copyComponentDtoState(componentLoadSettings, persistent?.components ?: listOf())
+            player.prepareContainers(Uuid.next(), player.location, inventoryLoadResult.equipmentItems)
+            player.entityId.copyComponentDtoState(componentsToLoad) { toDomainWithoutRelationships(server.itemStorage, server.namespacedStorage) }
             schedule {
                 exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications) }
             }
@@ -238,7 +238,7 @@ fun EnginePlayer.prepareContainers(
     val void = componentAccess.createContainer(
         location,
         networked = true,
-        persistentId = PersistentId("inventory-$playerUuid"),
+        persistentId = persistentId("inventory-$playerUuid"),
     )
     void.setComponent(PlayerContainerTag)
     set(PlayerContainer(void))

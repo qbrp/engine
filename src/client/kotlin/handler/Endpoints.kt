@@ -97,15 +97,23 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyDynamicVoxelDelta(voxelPos, components)
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_WORLD_STATE_DELTA_PACKET) { gameSession ->
+        applyWorldState(gameSession, components)
+    }
+
     CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { _ ->
         taskExecutor.add("chunk-load") { applyChunkPacket(chunk) }
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ENTITY_DELTA_ENDPOINT) { _ ->
-        applyEntity(dto.persistentId, dto.components)
+    registerGameSessionReceiver(CLIENTBOUND_ENTITY_DELTA_ENDPOINT) {
+        applyEntity(it, dto.persistentId, dto.components)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { _ -> applyIntent(dto, intent) }
+
+    registerGameSessionReceiver(CLIENTBOUND_ITEM_UNLOAD_ENDPOINT) {
+        applyItemUnload(it, items)
+    }
 
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)

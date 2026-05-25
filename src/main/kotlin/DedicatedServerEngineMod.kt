@@ -41,7 +41,7 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
 
     private fun createLuaContext(entrypointScript: File) = LuaContext(
         LuaDependencies(
-            JsePlatform.standardGlobals(),
+            EngineLuaGlobals(),
             namespacedStorage,
             ENGINE_DIR.scripts.path,
             LuaDataStorage()

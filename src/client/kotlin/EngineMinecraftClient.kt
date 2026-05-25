@@ -32,6 +32,7 @@ import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.client.render.ui.InteractionSelectionScreen
+import org.lain.engine.client.render.ui.initializeGraphene
 import org.lain.engine.client.render.ui.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.EquipmentFeatureRenderer
@@ -101,6 +102,7 @@ class EngineMinecraftClient : ClientModInitializer {
         registerEngineItemGroupEvent(engineClient)
         registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
         registerClientEngineCommands(engineClient)
+        initializeGraphene()
 
         Injector.register(keybindManager)
         Injector.register(this)

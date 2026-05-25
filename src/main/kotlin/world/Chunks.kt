@@ -7,8 +7,6 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.storage.ComponentLoadSettings
-import org.lain.engine.storage.copyComponentDtoState
-import org.lain.engine.storage.loadChunk
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt
@@ -107,7 +105,9 @@ class ChunkStorage(
         chunk.hints.remove(pos)
         chunk.decals.remove(pos)
         return chunk.dynamicVoxels.remove(pos)
-            ?.also { world.destroy(it) }
+            ?.also {
+                world.destroy(it)
+            }
     }
 
     fun getChunk(pos: EngineChunkPos): EngineChunk? = getChunk(pos.x, pos.z)
@@ -132,21 +132,10 @@ class ChunkStorage(
         }
     }
 
-    private fun loadChunk(pos: EngineChunkPos): EngineChunk? = with(world) {
+    private fun loadChunk(pos: EngineChunkPos): EngineChunk? {
         val server by injectEngineServer()
         return try {
-            loadChunk(server, pos)?.let {
-                EngineChunk(
-                    it.decals.toMutableMap(),
-                    it.hints.toMutableMap(),
-                    it.voxels.mapValues { (pos, components) ->
-                        val entity = world.addEntity()
-                        entity.setDynamicVoxel(pos, true)
-                        entity.copyComponentDtoState(componentLoadSettings, components)
-                        entity
-                    }.toMutableMap()
-                )
-            }
+            server.chunkLoader.loadChunk(world, pos)
         } catch (e: Throwable) {
             LOGGER.error("Ошибка загрузки чанка $pos", e)
             null

@@ -4,6 +4,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.cyberia.ecs.copyState
 import org.lain.engine.item.EngineItem
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.util.component.Networked
 import org.lain.engine.world.Location
@@ -51,7 +52,7 @@ fun WriteComponentAccess.createContainer(
     return addEntity {
         if (networked) setComponent(Networked)
         componentState?.let { copyState(it) }
-        persistentId?.let { setComponent(it) }
+        persistentId?.let { setComponent(PersistentIdComponent(it)) }
         setComponent(location)
         setComponent(Entries(entries))
         setComponent(Container)

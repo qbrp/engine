@@ -13,6 +13,7 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.player.developerMode
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.EngineLuaGlobals
 import org.lain.engine.script.lua.FileScriptSource
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.script.lua.LuaDependencies
@@ -83,7 +84,7 @@ class EngineClient(
 
     fun createLuaDependencies(scriptsPath: File): LuaDependencies {
         return LuaDependencies(
-            JsePlatform.standardGlobals(),
+            EngineLuaGlobals(),
             namespacedStorage,
             scriptsPath.path,
             luaDataStorage

@@ -2,25 +2,20 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerItems
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemMeta
 import org.lain.engine.player.*
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.getEquipmentContainerSlots
+import org.lain.engine.storage.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
-import org.lain.engine.world.world
 
 // Join Game
 
@@ -88,15 +83,18 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
 
 @Serializable
 data class ClientboundItemData(
-    val id: ItemId,
-    val uuid: PersistentId,
-    val components: List<Component>,
+    val persistentId: PersistentId,
+    val components: List<ComponentDto>
 ) {
     companion object {
         context(world: World)
         fun of(item: EngineItem): ClientboundItemData {
-            val itemMeta = item.requireComponent<ItemMeta>()
-            return ClientboundItemData(itemMeta.id, itemMeta.uuid, world.componentManager.getNetworkedComponents(item))
+            return ClientboundItemData(
+                item.requireComponent<PersistentIdComponent>().id,
+                world.componentManager
+                    .getNetworkedComponents(item)
+                    .map { it.toSnapshotDto() }
+            )
         }
     }
 }
@@ -117,15 +115,6 @@ data class ServerPlayerData(
 ) {
     val id
         get() = general.playerId
-
-    val allItems by lazy { items + equipment.values }
-
-    val referencedItems by lazy {
-        PlayerReferencedItems(
-            items.map { it.uuid },
-            equipment.values.map { it.uuid }
-        )
-    }
 
     companion object {
         context(world: World)
@@ -211,7 +200,7 @@ data class GeneralPlayerData(
             return GeneralPlayerData(
                 player.id,
                 player.require<DisplayName>().copy(),
-                player.equipmentContainer.requireComponent<PersistentId>()
+                player.equipmentContainer.requireComponent<PersistentIdComponent>().id
             )
         }
     }

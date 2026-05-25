@@ -22,7 +22,7 @@ import org.luaj.vm2.lib.jse.CoerceJavaToLua
 context(lua: LuaContext)
 fun WorldMetaTable() = luaTable {
     index { self, key ->
-        val world = self.get("_engine").asEngineWorld()
+        val world = self.asEngineWorld()
         when(key) {
             "players".toLuaValue() -> world.players.toLuaArray { it.coerceToLua() }
             else -> self.rawget(key)
@@ -30,14 +30,14 @@ fun WorldMetaTable() = luaTable {
     }
 
     function2("invoke_command") { self, command ->
-        val world = self.get("_engine").asEngineWorld()
+        val world = self.asEngineWorld()
         val commandL = command.tojstring()
         world.invokeCommand(commandL)
         NIL
     }
 
     function2("add_entity") { self, components ->
-        val world = self.get("_engine").asEngineWorld()
+        val world = self.asEngineWorld()
         val components = components.nullable()?.checktable()?.toList {
             it.get("type").asEngineScriptComponentType() to it
         } ?: emptyList()
@@ -53,13 +53,13 @@ fun WorldMetaTable() = luaTable {
     }
 
     function2("destroy_entity") { self, entityId ->
-        val world = self.get("_engine").asEngineWorld()
+        val world = self.asEngineWorld()
         world.destroy(entityId.toint())
         NIL
     }
 
     function3("_set_dynamic_voxel") { self, pos, networked ->
-        val world = self.get("_engine").asEngineWorld()
+        val world = self.asEngineWorld()
         val voxelPos = pos.toVoxelPos()
         with(world) {
             val entity = setDynamicVoxel(voxelPos, networked.nullable()?.toboolean() ?: false)
@@ -73,7 +73,7 @@ fun WorldMetaTable() = luaTable {
     }
 
     function3("iterate") { self, types, func ->
-        val world = self.get("_engine").asEngineWorld()
+        val world = self.asEngineWorld()
         val typesL = types.checktable().toList { it.get("type").asEngineScriptComponentType() }
         val entityArray = world.componentManager.getComponentArray(LuaEntityComponent.TYPE)
         fun getOrCreateEntityComponent(entityId: EntityId): LuaEntityComponent {
@@ -170,16 +170,30 @@ fun WorldMetaTable() = luaTable {
 }
 
 context(lua: LuaContext)
-fun World.coerceToLua(): LuaTable = luaTable {
-    "id"(id.value.toLuaValue())
-    "isClient"(isClient.toLuaValue())
-    "_engine"(LuaUserdata(this))
-    metatable(lua.worldMetaTable)
+fun World.coerceToLua(): LuaUserdata {
+    val world = this
+
+    val parameters = luaTable {
+        "id"(id.value.toLuaValue())
+        "is_client"(isClient.toLuaValue())
+    }
+
+    val userdata = LuaUserdata(world)
+    userdata.setmetatable(
+        luaTable {
+            "parameters"(parameters)
+            index { self, key ->
+                parameters.get(key)?.nullable() ?: lua.worldMetaTable.get(key)
+            }
+        }
+    )
+
+    return userdata
 }
 
 context(lua: LuaContext)
-fun setupWorldTableState(world: World, table: LuaTable) {
-    table.set("state", with(world) { world.worldState.coerceToLua() })
+fun setupWorldTableState(world: World, table: LuaUserdata) {
+    table.getmetatable().get("parameters").set("state", with(world) { world.state.coerceToLua() })
 }
 
 context(lua: LuaContext)
@@ -194,7 +208,11 @@ fun LuaValue.asEngineWorld() = this.checkuserdata() as World
 data class LuaEntity(
     val world: LuaValue,
     val id: LuaValue
-)
+) {
+    override fun toString(): String {
+        return id.toint().toString()
+    }
+}
 
 data class LuaEntityComponent(val entity: LuaEntity, val coercedTable: LuaValue) : Component {
     companion object {
@@ -271,6 +289,7 @@ fun EntityId.coerceToLua(): LuaValue {
         metatable.set("__index", lua.entityMetaTable)
         val entity = LuaEntity(worldL, idL)
         val entityTable = CoerceJavaToLua.coerce(entity)
+        entityTable.setmetatable(metatable)
         setComponent(LuaEntityComponent(entity, entityTable))
         entityTable
     }

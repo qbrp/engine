@@ -50,7 +50,4 @@ fun EngineItem.getProgressionAnimation(key: String): ProgressionAnimationId? {
     return this.getComponent<ItemProgressionAnimations>()?.animations[key]
 }
 @Serializable
-data class ItemMeta(val uuid: PersistentId, val id: ItemId) : Component
-
-@Serializable
-object Item : Component
+data class Item(val uuid: PersistentId, val id: ItemId) : Component

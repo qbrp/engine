@@ -11,7 +11,7 @@ import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerContainerTag
 import org.lain.engine.player.PlayerEquipment
 import org.lain.engine.script.ScriptComponent
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.Savable
 import org.lain.engine.storage.SaveTag
 import org.lain.engine.storage.UnloadTag
@@ -107,8 +107,7 @@ fun ComponentTypeRegistry.registerComponents() {
 
     registerComponent<HoldsBy>()
     registerComponent<Item>(isSavable = true, isNetworking = true)
-    registerComponent<ItemMeta>(isSavable = true, isNetworking = true)
-    registerComponent<PersistentId>(isSavable = true, isNetworking = true)
+    registerComponent<PersistentIdComponent>(isSavable = true, isNetworking = true)
     registerComponent<ContainedIn>(isSavable = true, isNetworking = true, serializationClass = null)
     registerComponent<AssignedSlot>(isSavable = true, isNetworking = true)
     registerComponent<ItemName>(isSavable = true, isNetworking = true)

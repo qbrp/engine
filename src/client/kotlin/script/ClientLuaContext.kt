@@ -13,11 +13,11 @@ class ClientLuaContext(
     entrypoint: ScriptSource,
     dependencies: LuaDependencies,
 ) : LuaContext(dependencies, entrypoint) {
-    lateinit var audioSourceTable: LuaTable
+    val audioSourceTable = LuaTable()
 
     override fun setupTables() {
         super.setupTables()
-        audioSourceTable = globals.get("AudioSource").checktable()
+        globals.set("AudioSource", audioSourceTable)
     }
 
     fun setupClientGameSession(gameSession: GameSession) {

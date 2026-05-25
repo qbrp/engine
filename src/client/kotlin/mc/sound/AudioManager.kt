@@ -10,14 +10,17 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.util.valueproviders.ConstantFloat
 import org.lain.engine.client.GameSession
+import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mixin.SoundManagerAccessor
 import org.lain.engine.client.util.AudioSource
 import org.lain.engine.client.util.EngineAudioManager
+import org.lain.engine.client.util.SoundParameters
 import org.lain.engine.mc.engineId
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 import org.lain.engine.world.SoundPlay
+import org.lain.engine.world.pos
 import kotlin.random.Random
 
 class MinecraftAudioManager(
@@ -29,7 +32,7 @@ class MinecraftAudioManager(
     private val audioSources: MutableMap<String, AudioSourcePlayback> = HashMap()
     private val soundCache: MutableMap<SoundKey, Sound> = HashMap()
 
-    data class SoundKey(val radius: Int, val id: String)
+    data class SoundKey(val parameters: SoundParameters, val radius: Int)
 
     private class AudioSourcePlayback(val source: AudioSource, val instance: AudioSourceSoundInstance) {
         fun update() {
@@ -84,11 +87,14 @@ class MinecraftAudioManager(
     override fun addAudioSource(audioSource: AudioSource, slot: String) {
         if (audioSources.contains(slot)) error("Duplicate audio source $slot")
         val slotId = engineId(slot)
+        val client by injectClient()
+        val gameSession = client.gameSession ?: return
         val playback = AudioSourcePlayback(
             audioSource,
             AudioSourceSoundInstance(
+                gameSession.mainPlayer.pos,
                 slotId,
-                getSound(audioSource.sound.value, attenuation = audioSource.radius),
+                getSound(audioSource.sound, audioSource.radius),
                 audioSource.category.toMinecraft()
             )
         )
@@ -122,21 +128,19 @@ class MinecraftAudioManager(
     }
 
     private fun getSound(
-        id: String,
-        stream: Boolean = false,
-        preload: Boolean = false,
-        attenuation: Int,
+        sound: SoundParameters,
+        radius: Int,
     ): Sound {
-        return soundCache.computeIfAbsent(SoundKey(attenuation, id)) {
+        return soundCache.computeIfAbsent(SoundKey(sound, radius)) {
             Sound(
-                engineId(id),
+                engineId(sound.id.value),
                 { 1f },
                 { 1f },
                 1,
                 Sound.Type.FILE,
-                stream,
-                preload,
-                attenuation
+                sound.stream,
+                false,
+                radius
             )
         }
     }

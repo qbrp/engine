@@ -23,17 +23,18 @@ fun EngineServer.worldSavePath(world: World) = globals.savePath.worldData.resolv
 
 fun EngineServer.saveWorld(world: World) = with(world) {
     val persistent = WorldPersistent(
-        world.componentManager.getSavableComponents(world.worldState)
+        world.componentManager.getSavableComponents(world.state)
             .map { it.toSnapshotDto() }
     )
     worldSavePath(world).writeText(WorldJson.encodeToString(persistent))
 }
 
+//TODO: сделать обработку исключений загрузки компонентов?
 fun EngineServer.loadWorldComponents(world: World): List<Component> {
     val file = worldSavePath(world)
     file.parentFile.mkdirs()
     if (!file.exists()) return emptyList()
     return WorldJson.decodeFromString<WorldPersistent>(file.readText()).components.map {
-        it.toDomain(ComponentLoadSettings(null, namespacedStorage)) ?: error("Could not load component $it")
+        it.toDomainWithoutRelationships(itemStorage, namespacedStorage)
     }
 }

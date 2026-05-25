@@ -14,6 +14,7 @@ import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
+import org.luaj.vm2.lib.jse.JsePlatform
 import java.io.File
 import java.io.InputStream
 import java.net.URL
@@ -37,6 +38,8 @@ class LuaDataStorage {
         return values.computeIfAbsent(DataKey(module, id)) { default }
     }
 }
+
+fun EngineLuaGlobals() = JsePlatform.debugGlobals()
 
 data class LuaDependencies(
     val globals: Globals,
@@ -94,7 +97,7 @@ open class LuaContext(
 
     var compilationFunctions: MutableList<LuaFunction> = mutableListOf()
     val callbacksFunctions: MutableList<LuaFunction> = mutableListOf()
-    val playerTable: LuaTable = LuaTable()
+    val playerMetaTable: LuaTable = PlayerMetaTable()
     val worldMetaTable: LuaTable = WorldMetaTable()
     val entityMetaTable: LuaTable = EntityMetaTable()
     val worldsList = LuaTable()
@@ -106,7 +109,7 @@ open class LuaContext(
     }
 
     open fun setupTables() {
-        globals.set("Player", playerTable)
+        globals.set("Player", playerMetaTable)
         globals.set("World", worldMetaTable)
         globals.set("Entity", entityMetaTable)
     }
@@ -115,9 +118,7 @@ open class LuaContext(
         globals.set("worlds", worldsList)
     }
 
-    open fun setupGlobals() {
-        globals.setupPlayer()
-    }
+    open fun setupGlobals() {}
 
     open fun setup(
         standardLibrary: ScriptSource = FileScriptSource(BUILTIN_SCRIPTS_DIR.resolve("core/boot.lua"))
@@ -173,7 +174,7 @@ open class LuaContext(
         })
 
         setupTables()
-        require(standardLibrary.exists()) { "Скрипт загрузки стандартнойй библиотеки не найден" }
+        require(standardLibrary.exists()) { "Скрипт загрузки стандартной библиотеки не найден" }
         // Загрузка стандартной библиотеки
         standardLibrary.open().use {
             globals.load(it.reader(), standardLibrary.chunkName).call()

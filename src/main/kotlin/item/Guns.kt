@@ -50,7 +50,7 @@ data class GunDisplay(
  */
 fun EngineItem.gunAmmoConsumeCount(world: World, item: EngineItem): Int = with(world) {
     val gun = item.getComponent<Gun>()
-    if (gun == null || item.getComponent<ItemMeta>()?.id != gun.ammunition) return 0
+    if (gun == null || item.getComponent<Item>()?.id != gun.ammunition) return 0
     val count = item.getComponent<Count>()?.value ?: 1
     val barrel = gun.barrel
     return count.coerceAtMost(barrel.maxBullets - barrel.bullets)
@@ -215,8 +215,7 @@ fun World.updateRecoilSystem(remove: Boolean = true) = iterate<Item, Recoil, Hol
 
 fun updateBulletsAcoustic(world: World) = world.iterate<BulletFire>() { _, event ->
     val start = event.shoot.start
-    val players = world.players
-    val affected = filterNearestPlayers(world, start, 8, players)
+    val affected = filterNearestPlayers(world, start, 8)
     affected.forEach { player ->
         // дистанция - 8 блоков
         val distanceStrength = (64f - player.pos.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f

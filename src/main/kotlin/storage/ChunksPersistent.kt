@@ -1,10 +1,7 @@
 @file:OptIn(ExperimentalSerializationApi::class)
 package org.lain.engine.storage
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
@@ -13,7 +10,9 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.engine.server.EngineServer
+import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.*
 import java.io.File
@@ -66,12 +65,47 @@ fun saveChunkAsync(
         )
     }
 }
+class ChunkLoader(
+    private val server: EngineServer,
+    private val database: Database,
+) {
+    fun loadChunk(world: World, pos: EngineChunkPos): EngineChunk? = runBlocking {
+        val chunkPersistent = loadChunkPersistent(pos) ?: return@runBlocking null
+        val entityResolver = DatabaseEntityResolver(database)
+        val ecb = EntityCommandBuffer(world)
+        val voxelJobs = chunkPersistent.voxels.map { (voxelPos, components) ->
+            async(Dispatchers.IO) {
+                with(ecb) {
+                    val entity = entityResolver.loadEntity(
+                        world.componentLoadSettings,
+                        components
+                    )
 
-fun loadChunk(server: EngineServer, pos: EngineChunkPos): ChunkPersistent? {
-    val file = server.chunkRegionPath(pos)
-    return if (file.exists()) {
-        CborSerializer.decodeFromByteArray<ChunkPersistent>(file.readBytes())
-    } else {
-        null
+                    entity.setDynamicVoxel(voxelPos, true)
+                    voxelPos to entity
+                }
+            }
+        }
+
+        val voxels = voxelJobs.awaitAll()
+            .associate { it.first to it.second }
+            .toMutableMap()
+
+        ecb.apply(world)
+
+        EngineChunk(
+            chunkPersistent.decals.toMutableMap(),
+            chunkPersistent.hints.toMutableMap(),
+            voxels
+        )
+    }
+
+    private fun loadChunkPersistent(pos: EngineChunkPos): ChunkPersistent? {
+        val file = server.chunkRegionPath(pos)
+        return if (file.exists()) {
+            CborSerializer.decodeFromByteArray(file.readBytes())
+        } else {
+            null
+        }
     }
 }

@@ -13,6 +13,8 @@ import net.minecraft.world.item.component.ItemLore
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.*
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.storage.Uuid
 import org.lain.engine.util.injectItemAccess
 import org.lain.engine.world.World
 import java.util.*
@@ -72,7 +74,11 @@ fun wrapEngineItemStack(
 
     itemStack.set(
         ENGINE_ITEM_REFERENCE_COMPONENT,
-        EngineItemReferenceComponent(item.requireComponent<ItemMeta>().id, item.requireComponent<PersistentId>(), CURRENT_ITEM_VERSION)
+        EngineItemReferenceComponent(
+            item.requireComponent<Item>().id,
+            item.requireComponent<PersistentIdComponent>().id,
+            CURRENT_ITEM_VERSION
+        )
     )
     return itemStack
 }
@@ -84,15 +90,6 @@ fun ItemStack.engineItem() = get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getItem()
 fun ItemStack.decrement(i: Int) = shrink(i)
 
 fun ItemStack.increment(i: Int) = grow(i)
-
-val ENGINE_ITEM_LOADING_COMPONENT: DataComponentType<Unit> = Registry.register(
-    BuiltInRegistries.DATA_COMPONENT_TYPE,
-    engineId("loading-component"),
-    DataComponentType
-        .builder<Unit>()
-        .persistent(Unit.CODEC)
-        .build()
-)
 
 val ENGINE_ITEM_INSTANTIATE_COMPONENT: DataComponentType<String> = Registry.register(
     BuiltInRegistries.DATA_COMPONENT_TYPE,
@@ -119,15 +116,15 @@ val ENGINE_ITEM_REFERENCE_COMPONENT: DataComponentType<EngineItemReferenceCompon
                         .forGetter { it.id },
                     Codec.STRING.optionalFieldOf("uuid")
                         .xmap(
-                            { it.map { PersistentId(it) }.orElse(null) },
-                            { Optional.ofNullable(it?.value) }
+                            { it.map { Uuid.from(it) as PersistentId }.orElse(null) },
+                            { Optional.ofNullable(it.toString()) }
                         )
                         .forGetter { Optional.ofNullable(it.uuid).getOrNull() },
 
                     Codec.INT.optionalFieldOf("version", 0)
                         .forGetter { it.version }
                 ).apply(instance) { id, uuid, version ->
-                    EngineItemReferenceComponent(id, uuid, version)
+                    EngineItemReferenceComponent(id, uuid, version, false)
                 }
             }
         )
@@ -142,7 +139,8 @@ const val CURRENT_ITEM_VERSION = 1
 data class EngineItemReferenceComponent(
     val id: ItemId,
     val uuid: PersistentId,
-    val version: Int
+    val version: Int,
+    var loading: Boolean = false
 ) {
     fun getItem(): EngineItem? {
         val itemStorage by injectItemAccess()

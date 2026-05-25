@@ -17,6 +17,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.scriptContext
+import org.lain.engine.storage.ChunkLoader
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.storage.playerData
 import org.lain.engine.storage.savePersistentPlayerData
@@ -52,10 +53,11 @@ class EngineServer(
     val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val itemStorage = ItemStorage()
-    val voidContainer by lazy { defaultWorld.createContainer(Location(defaultWorld, Vec3(0f))) }
+    val voidContainer by lazy { defaultWorld.createContainer(Location(Vec3(0f))) }
     var callbacks = Callbacks()
     val itemLoader = ItemLoader(this, database)
     val playerLoader = PlayerLoader(this, itemLoader)
+    val chunkLoader = ChunkLoader(this, database)
 
     val defaultWorld
         get() = worlds.toList().first().second
@@ -124,7 +126,7 @@ class EngineServer(
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
             updateBulletsAcoustic(world)
-            updateContainerSystems(itemStorage)
+            updateContainerSystems(this@EngineServer.itemStorage)
             world.tickCallbacks(callbacks)
         }
 

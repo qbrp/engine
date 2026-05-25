@@ -47,7 +47,7 @@ fun EngineItem.getTooltip(debug: Boolean): List<String> {
         }
     }
 
-    val (uuid, id) = requireComponent<ItemMeta>()
+    val (uuid, id) = requireComponent<Item>()
     if (debug) {
         lines.add("<dark_gray>$id</dark_gray>")
         lines.add("<dark_gray>$uuid</dark_gray>")

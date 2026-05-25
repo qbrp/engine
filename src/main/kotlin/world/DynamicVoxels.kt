@@ -1,7 +1,10 @@
 package org.lain.engine.world
 
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.storage.VoxelPosId
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.Networked
 import org.lain.engine.util.math.EVec3
@@ -21,12 +24,13 @@ fun World.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false): EntityId {
     return entity
 }
 
-context(access: World)
+context(access: WriteComponentAccess)
 fun EntityId.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false) {
     val centerPos = pos.toCenterPos()
     val immutableVoxelPos = ImmutableVoxelPos(pos)
     setComponent(DynamicVoxel(immutableVoxelPos))
+    setComponent(PersistentIdComponent(VoxelPosId(immutableVoxelPos)))
     setComponent(ChunkedPos(EngineChunkPos(pos), immutableVoxelPos, centerPos))
     if (networked) setComponent(Networked)
-    setComponent(Location(access, pos.toCenterPos()))
+    setComponent(Location(pos.toCenterPos()))
 }

@@ -16,7 +16,7 @@ data class Count(var value: Int, val max: Int) : ItemComponent
  * @return Были ли совмещены предметы
  */
 fun World.merge(baseItem: EngineItem, mergeItem: EngineItem): Boolean {
-    val similarKind = baseItem.requireComponent<ItemMeta>().id == mergeItem.requireComponent<ItemMeta>().id
+    val similarKind = baseItem.requireComponent<Item>().id == mergeItem.requireComponent<Item>().id
     val countable = baseItem.hasComponent<Count>() && mergeItem.hasComponent<Count>()
     return similarKind && countable
 }

@@ -13,7 +13,6 @@ import org.lain.engine.util.Color
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.World
-import org.lain.engine.world.world
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -84,7 +83,7 @@ fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
                 player.require<VoiceApparatus>().copy(),
                 player.get<VoiceLoose>()?.copy(),
                 player.chatHeadsEnabled,
-                equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentId>() },
+                equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentIdComponent>().id },
                 player.require<PlayerModel>().skinEyeY,
                 componentManager.getSavableComponents(player.entityId).map { it.toSnapshotDto() }
             )

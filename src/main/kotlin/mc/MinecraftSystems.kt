@@ -5,7 +5,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.util.Unit
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
@@ -15,8 +14,10 @@ import org.lain.engine.item.*
 import org.lain.engine.mc.commands.updateCommandInvokeSystem
 import org.lain.engine.player.*
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.dataFixItem
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.util.Storage
+import org.lain.engine.util.addIfNotNull
 import org.lain.engine.util.forEachWithContext
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -29,7 +30,7 @@ fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: Ser
     for (stack in entity.visibleInventoryItems) {
         val engineItem = stack.engineItem() ?: continue
         if (items.contains(engineItem)) {
-            engineServer.wrapItemStackCatching(player, engineItem.requireComponent<ItemMeta>().id, stack)
+            engineServer.wrapItemStackCatching(player, engineItem.requireComponent<Item>().id, stack)
         } else {
             items.add(engineItem)
         }
@@ -56,7 +57,7 @@ private val ItemStackIoCoroutineScope = CoroutineScope(Dispatchers.IO + Supervis
 
 data class EngineItemStack(val engineItem: EngineItem, val itemStack: ItemStack)
 
-data class NotLoadedEngineItemStack(val world: World, val itemUuid: PersistentId, val itemStack: ItemStack)
+data class NotLoadedEngineItemStack(val world: World, val itemUuid: PersistentId, val itemStack: ItemStack, val referenceComponent: EngineItemReferenceComponent)
 
 fun updateServerMinecraftSystems(
     server: EngineMinecraftServer,
@@ -70,7 +71,7 @@ fun updateServerMinecraftSystems(
     val notUpdatedPlayers = players.toMutableList()
     val itemStacksToLoad = mutableListOf<NotLoadedEngineItemStack>() // ВАЖНО: здесь храним копии стаков, иначе будут проблемы с потоками
 
-    server.engine.allWorlds().forEachWithContext({ it }) { world ->
+    engine.allWorlds().forEachWithContext({ it }) { world ->
         world.updateCommandInvokeSystem(entityTable)
         world.prepareItemMinecraftSystem()
         world.players.forEach { player ->
@@ -109,10 +110,10 @@ fun updateServerMinecraftSystems(
                     val referencedItem = reference.getItem()
                     val uuid = reference.uuid
                     val isItemLoaded = referencedItem != null
-                    val isItemLoading = itemStack.has(ENGINE_ITEM_LOADING_COMPONENT)
+                    val isItemLoading = reference.loading
                     if (!isItemLoaded && !isItemLoading) {
-                        itemStack.set(ENGINE_ITEM_LOADING_COMPONENT, Unit.INSTANCE)
-                        itemStacksToLoad.add(NotLoadedEngineItemStack(world, uuid, itemStack.copy()))
+                        reference.loading = true
+                        itemStacksToLoad.add(NotLoadedEngineItemStack(world, uuid, itemStack.copy(), reference))
                     } else {
                         // Логика уничтожения применима только для уже загруженных предметов, очевидно
                         if (destroyItemSignal != null && referencedItem == destroyItemSignal.item) {
@@ -141,7 +142,6 @@ fun updateServerMinecraftSystems(
     if (itemStacksToLoad.isNotEmpty()) {
         ItemStackIoCoroutineScope.launch {
             val semaphore = Semaphore(16)
-
             itemStacksToLoad
                 .map { data ->
                     val world = data.world
@@ -150,15 +150,16 @@ fun updateServerMinecraftSystems(
                             try {
                                 withTimeout(5000) {
                                     val item = itemLoader.loadWorldItem(data.itemUuid, world)
-                                    server.engine.execute {
+                                    engine.execute {
                                         context(world) {
+                                            dataFixItem(item, engine.namespacedStorage)
                                             wrapEngineItemStack(item, data.itemStack)
                                         }
                                     }
                                 }
                             } finally {
-                                server.engine.execute {
-                                    data.itemStack.remove(ENGINE_ITEM_LOADING_COMPONENT)
+                                engine.execute {
+                                    data.referenceComponent.loading = false
                                 }
                             }
                         }
@@ -178,7 +179,7 @@ fun updatePlayerMinecraftSystems(
     items: Set<EngineItemStack>,
     entity: Player,
     world: World,
-    itemStorage: Storage<String, EngineItem>
+    itemStorage: Storage<PersistentId, EngineItem>
 ) = with(world) {
     val location = player.require<Location>()
     val velocity = player.require<Velocity>()
@@ -186,7 +187,6 @@ fun updatePlayerMinecraftSystems(
 
     velocity.prev.set(location.position)
     location.position.set(pos)
-    location.world = world
 
     velocity.motion.set(
         location.position.x - velocity.prev.x,
@@ -269,11 +269,7 @@ fun updatePlayerMinecraftSystems(
         playerInventory.items += item
         remainingPlayerInventoryItems -= item
 
-        if (!item.hasComponent<UpdateMeta>()) {
-            println() //FOR DEBUG
-        }
-
-        val updateMeta = item.requireComponent<UpdateMeta>()
+        val updateMeta = item.getUpdateMeta()
         if (updateMeta.adaptedThisTick) {
             continue
         }
@@ -309,7 +305,8 @@ fun World.prepareItemMinecraftSystem() = iterate<Item, UpdateMeta> { item, _, up
 }
 
 fun updatePlayerOwnedItems(world: World, player: EnginePlayer) = with(world) {
-    val equipmentItems = player.collectOwnedItems(world)
+    val equipmentItems = player.collectOwnedItems(world).toMutableList()
+    equipmentItems.addIfNotNull(player.cursorItem)
     val location = player.location
     val allItems = player.items + equipmentItems
     if (allItems.isNotEmpty()) {

@@ -6,7 +6,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.storage.PersistentId
-import org.lain.engine.transport.packet.ItemComponent
+import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -69,7 +69,7 @@ fun updateSlotContainers(world: World) {
         if (slotToAttach !in slots) error("Слот $slotToAttach не существует в контейнере $container")
         container.removeComponent<AssignSlot>()
         if (slotToAttach !in occupiedSlots) {
-            container.setComponent(AssignItem(itemToAttach.requireComponent<PersistentId>()))
+            container.setComponent(AssignItem(itemToAttach.requireComponent<PersistentIdComponent>().id))
 
             occupiedSlots += slotToAttach
             itemToAttach.setComponent(AssignedSlot(slotToAttach))

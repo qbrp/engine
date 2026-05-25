@@ -1,7 +1,6 @@
 package org.lain.engine.client.handler
 
-import kotlinx.coroutines.Runnable
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
 import org.lain.cyberia.ecs.*
 import org.lain.engine.chat.ChannelId
@@ -21,8 +20,6 @@ import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.Item
-import org.lain.engine.item.addItemComponents
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
@@ -31,25 +28,28 @@ import org.lain.engine.server.desync
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
-import org.lain.engine.util.component.ComponentState
-import org.lain.engine.util.component.Networked
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.*
+import java.util.Queue
 
 class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val gameSession get() = client.gameSession
     private val handledNotifications = mutableSetOf<Notification>()
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
-    private val synchronizedEntities = mutableMapOf<PersistentId, EntityId>()
-    private val componentLoadSettings = ComponentLoadSettings(synchronizedEntities, client.namespacedStorage)
     val taskExecutor = TaskExecutor()
     val processedSounds = mutableSetOf<SoundBroadcast>()
     val processedInteractions = FixedSizeList<InteractionId>(40)
     val pendingSnapshots = mutableListOf<Pair<InteractionId, Runnable>>()
     val pendingFullPlayerData = mutableListOf<Pair<EnginePlayer, FullPlayerData>>()
     private val pendingChunks: Queue<Pair<EngineChunkPos, EngineChunkDto>> = LinkedList()
+    private val pendingEntities: MutableMap<PersistentId, CompletableDeferred<PendingEntity?>> = mutableMapOf()
+    private val pendingEntityProvider = PendingEntityProvider(pendingEntities)
+    private val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
+    private val entityResolverCoroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
+
+    private fun newEntityResolver() = EntityResolver(pendingEntityProvider)
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
@@ -69,7 +69,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         injectValue<ClientTransportContext>().unregisterAll()
         handledNotifications.clear()
         processedSounds.clear()
-        synchronizedEntities.clear()
+        pendingEntities.clear()
         pendingSnapshots.clear()
         pendingChunks.clear()
     }
@@ -78,45 +78,33 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         val gameSession = client.gameSession
         if (gameSession != null) {
             with(gameSession.world) {
-                iterate<Networked, PersistentId>() { entity, _, persistentId ->
-                    if (!synchronizedEntities.containsKey(persistentId)) {
-                        synchronizedEntities[persistentId] = entity
-                        entity.setComponent(persistentId)
-                    }
-                }
-
                 SERVERBOUND_CLIENT_TICK_END_ENDPOINT.sendC2SPacket(ClientTickEndPacket)
                 val input = gameSession.mainPlayer.require<PlayerInput>()
                 val actions = input.actions.toMutableSet()
+
+                if (pendingEntities.isNotEmpty()) {
+                    entityResolverCoroutineScope.launch {
+                        val entityResolver = newEntityResolver()
+                        pendingEntities.forEach { (persistentId, pendingEntity) ->
+                            launch {
+                                entityResolver.loadEntity(
+                                    componentLoadSettings,
+                                    pendingEntity.await()?.components ?: return@launch,
+                                    persistentId
+                                )
+                                pendingEntities.remove(persistentId)
+                            }
+                        }
+                    }
+                }
+
+                handleInteractions(input, actions, gameSession)
 
                 if (MinecraftClient.screen !is CreativeModeInventoryScreen) {
                     actions.removeIf { it is InputAction.SlotClick }
                 }
 
-                val interaction = gameSession.mainPlayer.get<InteractionComponent>()
-                if (input.actions != input.lastActions && interaction?.selection == null) {
-                    SERVERBOUND_INPUT_PACKET.sendC2SPacket(
-                        InputPacket(
-                            gameSession.ticks,
-                            actions.map { it.toDto() }.toSet()
-                        )
-                    )
-                }
-
-                for (player in gameSession.playerStorage) {
-                    if (player.has<InteractionComponent>()) continue
-                    player.get<InteractionQueueComponent>()?.interactions?.poll()?.let {
-                        player.set(it)
-                    }
-                }
-
-                for (i in pendingFullPlayerData.indices.reversed()) {
-                    val (player, pendingFullData) = pendingFullPlayerData[i]
-                    if (pendingFullData.referencedItems.isPresent()) {
-                        pendingFullPlayerData.removeAt(i)
-                        applyFullPlayerDataInternal(player, pendingFullData)
-                    }
-                }
+                processPendingFullPlayerData()
             }
         }
         if (MinecraftClient.connection != null) {
@@ -124,6 +112,36 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             clientAcknowledgeHandler.tick()
         } else if (taskExecutor.notEmpty()) {
             taskExecutor.clear()
+        }
+    }
+
+    context(world: World)
+    private fun handleInteractions(input: PlayerInput, actions: Set<InputAction>, gameSession: GameSession) {
+        val interaction = gameSession.mainPlayer.get<InteractionComponent>()
+        if (input.actions != input.lastActions && interaction?.selection == null) {
+            SERVERBOUND_INPUT_PACKET.sendC2SPacket(
+                InputPacket(
+                    gameSession.ticks,
+                    actions.map { it.toDto() }.toSet()
+                )
+            )
+        }
+
+        for (player in gameSession.playerStorage) {
+            if (player.has<InteractionComponent>()) continue
+            player.get<InteractionQueueComponent>()?.interactions?.poll()?.let {
+                player.set(it)
+            }
+        }
+    }
+
+    private fun processPendingFullPlayerData() {
+        for (i in pendingFullPlayerData.indices.reversed()) {
+            val (player, pendingFullData) = pendingFullPlayerData[i]
+            if (pendingFullData.referencedItems.isPresent()) {
+                pendingFullPlayerData.removeAt(i)
+                applyFullPlayerDataInternal(player, pendingFullData)
+            }
         }
     }
 
@@ -219,7 +237,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun onCursorItem(item: EngineItem?) {
         val gameSession = gameSession ?: return
-        with(gameSession.world) { SERVERBOUND_CURSOR_ITEM_ENDPOINT.sendC2SPacket(CursorItemPacket(item?.requireComponent())) }
+        with(gameSession.world) {
+            SERVERBOUND_CURSOR_ITEM_ENDPOINT.sendC2SPacket(
+                CursorItemPacket(item?.requireComponent<PersistentIdComponent>()?.id)
+            )
+        }
     }
 
     fun onChatStartTyping(channelId: ChannelId) {
@@ -272,11 +294,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             error("Игровая сессия уже запущена!")
         }
 
-        val world = clientWorld(client.thread, worldData, client.namespacedStorage)
         val gameSession = GameSession(
             data.serverId,
-            world,
             data,
+            worldData,
             playerData,
             this@ClientHandler,
             client
@@ -387,14 +408,25 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     private fun GameSession.loadChunk(chunkDto: EngineChunkDto) = with(gameSession!!.world) {
         val pos = chunkDto.pos
-        val entities: MutableMap<VoxelPos, EntityId> = chunkDto.dynamicVoxels
-            .map { (pos, components) ->
-                val entity = world.addEntity()
-                entity.setDynamicVoxel(pos)
-                entity.copyComponentDtoState(componentLoadSettings, components)
-                pos to entity
-            }
-            .toMap(mutableMapOf())
+        val dynamicVoxels = chunkDto.dynamicVoxels.map { (pos, components) ->
+            val entity = world.addEntity()
+            entity.setDynamicVoxel(pos)
+            pos to (entity to components)
+        }.toMap()
+
+        val entities: MutableMap<VoxelPos, EntityId> = runBlocking {
+            dynamicVoxels
+                .mapValues { (pos, pair) ->
+                    val (entity, components) = pair
+                    entity.copyState(components.toDomainSuspend {
+                        toDomainSuspend(componentLoadSettings, { persistentId ->
+                            (persistentId as? VoxelPosId)?.pos?.let { dynamicVoxels[it]?.first } ?: persistentIdToEntity[persistentId]
+                        })
+                    })
+                    entity
+                }
+                .toMutableMap()
+        }
         val chunk = EngineChunk(
             chunkDto.decals.toMutableMap(),
             chunkDto.hints.toMutableMap(),
@@ -407,31 +439,25 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         val entity = chunkStorage.getDynamicVoxel(voxelPos) ?: run {
             setDynamicVoxel(voxelPos, false)
         }
-        entity.copyState(components.mapNotNull { it.toDomain(componentLoadSettings) })
+
+        runBlocking {
+            entity.copyState(components.toDomainSuspend {
+                toDomain(
+                    componentLoadSettings,
+                    //TODO: сделать здесь механизм EntityResolving
+                    entityGetter = { null }
+                )
+            })
+        }
     }
 
     fun applyVoxelEvent(event: VoxelEvent) = with(gameSession!!) {
         world.emitEvent(event)
     }
 
-    fun applyEntity(persistentId: PersistentId, components: List<ComponentDto>) = with(gameSession!!.world) {
-        val gameSession = gameSession!!
-        val entity = synchronizedEntities[persistentId] ?: run {
-            val e = addEntity().also { synchronizedEntities[persistentId] = it }
-            e.setComponent(persistentId)
-            e
-        }
-        val state = ComponentState(
-            components.map { it.toDomain(componentLoadSettings) ?: desync("Не удалось синхронизировать сущность. Пропущен компонент: $it") }
-        )
-        if (state.has<Item>()) { // addItemComponents перезаписывает некоторые компоненты, например Count
-            // поэтому обращаемся через state.has, и уже потом копируем его в entity
-            val itemStorage = gameSession.itemStorage
-            entity.addItemComponents()
-            if (itemStorage.get(persistentId.value) != null) itemStorage.remove(persistentId.value)
-            itemStorage.add(persistentId.value, entity)
-        }
-        entity.copyState(state)
+    fun applyEntity(gameSession: GameSession, persistentId: PersistentId, components: List<ComponentDto>) {
+        val pendingEntity = PendingEntity(components)
+        pendingEntities[persistentId] = CompletableDeferred(pendingEntity)
     }
 
     fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {
@@ -455,6 +481,16 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             is IntentBehaviourDto.Command -> ClientCommandIntentBehaviour(actor.player)
         }
         executeIntent(intent, ScriptContext.IntentExecution(actor, target, dto.inputValues.map { it.toDomain() }, behaviour), namespacedStorage)
+    }
+
+    fun applyWorldState(gameSession: GameSession, components: List<ComponentDto>) = with(gameSession.world) {
+        runBlocking {
+            state.copyComponentDtoState(components) { toDomainWithoutRelationships(itemStorage, namespacedStorage) }
+        }
+    }
+
+    fun applyItemUnload(gameSession: GameSession, items: List<PersistentId>) = with(gameSession.world) {
+        items.forEach { item -> gameSession.itemStorage.remove(item)?.destroy() }
     }
 
     companion object {

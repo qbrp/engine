@@ -4,10 +4,11 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.minecraft.world.InteractionResult
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
-import org.lain.engine.client.render.ui.TransformationsEditorScreen
-import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
+import org.lain.engine.client.render.ui.TransformationsEditorScreen
+import org.lain.engine.client.render.ui.openTestGrapheneWindow
+import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.mc.commands.playerPositionsMessage
 import org.lain.engine.mc.voxelPos
@@ -91,6 +92,8 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                 playerPositionsMessage(gameSession.playerStorage, MinecraftClient.level ?: return@with true).forEach { message ->
                     gameSession.chatManager.addMessage(LiteralSystemEngineChatMessage(gameSession, message))
                 }
+            } else if (key == GLFW.GLFW_KEY_6) {
+                openTestGrapheneWindow()
             } else {
                 return@with false
             }

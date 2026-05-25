@@ -18,7 +18,7 @@ import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.item.ItemId
-import org.lain.engine.item.instantiateItem
+import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.registerIntentCommands
 import org.lain.engine.player.*
@@ -81,11 +81,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     val luaContext: LuaContext = dependencies.luaContext
 
     open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
-        val item = instantiateItem(
-            this,
-            engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден"),
-            engine.itemStorage
-        )
+        val prefab = engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден")
+        val item = createItem(prefab)
         wrapEngineItemStack(item, itemStack)
         return item
     }
@@ -109,7 +106,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             updateScriptLightSystem()
             world.updateVoxelEvents(engine.handler)
             world.clearEvents()
-            updateUnloadSystem(world, timers)
+            updateUnloadSystem(engine.handler, world, timers)
             updateSaveSystem(this@EngineMinecraftServer)
         }
         timers.items.tick()
@@ -127,14 +124,17 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val compilationResult = dependencies.compilationResult
         luaContext.setupGame(LuaRuntimeDependencies(playerStorage, engine.worlds))
         engine.loadContents(luaContext, compilationResult)
+        if (compilationResult.exceptions.isNotEmpty()) {
+            error("Не удалось скомпилировать ресурсы Engine!")
+        }
         minecraftServer.allLevels.forEach {
             val id = it.engine
-            val world = world(id, engine.thread, engine.namespacedStorage) { chunkPos ->
+            val world = world(id, engine.thread, engine.itemStorage, engine.namespacedStorage) { chunkPos ->
                 it.chunkSource.chunkMap.getPlayers(ChunkPos(chunkPos.x, chunkPos.z), false)
                     .mapNotNull { entity -> entityTable.getPlayer(entity) }
             }
             world.registerScriptComponents(engine.namespacedStorage)
-            with(world) { world.worldState.copyState(engine.loadWorldComponents(world)) }
+            with(world) { world.state.copyState(engine.loadWorldComponents(world)) }
             engine.addWorld(world)
             dependencies.entityTable.setWorld(id, it)
             luaContext.loadWorld(world)
