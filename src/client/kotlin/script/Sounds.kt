@@ -32,8 +32,7 @@ fun AudioSource.coerceToLua(): LuaUserdata {
                         "volume" -> luaValue(this@coerceToLua.volume)
                         "pitch" -> luaValue(this@coerceToLua.pitch)
 
-                        "is_relative" -> luaValue(this@coerceToLua.isRelative)
-                        "attenuate" -> luaValue(this@coerceToLua.attenuate)
+                        "spatial" -> luaValue(this@coerceToLua.spatial)
                         "is_ended" -> luaValue(this@coerceToLua.isEnded)
 
                         "radius" -> luaValue(this@coerceToLua.radius)
@@ -67,14 +66,8 @@ fun AudioSource.coerceToLua(): LuaUserdata {
                         "volume" -> this@coerceToLua.volume = value.tofloat()
                         "pitch" -> this@coerceToLua.pitch = value.tofloat()
 
-                        "is_relative" ->
-                            this@coerceToLua.isRelative = value.toboolean()
-
-                        "attenuate" ->
-                            this@coerceToLua.attenuate = value.toboolean()
-
-                        "radius" ->
-                            this@coerceToLua.radius = value.toint()
+                        "spatial" -> this@coerceToLua.spatial = value.toboolean()
+                        "radius" -> this@coerceToLua.radius = value.toint()
 
                         "slot" ->
                             this@coerceToLua.slot =
@@ -119,11 +112,10 @@ fun Globals.setupAudio() {
             parameters.get("x").nullable()?.tofloat() ?: 0f,
             parameters.get("y").nullable()?.tofloat() ?: 0f,
             parameters.get("z").nullable()?.tofloat() ?: 0f,
-            parameters.get("is_relative").nullable()?.toboolean() ?: true,
             parameters.get("volume")?.nullable()?.tofloat() ?: 1f,
             parameters.get("pitch")?.nullable()?.tofloat() ?: 1f,
-            parameters.get("attenuate")?.nullable()?.toboolean() ?: false,
-            radius = parameters.get("radius")?.nullable()?.toint() ?: 16
+            parameters.get("spatial")?.nullable()?.toboolean() ?: false,
+            parameters.get("radius")?.nullable()?.toint() ?: 16
         ).coerceToLua()
     })
     ctx.audioSourceTable.set("_play", twoArgFunction { self, slotId ->

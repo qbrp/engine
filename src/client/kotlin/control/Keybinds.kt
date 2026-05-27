@@ -71,6 +71,24 @@ val TOGGLE_CHAT_SPY = KeybindSettings(
     }
 )
 
+val TOGGLE_CHAT_ALLHEAR = KeybindSettings(
+    name = "Переключить полную громкость",
+    id = KeybindId("toggle-all-hear"),
+    key = GLFW.GLFW_KEY_J,
+    onPress = { client ->
+        client.gameSession?.chatManager?.toggleAllhear()
+    }
+)
+
+val TOGGLE_CHAT_TYPING_INDICATOR = KeybindSettings(
+    name = "Переключить индикатор набора сообщения",
+    id = KeybindId("toggle-typing-indicator"),
+    key = GLFW.GLFW_KEY_K,
+    onPress = { client ->
+        client.gameSession?.chatManager?.toggleTypingIndicator()
+    }
+)
+
 val EXTEND_HAND = KeybindSettings(
     name = "Выставить руку",
     id = KeybindId("extend-arm"),

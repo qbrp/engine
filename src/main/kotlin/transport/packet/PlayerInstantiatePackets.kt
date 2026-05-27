@@ -57,8 +57,8 @@ data class PlayerReferencedItems(
     companion object {
         context(world: World)
         fun of(player: EnginePlayer) = PlayerReferencedItems(
-            player.items.map { it.requireComponent() },
-            player.world.getContainerItems(player.equipmentContainer).map { it.requireComponent() }
+            player.items.map { it.requireComponent<PersistentIdComponent>().id },
+            player.world.getContainerItems(player.equipmentContainer).map { it.requireComponent<PersistentIdComponent>().id }
         )
     }
 }

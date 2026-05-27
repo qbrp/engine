@@ -66,21 +66,21 @@ class AudioSourceSoundInstance(
     private val engineId: Identifier,
     private val sound: Sound,
     private val engineCategory: SoundSource,
-    var _isRelative: Boolean = false,
     var _x: Float = 0f,
     var _y: Float = 0f,
     var _z: Float = 0f,
     var _volume: Float = 1f,
     var _pitch: Float = 1f,
-    var attenuate: Boolean = false
+    var spatial: Boolean = false,
+    var radius: Int = 16
 ) : TickableSoundInstance {
     private var k = 1f
     private var pos = MutableEVec3(_x, _y, _z)
 
     override fun tick() {
         pos.set(_x, _y, _z)
-        if (!_isRelative && attenuate) {
-            k = 1f - (mainPlayerPos.squaredDistanceTo(pos) / (16 * 16))
+        if (spatial) {
+            k = 1f - (mainPlayerPos.squaredDistanceTo(pos) / (radius * radius))
         }
     }
 
@@ -96,7 +96,7 @@ class AudioSourceSoundInstance(
 
     override fun isLooping(): Boolean = false
 
-    override fun isRelative(): Boolean = _isRelative
+    override fun isRelative(): Boolean = false
 
     override fun getDelay(): Int = 0
 

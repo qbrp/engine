@@ -52,13 +52,17 @@ data class Task(
     }
 }
 
-fun <P : Packet> ClientHandler.registerGameSessionReceiver(endpoint: Endpoint<P>, executor: P.(GameSession) -> Unit) {
+fun <P : Packet> ClientHandler.registerGameSessionReceiver(
+    endpoint: Endpoint<P>,
+    taskExecutor: (GameSession) -> TaskExecutor = { this.taskExecutor },
+    executor: P.(GameSession) -> Unit
+) {
     endpoint.registerClientReceiver {
         val session = client.gameSession ?: run {
             LOGGER.warn("Получен пакет данных в раннем состоянии авторизации на сервере [${endpoint.identifier}]")
             return@registerClientReceiver
         }
-        taskExecutor.add(endpoint.identifier) { this.executor(session) }
+        taskExecutor(session).add(endpoint.identifier) { this.executor(session) }
     }
 }
 

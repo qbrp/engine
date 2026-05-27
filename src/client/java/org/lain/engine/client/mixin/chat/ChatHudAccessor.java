@@ -10,16 +10,10 @@ import java.util.List;
 
 @Mixin(ChatComponent.class)
 public interface ChatHudAccessor {
-    @Accessor("trimmedMessages")
-    List<GuiMessage.Line> engine$getVisibleMessages();
+    @Invoker("getWidth")
+    int engine$getWidth();
 
-    @Accessor("chatScrollbarPos")
-    int engine$getScrolledLines();
-
-    @Accessor("allMessages")
-    List<GuiMessage> engine$getMessages();
-
-    @Invoker("getLineHeight")
-    int engine$getLineHeight();
+    @Invoker("getScale")
+    double engine$getScale();
 }
 

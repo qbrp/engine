@@ -7,10 +7,7 @@ import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.MovementManager
-import org.lain.engine.client.handler.ClientHandler
-import org.lain.engine.client.handler.isLowDetailed
-import org.lain.engine.client.handler.lowDetailedClientPlayerInstance
-import org.lain.engine.client.handler.mainClientPlayerInstance
+import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.util.LittleNotification
@@ -93,6 +90,7 @@ class GameSession(
     val luaContext get() = client.luaContext ?: error("Lua context is not initialized")
     var soundsToBroadcast = LinkedList<SoundBroadcast>()
     var callbacks: Callbacks = Callbacks()
+    val endTickTaskExecutor = TaskExecutor()
 
     init {
         applyCompilation(client.compilationResult ?: error("Compilation is not initialized"))
@@ -222,7 +220,7 @@ class GameSession(
         processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
         soundsToBroadcast.clear()
         updateSlotContainers(world)
-        updateContainerOperationSystem(itemAccess)
+        updateContainerOperationSystem()
         updatePlayerContainerSystem()
         clearAssignItemsOperations(world)
 
@@ -231,6 +229,8 @@ class GameSession(
         world.updateVoxelEvents(null)
         updatePlayerScriptSystem()
         updateScriptLightSystem()
+
+        endTickTaskExecutor.flush()
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {

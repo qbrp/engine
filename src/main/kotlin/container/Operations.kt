@@ -15,7 +15,7 @@ import org.lain.engine.world.World
  * @see AssignSlot
  */
 @Serializable
-data class AssignItem(val PersistentId: PersistentId) : Component
+data class AssignItem(val persistentId: PersistentId) : Component
 data class DetachItem(val item: EngineItem) : Component
 
 /**
@@ -25,9 +25,9 @@ data class DetachItem(val item: EngineItem) : Component
 data class ContainerError(val text: String) : Component
 
 context(world: World)
-fun updateContainerOperationSystem(itemStorage: ItemAccess) {
+fun updateContainerOperationSystem() {
     world.iterate<Container, AssignItem, Entries>() { container, _, (itemToAttach), (entries) ->
-        val itemToAttach = itemStorage.getItem(itemToAttach) ?: return@iterate
+        val itemToAttach = world.itemStorage.get(itemToAttach) ?: return@iterate
         if (entries.contains(itemToAttach)) {
             world.emitEvent(ContainerError("Контейнер уже содержит ${itemToAttach.getName()}"))
             return@iterate

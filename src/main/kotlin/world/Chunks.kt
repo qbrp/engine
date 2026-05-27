@@ -142,7 +142,7 @@ class ChunkStorage(
         }
     }
 
-    private fun getChunk(pos: VoxelPos): EngineChunk? = getChunk(chunkSectionCoord(pos.x), chunkSectionCoord(pos.z))
+    fun getChunk(pos: VoxelPos): EngineChunk? = getChunk(chunkSectionCoord(pos.x), chunkSectionCoord(pos.z))
 
     private fun getChunk(x: Int, z: Int): EngineChunk? = chunks[EngineChunkPos.toLong(x, z)]
 

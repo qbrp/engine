@@ -1,12 +1,13 @@
 package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.floorToInt
 
-interface VoxelPos {
+@Serializable
+sealed interface VoxelPos {
     val x: Int
     val y: Int
     val z: Int

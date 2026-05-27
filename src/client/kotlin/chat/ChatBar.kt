@@ -39,13 +39,7 @@ class ChatBar(
     fun toggleHide(section: ChatBarSection, chat: ClientEngineChatManager?) {
         val channelState = statesBySection[section] ?: return
         channelState.hide = !channelState.hide
-        val isHidden = channelState.hide
-        if (isHidden) {
-            section.channels.forEach { chat?.disableChannel(it) }
-        } else {
-            markRead(section)
-            section.channels.forEach { chat?.enableChannel(it) }
-        }
+        chat?.eventBus?.invalidateChatEntries()
     }
 
     fun hasUnreadMessages(section: ChatBarSection): Boolean {

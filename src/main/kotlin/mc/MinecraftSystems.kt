@@ -28,7 +28,7 @@ context(world: World)
 fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: ServerPlayer, player: EnginePlayer) {
     val items = mutableListOf<EngineItem>()
     for (stack in entity.visibleInventoryItems) {
-        val engineItem = stack.engineItem() ?: continue
+        val engineItem = stack.engineItem(world) ?: continue
         if (items.contains(engineItem)) {
             engineServer.wrapItemStackCatching(player, engineItem.requireComponent<Item>().id, stack)
         } else {
@@ -107,7 +107,12 @@ fun updateServerMinecraftSystems(
                 var item: EngineItem? = null
                 val reference = itemStack.engine()
                 if (reference != null) {
-                    val referencedItem = reference.getItem()
+                    if (reference.version != CURRENT_ITEM_VERSION) {
+                        server.wrapItemStackCatching(player, reference.id, itemStack)
+                        continue
+                    }
+
+                    val referencedItem = reference.getItem(world)
                     val uuid = reference.uuid
                     val isItemLoaded = referencedItem != null
                     val isItemLoading = reference.loading
@@ -133,8 +138,8 @@ fun updateServerMinecraftSystems(
                 if (item != null) items.add(EngineItemStack(item, itemStack))
             }
 
-            updatePlayerMinecraftSystems(player, items.toSet(), entity, world, engine.itemStorage)
-            player.remove<OpenBookTag>()
+            updatePlayerMinecraftSystems(player, items.toSet(), entity, world, itemStorage)
+            player.remove<BookOpen>()
             excludeEngineItemDuplicates(server, entity, player)
         }
     }
@@ -263,8 +268,8 @@ fun updatePlayerMinecraftSystems(
     var offHandItem: EngineItem? = null
 
     for ((item, itemStack) in items) {
-        if (mainItemStack?.engineItem() == item) mainHandItem = item
-        if (offItemStack?.engineItem() == item) offHandItem = item
+        if (mainItemStack?.engineItem(world) == item) mainHandItem = item
+        if (offItemStack?.engineItem(world) == item) offHandItem = item
 
         playerInventory.items += item
         remainingPlayerInventoryItems -= item

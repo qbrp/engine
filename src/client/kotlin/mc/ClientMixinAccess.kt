@@ -30,6 +30,7 @@ import org.lain.engine.mc.engineId
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
 import org.lain.engine.player.processLeftClickInteraction
+import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 
@@ -69,7 +70,12 @@ object ClientMixinAccess {
         val item = getEngineItem(itemStack) ?: return
         val gameSession = client.gameSession ?: return
         writable.contents = pages
-        with(gameSession.world) { client.handler.onWriteableContentsUpdate(item.requireComponent(), pages) }
+        with(gameSession.world) {
+            client.handler.onWriteableContentsUpdate(
+                item.requireComponent<PersistentIdComponent>().id,
+                pages
+            )
+        }
     }
 
     fun editVolume(sound: SoundInstance, volume: Float, category: SoundSource): Float? {
@@ -137,6 +143,8 @@ object ClientMixinAccess {
     fun isScrollAllowed() = client.gameSession?.movementManager?.locked ?: true
 
     fun isCrosshairAttackIndicatorVisible() = client.options.crosshairIndicatorVisible
+
+    fun isHotbarIndicatorsVisible() = client.options.crosshairIndicatorVisible
 
     fun onClientPlayerEntityInitialized(entity: LocalPlayer) {
         val entityTable by injectEntityTable()

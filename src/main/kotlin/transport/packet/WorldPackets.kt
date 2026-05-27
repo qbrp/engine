@@ -25,8 +25,7 @@ data class EngineChunkPacket(val chunk: EngineChunkDto) : Packet
 data class EngineChunkDto(
     val pos: EngineChunkPos,
     val decals: Map<ImmutableVoxelPos, BlockDecals>,
-    val hints: Map<ImmutableVoxelPos, BlockHint>,
-    val dynamicVoxels: Map<ImmutableVoxelPos, List<ComponentDto>>
+    val hints: Map<ImmutableVoxelPos, BlockHint>
 )
 
 val CLIENTBOUND_CHUNK_ENDPOINT = Endpoint<EngineChunkPacket>()

@@ -6,6 +6,7 @@ import org.lain.engine.chat.chatChannelOf
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.EXCLAMATION
+import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
@@ -13,7 +14,7 @@ import org.lain.engine.util.SPY_COLOR
 import org.slf4j.LoggerFactory
 
 class ClientEngineChatManager(
-    private val eventBus: ChatEventBus,
+    val eventBus: ChatEventBus,
     private val client: EngineClient,
     private val gameSession: GameSession,
     settings: ClientChatSettings,
@@ -38,17 +39,61 @@ class ClientEngineChatManager(
             var status: String
             var description: String? = null
             if (value) {
-                eventBus.onSpyEnable()
                 status = "включена"
                 description = "Доступны сообщения, не дошедшие до вас. Повторное нажатие отключит слежку."
             } else {
-                eventBus.onSpyDisable()
                 status = "выключена"
             }
+            eventBus.invalidateChatEntries()
 
             client.applyLittleNotification(
                 LittleNotification(
-                    "Слежка $status",
+                    "Прослушка $status",
+                    description,
+                    color = SPY_COLOR,
+                    sprite = EXCLAMATION
+                )
+            )
+        }
+
+    var allhear: Boolean = false
+        set(value) {
+            field = value
+            var status: String
+            var description: String? = null
+            if (value) {
+                status = "включена"
+                description = "Поступающие сообщения отображаются с полной громкостью"
+            } else {
+                status = "выключена"
+            }
+            eventBus.invalidateChatEntries()
+
+            client.applyLittleNotification(
+                LittleNotification(
+                    "Полная громкость $status",
+                    description,
+                    color = SPY_COLOR,
+                    sprite = VOICE_WARNING
+                )
+            )
+        }
+
+    var trackMessageTyping: Boolean = true
+        set(value) {
+            field = value
+            var status: String
+            var description: String? = null
+            if (value) {
+                status = "включен"
+                description = "Окружающие вас игроки будут знать, пишите ли вы сообщение"
+            } else {
+                endTyping()
+                status = "выключен"
+            }
+            client.applyLittleNotification(
+                LittleNotification(
+                    "Индикатор набора сообщения $status",
                     description,
                     color = SPY_COLOR,
                     sprite = EXCLAMATION
@@ -60,17 +105,15 @@ class ClientEngineChatManager(
         spy = !spy
     }
 
+    fun toggleAllhear() {
+        allhear = !allhear
+    }
+
+    fun toggleTypingIndicator() {
+        trackMessageTyping = !trackMessageTyping
+    }
+
     val messages: MutableList<AcceptedMessage> = mutableListOf()
-
-    fun disableChannel(id: ChannelId) {
-        val channel = channels[id] ?: return
-        eventBus.onChannelDisable(channel)
-    }
-
-    fun enableChannel(id: ChannelId) {
-        val channel = channels[id] ?: return
-        eventBus.onChannelEnable(channel)
-    }
 
     fun endTyping() {
         charTypeTimer = 0
@@ -89,11 +132,13 @@ class ClientEngineChatManager(
         }
 
         val channel = channelOf(input)
-        charTypeTimer = (charTypeTimer + 20).coerceAtMost(120)
-        if (charTypeTimer > 20 && input.count() > 4) {
-            if (typing != channel) {
-                typing = channel
-                client.handler.onChatStartTyping(channel.id)
+        if (trackMessageTyping) {
+            charTypeTimer = (charTypeTimer + 20).coerceAtMost(120)
+            if (charTypeTimer > 20 && input.count() > 4) {
+                if (typing != channel) {
+                    typing = channel
+                    client.handler.onChatStartTyping(channel.id)
+                }
             }
         }
         return channel
@@ -135,14 +180,13 @@ class ClientEngineChatManager(
         // Если есть точно такое же сообщение
         val similar = messages
             .takeLast(9)
-            .find { it.channel == channel && it.display == message.display }
+            .find { it.channel == channel && it.displayText == message.displayText }
         if (similar != null) {
             similar.repeat += 1
             return
         }
 
         messages += message
-        eventBus.onMessageAdd(message)
 
         if (isMentioned) {
             chatBar.markMentioned(channel.id)
@@ -151,6 +195,7 @@ class ClientEngineChatManager(
         val authorId = message.source.player?.id
         val mainPlayerId = gameSession.mainPlayer.id
         if (isMessageVisible(message, spy, chatBar)) {
+            eventBus.addToGui(message)
             val showSelf = authorId != mainPlayerId || client.developerMode
             if (authorId != null && message.isSpeech && showSelf && client.options.chatBubbles) {
                 val authorPlayer = gameSession.playerStorage.get(authorId)

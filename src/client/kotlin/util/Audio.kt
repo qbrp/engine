@@ -16,13 +16,12 @@ class AudioSource(
     var x: Float,
     var y: Float,
     var z: Float,
-    var isRelative: Boolean,
     var volume: Float,
     var pitch: Float,
-    var attenuate: Boolean,
+    var spatial: Boolean,
+    var radius: Int,
     var slot: String? = null,
     var isEnded: Boolean = false,
-    var radius: Int,
 )
 
 interface EngineAudioManager {

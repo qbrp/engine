@@ -52,7 +52,6 @@ class EngineServer(
     var stopped = false
     val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
-    val itemStorage = ItemStorage()
     val voidContainer by lazy { defaultWorld.createContainer(Location(Vec3(0f))) }
     var callbacks = Callbacks()
     val itemLoader = ItemLoader(this, database)
@@ -126,7 +125,7 @@ class EngineServer(
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
             updateBulletsAcoustic(world)
-            updateContainerSystems(this@EngineServer.itemStorage)
+            updateContainerSystems()
             world.tickCallbacks(callbacks)
         }
 

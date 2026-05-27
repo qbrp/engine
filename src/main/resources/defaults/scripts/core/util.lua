@@ -32,3 +32,39 @@ end
 function for_each(list, fun)
     for i = 1, #list do fun(list[i]) end
 end
+
+---@param t table
+---@param indent number
+---@param recursive boolean
+---@param seen table
+---@return string
+function tablestr(t, recursive, indent, seen)
+    indent = indent or 2
+    local indentStr = string.rep(" ", indent)
+    recursive = recursive or false
+    seen = seen or {}
+    local output = {}
+    for key, value in pairs(t) do
+        if (value == t) then
+            value = "self"
+        elseif (recursive and type(value) == "table") then
+            if (seen[value]) then
+                value = tostring(value) .. " repeat"
+            else
+                seen[value] = true
+                value = tablestr(value, true, indent + 2, seen)
+            end
+        end
+        table.insert(output, key .. " : " .. tostring(value))
+    end
+    local sep = ",\n" .. indentStr
+    if (#output == 0) then
+        return "empty"
+    end
+    return "{\n"
+            .. indentStr
+            .. table.concat(output, sep)
+            .. "\n"
+            .. string.rep(" ", indent - 2)
+            .. "}"
+end

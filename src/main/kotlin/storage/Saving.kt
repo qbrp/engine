@@ -113,10 +113,6 @@ fun updateSaveSystem(server: EngineMinecraftServer) {
         }
     }
 
-    itemsDestroyed.forEach {
-        server.engine.itemStorage.remove(it)
-    }
-
     world.iterate<SaveTag> { item, _ -> item.removeComponent<SaveTag>() }
     world.iterate<UnloadTag> { item, _ -> item.destroy() }
 }
@@ -151,7 +147,7 @@ class ItemLoader(
         uuid: PersistentId,
         world: World,
     ): EngineItem {
-        server.itemStorage.getItem(uuid)?.let { item -> return item }
+        world.itemStorage.get(uuid)?.let { item -> return item }
         val commandBuffer = EntityCommandBuffer(world)
         val entityResolver = DatabaseEntityResolver(database)
         return with(commandBuffer) {

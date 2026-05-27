@@ -230,5 +230,6 @@ data class OutcomingMessage(
     val isSpy: Boolean = false,
     val head: Boolean = false,
     val color: Color? = null,
+    val undistortedText: String = text,
     val id: MessageId
 )

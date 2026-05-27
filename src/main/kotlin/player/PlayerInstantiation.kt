@@ -150,7 +150,7 @@ class PlayerLoader(
         val componentsToLoad = persistent?.components ?: emptyList()
         with(EntityCommandBuffer(world)) {
             player.prepareContainers(Uuid.next(), player.location, inventoryLoadResult.equipmentItems)
-            player.entityId.copyComponentDtoState(componentsToLoad) { toDomainWithoutRelationships(server.itemStorage, server.namespacedStorage) }
+            player.entityId.copyComponentDtoState(componentsToLoad) { toDomainWithoutRelationships(world.itemStorage, server.namespacedStorage) }
             schedule {
                 exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications) }
             }
@@ -213,7 +213,6 @@ class PlayerLoader(
                     }
                 }
                 .awaitAll()
-                .filter { (_, item) -> item != null }
                 .toMap() as Map<EquipmentSlot, EngineItem>
         }
 

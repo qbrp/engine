@@ -22,8 +22,8 @@
     "SoundSystemMixin",
     "ToastManagerMixin",
     "chat.ChatHudAccessor",
-    "chat.ChatHudLineMixin",
-    "chat.ChatHudLineVisibleMixin",
+    "chat.GuiMessageMixin",
+    "chat.GuiMessageLineMixin",
     "chat.ChatHudMixin",
     "chat.ChatScreenAccessor",
     "chat.ChatScreenMixin",
@@ -47,6 +47,7 @@
     "resource.TransformationDeserializerMixin",
     "screen.BookEditScreenMixin",
     "screen.CreativeInventoryScreenMixin",
+    "ui.ExperienceBarRendererMixin",
     "ui.GuiAccessor",
     "ui.GuiMixin"
   ],

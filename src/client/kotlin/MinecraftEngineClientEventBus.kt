@@ -3,10 +3,9 @@ package org.lain.engine.client
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import org.lain.engine.client.mc.ClientMixinAccess
-import org.lain.engine.client.mc.MinecraftChat
+import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.client.render.world.DecalSystem
-import org.lain.engine.item.ItemAccess
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
@@ -67,9 +66,6 @@ class MinecraftEngineClientEventBus(
         table.client.setPlayer(minecraft.player!!, player)
         Injector.register(gameSession.itemStorage)
         Injector.register(gameSession.movementSettings)
-        if (!minecraft.isSingleplayer) {
-            Injector.register<ItemAccess>(gameSession.itemStorage)
-        }
         ClientMixinAccess.onMainPlayerInstantiated(player)
     }
 

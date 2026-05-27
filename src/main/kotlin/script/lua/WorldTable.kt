@@ -58,18 +58,20 @@ fun WorldMetaTable() = luaTable {
         NIL
     }
 
-    function3("_set_dynamic_voxel") { self, pos, networked ->
+    function3("set_dynamic_voxel") { self, pos, networked ->
         val world = self.asEngineWorld()
         val voxelPos = pos.toVoxelPos()
         with(world) {
             val entity = setDynamicVoxel(voxelPos, networked.nullable()?.toboolean() ?: false)
-            entity.setScriptComponent(
-                voxelPos.toLuaValue(),
-                CoreScriptComponents.DYNAMIC_VOXEL
-            )
             debugScript("voxel", "($entity) created dynamic voxel, networked = $networked")
             entity.coerceToLua()
         }
+    }
+
+    function2("get_dynamic_voxel") { self, pos ->
+        val world = self.asEngineWorld()
+        val voxelPos = pos.toVoxelPos()
+        with(world) { chunkStorage.getDynamicVoxel(voxelPos)?.coerceToLua() ?: LuaValue.NIL }
     }
 
     function3("iterate") { self, types, func ->

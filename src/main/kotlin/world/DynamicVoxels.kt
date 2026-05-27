@@ -3,6 +3,9 @@ package org.lain.engine.world
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.lua.setScriptComponent
+import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.VoxelPosId
 import org.lain.engine.util.component.EntityId
@@ -33,4 +36,8 @@ fun EntityId.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false) {
     setComponent(ChunkedPos(EngineChunkPos(pos), immutableVoxelPos, centerPos))
     if (networked) setComponent(Networked)
     setComponent(Location(pos.toCenterPos()))
+    setScriptComponent(
+        pos.toLuaValue(),
+        CoreScriptComponents.DYNAMIC_VOXEL
+    )
 }

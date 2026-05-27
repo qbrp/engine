@@ -2,7 +2,7 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.item.ItemAccess
+import org.lain.engine.item.EngineItem
 import org.lain.engine.player.*
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
@@ -35,17 +35,17 @@ data class InteractionDto(
 
 context(world: World)
 fun InputAction.toDto(): InputActionDto = when(this) {
-    is InputAction.SlotClick -> SlotClick(cursorItem.requireComponent(), item.requireComponent())
+    is InputAction.SlotClick -> SlotClick(cursorItem.requireComponent<PersistentIdComponent>().id, item.requireComponent<PersistentIdComponent>().id)
     is InputAction.Attack -> Attack
     is InputAction.Base -> Base
     is InputAction.TakeOff -> TakeOff
 }
 
-fun InputActionDto.toDomain(itemStorage: ItemAccess): InputAction {
+fun InputActionDto.toDomain(itemStorage: Storage<PersistentId, EngineItem>): InputAction {
     return when(this) {
         is SlotClick -> InputAction.SlotClick(
-            itemStorage.getItem(cursorItem) ?: throw InvalidPersistentIdException(cursorItem),
-            itemStorage.getItem(item) ?: throw InvalidPersistentIdException(item),
+            itemStorage.get(cursorItem) ?: throw InvalidPersistentIdException(cursorItem),
+            itemStorage.get(item) ?: throw InvalidPersistentIdException(item),
         )
         is Base -> InputAction.Base
         is Attack -> InputAction.Attack
@@ -65,13 +65,13 @@ fun InteractionComponent.toDto(): InteractionDto = InteractionDto(
 )
 
 fun InteractionDto.toDomain(
-    itemStorage: ItemAccess,
+    itemStorage: Storage<PersistentId, EngineItem>,
     playerStorage: Storage<PlayerId, EnginePlayer>,
 ): InteractionComponent {
     return InteractionComponent(
         id = id,
         type = type,
-        handItem = item?.let { itemStorage.getItem(it) ?: throw InvalidPersistentIdException(it) },
+        handItem = item?.let { itemStorage.get(it) ?: throw InvalidPersistentIdException(it) },
         handFree = handFree,
         raycastPlayer = raycastPlayer?.let { playerStorage.get(it) ?: error("Player $raycastPlayer not found") },
         action = action.toDomain(itemStorage),

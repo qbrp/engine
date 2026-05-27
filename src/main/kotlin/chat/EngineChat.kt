@@ -151,7 +151,7 @@ class EngineChat(
     }
 
     fun sendMessage(
-        content: String,
+        originalContent: String,
         source: MessageSource,
         channel: ChatChannel,
         recipient: MessageSource.Player,
@@ -160,7 +160,7 @@ class EngineChat(
         placeholders: Map<String, String> = mapOf(),
         id: MessageId = MessageId.next()
     ) {
-        var content = content
+        var content = originalContent
         val acoustic = channel.acoustic
 
         if (volumes != null) {
@@ -179,6 +179,12 @@ class EngineChat(
             receivers.add(author)
         }
 
+        // показываем настоящее сообщение только чат-операторам
+        val undistortedContent = when(recipient.chatOperator) {
+            true -> originalContent
+            false -> content
+        }
+
         receivers.forEach { receiver ->
             sendMessageInternal(
                 receiver,
@@ -191,6 +197,7 @@ class EngineChat(
                 notify = channel.notify,
                 placeholders = getDefaultPlaceholders(recipient, source, volumes) + placeholders,
                 background = channel.background,
+                undistortedText = undistortedContent,
                 id = id
             )
         }
@@ -228,6 +235,7 @@ class EngineChat(
         head: Boolean = showHeads(source.player, channel),
         placeholders: Map<String, String> = getDefaultPlaceholders(recipient, source, volumes),
         background: Color? = null,
+        undistortedText: String = text,
         id: MessageId
     )  {
         val message = OutcomingMessage(
@@ -242,6 +250,7 @@ class EngineChat(
             isSpy,
             head,
             background,
+            undistortedText,
             id
         )
         server.execute {

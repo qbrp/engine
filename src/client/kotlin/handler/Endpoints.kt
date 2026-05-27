@@ -48,7 +48,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
             LOGGER.error("Пропущено сообщение из-за отсутствия мира источника сообщения $sourceWorld")
             return@registerGameSessionReceiver
         }
-        applyChatMessage(message)
+        applyChatMessage(gameSession, message)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) {
@@ -93,8 +93,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyVoxelEvent(event)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT) { _ ->
-        applyDynamicVoxelDelta(voxelPos, components)
+    registerGameSessionReceiver(CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT) {
+        applyDynamicVoxelDelta(it, voxelPos, components)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_WORLD_STATE_DELTA_PACKET) { gameSession ->
@@ -111,7 +111,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { _ -> applyIntent(dto, intent) }
 
-    registerGameSessionReceiver(CLIENTBOUND_ITEM_UNLOAD_ENDPOINT) {
+    registerGameSessionReceiver(CLIENTBOUND_ITEM_UNLOAD_ENDPOINT, { it.endTickTaskExecutor }) {
         applyItemUnload(it, items)
     }
 

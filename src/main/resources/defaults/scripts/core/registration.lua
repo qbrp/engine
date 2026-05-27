@@ -75,6 +75,24 @@ function ComponentList(components)
     end)
 end
 
+---@param name string
+---@return ComponentTypeSettings
+function NetworkingComponent(name)
+    return { id = name, networking = true }
+end
+
+---@param name string
+---@return ComponentTypeSettings
+function SavableComponent(name)
+    return { id = name, savable = true }
+end
+
+---@param name string
+---@return ComponentTypeSettings
+function PersistentComponent(name)
+    return { id = name, networking = true, savable = true }
+end
+
 ---
 ComponentList { "component_1", "component_2", "component_3" }
 ---
@@ -124,7 +142,7 @@ function Callbacks:system(types, fun, env)
         if (env == "client" and not world.is_client) then
             return
         end
-        world:iterate_in(types, fun)
+        world:iterate(types, fun)
     end)
     return self
 end
@@ -153,13 +171,15 @@ end
 ---@field type string "command", "toolgun" available
 ---@field player Player?
 ---@field entity number id
-IntentActor = {}
 
 ---@class IntentTarget
 ---@field player Player?
 ---@field voxel_pos number[]
 ---@field pos number[]
-IntentTarget = {}
+
+---@class IntentSelection
+---@field pos1 number[] voxel pos
+---@field pos2 number[] voxel pos
 
 ---@class IntentScriptContext
 ---@field world World
@@ -167,18 +187,22 @@ IntentTarget = {}
 ---@field target IntentTarget
 ---@field inputs table<string, any>
 ---@field gen_target fun(): IntentTarget
+---@field gen_selection fun(): IntentSelection
+---@field feedback fun(text: string)
 IntentScriptContext = {}
 
 ---@field name string
 ---@field script string id
+---@field permission boolean,
 ---@field inputs IntentInput[]
 ---@field actors string[]
 ---@return Intent
-function Intent.of(script, name, inputs, actors)
+function Intent.of(id, script, permission, name, inputs, actors)
     return setmetatable({
-        id = script.id or script,
+        id = id,
         name = name,
-        script = script.id or script,
+        permission = permission,
+        script = script,
         inputs = inputs,
         actors = actors or { "command", "toolgun" }
     }, Intent)

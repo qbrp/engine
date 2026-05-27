@@ -1,8 +1,9 @@
 {
   "yamlconfig.engine": "Engine",
   "yamlconfig.engine.engine-config": "Настройки клиента",
-  "yamlconfig.engine.engine-config.crosshair": "Курсор",
-  "yamlconfig.engine.engine-config.crosshair.indicator-visible": "Показывать ванильный индикатор атаки",
+  "yamlconfig.engine.engine-config.Интерфейс": "Курсор",
+  "yamlconfig.engine.engine-config.ui.indicator-visible": "Показывать ванильный индикатор атаки",
+  "yamlconfig.engine.engine-config.ui.hotbar-visible": "Показывать индикаторы хотбара",
   "yamlconfig.engine.engine-config.chat-bubbles": "Сообщения над игроком",
   "yamlconfig.engine.engine-config.chat-bubbles.enabled": "Показывать",
   "yamlconfig.engine.engine-config.chat-bubbles.scale": "Масштаб",

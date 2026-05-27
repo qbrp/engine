@@ -13,7 +13,10 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.set
 import org.lain.engine.chat.*
 import org.lain.engine.debugPacket
-import org.lain.engine.item.*
+import org.lain.engine.item.Item
+import org.lain.engine.item.Writable
+import org.lain.engine.item.getName
+import org.lain.engine.item.getOwner
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
@@ -52,7 +55,6 @@ class ServerHandler(
 ) {
     private val transportContext by injectServerTransportContext()
     private val playerStorage: PlayerStorage get() = server.playerStorage
-    private val itemStorage: ItemStorage get() = server.itemStorage
     private val globals: ServerGlobals get() = server.globals
     val playerSynchronizationRadius get() = globals.playerSynchronizationRadius
     private val playerDesynchronizationThreshold get() = globals.playerDesynchronizationThreshold
@@ -65,9 +67,9 @@ class ServerHandler(
         player.update()
     }
 
-    private fun updatePlayerWithContext(id: PlayerId, update: context(World) EnginePlayer.() -> Unit) {
+    private fun updatePlayerWithContext(id: PlayerId, update: context(World) EnginePlayer.(world: World) -> Unit) {
         val player = server.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
-        with(player.world) { player.update() }
+        with(player.world) { player.update(player.world) }
     }
 
     private fun getPlayer(id: PlayerId): EnginePlayer? {
@@ -154,7 +156,8 @@ class ServerHandler(
 
     private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputActionDto>) = updatePlayerWithContext(playerId) {
         val playerInput = this.require<PlayerInput>()
-        val actions = input.map { it.toDomain(itemStorage) }
+        val world = it
+        val actions = input.map { it.toDomain(world.itemStorage) }
         playerInput.actions.clear()
         playerInput.actions.addAll(actions)
 
@@ -169,8 +172,8 @@ class ServerHandler(
 
     private fun onWriteableContentsUpdate(playerId: PlayerId, persistentId: PersistentId, contents: List<String>) = updatePlayerWithContext(playerId) {
         val item = this.handItem
-        val writable = this.handItem?.getComponent<Writable>()
-        if (item?.requireComponent<PersistentIdComponent>() != persistentId || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
+        val writable = item?.getComponent<Writable>()
+        if (item?.requireComponent<PersistentIdComponent>()?.id != persistentId || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
         if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
 
         if (writable.contents != contents) {
@@ -242,6 +245,7 @@ class ServerHandler(
 
     // FIXME: Искать предметы по инвентарю игрока, а не глобально
     private fun onPlayerCursorItem(playerId: PlayerId, itemId: PersistentId?) = updatePlayerWithContext(playerId) {
+        val itemStorage = it.itemStorage
         val item = itemId?.let {
             val result = itemStorage.get(it) ?: desync("Установленный курсором предмет $itemId не найден")
             val owner = result.getOwner()
@@ -394,20 +398,13 @@ class ServerHandler(
         )
     }
 
-    fun onChunkSend(world: World, chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer) = with(world) {
+    fun onChunkSend(world: World, chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer)  {
         CLIENTBOUND_CHUNK_ENDPOINT.sendS2C(
             EngineChunkPacket(
                 EngineChunkDto(
                     pos,
                     chunk.decals.mapKeys { (k, v) -> ImmutableVoxelPos(k) },
-                    chunk.hints.mapKeys { (k, v) -> ImmutableVoxelPos(k) },
-                    chunk.dynamicVoxels
-                        .filterValues { it.hasComponent<Networked>() }
-                        .mapNotNull { (pos, entity) ->
-                            ImmutableVoxelPos(pos) to componentManager.getNetworkedComponents(entity)
-                                .map { it.toSnapshotDto() }
-                        }
-                        .toMap()
+                    chunk.hints.mapKeys { (k, v) -> ImmutableVoxelPos(k) }
                 )
             ),
             player.id

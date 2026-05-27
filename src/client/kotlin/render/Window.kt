@@ -1,7 +1,7 @@
 package org.lain.engine.client.render
 
 import org.lain.engine.client.EngineMinecraftClient
-import org.lain.engine.client.mc.MinecraftChat
+import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.MinecraftClient
 import org.lwjgl.glfw.GLFW
 

@@ -1,27 +1,27 @@
 package org.lain.engine.client.mixin.chat;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.GuiMessage;
+import net.minecraft.client.GuiMessageTag;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ChatComponent;
-import net.minecraft.client.gui.components.ComponentRenderUtils;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MessageSignature;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.CommonColors;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraft.world.entity.player.Player;
-import org.lain.engine.client.mc.ClientMixinAccess;
-import org.lain.engine.client.mc.MinecraftChat;
+import org.jspecify.annotations.NonNull;
+import org.lain.engine.client.chat.AcceptedMessage;
+import org.lain.engine.client.chat.ClientMessagesKt;
+import org.lain.engine.client.mc.*;
+import org.lain.engine.client.mc.chat.*;
 import org.lain.engine.client.render.ui.ChatHudRenderKt;
-import org.lain.engine.util.Color;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -30,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
 
 @Mixin(ChatComponent.class)
-public abstract class ChatHudMixin {
+public abstract class ChatHudMixin implements EngineChatHudAccess {
     @Unique
     String MAXIMUM_REPEATS_TEXT = "x999+";
 
@@ -44,12 +44,8 @@ public abstract class ChatHudMixin {
     @Shadow
     protected abstract boolean isChatHidden();
 
-    @Shadow
-    public abstract int getLinesPerPage();
-
-    @Shadow
-    @Final
-    private List<GuiMessage.Line> trimmedMessages;
+    @Unique
+    private List<EngineChatHudLine> visibleMessages = MinecraftChat.INSTANCE.getVisibleMessages();
 
     @Shadow
     protected abstract double getScale();
@@ -57,8 +53,23 @@ public abstract class ChatHudMixin {
     @Shadow
     protected abstract int getWidth();
 
-    @Shadow
-    protected abstract int forEachLine(ChatComponent.AlphaCalculator alphaCalculator, ChatComponent.LineConsumer lineConsumer);
+    @Unique
+    private int forEachEngineLine(EngineAlphaCalculator alphaCalculator, EngineLineConsumer lineConsumer) {
+        int i = this.getLinesPerPage();
+        int j = 0;
+
+        for (int k = Math.min(this.visibleMessages.size() - this.chatScrollbarPos, i) - 1; k >= 0; k--) {
+            int l = k + this.chatScrollbarPos;
+            EngineChatHudLine line = this.visibleMessages.get(l);
+            float f = alphaCalculator.calculate(line);
+            if (f > 1.0E-5F) {
+                j++;
+                lineConsumer.accept(line, k, f);
+            }
+        }
+
+        return j;
+    }
 
     @Shadow
     private int chatScrollbarPos;
@@ -66,21 +77,17 @@ public abstract class ChatHudMixin {
     @Shadow
     private boolean newMessageSinceScroll;
 
-    @ModifyConstant(
-            method = "addMessageToDisplayQueue",
-            constant = @Constant(intValue = 100)
-    )
-    private int engine$increaseChatLimit1(int original) {
-        return ClientMixinAccess.INSTANCE.getChatSize();
-    }
+    @Shadow
+    protected abstract void addMessageToDisplayQueue(GuiMessage guiMessage);
 
-    @ModifyConstant(
-            method = "addMessageToQueue",
-            constant = @Constant(intValue = 100)
-    )
-    private int engine$increaseChatLimit2(int original) {
-        return ClientMixinAccess.INSTANCE.getChatSize();
-    }
+    @Shadow
+    public abstract boolean isChatFocused();
+
+    @Shadow
+    public abstract void scrollChat(int i);
+
+    @Shadow
+    public abstract int getLinesPerPage();
 
     @Inject(
             method = "getWidth()I",
@@ -117,7 +124,7 @@ public abstract class ChatHudMixin {
             return;
         }
 
-        int totalLines = this.trimmedMessages.size();
+        int totalLines = this.visibleMessages.size();
         if (totalLines <= 0) {
             return;
         }
@@ -137,10 +144,10 @@ public abstract class ChatHudMixin {
         final int lineHeight = (int)(fontHeight * (lineSpacingOption + 1.0));
         final int textYOffset = (int)Math.round(8.0 * (lineSpacingOption + 1.0) - 4.0 * lineSpacingOption);
 
-        ChatComponent.AlphaCalculator alphaCalculator =
+        EngineAlphaCalculator alphaCalculator =
                 chatFocused
-                        ? ChatComponent.AlphaCalculator.FULLY_VISIBLE
-                        : ChatComponent.AlphaCalculator.timeBased(currentTick);
+                        ? EngineAlphaCalculator.Companion.getFULLY_VISIBLE()
+                        : EngineAlphaCalculator.Companion.timeBased(currentTick);
 
         graphics.updatePose(matrix -> {
             matrix.scale(chatScale, chatScale);
@@ -150,7 +157,7 @@ public abstract class ChatHudMixin {
         /*
          * Background rectangles
          */
-        this.forEachLine(alphaCalculator, (line, lineIndex, alpha) -> {
+        this.forEachEngineLine(alphaCalculator, (line, lineIndex, alpha) -> {
             int lineBottomY = chatBottomY - lineIndex * lineHeight;
             int lineTopY = lineBottomY - lineHeight;
 
@@ -194,58 +201,50 @@ public abstract class ChatHudMixin {
             }
         }
 
-        /*
-         * Message rendering
-         */
-        int visibleLineCount = this.forEachLine(alphaCalculator, new ChatComponent.LineConsumer() {
-            @Override
-            public void accept(GuiMessage.Line line, int lineIndex, float alpha) {
-                int lineBottomY = chatBottomY - lineIndex * lineHeight;
-                int textY = lineBottomY - textYOffset;
-                if (guiGraphics != null) {
-                    MinecraftChat.ChatLineData engineLine = MinecraftChat.INSTANCE.getGuiMessageData(line);
-                    if (engineLine != null) {
-                        PlayerInfo author = engineLine.getMessage().getAuthor();
-                        int darkenColor = ARGB.color(CommonColors.WHITE, ARGB.color(80, 80, 80));
-                        if (author != null && engineLine.isFirst()) {
-                            PlayerFaceRenderer.draw(guiGraphics, author.getSkin(), 1, textY + 1, 8, ARGB.color(alpha * textOpacity, darkenColor));
-                            PlayerFaceRenderer.draw(guiGraphics, author.getSkin(), 0, textY, 8, ARGB.color(alpha * textOpacity, CommonColors.WHITE));
-                        }
-                        if (engineLine.isLast()) {
-                            int repeats = engineLine.getMessage().getEngineMessage().getRepeat();
-                            if (repeats > 1) {
-                                String string = "x" + repeats;
-                                if (repeats > 999) { string = MAXIMUM_REPEATS_TEXT; }
-                                Component text = Component.literal(string).withStyle(ChatFormatting.GOLD);
-                                int width = minecraft.font.width(text);
-                                int x0 = chatWidth - width;
-                                guiGraphics.drawString(minecraft.font, text, x0, textY, ARGB.color(alpha * textOpacity, CommonColors.BLACK), true);
-                            }
-                            Component debugText = engineLine.getMessage().getDebugText();
-                            if (debugText != null && MinecraftChat.INSTANCE.shouldRenderDebugInfo()) {
-                                guiGraphics.drawString(
-                                        minecraft.font,
-                                        debugText,
-                                        8 + minecraft.font.width(line.content()) + 4,
-                                        textY,
-                                        ARGB.color(alpha * textOpacity, CommonColors.GRAY)
-                                );
-                            }
-                        }
+        int visibleLineCount = this.forEachEngineLine(alphaCalculator, (engineLine, lineIndex, alpha) -> {
+            int lineBottomY = chatBottomY - lineIndex * lineHeight;
+            int textY = lineBottomY - textYOffset;
+            if (guiGraphics != null) {
+                PlayerInfo author = engineLine.getMessage().getAuthor();
+                AcceptedMessage engineMessage = engineLine.getMessage().getEngineMessage();
+                int darkenColor = ARGB.color(CommonColors.WHITE, ARGB.color(80, 80, 80));
+                if (author != null && engineLine.isFirst() && engineMessage.getShowHead()) {
+                    PlayerFaceRenderer.draw(guiGraphics, author.getSkin(), 1, textY + 1, 8, ARGB.color(alpha * textOpacity, darkenColor));
+                    PlayerFaceRenderer.draw(guiGraphics, author.getSkin(), 0, textY, 8, ARGB.color(alpha * textOpacity, CommonColors.WHITE));
+                }
+                if (engineLine.isLast()) {
+                    int repeats = engineMessage.getRepeat();
+                    if (repeats > 1) {
+                        String string = "x" + repeats;
+                        if (repeats > 999) { string = MAXIMUM_REPEATS_TEXT; }
+                        Component text = Component.literal(string).withStyle(ChatFormatting.GOLD);
+                        int width = minecraft.font.width(text);
+                        int x0 = chatWidth - width;
+                        guiGraphics.drawString(minecraft.font, text, x0, textY, ARGB.color(alpha * textOpacity, CommonColors.BLACK), true);
+                    }
+                    Component debugText = engineLine.getMessage().getDebugText();
+                    if (debugText != null && MinecraftChat.INSTANCE.shouldRenderDebugInfo()) {
+                        guiGraphics.drawString(
+                                minecraft.font,
+                                debugText,
+                                8 + 4,
+                                textY,
+                                ARGB.color(alpha * textOpacity, CommonColors.GRAY)
+                        );
                     }
                 }
-                graphics.updatePose(matrix -> {
-                    matrix.translate(ChatHudRenderKt.CHAT_HEAD_SIZE + 2, 0.0F);
-                });
-                graphics.handleMessage(
-                        textY,
-                        alpha * textOpacity,
-                        line.content()
-                );
-                graphics.updatePose(matrix -> {
-                    matrix.translate(-ChatHudRenderKt.CHAT_HEAD_SIZE - 2, 0.0F);
-                });
             }
+            graphics.updatePose(matrix -> {
+                matrix.translate(ChatHudRenderKt.CHAT_HEAD_SIZE + 2, 0.0F);
+            });
+            graphics.handleMessage(
+                    textY,
+                    alpha * textOpacity,
+                    engineLine.getText()
+            );
+            graphics.updatePose(matrix -> {
+                matrix.translate(-ChatHudRenderKt.CHAT_HEAD_SIZE - 2, 0.0F);
+            });
         });
 
         if (chatFocused) {
@@ -281,252 +280,6 @@ public abstract class ChatHudMixin {
         profiler.pop();
     }
 
-//    @Redirect(
-//            method = "render",
-//            at = @At(
-//                    value = "INVOKE",
-//                    target = "Lnet/minecraft/client/gui/DrawContext;fill(IIIII)V"
-//            )
-//    )
-//    private void engine$redirectScrollbarFill(
-//            DrawContext context,
-//            int x1, int y1, int x2, int y2, int color
-//    ) {
-//        context.fill(x1 + ChatHudRenderKt.LINE_INDENT, y1, x2 + ChatHudRenderKt.LINE_INDENT, y2, color);
-//    }
-
-//    /**
-//     * @author Lain1wakura
-//     * @reason Engine полностью меняет рендеринг чата, так что смысла мелочиться нет
-//     */
-//    @Overwrite
-//    public void render(final ChatComponent.ChatGraphicsAccess chatGraphicsAccess, int i, int j, boolean bl) {
-//        MinecraftChat chat = MinecraftChat.INSTANCE;
-//        int lineHeightPx;
-//        int alpha;
-//
-//        if (this.isChatHidden()) {
-//            return;
-//        }
-//
-//        int visibleLineCount = this.getLinesPerPage();
-//        int totalMessages = this.trimmedMessages.size();
-//
-////        if (totalMessages <= 0) {
-////            return;
-////        }
-//
-//        ProfilerFiller profiler = Profiler.get();
-//        profiler.push("chat");
-//
-//        float chatScale = (float)this.getScale();
-//        int chatWidth = Mth.ceil(this.getWidth() / chatScale);
-//        int windowHeight = context.getScaledWindowHeight();
-//
-//        context.getMatrices().pushMatrix();
-//        context.getMatrices().scale(chatScale, chatScale);
-//        context.getMatrices().translate(4.0f, 0.0f);
-//
-//        int bottomY = MathHelper.floor((float)(windowHeight - 40) / chatScale);
-//
-//        int hoveredMessageIndex = this.getMessageIndex(
-//                this.toChatLineX(mouseX),
-//                this.toChatLineY(mouseY)
-//        );
-//
-//        MinecraftChat.ChatLineData selectedMessage;
-//        if (hoveredMessageIndex >= 0 && hoveredMessageIndex <= this.visibleMessages.size()) {
-//            selectedMessage = chat.getChatHudLineData(this.visibleMessages.get(hoveredMessageIndex));
-//        } else {
-//            selectedMessage = null;
-//        }
-//
-//        float chatOpacity = this.client.options.getChatOpacity().getValue().floatValue() * 0.9f + 0.1f;
-//        float backgroundOpacitySetting = this.client.options.getTextBackgroundOpacity().getValue().floatValue();
-//        double lineSpacing = this.client.options.getChatLineSpacing().getValue();
-//
-//        List<MinecraftChat.TypingPlayer> entities = MinecraftChat.INSTANCE.getTypingPlayers().stream().toList();
-//
-//        if (!entities.isEmpty()) {
-//            context.fill(
-//                    0, bottomY,
-//                    MathHelper.floor(getWidth() / getChatScale()), bottomY + getLineHeight(),
-//                    ColorHelper.withAlpha(backgroundOpacitySetting, Colors.BLACK)
-//            );
-//
-//            int textX = 0;
-//            for (MinecraftChat.TypingPlayer player : entities) {
-//                Text name = player.getName();
-//                PlayerSkinDrawer.draw(context, player.getSkinTextures(), textX + 1, bottomY + 1, 8, ColorHelper.withAlpha(Colors.WHITE, ColorHelper.getArgb(80, 80, 80)));
-//                PlayerSkinDrawer.draw(context, player.getSkinTextures(), textX, bottomY, 8, Colors.WHITE);
-//                textX += 10;
-//                context.drawTextWithShadow(client.textRenderer, name, textX, bottomY + 1, Colors.WHITE);
-//                textX += client.textRenderer.getWidth(name);
-//                if (player != entities.getLast()) {
-//                    textX += 1;
-//                    context.drawTextWithShadow(client.textRenderer, ",", textX, bottomY + 1, Colors.LIGHT_GRAY);
-//                }
-//                textX += 4;
-//            }
-//            context.drawTextWithShadow(client.textRenderer, "печатает...", textX, bottomY + 1, Colors.LIGHT_GRAY);
-//        }
-//
-//        int lineOffsetY = (int)Math.round(-8.0 * (lineSpacing + 1.0) + 4.0 * lineSpacing);
-//
-//        ChatHudRenderKt.forEachVisibleLine(
-//                getVisibleLineCount(),
-//                currentTick,
-//                focused,
-//                bottomY,
-//                getLineHeight(),
-//                visibleMessages,
-//                scrolledLines,
-//                (age -> (float)getMessageOpacityMultiplier(age)),
-//                (x1, y1, y2, line, messageIndex, backgroundOpacity) -> {
-//                    int color = Colors.BLACK;
-//                    if (line != null) {
-//                        MinecraftChat.ChatLineData chatLineData = MinecraftChat.INSTANCE.getChatHudLineData(line);
-//                        if (chatLineData != null) {
-//                            Integer color2 = chatLineData.getMessage().getEngineMessage().getBackgroundColorInt();
-//                            if (color2 != null) {
-//                                color = color2;
-//                            }
-//                        }
-//                    }
-//                    context.fill(x1 - 2, y1, x1 + chatWidth + 4 + 4, y2, ColorHelper.withAlpha(backgroundOpacity * backgroundOpacitySetting, color));
-//                });
-//
-//        int renderedLineCount = ChatHudRenderKt.forEachVisibleLine(
-//                getVisibleLineCount(),
-//                currentTick,
-//                focused,
-//                bottomY,
-//                getLineHeight(),
-//                visibleMessages,
-//                scrolledLines,
-//                (age -> (float)getMessageOpacityMultiplier(age)),
-//                (x1, y1, y2, line, messageIndex, backgroundOpacity) -> {
-//                    int textY = y2 + lineOffsetY;
-//                    assert line != null;
-//                    context.drawTextWithShadow(
-//                            this.client.textRenderer,
-//                            line.content(),
-//                            x1 + 10,
-//                            textY,
-//                            ColorHelper.withAlpha(backgroundOpacity * chatOpacity, Colors.WHITE)
-//                    );
-//                    int j = y2 + lineOffsetY;
-//
-//                    MinecraftChat.ChatLineData data = chat.getChatHudLineData(line);
-//                    if (data != null && data.isFirst()) {
-//                        MinecraftChat.ChatMessageData message = data.getMessage();
-//                        AcceptedMessage engineMessage = message.getEngineMessage();
-//                        PlayerListEntry playerListEntry = message.getAuthor();
-//                        if (playerListEntry != null && engineMessage.getShowHead()) {
-//                            PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), 1, y1 + 1, 8, ColorHelper.withAlpha(backgroundOpacity * chatOpacity, ColorHelper.getArgb(80, 80, 80)));
-//                            PlayerSkinDrawer.draw(context, playerListEntry.getSkinTextures(), 0, y1, 8, ColorHelper.withAlpha(backgroundOpacity * chatOpacity, Colors.WHITE));
-//                        }
-//                        int repeats = engineMessage.getRepeat();
-//                        if (repeats > 1) {
-//                            String string = "x" + repeats;
-//                            if (repeats > 999) { string = MAXIMUM_REPEATS_TEXT; }
-//                            Text text = Text.literal(string).formatted(Formatting.GOLD);
-//                            int width = client.textRenderer.getWidth(text);
-//                            int x0 = chatWidth +  - width;
-//                            context.drawText(client.textRenderer, text, x0, y1, ColorHelper.withAlpha(backgroundOpacity * chatOpacity, Colors.BLACK), true);
-//                        }
-//                    }
-//
-//                    if (data != null && data.isLast() && chat.shouldRenderDebugInfo()) {
-//                        Text debugText = data.getMessage().getDebugText();
-//                        if (debugText != null) {
-//                            context.drawTextWithShadow(
-//                                    this.client.textRenderer,
-//                                    debugText,
-//                                    x1 + 8 + client.textRenderer.getWidth(line.content()) + 4,
-//                                    j,
-//                                    ColorHelper.withAlpha(backgroundOpacity * chatOpacity, Colors.GRAY)
-//                            );
-//                        }
-//                    }
-//
-//                    int selectionAlpha = 0;
-//                    if (data != null) {
-//                        if (selectedMessage != null) {
-//                            if (data.getMessage().equals(selectedMessage.getMessage())) {
-//                                selectionAlpha += 30;
-//                            }
-//                        }
-//
-//                        MinecraftChat.ChatMessageData msg = chat.getSelectedMessage();
-//                        if (msg != null && data.getMessage().equals(msg)){
-//                            selectionAlpha += 30;
-//                            if (ClientMixinAccess.INSTANCE.getChatClipboardCopyTicksElapsed() <= 2) {
-//                                selectionAlpha += 30;
-//                            }
-//                        }
-//
-//                        if (selectionAlpha > 0) {
-//                            context.fill(-2, y1, x1 + chatWidth + 4 + 4, y2, ColorHelper.withAlpha(selectionAlpha, Colors.WHITE));
-//                        }
-//                    }
-//                });
-//
-//        long queuedMessages = this.client.getMessageHandler().getUnprocessedMessageCount();
-//        if (queuedMessages > 0L) {
-//            alpha = (int)(128.0f * chatOpacity);
-//            lineHeightPx = (int)(255.0f * backgroundOpacitySetting);
-//
-//            context.getMatrices().pushMatrix();
-//            context.getMatrices().translate(0.0f, bottomY);
-//
-//            context.fill(-2, 0, chatWidth + 4, 9, lineHeightPx << 24);
-//            context.drawTextWithShadow(
-//                    this.client.textRenderer,
-//                    Text.translatable("chat.queue", queuedMessages),
-//                    0,
-//                    1,
-//                    ColorHelper.withAlpha(alpha, Colors.WHITE)
-//            );
-//
-//            context.getMatrices().popMatrix();
-//        }
-//
-//        if (focused) {
-//            lineHeightPx = this.getLineHeight();
-//            int totalHeight = totalMessages * lineHeightPx;
-//            int visibleHeight = renderedLineCount * lineHeightPx;
-//
-//            int scrollY = this.scrolledLines * visibleHeight / totalMessages - bottomY;
-//            int scrollbarHeight = visibleHeight * visibleHeight / totalHeight;
-//
-//            if (totalHeight != visibleHeight) {
-//                int scrollbarAlpha = scrollY > 0 ? 170 : 96;
-//                int scrollbarColor = this.hasUnreadNewMessages ? 0xCC3333 : 0x3333AA;
-//                int scrollbarX = chatWidth;
-//
-//                context.fill(
-//                        scrollbarX,
-//                        -scrollY,
-//                        scrollbarX + 2,
-//                        -scrollY - scrollbarHeight,
-//                        ColorHelper.withAlpha(scrollbarAlpha, scrollbarColor)
-//                );
-//                context.fill(
-//                        scrollbarX + 2,
-//                        -scrollY,
-//                        scrollbarX + 1,
-//                        -scrollY - scrollbarHeight,
-//                        ColorHelper.withAlpha(scrollbarAlpha, 0xCCCCCC)
-//                );
-//            }
-//        }
-//
-//        context.getMatrices().popMatrix();
-//        profiler.pop();
-//    }
-
-
     /**
      * @author lain1wakura
      * @reason Не трогается практически ни кем, проще переписать
@@ -538,75 +291,55 @@ public abstract class ChatHudMixin {
         return Mth.floor(widthOption * i + j);
     }
 
-    @Redirect(
-            method = "addMessageToDisplayQueue",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Ljava/util/List;addFirst(Ljava/lang/Object;)V"
-            )
-    )
-    private void engine$redirectVisibleMessagesAdd(
-            List<GuiMessage.Line> list,
-            Object element,
-            GuiMessage message,
-            @Local(ordinal = 1) int line,
-            @Local(ordinal = 1) boolean isEnd,
-            @Local FormattedCharSequence text
-    ) {
-        if (!(element instanceof GuiMessage.Line)) {
-            return;
-        }
-
-        boolean cancel = MinecraftChat.INSTANCE.storeGuiMessage(
-                message,
-                (GuiMessage.Line)element,
-                line == 0,
-                isEnd,
-                0
-        );
-
-        if (!cancel) {
-            list.addFirst((GuiMessage.Line)element);
-        }
+    @Override
+    public void engine$addMessage(@NonNull EngineChatHudMessage message, boolean isVisible) {
+        addEngineMessageToDisplayQueue(message, isVisible);
     }
 
-    @Redirect(
-            method = "addMessageToDisplayQueue",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Ljava/util/List;removeLast()Ljava/lang/Object;"
-            )
-    )
-    private Object engine$redirectVisibleMessageRemove(List<GuiMessage.Line> instance) {
-        int index =  instance.size() - 1;
-        GuiMessage.Line line = instance.get(index);
-        MinecraftChat.INSTANCE.deleteGuiMessage(line);
-        return instance.removeLast();
-    }
+    @Unique
+    private void addEngineMessageToDisplayQueue(EngineChatHudMessage message, boolean isVisible) {
+        int chatWidthPx = Mth.floor(this.getWidth() / this.getScale());
+        List<EngineChatHudLine> lines = message.resolveLines(chatWidthPx);
+        boolean focused = this.isChatFocused();
 
-    @Redirect(
-            method = "addMessageToDisplayQueue",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/GuiMessage;splitLines(Lnet/minecraft/client/gui/Font;I)Ljava/util/List;"
-            )
-    )
-    private List<FormattedCharSequence> engine$breakRenderedChatMessageLines(GuiMessage instance, Font font, int i) {
-        return ComponentRenderUtils.wrapComponents(instance.content(), i - font.width(MAXIMUM_REPEATS_TEXT), font);
+        for (EngineChatHudLine line : lines) {
+            if (focused && this.chatScrollbarPos > 0) {
+                this.newMessageSinceScroll = true;
+                this.scrollChat(1);
+            }
+            this.visibleMessages.addFirst(line);
+        }
+
+        while (this.visibleMessages.size() > ClientMixinAccess.INSTANCE.getChatSize()) {
+            this.visibleMessages.removeLast();
+        }
     }
 
     @Inject(
-            method = "logChatMessage",
-            at = @At(
-                    value = "HEAD"
-            ),
+            method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/GuiMessageTag;)V",
+            at = @At(value = "HEAD"),
             cancellable = true
     )
-    private void engine$logChatMessage(GuiMessage guiMessage, CallbackInfo ci) {
-        boolean isEngineMessage = MinecraftChat.INSTANCE.isMessageStored(guiMessage);
-        if (isEngineMessage) {
-            ci.cancel();
-        }
+    public void engine$addMessage(Component component, MessageSignature messageSignature, GuiMessageTag guiMessageTag, CallbackInfo ci) {
+        MinecraftChat.INSTANCE.storeVanillaGuiMessage(new GuiMessage(this.minecraft.gui.getGuiTicks(), component, messageSignature, guiMessageTag));
+        ci.cancel();
+    }
+
+    @Inject(
+            method = "deleteMessage",
+            at = @At(value = "HEAD"),
+            cancellable = true
+    )
+    public void engine$deleteMessage(MessageSignature messageSignature, CallbackInfo ci) {
+        ci.cancel();
+    }
+
+    @Redirect(
+            method = "scrollChat",
+            at = @At(value = "INVOKE", target = "Ljava/util/List;size()I")
+    )
+    public int engine$deleteMessage(List instance) {
+        return visibleMessages.size();
     }
 
 //    @Inject(
@@ -626,14 +359,4 @@ public abstract class ChatHudMixin {
 //        }
 //        MinecraftChat.INSTANCE.updateSelectedMessage(toSet);
 //    }
-
-    @Unique
-    private static double getMessageOpacityMultiplier(int age) {
-        double d = (double)age / 200.0;
-        d = 1.0 - d;
-        d *= 10.0;
-        d = Mth.clamp((double)d, (double)0.0, (double)1.0);
-        d *= d;
-        return d;
-    }
 }

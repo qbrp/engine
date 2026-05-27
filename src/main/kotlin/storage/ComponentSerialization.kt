@@ -55,6 +55,8 @@ fun SerializersModuleBuilder.polymorphicComponentSubclasses() {
         subclass(CopyComponentDto::class, CopyComponentDto.serializer())
         subclass(ScriptComponentDto::class, ScriptComponentDto.serializer())
         subclass(ParentComponentDto::class, ParentComponentDto.serializer())
+        subclass(ChildrenComponentDto::class, ChildrenComponentDto.serializer())
+        subclass(ContainedInDto::class, ContainedInDto.serializer())
     }
 }
 
@@ -102,6 +104,9 @@ data class ParentComponentDto(val parent: PersistentIdComponent) : ComponentData
 @Serializable
 data class ChildrenComponentDto(val children: Set<PersistentIdComponent>) : ComponentData
 
+@Serializable
+data class ContainedInDto(val container: PersistentId) : ComponentData
+
 fun ScriptComponentDto(json: JsonElement): ScriptComponentDto {
     return ScriptComponentDto(Json.encodeToString(json))
 }
@@ -134,7 +139,7 @@ fun Component.toSnapshotDto(): ComponentDto {
     return ComponentDto(type.id, data)
 }
 
-fun ComponentDto.toDomainWithoutRelationships(itemStorage: Storage<PersistentId, EngineItem>, namespacedStorage: NamespacedStorageAccess): Component {
+fun ComponentDto.toDomainWithoutRelationships(itemStorage: Storage<PersistentId, EngineItem>, namespacedStorage: NamespacedStorageAccess): Component? {
     return toDomain(
         ComponentLoadSettings(itemStorage, namespacedStorage, mutableMapOf()),
         { error("This entity type not supports components with relationships") }
@@ -145,7 +150,7 @@ fun ComponentDto.toDomain(
     settings: ComponentLoadSettings,
     entityGetter: (PersistentId) -> EntityId?,
     scriptComponentTypeNotFound: (ScriptComponentId, ScriptComponentDto) -> ScriptComponentType = { id, dto -> error("Invalid script component type $id") },
-): Component {
+): Component? {
     return runBlocking {
         toDomainSuspend(settings, entityGetter, scriptComponentTypeNotFound)
     }
@@ -155,7 +160,7 @@ suspend fun ComponentDto.toDomainSuspend(
     settings: ComponentLoadSettings,
     entityGetter: suspend (PersistentId) -> EntityId?,
     scriptComponentTypeNotFound: (ScriptComponentId, ScriptComponentDto) -> ScriptComponentType = { id, dto -> error("Invalid script component type $id") },
-): Component {
+): Component? {
     val notNullEntityGetter: suspend (PersistentIdComponent) -> EntityId = { settings.persistentIdToEntity[it.id] ?: entityGetter(it.id) ?: error("Entity with id $id not found") }
     val data = when (data) {
         is CopyComponentDto -> data.component
@@ -173,13 +178,14 @@ suspend fun ComponentDto.toDomainSuspend(
         is ParentComponentDto -> Parent(
             notNullEntityGetter(data.parent)
         )
+        is ContainedInDto -> null
     }
     return data
 }
 
 data class ComponentLoadException(val dto: ComponentDto, override val cause: Throwable) : RuntimeException("Cannot load component $dto")
 
-private suspend fun ComponentDto.toDomainCatching(toDomainFunction: suspend ComponentDto.() -> Component): Component {
+private suspend fun ComponentDto.toDomainCatching(toDomainFunction: suspend ComponentDto.() -> Component?): Component? {
     return try {
         toDomainFunction(this)
     } catch (e: Exception) {
@@ -187,15 +193,15 @@ private suspend fun ComponentDto.toDomainCatching(toDomainFunction: suspend Comp
     }
 }
 
-suspend fun List<ComponentDto>.toDomainSuspend(toDomainFunction: suspend ComponentDto.() -> Component): List<Component> {
+suspend fun List<ComponentDto>.toDomainSuspend(toDomainFunction: suspend ComponentDto.() -> Component?): List<Component> {
     return mapNotNull { componentDto -> componentDto.toDomainCatching(toDomainFunction) }
 }
 
 context(write: WriteComponentAccess)
 suspend fun EntityId.copyComponentDtoState(
     components: List<ComponentDto>,
-    transformer: suspend List<ComponentDto>.(suspend ComponentDto.() -> Component) -> List<Component> = List<ComponentDto>::toDomainSuspend,
-    toDomainFunction: ComponentDto.() -> Component,
+    transformer: suspend List<ComponentDto>.(suspend ComponentDto.() -> Component?) -> List<Component> = List<ComponentDto>::toDomainSuspend,
+    toDomainFunction: ComponentDto.() -> Component?,
 ) {
     copyState(components.transformer(toDomainFunction))
 }

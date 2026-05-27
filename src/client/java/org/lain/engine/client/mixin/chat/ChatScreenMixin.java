@@ -16,7 +16,7 @@ import net.minecraft.util.FormattedCharSequence;
 import org.jetbrains.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
 import org.lain.engine.client.mc.ClientMixinAccess;
-import org.lain.engine.client.mc.MinecraftChat;
+import org.lain.engine.client.mc.chat.MinecraftChat;
 import org.lain.engine.client.mc.MinecraftKeybindKt;
 import org.lain.engine.client.render.ui.ChatChannelsBar;
 import org.lain.engine.client.render.ui.HandStatusButtonWidget;
@@ -172,20 +172,20 @@ public abstract class ChatScreenMixin {
             )
     )
     public void engine$onKeyPress(KeyEvent keyEvent, CallbackInfoReturnable<Boolean> cir) {
-        MinecraftChat chat = MinecraftChat.INSTANCE;
-        chat.updateChatInput(input.getValue());
-        MinecraftChat.ChatMessageData selectedMessage = chat.getSelectedMessage();
-        if (selectedMessage != null) {
-            if (keyEvent.key() == GLFW.GLFW_KEY_DELETE) {
-                ClientMixinAccess.INSTANCE.deleteChatMessage(selectedMessage.getEngineMessage());
-            } else if (MinecraftKeybindKt.isControlDown() && keyEvent.key() == InputConstants.KEY_C) {
-                Minecraft.getInstance().keyboardHandler.setClipboard(selectedMessage.getNode().content().getString());
-                ClientMixinAccess.INSTANCE.setChatClipboardCopyTicksElapsed(0);
-            }
-        }
-        if (keyEvent.isConfirmation()) {
-            chat.setSelectedMessage(null);
-        }
+//        MinecraftChat chat = MinecraftChat.INSTANCE;
+//        chat.updateChatInput(input.getValue());
+//        MinecraftChat.ChatMessageData selectedMessage = chat.getSelectedMessage();
+//        if (selectedMessage != null) {
+//            if (keyEvent.key() == GLFW.GLFW_KEY_DELETE) {
+//                ClientMixinAccess.INSTANCE.deleteChatMessage(selectedMessage.getEngineMessage());
+//            } else if (MinecraftKeybindKt.isControlDown() && keyEvent.key() == InputConstants.KEY_C) {
+//                Minecraft.getInstance().keyboardHandler.setClipboard(selectedMessage.getNode().content().getString());
+//                ClientMixinAccess.INSTANCE.setChatClipboardCopyTicksElapsed(0);
+//            }
+//        }
+//        if (keyEvent.isConfirmation()) {
+//            chat.setSelectedMessage(null);
+//        }
     }
 
     @Redirect(

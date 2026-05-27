@@ -26,6 +26,7 @@ val File.playerData
 private val PLAYERS_JSON = Json {
     prettyPrint = true
     ignoreUnknownKeys = true
+    serializersModule = COMPONENT_SERIALIZERS_MODULE
 }
 
 private val PLAYER_DATA_LOGGER = LoggerFactory.getLogger("Engine Player Data")

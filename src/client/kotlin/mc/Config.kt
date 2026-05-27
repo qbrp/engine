@@ -43,9 +43,10 @@ class EngineYamlConfig(
 
     init { builder.pop() }
 
-    init { builder.push("crosshair") }
+    init { builder.push("ui") }
 
     private val crosshairIndicatorVisibleProperty = builder.defineBoolean("indicator-visible", false)
+    private val hotbarIndicatorsVisibleProperty = builder.defineBoolean("hotbar-visible", false)
 
     init { builder.pop() }
 
@@ -86,6 +87,8 @@ class EngineYamlConfig(
 
     override val crosshairIndicatorVisible: Boolean
         get() = crosshairIndicatorVisibleProperty.get()
+    override val hotbarIndicatorsVisible: Boolean
+        get() = hotbarIndicatorsVisibleProperty.get()
 
     val config: IConfig = builder.build()
 }

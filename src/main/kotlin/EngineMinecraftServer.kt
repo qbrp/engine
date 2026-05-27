@@ -16,8 +16,8 @@ import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemAccess
 import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.registerIntentCommands
@@ -117,8 +117,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     open fun run() {
         Injector.register<PlayerPermissionsProvider>(MinecraftPermissionProvider(entityTable))
         Injector.register<ServerTransportContext>(transportContext)
-        Injector.register(engine.itemStorage)
-        Injector.register<ItemAccess>(engine.itemStorage)
         Injector.register(engine.globals.movementSettings)
         applyConfigCatching(config)
         val compilationResult = dependencies.compilationResult
@@ -129,7 +127,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         }
         minecraftServer.allLevels.forEach {
             val id = it.engine
-            val world = world(id, engine.thread, engine.itemStorage, engine.namespacedStorage) { chunkPos ->
+            val world = world(id, engine.thread, ItemStorage(), engine.namespacedStorage) { chunkPos ->
                 it.chunkSource.chunkMap.getPlayers(ChunkPos(chunkPos.x, chunkPos.z), false)
                     .mapNotNull { entity -> entityTable.getPlayer(entity) }
             }
@@ -236,7 +234,14 @@ fun EngineServer.serverMinecraftPlayerLoadSettings(
 
     return PlayerLoadSettings(
         playerId,
-        stacks.mapNotNull { it.engine()?.uuid },
+        stacks.mapNotNull {
+            val reference = it.engine()
+            if (reference?.version != CURRENT_ITEM_VERSION) {
+                null
+            } else {
+                reference.uuid
+            }
+        },
         notifications,
         entity.position().engine(),
         entity.name.string,

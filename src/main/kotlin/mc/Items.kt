@@ -15,7 +15,6 @@ import org.lain.engine.item.*
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.Uuid
-import org.lain.engine.util.injectItemAccess
 import org.lain.engine.world.World
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
@@ -85,7 +84,7 @@ fun wrapEngineItemStack(
 
 fun ItemStack.engine() = get(ENGINE_ITEM_REFERENCE_COMPONENT)
 
-fun ItemStack.engineItem() = get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getItem()
+fun ItemStack.engineItem(world: World) = get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getItem(world)
 
 fun ItemStack.decrement(i: Int) = shrink(i)
 
@@ -134,7 +133,7 @@ val ENGINE_ITEM_REFERENCE_COMPONENT: DataComponentType<EngineItemReferenceCompon
 // Вызываем ленивую инициализацию
 fun initializeEngineItemComponents() = kotlin.Unit
 
-const val CURRENT_ITEM_VERSION = 1
+const val CURRENT_ITEM_VERSION = 2
 
 data class EngineItemReferenceComponent(
     val id: ItemId,
@@ -142,8 +141,7 @@ data class EngineItemReferenceComponent(
     val version: Int,
     var loading: Boolean = false
 ) {
-    fun getItem(): EngineItem? {
-        val itemStorage by injectItemAccess()
-        return itemStorage.getItem(uuid)
+    fun getItem(world: World): EngineItem? {
+        return world.itemStorage.get(uuid)
     }
 }

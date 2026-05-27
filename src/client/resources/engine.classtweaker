@@ -1,3 +1,4 @@
-accessWidener v2 named
+classTweaker v1 named
 accessible class net/minecraft/client/gui/components/ChatComponent$AlphaCalculator
 accessible class net/minecraft/client/gui/components/ChatComponent$LineConsumer
+inject-interface net/minecraft/client/gui/components/ChatComponent org/lain/engine/client/mc/chat/EngineChatHudAccess

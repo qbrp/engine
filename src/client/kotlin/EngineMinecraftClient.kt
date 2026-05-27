@@ -20,11 +20,15 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.component.WritableBookContent
 import net.minecraft.world.level.Level
-import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.apply
+import org.lain.cyberia.ecs.handle
+import org.lain.cyberia.ecs.hasComponent
+import org.lain.cyberia.ecs.remove
 import org.lain.engine.AuthPacket
 import org.lain.engine.Constants.ENGINE_MOD_VERSION
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.client.mc.*
+import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
 import org.lain.engine.client.mc.compat.injectDynamicLightsContext
 import org.lain.engine.client.mc.sound.MinecraftAudioManager
@@ -43,8 +47,7 @@ import org.lain.engine.client.server.registerEngineIntegratedServerEvent
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.registerComponentsClient
-import org.lain.engine.item.OpenBookTag
-import org.lain.engine.item.Writable
+import org.lain.engine.item.BookOpen
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
@@ -270,16 +273,15 @@ class EngineMinecraftClient : ClientModInitializer {
         renderer.tick()
 
         players.forEach { (entity, player) ->
-            player.remove<OpenBookTag>()?.let {
+            player.remove<BookOpen>()?.let {
                 if (player == gameSession.mainPlayer) {
-                    val writable = with(world) { player.handItem?.getComponent<Writable>() ?: return@let }
                     client.setScreen(
                         BookEditScreen(
                             entity,
                             entity.mainHandItem,
                             InteractionHand.MAIN_HAND,
                             WritableBookContent(
-                                writable.contents.map { Filterable(it, Optional.empty()) },
+                                it.writeable.contents.map { Filterable(it, Optional.empty()) },
                             )
                         )
                     )

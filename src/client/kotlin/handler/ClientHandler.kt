@@ -48,6 +48,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val pendingEntityProvider = PendingEntityProvider(pendingEntities)
     private val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
     private val entityResolverCoroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
+    private val waitingChunks = mutableMapOf<EngineChunkPos, CompletableDeferred<EngineChunk>>()
 
     private fun newEntityResolver() = EntityResolver(pendingEntityProvider)
 
@@ -113,6 +114,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         } else if (taskExecutor.notEmpty()) {
             taskExecutor.clear()
         }
+    }
+
+    private suspend fun awaitChunk(gameSession: GameSession, pos: EngineChunkPos): EngineChunk {
+        gameSession.world.chunkStorage.getChunk(pos)?.let { return it }
+        val deferred = CompletableDeferred<EngineChunk>()
+        waitingChunks[pos] = deferred
+        return deferred.await()
     }
 
     context(world: World)
@@ -273,7 +281,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         client.eventBus.onFullPlayerData(client, id, data)
     }
 
-    private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.getItem(it) == null }
+    private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.get(it) == null }
 
     fun applyPlayerJoined(data: GeneralPlayerData) {
         gameSession!!.instantiateLowDetailedPlayer(data)
@@ -322,8 +330,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         chatManager.updateSettings(settings.chat)
     }
 
-    fun applyChatMessage(message: OutcomingMessage) {
-        val chatManager = gameSession?.chatManager ?: return
+    fun applyChatMessage(gameSession: GameSession, message: OutcomingMessage) {
+        val chatManager = gameSession.chatManager ?: return
         chatManager.addMessage(
             acceptOutcomingMessage(
                 message,
@@ -331,7 +339,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 SYSTEM_CHANNEL,
                 chatManager.settings.placeholders,
                 client.resources.formatConfiguration,
-                gameSession!!.playerStorage.map { it.username }
+                gameSession.playerStorage.map { it.username }
             )
         )
     }
@@ -408,46 +416,33 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     private fun GameSession.loadChunk(chunkDto: EngineChunkDto) = with(gameSession!!.world) {
         val pos = chunkDto.pos
-        val dynamicVoxels = chunkDto.dynamicVoxels.map { (pos, components) ->
-            val entity = world.addEntity()
-            entity.setDynamicVoxel(pos)
-            pos to (entity to components)
-        }.toMap()
-
-        val entities: MutableMap<VoxelPos, EntityId> = runBlocking {
-            dynamicVoxels
-                .mapValues { (pos, pair) ->
-                    val (entity, components) = pair
-                    entity.copyState(components.toDomainSuspend {
-                        toDomainSuspend(componentLoadSettings, { persistentId ->
-                            (persistentId as? VoxelPosId)?.pos?.let { dynamicVoxels[it]?.first } ?: persistentIdToEntity[persistentId]
-                        })
-                    })
-                    entity
-                }
-                .toMutableMap()
-        }
         val chunk = EngineChunk(
             chunkDto.decals.toMutableMap(),
             chunkDto.hints.toMutableMap(),
-            entities
+            mutableMapOf()
         )
         loadChunk(pos, chunk)
+        waitingChunks.remove(pos)?.complete(chunk)
     }
 
-    fun applyDynamicVoxelDelta(voxelPos: VoxelPos, components: List<ComponentDto>) = with(gameSession!!.world) {
+    fun applyDynamicVoxelDelta(gameSession: GameSession, voxelPos: VoxelPos, components: List<ComponentDto>) = with(gameSession.world) {
         val entity = chunkStorage.getDynamicVoxel(voxelPos) ?: run {
-            setDynamicVoxel(voxelPos, false)
+            val entity = addEntity()
+            entity.setDynamicVoxel(voxelPos, false)
+            entity
         }
 
-        runBlocking {
-            entity.copyState(components.toDomainSuspend {
-                toDomain(
-                    componentLoadSettings,
-                    //TODO: сделать здесь механизм EntityResolving
-                    entityGetter = { null }
-                )
-            })
+        entityResolverCoroutineScope.launch {
+            entity.copyState(
+                components.toDomainSuspend {
+                    toDomain(
+                        componentLoadSettings,
+                        entityGetter = { null }
+                    )
+                }
+            )
+            val chunk = awaitChunk(gameSession, EngineChunkPos(voxelPos))
+            chunk.dynamicVoxels[voxelPos] = entity
         }
     }
 

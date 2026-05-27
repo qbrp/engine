@@ -20,7 +20,6 @@ import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectMovementSettings
-import org.lain.engine.world.world
 
 object ServerMixinAccess {
     private val table by injectEntityTable()
@@ -153,6 +152,8 @@ object ServerMixinAccess {
     fun shouldCancelSendLeaveMessage() = chat.settings.leaveMessage != "" || !chatSettings.leaveMessageEnabled
 
     fun shouldCancelDamage() = !isDamageEnabled
+
+    fun getEnginePlayer(player: Player): EnginePlayer? = player.engine
 
     private val Player.engine: EnginePlayer?
         get() = table.getGeneralPlayer(this)

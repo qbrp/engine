@@ -36,13 +36,13 @@ class MinecraftAudioManager(
 
     private class AudioSourcePlayback(val source: AudioSource, val instance: AudioSourceSoundInstance) {
         fun update() {
-            instance._isRelative = source.isRelative
             instance._x = source.x
             instance._y = source.y
             instance._z = source.z
-            instance.attenuate = source.attenuate
+            instance.spatial = source.spatial
             instance._pitch = source.pitch
             instance._volume = source.volume
+            instance.radius = source.radius
         }
     }
 

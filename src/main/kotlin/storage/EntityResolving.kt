@@ -24,8 +24,7 @@ class EntityResolver(
         components: List<ComponentDto>,
         persistentId: PersistentId? = null,
     ): EntityId {
-        componentLoadSettings.persistentIdToEntity[persistentId]?.let { return it }
-        val entity = write.addEntity()
+        val entity = persistentId?.let { componentLoadSettings.persistentIdToEntity[it] } ?: write.addEntity()
         try {
             val domainComponents = components.toDomainSuspend {
                 toDomainSuspend(

@@ -5,7 +5,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
-import org.lain.engine.client.mc.MinecraftChat
+import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.mc.Text
 import org.lain.engine.transport.packet.ClientChatChannel

@@ -11,12 +11,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.mixin.CreativeModeTabAccessor
-import org.lain.engine.mc.ENGINE_ITEM_INSTANTIATE_COMPONENT
-import org.lain.engine.mc.ITEM_STACK_MATERIAL
-import org.lain.engine.mc.engineId
-import org.lain.engine.mc.literalText
-import org.lain.engine.mc.wrapEngineItemStackBase
-import org.lain.engine.mc.wrapEngineItemStackVisual
+import org.lain.engine.mc.*
 
 private val KEY: ResourceKey<CreativeModeTab> = ResourceKey.create(
     BuiltInRegistries.CREATIVE_MODE_TAB.key(),
@@ -48,7 +43,7 @@ fun updateEngineItemGroupEntries() {
 fun registerEngineItemGroupEvent(client: EngineClient) {
     Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, KEY, ITEM_GROUP);
     ItemGroupEvents.modifyEntriesEvent(KEY).register { entries ->
-        client.gameSession?.namespacedStorage?.items?.forEach { (id, prefab) ->
+        client.gameSession?.namespacedStorage?.items?.toList()?.sortedBy { it.first.value }?.forEach { (id, prefab) ->
             val stack = ITEM_STACK_MATERIAL.copy()
             val assets = prefab.assets?.assets ?: return@forEach
 

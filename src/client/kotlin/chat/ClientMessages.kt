@@ -10,7 +10,8 @@ import org.lain.engine.world.World
 
 data class AcceptedMessage(
     val text: String,
-    val display: String,
+    val displayText: String,
+    val undistortedDisplayText: String,
     val channel: ClientChatChannel,
     val source: MessageSource,
     val isMentioned: Boolean = false,
@@ -55,19 +56,9 @@ fun isMessageVisible(message: AcceptedMessage, spy: Boolean, chatBar: ChatBar): 
     return isMessageVisible(message, chatBar, isMessageAvailable(message, spy))
 }
 
-fun acceptOutcomingMessage(
-    message: OutcomingMessage,
-    channels: Map<ChannelId, ClientChatChannel>,
-    defaultChannel: ClientChatChannel,
-    placeholders: Map<String, String>,
-    format: ChatFormatSettings,
-    playerNames: List<String>
-): AcceptedMessage {
-    val channelId = message.channel
-    val channel = channels[channelId] ?: defaultChannel
-    var text = message.text
-
-    format.regex.replace.forEach { rule ->
+private fun formatRegex(text: String, regex: ChatRegexSettings, playerNames: List<String>): String {
+    var text = text
+    regex.replace.forEach { rule ->
         val regex = Regex(rule.exp)
 
         text = regex.replace(text) { match ->
@@ -79,35 +70,58 @@ fun acceptOutcomingMessage(
             rule.value.replace("{match}", cleaned)
         }
     }
-
     text = Regex("@[A-Za-z0-9_]+").replace(text) { match ->
         val nickname = match.value.drop(1)
         if (nickname in playerNames) "<bold><yellow>@${nickname}</yellow></bold>" else match.value
     }
+    return text
+}
 
-    var display = channel.format
-    val placeholders = (placeholders + message.placeholders).toMutableMap()
-    placeholders["text"] = text
-    placeholders.forEach { old, new ->
-        display = display
+private fun formatPlaceholders(text: String, placeholders: Map<String, String>): String {
+    var text = text
+    placeholders.forEach { (old, new) ->
+        text = text
             .replace("{$old}", new)
     }
 
-    display = Regex("\\{([^|{}]+)\\|([^{}]*)\\}").replace(display) { match ->
+    text = Regex("\\{([^|{}]+)\\|([^{}]*)\\}").replace(text) { match ->
         val name = match.groupValues[1]
         val defaultValue = match.groupValues.getOrNull(2)
         val placeholder = placeholders[name]
 
         placeholder ?: (defaultValue ?: "")
     }
+    return text
+}
+
+fun acceptOutcomingMessage(
+    message: OutcomingMessage,
+    channels: Map<ChannelId, ClientChatChannel>,
+    defaultChannel: ClientChatChannel,
+    placeholders: Map<String, String>,
+    format: ChatFormatSettings,
+    playerNames: List<String>
+): AcceptedMessage {
+    val channelId = message.channel
+    val channel = channels[channelId] ?: defaultChannel
+    val text = formatRegex(message.text, format.regex, playerNames)
+
+    val placeholders = (placeholders + message.placeholders).toMutableMap()
+    placeholders["text"] = text
+    var display = formatPlaceholders(channel.format, placeholders)
 
     if (message.isSpy) {
         display = format.spy.replace("{original}", display)
     }
 
+    val undistortedTextPlaceholders = placeholders.toMutableMap()
+    undistortedTextPlaceholders["text"] = formatRegex(message.undistortedText, format.regex, playerNames)
+    val undistortedDisplay = formatPlaceholders(channel.format, undistortedTextPlaceholders)
+
     return AcceptedMessage(
         text,
         display,
+        undistortedDisplay,
         channel,
         message.source,
         message.mentioned,
@@ -130,6 +144,7 @@ fun MessageSource.Companion.getSystemClient(world: World) = MessageSource(
 fun LiteralSystemEngineChatMessage(gameSession: GameSession, content: String) = AcceptedMessage(
     content,
     content,
+    content,
     SYSTEM_CHANNEL,
     MessageSource.getSystemClient(gameSession.world),
     id = MessageId.next()
@@ -137,6 +152,7 @@ fun LiteralSystemEngineChatMessage(gameSession: GameSession, content: String) = 
 
 
 fun LiteralSystemEngineChatMessage(world: World, content: String, isSpy: Boolean = false) = AcceptedMessage(
+    content,
     content,
     content,
     SYSTEM_CHANNEL,

@@ -2,9 +2,42 @@ require("core.bridge")
 require("core.world")
 require("core.component")
 
+---@class Player : Entity
+---@field id string
+---@field uuid string
+---@field entity_id number
+---@field world World
+---@field is_game_master boolean
+---@field is_spectating boolean
+---@field invoke_command fun(self: Player, command: string, root: boolean)
+---@field has_permission fun(self: Player, permission: string): boolean
+---@field set_flying_speed fun(self: Player, speed: number): boolean
+---@field set_custom_max_speed fun(self: Player, speed: number)
+---@field reset_custom_speed fun(self: Player)
+---@field narration_internal fun(narration: Narration)
+Player = Player
+
 --------------------------------------------------------------------------------
 ---- Встроенные системы
 --------------------------------------------------------------------------------
+
+---@class Narration
+---@field message string minimessage
+---@field time number ticks
+---@field kick boolean false
+Narration = {}
+Narration.__index = Narration
+
+---@return Narration
+function Narration.new(message, time, kick)
+    assert(message, "message must be not null")
+    assert(time, "time must be not null")
+    local narration = setmetatable({}, Narration)
+    narration.message = message
+    narration.time = time
+    narration.kick = kick or false
+    return narration
+end
 
 ---@param narration Narration|string
 ---@param time number?
@@ -16,40 +49,7 @@ function Player:narration(narration, time, kick)
     else
         narration_table = Narration.new(narration, time, kick)
     end
-    self:__narration(narration_table)
-end
-
-------------------
-
----@param speed number
-function Player:set_custom_max_speed(speed) self:__set_custom_max_speed(speed) end
-
-function Player:reset_custom_max_speed() self:__reset_custom_max_speed() end
-
---------------------------------------------------------------------------------
----- Работа с компонентами
---------------------------------------------------------------------------------
-
----@param component Component
-function Player:set_component(component)
-    assert(component, "component must be not null")
-    self.world:set_component(self.entity_id, component)
-end
-
----@generic T : Component
----@param component Component|ComponentType
----@return T?
-function Player:remove_component(component)
-    assert(component, "component type must be not null")
-    return self.world:remove_component(self.entity_id, component.type or component)
-end
-
----@generic T : Component
----@param component Component|ComponentType
----@return T?
-function Player:get_component(component)
-    assert(component, "component type must be not null")
-    return self.world:get_component(self.entity_id, component.type or component)
+    self:narration_internal(narration_table)
 end
 
 --------------------------------------------------------------------------------
@@ -98,7 +98,6 @@ function FreezeComponent.new(duration) return FreezeComponent:construct { durati
 local function FreezeSystem(world, player, freeze)
     if (freeze.time > freeze.duration) then
         player:remove_component(FreezeComponent)
-        player:reset_custom_max_speed()
         return
     end
 

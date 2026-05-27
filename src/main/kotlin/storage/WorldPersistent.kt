@@ -34,7 +34,12 @@ fun EngineServer.loadWorldComponents(world: World): List<Component> {
     val file = worldSavePath(world)
     file.parentFile.mkdirs()
     if (!file.exists()) return emptyList()
-    return WorldJson.decodeFromString<WorldPersistent>(file.readText()).components.map {
-        it.toDomainWithoutRelationships(itemStorage, namespacedStorage)
+    return WorldJson.decodeFromString<WorldPersistent>(file.readText()).components.mapNotNull {
+        try {
+            it.toDomainWithoutRelationships(world.itemStorage, namespacedStorage)
+        } catch (e: Exception) {
+            LOGGER.error("Не удалость загрузить компонент $it состояния мира ${world.id}", e)
+            null
+        }
     }
 }

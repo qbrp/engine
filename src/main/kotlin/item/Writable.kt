@@ -1,10 +1,7 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.handle
-import org.lain.cyberia.ecs.hasComponent
-import org.lain.cyberia.ecs.set
+import org.lain.cyberia.ecs.*
 import org.lain.engine.player.*
 import org.lain.engine.world.World
 
@@ -43,9 +40,9 @@ fun handleWriteableInteractions(player: EnginePlayer) {
     val handItem = player.handItem ?: return
     player.handleInteraction(WRITEABLE_OPEN_VERB) {
         emitItemInteractionSoundEvent(handItem, WRITEABLE_OPEN_SOUND, player=player)
-        player.set(OpenBookTag)
+        player.set(BookOpen(handItem.requireComponent()))
         complete()
     }
 }
 
-object OpenBookTag : Component
+data class BookOpen(val writeable: Writable) : Component

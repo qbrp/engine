@@ -28,16 +28,14 @@ import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraft.world.phys.Vec3
 import org.lain.cyberia.ecs.*
 import org.lain.engine.chat.CHAT_HEADS_PERMISSION
+import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.chat.MessageSource
-import org.lain.engine.chat.chatChannelOf
 import org.lain.engine.item.ItemId
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.*
 import org.lain.engine.server.markDirty
-import org.lain.engine.transport.packet.ClientChatChannel
-import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.*
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.*
@@ -375,22 +373,27 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                 argument("player", EntityArgument.player(),
                 )
                     .then(
-                        argument("text", StringArgumentType.greedyString())
-                            .executeCatching { ctx ->
-                                val text = ctx.command.getString("text")
-                                val entity = ctx.command.getPlayerEntity("player")
-                                val player = playerTable.requirePlayer(entity)
-
-                                val chat = server.engine.chat
-                                val channels = ClientChatSettings.channelsOf(chat.settings, player)
-                                val (channel, content) = chatChannelOf(
-                                    text,
-                                    channels.values.toList(),
-                                    ClientChatChannel.of(chat.settings.defaultChannel, player)
-                                )
-
-                                player.speak(content, channel.id, player.volume)
+                        argument("channel", StringArgumentType.word())
+                            .suggests { context, builder ->
+                                server.engine.chat.settings.channels
+                                    .map { it.id.value }
+                                    .filter { it.startsWith(builder.remainingLowerCase) }
+                                    .forEach { builder.suggest(it) }
+                                builder.buildFuture()
                             }
+                            .then(
+                                argument("text", StringArgumentType.greedyString())
+                                    .executeCatching { ctx ->
+                                        val channelId = ctx.command.getString("channel")
+                                        val text = ctx.command.getString("text")
+                                        val entity = ctx.command.getPlayerEntity("player")
+                                        val player = playerTable.requirePlayer(entity)
+
+                                        val chat = server.engine.chat
+                                        val channel = chat.getChannel(ChannelId(channelId))
+                                        player.speak(text, channel.id, player.volume)
+                                    }
+                            )
                     )
             )
     )

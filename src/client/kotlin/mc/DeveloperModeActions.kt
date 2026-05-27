@@ -73,7 +73,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                 val start = Timestamp()
                 repeat(100) {
                     gameSession.chatManager.addMessage(
-                        LiteralSystemEngineChatMessage(gameSession, roundToInt(Math.random() * 999999).toString())
+                        LiteralSystemEngineChatMessage(gameSession, roundToInt(Math.random() * 999999).toString()),
                     )
                 }
 

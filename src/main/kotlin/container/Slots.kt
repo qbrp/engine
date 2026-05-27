@@ -4,7 +4,6 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
-import org.lain.engine.item.ItemStorage
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.component.ComponentState
@@ -89,9 +88,9 @@ fun detachSlotContainers(world: World) {
 }
 
 context(world: World)
-fun updateContainerSystems(itemStorage: ItemStorage) {
+fun updateContainerSystems() {
     updateSlotContainers(world)
-    updateContainerOperationSystem(itemStorage)
+    updateContainerOperationSystem()
     detachSlotContainers(world)
 }
 

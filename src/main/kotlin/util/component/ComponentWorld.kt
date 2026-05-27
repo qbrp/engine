@@ -60,11 +60,15 @@ class ComponentWorld(
                     arr.onAdded = { component, entity ->
                         val persistentId = (component as Item).uuid
                         if (itemStorage.get(persistentId) != entity) {
+                            println("Added item $persistentId ($entity)")
                             itemStorage.remove(persistentId)
                             itemStorage.add(persistentId, entity)
                         }
                     }
-                    arr.onRemoved = { component, entity -> itemStorage.remove((component as Item).uuid) }
+                    arr.onRemoved = { component, entity ->
+                        println("Removed item $component ($entity)")
+                        itemStorage.remove((component as Item).uuid)
+                    }
                 }
 
                 arrays[id] = arr
@@ -428,6 +432,8 @@ class ComponentArray<T : Component>(
         val denseIndex = sparseArray.getOrNull(entityId) ?: return null
         val lastIndex = denseArray.lastIndex
 
+        val removedComponent = denseArray[denseIndex]
+
         if (denseIndex != lastIndex) {
             denseArray[denseIndex] = denseArray[lastIndex]
             denseEntities[denseIndex] = denseEntities[lastIndex]
@@ -436,10 +442,11 @@ class ComponentArray<T : Component>(
             sparseArray[movedEntity] = denseIndex
         }
 
-        val component = denseArray.removeAt(lastIndex)
+        denseArray.removeAt(lastIndex)
         denseEntities.removeAt(lastIndex)
         sparseArray[entityId] = null
-        onRemoved?.invoke(component, entityId)
-        return component
+
+        onRemoved?.invoke(removedComponent, entityId)
+        return removedComponent
     }
 }
