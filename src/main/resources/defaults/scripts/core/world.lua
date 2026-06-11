@@ -18,6 +18,7 @@ end
 ---@field add_entity fun(self: World): Entity
 ---@field set_dynamic_voxel fun(self: World, voxel_pos: number[], networked: boolean): Entity
 ---@field get_dynamic_voxel fun(self: World, voxel_pos: number[]): Entity?
+---@field emit fun(self: World, event: Component): Entity
 World = World
 worlds = worlds
 
@@ -29,6 +30,7 @@ worlds = worlds
 ---@field remove_component fun(self: Entity, component: Component): table?
 ---@field set_component fun(self: Entity, component: Component): table?
 ---@field get_all_components fun(self: Entity): Component[]
+---@field exists fun(self: Entity): Component[]
 Entity = Entity
 
 ---@class VoxelMeta

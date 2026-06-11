@@ -142,6 +142,7 @@ function Callbacks:system(types, fun, env)
         if (env == "client" and not world.is_client) then
             return
         end
+        assert(fun, "system function must be not null")
         world:iterate(types, fun)
     end)
     return self

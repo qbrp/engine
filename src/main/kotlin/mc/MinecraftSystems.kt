@@ -25,12 +25,12 @@ import org.lain.engine.world.location
 import org.slf4j.LoggerFactory
 
 context(world: World)
-fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: ServerPlayer, player: EnginePlayer) {
+fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: ServerPlayer) {
     val items = mutableListOf<EngineItem>()
     for (stack in entity.visibleInventoryItems) {
         val engineItem = stack.engineItem(world) ?: continue
         if (items.contains(engineItem)) {
-            engineServer.wrapItemStackCatching(player, engineItem.requireComponent<Item>().id, stack)
+            engineServer.wrapItemStackCatching(engineItem.requireComponent<Item>().id, stack)
         } else {
             items.add(engineItem)
         }
@@ -39,9 +39,10 @@ fun excludeEngineItemDuplicates(engineServer: EngineMinecraftServer, entity: Ser
 
 private val LOGGER = LoggerFactory.getLogger("Engine Minecraft Adapter")
 
-private fun EngineMinecraftServer.wrapItemStackCatching(player: EnginePlayer, itemId: ItemId, stack: ItemStack): EngineItem? {
+context(world: World)
+private fun EngineMinecraftServer.wrapItemStackCatching(itemId: ItemId, stack: ItemStack): EngineItem? {
     return try {
-        wrapItemStack(player, itemId, stack)
+        wrapItemStack(itemId, stack)
     } catch (t: Throwable) {
         detachEngineItemStack(stack)
         LOGGER.error("Не удалось создать engine-предмет $itemId", t)
@@ -108,7 +109,7 @@ fun updateServerMinecraftSystems(
                 val reference = itemStack.engine()
                 if (reference != null) {
                     if (reference.version != CURRENT_ITEM_VERSION) {
-                        server.wrapItemStackCatching(player, reference.id, itemStack)
+                        server.wrapItemStackCatching(reference.id, itemStack)
                         continue
                     }
 
@@ -132,7 +133,7 @@ fun updateServerMinecraftSystems(
 
                 val instantiate = itemStack.remove(ENGINE_ITEM_INSTANTIATE_COMPONENT)
                 if (reference == null && instantiate != null) {
-                    item = server.wrapItemStackCatching(player, ItemId(instantiate), itemStack)
+                    item = server.wrapItemStackCatching(ItemId(instantiate), itemStack)
                 }
 
                 if (item != null) items.add(EngineItemStack(item, itemStack))
@@ -140,7 +141,7 @@ fun updateServerMinecraftSystems(
 
             updatePlayerMinecraftSystems(player, items.toSet(), entity, world, itemStorage)
             player.remove<BookOpen>()
-            excludeEngineItemDuplicates(server, entity, player)
+            excludeEngineItemDuplicates(server, entity)
         }
     }
 
@@ -155,10 +156,16 @@ fun updateServerMinecraftSystems(
                             try {
                                 withTimeout(5000) {
                                     val item = itemLoader.loadWorldItem(data.itemUuid, world)
-                                    engine.execute {
-                                        context(world) {
-                                            dataFixItem(item, engine.namespacedStorage)
-                                            wrapEngineItemStack(item, data.itemStack)
+                                    context(world) {
+                                        engine.execute {
+                                            try {
+                                                dataFixItem(item, engine.namespacedStorage)
+                                                wrapEngineItemStack(item, data.itemStack)
+                                            } catch (e: Throwable) {
+                                                LOGGER.error("Ошибка загрузи предмета $data", e)
+                                                val item = server.engine.createInvalidItem(world)
+                                                wrapEngineItemStack(item, data.itemStack)
+                                            }
                                         }
                                     }
                                 }

@@ -1,6 +1,5 @@
 package org.lain.engine.client.mc.chat
 
-import net.minecraft.client.GuiMessage
 import net.minecraft.client.gui.components.ComponentRenderUtils
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.util.FormattedCharSequence
@@ -19,7 +18,6 @@ import org.lain.engine.world.world
 const val MAXIMUM_REPEATS_TEXT = "x999"
 
 data class EngineChatHudMessage(
-    val node: GuiMessage,
     val author: PlayerInfo?,
     val engineMessage: AcceptedMessage,
     val addedTime: Int,
@@ -36,11 +34,14 @@ data class EngineChatHudMessage(
             false -> engineMessage.displayText
             true -> engineMessage.undistortedDisplayText
         }
-        val lines = ComponentRenderUtils.wrapComponents(
-            text.parseMiniMessageClient(),
-            width - font.width(MAXIMUM_REPEATS_TEXT),
-            font
-        )
+        val lines = when(engineMessage.vanilla != null) {
+            false -> ComponentRenderUtils.wrapComponents(
+                text.parseMiniMessageClient(),
+                width - font.width(MAXIMUM_REPEATS_TEXT),
+                font
+            )
+            true -> engineMessage.vanilla.splitLines(font, width)
+        }
         return lines.mapIndexed { i, line ->
             EngineChatHudLine(this, line, i == 0, i == lines.lastIndex)
         }

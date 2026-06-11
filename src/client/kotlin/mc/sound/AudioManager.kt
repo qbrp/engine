@@ -48,7 +48,7 @@ class MinecraftAudioManager(
 
     override fun playUiNotificationSound() {
         playMaster(SoundEvents.UI_BUTTON_CLICK, 1f - Random.nextFloat() / 7f)
-        if (Random.nextFloat() > 0.98f) {
+        if (Random.nextFloat() > 0.999f) {
             playPigScreamSound()
         }
     }
@@ -99,6 +99,7 @@ class MinecraftAudioManager(
             )
         )
         playback.update()
+        playback.instance.tick()
         audioSources[slot] = playback
         audioSource.slot = slot
         soundManager.play(playback.instance)

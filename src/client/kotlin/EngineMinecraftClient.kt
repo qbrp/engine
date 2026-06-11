@@ -10,9 +10,10 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.gui.screens.inventory.BookEditScreen
-import net.minecraft.client.player.LocalPlayer
+import net.minecraft.client.player.AbstractClientPlayer
 import net.minecraft.client.renderer.entity.player.AvatarRenderer
 import net.minecraft.server.network.Filterable
 import net.minecraft.util.profiling.Profiler
@@ -51,6 +52,7 @@ import org.lain.engine.item.BookOpen
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.server.EngineServer
 import org.lain.engine.serverMinecraftPlayerLoadSettings
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
@@ -60,6 +62,7 @@ import org.lain.engine.util.injectValue
 import org.lain.engine.world.ImmutableVoxelPos
 import org.slf4j.LoggerFactory
 import java.util.*
+import kotlin.math.sqrt
 
 class EngineMinecraftClient : ClientModInitializer {
     private val client = MinecraftClient
@@ -153,6 +156,10 @@ class EngineMinecraftClient : ClientModInitializer {
             readyToAuthorize = true
         }
 
+        ServerPlayerEvents.JOIN.register { player ->
+
+        }
+
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
 
         ClientTickEvents.START_CLIENT_TICK.register { keybindManager.tick(engineClient) }
@@ -176,14 +183,22 @@ class EngineMinecraftClient : ClientModInitializer {
     private fun tickClient() {
         val profiler = Profiler.get()
         profiler.push("engineClientTick")
-        val mainPlayerEntity = client.player
+
+        val levelPlayers = client.level?.players() ?: emptyList()
+        val mainPlayerEntity = levelPlayers.find { it.gameProfile == client.gameProfile } ?: client.player
 
         ClientMixinAccess.tick()
         window.handleResize()
 
         try {
             if (readyToAuthorize && mainPlayerEntity != null && !inAuthorization) {
-                authorize(mainPlayerEntity)
+                val developerMode = DeveloperModeStatus(engineClient.developerMode, engineClient.acousticDebug)
+                if (client.isSingleplayer) {
+                    val engine = server?.engine ?: throw RuntimeException("Server not started")
+                    authorizeSingleplayer(engine, mainPlayerEntity, developerMode)
+                } else {
+                    authorizeMultiplayer()
+                }
                 inAuthorization = true
             }
 
@@ -192,21 +207,20 @@ class EngineMinecraftClient : ClientModInitializer {
             val skippedPlayers = mutableListOf<Pair<Player, Double>>()
             if (gameSession != null && mainPlayerEntity != null) {
                 val synchronizationRadiusSqr = gameSession.synchronizationRadius * gameSession.synchronizationRadius
-                val levelPlayerEntities = mainPlayerEntity.level().players()
                 val mainPlayerPos = mainPlayerEntity.position()
                 syncedLevelPlayerEntities.putAll(
-                    levelPlayerEntities
+                    levelPlayers
                         .mapNotNull { entity ->
                             clientPlayerTable.getPlayer(entity)?.let { player -> entity to player }
                         }
                         .toMap()
                 )
                 skippedPlayers.addAll(
-                    levelPlayerEntities
+                    levelPlayers
                         .filter { it !in syncedLevelPlayerEntities }
                         .mapNotNull { player ->
                             val distance = player.position().distanceToSqr(mainPlayerPos)
-                            player.takeIf { distance < synchronizationRadiusSqr }?.let { it to distance }
+                            player.takeIf { distance < synchronizationRadiusSqr }?.let { it to sqrt(distance) }
                         }
                 )
             }
@@ -218,7 +232,7 @@ class EngineMinecraftClient : ClientModInitializer {
             if (skippedPlayers.isNotEmpty()) {
                 connectionLogger.warn(
                     "Состояние Minecraft не было обновлено для игроков: {}",
-                    skippedPlayers.joinToString { (player, distance) -> "${player.plainTextName} (до игрока: $distance)" }
+                    skippedPlayers.joinToString { (player, distance) -> "${player.plainTextName} (до игрока: ${"%d".format(distance.toInt())})" }
                 )
             }
 
@@ -331,26 +345,24 @@ class EngineMinecraftClient : ClientModInitializer {
         connectionLogger.info("Игрок отключен от сервера Engine")
     }
 
-    private fun authorize(entity: LocalPlayer) {
-        val developerMode = DeveloperModeStatus(engineClient.developerMode, engineClient.acousticDebug)
-        if (client.isSingleplayer) {
-            val engine = server?.engine ?: throw RuntimeException("Server not started")
-            val settings = engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId, developerMode, listOf())
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                engine.playerLoader.loadPreparing(
-                    settings = settings,
-                    exceptionHandler = { disconnectWithReason(DisconnectText(it)) }
-                )
-            }
-        } else {
-            SERVERBOUND_AUTH_ENDPOINT
-                .sendC2SPacket(
-                    AuthPacket(
-                        fabricLoader.allMods.map { it.metadata.id },
-                        ENGINE_MOD_VERSION
-                    )
-                )
+    private fun authorizeSingleplayer(engine: EngineServer, entity: AbstractClientPlayer, developerStatus: DeveloperModeStatus) {
+        val settings = engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId, developerStatus, listOf())
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            engine.playerLoader.loadPreparing(
+                settings = settings,
+                exceptionHandler = { disconnectWithReason(DisconnectText(it)) }
+            )
         }
+    }
+
+    private fun authorizeMultiplayer() {
+        SERVERBOUND_AUTH_ENDPOINT
+            .sendC2SPacket(
+                AuthPacket(
+                    fabricLoader.allMods.map { it.metadata.id },
+                    ENGINE_MOD_VERSION
+                )
+            )
     }
 
     private fun disconnectWithReason(text: Text) {

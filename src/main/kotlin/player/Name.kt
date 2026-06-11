@@ -8,6 +8,7 @@ import org.lain.engine.util.Color
 
 @JvmInline
 @Serializable
+// Параметр может отличаться от реального имен игрока. Пример: ReplayViewer вместо Replay Viewer в Flashback
 value class Username(val value: String) {
     init {
         require(value.none { it.isWhitespace() })

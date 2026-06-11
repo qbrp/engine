@@ -130,13 +130,19 @@ class PlayerLoader(
 
     private suspend fun <R> ((Throwable) -> Unit).runCatchingSuspend(block: suspend () -> R): R? {
         return kotlin.runCatching { block() }
-            .onFailure { this(it) }
+            .onFailure {
+                it.printStackTrace()
+                this(it)
+            }
             .getOrNull()
     }
 
     private fun ((Throwable) -> Unit).runCatching(block: () -> Unit) {
         kotlin.runCatching { block() }
-            .onFailure { this(it) }
+            .onFailure {
+                it.printStackTrace()
+                this(it)
+            }
     }
 
     suspend fun loadPreparing(
@@ -169,7 +175,7 @@ class PlayerLoader(
                 world,
                 settings.initialPosition,
                 DisplayName(
-                    Username(settings.username),
+                    Username(settings.username.filter { !it.isWhitespace() }),
                     persistentPlayerData?.customName?.toDomain(settings.username)
                 ),
                 MovementStatus(

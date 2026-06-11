@@ -106,52 +106,6 @@ function component_type_of(id) return _component_type_of(id) end
 
 ------------------
 
----@class World
----@field id string
----@field is_client boolean
----@field state Entity
----@field players table<string, Player>
----@field invoke_command fun(self: World, command: string)
----@field mark_dirty fun(self: World, entity: number, type: ComponentType)
-World = World
-
-worlds = worlds
-
----@param type ComponentType
----@param entity_id number
----@return boolean
-function World:__has_component(entity_id, type) return self:_has_component(entity_id, type) end
-
----@param type ComponentType
----@param entity_id number
----@return table
-function World:__get_component(entity_id, type) return self:_get_component(entity_id, type) end
-
----@param type ComponentType
----@param entity_id number
----@return table?
-function World:__remove_component(entity_id, type) return self:_remove_component(entity_id, type) end
-
----@param component
----@param type ComponentType
----@param entity_id number
-function World:__set_component(entity_id, type, component) return self:_set_component(entity_id, type, component) end
-
----@param fun fun(...)
-function World:__iterate(fun, ...) return self:_iterate(fun, ...) end
-
----@return number
-function World:__add_entity() return self:_add_entity() end
-
----@param entity number
----@return Component[]
-function World:__get_all_components(entity) return self:_get_all_components(entity) end
-
----@param entity number
-function World:__destroy_entity(entity) return self:_destroy_entity(entity) end
-
-------------------
-
 --- Userdata
 ---@class Entity
 ---@field world World
@@ -172,11 +126,6 @@ function Entity.__of(world, id) return Entity._of(world, id) end
 ---@class VoxelMeta
 ---@field id string
 ---@field has_tag fun(tag: string): boolean
-
----@param voxel_pos number[]
----@param networked boolean
----@return number Entity
-function World:__set_dynamic_voxel(voxel_pos, networked) return self:_set_dynamic_voxel(voxel_pos, networked) end
 
 --------------------------------------------------------------------------------
 ---- Реестры
@@ -287,10 +236,9 @@ function compilation(func) _compilation(func) end
 ---@field x number
 ---@field y number
 ---@field z number
----@field is_relative boolean true default
 ---@field volume number from 0 to 1
 ---@field pitch number from 0 to 1
----@field attenuate boolean false default
+---@field spatial boolean true default
 ---@field is_ended boolean
 AudioSource = AudioSource or {}
 

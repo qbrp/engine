@@ -194,8 +194,10 @@ class ClientEngineChatManager(
 
         val authorId = message.source.player?.id
         val mainPlayerId = gameSession.mainPlayer.id
+
+        val visible = isMessageVisible(message, spy, chatBar)
+        eventBus.addToGui(message, visible)
         if (isMessageVisible(message, spy, chatBar)) {
-            eventBus.addToGui(message)
             val showSelf = authorId != mainPlayerId || client.developerMode
             if (authorId != null && message.isSpeech && showSelf && client.options.chatBubbles) {
                 val authorPlayer = gameSession.playerStorage.get(authorId)
@@ -206,6 +208,7 @@ class ClientEngineChatManager(
             if (isMentioned || isNotify) {
                 client.audioManager.playUiNotificationSound()
             }
+            chatBar.markRead(channel.id)
         } else if ((!message.isSpy || spy) && authorId != mainPlayerId) {
             chatBar.markUnread(channel.id)
         }

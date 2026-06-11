@@ -15,12 +15,12 @@ object AdditionalTransformationsBank {
     var lastDisplayContext: EngineItemDisplayContext? = null
 
     fun set(model: Identifier, transformations: EngineTransformationsBundle) {
-        modelToTransformations[model] = transformations
+        modelToTransformations[model] = transformations.copy()
     }
 
     fun remove(model: Identifier) = modelToTransformations.remove(model)
 
-    fun get(model: Identifier) = modelToTransformations[model]
+    fun get(model: Identifier) = modelToTransformations[model]?.copy()
 }
 
 enum class EngineItemDisplayContext(val minecraft: ItemDisplayContext) {

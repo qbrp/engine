@@ -1,10 +1,6 @@
 package org.lain.engine.script.lua
 
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.componentTypeOf
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.script.CoreScriptComponents
+import org.lain.cyberia.ecs.*
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.util.component.EntityId
@@ -21,14 +17,6 @@ import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
 context(lua: LuaContext)
 fun WorldMetaTable() = luaTable {
-    index { self, key ->
-        val world = self.asEngineWorld()
-        when(key) {
-            "players".toLuaValue() -> world.players.toLuaArray { it.coerceToLua() }
-            else -> self.rawget(key)
-        }
-    }
-
     function2("invoke_command") { self, command ->
         val world = self.asEngineWorld()
         val commandL = command.tojstring()
@@ -72,6 +60,14 @@ fun WorldMetaTable() = luaTable {
         val world = self.asEngineWorld()
         val voxelPos = pos.toVoxelPos()
         with(world) { chunkStorage.getDynamicVoxel(voxelPos)?.coerceToLua() ?: LuaValue.NIL }
+    }
+
+    function2("emit") { self, event ->
+        val world = self.asEngineWorld()
+        val eventType = event.get("type").asEngineScriptComponentType().requireType()
+        with(world) {
+            world.emitEvent(ScriptComponent(event, eventType), eventType).coerceToLua()
+        }
     }
 
     function3("iterate") { self, types, func ->
@@ -185,7 +181,11 @@ fun World.coerceToLua(): LuaUserdata {
         luaTable {
             "parameters"(parameters)
             index { self, key ->
-                parameters.get(key)?.nullable() ?: lua.worldMetaTable.get(key)
+                if (key.tojstring() == "players") {
+                    players.toLuaArray { it.coerceToLua() }
+                } else {
+                    parameters.get(key)?.nullable() ?: lua.worldMetaTable.get(key)
+                }
             }
         }
     )
@@ -223,6 +223,12 @@ data class LuaEntityComponent(val entity: LuaEntity, val coercedTable: LuaValue)
 }
 
 fun EntityMetaTable() = luaTable {
+    function1("exists") { self ->
+        val entity = self.asEngineEntity()
+        val entityId = entity.id.toint()
+        val world = entity.world.asEngineWorld()
+        with(world) { entityId.exists() }.toLuaValue()
+    }
     function2("get_component") { self, component ->
         val entity = self.asEngineEntity()
         val entityId = entity.id.toint()

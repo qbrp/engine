@@ -1,5 +1,6 @@
 package org.lain.engine.client.chat
 
+import net.minecraft.client.GuiMessage
 import org.lain.engine.chat.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.transport.packet.ClientChatChannel
@@ -23,7 +24,7 @@ data class AcceptedMessage(
     val background: Color? = null,
     val id: MessageId,
     var repeat: Int = 1,
-    val isVanilla: Boolean = false,
+    val vanilla: GuiMessage? = null,
 ) {
     val backgroundColorInt = background?.integer
 }
@@ -110,13 +111,14 @@ fun acceptOutcomingMessage(
     placeholders["text"] = text
     var display = formatPlaceholders(channel.format, placeholders)
 
-    if (message.isSpy) {
-        display = format.spy.replace("{original}", display)
-    }
-
     val undistortedTextPlaceholders = placeholders.toMutableMap()
     undistortedTextPlaceholders["text"] = formatRegex(message.undistortedText, format.regex, playerNames)
-    val undistortedDisplay = formatPlaceholders(channel.format, undistortedTextPlaceholders)
+    var undistortedDisplay = formatPlaceholders(channel.format, undistortedTextPlaceholders)
+
+    if (message.isSpy) {
+        display = format.spy.replace("{original}", display)
+        undistortedDisplay = format.spy.replace("{original}", undistortedDisplay)
+    }
 
     return AcceptedMessage(
         text,

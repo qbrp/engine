@@ -72,6 +72,7 @@ open class ShakingTextFieldWidget(private val textRenderer: Font, x: Int, y: Int
     override fun charTyped(input: CharacterEvent): Boolean {
         return if (super.charTyped(input)) {
             updateChannel(MinecraftChat.chatManager?.onTextInput(this.value))
+            MinecraftChat.updateChatInput(value)
             true
         } else {
             false

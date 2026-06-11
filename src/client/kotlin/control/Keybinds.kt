@@ -1,6 +1,7 @@
 package org.lain.engine.client.control
 
 import org.lain.engine.client.mc.*
+import org.lain.engine.client.render.ui.openTestGrapheneWindow
 import org.lwjgl.glfw.GLFW
 
 val ADJUST_CHAT_VOLUME = KeybindSettings(
@@ -39,6 +40,7 @@ val DEVELOPER_MODE = KeybindSettings(
     GLFW.GLFW_KEY_F10,
     onPress = { client ->
         client.toggleDeveloperMode()
+        openTestGrapheneWindow()
     }
 )
 

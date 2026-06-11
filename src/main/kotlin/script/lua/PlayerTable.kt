@@ -8,25 +8,12 @@ import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.invokeCommand
-import org.lain.engine.world.world
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
 
 context(lua: LuaContext)
 fun PlayerMetaTable() = luaTable {
-    index { self, key ->
-        val player = self.asEnginePlayer()
-        when(key.tojstring()) {
-            "uuid" -> player.id.value.toString().toLuaValue()
-            "id" -> player.entityId.toLuaValue()
-            "entity" -> with(player.world) { player.entityId.coerceToLua() }
-            "world" -> player.world.getLuaValue()
-            "is_spectating" -> player.isSpectating.toLuaValue()
-            "is_game_master" -> player.isInGameMasterMode.toLuaValue()
-            else -> with(player.world) { player.entityId.coerceToLua().get(key) }
-        }
-    }
     function2("has_permission") { self, permission ->
         val player = self.asEnginePlayer()
         player.hasPermission(permission.tojstring()).toLuaValue()
@@ -69,7 +56,22 @@ fun LuaValue.asEnginePlayer() = this.checkuserdata() as EnginePlayer
 context(context: LuaContext)
 fun EnginePlayer.coerceToLua(): LuaUserdata {
     val userdata = LuaUserdata(this)
-    userdata.setmetatable(context.playerMetaTable)
+    userdata.setmetatable(
+        luaTable {
+            index { self, key ->
+                val player = self.asEnginePlayer()
+                when(key.tojstring()) {
+                    "uuid" -> player.id.value.toString().toLuaValue()
+                    "id" -> player.entityId.toLuaValue()
+                    "entity" -> with(player.world) { player.entityId.coerceToLua() }
+                    "world" -> player.world.getLuaValue()
+                    "is_spectating" -> player.isSpectating.toLuaValue()
+                    "is_game_master" -> player.isInGameMasterMode.toLuaValue()
+                    else -> context.playerMetaTable.get(key) ?: with(player.world) { player.entityId.coerceToLua().get(key) }
+                }
+            }
+        }
+    )
     return userdata
 }
 

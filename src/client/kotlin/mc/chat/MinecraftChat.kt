@@ -98,14 +98,13 @@ object MinecraftChat : ChatEventBus {
         chatManager?.endTyping()
     }
 
-    private fun createChatHudMessage(engineMessage: AcceptedMessage, guiMessage: GuiMessage): EngineChatHudMessage {
+    private fun createChatHudMessage(engineMessage: AcceptedMessage): EngineChatHudMessage {
         val author = engineMessage.source.player
         val authorEntity = author?.let { MinecraftClient.connection?.getPlayerInfo(it.id.value) }
         return EngineChatHudMessage(
-            guiMessage,
             authorEntity,
             engineMessage,
-            guiMessage.addedTime
+            MinecraftClient.gui.guiTicks
         )
     }
 
@@ -118,6 +117,7 @@ object MinecraftChat : ChatEventBus {
             SYSTEM_CHANNEL,
             MessageSource.getSystemClient(client.gameSession?.world ?: DummyWorld()),
             id = MessageId.next(),
+            vanilla = guiMessage
         )
         chatManager?.addMessage(engineMessage)
     }
@@ -140,23 +140,14 @@ object MinecraftChat : ChatEventBus {
         typingPlayers.clear()
     }
 
-    override fun addToGui(message: AcceptedMessage) {
-        val allhear = chatManager?.allhear ?: false
-        val visibleText = when(allhear) {
-            true -> message.undistortedDisplayText
-            false -> message.displayText
-        }
-        val parsedText = visibleText.parseMiniMessageClient()
-        val addedTime = MinecraftClient.gui.guiTicks
-
-        val messageData = createChatHudMessage(
-            message,
-            GuiMessage(addedTime, parsedText, null, null)
-        )
+    override fun addToGui(message: AcceptedMessage, visible: Boolean) {
+        val messageData = createChatHudMessage(message)
         messages.addFirst(messageData)
-        chatHud.`engine$addMessage`(messageData, false)
-        if (messages.size > client.options.chatFieldSize) {
-            messages.removeLast()
+        if (visible) {
+            chatHud.`engine$addMessage`(messageData, false)
+            if (messages.size > client.options.chatFieldSize) {
+                messages.removeLast()
+            }
         }
     }
 
@@ -165,6 +156,11 @@ object MinecraftChat : ChatEventBus {
     }
 
     override fun invalidateChatEntries() { restore() }
+
+    override fun onHideChatBarSection(section: ChatBarSection, state: ChatBarSectionState) {
+        if (!state.hide) chatManager?.chatBar?.markRead(section)
+        restore()
+    }
 
     private fun restore() {
         visibleMessages.clear()

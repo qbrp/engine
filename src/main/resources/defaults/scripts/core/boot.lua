@@ -11,7 +11,11 @@ compilation(function()
     }
     result:namespace {
         id = "core/sound",
-        components = ComponentList { "component", "repeatable", "pitch_slide", "voxel" }
+        components = ComponentList { "component", "repeatable", "voxel" }
+    }
+    result:namespace {
+        id = "core/tween",
+        components = ComponentList { "container", "target" }
     }
     result:namespace {
         id = "core/light",
@@ -38,11 +42,19 @@ compilation(function()
                     "core/area/list_areas",
                     true,
                     "Вывести список зон"
+            ),
+            Intent.of(
+                "relative_tp",
+                "core/area/relative_tp",
+                true,
+                "Относительная телепортация",
+                { IntentInput.of("from", "text"), IntentInput.of("to", "text") }
             )
         },
         scripts = {
             Script.new("create_area", CreateAreaScript),
-            Script.new("list_areas", ListAreasScript)
+            Script.new("list_areas", ListAreasScript),
+            Script.new("relative_tp", RelativeTeleportationScript)
         }
     }
     return result

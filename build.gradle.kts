@@ -97,11 +97,7 @@ dependencies {
 
 
     // Kyori Adventure
-    val adventure = project.property("adventure_lib_version")
     val adventurePlatform = project.property("adventure_platform_version")
-    //include(implementation("net.kyori:adventure-text-minimessage:$adventure")!!)
-    //include(implementation("net.kyori:adventure-text-serializer-gson:$adventure")!!)
-    //include(implementation("net.kyori:adventure-api:$adventure")!!)
     modImplementation(include("net.kyori:adventure-platform-fabric:$adventurePlatform")!!)
 
     // Kaml
@@ -141,7 +137,7 @@ dependencies {
     modCompileOnly("com.sk89q.worldedit:worldedit-fabric-mc$minecraft_version:${project.property("worldedit_version")}")
 
     // Grapgene
-    modImplementation("io.github.trethore:graphene-ui:1.7.2")
+    modCompileOnly("io.github.trethore:graphene-ui:1.7.2")
 
     // Lua
     compileOnly("org.luaj:luaj-jse:3.0.1")

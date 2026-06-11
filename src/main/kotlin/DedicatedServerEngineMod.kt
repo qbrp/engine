@@ -29,7 +29,6 @@ import org.lain.engine.transport.packet.*
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.registerMinecraftServer
-import org.luaj.vm2.lib.jse.JsePlatform
 import java.io.File
 import java.util.*
 
@@ -232,16 +231,32 @@ class ServerAuthorizationListener(
         val connection = connectionManager.getSession(playerId)
         if (engine.globals.requireIdenticalNamespaces) {
             val serverNamespacesHash = engine.namespacedStorage.get().namespaceHashMap
-            if (playerNamespaces != serverNamespacesHash) {
-                val missing = serverNamespacesHash.keys.filter { it !in playerNamespaces }
-                    .joinToString { it.value }
-                val invalid =
-                    serverNamespacesHash.filter { (id, hash) -> (playerNamespaces[id] ?: return@filter false) != hash }
-                        .toList().joinToString { it.first.value }
 
+            val missing = mutableListOf<String>()
+            val invalid = mutableListOf<String>()
+
+            for ((id, serverHash) in serverNamespacesHash) {
+                val clientHash = playerNamespaces[id]
+
+                when {
+                    clientHash == null -> missing += id.value
+                    clientHash != serverHash -> invalid += id.value
+                }
+            }
+
+            if (missing.isNotEmpty() || invalid.isNotEmpty()) {
                 val errorString = StringBuilder("<bold>Скрипты сервера отличаются от ваших</bold>")
-                if (missing.isNotEmpty()) errorString.append("<newline>Отсутствуют: $missing")
-                if (invalid.isNotEmpty()) errorString.append("<newline>Отличаются: $invalid")
+
+                if (missing.isNotEmpty()) {
+                    errorString.append("<newline>Отсутствуют: ")
+                    errorString.append(missing.joinToString())
+                }
+
+                if (invalid.isNotEmpty()) {
+                    errorString.append("<newline>Отличаются: ")
+                    errorString.append(invalid.joinToString())
+                }
+
                 friendlyError(errorString.toString())
             }
         }

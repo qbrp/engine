@@ -80,16 +80,17 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     )
     val luaContext: LuaContext = dependencies.luaContext
 
-    open fun wrapItemStack(owner: EnginePlayer, itemId: ItemId, itemStack: ItemStack): EngineItem = with(owner.world) {
+    context(world: World)
+    open fun wrapItemStack(itemId: ItemId, itemStack: ItemStack): EngineItem {
         val prefab = engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден")
-        val item = createItem(prefab)
+        val item = world.createItem(prefab)
         wrapEngineItemStack(item, itemStack)
         return item
     }
 
-    open fun createItemStack(owner: EnginePlayer, itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> Unit): EngineItem {
+    open fun createItemStack(owner: EnginePlayer, itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> Unit): EngineItem = with(owner.world) {
         val itemStack = ITEM_STACK_MATERIAL.copy()
-        return wrapItemStack(owner, itemId, itemStack)
+        return wrapItemStack(itemId, itemStack)
             .also { itemStackHandler(itemStack, it) }
     }
 

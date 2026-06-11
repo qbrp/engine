@@ -1,13 +1,14 @@
 require("core.bridge")
 require("core.world")
 require("core.component")
-require("core.easing")
+require("core.tween")
 
 ---@type World for EmmyLua
 local World = World
-
 ---@type AudioSource for EmmyLua
 local AudioSource = AudioSource
+---@type Tween for EmmyLua
+local Tween = Tween
 
 --------------------------------------------------------------------------------
 ---- Генерация идентификаторов
@@ -126,44 +127,23 @@ end
 
 ------------------
 
----@class PitchSlideComponent : Component
----@field pitch number
----@field easing Easing
----@field duration number in ticks
----@field progress number from 0 to duration
-PitchSlideComponent = Component.of("core/sound/pitch_slide")
-
----@param pitch number
----@param duration number
----@param easing Easing?
----@return PitchSlideComponent
-function PitchSlideComponent.new(pitch, duration, easing)
-    return PitchSlideComponent:construct(
-            {
-                pitch = pitch,
-                duration = duration,
-                easing = easing or Easing.ease_in_sine,
-                progress = 0
-            }
-    )
+---@return Tween
+function Tween.audio(value, start, final, duration, easing)
+    ---@type fun(entity: Entity, p: number)
+    local apply = function(entity, p)
+        entity:get_component(SoundComponent).source[value] = p
+    end
+    return Tween.create(start, final, duration, apply, easing)
 end
 
----@param entity Entity
----@param sound SoundComponent
----@param pitch_slide PitchSlideComponent
-local function PitchSlideSystem(world, entity, sound, pitch_slide)
-    local progress = pitch_slide.progress
-    local duration = pitch_slide.duration
-    local easing = pitch_slide.easing
+---@return Tween
+function Tween.pitch(start, final, duration, easing)
+    return Tween.audio("pitch", start, final, duration, easing)
+end
 
-    if progress > duration then
-        entity:remove_component(PitchSlideComponent)
-    else
-        pitch_slide.progress = progress + 1
-        local t = progress / duration
-        local source = sound.source
-        source.pitch = easing(t)
-    end
+---@return Tween
+function Tween.volume(start, final, duration, easing)
+    return Tween.audio("volume", start, final, duration, easing)
 end
 
 ------------------
@@ -201,8 +181,7 @@ local function PlaybackSystem(world, entity, sound)
 end
 
 Callbacks.build()
+        :system({ SoundComponent, VoxelSoundComponent }, VoxelSoundTrackSystem, "client")
         :system({ SoundComponent, RepeatableComponent }, RepeatableSystem, "client")
         :system({ SoundComponent }, PlaybackSystem, "client")
-        :system({ SoundComponent, PitchSlideComponent }, PitchSlideSystem, "client")
-        :system({ SoundComponent, VoxelSoundComponent }, VoxelSoundTrackSystem, "client")
         :submit()
