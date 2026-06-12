@@ -26,6 +26,7 @@ function remember(default, slot, module) return _remember(default, slot, module 
 ---@field world_tick_20 fun(context: World)
 ---@field world_tick fun(context: World)
 ---@field place_voxel fun(context: VoxelActionScriptContext)
+---@field load_item fun(context: LoadItemScriptContext)
 Callbacks = {}
 Callbacks.__index = Callbacks
 

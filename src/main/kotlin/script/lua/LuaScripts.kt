@@ -4,7 +4,6 @@ import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.*
 import org.lain.engine.util.component.EntityId
-import org.lain.engine.world.world
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaValue
@@ -55,6 +54,11 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
                     }
                 )
             }
+
+            is ScriptContext.ItemLoad -> luaTableOf(
+                luaValue("world"), context.world.getLuaValue(),
+                luaValue("item"), with(context.world) { context.item.coerceToLua() },
+            )
         }
         return try {
             val result = luaFunction.invoke(arguments).arg1().toKotlin()

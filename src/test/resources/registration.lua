@@ -52,6 +52,11 @@ InteractionScriptContext = {}
 ---@field voxel_meta VoxelMeta
 VoxelActionScriptContext = {}
 
+---@class LoadItemScriptContext
+---@field item Entity?
+---@field world World
+VoxelActionScriptContext = {}
+
 ---@param id string
 ---@param fun fun(context)
 function Script.new(id, fun)
