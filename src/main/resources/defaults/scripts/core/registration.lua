@@ -1,12 +1,52 @@
 require("core.util")
 require("core.bridge")
 
+---@class Namespace
+---@field id string
+---@field items Item[]? empty default
+---@field scripts Script[]? empty default
+---@field components ComponentTypeSettings[]? empty default
+---@field intents Intent[]? empty default
+Namespace = Namespace or {}
+Namespace.__index = Namespace
+
+---@return Namespace
+---@param id string
+function Namespace.of(id)
+    assert(id ~= nil, "id must be not null")
+    return setmetatable({ id = id }, Namespace)
+end
+
+---@class ComponentTypeSettings
+---@field id string
+---@field savable string
+---@field networking string
+---
+
 --------------------------------------------------------------------------------
---- Утилиты
+--- Компиляция
 --------------------------------------------------------------------------------
 
----@type Namespace for EmmyLua
-local Namespace = Namespace
+---@class CompilationResult
+---@field namespaces Namespace[]
+CompilationResult = {}
+CompilationResult.__index = CompilationResult
+
+function CompilationResult.new(namespaces)
+    local obj = setmetatable({}, CompilationResult)
+    obj.namespaces = namespaces or {}   -- поле для конкретного объекта
+    return obj
+end
+
+---@param namespace Namespace
+function CompilationResult:namespace(namespace)
+    assert(namespace.id ~= nil, "namespace.id must be not null")
+    table.insert(self.namespaces, namespace)
+end
+
+--------------------------------------------------------------------------------
+--- Предметы
+--------------------------------------------------------------------------------
 
 ---@param id string
 ---@param display_name string
@@ -24,18 +64,6 @@ function Namespace:item(id, display_name, parameters)
     return parameters
 end
 
----@return Namespace
----@param id string
-function Namespace.of(id)
-    assert(id ~= nil, "id must be not null")
-    return setmetatable({ id = id }, Namespace)
-end
-
----@param namespace Namespace
-function CompilationResult:namespace(namespace)
-    assert(namespace.id ~= nil, "namespace.id must be not null")
-    table.insert(self.namespaces, namespace)
-end
 --------------------------------------------------------------------------------
 --- Контексты скриптов
 --------------------------------------------------------------------------------
@@ -104,6 +132,13 @@ ComponentList { "component_1", "component_2", "component_3" }
 ---@return Callbacks
 function Callbacks.build()
     return setmetatable({}, Callbacks)
+end
+
+---@return Callbacks
+---@param fun fun(context: LoadItemScriptContext)
+function Callbacks:on_load_item(fun)
+    self.place_voxel = fun
+    return self
 end
 
 ---@return Callbacks

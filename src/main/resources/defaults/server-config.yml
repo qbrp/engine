@@ -1,9 +1,9 @@
 server: "default"
-require_identical_namespaces: true
+require_identical_namespaces: false
 
 chat:
   channels:
-    default:
+    local:
       name: <white>Разговор
       format: "{author_name} {acoustic_separator} {acoustic_text}"
       acoustic:
@@ -11,124 +11,30 @@ chat:
       speech: true
       heads: true
 
-    think:
-      name: Мысли
-      format: "<#404040>~ {author_name} ・ </#404040><#575757>{text}"
-      distance: 10
-      prefix: "~"
-      heads: true
-
-    admin:
-      name: <red>Админ
-      format: "{admin} {author_username} {dark_red_separator} {text}"
-      global: true
-      permission: true
-      prefix: '$'
-      notify: true
-
-    gnrp:
+    global:
       name: <#8986FF>Глобальный OOC
-      format: "{nrp_br_open} {g} {gnrp_author_username} {gnrp_separator} {gnrp_text} {nrp_br_close}"
+      format: "[G] {author_name} ▸ {text}"
       global: true
-      prefix: "-"
-
-    lnrp:
-      name: <#c9c9ff>Локальный OOC
-      format: "{nrp_br_open} {l} {lnrp_author_username} {lnrp_separator} {lnrp_text} {nrp_br_close}"
-      distance: 8
       prefix: "!"
-
-    gm:
-      name: <aqua>Чат с ГМами
-      format: "{gm} {mentionable_author_username} {dark_red_separator} {text} <dark_gray>({author_name})</dark_gray>"
-      permission: true
-      global: true
-      prefix: "*"
-      notify: true
-
-    spectator:
-      name: <light_purple>Наблюдатели
-      format: "{spec} {author_username} {light_purple_separator} {text}"
-      distance: 32
-      prefix: "№"
-      spectator: true
+      heads: true
 
   commands:
     me:
       name: <green>Действие
-      format: "{author_name} {yellow_star} {text}"
-      distance: 12
+      aliases: ["action"]
+      format: "{author_name} <yellow>*</yellow> {text}"
+      distance: 24
       regex:
         exp: '^\*\*.*\*\*$'
         remove: '\*\*'
       heads: true
-    roll:
-      format: "{author_name} {aqua_star} {text} {aqua_dash} {roll}"
-      distance: 12
-      heads: true
-      invoke_permission: true
-    do:
-      format: "{author_name} {do}"
-      distance: 12
-      heads: true
-    doo:
-      format: "{author_name} {do}"
-      distance: 32
-      heads: true
-    dooo:
-      format: "{author_name} {do}"
-      distance: 64
-      heads: true
-    gdo:
-      format: "{purple_bold_star} {author_name} {do}"
-      global: true
-      heads: true
 
   placeholders:
-    roll: "<green>{random-100}%</green>"
-    purple_bold_star: "<bold><light_purple>*</light_purple></bold>"
-    yellow_star: "<yellow>*</yellow>"
-    aqua_star: "<aqua>*</aqua>"
-    aqua_dash: "<aqua>—</aqua>"
-    do: "{purple_br_open} {text} {purple_br_close}"
-    purple_br_open: "<light_purple>(</light_purple>"
-    purple_br_close: "<light_purple>)</light_purple>"
-    brown_br_open: "<#554436>((</#554436>"
-    brown_br_close: "<#554436>))</#554436>"
-    pm: "<#F4A460><bold>ᴘᴍ</bold></#F4A460>"
-    brown_arrow: "<#F4A460>▸</#F4A460>"
-    brown_dots: "<#F4A460>:</#F4A460>"
-    gray_author_name: "<gray>{author_username}</gray>"
-    gray_recipient_name: "<gray>{pm_receiver_username}</gray>"
-    dark_red_separator: "<dark_red>▸</dark_red>"
     acoustic_separator: "<{separator_color}>▸</{separator_color}>"
     acoustic_text: "<{color}>{bold1|}{text}{bold2|}</{color}>"
-    admin: "<dark_red><bold>ADMIN</bold></dark_red>"
-    spec: "<light_purple><bold>SPEC</bold></light_purple>"
-    light_purple_separator: "<light_purple>▸</light_purple>"
 
-    gm: "<#4673e1><bold>GM</bold></#4673e1>"
-    mentionable_author_username: "<hover:show_text:'Кликните, удерживая <bold>SHIFT</bold>, чтобы вставить упоминание игрока'><insert:*@{author_username} >{author_username}</insert></hover>"
-
-    nrp_br_open: "<#282833>((</#282833>"
-    nrp_br_close: "<#282833>))</#282833>"
-
-    gnrp_author_username: "<#44437f>{author_username}</#44437f>"
-    gnrp_separator: "<#8986FF>▸</#8986FF>"
-    gnrp_text: "<#6d6bcc>{text}</#6d6bcc>"
-    g: "<#8986FF><bold>ɢ</bold></#8986FF>"
-
-    lnrp_author_username: "<#787899>{author_username}</#787899>"
-    lnrp_separator: "<#c9c9ff>▸</#c9c9ff>"
-    lnrp_text: "<#a0a0cc>{text}</#a0a0cc>"
-    l: "<#c9c9ff><bold>ɢ</bold></#c9c9ff>"
-
-    separator_color: "gray"
-    color: "white"
-
-  default-channel: "default"
-
-  pm: "{brown_br_open} {pm} {gray_author_name} {brown_arrow} {gray_recipient_name} {brown_dots} <gray>{text}</gray> {brown_br_close}"
+  default-channel: "local"
+  pm: "{author_name} -> {recipient_name} ▸ {text}"
 
   acoustic:
     passability:
@@ -166,17 +72,17 @@ chat:
         output_placeholders:
           color: "red"
           bold1: "<bold>"
-          bold2: "</bold>"
+        bold2: "</bold>"
     distortion:
       threshold: 0.3
       artifacts: [ '-', '~' ]
     simulation:
       range: 24
-      performance-debug: true
+      performance-debug: false
       rebuild-debug: false
     volume:
       max: 10
-      hearing-threshold: 0.07
+      hearing-threshold: 0.09
       attenuation: 0.9
 
   join:
@@ -188,8 +94,9 @@ chat:
   advancements: false
 
 player:
+  spectate_on_join: true
   volume:
-    min: 0.3
+    min: 0.2
     base: 0.5
     max: 1.2
   attributes:
@@ -201,7 +108,7 @@ player:
       jump-strength: 0.45
     spectator:
       speed: 0.15
-  damage: true
+  damage: false
 
 vocal:
   # При каком значении усталости возможно сорвать голос

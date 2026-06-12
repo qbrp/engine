@@ -116,37 +116,6 @@ Intent.__index = Intent
 
 ------------------
 
----@class ComponentTypeSettings
----@field id string
----@field savable string
----@field networking string
----
-------------------
-
----@class Namespace
----@field id string
----@field items Item[]? empty default
----@field scripts Script[]? empty default
----@field components ComponentTypeSettings[]? empty default
----@field intents Intent[]? empty default
-Namespace = Namespace or {}
-Namespace.__index = Namespace
-
-------------------
-
----@class CompilationResult
----@field namespaces Namespace[]
-CompilationResult = {}
-CompilationResult.__index = CompilationResult
-
-function CompilationResult.new(namespaces)
-    local obj = setmetatable({}, CompilationResult)
-    obj.namespaces = namespaces or {}   -- поле для конкретного объекта
-    return obj
-end
-
-------------------
-
 ---@param func fun(): CompilationResult
 function compilation(func) _compilation(func) end
 
