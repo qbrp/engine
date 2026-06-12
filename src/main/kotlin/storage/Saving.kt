@@ -7,6 +7,7 @@ import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.container.ContainedIn
 import org.lain.engine.item.*
 import org.lain.engine.script.NamespacedStorageAccess
+import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.addIfNotNull
@@ -179,6 +180,9 @@ class ItemLoader(
                 .getOrNull()
                 ?: server.createInvalidItem(world)
             commandBuffers += world.id to commandBuffer
+            schedule {
+                server.callbacks.itemLoad.execute(ScriptContext.ItemLoad(world, entity))
+            }
             entity
         }
     }

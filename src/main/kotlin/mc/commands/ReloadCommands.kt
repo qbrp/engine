@@ -30,5 +30,20 @@ fun ServerCommandDispatcher.registerEngineReloadCommands(dedicated: Boolean) {
                         ctx.sendFeedback("Контент скомпилирован", true)
                     }
             )
+            .then(
+                literal("script")
+                    .then(
+                        stringArgument("path")
+                            .requires { it.hasPermission("re.script") }
+                            .executeCatching { ctx ->
+                                val path = ctx.command.getString("path").replace(".", "/")
+                                val scriptPath = "$path.lua"
+                                server.luaContext.reloadScript(scriptPath)
+                                engine.handler.onScriptReloaded(scriptPath)
+                                ctx.sendFeedback("Скрипт по пути $scriptPath перезагружен", true)
+                                ctx.sendFeedback("Используйте /re compile для применения изменений", false)
+                            }
+                    )
+            )
     )
 }

@@ -38,6 +38,7 @@ class EngineServer(
     val eventListener: ServerEventListener,
     val namespacedStorage: NamespacedStorageAccess,
     val thread: Thread,
+    val isReplay: Boolean,
     savePath: File,
     database: Database
 ): Executor {

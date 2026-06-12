@@ -1,6 +1,6 @@
 package org.lain.engine
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import net.minecraft.core.BlockPos
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
@@ -50,6 +50,7 @@ data class EngineMinecraftServerDependencies(
     val entityTable: EntityTable = Injector.resolve(EntityTable::class),
     val acousticSceneBank: ConcurrentAcousticSceneBank = ConcurrentAcousticSceneBank(),
     val acousticBlockData: AcousticBlockData = AcousticBlockData.BUILTIN,
+    val isReplay: Boolean = minecraftServer.isReplayServer,
 )
 
 abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies) : ServerEventListener {
@@ -68,6 +69,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         this,
         dependencies.namespacedStorage,
         minecraftServer.runningThread,
+        dependencies.isReplay,
         minecraftServer.getWorldPath(LevelResource.ROOT).toFile(),
         database
     )
@@ -157,7 +159,18 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.stop()
     }
 
-    open fun onJoinPlayer(entity: ServerPlayer) {}
+    open fun onJoinPlayer(entity: ServerPlayer) {
+        // загрузка камеры происходит в EngineMinecraftClient
+        if (dependencies.isReplay && !entity.isReplayViewer) {
+            val settings = engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId)
+            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+                engine.playerLoader.loadPreparing(
+                    settings = settings,
+                    exceptionHandler = {},
+                )
+            }
+        }
+    }
 
     open fun onLeavePlayer(entity: ServerPlayer) {
         val player = entityTable.getPlayer(entity) ?: return
@@ -227,8 +240,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 fun EngineServer.serverMinecraftPlayerLoadSettings(
     entity: Player,
     playerId: PlayerId,
-    developerModeStatus: DeveloperModeStatus,
-    notifications: List<Notification>
+    developerModeStatus: DeveloperModeStatus = DeveloperModeStatus(),
+    notifications: List<Notification> = mutableListOf(),
 ): PlayerLoadSettings {
     assertOnThread()
     val stacks = entity.ownedItems
@@ -248,5 +261,6 @@ fun EngineServer.serverMinecraftPlayerLoadSettings(
         entity.name.string,
         developerModeStatus,
         getWorld(entity.level().engine),
+        entity.isReplayViewer
     )
 }

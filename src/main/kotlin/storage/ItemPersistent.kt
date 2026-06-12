@@ -48,13 +48,6 @@ fun deserializeItemPersistentComponents(array: ByteArray): List<ItemData> {
 }
 
 ////////////////// LOAD
-
-data class EntryVersion(val value: Int) : Component {
-    companion object {
-        val DEFAULT = EntryVersion(0)
-    }
-}
-
 /**
  * @deprecated C 22.04.2026 предметы загружаются как обычные сущности и не нуждаются в отдельном пайплайне
  */

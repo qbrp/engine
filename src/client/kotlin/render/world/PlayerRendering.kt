@@ -25,6 +25,7 @@ import org.lain.engine.mc.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.*
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.world.World
 
 data class EnginePlayerRenderState(
@@ -97,7 +98,7 @@ fun createModelPartEquipmentRenderStates(items: List<EngineItem>, entity: Player
             val part = outfit.parts.first()
             val state = ItemStackRenderState()
             val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
-            val itemStack = equipmentStacks.computeIfAbsent(it.requireComponent()) {
+            val itemStack = equipmentStacks.computeIfAbsent(it.requireComponent<PersistentIdComponent>().id) {
                 val stack = ITEM_STACK_MATERIAL.copy()
                 stack.set(
                     DataComponents.ITEM_MODEL,

@@ -1,4 +1,4 @@
-package org.lain.engine.client.server
+package org.lain.engine.client.mc
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -20,7 +20,7 @@ import org.lain.engine.util.registerMinecraftServer
 
 class IntegratedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,
-    client: EngineClient,
+    client: EngineClient
 ) : EngineMinecraftServer(dependencies) {
     override val transportContext: ServerTransportContext = ServerSingleplayerTransport(client, engine)
 }

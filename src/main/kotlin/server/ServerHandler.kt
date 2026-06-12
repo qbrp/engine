@@ -5,6 +5,7 @@ import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getAll
 import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.has
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
@@ -17,6 +18,7 @@ import org.lain.engine.item.Item
 import org.lain.engine.item.Writable
 import org.lain.engine.item.getName
 import org.lain.engine.item.getOwner
+import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
@@ -188,8 +190,6 @@ class ServerHandler(
         markDirty<ArmStatus>()
     }
 
-    private val typingPlayers = mutableSetOf<PlayerId>()
-
     private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) = updatePlayer(player) {
         val player = this
         val channel = server.chat.getChannel(channelId)
@@ -198,8 +198,6 @@ class ServerHandler(
         if (!channel.typeIndicator || acoustic == null) {
             return@updatePlayer
         }
-
-        typingPlayers.add(player.id)
 
         val range = channel.typeIndicatorRange
         val nearestPlayers = range?.let { player.filterNearestPlayers(it) }
@@ -271,8 +269,7 @@ class ServerHandler(
     }
 
     fun tick() {
-        val players = playerStorage
-            .filter { it.network.authorized }
+        val players = playerStorage.filter { (server.isReplay && !it.has<ReplayViewer>()) || it.network.authorized }
 
         players.forEachWithContext({ it.world }) { player ->
             val world = player.world
@@ -417,7 +414,11 @@ class ServerHandler(
     }
 
     fun onScriptsCompiled() {
-        CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT.broadcast(ScriptsRecompileEndpoint)
+        CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT.broadcast(ScriptsRecompileEndpoint(null))
+    }
+
+    fun onScriptReloaded(script: String) {
+        CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT.broadcast(ScriptsRecompileEndpoint(script))
     }
 
     fun onSoundEvent(play: SoundPlay, context: SoundContext?, receivers: List<EnginePlayer>) {
@@ -434,6 +435,10 @@ class ServerHandler(
                 OutcomingChatMessagePacket(message),
                 player.id
             )
+    }
+
+    fun onScriptReload() {
+
     }
 
     fun onServerNotification(player: EnginePlayer, notification: Notification, once: Boolean) {

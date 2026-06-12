@@ -13,6 +13,7 @@ typealias PlayerDestroyCallback = VoidScriptCallback<ScriptContext.Player>
 typealias WorldTickSecondCallback = VoidScriptCallback<ScriptContext.World>
 typealias WorldTickCallback = VoidScriptCallback<ScriptContext.World>
 typealias PlaceVoxelCallback = VoidScriptCallback<ScriptContext.VoxelAction>
+typealias ItemLoadCallback = VoidScriptCallback<ScriptContext.ItemLoad>
 
 data class Callbacks(
     val playerInstantiate: PlayerInstantiateCallback = ScriptCallback(),
@@ -20,4 +21,5 @@ data class Callbacks(
     val worldTickSecond: WorldTickSecondCallback = ScriptCallback(),
     val worldTick: WorldTickCallback = ScriptCallback(),
     val placeVoxel: PlaceVoxelCallback = ScriptCallback(),
+    val itemLoad: ItemLoadCallback = ScriptCallback(),
 )

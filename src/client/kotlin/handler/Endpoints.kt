@@ -82,7 +82,11 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     registerGameSessionReceiver(CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT) { gameSession ->
-        gameSession.recompile()
+        if (scope == null) {
+            gameSession.recompile()
+        } else {
+            gameSession.luaContext.reloadScript(scope!!)
+        }
     }
 
     registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { _ ->

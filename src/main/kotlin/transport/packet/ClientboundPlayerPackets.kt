@@ -30,7 +30,8 @@ val CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT = Endpoint<ServerSettingsUpdateP
 // Contents update
 
 @Serializable
-object ScriptsRecompileEndpoint : Packet
+// if null, reloads everything
+data class ScriptsRecompileEndpoint(val scope: String? = null) : Packet
 
 val CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT = Endpoint<ScriptsRecompileEndpoint>()
 

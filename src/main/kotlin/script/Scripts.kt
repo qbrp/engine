@@ -2,6 +2,7 @@ package org.lain.engine.script
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.require
+import org.lain.engine.item.EngineItem
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.InteractionComponent
 import org.lain.engine.util.AnyInputValue
@@ -25,6 +26,7 @@ sealed class ScriptContext {
         val raycastPlayer: EnginePlayer?,
     ) : ScriptContext()
     data class World(val world: EngineWorld) : ScriptContext()
+    data class ItemLoad(val world: EngineWorld, val item: EngineItem) : ScriptContext()
     data class VoxelAction(
         val player: EnginePlayer?,
         val world: EngineWorld,

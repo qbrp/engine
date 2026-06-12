@@ -10,7 +10,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.gui.screens.inventory.BookEditScreen
 import net.minecraft.client.player.AbstractClientPlayer
@@ -43,8 +42,6 @@ import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.world.registerWorldRenderEvents
-import org.lain.engine.client.server.IntegratedEngineMinecraftServer
-import org.lain.engine.client.server.registerEngineIntegratedServerEvent
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.registerComponentsClient
@@ -156,10 +153,6 @@ class EngineMinecraftClient : ClientModInitializer {
             readyToAuthorize = true
         }
 
-        ServerPlayerEvents.JOIN.register { player ->
-
-        }
-
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
 
         ClientTickEvents.START_CLIENT_TICK.register { keybindManager.tick(engineClient) }
@@ -185,7 +178,7 @@ class EngineMinecraftClient : ClientModInitializer {
         profiler.push("engineClientTick")
 
         val levelPlayers = client.level?.players() ?: emptyList()
-        val mainPlayerEntity = levelPlayers.find { it.gameProfile == client.gameProfile } ?: client.player
+        val mainPlayerEntity = client.player
 
         ClientMixinAccess.tick()
         window.handleResize()

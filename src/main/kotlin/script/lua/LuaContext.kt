@@ -200,12 +200,23 @@ open class LuaContext(
         setupGlobalsRuntime()
     }
 
+    fun reloadScript(filename: String): LuaValue {
+        val script = File(dependencies.scriptsPath).resolve(filename)
+        if (!script.exists()) error("Скрипт $filename не существует")
+        if (script.extension != "lua") error("Файл $filename не является скриптом")
+        globals.get("package")
+            .get("loaded")
+            .set("test", LuaValue.NIL)
+        return globals.loadfile(script.path).call()
+    }
+
     private fun compileCallbacks(): Callbacks {
         val playerInstantiate = mutableListOf<PlayerInstantiateCallback>()
         val playerDestroy = mutableListOf<PlayerDestroyCallback>()
         val worldTickSecond = mutableListOf<WorldTickSecondCallback>()
         val worldTick = mutableListOf<WorldTickCallback>()
         val placeVoxel = mutableListOf<PlaceVoxelCallback>()
+        val itemLoad = mutableListOf<ItemLoadCallback>()
 
         callbacksFunctions.forEach {
             val table = it.call().checktable()
@@ -223,6 +234,7 @@ open class LuaContext(
             worldTickSecond.addTableCallback("world_tick_second")
             worldTick.addTableCallback("world_tick")
             placeVoxel.addTableCallback("place_voxel")
+            placeVoxel.addTableCallback("item_load")
         }
 
         return Callbacks(
@@ -231,6 +243,7 @@ open class LuaContext(
             ScriptCallback(worldTickSecond.flatMap { it.scripts }),
             ScriptCallback(worldTick.flatMap { it.scripts }),
             ScriptCallback(placeVoxel.flatMap { it.scripts }),
+            ScriptCallback(itemLoad.flatMap { it.scripts }),
         )
     }
 

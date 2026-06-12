@@ -13,6 +13,8 @@ import org.lain.cyberia.ecs.setNullable
 import org.lain.engine.container.createContainer
 import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
+import org.lain.engine.mc.ReplayViewer
+import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.server.*
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
@@ -40,6 +42,7 @@ data class PlayerInstantiateSettings(
     val developerModeStatus: DeveloperModeStatus,
     val items: Set<EngineItem> = setOf(),
     val skinEyeY: Float = 0f,
+    val replayViewer: Boolean = false,
 )
 
 data class DefaultPlayerAttributes(
@@ -76,6 +79,9 @@ fun commonPlayerInstance(
         set(settings.attributes)
         set(Synchronizations<EnginePlayer>(mutableMapOf()))
             .also { it.initializeSynchronizers() }
+        if (settings.replayViewer) {
+            set(ReplayViewer)
+        }
     }
 }
 
@@ -119,7 +125,8 @@ data class PlayerLoadSettings(
     val initialPosition: Pos,
     val username: String,
     val developerModeStatus: DeveloperModeStatus,
-    val world: World
+    val world: World,
+    val isReplayViewer: Boolean = false
 )
 
 class PlayerLoader(
@@ -149,6 +156,10 @@ class PlayerLoader(
         settings: PlayerLoadSettings,
         exceptionHandler: (Throwable) -> Unit
     ) {
+        if (server.playerStorage.get(settings.playerId) != null) {
+            friendlyError("Игрок уже находится на сервере")
+        }
+
         val world = settings.world
         val persistent = server.globals.savePath.playerData.parsePersistentPlayerData(settings.playerId)
         val inventoryLoadResult = exceptionHandler.runCatchingSuspend { loadInventoryItems(world, settings.inventoryItems, persistent?.equipment ?: mapOf()) } ?: return
@@ -187,7 +198,8 @@ class PlayerLoader(
                 GameMaster(),
                 settings.developerModeStatus,
                 inventoryItemsLoadResult.inventoryItems.toSet(),
-                persistentPlayerData?.skinEyeY ?: 0f
+                persistentPlayerData?.skinEyeY ?: 0f,
+                settings.isReplayViewer
             ),
             persistentPlayerData,
             server.globals.defaultPlayerAttributes,

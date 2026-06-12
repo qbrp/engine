@@ -1,4 +1,4 @@
-package org.lain.engine.client.server
+package org.lain.engine.client.mc
 
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.transport.ClientContext
