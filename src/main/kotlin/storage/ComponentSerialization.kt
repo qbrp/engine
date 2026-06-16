@@ -14,9 +14,11 @@ import org.lain.engine.container.Entries
 import org.lain.engine.container.OccupiedSlots
 import org.lain.engine.item.*
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.createLuaScriptComponent
 import org.lain.engine.script.lua.luaValue
-import org.lain.engine.script.lua.toJsonDeep
+import org.lain.engine.script.lua.toLuaArray
 import org.lain.engine.script.lua.toLuaValue
+import org.lain.engine.script.lua.toScriptValue
 import org.lain.engine.server.Children
 import org.lain.engine.server.Parent
 import org.lain.engine.util.Storage
@@ -95,21 +97,18 @@ sealed interface ComponentData
 @Serializable
 data class CopyComponentDto(val component: Component) : ComponentData
 
+// TODO: сериализовать с графом объектов
 @Serializable
-data class ScriptComponentDto(val jsonString: String) : ComponentData
+data class ScriptComponentDto(val value: ScriptValue) : ComponentData
 
 @Serializable
-data class ParentComponentDto(val parent: PersistentIdComponent) : ComponentData
+data class ParentComponentDto(val isScript: Boolean, val parent: PersistentIdComponent) : ComponentData
 
 @Serializable
-data class ChildrenComponentDto(val children: Set<PersistentIdComponent>) : ComponentData
+data class ChildrenComponentDto(val isScript: Boolean, val children: Set<PersistentIdComponent>) : ComponentData
 
 @Serializable
 data class ContainedInDto(val container: PersistentId) : ComponentData
-
-fun ScriptComponentDto(json: JsonElement): ScriptComponentDto {
-    return ScriptComponentDto(Json.encodeToString(json))
-}
 
 data class ComponentLoadSettings(
     val itemStorage: Storage<PersistentId, EngineItem>,
@@ -119,8 +118,12 @@ data class ComponentLoadSettings(
 
 context(world: World)
 fun Component.toSnapshotDto(): ComponentDto {
+    val type = when (this) {
+        is ScriptComponent -> type.ecsType
+        else -> componentTypeOf(this::class)
+    }
     val data = when (this) {
-        is ScriptComponent -> { ScriptComponentDto(luaValue.toJsonDeep()) }
+        is ScriptComponent -> ScriptComponentDto(luaValue.toScriptValue())
         is Count -> CopyComponentDto(this.copy())
         is Entries -> CopyComponentDto(Entries(items.toMutableList()))
         is Flashlight -> CopyComponentDto(this.copy())
@@ -128,13 +131,9 @@ fun Component.toSnapshotDto(): ComponentDto {
         is Luminance -> CopyComponentDto(this.copy())
         is OccupiedSlots -> CopyComponentDto(OccupiedSlots(slots.toMutableSet()))
         is Writable -> CopyComponentDto(this.copy())
-        is Parent -> ParentComponentDto(entity.requireComponent())
-        is Children -> ChildrenComponentDto(entities.map { it.requireComponent<PersistentIdComponent>() }.toSet())
+        is Parent -> ParentComponentDto(false, entity.requireComponent())
+        is Children -> ChildrenComponentDto(false, entities.map { it.requireComponent<PersistentIdComponent>() }.toSet())
         else -> CopyComponentDto(this)
-    }
-    val type = when (this) {
-        is ScriptComponent -> type.ecsType
-        else -> componentTypeOf(this::class)
     }
     return ComponentDto(type.id, data)
 }
@@ -170,14 +169,27 @@ suspend fun ComponentDto.toDomainSuspend(
                 ?: CoreScriptComponents.get(componentId)
                 ?: scriptComponentTypeNotFound(componentId, data)
             val type = scriptComponent
-            ScriptComponent(Json.decodeFromString<JsonElement>(data.jsonString).toLuaValue(), type)
+            createLuaScriptComponent(data.value, type)
         }
-        is ChildrenComponentDto -> Children(
-            data.children.map { notNullEntityGetter(it) }.toMutableSet()
-        )
-        is ParentComponentDto -> Parent(
-            notNullEntityGetter(data.parent)
-        )
+
+        is ChildrenComponentDto -> when (data.isScript) {
+            false -> Children(
+                data.children.map { notNullEntityGetter(it) }.toMutableSet()
+            )
+
+            true -> ScriptComponent(
+                data.children.map { notNullEntityGetter(it) }.toLuaArray { it.toLuaValue() },
+                CoreScriptComponents.CHILDREN
+            )
+        }
+
+        is ParentComponentDto -> when (data.isScript) {
+            false -> Parent(notNullEntityGetter(data.parent))
+            true -> ScriptComponent(
+                data.parent.id.toString().toLuaValue(),
+                CoreScriptComponents.PARENT
+            )
+        }
         is ContainedInDto -> null
     }
     return data

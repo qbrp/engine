@@ -100,6 +100,8 @@ open class LuaContext(
     val playerMetaTable: LuaTable = PlayerMetaTable()
     val worldMetaTable: LuaTable = WorldMetaTable()
     val entityMetaTable: LuaTable = EntityMetaTable()
+    val logTable: LuaTable = LogTable()
+    val componentTable: LuaTable = ComponentTable()
     val worldsList = LuaTable()
 
     fun loadWorld(world: World) {
@@ -112,6 +114,8 @@ open class LuaContext(
         globals.set("Player", playerMetaTable)
         globals.set("World", worldMetaTable)
         globals.set("Entity", entityMetaTable)
+        globals.set("Log", logTable)
+        globals.set("Component", componentTable)
     }
 
     open fun setupGlobalsRuntime() {

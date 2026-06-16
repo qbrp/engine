@@ -62,11 +62,16 @@ fun WorldMetaTable() = luaTable {
         with(world) { chunkStorage.getDynamicVoxel(voxelPos)?.coerceToLua() ?: LuaValue.NIL }
     }
 
-    function2("emit") { self, event ->
+    function3("emit") { self, event, networkedL ->
         val world = self.asEngineWorld()
         val eventType = event.get("type").asEngineScriptComponentType().requireType()
+        val networked = networkedL.toboolean()
         with(world) {
-            world.emitEvent(ScriptComponent(event, eventType), eventType).coerceToLua()
+            world.emitEvent(
+                ScriptComponent(event, eventType),
+                eventType,
+                networked
+            ).coerceToLua()
         }
     }
 
@@ -275,7 +280,7 @@ fun EntityMetaTable() = luaTable {
         val world = entity.world.asEngineWorld()
         world.getComponents(entityId)
             .filterIsInstance<ScriptComponent>()
-            .filter { it.field is LuaTable }
+            .filter { it.value is LuaTable }
             .toLuaArray { it.luaValue }
     }
     function1("destroy") { self ->
@@ -306,7 +311,7 @@ fun EntityId.coerceToLua(): LuaValue {
 fun LuaValue.asEngineEntity() = this.checkuserdata() as LuaEntity
 
 val ScriptComponent.luaValue
-    get() = field as? LuaValue ?: error("Component not supports lua")
+    get() = value as? LuaValue ?: error("Component not supports lua")
 
 private fun World.hasLuaComponent(entityId: EntityId, componentType: ScriptComponentType): Boolean {
     return hasComponent(entityId, componentType.ecsType)
@@ -314,11 +319,11 @@ private fun World.hasLuaComponent(entityId: EntityId, componentType: ScriptCompo
 
 private fun World.getLuaComponent(entityId: EntityId, componentType: ScriptComponentType): LuaValue? {
     val component = getComponent(entityId, componentType.ecsType) ?: return null
-    return (component.field as? LuaValue) ?: error("Component ${componentType.id} not supports lua")
+    return (component.value as? LuaValue) ?: error("Component ${componentType.id} not supports lua")
 }
 
 private fun World.removeLuaComponent(entityId: EntityId, componentType: ScriptComponentType): LuaValue? {
     val component = removeComponent(entityId, componentType.ecsType) ?: return null
-    if (component.field !is LuaValue) error("Removed non-lua component with type ${componentType.id}")
-    return component.field
+    if (component.value !is LuaValue) error("Removed non-lua component with type ${componentType.id}")
+    return component.value
 }

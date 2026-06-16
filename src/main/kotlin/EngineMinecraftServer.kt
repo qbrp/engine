@@ -105,8 +105,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.update()
         updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld())
         engine.listWorlds().forEachWithContext({ it }) { world ->
-            updatePlayerScriptSystem()
-            updateScriptLightSystem()
+            adaptScriptPlayerComponents()
+            adaptScriptLightComponents()
             world.updateVoxelEvents(engine.handler)
             world.clearEvents()
             updateUnloadSystem(engine.handler, world, timers)

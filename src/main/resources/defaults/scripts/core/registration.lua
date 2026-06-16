@@ -174,6 +174,9 @@ function Callbacks:system(types, fun, env)
         self.systems = {}
     end
     table.insert(self.systems, function(world)
+        if (env == "server" and world.is_client) then
+            return
+        end
         if (env == "client" and not world.is_client) then
             return
         end

@@ -38,14 +38,6 @@ loom {
 }
 
 repositories {
-    maven {
-        name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/qbrp/cyberia")
-        credentials {
-            username = findProperty("gpr.user") as String?
-            password = findProperty("gpr.key") as String?
-        }
-    }
     exclusiveContent {
         forRepository {
             maven("https://api.modrinth.com/maven") {
@@ -54,6 +46,17 @@ repositories {
         }
         filter {
             includeGroup("maven.modrinth")
+        }
+    }
+
+    maven("https://maven.logandark.net")
+
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/qbrp/cyberia")
+        credentials {
+            username = findProperty("gpr.user") as String?
+            password = findProperty("gpr.key") as String?
         }
     }
     maven {
@@ -67,10 +70,17 @@ repositories {
     maven("https://maven.wispforest.io/releases/2412")
     maven("https://jitpack.io")
     maven("https://oss.sonatype.org/content/repositories/snapshots/")
-    maven("https://maven.logandark.net")
 }
 
+
+val transitive by configurations.creating
+
 dependencies {
+    fun shaded(dep: String) {
+        implementation(dep)
+        transitive(dep)
+    }
+
     val minecraft_version = project.property("minecraft")
 
     minecraft("com.mojang:minecraft:$minecraft_version")
@@ -85,16 +95,22 @@ dependencies {
     modImplementation("maven.modrinth:ui-lib:${project.property("ui_lib")}-fabric")
     modApi("maven.modrinth:architectury-api:${project.property("architectury_api")}+fabric")
 
+
     // Kyori Adventure
     val adventurePlatform = project.property("adventure_platform_version")
     modImplementation(include("net.kyori:adventure-platform-fabric:$adventurePlatform")!!)
 
-    // Game tests
-    testImplementation("net.fabricmc:fabric-loader-junit:${project.property("fabric_loader")}")
-    testImplementation(kotlin("test"))
+    // Kaml
+    include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")!!)
+    shaded("com.charleskorn.kaml:kaml:0.104.0")
+    shaded("de.javagl:obj:0.4.0")
 
     // Permission API
     modImplementation("me.lucko:fabric-permissions-api:${project.property("fabric_permissions_version")}")
+
+    // Game tests
+    testImplementation("net.fabricmc:fabric-loader-junit:${project.property("fabric_loader")}")
+    testImplementation(kotlin("test"))
 
     // Тяжелые зависимости
     val cyberiaDependencyVersion = project.property("cyberia_version")!!
@@ -103,11 +119,7 @@ dependencies {
     compileOnly("org.jetbrains.exposed:exposed-core:1.0.0")
     compileOnly("org.jetbrains.exposed:exposed-jdbc:1.0.0")
     compileOnly("org.xerial:sqlite-jdbc:3.51.1.0")
-    compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")
-    compileOnly("com.charleskorn.kaml:kaml:0.104.0")
-    compileOnly("de.javagl:obj:0.4.0")
-    compileOnly("org.reflections:reflections:0.10.2")
-    compileOnly("org.luaj:luaj-jse:3.0.1")
+    shaded("org.reflections:reflections:0.10.2")
 
     // Camera Overhaul
     val (cameraOverhaulVersion, cameraOverhaulMinecraftVersion) = project.property("camera_overhaul_version")
@@ -124,8 +136,11 @@ dependencies {
     modCompileOnly("com.sk89q.worldedit:worldedit-core:${project.property("worldedit_version")}")
     modCompileOnly("com.sk89q.worldedit:worldedit-fabric-mc$minecraft_version:${project.property("worldedit_version")}")
 
-    // Graphene
+    // Grapgene
     modImplementation("io.github.trethore:graphene-ui:1.7.2")
+
+    // Lua
+    compileOnly("org.luaj:luaj-jse:3.0.1")
 }
 
 tasks.test {
@@ -157,6 +172,8 @@ tasks.shadowJar {
 
     from(sourceSets.main.get().output)
     from(sourceSets["client"].output)
+
+    configurations = listOf(transitive)
 }
 
 tasks.remapJar {

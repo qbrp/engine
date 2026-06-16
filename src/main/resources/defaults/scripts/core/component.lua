@@ -1,11 +1,11 @@
-require("core.bridge")
-
-------------------
+--- Userdata
+---@class ComponentType
+---@field id string
 
 --- @class Component
+--- @field type_of fun(id: string): ComponentType static, kotlin
 --- @field type ComponentType static
---- @field constructor fun(...): Component static
-Component = {}
+Component = Component
 Component.__index = Component
 
 ---@param class ComponentType
@@ -24,10 +24,10 @@ function Component.of(id, table)
     assert(id ~= nil, "id must be not null")
     local component_type = id
     if (type(id) == "string") then
-        component_type = component_type_of(id)
+        component_type = Component.type_of(id)
     end
     local class = table or {}
-    setmetatable(class, Component)
+    setmetatable(class, { __index = Component })
     class.__index = class
     class.type = component_type
     return class

@@ -1,5 +1,6 @@
 package org.lain.engine.server
 
+import kotlinx.serialization.json.JsonElement
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.get
@@ -22,6 +23,8 @@ import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
+import org.lain.engine.script.ScriptValue
+import org.lain.engine.script.ServerboundChannelComponent
 import org.lain.engine.script.getVoidScript
 import org.lain.engine.storage.*
 import org.lain.engine.transport.Endpoint
@@ -112,10 +115,22 @@ class ServerHandler(
         SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
         SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx -> onScriptBindings(ctx.sender, bindings) }
         SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx -> onPlayerInstantiationConfirm(ctx.sender) }
+        SERVERBOUND_CHANNEL_DATA_ENDPOINT.registerReceiver { ctx ->
+            onServerboundChannelPacket(
+                playerStorage.get(ctx.sender)?.world ?: return@registerReceiver,
+                entity,
+                delta
+            )
+        }
     }
 
     fun invalidate() {
         transportContext.unregisterAll()
+    }
+
+    private fun onServerboundChannelPacket(world: World, entityPersistentId: PersistentId, delta: List<ScriptValue>) = with(world) {
+        val entity = persistentIdToEntity[entityPersistentId] ?: desync("Сущности $entityPersistentId не существует")
+        entity.requireComponent<ServerboundChannelComponent>().values.addAll(delta)
     }
 
     private fun onScriptBindings(player: PlayerId, bindings: ScriptBindings) = updatePlayer(player) {
@@ -330,7 +345,7 @@ class ServerHandler(
             state.entities.retainAll(entitiesInRadius)
 
             val voxelsInRadius = mutableSetOf<ImmutableVoxelPos>()
-            world.iterate<Networked, DynamicVoxel, ChunkedPos> { voxel, _, (voxelPos), (chunkPos, _, centerPos) ->
+            world.iterate<Networked, DynamicVoxelInterest, ChunkedPos> { voxel, _, _, (chunkPos, voxelPos, centerPos) ->
                 if (centerPos.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
                     val componentsToSynchronize = if (state.voxels.contains(voxelPos)) {
                         val delta = worldComponents.getOrCreateEmptyDeltaBitMask(voxel)

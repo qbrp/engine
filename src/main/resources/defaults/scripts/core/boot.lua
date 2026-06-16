@@ -60,4 +60,4 @@ compilation(function()
     return result
 end)
 
-info("Loaded standard library")
+Log.info("Loaded standard library")

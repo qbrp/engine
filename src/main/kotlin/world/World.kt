@@ -13,6 +13,7 @@ import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentWorld
 import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.component.Networked
 import java.util.concurrent.ConcurrentHashMap
 
 object Event : Component
@@ -59,10 +60,11 @@ class World(
      * Создает сущность с компонентами `event` и Event. Следует использовать как альтернативу очередям событий.
      * Последний сигнализирует о том, что сущность нужно уничтожить в конце тика
      */
-    inline fun <reified T : Component> emitEvent(event: T, type: ComponentType<T>): EntityId {
+    inline fun <reified T : Component> emitEvent(event: T, type: ComponentType<T>, networked: Boolean = false): EntityId {
         return componentManager.addEntity {
             setComponent(event, type)
             setComponent(Event)
+            if (networked) setComponent(Networked)
         }
     }
 

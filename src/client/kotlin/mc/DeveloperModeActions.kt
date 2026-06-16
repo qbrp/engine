@@ -6,8 +6,9 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
+import org.lain.engine.client.render.ui.HintEditScreen
 import org.lain.engine.client.render.ui.TransformationsEditorScreen
-import org.lain.engine.client.render.ui.openTestGrapheneWindow
+import org.lain.engine.client.render.ui.WebDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.mc.commands.playerPositionsMessage
@@ -93,7 +94,10 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                     gameSession.chatManager.addMessage(LiteralSystemEngineChatMessage(gameSession, message))
                 }
             } else if (key == GLFW.GLFW_KEY_6) {
-                openTestGrapheneWindow()
+                MinecraftClient.setScreen(HintEditScreen())
+            } else if (key == GLFW.GLFW_KEY_7) {
+                val gameSession = gameSession ?: return@with true
+                MinecraftClient.setScreen(WebDebugScreen(gameSession.client.resources))
             } else {
                 return@with false
             }

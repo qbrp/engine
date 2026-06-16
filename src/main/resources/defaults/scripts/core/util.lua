@@ -8,6 +8,20 @@ function reload(module)
     end
 end
 
+---@class Log
+---@field info fun(str: string)
+---@field debug fun(module: string, str: string)
+Log = Log
+
+---@type fun(): boolean
+is_client = is_client
+
+--- Сохранить значение на всю игровую сессию
+---@param default
+---@param slot string
+---@param module string
+function remember(default, slot, module) return _remember(default, slot, module or "global") end
+
 ---@param time number
 ---@return number
 function seconds(time)

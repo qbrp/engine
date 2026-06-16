@@ -9,9 +9,9 @@ value class ScriptComponentId(val id: String) {
     override fun toString(): String = id
 }
 
-class ScriptComponent(val field: Any, val type: ScriptComponentType) : Component {
+class ScriptComponent(val value: Any, val type: ScriptComponentType) : Component {
     override fun toString(): String {
-        return "${type.id}($field)"
+        return "${type.id}($value)"
     }
 }
 
@@ -31,6 +31,10 @@ object CoreScriptComponents {
     val USE_RESTRICTION = register("core/voxel/use_restriction", ComponentMeta(savable = true, networking = true, serializationClass = null))
     val LIGHT_SOURCE = register("core/light/source", ComponentMeta(savable = true, networking = true, serializationClass = null))
     val LUMINANCE = register("core/light/luminance", ComponentMeta(savable = true, networking = true, serializationClass = null))
+    val PARENT = register("core/ownership/parent", ComponentMeta(savable = true, networking = true, serializationClass = null))
+    val CHILDREN = register("core/ownership/children", ComponentMeta(savable = true, networking = true, serializationClass = null))
+    val SERVERBOUND_CHANNEL = register("core/networking/serverbound_channel", ComponentMeta(savable = false, networking = true, serializationClass = null))
+    val DYNAMIC_VOXEL_INTEREST = register("core/networking/voxel_interest", ComponentMeta(savable = true, networking = false, serializationClass = null))
 
     fun get(id: ScriptComponentId) = all[id]
 

@@ -14,10 +14,12 @@ class ClientLuaContext(
     dependencies: LuaDependencies,
 ) : LuaContext(dependencies, entrypoint) {
     val audioSourceTable = LuaTable()
+    val webTable = WebTable()
 
     override fun setupTables() {
         super.setupTables()
         globals.set("AudioSource", audioSourceTable)
+        globals.set("Web", webTable)
     }
 
     fun setupClientGameSession(gameSession: GameSession) {

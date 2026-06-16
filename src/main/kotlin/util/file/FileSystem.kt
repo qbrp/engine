@@ -53,7 +53,8 @@ fun listBuiltinResourcesRecursive(path: String): List<Path> {
 }
 
 fun loadStdLuaLibrary() {
-    if (Constants.DEVELOPER_TEST_ENVIRONMENT && !Constants.LOAD_LUA_LIBRARIES) return
+    if (!Constants.LOAD_LUA_LIBRARIES) return
+    if (Constants.DEVELOPER_TEST_ENVIRONMENT) return
     val targetRoot = BUILTIN_SCRIPTS_DIR
     listBuiltinResourcesRecursive("scripts").forEach { source ->
         println("Loading script ${source.toString()}")

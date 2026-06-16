@@ -12,6 +12,8 @@ import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.Networked
 import org.lain.engine.util.math.EVec3
 
+object DynamicVoxelInterest : Component
+
 data class DynamicVoxel(val pos: ImmutableVoxelPos) : Component
 
 data class ChunkedPos(
@@ -32,6 +34,7 @@ fun EntityId.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false) {
     val centerPos = pos.toCenterPos()
     val immutableVoxelPos = ImmutableVoxelPos(pos)
     setComponent(DynamicVoxel(immutableVoxelPos))
+    setComponent(DynamicVoxelInterest)
     setComponent(PersistentIdComponent(VoxelPosId(immutableVoxelPos)))
     setComponent(ChunkedPos(EngineChunkPos(pos), immutableVoxelPos, centerPos))
     if (networked) setComponent(Networked)

@@ -1,22 +1,4 @@
 --------------------------------------------------------------------------------
----- Утилиты
---------------------------------------------------------------------------------
-
---- Логировать строку с уровнем INFO
----@param str string
-function info(str) _info(str) end
-
-function debug(module, str) _debug(module, str) end
-
-function is_client() return _is_client() end
-
---- Сохранить значение на всю игровую сессию
----@param default
----@param slot string
----@param module string
-function remember(default, slot, module) return _remember(default, slot, module or "global") end
-
---------------------------------------------------------------------------------
 ---- События
 --------------------------------------------------------------------------------
 
@@ -39,18 +21,6 @@ function callbacks(arg)
         end)
     end
 end
-
---------------------------------------------------------------------------------
----- Компоненты
---------------------------------------------------------------------------------
-
---- Userdata
----@class ComponentType
----@field id string
-
----@param id string
----@return ComponentType
-function component_type_of(id) return _component_type_of(id) end
 
 --------------------------------------------------------------------------------
 ---- Реестры

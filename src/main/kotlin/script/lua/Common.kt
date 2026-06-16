@@ -22,24 +22,22 @@ fun debugScript(module: String, info: String) {
     }
 }
 
+fun LogTable() = luaTable {
+    function1("info") { str ->
+        LOGGER.info(str.tojstring())
+        LuaValue.NIL
+    }
+    function2("debug") { module, str ->
+        debugScript(module.tojstring(), str.tojstring())
+        LuaValue.NIL
+    }
+}
+
 context(ctx: LuaContext)
 fun Globals.setup() {
-    setupComponentCommands()
     set("SCRIPTS_PATH", ctx.scriptsPath)
     set("LIBRARY_PATH", BUILTIN_SCRIPTS_DIR.path)
-    set("_info", object : OneArgFunction() {
-        override fun call(arg: LuaValue): LuaValue {
-            LOGGER.info(arg.tojstring())
-            return NIL
-        }
-    })
-    set("_debug", object : TwoArgFunction() {
-        override fun call(arg1: LuaValue, arg2: LuaValue): LuaValue {
-            debugScript(arg1.tojstring(), arg1.tojstring())
-            return NIL
-        }
-    })
-    set("_remember", object : ThreeArgFunction() {
+    set("remember", object : ThreeArgFunction() {
         override fun call(arg1: LuaValue, arg2: LuaValue, arg3: LuaValue): LuaValue {
             return ctx.dependencies.dataStorage.getOrDefault(arg3.tojstring(), arg2.tojstring(), arg1)
         }
@@ -56,37 +54,11 @@ fun Globals.setup() {
             return NIL
         }
     })
-    set("_is_client", object : ZeroArgFunction() {
+    set("is_client", object : ZeroArgFunction() {
         override fun call(): LuaValue {
             val env by inject<Environment>()
             return luaValue(env == Environment.CLIENT)
         }
-    })
-}
-
-class LazyScriptComponentType(
-    private val storage: NamespacedStorageAccess,
-    val id: ScriptComponentId
-) {
-    private var componentType: ScriptComponentType? = null
-    val ecsType get() = requireType().ecsType
-
-    fun getType(): ScriptComponentType? {
-        return storage.components[id] ?: CoreScriptComponents.get(id)
-    }
-
-    fun requireType(): ScriptComponentType {
-        return componentType ?: (getType() ?: error("Component $id not registered in system"))
-            .also { componentType = it }
-    }
-}
-
-context(ctx: LuaContext)
-private fun Globals.setupComponentCommands() {
-    set("_component_type_of", oneArgFunction { arg ->
-        val id = arg.tojstring()
-        val type = LazyScriptComponentType(ctx.dependencies.namespacesStorage, ScriptComponentId(id))
-        type.toLuaValue()
     })
 }
 

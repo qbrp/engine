@@ -35,6 +35,13 @@ class LuaTableBuilder {
         })
     }
 
+    fun function0(
+        name: String,
+        body: () -> LuaValue
+    ) {
+        table.set(name, zeroArgFunction(body))
+    }
+
     fun function1(
         name: String,
         body: (LuaValue) -> LuaValue

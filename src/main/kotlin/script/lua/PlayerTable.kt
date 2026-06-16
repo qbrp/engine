@@ -1,5 +1,6 @@
 package org.lain.engine.script.lua
 
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
@@ -73,38 +74,4 @@ fun EnginePlayer.coerceToLua(): LuaUserdata {
         }
     )
     return userdata
-}
-
-context(world: World, luaContext: LuaContext)
-fun EnginePlayer.prepareLuaScriptComponents() {
-    entityId.setScriptComponent(
-        luaTableOf(luaValue("object"), coerceToLua()),
-        CoreScriptComponents.PLAYER
-    )
-    entityId.setScriptComponent(
-        luaTableOf(luaValue("vector"), LuaValue.NIL),
-        CoreScriptComponents.LOCATION
-    )
-}
-
-fun World.updatePlayerScriptSystem() {
-    val locationArray = componentManager.getComponentArray(CoreScriptComponents.LOCATION)
-    iterate(CoreScriptComponents.LOCATION) { entity, location ->
-        if (!entity.hasComponent<Location>()) {
-            val array = location.luaValue.get("vector")
-            entity.setComponent(Location(array.toVector3f()))
-        }
-    }
-    iterate<Location>() { entity, location ->
-        val scriptLocation = locationArray.componentOf(entity) ?: return@iterate
-        val table = scriptLocation.luaValue
-        val vector = table.get("vector").nullable()?.checktable() ?: run {
-            val array = location.position.toLuaValue()
-            table.set("vector", array)
-            array
-        }
-        vector.set(1, location.x.toLuaValue())
-        vector.set(2, location.y.toLuaValue())
-        vector.set(3, location.z.toLuaValue())
-    }
 }

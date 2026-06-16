@@ -16,6 +16,8 @@ import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
+import org.lain.engine.script.flushServerboundChannelComponents
+import org.lain.engine.script.lua.adaptScriptNetworkingComponents
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ChunkLoader
 import org.lain.engine.storage.ItemLoader
@@ -127,7 +129,9 @@ class EngineServer(
             broadcastWorldSounds(sounds, handler)
             updateBulletsAcoustic(world)
             updateContainerSystems()
+            adaptScriptNetworkingComponents()
             world.tickCallbacks(callbacks)
+            flushServerboundChannelComponents()
         }
 
         handler.tick()

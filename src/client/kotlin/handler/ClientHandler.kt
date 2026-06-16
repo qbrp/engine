@@ -22,7 +22,9 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
+import org.lain.engine.script.CoreScriptComponents.SERVERBOUND_CHANNEL
 import org.lain.engine.script.ScriptContext
+import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
 import org.lain.engine.server.desync
 import org.lain.engine.storage.*
@@ -195,6 +197,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
     }
 
+    fun sendServerboundChannelData(persistentId: PersistentId, values: List<ScriptValue>) {
+        SERVERBOUND_CHANNEL_DATA_ENDPOINT.sendC2SPacket(
+            ServerboundChannelDataPacket(persistentId, values)
+        )
+    }
+
     fun onBlockHintAdd(voxelPos: VoxelPos, text: String) {
         SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.sendC2SPacket(
             VoxelBlockHintPacket(
@@ -350,46 +358,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun applyNotification(type: Notification, once: Boolean) {
         if (!handledNotifications.add(type) && once) return
-        val notification = when(type) {
-            Notification.COMPILATION_ERROR -> {
-                LittleNotification(
-                    "Ошибка компиляции сервера",
-                    "Проверьте консоль или логи для получения более подробной информации.",
-                    WARNING_COLOR,
-                    WARNING,
-                    lifeTime = 240
-                )
-            }
-
-            Notification.INVALID_SOURCE_POS ->
-                LittleNotification(
-                    "Выход за пределы мира",
-                    "Сообщение в этой зоне обрабатываются некорректно — используется упрощенная симуляция.",
-                    color = WARNING_COLOR,
-                    sprite = WARNING,
-                    lifeTime = 300
-                )
-
-            Notification.ACOUSTIC_ERROR -> {
-                LittleNotification(
-                    "Акустика сломалась",
-                    "При обработке сообщения акустической системой возникла ошибка. Ваше сообщения не будет видно другим игрокам.",
-                    color = WARNING_COLOR,
-                    sprite = WARNING,
-                    lifeTime = 240
-                )
-            }
-            Notification.FREECAM ->
-                LittleNotification(
-                    "Вы используете мод Freecam",
-                    "Его использование способствует получению мета-информации, для игры на сервере он запрещен.",
-                    color = FREECAM_WARNING_COLOR,
-                    sprite = WARNING,
-                    lifeTime = 300
-                )
-        }
-
-        client.applyLittleNotification(notification)
+        client.applyLittleNotification(LittleNotification.ofServer(type))
     }
 
     fun applyPlaySoundPacket(play: SoundPlay, context: SoundContext?): Unit = with(gameSession!!) {
@@ -451,6 +420,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun applyEntity(gameSession: GameSession, persistentId: PersistentId, components: List<ComponentDto>) {
+        if (persistentId is VoxelPosId) {
+            LOGGER.warn("Синхронизация блока $persistentId как обычной сущность проигнорирована")
+            return
+        }
         val pendingEntity = PendingEntity(components)
         pendingEntities[persistentId] = CompletableDeferred(pendingEntity)
     }
