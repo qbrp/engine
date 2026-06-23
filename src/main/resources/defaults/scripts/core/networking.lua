@@ -1,8 +1,12 @@
 require("core.component")
 
 ---@class ServerboundChannelComponent : Component
----@field values any[]
+---@field messages ServerboundChannelMessage[]
 ServerboundChannelComponent = Component.of("core/networking/serverbound_channel")
+
+---@class ServerboundChannelMessage
+---@field data any
+---@field sender Player
 
 ---@return ServerboundChannelComponent
 function ServerboundChannelComponent.empty()

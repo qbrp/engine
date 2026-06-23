@@ -117,7 +117,7 @@ class ServerHandler(
         SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx -> onPlayerInstantiationConfirm(ctx.sender) }
         SERVERBOUND_CHANNEL_DATA_ENDPOINT.registerReceiver { ctx ->
             onServerboundChannelPacket(
-                playerStorage.get(ctx.sender)?.world ?: return@registerReceiver,
+                ctx.sender,
                 entity,
                 delta
             )
@@ -128,9 +128,15 @@ class ServerHandler(
         transportContext.unregisterAll()
     }
 
-    private fun onServerboundChannelPacket(world: World, entityPersistentId: PersistentId, delta: List<ScriptValue>) = with(world) {
-        val entity = persistentIdToEntity[entityPersistentId] ?: desync("Сущности $entityPersistentId не существует")
-        entity.requireComponent<ServerboundChannelComponent>().values.addAll(delta)
+    private fun onServerboundChannelPacket(
+        sender: PlayerId,
+        entityPersistentId: PersistentId,
+        delta: List<ScriptValue>
+    ) = updatePlayerWithContext(sender) {
+        val entity = world.persistentIdToEntity[entityPersistentId] ?: desync("Сущности $entityPersistentId не существует")
+        entity.requireComponent<ServerboundChannelComponent>().values.addAll(
+            delta.map { ServerboundChannelComponent.Message(this, it) }
+        )
     }
 
     private fun onScriptBindings(player: PlayerId, bindings: ScriptBindings) = updatePlayer(player) {

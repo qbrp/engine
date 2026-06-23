@@ -29,6 +29,7 @@ class ClientLuaContext(
         )
         globals.setupAudio()
         globals.setupKeyMappings()
+        globals.set("GameSession", GameSessionTable(gameSession))
         loadWorld(world)
     }
 }

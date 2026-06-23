@@ -62,6 +62,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     protected val config = dependencies.config
     val entityTable = dependencies.entityTable.server
     val acousticSimulator = MinecraftAcousticManager(this, dependencies.entityTable, acousticSceneBank, acousticBlockData)
+    val luaContext: LuaContext = dependencies.luaContext
     val engine = EngineServer(
         config.server,
         playerStorage,
@@ -71,7 +72,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         minecraftServer.runningThread,
         dependencies.isReplay,
         minecraftServer.getWorldPath(LevelResource.ROOT).toFile(),
-        database
+        database,
+        luaContext
     )
 
     protected abstract val transportContext: ServerTransportContext
@@ -80,7 +82,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )
-    val luaContext: LuaContext = dependencies.luaContext
 
     context(world: World)
     open fun wrapItemStack(itemId: ItemId, itemStack: ItemStack): EngineItem {

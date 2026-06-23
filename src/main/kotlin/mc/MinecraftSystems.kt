@@ -154,7 +154,7 @@ fun updateServerMinecraftSystems(
                     async {
                         semaphore.withPermit {
                             try {
-                                withTimeout(5000) {
+                                    withTimeout(5000) {
                                     val item = itemLoader.loadWorldItem(data.itemUuid, world)
                                     context(world) {
                                         engine.execute {

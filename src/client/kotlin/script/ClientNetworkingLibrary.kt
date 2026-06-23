@@ -25,7 +25,11 @@ fun World.updateClientServerboundChannelSystem(handler: ClientHandler) {
             ServerboundChannelComponent(LinkedList())
         }
         val valuesL = channelL.luaValue.get("values")
-        channelK.values.addAll(valuesL.checktable().toList { it.toScriptValue() })
+        channelK.values.addAll(
+            valuesL.checktable().toList {
+                it.toScriptValue()
+            }
+        )
         channelL.luaValue.set("values", emptyLuaTable())
     }
 

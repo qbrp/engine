@@ -1,14 +1,14 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.world.World
 
 @Serializable
-data class Count(var value: Int, val max: Int) : ItemComponent
+data class Count(var value: Int, val max: Int) : Component
 
 /**
  * Попробовать совместить предметы - наслоить `mergeItem` на `baseItem`.

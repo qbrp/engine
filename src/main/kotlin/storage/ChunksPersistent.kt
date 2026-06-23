@@ -31,7 +31,7 @@ private val CborSerializer = Cbor {
 @Serializable
 data class ChunkPersistent(
     val decals: Map<VoxelPos, BlockDecals> = mapOf(),
-    val hints: Map<VoxelPos, BlockHint> = mapOf(),
+    val hints: Map<VoxelPos, Hint> = mapOf(),
     val voxels: Map<VoxelPos, List<ComponentDto>> = mapOf()
 )
 
@@ -52,7 +52,7 @@ fun saveChunkAsync(
     server: EngineServer,
     pos: EngineChunkPos,
     decals: Map<VoxelPos, BlockDecals>,
-    hints: Map<VoxelPos, BlockHint>,
+    hints: Map<VoxelPos, Hint>,
     voxels: Map<VoxelPos, List<ComponentDto>>
 ) {
     ChunkIoCoroutineScope.launch {

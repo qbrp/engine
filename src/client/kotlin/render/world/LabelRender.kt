@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Camera
 import net.minecraft.client.gui.Font
 import net.minecraft.util.FormattedCharSequence
+import org.apache.logging.log4j.core.pattern.TextRenderer
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.util.Color
@@ -23,6 +24,10 @@ data class LabelRenderState(
     val scale: Float
 ) {
     data class Line(val text: FormattedCharSequence, val width: Int)
+}
+
+fun Font.labelRenderStateLine(text: FormattedCharSequence): LabelRenderState.Line {
+    return LabelRenderState.Line(text, width(text))
 }
 
 data class LabelEasing(val squaredDistanceToCamera: Float, val squaredDistance: Float)

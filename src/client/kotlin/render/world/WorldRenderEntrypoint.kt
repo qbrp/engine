@@ -7,6 +7,7 @@ import org.lain.engine.client.MinecraftEngineClientEventBus
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.voxelPos
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.world.pos
 
@@ -24,10 +25,10 @@ fun registerWorldRenderEvents(
         val matrices = context.matrices()
         val queue = context.commandQueue()
 
-        val gameSession = engineClient.gameSession
-        val acousticDebugVolumes = gameSession?.acousticDebugVolumes
+        val gameSession = engineClient.gameSession ?: return@register
+        val acousticDebugVolumes = gameSession.acousticDebugVolumes
         val playerBlockPos = client.player?.blockPosition() ?: return@register
-        if (engineClient.developerMode && engineClient.acousticDebug && gameSession != null && acousticDebugVolumes?.isNotEmpty() == true) {
+        if (engineClient.developerMode && engineClient.acousticDebug && acousticDebugVolumes.isNotEmpty()) {
             renderAcousticDebugLabels(
                 eventBus.acousticDebugVolumesBlockPosCache,
                 listOf(playerBlockPos, playerBlockPos.offset(0, 1, 0)),
@@ -44,19 +45,24 @@ fun registerWorldRenderEvents(
 
         val entityTable by injectEntityTable()
         val context = ImmediateWorldRenderContext(entityTable, vertexConsumers, client.font, matrices)
+        val deltaTicks = client.deltaTracker.realtimeDeltaTicks
         with(context) {
             val options = engineClient.options
-            if (!(options.hideChatBubblesWithUi && engineClient.renderer.hudHidden) && options.chatBubbles) {
-                renderChatBubbles(
-                    camera,
-                    options.labelEasingDistance.toFloat(),
-                    options.chatBubbleScale,
-                    options.chatBubbleHeight,
-                    options.chatBubbleBackgroundOpacity,
-                    gameSession?.chatBubbleList?.bubbles ?: emptyList(),
-                    options.chatBubbleIgnoreLightLevel,
-                    client.deltaTracker.realtimeDeltaTicks
-                )
+            if (!engineClient.renderer.hudHidden) {
+                if (!options.hideChatBubblesWithUi && options.chatBubbles) {
+                    renderChatBubbles(
+                        camera,
+                        options.labelEasingDistance.toFloat(),
+                        options.chatBubbleScale,
+                        options.chatBubbleHeight,
+                        options.chatBubbleBackgroundOpacity,
+                        gameSession.chatBubbleList.bubbles,
+                        options.chatBubbleIgnoreLightLevel,
+                        deltaTicks
+                    )
+                }
+                val playerChunk = gameSession.world.chunkStorage.requireChunk(playerBlockPos.voxelPos())
+                renderBlockHints(camera, gameSession.hintState, playerChunk.hints, deltaTicks)
             }
         }
     }

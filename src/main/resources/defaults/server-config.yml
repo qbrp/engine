@@ -72,7 +72,7 @@ chat:
         output_placeholders:
           color: "red"
           bold1: "<bold>"
-        bold2: "</bold>"
+          bold2: "</bold>"
     distortion:
       threshold: 0.3
       artifacts: [ '-', '~' ]

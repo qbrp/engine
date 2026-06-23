@@ -7,6 +7,7 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.storage.ComponentLoadSettings
+import org.lain.engine.storage.Uuid
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt
@@ -15,10 +16,17 @@ import org.slf4j.LoggerFactory
 
 data class EngineChunk(
     val decals: MutableMap<VoxelPos, BlockDecals> = mutableMapOf(),
-    val hints: MutableMap<VoxelPos, BlockHint> = mutableMapOf(),
+    val hints: MutableMap<VoxelPos, Hint> = mutableMapOf(),
     val dynamicVoxels: MutableMap<VoxelPos, EntityId> = mutableMapOf()
 ) {
     fun isEmpty() = decals.isEmpty() && hints.isEmpty() && dynamicVoxels.isEmpty()
+
+    fun getOrCreateBlockHint(pos: VoxelPos) = hints.computeIfAbsent(pos) {
+        Hint(
+            listOf(),
+            Uuid.next()
+        )
+    }
 }
 
 @Serializable
@@ -92,7 +100,7 @@ class ChunkStorage(
         return getChunk(pos)?.decals[pos]
     }
 
-    fun getBlockHint(pos: VoxelPos): BlockHint? {
+    fun getBlockHint(pos: VoxelPos): Hint? {
         return getChunk(pos)?.hints[pos]
     }
 
@@ -102,11 +110,12 @@ class ChunkStorage(
 
     fun removeVoxel(pos: VoxelPos): EntityId? {
         val chunk = getChunkByVoxel(pos.x, pos.z) ?: return null
-        chunk.hints.remove(pos)
+        val hint = chunk.hints.remove(pos)
         chunk.decals.remove(pos)
         return chunk.dynamicVoxels.remove(pos)
             ?.also {
                 world.destroy(it)
+                world.emitEvent(VoxelDestroyEvent(pos, hint))
             }
     }
 
@@ -153,6 +162,11 @@ class ChunkStorage(
     }
 }
 
+data class VoxelDestroyEvent(
+    val pos: VoxelPos,
+    val hint: Hint?
+) : Component
+
 fun interface EnginePlayersWatchingChunkProvider  {
     fun getPlayersWatchingChunk(pos: EngineChunkPos): Collection<EnginePlayer>
 }
@@ -181,7 +195,7 @@ sealed class VoxelUpdate {
     @Serializable
     data class RemoveHint(val index: Int) : VoxelUpdate()
     @Serializable
-    data class Set(val decals: Setter<BlockDecals>? = null, val hint: Setter<BlockHint>? = null) : VoxelUpdate()
+    data class Set(val decals: Setter<BlockDecals>? = null, val hint: Setter<Hint>? = null) : VoxelUpdate()
 }
 
 @Serializable
@@ -232,15 +246,16 @@ fun World.updateVoxelEvents(handler: ServerHandler?) = iterate<VoxelEvent> { _, 
                 }
             }
             is VoxelUpdate.AddHint -> {
-                val hint = chunkHints[voxelPos] ?: return@forEach
+                val hint = chunk.getOrCreateBlockHint(voxelPos)
                 val newHint = hint.withText(update.text)
                 chunkHints[voxelPos] = newHint
             }
             is VoxelUpdate.RemoveHint -> {
-                val hint = chunkHints[voxelPos] ?: return@forEach
+                val hint = chunk.getOrCreateBlockHint(voxelPos)
                 val newHint = hint.without(update.index)
                 if (newHint.texts.isEmpty()) {
                     chunkHints.remove(voxelPos)
+                    emitEvent(HintDestroyEvent(newHint.uuid))
                 } else {
                     chunkHints[voxelPos] = newHint
                 }

@@ -47,6 +47,7 @@ class GameSession(
     player: ServerPlayerData,
     val handler: ClientHandler,
     val client: EngineClient,
+    val hintState: ClientHintState = ClientHintState()
 ) {
     val itemStorage = ClientItemStorage()
     val world = World(
@@ -233,6 +234,7 @@ class GameSession(
         adaptScriptLightComponents()
         updateClientServerboundChannelSystem(handler)
         updateVoxelEvents(null)
+        handleHintEvents()
 
         flushServerboundChannelComponents()
 

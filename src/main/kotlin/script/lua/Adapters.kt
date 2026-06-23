@@ -26,12 +26,12 @@ import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import java.util.LinkedList
 
-fun LuaValue.toScriptValue(): ScriptValue = when {
-    isnil() -> SNil
-    isboolean() -> SBool(toboolean())
-    isnumber() -> SNumber(todouble())
-    isstring() -> SString(tojstring())
-    istable() -> {
+fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
+    LuaValue.TNIL -> SNil
+    LuaValue.TBOOLEAN -> SBool(toboolean())
+    LuaValue.TNUMBER -> SNumber(todouble())
+    LuaValue.TSTRING -> SString(tojstring())
+    LuaValue.TTABLE -> {
         val t = checktable()
         val map = mutableMapOf<ScriptValue, ScriptValue>()
         for (k in t.keys()) {
@@ -111,6 +111,7 @@ fun World.adaptScriptLightComponents() {
     }
 }
 
+context(lua: LuaContext)
 fun World.adaptScriptNetworkingComponents() {
     val serverboundChannelComponentArray = componentManager.getComponentArray(CoreScriptComponents.SERVERBOUND_CHANNEL)
     val dynamicVoxelInterestComponentArray = componentManager.getComponentArray<DynamicVoxelInterest>()
@@ -126,14 +127,20 @@ fun World.adaptScriptNetworkingComponents() {
         val channelL = serverboundChannelComponentArray.getOrSet(entity) {
             ScriptComponent(
                 luaTableOf(
-                    luaValue("values"), emptyLuaTable()
+                    luaValue("messages"), emptyLuaTable()
                 ),
                 CoreScriptComponents.SERVERBOUND_CHANNEL
             )
         }
         val valuesTable = LuaTable()
-        channel.values.forEachIndexed { i, json ->
-            valuesTable.set(i + 1, json.toLuaValue())
+        channel.values.forEachIndexed { i, msg ->
+            valuesTable.set(
+                i + 1,
+                luaTableOf(
+                    luaValue("data"), msg.value.toLuaValue(),
+                    luaValue("sender"), msg.sender.coerceToLua()
+                )
+            )
         }
         channelL.luaValue.set("values", valuesTable)
     }
