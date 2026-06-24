@@ -11,10 +11,13 @@ import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.asVec3
 import org.lain.engine.world.VoxelPos
+import org.luaj.vm2.Globals
+import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.Varargs
+import org.luaj.vm2.ast.Str
 import org.luaj.vm2.lib.*
 import java.io.File
 import java.util.*
@@ -40,6 +43,18 @@ fun <V> LuaTable.toMap(valueTransform: (LuaValue) -> V): Map<String, V> {
         map[key.tojstring()] = valueTransform(get(key))
     }
     return map
+}
+
+class LuaFunctionChunk(function: String, vararg args: String) {
+    private val str = "return function(${args.joinToString { it }}) $function end"
+
+    fun getFunction(globals: Globals): LuaFunction {
+        return globals.load(str).checkfunction()
+    }
+
+    fun execute(context: LuaContext, vararg args: LuaValue): LuaValue {
+        return getFunction(context.globals).invoke(args.toList().toTypedArray()).arg1()
+    }
 }
 
 fun luaTableOf(vararg values: LuaValue): LuaTable {

@@ -16,7 +16,7 @@ import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
-import org.lain.engine.script.flushServerboundChannelComponents
+import org.lain.engine.script.flushEntityRpcMessageReceiver
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.adaptScriptNetworkingComponents
 import org.lain.engine.script.scriptContext
@@ -133,7 +133,7 @@ class EngineServer(
             updateContainerSystems()
             with(luaContext) { adaptScriptNetworkingComponents() }
             world.tickCallbacks(callbacks)
-            flushServerboundChannelComponents()
+            flushEntityRpcMessageReceiver()
         }
 
         handler.tick()

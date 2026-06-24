@@ -4,8 +4,11 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.world.entity.player.Player
 import org.lain.engine.item.createInvalidItem
 import org.lain.engine.mc.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.engine
+import org.lain.engine.mc.getWorld
 import org.lain.engine.mc.wrapEngineItemStack
 import org.lain.engine.script.LOGGER
+import org.lain.engine.script.lua.LuaFunctionChunk
 import org.lain.engine.script.lua.coerceToLua
 import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.storage.saveItemsBlocking
@@ -24,17 +27,27 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
             .then(
                 argument("statement", StringArgumentType.greedyString())
                     .executeCatching {
-                        try {
-                            with(server.luaContext) {
-                                val value = globals.load(it.command.getString("statement")).call(
-                                    "player".toLuaValue(), it.player?.coerceToLua() ?: LuaValue.NIL
+                        val luaContext = engine.luaContext
+                        with(luaContext) {
+                            try {
+                                val function = LuaFunctionChunk(
+                                    it.command.getString("statement"),
+                                    "player", "world"
                                 )
-                                it.sendFeedback(value.tojstring(), false)
+                                it.sendFeedback(
+                                    function.execute(
+                                        luaContext,
+                                        (it.player?.coerceToLua() ?: LuaValue.NIL), //player
+                                        (it.player?.world ?: engine.getWorld(it.source.level)).coerceToLua() //world
+                                    )
+                                        .tojstring(),
+                                    false
+                                )
+                            } catch (e: LuaError) {
+                                it.sendError(e)
+                                e.cause?.let { cause -> it.sendError("caused by: ${cause.message}") }
+                                LOGGER.error("Ошибка выполнения scriptexec", e)
                             }
-                        } catch (e: LuaError) {
-                            it.sendError(e)
-                            e.cause?.let { cause -> it.sendError("caused by: ${cause.message}") }
-                            LOGGER.error("Ошибка выполнения scriptexec", e)
                         }
                     }
             )

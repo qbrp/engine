@@ -28,6 +28,8 @@ import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.*
 import org.lain.engine.world.VoxelPos
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 fun ServerCommandDispatcher.registerIntentCommands(
     contents: NamespacedStorageAccess,
@@ -112,9 +114,18 @@ fun ClientCommandIntentBehaviour(player: EnginePlayer): CommandIntentBehaviour {
     return CommandIntentBehaviour(null, table.client.getEntity(player.id)!!)
 }
 
-class CommandIntentBehaviour(private val context: Context?, private val entity: Entity) : IntentBehaviour {
+//TODO: сделать ClientCommandIntentBehaviour
+class CommandIntentBehaviour(private val _context: Context?, private val entity: Entity) : IntentBehaviour {
+    private val logger = LoggerFactory.getLogger(CommandIntentBehaviour::class.java)
+    private val context
+        get() = _context ?: run {
+            logger.warn("Контекст выполнения команды не доступен в среде выполнения клиента")
+            null
+        }
+
     override fun generateTarget(): IntentTarget {
         val playerTable by injectEntityTable()
+
         return when(val result = raycastPlayerOrBlock(
             entity,
             SOCIAL_INTERACTION_DISTANCE.toDouble(),

@@ -10,9 +10,12 @@ import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.item.BULLET_FIRE_RADIUS
+import org.lain.engine.mc.commands.getString
+import org.lain.engine.mc.getWorld
 import org.lain.engine.mc.literalText
 import org.lain.engine.mc.toMinecraft
 import org.lain.engine.mc.voxelPos
+import org.lain.engine.script.lua.LuaFunctionChunk
 import org.lain.engine.script.lua.coerceToLua
 import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.world.LightBehaviour
@@ -51,10 +54,21 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                             val gameSession = engineClient.gameSession ?: return@executes 0
                             try {
                                 with(gameSession.luaContext) {
-                                    val value = globals.load(StringArgumentType.getString(ctx, "statement")).call(
-                                        "player".toLuaValue(), gameSession.mainPlayer.coerceToLua()
+                                    val function = LuaFunctionChunk(
+                                        StringArgumentType.getString(ctx, "statement"),
+                                        "player", "world"
                                     )
-                                    ctx.source.sendFeedback(literalText(value.tojstring()))
+
+                                    ctx.source.sendFeedback(
+                                        literalText(
+                                            function.execute(
+                                                this,
+                                                gameSession.mainPlayer.coerceToLua(), //player
+                                                gameSession.world.coerceToLua() //world
+                                            )
+                                                .tojstring()
+                                        )
+                                    )
                                 }
                             } catch (e: LuaError) {
                                 ctx.source.sendError(literalText(e.message ?: "error"))

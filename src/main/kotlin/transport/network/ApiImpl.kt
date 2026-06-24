@@ -64,7 +64,6 @@ class ServerNetworkTransport(
                 }
 
                 if (fail != null) {
-                    fail.printStackTrace()
                     connectionManager.disconnect(session.playerId, fail)
                 }
             }
