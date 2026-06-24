@@ -12,9 +12,7 @@ interface EntityProvider {
     suspend fun loadEntity(persistentId: PersistentId): List<ComponentDto>?
 }
 
-class EntityResolver(
-    private val entityProvider: EntityProvider,
-) {
+class EntityResolver(private val entityProvider: EntityProvider) {
     private val hydrated = ConcurrentHashMap.newKeySet<PersistentId>()
     private val entities = ConcurrentHashMap<PersistentId, EntityId>()
 

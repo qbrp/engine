@@ -1,9 +1,7 @@
 package org.lain.engine.script.lua
 
-import kotlinx.serialization.json.JsonElement
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.CoreScriptComponents
@@ -15,7 +13,7 @@ import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.script.ServerboundChannelComponent
+import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.world.DynamicVoxelInterest
 import org.lain.engine.world.LightBehaviour
 import org.lain.engine.world.LightSource
@@ -113,23 +111,23 @@ fun World.adaptScriptLightComponents() {
 
 context(lua: LuaContext)
 fun World.adaptScriptNetworkingComponents() {
-    val serverboundChannelComponentArray = componentManager.getComponentArray(CoreScriptComponents.SERVERBOUND_CHANNEL)
+    val serverboundChannelComponentArray = componentManager.getComponentArray(CoreScriptComponents.ENTITY_RPC_RECEIVER)
     val dynamicVoxelInterestComponentArray = componentManager.getComponentArray<DynamicVoxelInterest>()
-    iterate<ScriptComponent>(CoreScriptComponents.SERVERBOUND_CHANNEL) { entity, script ->
-        if (entity.getComponent<ServerboundChannelComponent>() == null) {
+    iterate<ScriptComponent>(CoreScriptComponents.ENTITY_RPC_RECEIVER) { entity, script ->
+        if (entity.getComponent<EntityRpcReceiver>() == null) {
             entity.setComponent(
-                ServerboundChannelComponent(values = LinkedList())
+                EntityRpcReceiver(values = LinkedList())
             )
         }
     }
 
-    iterate<ServerboundChannelComponent>() { entity, channel ->
+    iterate<EntityRpcReceiver>() { entity, channel ->
         val channelL = serverboundChannelComponentArray.getOrSet(entity) {
             ScriptComponent(
                 luaTableOf(
                     luaValue("messages"), emptyLuaTable()
                 ),
-                CoreScriptComponents.SERVERBOUND_CHANNEL
+                CoreScriptComponents.ENTITY_RPC_RECEIVER
             )
         }
         val valuesTable = LuaTable()
@@ -142,7 +140,7 @@ fun World.adaptScriptNetworkingComponents() {
                 )
             )
         }
-        channelL.luaValue.set("values", valuesTable)
+        channelL.luaValue.set("messages", valuesTable)
     }
 
     iterate(CoreScriptComponents.DYNAMIC_VOXEL_INTEREST) { entity, _ ->

@@ -39,7 +39,7 @@ class World(
     val state: EntityId = componentManager.addWorldStateEntity(),
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     private val scriptContext = ScriptContext.World(this)
-    val componentLoadSettings = ComponentLoadSettings(itemStorage, namespacedStorage, persistentIdToEntity)
+    val componentLoadSettings = ComponentLoadSettings(itemStorage, namespacedStorage, persistentIdToEntity, true)
     val chunkStorage: ChunkStorage = ChunkStorage(this, componentLoadSettings)
     var ticks = 0L
 

@@ -13,7 +13,6 @@ import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.chat.acceptOutcomingMessage
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.registerClientReceiver
@@ -22,7 +21,6 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
-import org.lain.engine.script.CoreScriptComponents.SERVERBOUND_CHANNEL
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
@@ -198,8 +196,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun sendServerboundChannelData(persistentId: PersistentId, values: List<ScriptValue>) {
-        SERVERBOUND_CHANNEL_DATA_ENDPOINT.sendC2SPacket(
-            ServerboundChannelDataPacket(persistentId, values)
+        SERVERBOUND_ENTITY_COMPONENT_RPC_ENDPOINT.sendC2SPacket(
+            EntityComponentRpcPacket(persistentId, values)
         )
     }
 
@@ -406,7 +404,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
                 components.toDomainSuspend {
                     toDomain(
                         componentLoadSettings,
-                        entityGetter = { null }
+                        entityGetter = { null },
                     )
                 }
             )

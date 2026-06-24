@@ -33,7 +33,8 @@ object CoreScriptComponents {
     val LUMINANCE = register("core/light/luminance", ComponentMeta(savable = true, networking = true, serializationClass = null))
     val PARENT = register("core/ownership/parent", ComponentMeta(savable = true, networking = true, serializationClass = null))
     val CHILDREN = register("core/ownership/children", ComponentMeta(savable = true, networking = true, serializationClass = null))
-    val SERVERBOUND_CHANNEL = register("core/networking/serverbound_channel", ComponentMeta(savable = false, networking = true, serializationClass = null))
+    val ENTITY_RPC_RECEIVER = register("core/networking/entity_rpc_receiver", ComponentMeta(savable = false, networking = false, serializationClass = null))
+    val ENTITY_RPC_QUEUE = register("core/networking/entity_rpc_queue", ComponentMeta(savable = false, networking = false, serializationClass = null))
     val DYNAMIC_VOXEL_INTEREST = register("core/networking/voxel_interest", ComponentMeta(savable = true, networking = false, serializationClass = null))
 
     fun get(id: ScriptComponentId) = all[id]

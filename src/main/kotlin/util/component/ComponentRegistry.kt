@@ -10,6 +10,7 @@ import org.lain.engine.player.Outfit
 import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerContainerTag
 import org.lain.engine.player.PlayerEquipment
+import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.Savable
@@ -122,4 +123,6 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<Writable>(isSavable = true, isNetworking = true)
     registerComponent<ItemAssets>(isSavable = true, isNetworking = true)
     registerComponent<ItemProgressionAnimations>(isSavable = true, isNetworking = true)
+
+    registerComponent<EntityRpcReceiver>(isNetworking = true, isSavable = true, serializationClass = null)
 }

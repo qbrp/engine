@@ -1,6 +1,5 @@
 package org.lain.engine.server
 
-import kotlinx.serialization.json.JsonElement
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.get
@@ -24,7 +23,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.script.ServerboundChannelComponent
+import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.script.getVoidScript
 import org.lain.engine.storage.*
 import org.lain.engine.transport.Endpoint
@@ -115,8 +114,8 @@ class ServerHandler(
         SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
         SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx -> onScriptBindings(ctx.sender, bindings) }
         SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx -> onPlayerInstantiationConfirm(ctx.sender) }
-        SERVERBOUND_CHANNEL_DATA_ENDPOINT.registerReceiver { ctx ->
-            onServerboundChannelPacket(
+        SERVERBOUND_ENTITY_COMPONENT_RPC_ENDPOINT.registerReceiver { ctx ->
+            onEnityComponentRpcPacket(
                 ctx.sender,
                 entity,
                 delta
@@ -128,14 +127,14 @@ class ServerHandler(
         transportContext.unregisterAll()
     }
 
-    private fun onServerboundChannelPacket(
+    private fun onEnityComponentRpcPacket(
         sender: PlayerId,
         entityPersistentId: PersistentId,
         delta: List<ScriptValue>
     ) = updatePlayerWithContext(sender) {
         val entity = world.persistentIdToEntity[entityPersistentId] ?: desync("Сущности $entityPersistentId не существует")
-        entity.requireComponent<ServerboundChannelComponent>().values.addAll(
-            delta.map { ServerboundChannelComponent.Message(this, it) }
+        entity.requireComponent<EntityRpcReceiver>().values.addAll(
+            delta.map { EntityRpcReceiver.Message(this, it) }
         )
     }
 

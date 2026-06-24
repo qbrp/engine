@@ -25,11 +25,10 @@ import org.lain.engine.item.updateRecoilSystem
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.CompilationResult
-import org.lain.engine.script.flushServerboundChannelComponents
+import org.lain.engine.script.flushEntityRpcMessageReceiver
 import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
 import org.lain.engine.script.lua.adaptScriptLightComponents
-import org.lain.engine.script.lua.adaptScriptNetworkingComponents
 import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.ServerId
@@ -119,7 +118,7 @@ class GameSession(
                             componentLoadSettings,
                             { persistentId ->
                                 itemEntities[persistentId]?.second ?: playerJoinException("Предмет $persistentId требует несуществующую связь $persistentId")
-                            }
+                            },
                         )
                     }
                 )
@@ -236,7 +235,7 @@ class GameSession(
         updateVoxelEvents(null)
         handleHintEvents()
 
-        flushServerboundChannelComponents()
+        flushEntityRpcMessageReceiver()
 
         endTickTaskExecutor.flush()
     }

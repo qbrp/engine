@@ -25,6 +25,7 @@ import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.world.Luminance
 import org.lain.engine.world.World
+import java.util.LinkedList
 import kotlin.reflect.KClass
 
 class ComponentSerializerNotRegisteredException(val componentClass: KClass<out Any>) : Exception("Serializer not registered for component ${componentClass.simpleName}")
@@ -59,6 +60,7 @@ fun SerializersModuleBuilder.polymorphicComponentSubclasses() {
         subclass(ParentComponentDto::class, ParentComponentDto.serializer())
         subclass(ChildrenComponentDto::class, ChildrenComponentDto.serializer())
         subclass(ContainedInDto::class, ContainedInDto.serializer())
+        subclass(EntityRpcReceiverDto::class, EntityRpcReceiverDto.serializer())
     }
 }
 
@@ -92,6 +94,7 @@ fun WriteComponentAccess.instantiateEntity(id: PersistentId, components: List<Co
 @Serializable
 data class ComponentDto(val id: String, val data: ComponentData)
 
+@Serializable
 sealed interface ComponentData
 
 @Serializable
@@ -110,10 +113,15 @@ data class ChildrenComponentDto(val isScript: Boolean, val children: Set<Persist
 @Serializable
 data class ContainedInDto(val container: PersistentId) : ComponentData
 
+// на клиенте превращается в EntityRpcQueue
+@Serializable
+object EntityRpcReceiverDto : ComponentData
+
 data class ComponentLoadSettings(
     val itemStorage: Storage<PersistentId, EngineItem>,
     val namespacedStorage: NamespacedStorageAccess,
     val persistentIdToEntity: MutableMap<PersistentId, EntityId>,
+    val isClient: Boolean = false
 )
 
 context(world: World)
@@ -133,6 +141,7 @@ fun Component.toSnapshotDto(): ComponentDto {
         is Writable -> CopyComponentDto(this.copy())
         is Parent -> ParentComponentDto(false, entity.requireComponent())
         is Children -> ChildrenComponentDto(false, entities.map { it.requireComponent<PersistentIdComponent>() }.toSet())
+        is EntityRpcReceiver -> EntityRpcReceiverDto
         else -> CopyComponentDto(this)
     }
     return ComponentDto(type.id, data)
@@ -190,6 +199,13 @@ suspend fun ComponentDto.toDomainSuspend(
                 CoreScriptComponents.PARENT
             )
         }
+
+        // isClient означает, что мы получаем компонент по сети, а значит RpcReceiver нужно преобразовать в RpcQueue
+        is EntityRpcReceiverDto -> when(settings.isClient) {
+            true -> EntityRpcQueue(LinkedList())
+            false -> EntityRpcReceiver(LinkedList())
+        }
+
         is ContainedInDto -> null
     }
     return data
