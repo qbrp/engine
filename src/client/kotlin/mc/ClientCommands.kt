@@ -1,5 +1,6 @@
 package org.lain.engine.client.mc
 
+import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
@@ -89,7 +90,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                     val player = ctx.source.player ?: return@executes 0
                                     val world = ctx.source.world ?: return@executes 0
 
-                                    val start = player.position()
+                                    val start = player.eyePosition
                                     val end = start.add(player.getViewVector(0f).scale(8.0))
                                     val results = world.clip(
                                         ClipContext(
@@ -107,12 +108,61 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                     }
 
                                     gameSession.handler.onBlockHintAdd(results.blockPos.voxelPos(), text)
+                                    ctx.source.sendFeedback(literalText("Добавлено описание: $text"))
                                     1
                                 }
                         )
                 )
                 .then(
                     ClientCommandManager.literal("remove")
+                        .then(
+                            ClientCommandManager.argument("index", IntegerArgumentType.integer())
+                                .executes { ctx ->
+                                    val gameSession = engineClient.gameSession ?: return@executes 0
+                                    val index = IntegerArgumentType.getInteger(ctx, "index")
+                                    val player = ctx.source.player ?: return@executes 0
+                                    val world = ctx.source.world ?: return@executes 0
+
+                                    val start = player.eyePosition
+                                    val end = start.add(player.getViewVector(0f).scale(8.0))
+                                    val results = world.clip(
+                                        ClipContext(
+                                            start,
+                                            end,
+                                            ClipContext.Block.COLLIDER,
+                                            ClipContext.Fluid.NONE,
+                                            CollisionContext.empty()
+                                        )
+                                    )
+
+                                    val voxelPos = results.blockPos.voxelPos()
+                                    val hint = gameSession.world.chunkStorage.getBlockHint(voxelPos)
+
+                                    if (world.getBlockState(results.blockPos).isAir) {
+                                        ctx.source.sendError(literalText("Вы не смотрите на блок!"))
+                                        return@executes 0
+                                    } else if (hint == null) {
+                                        ctx.source.sendError(literalText("У блока нет описания!"))
+                                        return@executes 0
+                                    } else if (hint.texts.size - 1 < index) {
+                                        val size = hint.texts.size - 1
+                                        val builder = StringBuilder("У блока нет описания под индексом $index! ")
+                                        if (size == 0) {
+                                            builder.append("Доступен только индекс 0.")
+                                        } else {
+                                            builder.append("Доступен диапазон: 0 - $size.")
+                                        }
+                                        ctx.source.sendError(literalText(builder.toString()))
+                                        return@executes 0
+                                    }
+
+                                    val text = hint.texts[index]
+
+                                    gameSession.handler.onBlockHintRemove(results.blockPos.voxelPos(), index)
+                                    ctx.source.sendFeedback(literalText("Удалено описание под индексом $index: $text"))
+                                    1
+                                }
+                        )
                 )
         )
     }

@@ -39,6 +39,7 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.math.*
 import org.lain.engine.world.*
+import kotlin.math.abs
 
 fun MinecraftUsername(player: Player) = Username(player.name.string)
 
@@ -47,12 +48,21 @@ val Player.engineId
 
 fun Pos.toBlockPos(): BlockPos = BlockPos.containing(asVec3().toMinecraft())
 
-fun chunkSquare(from: ChunkPos, size: Int): Array<ChunkPos> {
-    return Array(size * size) { i ->
-        val z = i / size
-        val x = i % size
-        ChunkPos(from.x + x, from.z + z)
+fun EngineChunkPos.square(radius: Int): List<EngineChunkPos> {
+    val chunks = mutableListOf<EngineChunkPos>()
+    for (r in 0..radius) {
+        for (dx in -r..r) {
+            for (dz in -r..r) {
+                if (abs(dx) != r && abs(dz) != r) continue
+
+                val cx = x + dx
+                val cz = z + dz
+
+                chunks += EngineChunkPos(cx, cz)
+            }
+        }
     }
+    return chunks
 }
 
 fun minecraftChunkSectionCoord(value: Int): Int {

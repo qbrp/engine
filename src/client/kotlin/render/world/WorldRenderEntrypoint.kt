@@ -7,8 +7,10 @@ import org.lain.engine.client.MinecraftEngineClientEventBus
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.square
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.util.injectEntityTable
+import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.pos
 
 fun registerWorldRenderEvents(
@@ -61,8 +63,10 @@ fun registerWorldRenderEvents(
                         deltaTicks
                     )
                 }
-                val playerChunk = gameSession.world.chunkStorage.requireChunk(playerBlockPos.voxelPos())
-                renderBlockHints(camera, gameSession.hintState, playerChunk.hints, deltaTicks)
+                val visibleBlockHintChunks = EngineChunkPos(playerBlockPos.voxelPos()).square(1)
+                visibleBlockHintChunks
+                    .mapNotNull { gameSession.world.chunkStorage.getChunk(it) }
+                    .forEach { renderBlockHints(camera, gameSession.hintState, it.hints, deltaTicks) }
             }
         }
     }

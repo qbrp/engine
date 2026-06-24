@@ -154,6 +154,10 @@ class ServerHandler(
             }
             is VoxelBlockHintPacket.Action.Remove -> {
                 if (hasPermission("blockhint.remove")) {
+                    val hint = world.chunkStorage.getBlockHint(pos) ?: desync("Описание блока не существует")
+                    if (hint.texts.size - 1 < action.index || action.index < 0) {
+                        desync("Невалидный индекс")
+                    }
                     world.singleBlockVoxelEvent(pos, VoxelUpdate.RemoveHint(action.index))
                 }
             }

@@ -30,7 +30,7 @@ fun Font.labelRenderStateLine(text: FormattedCharSequence): LabelRenderState.Lin
     return LabelRenderState.Line(text, width(text))
 }
 
-data class LabelEasing(val squaredDistanceToCamera: Float, val squaredDistance: Float)
+data class LabelEasing(val squaredDistanceToCamera: Float, val squaredDistance: Float, val fade: Float = 0.7f)
 
 context(ctx: ImmediateWorldRenderContext)
 fun renderLabel(
@@ -57,7 +57,7 @@ fun renderLabel(
 
     var alpha = labelAlpha
     if (easing != null) {
-        val startFade = easing.squaredDistance * 0.7f
+        val startFade = easing.squaredDistance * easing.fade
         val endFade = easing.squaredDistance
         val current = easing.squaredDistanceToCamera
 

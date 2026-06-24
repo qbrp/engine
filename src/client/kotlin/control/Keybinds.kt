@@ -1,5 +1,6 @@
 package org.lain.engine.client.control
 
+import com.mojang.blaze3d.platform.InputConstants
 import org.lain.engine.client.mc.*
 import org.lwjgl.glfw.GLFW
 
@@ -56,7 +57,7 @@ val HIDE_INTERFACE = KeybindSettings(
 val ALLOW_SPEED_INTENTION_CHANGE = KeybindSettings(
     name = "Смена скорости ходьбы",
     id = KeybindId("speed"),
-    GLFW.GLFW_MOD_ALT,
+    InputConstants.KEY_LALT,
     onHold = { client -> client.gameSession?.movementManager?.locked = false },
     onRelease = { client -> client.gameSession?.movementManager?.locked = true },
     isMouse = true
@@ -119,7 +120,7 @@ val BASE = KeybindSettings(
 val TAKE_OFF_EQUIP = KeybindSettings(
     name = "Снять экипировку",
     id = KeybindId("unequip"),
-    key = GLFW.GLFW_KEY_U,
+    key = InputConstants.KEY_U,
     isMouse = true,
     onPress = { client -> ClientMixinAccess.takeOffEquipPressed = true },
     onRelease = { client -> ClientMixinAccess.takeOffEquipPressed = false }
