@@ -6,12 +6,15 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.MinecraftEngineClientEventBus
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.render.legacy.TextCache
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.square
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.pos
+
+private val TextCache = TextCache()
 
 fun registerWorldRenderEvents(
     client: Minecraft,
@@ -46,7 +49,13 @@ fun registerWorldRenderEvents(
         if (vertexConsumers !is ImmediateVertexConsumers) return@register
 
         val entityTable by injectEntityTable()
-        val context = ImmediateWorldRenderContext(entityTable, vertexConsumers, client.font, matrices)
+        val context = ImmediateWorldRenderContext(
+            entityTable,
+            vertexConsumers,
+            client.font,
+            matrices,
+            screenRenderer = engineClient.renderer
+        )
         val deltaTicks = client.deltaTracker.realtimeDeltaTicks
         with(context) {
             val options = engineClient.options
@@ -66,7 +75,18 @@ fun registerWorldRenderEvents(
                 val visibleBlockHintChunks = EngineChunkPos(playerBlockPos.voxelPos()).square(1)
                 visibleBlockHintChunks
                     .mapNotNull { gameSession.world.chunkStorage.getChunk(it) }
-                    .forEach { renderBlockHints(camera, gameSession.hintState, it.hints, deltaTicks) }
+                    .forEach {
+                        renderBlockHints(
+                            camera,
+                            gameSession.hintState,
+                            gameSession.inspection,
+                            gameSession.inspectionMode,
+                            300,
+                            it.hints,
+                            TextCache,
+                            deltaTicks
+                        )
+                    }
             }
         }
     }

@@ -124,25 +124,14 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                 .executes { ctx ->
                                     val gameSession = engineClient.gameSession ?: return@executes 0
                                     val index = IntegerArgumentType.getInteger(ctx, "index")
-                                    val player = ctx.source.player ?: return@executes 0
+                                    val hitResult = ctx.source.client.blockHitResult ?: return@executes 0
                                     val world = ctx.source.world ?: return@executes 0
 
-                                    val start = player.eyePosition
-                                    val end = start.add(player.getViewVector(0f).scale(8.0))
-                                    val results = world.clip(
-                                        ClipContext(
-                                            start,
-                                            end,
-                                            ClipContext.Block.COLLIDER,
-                                            ClipContext.Fluid.NONE,
-                                            CollisionContext.empty()
-                                        )
-                                    )
 
-                                    val voxelPos = results.blockPos.voxelPos()
+                                    val voxelPos = hitResult.blockPos.voxelPos()
                                     val hint = gameSession.world.chunkStorage.getBlockHint(voxelPos)
 
-                                    if (world.getBlockState(results.blockPos).isAir) {
+                                    if (world.getBlockState(hitResult.blockPos).isAir) {
                                         ctx.source.sendError(literalText("Вы не смотрите на блок!"))
                                         return@executes 0
                                     } else if (hint == null) {
@@ -158,11 +147,14 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                         }
                                         ctx.source.sendError(literalText(builder.toString()))
                                         return@executes 0
+                                    } else if (index < 0) {
+                                        ctx.source.sendError(literalText("Индекс не может быть меньше 0!"))
+                                        return@executes 0
                                     }
 
                                     val text = hint.texts[index]
 
-                                    gameSession.handler.onBlockHintRemove(results.blockPos.voxelPos(), index)
+                                    gameSession.handler.onBlockHintRemove(voxelPos, index)
                                     ctx.source.sendFeedback(literalText("Удалено описание под индексом $index: $text"))
                                     1
                                 }

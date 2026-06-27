@@ -37,6 +37,8 @@ class KeybindManager(
         EXTEND_HAND.register()
         TOGGLE_CHAT_ALLHEAR.register()
         TOGGLE_CHAT_TYPING_INDICATOR.register()
+        TOGGLE_INSPECTION.register()
+        CONCENTRATION.register()
 
         KeybindSettings(
             name = "Настройки",

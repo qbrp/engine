@@ -10,6 +10,8 @@ import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.resources.ItemAssetLoaderKt;
 import org.lain.engine.client.resources.ModelLoaderKt;
 import org.lain.engine.client.resources.ResourceList;
+import org.luaj.vm2.ast.Str;
+import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,10 +25,23 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 @Mixin(ModelManager.class)
-public class BakedModelManagerMixin {
+public class ModelManagerMixin {
     @Unique
     private static ResourceList resources() {
         return ClientMixinAccess.INSTANCE.getResourceList();
+    }
+
+    @Redirect(
+            method = "method_65749",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lorg/slf4j/Logger;warn(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V"
+            )
+    )
+    private static void engine$ignoreMissingParticleTextureReference(Logger instance, String s, Object o1, Object o2) {
+        if (!(s.startsWith("Missing texture references in model") && o1.toString().startsWith("engine") && o2.toString().endsWith("particle"))) {
+            instance.warn(s, o1, o2);
+        }
     }
 
     @Inject(
@@ -38,13 +53,13 @@ public class BakedModelManagerMixin {
     private static void engine$reloadModels(ResourceManager resourceManager, Executor executor, CallbackInfoReturnable<CompletableFuture<Map<Identifier, UnbakedModel>>> cir) {
         CompletableFuture<Map<Identifier, UnbakedModel>> returnValue = cir.getReturnValue();
         cir.setReturnValue(
-            returnValue.thenApply((res) -> {
-                Map<Identifier, UnbakedModel> models = new HashMap<>();
-                models.putAll(ModelLoaderKt.autogenerateModels(resources().getGeneratedItemAssets()));
-                models.putAll(ModelLoaderKt.parseEngineItemModels(resources().getItemModels(), resources().getObjModels()));
-                models.putAll(res);
-                return models;
-            })
+                returnValue.thenApply((res) -> {
+                    Map<Identifier, UnbakedModel> models = new HashMap<>();
+                    models.putAll(ModelLoaderKt.autogenerateModels(resources().getGeneratedItemAssets()));
+                    models.putAll(ModelLoaderKt.parseEngineItemModels(resources().getItemModels(), resources().getObjModels()));
+                    models.putAll(res);
+                    return models;
+                })
         );
     }
 

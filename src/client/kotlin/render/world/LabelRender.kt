@@ -6,6 +6,7 @@ import net.minecraft.client.gui.Font
 import net.minecraft.util.FormattedCharSequence
 import org.apache.logging.log4j.core.pattern.TextRenderer
 import org.lain.engine.client.mc.ImmediateVertexConsumers
+import org.lain.engine.client.render.ScreenRenderer
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.EVec3
@@ -15,6 +16,7 @@ data class ImmediateWorldRenderContext(
     val vertexConsumers: ImmediateVertexConsumers,
     val textRenderer: Font,
     val matrices: PoseStack,
+    val screenRenderer: ScreenRenderer
 )
 
 data class LabelRenderState(
@@ -68,10 +70,10 @@ fun renderLabel(
     }
 
     var y = 0f
+    val textColor = Color.WHITE.withAlpha((alpha * 255).toInt())
+    val backgroundColor = Color.BLACK.withAlpha((backgroundOpacity * alpha * 255f).toInt())
     for (line in labelLines) {
         val offset = -(line.width / 2.0f)
-        val textColor = Color.WHITE.withAlpha((alpha * 255).toInt())
-        val backgroundColor = Color.BLACK.withAlpha((backgroundOpacity * alpha * 255f).toInt())
         y -= ctx.textRenderer.lineHeight
 
         val matrix = ctx.matrices.last().pose()

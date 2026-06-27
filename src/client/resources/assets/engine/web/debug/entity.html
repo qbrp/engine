@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Отладка сущности</title>
+</head>
+
+<link rel="stylesheet" href="entity.css">
+
+<body>
+<div class="app">
+    <div class="header">
+        <div id="entityTitle" class="title">Загрузка…</div>
+        <div id="entityMeta" class="meta"></div>
+        <div id="status" class="status">Подключение...</div>
+    </div>
+
+    <div id="components" class="components"></div>
+</div>
+
+<script>
+    window.onerror = (msg, src, line, col, err) => {
+      document.body.insertAdjacentHTML("afterbegin",
+        `<pre style="background:red;color:#fff;padding:1em;z-index:9999;position:fixed;top:0;left:0;right:0">
+          ${line}:${col} ${msg}\n${src}
+        </pre>`
+      );
+    };
+
+    window.onunhandledrejection = (e) => {
+      document.body.insertAdjacentHTML("afterbegin",
+        `<pre style="background:red;color:#fff;padding:1em;z-index:9999;position:fixed;top:0;left:0;right:0">
+          Unhandled rejection: ${e.reason}
+        </pre>`
+      );
+    };
+</script>
+<script type="module" src="main.js"></script>
+
+</body>
+</html>

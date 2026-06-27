@@ -1,6 +1,7 @@
 package org.lain.engine.client
 
 import org.lain.engine.client.chat.ChatEventBus
+import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.*
@@ -143,7 +144,14 @@ class EngineClient(
 
     fun onScroll(delta: Float) {
         if (MinecraftClient.screen != null) return
-        gameSession?.movementManager?.roll(delta)
+        gameSession?.let { gameSession ->
+            val inspection = gameSession.inspection
+            if (inspection.concentration) {
+                onScrollInspection(inspection, delta)
+            } else {
+                gameSession.movementManager.roll(delta)
+            }
+        }
     }
 
     fun sendSpectatingNotification() {

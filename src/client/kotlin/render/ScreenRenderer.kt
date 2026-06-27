@@ -5,6 +5,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.InteractionProgressionRenderState
 import org.lain.engine.client.render.ui.NarrationMessageRenderState
+import org.lain.engine.client.render.world.BlockHintInspectionRenderState
 import org.lain.engine.player.Narration
 
 class ScreenRenderer(private val client: EngineClient) {
@@ -17,6 +18,7 @@ class ScreenRenderer(private val client: EngineClient) {
     val narrations = mutableListOf<NarrationMessageRenderState>()
     val interactionProgression = InteractionProgressionRenderState(0f)
     var chatOpen = false
+    var blockHintInspectionRenderState: BlockHintInspectionRenderState? = null
 
     fun renderScreen(tickDelta: Float) {
         val gameSession = client.gameSession

@@ -63,6 +63,14 @@ val TOGGLE_INSPECTION = KeybindSettings(
     },
 )
 
+val CONCENTRATION = KeybindSettings(
+    name = "Концентрация",
+    id = KeybindId("CONCENTRATION"),
+    InputConstants.KEY_LCONTROL,
+    onHold = { client -> client.gameSession?.inspection?.concentration = true },
+    onRelease = { client -> client.gameSession?.inspection?.concentration = false }
+)
+
 val ALLOW_SPEED_INTENTION_CHANGE = KeybindSettings(
     name = "Смена скорости ходьбы",
     id = KeybindId("speed"),

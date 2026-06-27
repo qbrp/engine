@@ -140,7 +140,11 @@ object ClientMixinAccess {
         client.onScroll(vertical)
     }
 
-    fun isScrollAllowed() = client.gameSession?.movementManager?.locked ?: true
+    fun isScrollAllowed(): Boolean {
+        val changingSpeed = client.gameSession?.movementManager?.locked?.not() ?: false
+        val concentration = client.gameSession?.inspection?.concentration ?: false
+        return !changingSpeed && !concentration
+    }
 
     fun isCrosshairAttackIndicatorVisible() = client.options.crosshairIndicatorVisible
 
