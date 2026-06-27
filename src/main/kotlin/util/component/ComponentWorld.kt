@@ -226,30 +226,64 @@ class ComponentWorld(
         return entity < destroyed.size && !destroyed[entity]
     }
 
-    override fun getComponents(entity: EntityId, bitMask: LongArray?): List<Component> {
-        assertOnThread()
-        require(exists(entity)) { "Entity $entity does not exist" }
-        val components = mutableListOf<Component>()
-
+    private inline fun forEachComponent(
+        entity: EntityId,
+        bitMask: LongArray?,
+        action: (ComponentArray<*>, Component) -> Unit
+    ) {
         if (bitMask != null) {
             for (i in bitMask.indices) {
                 var bits = bitMask[i]
+
                 while (bits != 0L) {
                     val bitIndex = java.lang.Long.numberOfTrailingZeros(bits)
                     val arrayIndex = i * 64 + bitIndex
 
                     if (arrayIndex < arraysList.size) {
-                        arraysList[arrayIndex].componentOf(entity)?.let { components.add(it) }
+                        val array = arraysList[arrayIndex]
+                        array.componentOf(entity)?.let {
+                            action(array, it)
+                        }
                     }
 
                     bits = bits and (bits - 1)
                 }
             }
         } else {
-            arraysList.forEach { it.componentOf(entity)?.let { comp -> components.add(comp) } }
+            arraysList.forEach { array ->
+                array.componentOf(entity)?.let {
+                    action(array, it)
+                }
+            }
         }
+    }
 
-        return components
+    override fun getComponents(
+        entity: EntityId,
+        bitMask: LongArray?
+    ): List<Component> {
+        assertOnThread()
+        require(exists(entity)) { "Entity $entity does not exist" }
+
+        val result = mutableListOf<Component>()
+        forEachComponent(entity, bitMask) { _, component ->
+            result += component
+        }
+        return result
+    }
+
+    fun getComponentsMap(
+        entity: EntityId,
+        bitMask: LongArray?
+    ): Map<ComponentType<out Component>, Component> {
+        assertOnThread()
+        require(exists(entity)) { "Entity $entity does not exist" }
+
+        val result = mutableMapOf<ComponentType<out Component>, Component>()
+        forEachComponent(entity, bitMask) { array, component ->
+            result[array.type] = component
+        }
+        return result
     }
 
     override fun <T : Component> setComponentWithType(entity: EntityId, component: T, type: ComponentType<T>) {

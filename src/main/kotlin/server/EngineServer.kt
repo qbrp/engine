@@ -4,6 +4,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.removeComponent
+import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
@@ -21,7 +22,10 @@ import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.adaptScriptNetworkingComponents
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ChunkLoader
+import org.lain.engine.storage.CustomPersistentId
 import org.lain.engine.storage.ItemLoader
+import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.playerData
 import org.lain.engine.storage.savePersistentPlayerData
 import org.lain.engine.util.FixedSizeList
@@ -99,6 +103,8 @@ class EngineServer(
 
         worlds.forEachWithContext({ it }) { world ->
             world.players.forEach { player ->
+                handleEntityDebugView(handler, player)
+
                 updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
                 updatePlayerSpeaking(player, chat, vocalSettings)
                 updatePlayerVoice(player, chat, globals.vocalSettings)
@@ -156,6 +162,7 @@ class EngineServer(
     fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
         player.entityId.setComponent(Player(player))
         player.entityId.setComponent(player.location)
+        player.entityId.setComponent(PersistentIdComponent(CustomPersistentId(player.id.toString())))
         eventListener.onPlayerInstantiated(player)
 
         if (globals.spectateOnJoin) player.startSpectating()

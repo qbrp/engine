@@ -219,6 +219,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         )
     }
 
+    fun onEntityDebugView(persistentId: PersistentId) {
+        SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.sendC2SPacket(EntityDebugViewPacket(persistentId))
+    }
+
+    fun onEntityDebugViewStop() {
+        SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.sendC2SPacket(EntityDebugViewStopPacket)
+    }
+
     fun onInteractionSelectionSelect(variantId: String?) {
         SERVERBOUND_INTERACTION_SELECTION_SELECT_ENDPOINT.sendC2SPacket(InteractionSelectionSelectPacket(variantId))
     }
@@ -424,6 +432,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         }
         val pendingEntity = PendingEntity(components)
         pendingEntities[persistentId] = CompletableDeferred(pendingEntity)
+    }
+
+    fun applyEntityDebugData(data: EntityDebugData) {
+        client.eventBus.onEntityDebugViewData(data)
     }
 
     fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {

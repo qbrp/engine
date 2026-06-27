@@ -6,8 +6,11 @@ import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
+import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
+import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
+import org.lain.engine.client.render.MAP
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.script.updateClientServerboundChannelSystem
@@ -32,10 +35,14 @@ import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.registerScriptComponents
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.ServerId
+import org.lain.engine.storage.CustomPersistentId
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.toDomainSuspend
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.INSPECTION_MODE_COLOR
 import org.lain.engine.util.WARNING_COLOR
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.*
 import java.util.*
 
@@ -94,6 +101,30 @@ class GameSession(
     var soundsToBroadcast = LinkedList<SoundBroadcast>()
     var callbacks: Callbacks = Callbacks()
     val endTickTaskExecutor = TaskExecutor()
+
+    var inspectionMode: Boolean = false
+        set(value) {
+            field = value
+            val description = if (value) {
+                "Подсказки будут автоматически отображаться при взгляде на блок"
+            } else {
+                "Выключен"
+            }
+            client.applyLittleNotification(
+                LittleNotification(
+                    title = "Режим исследования",
+                    description = description,
+                    color = INSPECTION_MODE_COLOR,
+                    sprite = MAP
+                )
+            )
+        }
+    val inspection = InspectionMode()
+
+
+    fun toggleInspectionMode() {
+        inspectionMode = !inspectionMode
+    }
 
     init {
         applyCompilation(client.compilationResult ?: error("Compilation is not initialized"))
@@ -234,10 +265,19 @@ class GameSession(
         updateClientServerboundChannelSystem(handler)
         updateVoxelEvents(null)
         handleHintEvents()
+        client.eventBus.getHitResultVoxelPos()?.let {
+            updateInspectionMode(inspection, inspectionMode, it)
+        }
 
         flushEntityRpcMessageReceiver()
 
         endTickTaskExecutor.flush()
+    }
+
+    fun viewEntityDebug(entity: EntityId) = with(world) {
+        val persistentId = entity.requireComponent<PersistentIdComponent>().id
+        handler.onEntityDebugView(persistentId)
+        client.eventBus.onEntityDebugView(this@GameSession)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
@@ -262,7 +302,7 @@ class GameSession(
             player.prepareContainers(data.equipmentContainer, player.location, equipment)
             player.entityId.setComponent(Player(player))
             player.entityId.setComponent(player.location)
-            player.entityId.setComponent(player.require<Location>())
+            player.entityId.setComponent(PersistentIdComponent(CustomPersistentId(player.id.toString())))
             callbacks.playerInstantiate.execute(player.scriptContext)
         }
     }

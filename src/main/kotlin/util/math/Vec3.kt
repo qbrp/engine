@@ -90,7 +90,7 @@ interface EVec3 : Pos {
         return add(other.x, other.y, other.z, t)
     }
 
-    fun sub(x: Float, y: Float, z: Float): EVec3 {
+    fun sub(x: Float = 0f, y: Float = 0f, z: Float = 0f): EVec3 {
         return Vec3(this.x - x, this.y - y, this.z - z)
     }
 

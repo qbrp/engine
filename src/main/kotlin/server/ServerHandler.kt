@@ -9,6 +9,9 @@ import org.lain.cyberia.ecs.has
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
+import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.replace
+import org.lain.cyberia.ecs.replaceOrSet
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.set
@@ -44,6 +47,7 @@ enum class Notification {
     ACOUSTIC_ERROR,
     COMPILATION_ERROR,
     FREECAM,
+    ENTIITY_DEBUG_ERROR
 }
 
 class DesynchronizationException(message: String) : RuntimeException(message)
@@ -121,6 +125,8 @@ class ServerHandler(
                 delta
             )
         }
+        SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.registerReceiver { ctx -> onEntityDebugView(ctx.sender, persistentId) }
+        SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.registerReceiver { ctx -> onEntityDebugViewStop(ctx.sender) }
     }
 
     fun invalidate() {
@@ -143,6 +149,17 @@ class ServerHandler(
         bindings.base?.ensureExists<ScriptContext.Player>()
         bindings.attack?.ensureExists<ScriptContext.Player>()
         set(bindings)
+    }
+
+    private fun onEntityDebugView(player: PlayerId, persistentId: PersistentId) = updatePlayer(player) {
+        if (!hasPermission("entity_debug")) return@updatePlayer
+        replaceOrSet {
+            EntityDebugViewComponent(world.persistentIdToEntity[persistentId] ?: desync("Сущность $persistentId не существует"))
+        }
+    }
+
+    private fun onEntityDebugViewStop(player: PlayerId) = updatePlayer(player) {
+        remove<EntityDebugViewComponent>()
     }
 
     private fun onVoxelBlockHint(player: PlayerId, pos: VoxelPos, action: VoxelBlockHintPacket.Action) = updatePlayer(player) {
@@ -461,8 +478,11 @@ class ServerHandler(
             )
     }
 
-    fun onScriptReload() {
-
+    fun onEntityDebugSnapshot(player: EnginePlayer, data: EntityDebugData) {
+        CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT.sendS2C(
+            EntityDebugDataPacket(data),
+            player.id
+        )
     }
 
     fun onServerNotification(player: EnginePlayer, notification: Notification, once: Boolean) {

@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.PlayerFaceRenderer
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.network.chat.FormattedText
+import net.minecraft.util.FormattedCharSequence
 import org.joml.Matrix3x2f
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mc.parseMiniMessageClient

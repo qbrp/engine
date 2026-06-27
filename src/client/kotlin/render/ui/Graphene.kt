@@ -1,9 +1,11 @@
 package org.lain.engine.client.render.ui
 
+import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
 import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.resources.ResourceContext
@@ -73,6 +75,7 @@ class WebDebugScreen(private val resourceContext: ResourceContext) : Screen(lite
     private lateinit var view: GrapheneWebViewWidget
 
     protected override fun init() {
+        val lastPage = lastPage
         val margin = 8
         val editBoxHeight = minecraft.font.lineHeight + 2
         view = GrapheneWebViewWidget(
@@ -82,7 +85,7 @@ class WebDebugScreen(private val resourceContext: ResourceContext) : Screen(lite
             width - margin * 2,
             height - margin * 3 - editBoxHeight,
             Component.empty(),
-            webPageUrl("debug")
+            webPageUrl(lastPage ?: "debug")
         )
         addRenderableWidget(view)
 
@@ -95,14 +98,31 @@ class WebDebugScreen(private val resourceContext: ResourceContext) : Screen(lite
             editBoxHeight,
             Component.empty(),
         )
+        if (lastPage != null) {
+            editBox.value = lastPage
+        }
         val button = Button.builder(literalText("+")) {
-            view.loadUrl(webPageUrl(editBox.value))
+            val url = editBox.value
+            view.loadUrl(webPageUrl(url))
+            Companion.lastPage = url
         }
             .pos(width - margin, height - margin)
             .size(buttonWidth, editBoxHeight)
             .build()
         addRenderableWidget(editBox)
         addRenderableWidget(button)
+    }
+
+    override fun keyPressed(keyEvent: KeyEvent): Boolean {
+        if (keyEvent.key() == InputConstants.KEY_F5) {
+            view.reload()
+            return true
+        }
+        return super.keyPressed(keyEvent)
+    }
+
+    companion object {
+        var lastPage: String? = null
     }
 }
 

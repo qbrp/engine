@@ -1,6 +1,7 @@
 package org.lain.engine.client
 
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.EntityDebugData
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.world.EngineChunk
@@ -15,4 +16,7 @@ interface ClientEventBus {
     fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession)
     fun onContentsUpdate()
     fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk)
+    fun onEntityDebugView(gameSession: GameSession)
+    fun onEntityDebugViewData(data: EntityDebugData)
+    fun getHitResultVoxelPos(): VoxelPos?
 }

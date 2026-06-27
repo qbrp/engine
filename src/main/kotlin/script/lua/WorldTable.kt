@@ -271,7 +271,7 @@ fun EntityMetaTable() = luaTable {
         val world = entity.world.asEngineWorld()
         val type = component.checktable().get("type").asEngineScriptComponentType()
         debugScript("entity", "($entity) ${type.id} marked for sync")
-        world.markDirty(entityId, type.requireType().ecsType)
+        world.markDirty(entityId, type.requireType())
         LuaValue.NIL
     }
     function1("get_all_components") { self ->
@@ -314,16 +314,16 @@ val ScriptComponent.luaValue
     get() = value as? LuaValue ?: error("Component not supports lua")
 
 private fun World.hasLuaComponent(entityId: EntityId, componentType: ScriptComponentType): Boolean {
-    return hasComponent(entityId, componentType.ecsType)
+    return hasComponent(entityId, componentType)
 }
 
 private fun World.getLuaComponent(entityId: EntityId, componentType: ScriptComponentType): LuaValue? {
-    val component = getComponent(entityId, componentType.ecsType) ?: return null
+    val component = getComponent(entityId, componentType) ?: return null
     return (component.value as? LuaValue) ?: error("Component ${componentType.id} not supports lua")
 }
 
 private fun World.removeLuaComponent(entityId: EntityId, componentType: ScriptComponentType): LuaValue? {
-    val component = removeComponent(entityId, componentType.ecsType) ?: return null
+    val component = removeComponent(entityId, componentType) ?: return null
     if (component.value !is LuaValue) error("Removed non-lua component with type ${componentType.id}")
     return component.value
 }

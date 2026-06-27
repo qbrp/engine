@@ -127,10 +127,11 @@ data class ComponentLoadSettings(
 context(world: World)
 fun Component.toSnapshotDto(): ComponentDto {
     val type = when (this) {
-        is ScriptComponent -> type.ecsType
+        is ScriptComponent -> type
         else -> componentTypeOf(this::class)
     }
     val data = when (this) {
+        //TODO: проработать Lua-bridge через абстракцию
         is ScriptComponent -> ScriptComponentDto(luaValue.toScriptValue())
         is Count -> CopyComponentDto(this.copy())
         is Entries -> CopyComponentDto(Entries(items.toMutableList()))

@@ -53,7 +53,7 @@ class World(
     }
 
     fun registerScriptComponents(components: List<ScriptComponentType>) {
-        componentManager.invalidateComponentArrays(components.map { it.ecsType to it.meta })
+        componentManager.invalidateComponentArrays(components.map { it to it.meta })
     }
 
     /**

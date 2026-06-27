@@ -86,5 +86,5 @@ fun LuaValue.toKotlin(): Any? {
 
 context(writeComponentAccess: WriteComponentAccess)
 fun EntityId.setScriptComponent(value: LuaValue, type: ScriptComponentType) {
-    setComponent(ScriptComponent(value, type), type.ecsType)
+    setComponent(ScriptComponent(value, type), type)
 }

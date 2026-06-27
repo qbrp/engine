@@ -3,11 +3,15 @@ package org.lain.engine.client
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import org.lain.engine.client.mc.ClientMixinAccess
+import org.lain.engine.client.mc.blockHitResult
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
+import org.lain.engine.client.render.ui.EntityDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.EntityDebugData
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.util.Injector
@@ -79,5 +83,19 @@ class MinecraftEngineClientEventBus(
 
     override fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk) {
         decalSystem.loadTextures(pos, chunk)
+    }
+
+    override fun onEntityDebugView(gameSession: GameSession) {
+        minecraft.setScreen(EntityDebugScreen(gameSession.client))
+    }
+
+    override fun onEntityDebugViewData(data: EntityDebugData) {
+        val screen = minecraft.screen
+        if (screen !is EntityDebugScreen) return
+        screen.applyEntityDebugData(data)
+    }
+
+    override fun getHitResultVoxelPos(): VoxelPos? {
+        return minecraft.blockHitResult?.blockPos?.voxelPos()
     }
 }

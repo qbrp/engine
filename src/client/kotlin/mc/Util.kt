@@ -1,15 +1,19 @@
 package org.lain.engine.client.mc
 
 import com.google.gson.JsonParser
+import com.mojang.authlib.minecraft.client.MinecraftClient
 import com.mojang.serialization.JsonOps
 import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
+import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.item.ClientItem
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite
 import net.minecraft.network.chat.ComponentSerialization
 import net.minecraft.util.GsonHelper
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.world.phys.EntityHitResult
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.mc.TEXT_LOGGER
@@ -26,6 +30,12 @@ typealias JsonMc = GsonHelper
 typealias ImmediateVertexConsumers = MultiBufferSource.BufferSource
 
 val MinecraftClient = net.minecraft.client.Minecraft.getInstance()!!
+
+val Minecraft.entityHitResult
+    get() = this.hitResult as? EntityHitResult
+
+val Minecraft.blockHitResult
+    get() = this.hitResult as? BlockHitResult
 
 val MissingSpriteId get() = MissingTextureAtlasSprite.getLocation()
 

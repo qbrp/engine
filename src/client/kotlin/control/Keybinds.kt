@@ -54,13 +54,21 @@ val HIDE_INTERFACE = KeybindSettings(
     },
 )
 
+val TOGGLE_INSPECTION = KeybindSettings(
+    name = "Режим изучения",
+    id = KeybindId("toggle_inspection"),
+    InputConstants.KEY_F4,
+    onPress = { client ->
+        client.gameSession?.toggleInspectionMode()
+    },
+)
+
 val ALLOW_SPEED_INTENTION_CHANGE = KeybindSettings(
     name = "Смена скорости ходьбы",
     id = KeybindId("speed"),
     InputConstants.KEY_LALT,
     onHold = { client -> client.gameSession?.movementManager?.locked = false },
     onRelease = { client -> client.gameSession?.movementManager?.locked = true },
-    isMouse = true
 )
 
 val TOGGLE_CHAT_SPY = KeybindSettings(
@@ -121,7 +129,6 @@ val TAKE_OFF_EQUIP = KeybindSettings(
     name = "Снять экипировку",
     id = KeybindId("unequip"),
     key = InputConstants.KEY_U,
-    isMouse = true,
     onPress = { client -> ClientMixinAccess.takeOffEquipPressed = true },
     onRelease = { client -> ClientMixinAccess.takeOffEquipPressed = false }
 )

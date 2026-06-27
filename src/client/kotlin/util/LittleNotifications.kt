@@ -54,6 +54,8 @@ data class LittleNotification(
                     sprite = WARNING,
                     lifeTime = 300
                 )
+
+            else -> TODO()
         }
     }
 }

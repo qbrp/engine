@@ -1,6 +1,7 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.player.EntityDebugData
 import org.lain.engine.player.InteractionSelection
 import org.lain.engine.player.PlayerId
 import org.lain.engine.server.Notification
@@ -34,13 +35,6 @@ val CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT = Endpoint<ServerSettingsUpdateP
 data class ScriptsRecompileEndpoint(val scope: String? = null) : Packet
 
 val CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT = Endpoint<ScriptsRecompileEndpoint>()
-
-// Acoustic debug
-
-@Serializable
-data class AcousticDebugVolumesPacket(val volumes: List<Pair<ImmutableVoxelPos, Float>>) : Packet
-
-val CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET = Endpoint<AcousticDebugVolumesPacket>()
 
 // Controls
 

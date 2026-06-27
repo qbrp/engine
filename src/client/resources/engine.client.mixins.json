@@ -39,7 +39,7 @@
     "render.ItemRenderStateMixin",
     "render.ItemStackRenderStateAccessor",
     "render.ScreenAccessor",
-    "resource.BakedModelManagerMixin",
+    "resource.ModelManagerMixin",
     "resource.JsonUnbakedModelAccessor",
     "resource.SimpleReloadInstanceMixin",
     "resource.SpriteSourceListAccessor",
