@@ -46,7 +46,7 @@ data class Namespace(
     }
 }
 
-interface ContentStorage {
+interface Contents {
     val sounds: Namespace.Holder<SoundEventId, SoundEvent>
     val items: Namespace.Holder<ItemId, ItemPrefab>
     val progressionAnimations: Namespace.Holder<ProgressionAnimationId, ProgressionAnimation>
@@ -57,7 +57,7 @@ interface ContentStorage {
 
 typealias NamespaceHashMap = Map<NamespaceId, Int>
 
-interface NamespacedStorageAccess : ContentStorage {
+interface NamespacedStorageAccess : Contents {
     fun get(): NamespacedStorage
     fun update(storage: NamespacedStorage)
 }
@@ -106,7 +106,7 @@ fun namespacedStorageWithBuiltins(namespaces: List<Namespace>): NamespacedStorag
     return NamespacedStorage(namespacesWithBuiltins)
 }
 
-class NamespacedStorage internal constructor(namespacesList: List<Namespace>) : ContentStorage {
+class NamespacedStorage internal constructor(namespacesList: List<Namespace>) : Contents {
     val namespaces: Map<NamespaceId, Namespace> = namespacesList.associateBy { it.id }.toMutableMap()
 
     override val sounds: Namespace.Holder<SoundEventId, SoundEvent> = collect { it.sounds }

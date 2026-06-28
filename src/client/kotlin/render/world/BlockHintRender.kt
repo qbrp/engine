@@ -44,14 +44,20 @@ fun renderBlockHints(
             state
         }
 
-        val text = hint.computeText()
+        val size = hint.hint.texts.size
+        val (str, index) = hint.computeText()
+        val text = if (size <= 1) {
+            "<gray>$str"
+        } else {
+            "<gold>[$index / ${size - 1}]</gold><newline><gray>$str"
+        }
         val centerPos = inspectionMode.voxelPos.toCenterPos()
 
         val scale = 0.0145f
         val lines = ctx.textRenderer.split(textCache.get(text), inspectionTextWidth)
             .map { LabelRenderState.Line(it, ctx.textRenderer.width(it)) }
             .reversed()
-        val pos = centerPos.sub(y = lines.size * ctx.textRenderer.lineHeight * scale * 0.5f)
+        val pos = centerPos.sub(y = (lines.size * ctx.textRenderer.lineHeight * scale) - 0.5f)
 
         renderLabel(
             camera,
@@ -66,24 +72,27 @@ fun renderBlockHints(
     }
 
     hints.forEach { (pos, hint) ->
-        val state = hintState.stateOf(hint.uuid)
-        val text = when (state) {
-            HintState.NOT_READ -> NOT_READ
-            HintState.CHANGED -> CHANGED
-            HintState.READ -> READ
-        }
+//        val state = hintState.stateOf(hint.uuid)
+//        val text = when (state) {
+//            HintState.NOT_READ -> NOT_READ
+//            HintState.CHANGED -> CHANGED
+//            HintState.READ -> READ
+//        }
+        // TODO
+        val text = NOT_READ
         val centerPos = pos.toCenterPos()
+        val multiplierAlpha = if (!inspection) 0.3f else 1f
 
         if (!inspection || inspectionMode.voxelPos != pos) {
             renderLabel(
                 camera,
                 LabelRenderState(
                     centerPos,
-                    0.5f,
+                    0.5f * multiplierAlpha,
                     listOf(ctx.textRenderer.labelRenderStateLine(text)),
                     0.0285f
                 ),
-                0.25f,
+                0.25f * multiplierAlpha,
                 LightTexture.FULL_BRIGHT,
                 easing = LabelEasing(
                     centerPos.squaredDistanceTo(camera.position().engine()),

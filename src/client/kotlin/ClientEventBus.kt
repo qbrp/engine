@@ -1,8 +1,8 @@
 package org.lain.engine.client
 
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.EntityDebugData
 import org.lain.engine.player.PlayerId
+import org.lain.engine.script.EntityDebugData
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
@@ -17,6 +17,6 @@ interface ClientEventBus {
     fun onContentsUpdate()
     fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk)
     fun onEntityDebugView(gameSession: GameSession)
-    fun onEntityDebugViewData(data: EntityDebugData)
+    fun onEntityDebugViewData(data: EntityDebugData.Dto)
     fun getHitResultVoxelPos(): VoxelPos?
 }

@@ -141,8 +141,9 @@ object ClientMixinAccess {
     }
 
     fun isScrollAllowed(): Boolean {
-        val changingSpeed = client.gameSession?.movementManager?.locked?.not() ?: false
-        val concentration = client.gameSession?.inspection?.concentration ?: false
+        val gameSession = client.gameSession ?: return true
+        val changingSpeed = !gameSession.movementManager.locked
+        val concentration = gameSession.inspection.concentration && gameSession.inspectionMode
         return !changingSpeed && !concentration
     }
 

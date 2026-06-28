@@ -15,11 +15,14 @@ data class InspectionMode(
         var totalDuration: Int = 0,
         var selectedText: Int? = null
     ) {
-        fun computeText(): String {
+        fun computeText(): Pair<String, Int> {
             val texts = hint.texts
-            if (texts.isEmpty()) return ""
+            if (texts.isEmpty()) return "" to 0
 
-            selectedText?.let { return hint.texts[it.coerceIn(0, hint.texts.size - 1)] }
+            selectedText?.let {
+                val idx = it.coerceIn(0, hint.texts.size - 1)
+                return hint.texts[idx] to idx
+            }
 
             val weights = texts.map { it.length.coerceAtLeast(1) * 1.3 }
             val totalWeight = weights.sum().toInt()
@@ -30,12 +33,12 @@ data class InspectionMode(
             for (i in texts.indices) {
                 val segmentTime = (weights[i].toFloat() / totalWeight * duration).toInt()
                 if (t < segmentTime) {
-                    return texts[i]
+                    return texts[i] to i
                 }
                 t -= segmentTime
             }
 
-            return texts.last()
+            return texts.last() to texts.size - 1
         }
     }
 }

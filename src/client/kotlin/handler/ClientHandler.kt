@@ -21,6 +21,7 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
+import org.lain.engine.script.EntityDebugData
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
@@ -434,7 +435,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         pendingEntities[persistentId] = CompletableDeferred(pendingEntity)
     }
 
-    fun applyEntityDebugData(data: EntityDebugData) {
+    fun applyEntityDebugData(data: EntityDebugData.Dto) {
         client.eventBus.onEntityDebugViewData(data)
     }
 

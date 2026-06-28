@@ -75,7 +75,7 @@ public class KeyboardMixin {
             cancellable = true
     )
     public void engine$onKey(long l, int i, KeyEvent keyEvent, CallbackInfo ci) {
-        if (DeveloperModeActionsKt.onKeyDeveloperMode(keyEvent.key())) {
+        if (DeveloperModeActionsKt.onKeyDeveloperMode(keyEvent.key()) && minecraft.screen == null) {
             ci.cancel();
         }
     }

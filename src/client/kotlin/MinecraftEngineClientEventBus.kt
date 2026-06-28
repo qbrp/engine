@@ -11,8 +11,8 @@ import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.EntityDebugData
 import org.lain.engine.player.PlayerId
+import org.lain.engine.script.EntityDebugData
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.util.Injector
 import org.lain.engine.world.EngineChunk
@@ -89,7 +89,7 @@ class MinecraftEngineClientEventBus(
         minecraft.setScreen(EntityDebugScreen(gameSession.client))
     }
 
-    override fun onEntityDebugViewData(data: EntityDebugData) {
+    override fun onEntityDebugViewData(data: EntityDebugData.Dto) {
         val screen = minecraft.screen
         if (screen !is EntityDebugScreen) return
         screen.applyEntityDebugData(data)

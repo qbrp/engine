@@ -5,7 +5,7 @@ import net.minecraft.client.gui.screens.Screen
 import org.lain.engine.client.EngineClient
 import org.lain.engine.mc.emptyText
 import org.lain.engine.mc.literalText
-import org.lain.engine.player.EntityDebugData
+import org.lain.engine.script.EntityDebugData
 import tytoo.grapheneui.api.widget.GrapheneWebViewWidget
 
 class EntityDebugScreen(private val client: EngineClient) : Screen(literalText("Entity debug")) {
@@ -25,7 +25,7 @@ class EntityDebugScreen(private val client: EngineClient) : Screen(literalText("
         addRenderableWidget(view)
     }
 
-    fun applyEntityDebugData(data: EntityDebugData) {
+    fun applyEntityDebugData(data: EntityDebugData.Dto) {
         if (!::view.isInitialized) return
         view.bridge().emit("data", Json.encodeToString(data))
     }

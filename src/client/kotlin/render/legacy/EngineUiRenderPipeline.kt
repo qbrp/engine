@@ -239,14 +239,28 @@ class EngineUiRenderPipeline(
     }
 }
 
-class TextCache {
-    private val map = mutableMapOf<String, FormattedText>()
+class TextCache(
+    private val maxSize: Int = 1000
+) {
+    private val map = object : LinkedHashMap<String, FormattedText>(
+        maxSize,
+        0.75f,
+        true
+    ) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<String, FormattedText>
+        ): Boolean {
+            return size > maxSize
+        }
+    }
 
     internal fun clear() {
         map.clear()
     }
 
     fun get(text: String): FormattedText {
-        return map.getOrPut(text) { text.parseMiniMessageClient() }
+        return map.getOrPut(text) {
+            text.parseMiniMessageClient()
+        }
     }
 }

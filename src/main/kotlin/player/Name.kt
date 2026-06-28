@@ -19,7 +19,7 @@ value class Username(val value: String) {
 
 const val CUSTOM_NAME_MAX_LENGTH = 32
 
-private val FORBIDDEN_CHARS = setOf('<', '#', '/')
+private val FORBIDDEN_CHARS = setOf('<', '#', '/', '&')
 class InvalidCustomNameException(message: String) : RuntimeException(message)
 
 @Serializable
@@ -34,7 +34,7 @@ data class CustomName(
         }
 
         require(string.none { it in FORBIDDEN_CHARS }) {
-            throw InvalidCustomNameException("Имя не должно содержать символы <, # и /")
+            throw InvalidCustomNameException("Имя не должно содержать символы <, #, / и &")
         }
     }
 }

@@ -53,10 +53,11 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
                 it.fixed.engine(),
                 engineModel?.outfitTransformation?.engine() ?: EngineTransformation.Identity(),
             )
-        }  ?: EngineTransformationsBundle()
+        } ?: EngineTransformationsBundle()
     }
 
-    private var context = AdditionalTransformationsBank.lastDisplayContext ?: EngineItemDisplayContext.FIRST_PERSON_RIGHT_HAND
+    private var context =
+        AdditionalTransformationsBank.lastDisplayContext ?: EngineItemDisplayContext.FIRST_PERSON_RIGHT_HAND
     private val scale
         get() = transformations.getTransformation(context).scale
     private val rotation
@@ -64,7 +65,13 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
     private val translation
         get() = transformations.getTransformation(context).translation
 
-    private val contextList = SingleSelectionListWidget<EngineItemDisplayContext>(MinecraftClient, MinecraftClient.window.guiScaledWidth - 100 - 2, 2, 100, 150)
+    private val contextList = SingleSelectionListWidget<EngineItemDisplayContext>(
+        MinecraftClient,
+        MinecraftClient.window.guiScaledWidth - 100 - 2,
+        2,
+        100,
+        150
+    )
         .apply {
             onSelect = { index, ctx ->
                 context = ctx
@@ -73,7 +80,13 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
             }
         }
 
-    fun addSliderWithField(i: Int, option: String, maxValue: Float, getter: (EngineTransformation) -> Float, setter: (Float) -> Unit) {
+    fun addSliderWithField(
+        i: Int,
+        option: String,
+        maxValue: Float,
+        getter: (EngineTransformation) -> Float,
+        setter: (Float) -> Unit
+    ) {
         val slider = TransformationSliderWidget(
             getWidgetY(i),
             option,
@@ -122,9 +135,9 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
     }
 
     override fun init() {
-        addSliderWithField(1, "Scale Z", MAX_SCALE,{ it.scale.z }, { scale.z = it })
-        addSliderWithField(2, "Scale Y", MAX_SCALE,{ it.scale.y }, { scale.y = it })
-        addSliderWithField(3, "Scale X", MAX_SCALE,{ it.scale.x }, { scale.x = it })
+        addSliderWithField(1, "Scale Z", MAX_SCALE, { it.scale.z }, { scale.z = it })
+        addSliderWithField(2, "Scale Y", MAX_SCALE, { it.scale.y }, { scale.y = it })
+        addSliderWithField(3, "Scale X", MAX_SCALE, { it.scale.x }, { scale.x = it })
         addText(4, "Scale")
 
         addSliderWithField(5, "Rotation Z", MAX_ROTATION, { it.rotation.z }, { rotation.z = it })
@@ -185,7 +198,8 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
         }
 
         addClipboardButton("Paste full", "Pasted!", PADDING + SLIDER_WIDTH * 2, PADDING + LINE_HEIGHT) {
-            transformations = AdditionalTransformationsBank.clipboardFullTransform?.copy() ?: return@addClipboardButton false
+            transformations =
+                AdditionalTransformationsBank.clipboardFullTransform?.copy() ?: return@addClipboardButton false
             AdditionalTransformationsBank.set(modelId, transformations)
             sliders.forEach { it.refresh() }
             true
@@ -214,7 +228,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
         }
 
         contextList.width = w
-        contextList.x = MinecraftClient.window.guiScaledHeight - w - 2
+        contextList.x = MinecraftClient.window.guiScaledWidth - w - 2
         contextList.setSelectedByValue(context)
     }
 
@@ -275,11 +289,14 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
         private val getter: () -> Float,
         private val setter: (Float) -> Unit,
         private val model: ItemModel,
-    ): AbstractSliderButton(PADDING, y, SLIDER_WIDTH, LINE_HEIGHT, literalText(option), getter().toDouble()) {
+    ) : AbstractSliderButton(PADDING, y, SLIDER_WIDTH, LINE_HEIGHT, literalText(option), getter().toDouble()) {
         private var lastValue: Float = getter()
         private val epsilon = 0.001f
         var tick = 0
-        init { refresh() }
+
+        init {
+            refresh()
+        }
 
         override fun updateMessage() {
             message = literalText("$option: " + String.format("%.2f", validatedValue()))
