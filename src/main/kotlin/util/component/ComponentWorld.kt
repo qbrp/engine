@@ -274,7 +274,7 @@ class ComponentWorld(
 
     fun getComponentsMap(
         entity: EntityId,
-        bitMask: LongArray?
+        bitMask: LongArray? = null
     ): Map<ComponentType<out Component>, Component> {
         assertOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }

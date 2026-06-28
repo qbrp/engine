@@ -65,6 +65,10 @@ fun <T, C> Collection<T>.forEachWithContext(contextReceiver: (T) -> C, block: C.
     }
 }
 
+fun <T> Collection<T>.forEachWithSelfContext(block: T.(T) -> Unit) {
+    forEach { with (it) { block(it)  } }
+}
+
 fun <T : ItemData> MutableList<ItemData>.addIf(statement: () -> Boolean, component: () -> T) {
     if (statement()) this += component()
 }
