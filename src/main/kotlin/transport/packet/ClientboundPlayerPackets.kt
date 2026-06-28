@@ -1,7 +1,6 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.EntityDebugData
 import org.lain.engine.player.InteractionSelection
 import org.lain.engine.player.PlayerId
 import org.lain.engine.server.Notification

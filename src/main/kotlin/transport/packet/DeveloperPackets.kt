@@ -1,7 +1,8 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.EntityDebugData
+import org.lain.engine.script.DebugPrimitive
+import org.lain.engine.script.EntityDebugData
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -25,14 +26,24 @@ val CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET = Endpoint<AcousticDebugVolumesPac
 // Entity Debug
 
 @Serializable
-data class EntityDebugDataPacket(val data: EntityDebugData) : Packet
+data class EntityDebugDataPacket(val data: EntityDebugData.Dto) : Packet
 
 val CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT = Endpoint<EntityDebugDataPacket>()
+
+@Serializable
+data class EntityDebugErrorPacket(val error: String) : Packet
+
+val CLIENTBOUND_ENTITY_DEBUG_ERROR_ENDPOINT = Endpoint<EntityDebugDataPacket>()
 
 @Serializable
 data class EntityDebugViewPacket(val persistentId: PersistentId) : Packet
 
 val SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT = Endpoint<EntityDebugViewPacket>()
+
+@Serializable
+data class EntityDebugEditPacket(val obj: Int, val value: DebugPrimitive) : Packet
+
+val SERVERBOUND_ENTITY_DEBUG_EDIT_ENDPOINT = Endpoint<EntityDebugEditPacket>()
 
 @Serializable
 object EntityDebugViewStopPacket : Packet

@@ -23,11 +23,14 @@ import org.lain.engine.item.getName
 import org.lain.engine.item.getOwner
 import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.player.*
+import org.lain.engine.script.EntityDebugData
+import org.lain.engine.script.EntityDebugViewComponent
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.script.getVoidScript
+import org.lain.engine.script.snapshotDebugData
 import org.lain.engine.storage.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -153,8 +156,12 @@ class ServerHandler(
 
     private fun onEntityDebugView(player: PlayerId, persistentId: PersistentId) = updatePlayer(player) {
         if (!hasPermission("entity_debug")) return@updatePlayer
+        val entity = world.persistentIdToEntity[persistentId] ?: desync("Сущность $persistentId не существует")
         replaceOrSet {
-            EntityDebugViewComponent(world.persistentIdToEntity[persistentId] ?: desync("Сущность $persistentId не существует"))
+            EntityDebugViewComponent(
+                entity,
+                with(world) { entity.snapshotDebugData() }
+            )
         }
     }
 
@@ -478,7 +485,7 @@ class ServerHandler(
             )
     }
 
-    fun onEntityDebugSnapshot(player: EnginePlayer, data: EntityDebugData) {
+    fun onEntityDebugSnapshot(player: EnginePlayer, data: EntityDebugData.Dto) {
         CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT.sendS2C(
             EntityDebugDataPacket(data),
             player.id
