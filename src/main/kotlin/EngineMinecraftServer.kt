@@ -3,6 +3,7 @@ package org.lain.engine
 import kotlinx.coroutines.*
 import net.minecraft.core.BlockPos
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
@@ -21,6 +22,7 @@ import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.registerIntentCommands
+import org.lain.engine.mc.commands.updateCommandInvokeSystem
 import org.lain.engine.player.*
 import org.lain.engine.script.*
 import org.lain.engine.script.lua.*
@@ -53,7 +55,8 @@ data class EngineMinecraftServerDependencies(
     val isReplay: Boolean = minecraftServer.isReplayServer,
 )
 
-abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies) : ServerEventListener {
+abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies) :
+    ServerEventListener {
     val minecraftServer = dependencies.minecraftServer
     val database = connectDatabase(minecraftServer)
     protected val playerStorage = dependencies.playerStorage
@@ -61,8 +64,13 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     protected val acousticBlockData = dependencies.acousticBlockData
     protected val config = dependencies.config
     val entityTable = dependencies.entityTable.server
-    val acousticSimulator = MinecraftAcousticManager(this, dependencies.entityTable, acousticSceneBank, acousticBlockData)
+    val acousticSimulator =
+        MinecraftAcousticManager(this, dependencies.entityTable, acousticSceneBank, acousticBlockData)
     val luaContext: LuaContext = dependencies.luaContext
+    val timers = SaveTimers(
+        SaveTimers.Counter(config.itemAutosavePeriod * 20),
+        SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
+    )
     val engine = EngineServer(
         config.server,
         playerStorage,
@@ -73,15 +81,12 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         dependencies.isReplay,
         minecraftServer.getWorldPath(LevelResource.ROOT).toFile(),
         database,
-        luaContext
+        luaContext,
+        timers,
     )
 
     protected abstract val transportContext: ServerTransportContext
     protected open val connectionManager: ServerConnectionManager? = null
-    val timers = SaveTimers(
-        SaveTimers.Counter(config.itemAutosavePeriod * 20),
-        SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
-    )
 
     context(world: World)
     open fun wrapItemStack(itemId: ItemId, itemStack: ItemStack): EngineItem {
@@ -91,7 +96,11 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         return item
     }
 
-    open fun createItemStack(owner: EnginePlayer, itemId: ItemId, itemStackHandler: (ItemStack, EngineItem) -> Unit): EngineItem = with(owner.world) {
+    open fun createItemStack(
+        owner: EnginePlayer,
+        itemId: ItemId,
+        itemStackHandler: (ItemStack, EngineItem) -> Unit
+    ): EngineItem = with(owner.world) {
         val itemStack = ITEM_STACK_MATERIAL.copy()
         return wrapItemStack(itemId, itemStack)
             .also { itemStackHandler(itemStack, it) }
@@ -99,23 +108,32 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     open fun tick() {
         if (!minecraftServer.isRunning) return
-        engine.preUpdate()
         val players = engine.playerStorage.getAll()
-        updateServerMinecraftSystems(this, dependencies.entityTable, players, connectionManager)
-        engine.listWorlds().forEach { world -> world.players.forEach { player -> updatePlayerOwnedItems(world, player) } }
-        engine.update()
-        updateBulletsMinecraft(engine.defaultWorld, minecraftServer.overworld())
-        engine.listWorlds().forEachWithContext({ it }) { world ->
-            adaptScriptPlayerComponents()
-            adaptScriptLightComponents()
-            world.updateVoxelEvents(engine.handler)
-            world.clearEvents()
-            updateUnloadSystem(engine.handler, world, timers)
-            updateSaveSystem(this@EngineMinecraftServer)
-        }
-        timers.items.tick()
-        timers.containers.tick()
-        engine.postUpdate()
+        val entityTableAll = dependencies.entityTable
+
+        engine.update(
+            prepareData = {
+                val itemStackToLoad = mutableListOf<NotLoadedEngineItemStack>()
+                updateCommandInvokeSystem(entityTableAll)
+                prepareItemMinecraftSystem()
+                updateServerPlayerMinecraftSystems(
+                    this@EngineMinecraftServer,
+                    entityTableAll,
+                    this,
+                    connectionManager,
+                    itemStackToLoad
+                )
+                updateMinecraftItemLoadSystem(itemStackToLoad, engine)
+                players.forEach { player -> updatePlayerOwnedItems(this, player) }
+            },
+            updateBulletHitSystem = {
+                val level = entityTableAll.getMcWorld(id) as? ServerLevel
+                updateBulletsMinecraft(this, level!!)
+            },
+            updateSaveSystem = {
+                updateSaveSystem(this@EngineMinecraftServer)
+            }
+        )
     }
 
     open fun run() {
@@ -194,7 +212,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     override fun onCompiled(contents: NamespacedStorage) {
         val commandManager = minecraftServer.commands
-        commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler=engine.handler)
+        commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler = engine.handler)
         minecraftServer.players.forEach { commandManager.sendCommands(it) }
     }
 

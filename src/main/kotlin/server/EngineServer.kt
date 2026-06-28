@@ -18,20 +18,28 @@ import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.flushEntityRpcMessageReceiver
+import org.lain.engine.script.handleEntityDebugView
 import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.lua.adaptScriptNetworkingComponents
+import org.lain.engine.script.lua.adaptScriptPlayerComponents
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ChunkLoader
 import org.lain.engine.storage.CustomPersistentId
 import org.lain.engine.storage.ItemLoader
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.storage.SaveTimers
 import org.lain.engine.storage.playerData
 import org.lain.engine.storage.savePersistentPlayerData
+import org.lain.engine.storage.updateUnloadSystem
+import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.FixedSizeList
+import org.lain.engine.util.Log
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.flush
 import org.lain.engine.util.forEachWithContext
+import org.lain.engine.util.forEachWithSelfContext
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.*
 import java.io.File
@@ -48,7 +56,8 @@ class EngineServer(
     val isReplay: Boolean,
     savePath: File,
     database: Database,
-    val luaContext: LuaContext
+    val luaContext: LuaContext,
+    val saveTimers: SaveTimers
 ): Executor {
     @Volatile
     var globals: ServerGlobals = ServerGlobals(id, savePath=savePath)
@@ -67,6 +76,9 @@ class EngineServer(
     val playerLoader = PlayerLoader(this, itemLoader)
     val chunkLoader = ChunkLoader(this, database)
 
+    @Volatile
+    var tick: ULong = 0L.toULong()
+
     val defaultWorld
         get() = worlds.toList().first().second
 
@@ -78,7 +90,6 @@ class EngineServer(
 
     fun run() {
         handler.run()
-        update()
     }
 
     fun stop() {
@@ -86,29 +97,37 @@ class EngineServer(
         handler.invalidate()
     }
 
-    fun preUpdate() {
-        listWorlds().forEach { world ->
-            itemLoader.applyCommands(world)
-            playerLoader.applyCommands(world)
-        }
-    }
-
-    fun update() = with(namespacedStorage) {
+    fun update(
+        prepareData: World.() -> Unit,
+        updateBulletHitSystem: World.() -> Unit,
+        updateSaveSystem: World.() -> Unit,
+    ) = with(namespacedStorage) {
         if (stopped) return
         val start = Timestamp()
         val vocalSettings = globals.vocalSettings
         val worlds = allWorlds()
 
+        // Подготовка данных
+        tick++
+        listWorlds().forEach { world ->
+            itemLoader.applyCommands(world)
+            playerLoader.applyCommands(world)
+        } // принимаем команды из ECS-очередей
         taskQueue.flush { it.run() }
 
-        worlds.forEachWithContext({ it }) { world ->
-            world.players.forEach { player ->
-                handleEntityDebugView(handler, player)
+        worlds.forEachWithSelfContext { world ->
+            world.prepareData()
 
+            // Фаза 2.1. Обновление игрока
+            world.players.forEach { player ->
+                handleEntityDebugView(handler, player) // Отсылаем слепок данных игроку
+
+                // Движение, голос
                 updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
                 updatePlayerSpeaking(player, chat, vocalSettings)
                 updatePlayerVoice(player, chat, globals.vocalSettings)
 
+                // Сбор взаимодействий
                 updatePlayerVerbLookup(player)
                 appendVerbs(player)
                 updatePlayerInteractions(player, handler=handler)
@@ -125,21 +144,46 @@ class EngineServer(
                     finishPlayerInteraction(player)
                 }
 
-                updateFireTimeSystem()
-                updateRecoilSystem()
                 updateHearing(player)
                 updateAcousticHearing(player, handler, globals.chatSettings)
 
                 tickNarrations(player)
             }
 
+            // Обновление оружейных систем
+            updateFireTimeSystem()
+            updateRecoilSystem()
+            updateBulletsAcoustic(world)
+            updateBulletHitSystem()
+
+            // Обновление звуков
             val sounds = processWorldSounds(namespacedStorage, world)
             broadcastWorldSounds(sounds, handler)
-            updateBulletsAcoustic(world)
+
+            // Вызов обновления системы контейнеров
             updateContainerSystems()
-            with(luaContext) { adaptScriptNetworkingComponents() }
-            world.tickCallbacks(callbacks)
-            flushEntityRpcMessageReceiver()
+
+            with(luaContext) {
+                adaptScriptNetworkingComponents()
+                world.tickCallbacks(callbacks)
+                flushEntityRpcMessageReceiver()
+                adaptScriptPlayerComponents()
+                adaptScriptLightComponents()
+            }
+
+            // Обработка взаимодействий с вокселями
+            world.updateVoxelEvents(handler)
+
+            // Подгон данных контейнеров
+            postUpdateContainerSystems()
+
+            updateSaveSystem()
+            updateUnloadSystem(handler, world, saveTimers)
+
+            saveTimers.items.tick()
+            saveTimers.containers.tick()
+
+            world.clearEvents()
         }
 
         handler.tick()
@@ -209,4 +253,20 @@ class EngineServer(
     }
 
     fun allWorlds() = worlds.values
+
+    fun logInMainThread(loggerGetter: EngineServer.(tick: ULong) -> Log) {
+        val tick = tick
+        execute {
+            EngineLogger.log(loggerGetter(tick))
+        }
+    }
+
+    fun logInMainThread(world: World, loggerGetter: context(World) EngineServer.(tick: ULong) -> Log) {
+        val tick = tick
+        execute {
+            with(world) {
+                EngineLogger.log(loggerGetter(tick))
+            }
+        }
+    }
 }

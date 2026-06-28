@@ -162,12 +162,31 @@ class PlayerLoader(
 
         val world = settings.world
         val persistent = server.globals.savePath.playerData.parsePersistentPlayerData(settings.playerId)
-        val inventoryLoadResult = exceptionHandler.runCatchingSuspend { loadInventoryItems(world, settings.inventoryItems, persistent?.equipment ?: mapOf()) } ?: return
-        val player = exceptionHandler.runCatchingSuspend { serverPlayerInstance(world, settings, inventoryLoadResult, persistent)  } ?: return
+        val inventoryLoadResult = exceptionHandler.runCatchingSuspend {
+            loadInventoryItems(
+                world,
+                settings.inventoryItems,
+                persistent?.equipment ?: mapOf(),
+                ItemLoadContext.PreparingPlayer(settings.playerId, settings.username)
+            )
+        } ?: return
+        val player = exceptionHandler.runCatchingSuspend {
+            serverPlayerInstance(
+                world,
+                settings,
+                inventoryLoadResult,
+                persistent
+            )
+        } ?: return
         val componentsToLoad = persistent?.components ?: emptyList()
         with(EntityCommandBuffer(world)) {
             player.prepareContainers(Uuid.next(), player.location, inventoryLoadResult.equipmentItems)
-            player.entityId.copyComponentDtoState(componentsToLoad) { toDomainWithoutRelationships(world.itemStorage, server.namespacedStorage) }
+            player.entityId.copyComponentDtoState(componentsToLoad) {
+                toDomainWithoutRelationships(
+                    world.itemStorage,
+                    server.namespacedStorage
+                )
+            }
             schedule {
                 exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications) }
             }
@@ -203,20 +222,24 @@ class PlayerLoader(
             ),
             persistentPlayerData,
             server.globals.defaultPlayerAttributes,
-            settings.playerId
+            settings.playerId,
         )
     }
 
-    data class InventoryItemsLoadResult(val inventoryItems: List<EngineItem>, val equipmentItems: Map<EquipmentSlot, EngineItem>)
+    data class InventoryItemsLoadResult(
+        val inventoryItems: List<EngineItem>,
+        val equipmentItems: Map<EquipmentSlot, EngineItem>
+    )
 
     private suspend fun loadInventoryItems(
         world: World,
         inventoryItems: List<PersistentId>,
-        equipmentItems: Map<EquipmentSlot, PersistentId>
+        equipmentItems: Map<EquipmentSlot, PersistentId>,
+        context: ItemLoadContext.PreparingPlayer
     ): InventoryItemsLoadResult = withContext(Dispatchers.IO) {
         val inventoryItems = async {
             val items = inventoryItems.map { uuid ->
-                async { itemLoader.loadWorldItem(uuid, world) }
+                async { itemLoader.loadWorldItem(uuid, world, context) }
             }
             items.awaitAll().filterNotNull()
         }
@@ -226,7 +249,7 @@ class PlayerLoader(
                 .toList()
                 .map { (slot, uuid) ->
                     async {
-                        val item = itemLoader.loadWorldItem(uuid, world)
+                        val item = itemLoader.loadWorldItem(uuid, world, context)
                         slot to item
                     }
                 }
@@ -269,7 +292,7 @@ fun EnginePlayer.prepareContainers(
     )
     // DEBUG
     // if (!username.startsWith("Player")) {
-        // container.removeComponent<PersistentId>()
+    // container.removeComponent<PersistentId>()
     // }
     container.setComponent(PlayerEquipment(this@prepareContainers))
     set(Equipment(container))

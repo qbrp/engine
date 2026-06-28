@@ -11,17 +11,16 @@ import net.minecraft.world.level.GameType
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EngineMinecraftServer
 import org.lain.engine.item.*
-import org.lain.engine.mc.commands.updateCommandInvokeSystem
 import org.lain.engine.player.*
+import org.lain.engine.storage.ItemLoadContext
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.dataFixItem
 import org.lain.engine.transport.network.ServerConnectionManager
-import org.lain.engine.util.Storage
 import org.lain.engine.util.addIfNotNull
-import org.lain.engine.util.forEachWithContext
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.location
+import org.lain.engine.world.pos
 import org.slf4j.LoggerFactory
 
 context(world: World)
@@ -54,27 +53,19 @@ fun checkIsAliveDuplicate(player: EnginePlayer, entity: Player, server: Minecraf
     return !entity.isAlive && server.players.any { it.isAlive && it.engineId == player.id }
 }
 
-private val ItemStackIoCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-data class EngineItemStack(val engineItem: EngineItem, val itemStack: ItemStack)
-
-data class NotLoadedEngineItemStack(val world: World, val itemUuid: PersistentId, val itemStack: ItemStack, val referenceComponent: EngineItemReferenceComponent)
-
-fun updateServerMinecraftSystems(
+fun updateServerPlayerMinecraftSystems(
     server: EngineMinecraftServer,
     entityTable: EntityTable,
-    players: List<EnginePlayer>,
+    world: World,
     connectionManager: ServerConnectionManager?,
+    itemStacksToLoad: MutableList<NotLoadedEngineItemStack> // ВАЖНО: здесь храним копии стаков, иначе будут проблемы с потоками
 ) {
     val table = entityTable.server
     val engine = server.engine
     val itemLoader = engine.itemLoader
-    val notUpdatedPlayers = players.toMutableList()
-    val itemStacksToLoad = mutableListOf<NotLoadedEngineItemStack>() // ВАЖНО: здесь храним копии стаков, иначе будут проблемы с потоками
+    val notUpdatedPlayers = world.players.toMutableList()
 
-    engine.allWorlds().forEachWithContext({ it }) { world ->
-        world.updateCommandInvokeSystem(entityTable)
-        world.prepareItemMinecraftSystem()
+    with(world) {
         world.players.forEach { player ->
             val entity = table.getEntity(player)
             if (entity == null || checkIsAliveDuplicate(player, entity, server.minecraftServer)) {
@@ -104,6 +95,10 @@ fun updateServerMinecraftSystems(
             val items: MutableList<EngineItemStack> = mutableListOf()
 
             val destroyItemSignal = player.remove<DestroyItemSignal>()
+            val loadContext = ItemLoadContext.FromInventory(
+                player.id,
+                player.pos
+            )
             for (itemStack in itemStacks) {
                 var item: EngineItem? = null
                 val reference = itemStack.engine()
@@ -119,7 +114,15 @@ fun updateServerMinecraftSystems(
                     val isItemLoading = reference.loading
                     if (!isItemLoaded && !isItemLoading) {
                         reference.loading = true
-                        itemStacksToLoad.add(NotLoadedEngineItemStack(world, uuid, itemStack.copy(), reference))
+                        itemStacksToLoad.add(
+                            NotLoadedEngineItemStack(
+                                world,
+                                uuid,
+                                itemStack.copy(),
+                                reference,
+                                loadContext
+                            )
+                        )
                     } else {
                         // Логика уничтожения применима только для уже загруженных предметов, очевидно
                         if (destroyItemSignal != null && referencedItem == destroyItemSignal.item) {
@@ -139,45 +142,9 @@ fun updateServerMinecraftSystems(
                 if (item != null) items.add(EngineItemStack(item, itemStack))
             }
 
-            updatePlayerMinecraftSystems(player, items.toSet(), entity, world, itemStorage)
+            updatePlayerMinecraftSystems(player, items.toSet(), entity, world)
             player.remove<BookOpen>()
             excludeEngineItemDuplicates(server, entity)
-        }
-    }
-
-    if (itemStacksToLoad.isNotEmpty()) {
-        ItemStackIoCoroutineScope.launch {
-            val semaphore = Semaphore(16)
-            itemStacksToLoad
-                .map { data ->
-                    val world = data.world
-                    async {
-                        semaphore.withPermit {
-                            try {
-                                    withTimeout(5000) {
-                                    val item = itemLoader.loadWorldItem(data.itemUuid, world)
-                                    context(world) {
-                                        engine.execute {
-                                            try {
-                                                dataFixItem(item, engine.namespacedStorage)
-                                                wrapEngineItemStack(item, data.itemStack)
-                                            } catch (e: Throwable) {
-                                                LOGGER.error("Ошибка загрузи предмета $data", e)
-                                                val item = server.engine.createInvalidItem(world)
-                                                wrapEngineItemStack(item, data.itemStack)
-                                            }
-                                        }
-                                    }
-                                }
-                            } finally {
-                                engine.execute {
-                                    data.referenceComponent.loading = false
-                                }
-                            }
-                        }
-                    }
-                }
-                .awaitAll()
         }
     }
 
@@ -191,7 +158,6 @@ fun updatePlayerMinecraftSystems(
     items: Set<EngineItemStack>,
     entity: Player,
     world: World,
-    itemStorage: Storage<PersistentId, EngineItem>
 ) = with(world) {
     val location = player.require<Location>()
     val velocity = player.require<Velocity>()
@@ -249,10 +215,12 @@ fun updatePlayerMinecraftSystems(
         }
 
         if (hasSpawnMark) {
-            entity.setGameMode(previousGameMode ?: when(entity.hasPermission("spawn.creative")) {
-                false -> McGameModes.SURVIVAL
-                true -> McGameModes.CREATIVE
-            })
+            entity.setGameMode(
+                previousGameMode ?: when (entity.hasPermission("spawn.creative")) {
+                    false -> McGameModes.SURVIVAL
+                    true -> McGameModes.CREATIVE
+                }
+            )
         }
 
         if (hasSpawnMark) player.remove<SpawnMark>()

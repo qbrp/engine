@@ -5,7 +5,13 @@ import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.Item
 import org.lain.engine.item.UpdateMeta
+import org.lain.engine.util.DebugName
+import org.lain.engine.util.EntityDebugId
+import org.lain.engine.util.EntityDebugNameId
 import org.lain.engine.util.component.Networked
+import org.lain.engine.util.getDebugId
+import org.lain.engine.util.getEntityDebugNameId
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
 interface EntityProvider {
@@ -15,6 +21,9 @@ interface EntityProvider {
 class EntityResolver(private val entityProvider: EntityProvider) {
     private val hydrated = ConcurrentHashMap.newKeySet<PersistentId>()
     private val entities = ConcurrentHashMap<PersistentId, EntityId>()
+    private val _resolved = Collections.synchronizedSet(HashSet<EntityId>())
+    val resolved: Set<EntityId>
+        get() = _resolved
 
     context(write: WriteComponentAccess)
     suspend fun loadEntity(
@@ -56,7 +65,10 @@ class EntityResolver(private val entityProvider: EntityProvider) {
         persistentId: PersistentId
     ): EntityId? {
         // если сущность уже загружена в мир - возвращаем её
-        componentLoadSettings.persistentIdToEntity[persistentId]?.let { return it }
+        componentLoadSettings.persistentIdToEntity[persistentId]?.let {
+            _resolved += it
+            return it
+        }
 
         // в противном случае создаем плейсхолдер
         val entity = resolvePlaceholder(persistentId)
@@ -70,7 +82,7 @@ class EntityResolver(private val entityProvider: EntityProvider) {
             } ?: return null
 
             val domainComponents = components.toDomainSuspend {
-                toDomainSuspend(
+                val component = toDomainSuspend(
                     componentLoadSettings,
                     entityGetter = { refPersistentId ->
                         resolveReferencedEntity(
@@ -79,23 +91,24 @@ class EntityResolver(private val entityProvider: EntityProvider) {
                         )
                     }
                 )
+                component
             }
 
-            entity?.copyState(domainComponents)
-
+            _resolved += entity
+            entity.copyState(domainComponents)
             return entity
         } catch (e: Exception) {
             hydrated.remove(persistentId)
             entities.remove(persistentId)
 
-            entity?.destroy()
+            entity.destroy()
 
             throw e
         }
     }
 
     context(write: WriteComponentAccess)
-    private fun resolvePlaceholder(persistentId: PersistentId): EntityId? {
+    private fun resolvePlaceholder(persistentId: PersistentId): EntityId {
         entities[persistentId]?.let { return it }
 
         val placeholder = write.addEntity()

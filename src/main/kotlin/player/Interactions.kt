@@ -4,12 +4,11 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.debugPacket
 import org.lain.engine.item.*
-import org.lain.engine.script.ContentStorage
+import org.lain.engine.script.Contents
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.nextIdFast
 import org.lain.engine.world.SoundContext
 import org.lain.engine.world.World
-import org.lain.engine.world.world
 import kotlin.reflect.KClass
 
 data class PlayerInput(
@@ -145,7 +144,7 @@ data class InteractionComponent(
         selection = InteractionSelection(title, variants)
     }
 
-    context(contents: ContentStorage)
+    context(contents: Contents)
     fun attachProgression(
         id: ProgressionAnimationId?,
         duration: Int
@@ -156,7 +155,7 @@ data class InteractionComponent(
         progressionTimeStart = timeElapsed
     }
 
-    context(world: World, contents: ContentStorage)
+    context(world: World, contents: Contents)
     fun attachItemProgression(
         item: EngineItem,
         key: String,
@@ -165,7 +164,7 @@ data class InteractionComponent(
         attachProgression(item.getComponent<ItemProgressionAnimations>()?.animations[key], duration)
     }
 
-    context(world: World, contents: ContentStorage)
+    context(world: World, contents: Contents)
     fun attachHandItemProgression(
         key: String,
         duration: Int
