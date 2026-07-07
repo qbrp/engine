@@ -1,6 +1,6 @@
 package org.lain.engine.script.lua
 
-import org.lain.engine.player.ProgressionAnimationId
+import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.*
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.world.SoundEventId

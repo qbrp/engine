@@ -7,6 +7,7 @@ import org.lain.engine.item.Item
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.Storage
+import org.lain.engine.world.World
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -42,9 +43,13 @@ class ComponentWorld(
         return arrays[type.id] as? ComponentArray<T> ?: error("No component array for $type")
     }
 
-    fun listArrays(): List<ComponentArray<*>> = arraysList
+    fun listArrays(): List<ComponentArray<*>> {
+        checkOnThread()
+        return arraysList
+    }
 
     fun invalidateComponentArrays(entries: List<Pair<ComponentType<out Component>, ComponentMeta>>) {
+        checkOnThread()
         entries.forEach { (type, meta) ->
             val id = type.id
             val existingArray = arrays[id]
@@ -60,13 +65,11 @@ class ComponentWorld(
                     arr.onAdded = { component, entity ->
                         val persistentId = (component as Item).uuid
                         if (itemStorage.get(persistentId) != entity) {
-                            println("Added item $persistentId ($entity)")
                             itemStorage.remove(persistentId)
                             itemStorage.add(persistentId, entity)
                         }
                     }
                     arr.onRemoved = { component, entity ->
-                        println("Removed item $component ($entity)")
                         itemStorage.remove((component as Item).uuid)
                     }
                 }
@@ -79,9 +82,9 @@ class ComponentWorld(
         }
     }
 
-    private fun assertOnThread() {
+    private fun checkOnThread() {
         val currentThread = Thread.currentThread()
-        assert(currentThread == thread) { "Invalid thread: ${currentThread.name}. Operations allowed only on ${thread.name} thread" }
+        check(currentThread == thread) { "Invalid thread: ${currentThread.name}. Operations allowed only on ${thread.name} thread" }
     }
 
     override fun markDirty(entity: EntityId, type: ComponentType<out Component>) {
@@ -111,14 +114,14 @@ class ComponentWorld(
     }
 
     fun getDeltaBitMaskIfPreset(entity: EntityId): LongArray? {
-        assertOnThread()
+        checkOnThread()
         if (entity !in deltaBitMasks.indices) return null
         val bitMask = deltaBitMasks[entity] ?: return null
         return bitMask
     }
 
     fun getNetworkedDeltaBitMask(entityId: EntityId): LongArray? {
-        assertOnThread()
+        checkOnThread()
         if (deltaBitMasks.size <= entityId) return null
         return deltaBitMasks[entityId]
     }
@@ -130,6 +133,7 @@ class ComponentWorld(
     }
 
     fun getNetworkedArrays(entityId: EntityId): List<ComponentArray<*>> {
+        checkOnThread()
         val output = mutableListOf<ComponentArray<*>>()
         for (arr in arraysList) {
             val component = arr.componentOf(entityId)
@@ -141,6 +145,7 @@ class ComponentWorld(
     }
 
     fun getSavableComponents(entityId: EntityId): List<Component> {
+        checkOnThread()
         val output = mutableListOf<Component>()
         for (arr in savableArrays.values) {
             val component = arr.componentOf(entityId)
@@ -171,7 +176,7 @@ class ComponentWorld(
         filters: List<ComponentType<out Component>>,
         statement: (ComponentArray<*>) -> Boolean
     ): List<Pair<EntityId, ComponentState>> {
-        assertOnThread()
+        checkOnThread()
         val filterArrays = filters.map { filter -> arrays[filter.id] ?: error("No component filter found for $filter") }
         val list = mutableListOf<Pair<EntityId, ComponentState>>()
         loop@ for (entityId in filterArrays.flatMap { it.denseEntities }.toSet()) {
@@ -207,22 +212,19 @@ class ComponentWorld(
     // главный поток
     override fun destroy(entity: EntityId) {
         require(exists(entity)) { "Entity $entity does not exist" }
-        arrays.forEach { (_, array) ->
-            val removedComponent = array.removeComponent(entity)
-            if (removedComponent != null && removedComponent is PersistentId) {
-                persistentIdToEntity.remove(removedComponent)
+        arrays.forEach { (_, array) -> array.removeComponent(entity) }
+        synchronized(entityInstantiationLock) {
+            freeIndexes.add(entity)
+            destroyed[entity] = true
+            if (entity < deltaBitMasks.size) {
+                deltaBitMasks[entity] = null
             }
-        }
-        freeIndexes.add(entity)
-        destroyed[entity] = true
-        if (entity < deltaBitMasks.size) {
-            deltaBitMasks[entity] = null
         }
     }
 
     // главный поток
     override fun exists(entity: EntityId): Boolean {
-        assertOnThread()
+        checkOnThread()
         return entity < destroyed.size && !destroyed[entity]
     }
 
@@ -262,7 +264,7 @@ class ComponentWorld(
         entity: EntityId,
         bitMask: LongArray?
     ): List<Component> {
-        assertOnThread()
+        checkOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
 
         val result = mutableListOf<Component>()
@@ -276,7 +278,7 @@ class ComponentWorld(
         entity: EntityId,
         bitMask: LongArray? = null
     ): Map<ComponentType<out Component>, Component> {
-        assertOnThread()
+        checkOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
 
         val result = mutableMapOf<ComponentType<out Component>, Component>()
@@ -287,7 +289,7 @@ class ComponentWorld(
     }
 
     override fun <T : Component> setComponentWithType(entity: EntityId, component: T, type: ComponentType<T>) {
-        assertOnThread()
+        checkOnThread()
         val array = getComponentArray(type)
         array.setComponent(entity, component)
     }
@@ -296,26 +298,26 @@ class ComponentWorld(
         entity: EntityId,
         type: ComponentType<out Component>
     ): Boolean {
-        assertOnThread()
+        checkOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         return getComponentArray(type).componentOf(entity) != null
     }
 
     override fun <T : Component> removeComponent(entity: EntityId, type: ComponentType<T>): T? {
-        assertOnThread()
+        checkOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         val array = getComponentArray(type)
         return array.removeComponent(entity)
     }
 
     override fun <T : Component> getComponent(entity: EntityId, type: ComponentType<T>): T? {
-        assertOnThread()
+        checkOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         return getComponentArray(type).componentOf(entity)
     }
 
     override fun <A : Component> iterate1(kclass1: ComponentType<A>, action: MutableComponentAccess.(EntityId, A) -> Unit) {
-        assertOnThread()
+        checkOnThread()
         val arr1 = getComponentArray(kclass1)
         for (i in arr1.denseEntities.indices.reversed()) {
             val entity = arr1.denseEntities[i]
@@ -329,7 +331,7 @@ class ComponentWorld(
         kclass2: ComponentType<B>,
         action: MutableComponentAccess.(EntityId, A, B) -> Unit
     ) {
-        assertOnThread()
+        checkOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val smallerArr = listOf(arr1, arr2).minBy { it.components.size }
@@ -348,7 +350,7 @@ class ComponentWorld(
         kclass3: ComponentType<C>,
         action: MutableComponentAccess.(EntityId, A, B, C) -> Unit
     ) {
-        assertOnThread()
+        checkOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val arr3 = getComponentArray(kclass3)
@@ -370,7 +372,7 @@ class ComponentWorld(
         kclass4: ComponentType<D>,
         action: MutableComponentAccess.(EntityId, A, B, C, D) -> Unit
     ) {
-        assertOnThread()
+        checkOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val arr3 = getComponentArray(kclass3)
@@ -395,7 +397,7 @@ class ComponentWorld(
         kclass5: ComponentType<E>,
         action: MutableComponentAccess.(EntityId, A, B, C, D, E) -> Unit
     ) {
-        assertOnThread()
+        checkOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val arr3 = getComponentArray(kclass3)
@@ -483,4 +485,16 @@ class ComponentArray<T : Component>(
         onRemoved?.invoke(removedComponent, entityId)
         return removedComponent
     }
+}
+
+fun World.clearComponents(type: ComponentType<*>) {
+    val array = componentManager.getComponentArray(type)
+    iterate1(type) { entity, component ->
+        require(entity.exists())
+        array.removeComponent(entity)
+    }
+}
+
+inline fun <reified T : Component> World.clearComponents() {
+    clearComponents(componentTypeOf(T::class))
 }

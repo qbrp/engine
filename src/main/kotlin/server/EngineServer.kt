@@ -15,6 +15,10 @@ import org.lain.engine.container.postUpdateContainerSystems
 import org.lain.engine.container.updateContainerSystems
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.tickSocialActionSystem
+import org.lain.engine.player.interaction.tickGunActionSystem
+import org.lain.engine.player.interaction.tickPlayerInput
+import org.lain.engine.player.interaction.tickWritableActionSystem
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.flushEntityRpcMessageReceiver
@@ -25,10 +29,7 @@ import org.lain.engine.script.lua.adaptScriptNetworkingComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ChunkLoader
-import org.lain.engine.storage.CustomPersistentId
 import org.lain.engine.storage.ItemLoader
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.SaveTimers
 import org.lain.engine.storage.playerData
 import org.lain.engine.storage.savePersistentPlayerData
@@ -38,7 +39,6 @@ import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.Log
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.flush
-import org.lain.engine.util.forEachWithContext
 import org.lain.engine.util.forEachWithSelfContext
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.*
@@ -77,7 +77,7 @@ class EngineServer(
     val chunkLoader = ChunkLoader(this, database)
 
     @Volatile
-    var tick: ULong = 0L.toULong()
+    var tick: ULong = ULong.MIN_VALUE
 
     val defaultWorld
         get() = worlds.toList().first().second
@@ -119,6 +119,12 @@ class EngineServer(
             world.prepareData()
 
             // Фаза 2.1. Обновление игрока
+            world.tickPlayerInput()
+
+            world.tickGunActionSystem()
+            world.tickSocialActionSystem(playerStorage)
+            world.tickWritableActionSystem()
+
             world.players.forEach { player ->
                 handleEntityDebugView(handler, player) // Отсылаем слепок данных игроку
 
@@ -127,23 +133,6 @@ class EngineServer(
                 updatePlayerSpeaking(player, chat, vocalSettings)
                 updatePlayerVoice(player, chat, globals.vocalSettings)
 
-                // Сбор взаимодействий
-                updatePlayerVerbLookup(player)
-                appendVerbs(player)
-                updatePlayerInteractions(player, handler=handler)
-
-                player.handle<InteractionComponent>() {
-                    handlePlayerInventoryInteractions(player)
-                    handleWriteableInteractions(player)
-                    handleGunInteractions(player)
-                    handleSocialInteractions(player)
-//                    handleFlashlightInteractions(player)
-//                    handlePlayerEquipmentInteractionProgression(player)
-//                    handlePlayerEquipmentInteraction(player)
-                    handleHandScriptInteractions(player)
-                    finishPlayerInteraction(player)
-                }
-
                 updateHearing(player)
                 updateAcousticHearing(player, handler, globals.chatSettings)
 
@@ -151,14 +140,11 @@ class EngineServer(
             }
 
             // Обновление оружейных систем
-            updateFireTimeSystem()
-            updateRecoilSystem()
+            world.tickGunSystem()
+            world.tickFireTimeSystem()
+            world.tickRecoilSystem()
             updateBulletsAcoustic(world)
             updateBulletHitSystem()
-
-            // Обновление звуков
-            val sounds = processWorldSounds(namespacedStorage, world)
-            broadcastWorldSounds(sounds, handler)
 
             // Вызов обновления системы контейнеров
             updateContainerSystems()
@@ -182,18 +168,12 @@ class EngineServer(
 
             saveTimers.items.tick()
             saveTimers.containers.tick()
-
-            world.clearEvents()
         }
 
         handler.tick()
         tickTimes.add(start.timeElapsed().toInt())
-    }
 
-    fun postUpdate() {
-        listWorlds().forEachWithContext({ it }) { world ->
-            postUpdateContainerSystems()
-        }
+        worlds.forEach { world -> world.clearEvents() }
     }
 
     fun updateGlobals(update: (ServerGlobals) -> ServerGlobals) = execute {
@@ -204,9 +184,7 @@ class EngineServer(
     }
 
     fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
-        player.entityId.setComponent(Player(player))
-        player.entityId.setComponent(player.location)
-        player.entityId.setComponent(PersistentIdComponent(CustomPersistentId(player.id.toString())))
+        with(luaContext) { player.setPlayerComponents() }
         eventListener.onPlayerInstantiated(player)
 
         if (globals.spectateOnJoin) player.startSpectating()

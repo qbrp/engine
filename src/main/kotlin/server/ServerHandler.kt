@@ -2,7 +2,6 @@ package org.lain.engine.server
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.clearMetaState
-import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getAll
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.has
@@ -10,7 +9,6 @@ import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
 import org.lain.cyberia.ecs.remove
-import org.lain.cyberia.ecs.replace
 import org.lain.cyberia.ecs.replaceOrSet
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
@@ -19,10 +17,11 @@ import org.lain.engine.chat.*
 import org.lain.engine.debugPacket
 import org.lain.engine.item.Item
 import org.lain.engine.item.Writable
-import org.lain.engine.item.getName
 import org.lain.engine.item.getOwner
 import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.InputAction
+import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.EntityDebugData
 import org.lain.engine.script.EntityDebugViewComponent
 import org.lain.engine.script.ScriptContext
@@ -35,10 +34,15 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Intent
+import org.lain.engine.util.Log
+import org.lain.engine.util.LogLevel
+import org.lain.engine.util.LogMessages
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.Networked
 import org.lain.engine.util.forEachWithContext
+import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
@@ -112,12 +116,7 @@ class ServerHandler(
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingEnd(ctx.sender) }
         SERVERBOUND_ARM_STATUS_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.registerReceiver { ctx -> onWriteableContentsUpdate(ctx.sender, item, contents) }
-        SERVERBOUND_INPUT_PACKET.registerReceiver { ctx -> onPlayerInput(ctx.sender, tick + 2, actions) }
-        SERVERBOUND_INTERACTION_SELECTION_SELECT_ENDPOINT.registerReceiver { ctx -> onInteractionSelectionSelect(ctx.sender, variantId) }
-        SERVERBOUND_CLIENT_TICK_END_ENDPOINT.registerReceiver { ctx ->
-            val player = getPlayer(ctx.sender) ?: return@registerReceiver
-            player.network.tick++
-        }
+        SERVERBOUND_INPUT_PACKET.registerReceiver { ctx -> onPlayerInput(ctx.sender, tick, actions) }
         SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
         SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx -> onScriptBindings(ctx.sender, bindings) }
         SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx -> onPlayerInstantiationConfirm(ctx.sender) }
@@ -188,36 +187,11 @@ class ServerHandler(
         }
     }
 
-    private fun onInteractionSelectionSelect(playerId: PlayerId, variantId: String?) = updatePlayer(playerId) {
-        val interaction = get<InteractionComponent>() ?: desync("Взаимодействие не выполняется")
-        val variant = variantId?.let { interaction.selection?.variants?.firstOrNull { it.id == variantId } ?: desync("Вариант взаимодействия $variantId не существует") }
-        interaction.selection = null
-        interaction.selectionVariant = variant
-        if (variant == null) {
-            interaction.selectionCancelled = true
-        }
-        CLIENTBOUND_PLAYER_INTERACTION_SELECTION_SELECT_ENDPOINT.broadcastInRadius(
-            this,
-            PlayerInteractionSelectionSelectPacket(playerId, variant?.id),
-            true,
-            playerSynchronizationRadius,
-        )
-    }
-
-    private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputActionDto>) = updatePlayerWithContext(playerId) {
-        val playerInput = this.require<PlayerInput>()
-        val world = it
-        val actions = input.map { it.toDomain(world.itemStorage) }
+    private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputAction>) = updatePlayerWithContext(playerId) {
+        val playerInput = this.entityId.requireComponent<PlayerInput>()
         playerInput.actions.clear()
-        playerInput.actions.addAll(actions)
-
-        CLIENTBOUND_PLAYER_INPUT_PACKET.broadcastInRadius(
-            world,
-            location,
-            playerSynchronizationRadius,
-            exclude = listOf(this),
-            packet = PlayerInputPacket(this.id, actions.map { action -> action.toDto() }.toSet())
-        )
+        playerInput.actions.addAll(input)
+        playerInput.tick = tick
     }
 
     private fun onWriteableContentsUpdate(playerId: PlayerId, persistentId: PersistentId, contents: List<String>) = updatePlayerWithContext(playerId) {
@@ -316,18 +290,17 @@ class ServerHandler(
         CHAT_LOGGER.info("Удалено сообщение игроком $player: $outcomingMessage")
     }
 
+    //TODO: синхронизировать предметы по блок-сущностям (чтобы учитывать и сундуки)
     fun tick() {
         val players = playerStorage.filter { (server.isReplay && !it.has<ReplayViewer>()) || it.network.authorized }
 
         players.forEachWithContext({ it.world }) { player ->
             val world = player.world
-            val input = player.require<PlayerInput>()
+            val input = player.entityId.requireComponent<PlayerInput>()
             val state = player.network
             val playerLocation = player.location
             val playerPosition = playerLocation.position
             val worldComponents = world.componentManager
-
-            debugPacket("Действия тика ${state.tick}: ${input.actions}")
 
             val worldState = world.state
             val worldEntityComponentsToSync = when(state.worldSynced) {
@@ -348,6 +321,7 @@ class ServerHandler(
             state.players.removeAll(playersToDesynchronize)
 
             val entitiesInRadius: HashSet<PersistentId> = hashSetOf()
+            val playerUsername = player.username
             world.iterate<Networked, Location, PersistentIdComponent>() { entity, _, entityLocation, (persistentId) ->
                 if (entity.hasComponent<Player>()) return@iterate
                 if (entityLocation.position.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
@@ -367,9 +341,19 @@ class ServerHandler(
                             ),
                             player.id
                         )
-                        if (entity.hasComponent<Item>()) {
-                            println("Synchronized item ${entity.getName()}")
-                        }
+                        EngineLogger.log(
+                            Log(
+                                LogMessages.ENTITY_SYNC,
+                                LogLevel.INFO,
+                                data = mapOf(
+                                    "entity" to entity.getEntityDebugNameId().name,
+                                    "player_id" to player.id.toString(),
+                                    "player_name" to playerUsername
+                                ),
+                                tick = server.tick,
+                                world = world.id
+                            )
+                        )
                     }
                     entitiesInRadius.add(persistentId)
                     state.entities.add(persistentId)
@@ -431,18 +415,6 @@ class ServerHandler(
         )
     }
 
-    fun onPlayerInteraction(player: EnginePlayer, component: InteractionComponent) = with(player.world) {
-        CLIENTBOUND_PLAYER_INTERACTION_PACKET.broadcastInRadius(
-            this,
-            player.location,
-            playerSynchronizationRadius,
-            packet = PlayerInteractionPacket(
-                player.id,
-                component.toDto()
-            )
-        )
-    }
-
     fun onChunkSend(world: World, chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer)  {
         CLIENTBOUND_CHUNK_ENDPOINT.sendS2C(
             EngineChunkPacket(
@@ -469,8 +441,8 @@ class ServerHandler(
         CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT.broadcast(ScriptsRecompileEndpoint(script))
     }
 
-    fun onSoundEvent(play: SoundPlay, context: SoundContext?, receivers: List<EnginePlayer>) {
-        val packet = SoundPlayPacket(play, context)
+    fun playSoundLocal(play: SoundPlay, ignorePhysics: Boolean, receivers: List<EnginePlayer>) {
+        val packet = SoundPlayPacket(play, ignorePhysics)
         receivers.forEach {
             CLIENTBOUND_SOUND_PLAY_ENDPOINT.sendS2C(packet, it.id)
         }

@@ -4,7 +4,6 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.require
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.InteractionComponent
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.IntentActor
 import org.lain.engine.util.IntentSelection
@@ -21,10 +20,6 @@ interface IntentBehaviour {
 
 sealed class ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext()
-    data class Interaction(
-        val player: EnginePlayer,
-        val raycastPlayer: EnginePlayer?,
-    ) : ScriptContext()
     data class World(val world: EngineWorld) : ScriptContext()
     data class ItemLoad(val world: EngineWorld, val item: EngineItem) : ScriptContext()
     data class VoxelAction(
@@ -43,9 +38,6 @@ sealed class ScriptContext {
 
 val EnginePlayer.scriptContext: ScriptContext.Player
     get() = ScriptContext.Player(this)
-
-val EnginePlayer.interactionScriptContext: ScriptContext.Interaction
-    get() = ScriptContext.Interaction(this, require<InteractionComponent>().raycastPlayer)
 
 sealed class ExecutionResult<R> {
     data class Success<R>(val result: R) : ExecutionResult<R>()

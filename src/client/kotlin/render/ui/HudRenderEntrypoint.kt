@@ -4,14 +4,15 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.handle
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.ScreenRenderer
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.mc.engineId
-import org.lain.engine.player.InteractionComponent
 import org.lain.engine.player.Narration
+import org.lain.engine.player.interaction.Progression
 
 fun registerHudRenderEvent(
     client: Minecraft,
@@ -43,7 +44,7 @@ fun registerHudRenderEvent(
             renderInteractionProgression(
                 context,
                 screenRenderer.interactionProgression,
-                mainPlayer.get<InteractionComponent>(),
+                with(mainPlayer.world) { mainPlayer.entityId.getComponent<Progression>() },
                 deltaTick
             )
             screenRenderer.renderScreen(deltaTick)

@@ -5,12 +5,14 @@ import com.daqem.yamlconfig.client.gui.screen.ConfigScreen
 import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.minecraft.client.KeyMapping
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.control.*
 import org.lain.engine.client.render.ui.InteractionSelectionScreen
 import org.lain.engine.mc.engineId
-import org.lain.engine.player.InputAction
-import org.lain.engine.player.input
+import org.lain.engine.player.interaction.InputAction
+import org.lain.engine.player.interaction.PlayerInput
 import org.lwjgl.glfw.GLFW
 
 fun isControlDown() = InputConstants.isKeyDown(MinecraftClient.window, GLFW.GLFW_KEY_LEFT_CONTROL)
@@ -98,7 +100,7 @@ class KeybindManager(
         }
 
         engineClient.gameSession?.apply {
-            val input = mainPlayer.input
+            val input = with(world) { mainPlayer.entityId.requireComponent<PlayerInput>().actions }
             if (base.isPressed) input.add(InputAction.Base)
             if (attack.isPressed) input.add(InputAction.Attack)
             if (takeOffEquip.isPressed) input.add(InputAction.TakeOff)

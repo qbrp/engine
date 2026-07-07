@@ -2,7 +2,7 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.engine.player.VerbType
+import org.lain.engine.player.interaction.VerbType
 
 @Serializable
 data class Flashlight(var enabled: Boolean) : Component

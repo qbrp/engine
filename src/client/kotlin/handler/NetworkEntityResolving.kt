@@ -7,6 +7,8 @@ import org.lain.engine.storage.EntityProvider
 import org.lain.engine.storage.PersistentId
 
 class PendingEntityProvider(private val pendingEntities: MutableMap<PersistentId, CompletableDeferred<PendingEntity?>>) : EntityProvider {
+    fun clear() = pendingEntities.clear()
+
     override suspend fun loadEntity(
         persistentId: PersistentId
     ): List<ComponentDto>? {

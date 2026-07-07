@@ -21,12 +21,6 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
             is ScriptContext.World -> {
                 context.world.getLuaValue()
             }
-            is ScriptContext.Interaction -> {
-                luaTableOf(
-                    luaValue("player"), context.player.coerceToLua(),
-                    luaValue("raycast_player"), context.raycastPlayer?.coerceToLua() ?: LuaValue.NIL,
-                )
-            }
             is ScriptContext.VoxelAction -> {
                 luaTableOf(
                     luaValue("player"), context.player?.coerceToLua() ?: LuaValue.NIL,

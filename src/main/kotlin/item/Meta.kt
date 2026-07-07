@@ -5,7 +5,7 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.ProgressionAnimationId
+import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.world.*
@@ -19,11 +19,10 @@ fun EngineItem.emitPlaySoundEvent(
     category: EngineSoundCategory = EngineSoundCategory.AMBIENT,
     volume: Float = 1f,
     pitch: Float = 1f,
-    player: EnginePlayer? = null,
-    context: SoundContext? = null
+    player: EnginePlayer? = null
 ) {
     world.emitPlaySoundEvent(
-        WorldSoundPlayRequest.Item(this, key, category, volume, pitch, player, context)
+        WorldSoundPlayRequest.Item(this, key, category, volume, pitch, player)
     )
 }
 

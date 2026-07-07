@@ -29,7 +29,7 @@ import org.lain.engine.mc.engine
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
-import org.lain.engine.player.processLeftClickInteraction
+import org.lain.engine.player.interaction.processLeftClickInteraction
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
@@ -105,7 +105,7 @@ object ClientMixinAccess {
         val engineItem = itemStack.engine()?.getClientItem() ?: return null
         return with(client.gameSession?.world ?: return null) {
             resolveItemAsset(engineItem).let { path ->
-                identifierCache.computeIfAbsent(resolveItemAsset(engineItem)) { engineId(path) }
+                identifierCache.computeIfAbsent(path) { engineId(path) }
             }
         }
     }

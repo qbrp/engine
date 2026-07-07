@@ -1,11 +1,21 @@
 package org.lain.engine.client.handler
 
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.componentTypeOfGeneral
 import org.lain.cyberia.ecs.getOrSet
+import org.lain.cyberia.ecs.iterate
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.Action
+import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
+import org.lain.engine.util.EngineLogger
+import org.lain.engine.util.Log
+import org.lain.engine.util.LogLevel
+import org.lain.engine.util.LogMessages
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.World
 
@@ -59,4 +69,28 @@ fun mainClientPlayerInstance(
         ),
         id
     ).also { it.isLowDetailed = false }
+}
+
+fun World.tickActionSyncSystem(handler: ClientHandler) {
+    iterate<ActionSyncEvent> { entity, event ->
+        if (event.tick !in handler.processedInteraction) {
+            event.entity.setComponent(event.action, componentTypeOfGeneral(event.action) as ComponentType<Action>)
+        } else {
+            EngineLogger.log(
+                Log(
+                    LogMessages.INTERACTION_SKIP,
+                    LogLevel.INFO,
+                    world = id,
+                    tick = ticks.toULong(),
+                    data = mapOf(
+                        "interaction_tick" to event.tick.toString()
+                    )
+                )
+            )
+        }
+    }
+}
+
+fun World.tickProcessedActions(handler: ClientHandler) = iterate<ActionSyncEvent> { _, event ->
+    event.tick.let { handler.processedInteraction += it }
 }

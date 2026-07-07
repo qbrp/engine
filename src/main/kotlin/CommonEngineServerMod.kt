@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents
-import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
@@ -19,7 +18,9 @@ import net.minecraft.world.level.gamerules.GameRules
 import org.lain.cyberia.ecs.require
 import org.lain.engine.Constants.DEVELOPER_TEST_ENVIRONMENT
 import org.lain.engine.mc.*
+import org.lain.engine.mc.commands.isWorldEditAvailable
 import org.lain.engine.mc.commands.registerEngineCommands
+import org.lain.engine.mc.commands.registerWorldEditCommands
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.RaycastProvider
 import org.lain.engine.util.Environment

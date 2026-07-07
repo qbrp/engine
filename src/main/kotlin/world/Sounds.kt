@@ -7,7 +7,6 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemSounds
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.InteractionId
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.math.EVec3
@@ -83,60 +82,7 @@ sealed class WorldSoundPlayRequest : Component {
         val volume: Float = 1f,
         val pitch: Float = 1f,
         val player: EnginePlayer? = null,
-        val context: SoundContext? = null,
     ) : WorldSoundPlayRequest()
-}
-
-@Serializable
-data class SoundContext(
-    val index: Int,
-    val interaction: InteractionId?
-)
-
-data class SoundBroadcast(val play: SoundPlay, val listeners: List<EnginePlayer>, val context: SoundContext?)
-
-fun processWorldSounds(
-    storage: NamespacedStorageAccess,
-    world: World
-): List<SoundBroadcast> {
-    val broadcasts = mutableListOf<SoundBroadcast>()
-    world.iterate<WorldSoundPlayRequest> { _, request ->
-        var players = world.players.toList()
-        var context: SoundContext? = null
-        val play = when(request) {
-            is WorldSoundPlayRequest.Positioned -> SoundPlay(
-                storage.getOrSingleSound(request.eventId),
-                request.pos,
-                request.category,
-                request.volume,
-                request.pitch
-            )
-            is WorldSoundPlayRequest.Item -> {
-                if (request.player != null) {
-                    players = listOf(request.player)
-                }
-                context = request.context
-                SoundPlay(
-                    storage.getOrSingleSound(
-                        request.item.getComponent<ItemSounds>()?.sounds?.get(request.key) ?: SoundEventId.MISSING,
-                    ),
-                    request.item.getComponent<Location>()?.position ?: ImmutableEVec3(),
-                    request.category,
-                    request.volume,
-                    request.pitch
-                )
-            }
-            is WorldSoundPlayRequest.Simple -> request.play
-        }
-        val distance = play.volume * play.sound.sources.maxOf { it.distance }
-        val receivers = players.filter { player -> player.pos.squaredDistanceTo(play.pos) <= distance * distance }
-        broadcasts += SoundBroadcast(play, receivers, context)
-    }
-    return broadcasts
-}
-
-fun broadcastWorldSounds(sounds: List<SoundBroadcast>, handler: ServerHandler) = sounds.forEach { (play, listeners, context) ->
-    handler.onSoundEvent(play, context, listeners)
 }
 
 fun World.emitPlaySoundEvent(sound: WorldSoundPlayRequest) = emitEvent<WorldSoundPlayRequest>(sound)

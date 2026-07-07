@@ -1,8 +1,8 @@
-package org.lain.engine.mc
+package org.lain.engine.mc.commands
 
 import com.sk89q.worldedit.WorldEdit
 import com.sk89q.worldedit.fabric.FabricAdapter
-import org.lain.engine.mc.commands.*
+import org.lain.engine.mc.getWorld
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.isClassAvailable
 import org.lain.engine.world.BULLET_DAMAGE_DECALS_LAYER

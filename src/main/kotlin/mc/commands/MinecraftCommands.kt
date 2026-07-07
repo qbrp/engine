@@ -2,6 +2,7 @@ package org.lain.engine.mc.commands
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.ArgumentType
+import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -491,22 +492,19 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             )
     )
 
-    fun executeEngineSoundCommand(ctx: Context, id: String, pos: Vec3? = null, volume: Float = 1f) {
+    fun executeEngineSoundCommand(ctx: Context, id: String, pos: Vec3? = null, volume: Float = 1f, ignorePhysics: Boolean = false) {
         val storage = server.engine.namespacedStorage
         val id = SoundEventId(id)
         val player = ctx.requirePlayer()
         val event = storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
         val pos = pos?.engine() ?: player.pos.copy()
-
-        player.world.emitPlaySoundEvent(
-            SoundPlay(
-                event,
-                pos,
-                EngineSoundCategory.PLAYERS,
-                volume
-            )
+        val distance = event.sources.maxOf { it.distance }
+        val players = ctx.requirePlayer().world.players.filter { playerP -> playerP.pos.squaredDistanceTo(pos) <= distance * distance }
+        server.engine.handler.playSoundLocal(
+            SoundPlay(event, pos, EngineSoundCategory.AMBIENT, volume),
+            ignorePhysics,
+            players,
         )
-
         ctx.sendFeedback("Воспроизведено звуковое событие ${event.id} на координатах ${pos.x}, ${pos.y}, ${pos.z} громкостью $volume", true)
     }
 
@@ -523,20 +521,29 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                         executeEngineSoundCommand(ctx, argument)
                     }
                     .then(
-                        argument("pos", Vec3Argument.vec3())
+                        argument("ignore_physics", BoolArgumentType.bool())
                             .executeCatching { ctx ->
                                 val argument = ctx.command.getString("id")
                                 val pos = ctx.command.getVec3("pos")
                                 executeEngineSoundCommand(ctx, argument, pos)
                             }
                             .then(
-                                argument("volume", FloatArgumentType.floatArg())
+                                argument("pos", Vec3Argument.vec3())
                                     .executeCatching { ctx ->
                                         val argument = ctx.command.getString("id")
                                         val pos = ctx.command.getVec3("pos")
-                                        val volume = ctx.command.getFloat("volume")
-                                        executeEngineSoundCommand(ctx, argument, pos, volume)
+                                        executeEngineSoundCommand(ctx, argument, pos)
                                     }
+                                    .then(
+                                        argument("volume", FloatArgumentType.floatArg())
+                                            .executeCatching { ctx ->
+                                                val argument = ctx.command.getString("id")
+                                                val pos = ctx.command.getVec3("pos")
+                                                val volume = ctx.command.getFloat("volume")
+                                                executeEngineSoundCommand(ctx, argument, pos, volume)
+                                            }
+
+                                    )
                             )
                     )
             )
@@ -559,42 +566,6 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         val chunk = entity.level().getChunk(chunkPos.x, chunkPos.z)
         return blockPos to chunk
     }
-
-    register(
-        Commands.literal("interactions")
-            .executeCatching { ctx ->
-                val player = ctx.requirePlayer()
-                val actions = mutableSetOf(InputAction.Base, InputAction.Attack)
-                val cursorItem = player.cursorItem
-                val handItem = player.handItem
-                if (cursorItem != null && handItem != null) {
-                    actions += InputAction.SlotClick(cursorItem, handItem)
-                }
-                val input = PlayerInput(actions, setOf())
-                updatePlayerVerbLookup(player, true, input)
-                with(player.world) { appendVerbs(player) }
-                val lookup = player.remove<VerbLookup>()!!
-                val text = Text.empty()
-                text.append(
-                    Text.literal("Список доступных взаимодействий:")
-                        .withStyle(ChatFormatting.GREEN)
-                )
-                for (variant in lookup.verbs.sortedBy { it.verb.priority }) {
-                    val action = when(variant.action) {
-                        InputAction.Attack -> "Атаковать"
-                        InputAction.Base -> "Взаимодействовать"
-                        InputAction.TakeOff -> "Снять экипировку"
-                        is InputAction.SlotClick -> "Нажать на слот"
-                    }
-                    val verb = variant.verb
-                    val name = verb.name
-                    text.append("\n")
-                    text.append("- ").withStyle(ChatFormatting.GRAY)
-                    text.append("$action: $name").withStyle(ChatFormatting.WHITE)
-                }
-                ctx.command.source.sendSuccess({ text }, false)
-            }
-    )
 
     register(
         literal("eye")

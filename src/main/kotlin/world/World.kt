@@ -1,5 +1,6 @@
 package org.lain.engine.world
 
+import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
@@ -16,6 +17,7 @@ import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.Networked
 import java.util.concurrent.ConcurrentHashMap
 
+@Serializable
 object Event : Component
 
 object WorldEntity : Component

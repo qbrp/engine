@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.CompiledItem
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.SoundEventId
@@ -89,7 +90,13 @@ internal fun compileItemsYaml(itemConfigs: Map<String, ItemConfig>, namespace: Y
 
         // Анимации прогрессии
         var progressionAnimations = (config.progressionAnimations ?: emptyMap()) + namespaceConfig.accumulateInheritable { it.progressionAnimations }
-        progressionAnimations = progressionAnimations.mapValues { (_, path) -> ProgressionAnimationId(path.value.replaceToRelative(namespace)) }
+        progressionAnimations = progressionAnimations.mapValues { (_, path) ->
+            ProgressionAnimationId(
+                path.value.replaceToRelative(
+                    namespace
+                )
+            )
+        }
 
         // Физические хар-ки
         val stackable = config.stackable ?: namespaceConfig.computeInheritable { it.stackable } ?: false

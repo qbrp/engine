@@ -10,7 +10,6 @@ import org.lain.engine.Constants
 import org.lain.engine.debugPacket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.transport.packet.ClientTickEndPacket
 import org.lain.engine.transport.packet.InputPacket
 import org.lain.engine.transport.packet.ServerAcknowledgeTask
 import org.lain.engine.util.injectServerTransportContext
@@ -55,7 +54,7 @@ class Endpoint<P : Packet>(
     fun registerReceiver(handler: ServerPacketHandler<P>) = executeOnThread {
         transport.registerServerReceiver(this) {
             handler(this, it)
-            if (this !is ClientTickEndPacket && this !is InputPacket) {
+            if (this !is InputPacket) {
                 debugPacket("[Сервер] Принят пакет $this")
             }
         }

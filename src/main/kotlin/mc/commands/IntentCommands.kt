@@ -17,10 +17,9 @@ import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.HitResult
 import org.lain.engine.mc.engine
-import org.lain.engine.mc.isWorldEditAvailable
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.SOCIAL_INTERACTION_DISTANCE
+import org.lain.engine.player.interaction.SOCIAL_INTERACTION_DISTANCE
 import org.lain.engine.script.ExecutionResult
 import org.lain.engine.script.IntentBehaviour
 import org.lain.engine.script.NamespacedStorageAccess
@@ -28,7 +27,6 @@ import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.*
 import org.lain.engine.world.VoxelPos
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 fun ServerCommandDispatcher.registerIntentCommands(

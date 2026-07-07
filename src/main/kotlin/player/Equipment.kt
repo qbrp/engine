@@ -7,8 +7,8 @@ import org.lain.cyberia.ecs.require
 import org.lain.engine.container.SlotId
 import org.lain.engine.container.collectContainedRecursive
 import org.lain.engine.item.EngineItem
+import org.lain.engine.player.interaction.VerbType
 import org.lain.engine.world.World
-import org.lain.engine.world.world
 
 @Serializable
 enum class EquipmentSlot(name: String, val slotId: SlotId = SlotId(name)) {

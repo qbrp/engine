@@ -1,7 +1,9 @@
 package org.lain.engine.client
 
 import kotlinx.coroutines.runBlocking
-import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.copyState
+import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
@@ -16,31 +18,30 @@ import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.script.updateClientServerboundChannelSystem
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.client.util.processSoundPlayKeys
+import org.lain.engine.client.util.processWorldSounds
 import org.lain.engine.container.clearAssignItemsOperations
 import org.lain.engine.container.updateContainerOperationSystem
 import org.lain.engine.container.updatePlayerContainerSystem
 import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.handleWriteableInteractions
-import org.lain.engine.item.updateFireTimeSystem
-import org.lain.engine.item.updateRecoilSystem
+import org.lain.engine.item.tickFireTimeSystem
+import org.lain.engine.item.tickGunSystem
 import org.lain.engine.player.*
-import org.lain.engine.script.Callbacks
-import org.lain.engine.script.CompilationResult
-import org.lain.engine.script.flushEntityRpcMessageReceiver
-import org.lain.engine.script.lua.prepareLuaScriptComponents
-import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.player.interaction.tickGunActionSystem
+import org.lain.engine.player.interaction.tickPlayerInput
+import org.lain.engine.player.interaction.tickSocialActionSystem
+import org.lain.engine.player.interaction.tickWritableActionSystem
+import org.lain.engine.script.*
 import org.lain.engine.script.lua.adaptScriptLightComponents
-import org.lain.engine.script.registerScriptComponents
-import org.lain.engine.script.scriptContext
+import org.lain.engine.script.lua.adaptScriptPlayerComponents
 import org.lain.engine.server.ServerId
-import org.lain.engine.storage.CustomPersistentId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.toDomainSuspend
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.INSPECTION_MODE_COLOR
+import org.lain.engine.util.Log
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.*
@@ -94,11 +95,10 @@ class GameSession(
         this
     )
     val mainPlayer = mainClientPlayerInstance(player.id, this.world, player, DeveloperModeStatus(client.developerMode, client.acousticDebug))
-    var ticks = 0L
+    @Volatile var ticks = 0L
         private set
     val namespacedStorage get() = client.namespacedStorage
     val luaContext get() = client.luaContext ?: error("Lua context is not initialized")
-    var soundsToBroadcast = LinkedList<SoundBroadcast>()
     var callbacks: Callbacks = Callbacks()
     val endTickTaskExecutor = TaskExecutor()
 
@@ -121,6 +121,16 @@ class GameSession(
         }
     val inspection = InspectionMode()
 
+    fun logInMainThread(loggerGetter: context(World) GameSession.(tick: ULong) -> Log) {
+        val tick = ticks
+        client.execute {
+            with(world) {
+                with(this@GameSession) {
+                    EngineLogger.log(loggerGetter(tick.toULong()))
+                }
+            }
+        }
+    }
 
     fun toggleInspectionMode() {
         inspectionMode = !inspectionMode
@@ -202,76 +212,73 @@ class GameSession(
         client.eventBus.onContentsUpdate()
     }
 
-    fun tick() = with(world) {
+    fun tick() {
         ticks++
-        chatManager.tick()
+        with(world) {
+            ticks++
+            chatManager.tick()
 
-        val itemAccess = this@GameSession.itemStorage
-        val players = playerStorage.getAll()
-        world.players.clear()
-        world.players.addAll(players)
+            val itemAccess = this@GameSession.itemStorage
+            val players = playerStorage.getAll()
+            world.players.clear()
+            world.players.addAll(players)
 
-        movementManager.stamina = mainPlayer.stamina
-        if (mainPlayer.has<SpawnMark>()) {
-            client.removeLittleNotification(SPECTATOR_NOTIFICATION)
-        }
-
-        for (player in players) {
-            if (player.pos.squaredDistanceTo(mainPlayer.pos) > synchronizationRadius * synchronizationRadius) {
-                player.isLowDetailed = true
-                continue
-            } else {
-                player.isLowDetailed = false
+            movementManager.stamina = mainPlayer.stamina
+            if (mainPlayer.has<SpawnMark>()) {
+                client.removeLittleNotification(SPECTATOR_NOTIFICATION)
             }
 
-            updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
-            updatePlayerVerbLookup(player, false)
-            player.handle<InteractionComponent>() {
-                handlePlayerInventoryInteractions(player)
-                handleWriteableInteractions(player)
-//                handleGunInteractions(player, true)
-//                handleFlashlightInteractions(player)
-//                handlePlayerEquipmentInteractionProgression(player)
-                finishPlayerInteraction(player)
+            tickPlayerInput(mainPlayer.id, true)
+            tickActionSyncSystem(handler)
 
-                val processedInteraction = player.get<InteractionComponent>()
-                if (this != processedInteraction) {
-                    handler.processedInteractions.add(this.id)
+            tickGunActionSystem()
+            tickSocialActionSystem(playerStorage)
+            tickWritableActionSystem()
+
+            tickProcessedActions(handler)
+
+            for (player in players) {
+                if (player.pos.squaredDistanceTo(mainPlayer.pos) > synchronizationRadius * synchronizationRadius) {
+                    player.isLowDetailed = true
+                    continue
+                } else {
+                    player.isLowDetailed = false
                 }
+
+                updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
+                updateHearing(player)
             }
 
-            updateHearing(player)
+            tickGunSystem()
+            tickFireTimeSystem()
+            tickRecoilSystem()
+            updateShootShakeSystem(mainPlayer, client.camera)
+
+            tickNarrations(mainPlayer)
+
+            chatBubbleList.cleanup()
+            chatBubbleList.tick(mainPlayer)
+            processWorldSounds(namespacedStorage, client.audioManager)
+            updateSlotContainers(world)
+            updateContainerOperationSystem()
+            updatePlayerContainerSystem()
+            clearAssignItemsOperations(world)
+
+            // Scripts
+            adaptScriptPlayerComponents()
+            tickCallbacks(callbacks)
+            adaptScriptLightComponents()
+            updateClientServerboundChannelSystem(handler)
+            updateVoxelEvents(null)
+            handleHintEvents()
+            client.eventBus.getHitResultVoxelPos()?.let {
+                updateInspectionMode(inspection, inspectionMode, it)
+            }
+
+            flushEntityRpcMessageReceiver()
+
+            endTickTaskExecutor.flush()
         }
-        updateFireTimeSystem()
-        updateRecoilSystem()
-        updateShootShakeSystem(mainPlayer, client.camera)
-
-        tickNarrations(mainPlayer)
-
-        chatBubbleList.cleanup()
-        chatBubbleList.tick(mainPlayer)
-        val sounds = processWorldSounds(namespacedStorage, world)
-        processSoundPlayKeys(LinkedList(sounds + soundsToBroadcast), handler, client.audioManager)
-        soundsToBroadcast.clear()
-        updateSlotContainers(world)
-        updateContainerOperationSystem()
-        updatePlayerContainerSystem()
-        clearAssignItemsOperations(world)
-
-        // Scripts
-        adaptScriptPlayerComponents()
-        tickCallbacks(callbacks)
-        adaptScriptLightComponents()
-        updateClientServerboundChannelSystem(handler)
-        updateVoxelEvents(null)
-        handleHintEvents()
-        client.eventBus.getHitResultVoxelPos()?.let {
-            updateInspectionMode(inspection, inspectionMode, it)
-        }
-
-        flushEntityRpcMessageReceiver()
-
-        endTickTaskExecutor.flush()
     }
 
     fun viewEntityDebug(entity: EntityId) = with(world) {
@@ -297,12 +304,9 @@ class GameSession(
         equipment: Map<EquipmentSlot, EngineItem> = emptyMap(),
     ) {
         playerStorage.add(player.id, player)
-        with(world) {
-            with(luaContext) { player.prepareLuaScriptComponents() }
+        context(world, luaContext) {
             player.prepareContainers(data.equipmentContainer, player.location, equipment)
-            player.entityId.setComponent(Player(player))
-            player.entityId.setComponent(player.location)
-            player.entityId.setComponent(PersistentIdComponent(CustomPersistentId(player.id.toString())))
+            player.setPlayerComponents()
             callbacks.playerInstantiate.execute(player.scriptContext)
         }
     }

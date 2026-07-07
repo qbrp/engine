@@ -2,12 +2,8 @@ package org.lain.engine.player
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.require
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.merge
-import org.lain.engine.world.world
-
 /**
  * # Инвентарь игрока
  * Содержит список предметов, зарегистрированных в Engine, которые находятся в инвентаре игрока
@@ -47,22 +43,3 @@ val EnginePlayer.selectedSlot
 
 val EnginePlayer.mainContainer
     get() = this.require<PlayerContainer>().containerId
-
-private val SLOT_MERGE_VERB = VerbType("slot_merge", "Объединить предметы")
-
-fun appendPlayerInventoryVerbs(player: EnginePlayer) {
-    player.handle<VerbLookup> {
-        val slotClick = slotClick ?: return@handle
-        if (player.world.merge(slotClick.item, slotClick.cursorItem)) {
-            verbs += VerbVariant(
-                SLOT_MERGE_VERB,
-                slotClick
-            )
-        }
-    }
-}
-
-context(interaction: InteractionComponent)
-fun handlePlayerInventoryInteractions(player: EnginePlayer) = player.handleInteraction(SLOT_MERGE_VERB) {
-    player.require<PlayerInventory>().cursorItem = null
-}

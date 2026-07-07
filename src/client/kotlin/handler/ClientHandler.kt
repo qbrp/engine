@@ -3,6 +3,7 @@ package org.lain.engine.client.handler
 import kotlinx.coroutines.*
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
 import org.lain.cyberia.ecs.*
+import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
@@ -21,6 +22,8 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.InputAction
+import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.EntityDebugData
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
@@ -32,24 +35,23 @@ import org.lain.engine.util.*
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.*
-import java.util.Queue
 
 class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val gameSession get() = client.gameSession
-    private val handledNotifications = mutableSetOf<Notification>()
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
+    private val tickDispatcher = TickDispatcher()
+
     val taskExecutor = TaskExecutor()
-    val processedSounds = mutableSetOf<SoundBroadcast>()
-    val processedInteractions = FixedSizeList<InteractionId>(40)
-    val pendingSnapshots = mutableListOf<Pair<InteractionId, Runnable>>()
-    val pendingFullPlayerData = mutableListOf<Pair<EnginePlayer, FullPlayerData>>()
-    private val pendingChunks: Queue<Pair<EngineChunkPos, EngineChunkDto>> = LinkedList()
-    private val pendingEntities: MutableMap<PersistentId, CompletableDeferred<PendingEntity?>> = mutableMapOf()
-    private val pendingEntityProvider = PendingEntityProvider(pendingEntities)
+
+    private val showedNotifications = mutableSetOf<Notification>()
+    val processedInteraction = mutableSetOf<Long>()
+
     private val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
-    private val entityResolverCoroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
-    private val waitingChunks = mutableMapOf<EngineChunkPos, CompletableDeferred<EngineChunk>>()
+    private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
+
+    private val awaitingEntities: MutableMap<PersistentId, CompletableDeferred<PendingEntity?>> = mutableMapOf()
+    private val awaitingChunks = mutableMapOf<EngineChunkPos, CompletableDeferred<EngineChunk>>()
+    private val pendingEntityProvider = PendingEntityProvider(awaitingEntities)
 
     private fun newEntityResolver() = EntityResolver(pendingEntityProvider)
 
@@ -69,44 +71,20 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun disable() {
         injectValue<ClientTransportContext>().unregisterAll()
-        handledNotifications.clear()
-        processedSounds.clear()
-        pendingEntities.clear()
-        pendingSnapshots.clear()
-        pendingChunks.clear()
+        showedNotifications.clear()
+        awaitingEntities.clear()
+        processedInteraction.clear()
+        awaitingChunks.clear()
+        pendingEntityProvider.clear()
     }
 
     fun tick() {
         val gameSession = client.gameSession
         if (gameSession != null) {
             with(gameSession.world) {
-                SERVERBOUND_CLIENT_TICK_END_ENDPOINT.sendC2SPacket(ClientTickEndPacket)
-                val input = gameSession.mainPlayer.require<PlayerInput>()
+                val input = gameSession.mainPlayer.entityId.requireComponent<PlayerInput>()
                 val actions = input.actions.toMutableSet()
-
-                if (pendingEntities.isNotEmpty()) {
-                    entityResolverCoroutineScope.launch {
-                        val entityResolver = newEntityResolver()
-                        pendingEntities.forEach { (persistentId, pendingEntity) ->
-                            launch {
-                                entityResolver.loadEntity(
-                                    componentLoadSettings,
-                                    pendingEntity.await()?.components ?: return@launch,
-                                    persistentId
-                                )
-                                pendingEntities.remove(persistentId)
-                            }
-                        }
-                    }
-                }
-
-                handleInteractions(input, actions, gameSession)
-
-                if (MinecraftClient.screen !is CreativeModeInventoryScreen) {
-                    actions.removeIf { it is InputAction.SlotClick }
-                }
-
-                processPendingFullPlayerData()
+                handlePlayerInput(input, actions, gameSession)
             }
         }
         if (MinecraftClient.connection != null) {
@@ -115,85 +93,40 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         } else if (taskExecutor.notEmpty()) {
             taskExecutor.clear()
         }
-    }
 
-    private suspend fun awaitChunk(gameSession: GameSession, pos: EngineChunkPos): EngineChunk {
-        gameSession.world.chunkStorage.getChunk(pos)?.let { return it }
-        val deferred = CompletableDeferred<EngineChunk>()
-        waitingChunks[pos] = deferred
-        return deferred.await()
-    }
-
-    context(world: World)
-    private fun handleInteractions(input: PlayerInput, actions: Set<InputAction>, gameSession: GameSession) {
-        val interaction = gameSession.mainPlayer.get<InteractionComponent>()
-        if (input.actions != input.lastActions && interaction?.selection == null) {
-            SERVERBOUND_INPUT_PACKET.sendC2SPacket(
-                InputPacket(
-                    gameSession.ticks,
-                    actions.map { it.toDto() }.toSet()
-                )
-            )
-        }
-
-        for (player in gameSession.playerStorage) {
-            if (player.has<InteractionComponent>()) continue
-            player.get<InteractionQueueComponent>()?.interactions?.poll()?.let {
-                player.set(it)
-            }
-        }
-    }
-
-    private fun processPendingFullPlayerData() {
-        for (i in pendingFullPlayerData.indices.reversed()) {
-            val (player, pendingFullData) = pendingFullPlayerData[i]
-            if (pendingFullData.referencedItems.isPresent()) {
-                pendingFullPlayerData.removeAt(i)
-                applyFullPlayerDataInternal(player, pendingFullData)
-            }
-        }
+        tickDispatcher.tick()
     }
 
     fun postTick() {
         val gameSession = gameSession
         if (gameSession != null) {
-            val input = gameSession.mainPlayer.require<PlayerInput>()
+            val input = with(gameSession.world) { gameSession.mainPlayer.entityId.requireComponent<PlayerInput>() }
             input.actions.clear()
         }
-        val snapshotsToRemove = pendingSnapshots
-            .filter { (interactionId, _) -> interactionId in processedInteractions }
-            .alsoForEach { (id, task) -> task.run() }
-        pendingSnapshots.removeAll(snapshotsToRemove)
     }
 
-    data class InteractionQueueComponent(val interactions: Queue<InteractionComponent>) : Component
-
-    // Сделать ожидание предметов
-    fun applyInteractionPacket(player: EnginePlayer, interaction: InteractionDto): Unit = with(gameSession!!) {
-        player.getOrSet { InteractionQueueComponent(LinkedList()) }.interactions.add(
-            interaction.toDomain(itemStorage, playerStorage)
-        )
+    suspend fun waitNextTick() {
+        tickDispatcher.waitNextTick()
     }
 
-    fun applyPlayerInputPacket(player: EnginePlayer, actions: Set<InputActionDto>) = with(gameSession!!) {
-        player.input.clear()
-        player.input.addAll(actions.map { it.toDomain(itemStorage) })
-    }
-
-    fun applyInteractionSelectionPacket(selection: InteractionSelection) = with(gameSession!!) {
-        mainPlayer.require<InteractionComponent>().selection = selection
-    }
-
-    fun applyPlayerInteractionSelectionSelectPacket(player: EnginePlayer, variant: String?) = with(gameSession!!) {
-        val interaction = player.get<InteractionComponent>() ?: run {
-            LOGGER.warn("Был принят выбор $variant взаимодействия игрока $player, однако взаимодействие завершено")
-            return
+    context(world: World)
+    private fun handlePlayerInput(input: PlayerInput, actions: Set<InputAction>, gameSession: GameSession) {
+        input.tick = gameSession.ticks
+        if (input.actions != input.lastActions) {
+            SERVERBOUND_INPUT_PACKET.sendC2SPacket(
+                InputPacket(
+                    gameSession.ticks,
+                    actions.toSet()
+                )
+            )
         }
-        val variant = interaction.selection?.variants?.firstOrNull { it.id == variant }
-        interaction.selectionVariant = variant
-        if (variant == null) {
-            interaction.selectionCancelled = true
-        }
+    }
+
+    private suspend fun awaitChunk(gameSession: GameSession, pos: EngineChunkPos): EngineChunk {
+        gameSession.world.chunkStorage.getChunk(pos)?.let { return it }
+        val deferred = CompletableDeferred<EngineChunk>()
+        awaitingChunks[pos] = deferred
+        return deferred.await()
     }
 
     fun sendServerboundChannelData(persistentId: PersistentId, values: List<ScriptValue>) {
@@ -260,6 +193,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
 
     fun onCursorItem(item: EngineItem?) {
         val gameSession = gameSession ?: return
+        if (Thread.currentThread() != gameSession.client.thread) return
         with(gameSession.world) {
             SERVERBOUND_CURSOR_ITEM_ENDPOINT.sendC2SPacket(
                 CursorItemPacket(item?.requireComponent<PersistentIdComponent>()?.id)
@@ -279,21 +213,17 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.sendC2SPacket(WriteableUpdatePacket(item, contents))
     }
 
-    fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) {
-        if (!data.referencedItems.isPresent()) {
-            pendingFullPlayerData += player to data
-        } else {
-            applyFullPlayerDataInternal(player, data)
+    fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) = coroutineScope.launch {
+        while (!data.referencedItems.isPresent()) {
+            waitNextTick()
         }
-    }
 
-    private fun applyFullPlayerDataInternal(player: EnginePlayer, data: FullPlayerData) = with(player) {
-        replaceOrSet(data.movementStatus)
-        replaceOrSet(data.attributes)
-        replaceOrSet(data.armStatus)
-        require<PlayerModel>().skinEyeY = data.skinEyeY
-        isLowDetailed = false
-        client.eventBus.onFullPlayerData(client, id, data)
+        player.replaceOrSet(data.movementStatus)
+        player.replaceOrSet(data.attributes)
+        player.replaceOrSet(data.armStatus)
+        player.require<PlayerModel>().skinEyeY = data.skinEyeY
+        player.isLowDetailed = false
+        client.eventBus.onFullPlayerData(client, player.id, data)
     }
 
     private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.get(it) == null }
@@ -364,12 +294,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun applyNotification(type: Notification, once: Boolean) {
-        if (!handledNotifications.add(type) && once) return
+        if (!showedNotifications.add(type) && once) return
         client.applyLittleNotification(LittleNotification.ofServer(type))
     }
 
-    fun applyPlaySoundPacket(play: SoundPlay, context: SoundContext?): Unit = with(gameSession!!) {
-        soundsToBroadcast += SoundBroadcast(play, listOf(), context)
+    fun applyPlaySoundPacket(play: SoundPlay, ignorePhysics: Boolean): Unit = with(gameSession!!) {
+        client.audioManager.playSound(play, ignorePhysics)
     }
 
     fun applyAcousticDebugVolumePacket(volumes: List<Pair<VoxelPos, Float>>) = with(gameSession!!) {
@@ -377,17 +307,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         eventBus.onAcousticDebugVolumes(volumes, this)
     }
 
-    fun applyChunkPacket(chunkDto: EngineChunkDto) {
+    fun applyChunkPacket(chunkDto: EngineChunkDto) = coroutineScope.launch {
         val session = gameSession
-        val pos = chunkDto.pos
-        if (session == null) {
-            pendingChunks.add(pos to chunkDto)
-        } else {
-            if (pendingChunks.isNotEmpty()) {
-                pendingChunks.flush { session.loadChunk(it.second) }
-            }
-            session.loadChunk(chunkDto)
+        while (session == null) {
+            waitNextTick()
         }
+        session.loadChunk(chunkDto)
     }
 
     private fun GameSession.loadChunk(chunkDto: EngineChunkDto) = with(gameSession!!.world) {
@@ -398,7 +323,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             mutableMapOf()
         )
         loadChunk(pos, chunk)
-        waitingChunks.remove(pos)?.complete(chunk)
+        awaitingChunks.remove(pos)?.complete(chunk)
     }
 
     fun applyDynamicVoxelDelta(gameSession: GameSession, voxelPos: VoxelPos, components: List<ComponentDto>) = with(gameSession.world) {
@@ -408,7 +333,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             entity
         }
 
-        entityResolverCoroutineScope.launch {
+        coroutineScope.launch {
             entity.copyState(
                 components.toDomainSuspend {
                     toDomain(
@@ -426,13 +351,34 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         world.emitEvent(event)
     }
 
-    fun applyEntity(gameSession: GameSession, persistentId: PersistentId, components: List<ComponentDto>) {
+    fun applyEntity(gameSession: GameSession, persistentId: PersistentId, components: List<ComponentDto>) = with(gameSession.world) {
         if (persistentId is VoxelPosId) {
             LOGGER.warn("Синхронизация блока $persistentId как обычной сущность проигнорирована")
-            return
+            return@with
         }
         val pendingEntity = PendingEntity(components)
-        pendingEntities[persistentId] = CompletableDeferred(pendingEntity)
+        awaitingEntities[persistentId] = CompletableDeferred(pendingEntity)
+        coroutineScope.launch {
+            val entity = newEntityResolver().loadEntity(
+                componentLoadSettings,
+                components,
+                persistentId
+            )
+            awaitingEntities.remove(persistentId)
+            gameSession.logInMainThread {
+                Log(
+                    LogMessages.ENTITY_SYNC_ADD,
+                    LogLevel.INFO,
+                    data = mapOf(
+                        "entity" to entity.getEntityDebugNameId().name,
+                        "persistent_id" to persistentId.toString(),
+                        "components" to components.joinToString(),
+                    ),
+                    world = gameSession.world.id,
+                    tick = it
+                )
+            }
+        }
     }
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {

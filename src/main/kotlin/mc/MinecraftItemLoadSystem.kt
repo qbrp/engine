@@ -20,6 +20,7 @@ import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
+import org.lain.engine.util.toLogError
 import org.lain.engine.world.World
 
 private val ItemStackIoCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -60,7 +61,7 @@ fun updateMinecraftItemLoadSystem(
                                                 Log(
                                                     LogMessages.ITEM_STACK_INIT_ERROR,
                                                     LogLevel.ERROR,
-                                                    error = e,
+                                                    error = e.toLogError(),
                                                     data = data.context.data(),
                                                     tick = engine.tick,
                                                     world = world.id

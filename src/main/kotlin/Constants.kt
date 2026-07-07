@@ -3,6 +3,7 @@ package org.lain.engine
 import net.fabricmc.loader.api.FabricLoader
 import org.lain.engine.Constants.DEBUG_PACKETS
 import org.slf4j.LoggerFactory
+import kotlin.system.measureNanoTime
 
 object Constants {
     const val DEBUG_PACKETS = false

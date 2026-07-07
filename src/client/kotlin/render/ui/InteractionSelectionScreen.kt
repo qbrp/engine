@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.resources.Identifier
 import net.minecraft.util.CommonColors
 import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.handle
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.KeybindManager
@@ -21,9 +22,10 @@ import org.lain.engine.mc.Text
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText
 import org.lain.engine.mc.vanillaId
-import org.lain.engine.player.InteractionComponent
-import org.lain.engine.player.InteractionSelection
+import org.lain.engine.player.interaction.InteractionSelection
+import org.lain.engine.player.interaction.Progression
 
+//TODO: переделать
 class InteractionSelectionScreen(
     val gameSession: GameSession,
     val selection: InteractionSelection,
@@ -105,21 +107,21 @@ class InteractionSelectionScreen(
     }
 
     private fun apply() {
-        val interactionComponent = gameSession.mainPlayer.get<InteractionComponent>()
-        if (interactionComponent != null && interactionComponent.selection == selection) {
-            interactionComponent.selectionVariant = this.variant
-            interactionComponent.selection = null
-            gameSession.handler.onInteractionSelectionSelect(variant.id)
-        }
+//        val interactionComponent = gameSession.mainPlayer.entityId.getComponent<Progression>()
+//        if (interactionComponent != null && interactionComponent.selection == selection) {
+//            interactionComponent.selectionVariant = this.variant
+//            interactionComponent.selection = null
+//            gameSession.handler.onInteractionSelectionSelect(variant.id)
+//        }
     }
 
     private fun discard() {
-        gameSession.mainPlayer.handle<InteractionComponent>() {
-            selectionVariant = null
-            selection = null
-            selectionCancelled = true
-            gameSession.handler.onInteractionSelectionSelect(null)
-        }
+//        gameSession.mainPlayer.handle<InteractionComponent>() {
+//            selectionVariant = null
+//            selection = null
+//            selectionCancelled = true
+//            gameSession.handler.onInteractionSelectionSelect(null)
+//        }
     }
 
     override fun keyPressed(input: KeyEvent): Boolean {

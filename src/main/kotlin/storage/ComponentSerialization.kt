@@ -4,8 +4,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.modules.polymorphic
@@ -13,19 +11,16 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.container.Entries
 import org.lain.engine.container.OccupiedSlots
 import org.lain.engine.item.*
+import org.lain.engine.player.interaction.*
 import org.lain.engine.script.*
-import org.lain.engine.script.lua.createLuaScriptComponent
-import org.lain.engine.script.lua.luaValue
-import org.lain.engine.script.lua.toLuaArray
-import org.lain.engine.script.lua.toLuaValue
-import org.lain.engine.script.lua.toScriptValue
+import org.lain.engine.script.lua.*
 import org.lain.engine.server.Children
 import org.lain.engine.server.Parent
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.world.Luminance
 import org.lain.engine.world.World
-import java.util.LinkedList
+import java.util.*
 import kotlin.reflect.KClass
 
 class ComponentSerializerNotRegisteredException(val componentClass: KClass<out Any>) : Exception("Serializer not registered for component ${componentClass.simpleName}")
@@ -61,6 +56,15 @@ fun SerializersModuleBuilder.polymorphicComponentSubclasses() {
         subclass(ChildrenComponentDto::class, ChildrenComponentDto.serializer())
         subclass(ContainedInDto::class, ContainedInDto.serializer())
         subclass(EntityRpcReceiverDto::class, EntityRpcReceiverDto.serializer())
+        subclass(ActionSyncEventDto::class, ActionSyncEventDto.serializer())
+    }
+    polymorphic(Action::class) {
+        subclass(GiveAction::class, GiveAction.serializer())
+        subclass(HailAction::class, HailAction.serializer())
+        subclass(GunModeToggleAction::class, GunModeToggleAction.serializer())
+        subclass(StartShootAction::class, StartShootAction.serializer())
+        subclass(StopShootAction::class, StopShootAction.serializer())
+        subclass(WritableOpenAction::class, WritableOpenAction.serializer())
     }
 }
 
@@ -113,6 +117,9 @@ data class ChildrenComponentDto(val isScript: Boolean, val children: Set<Persist
 @Serializable
 data class ContainedInDto(val container: PersistentId) : ComponentData
 
+@Serializable
+data class ActionSyncEventDto(val entity: PersistentIdComponent, val action: Action, val tick: Long) : ComponentData
+
 // на клиенте превращается в EntityRpcQueue
 @Serializable
 object EntityRpcReceiverDto : ComponentData
@@ -143,6 +150,7 @@ fun Component.toSnapshotDto(): ComponentDto {
         is Parent -> ParentComponentDto(false, entity.requireComponent())
         is Children -> ChildrenComponentDto(false, entities.map { it.requireComponent<PersistentIdComponent>() }.toSet())
         is EntityRpcReceiver -> EntityRpcReceiverDto
+        is ActionSyncEvent -> ActionSyncEventDto(entity.requireComponent<PersistentIdComponent>(), action, tick)
         else -> CopyComponentDto(this)
     }
     return ComponentDto(type.id, data)
@@ -206,6 +214,8 @@ suspend fun ComponentDto.toDomainSuspend(
             true -> EntityRpcQueue(LinkedList())
             false -> EntityRpcReceiver(LinkedList())
         }
+
+        is ActionSyncEventDto -> ActionSyncEvent(notNullEntityGetter(data.entity), data.action, data.tick)
 
         is ContainedInDto -> null
     }

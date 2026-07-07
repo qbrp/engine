@@ -23,7 +23,9 @@ import net.minecraft.world.level.Level
 import org.lain.cyberia.ecs.apply
 import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.hasComponent
+import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.AuthPacket
 import org.lain.engine.Constants.ENGINE_MOD_VERSION
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
@@ -45,7 +47,7 @@ import org.lain.engine.client.render.world.registerWorldRenderEvents
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.registerComponentsClient
-import org.lain.engine.item.BookOpen
+import org.lain.engine.item.WritableOpen
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
@@ -220,7 +222,7 @@ class EngineMinecraftClient : ClientModInitializer {
 
             preEngineTick(syncedLevelPlayerEntities)
             engineClient.tick()
-            postEngineTick(syncedLevelPlayerEntities)
+            postEngineTick()
 
             if (skippedPlayers.isNotEmpty()) {
                 connectionLogger.warn(
@@ -261,7 +263,7 @@ class EngineMinecraftClient : ClientModInitializer {
                     EngineItemStack(item, itemStack)
                 }.toSet()
 
-                updatePlayerMinecraftSystems(player, items, entity, world, gameSession.itemStorage)
+                updatePlayerMinecraftSystems(player, items, entity, world)
                 updatePlayerOwnedItems(world, player)
             } catch (e: Exception) {
                 throw PlayerTickException(player, e)
@@ -273,34 +275,26 @@ class EngineMinecraftClient : ClientModInitializer {
         }
     }
 
-    private fun postEngineTick(players: Map<Player, EnginePlayer>) {
+    private fun postEngineTick() {
         val gameSession = engineClient.gameSession ?: return
         val minecraftWorld = client.level ?: return
         val world = gameSession.world
         renderer.tick()
 
-        players.forEach { (entity, player) ->
-            player.remove<BookOpen>()?.let {
-                if (player == gameSession.mainPlayer) {
-                    client.setScreen(
-                        BookEditScreen(
-                            entity,
-                            entity.mainHandItem,
-                            InteractionHand.MAIN_HAND,
-                            WritableBookContent(
-                                it.writeable.contents.map { Filterable(it, Optional.empty()) },
-                            )
+        world.iterate<WritableOpen, org.lain.engine.player.Player>() { e, (writable), (player) ->
+            if (player == gameSession.mainPlayer) {
+                client.setScreen(
+                    BookEditScreen(
+                        client.player ?: return@iterate,
+                        client.player?.mainHandItem ?: return@iterate,
+                        InteractionHand.MAIN_HAND,
+                        WritableBookContent(
+                            writable.contents.map { Filterable(it, Optional.empty()) },
                         )
                     )
-                }
+                )
             }
-        }
-
-        gameSession.mainPlayer.handle<InteractionComponent> {
-            val selection = selection
-            if (selection != null && client.screen !is InteractionSelectionScreen) {
-                client.setScreen(InteractionSelectionScreen(gameSession, selection, keybindManager))
-            }
+            e.removeComponent<WritableOpen>()
         }
 
         updateBulletsVisual(gameSession.world, minecraftWorld)

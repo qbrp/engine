@@ -2,6 +2,7 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.ScriptBindings
+import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -32,15 +33,10 @@ val SERVERBOUND_INTERACTION_SELECTION_SELECT_ENDPOINT = Endpoint<InteractionSele
 @Serializable
 data class InputPacket(
     val tick: Long,
-    val actions: Set<InputActionDto>
+    val actions: Set<InputAction>
 ) : Packet
 
 val SERVERBOUND_INPUT_PACKET = Endpoint<InputPacket>()
-
-@Serializable
-object ClientTickEndPacket : Packet
-
-val SERVERBOUND_CLIENT_TICK_END_ENDPOINT = Endpoint<ClientTickEndPacket>()
 
 // Inventory
 

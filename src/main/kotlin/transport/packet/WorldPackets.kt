@@ -13,7 +13,7 @@ import org.lain.engine.world.*
 @Serializable
 data class SoundPlayPacket(
     val play: SoundPlay,
-    val context: SoundContext? = null,
+    val ignorePhysics: Boolean
 ) : Packet
 
 val CLIENTBOUND_SOUND_PLAY_ENDPOINT = Endpoint<SoundPlayPacket>()

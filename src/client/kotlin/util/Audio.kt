@@ -1,12 +1,11 @@
 package org.lain.engine.client.util
 
-import org.lain.engine.client.handler.ClientHandler
-import org.lain.engine.util.flush
-import org.lain.engine.world.EngineSoundCategory
-import org.lain.engine.world.SoundBroadcast
-import org.lain.engine.world.SoundId
-import org.lain.engine.world.SoundPlay
-import java.util.*
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.iterate
+import org.lain.engine.item.ItemSounds
+import org.lain.engine.script.NamespacedStorageAccess
+import org.lain.engine.util.math.ImmutableEVec3
+import org.lain.engine.world.*
 
 data class SoundParameters(val id: SoundId, val stream: Boolean)
 
@@ -28,17 +27,39 @@ interface EngineAudioManager {
     fun playUiNotificationSound()
     fun playPigScreamSound()
     fun playKickSound()
-    fun playSound(player: SoundPlay)
+    fun playSound(player: SoundPlay, ignorePhysics: Boolean = false)
     fun containsAudioSource(slot: String): Boolean
     fun addAudioSource(audioSource: AudioSource, slot: String)
     fun stopAudioSource(audioSource: AudioSource)
     fun invalidateCache()
 }
 
-fun processSoundPlayKeys(queue: Queue<SoundBroadcast>, handler: ClientHandler, audioManager: EngineAudioManager) = queue.flush {
-    // TODO: Сделать более глубокую проверку, не только по идентификатору
-    if (!handler.processedSounds.any { sound -> sound.context == it.context && sound.play.sound.id == it.play.sound.id } || it.context == null) {
-        audioManager.playSound(it.play)
-        handler.processedSounds.add(it)
+fun World.processWorldSounds(
+    storage: NamespacedStorageAccess,
+    audioManager: EngineAudioManager
+) {
+    iterate<WorldSoundPlayRequest> { _, request ->
+        val play = when(request) {
+            is WorldSoundPlayRequest.Positioned -> SoundPlay(
+                storage.getOrSingleSound(request.eventId),
+                request.pos,
+                request.category,
+                request.volume,
+                request.pitch
+            )
+            is WorldSoundPlayRequest.Item -> {
+                SoundPlay(
+                    storage.getOrSingleSound(
+                        request.item.getComponent<ItemSounds>()?.sounds?.get(request.key) ?: SoundEventId.MISSING,
+                    ),
+                    request.item.getComponent<Location>()?.position ?: ImmutableEVec3(),
+                    request.category,
+                    request.volume,
+                    request.pitch
+                )
+            }
+            is WorldSoundPlayRequest.Simple -> request.play
+        }
+        audioManager.playSound(play)
     }
 }

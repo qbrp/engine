@@ -9,6 +9,7 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.Uuid
+import org.lain.engine.util.DebugName
 import org.lain.engine.util.component.Networked
 import org.lain.engine.world.World
 
@@ -22,9 +23,13 @@ data class ItemPrefab(
     val componentsFactory: () -> List<Component> = { emptyList() },
 )
 
-fun EngineServer.createInvalidItem(world: World): EngineItem {
+
+fun EngineServer.createInvalidItem(world: World): EngineItem = with(world) { createInvalidItem() }
+
+context(write: WriteComponentAccess)
+fun EngineServer.createInvalidItem(): EngineItem {
     val prefab = namespacedStorage.items[ItemId(INVALID_ITEM_ID)]!!
-    return world.createItem(prefab)
+    return write.createItem(prefab)
 }
 
 fun WriteComponentAccess.createItem(
@@ -38,10 +43,16 @@ fun WriteComponentAccess.createItem(
     item.setComponent(Networked)
     item.setComponent(UpdateMeta(false))
     item.setComponent(Count(1, prefab.maxCount))
+    item.createDebugName(prefab.id)
     prefab.progressionAnimations?.let { item.setComponent(it) }
     prefab.assets?.let { item.setComponent(it) }
     prefab.tooltipFactory.invoke()?.let { item.setComponent(it) }
     val components = prefab.componentsFactory()
     item.copyState(components)
     return item
+}
+
+context(world: WriteComponentAccess)
+fun EngineItem.createDebugName(id: ItemId) {
+    setComponent(DebugName(id.value))
 }

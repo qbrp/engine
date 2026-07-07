@@ -93,11 +93,7 @@ fun <T : Entity, I : Any, C : Component> ClientHandler.registerSynchronizerEndpo
     registerGameSessionReceiver(synchronizer.endpoint) { gameSession ->
         val id = idGetter(id)
         val entity = storageGetter(gameSession).get(id) ?: return@registerGameSessionReceiver
-        if (interaction != null) {
-            pendingSnapshots.add(interaction!! to Runnable { synchronizer.resolver(entity, component) })
-        } else {
-            synchronizer.resolver(entity, component)
-        }
+        synchronizer.resolver(entity, component)
     }
 }
 

@@ -4,8 +4,6 @@ import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.core.particles.ParticleTypes
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.item.BulletFire
-import org.lain.engine.item.BulletParameters
 import org.lain.engine.item.DEFAULT_BULLET_MASS
 import org.lain.engine.item.DEFAULT_BULLET_SPEED
 import org.lain.engine.mc.engine
@@ -13,12 +11,14 @@ import org.lain.engine.mc.raycastBulletEvent
 import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.world.BulletFireEvent
+import org.lain.engine.world.BulletParameters
 import org.lain.engine.world.World
 
 fun updateBulletsVisual(
     world: World,
     mcWorld: ClientLevel,
-) = world.iterate<BulletFire> { _, event ->
+) = world.iterate<BulletFireEvent> { _, event ->
     val shoot = event.shoot
     mcWorld.spawnGunSmokeParticle(shoot.start, event.smoke.velocity, shoot.vector, event.smoke.offset)
     val hitResult = raycastBulletEvent(mcWorld, shoot) ?: return@iterate

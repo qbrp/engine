@@ -144,26 +144,29 @@ fun dataFixItem(item: EngineItem, storage: NamespacedStorageAccess) {
     if (!item.hasComponent<ItemName>()) {
         item.setComponent(ItemName("Предмет"))
     }
+    if (!item.hasComponent<DebugName>()) {
+        item.createDebugName(prefabId)
+    }
 }
 
 // Для логирования
 sealed class ItemLoadContext {
-    abstract fun append(data: MutableMap<String, in Any>)
-    fun data(): Map<String, Any> {
-        val map = mutableMapOf<String, Any>()
+    abstract fun append(data: MutableMap<String, String>)
+    fun data(): Map<String, String> {
+        val map = mutableMapOf<String, String>()
         append(map)
         return map
     }
 
     data class PreparingPlayer(val playerId: PlayerId, val name: String) : ItemLoadContext() {
-        override fun append(data: MutableMap<String, in Any>) {
+        override fun append(data: MutableMap<String, String>) {
             data["context"] = "preparing_player"
             data["player_id"] = playerId.toString()
             data["player_name"] = name
         }
     }
     data class FromInventory(val player: PlayerId?, val voxelPos: Pos?) : ItemLoadContext() {
-        override fun append(data: MutableMap<String, in Any>) {
+        override fun append(data: MutableMap<String, String>) {
             data["context"] = "from_inventory"
             data["player_name"] = player.toString()
             data["voxel_pos"] = voxelPos.toString()
@@ -211,22 +214,21 @@ class ItemLoader(
                     }
             }
                  .onFailure { err ->
-                     LOGGER.error("Не удалось загрузить предмет $uuid", err)
                      EngineLogger.log(
                          Log(
                              LogMessages.ITEM_LOAD_ERROR,
                              LogLevel.ERROR,
-                             error = err,
+                             error = err.toLogError(),
                              data = mutableMapOf(
                                  "uuid" to uuid.toString(),
-                             ).also { context.append(it as MutableMap<String, in Any>) },
+                             ).also { context.append(it) },
                              tick = server.tick,
                              world = world.id
                          )
                      )
                  }
                 .getOrNull()
-                ?: server.createInvalidItem(world)
+                ?: server.createInvalidItem()
 
             commandBuffers += world.id to commandBuffer
             server.logInMainThread(world) { tick ->
@@ -239,8 +241,8 @@ class ItemLoader(
                     mutableMapOf(
                         "uuid" to uuid.toString(),
                         "id" to entity.requireComponent<Item>().id.toString(),
-                        "components" to world.componentManager.getComponentsMap(entity).keys.map { it.id },
-                        "linked_entities" to entityResolver.resolved.map { it.getEntityDebugNameId().name }
+                        "components" to world.componentManager.getComponentsMap(entity).keys.joinToString { it.id },
+                        "linked_entities" to entityResolver.resolved.joinToString { it.getEntityDebugNameId().name }
                     ).also { context.append(it) },
                     world = world.id,
                     tick = tick

@@ -10,12 +10,17 @@ import net.minecraft.world.item.context.BlockPlaceContext
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.LevelChunk
+import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getOrSet
 import org.lain.cyberia.ecs.hasComponent
+import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.gunAmmoConsumeCount
+import org.lain.engine.item.computeGunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.InputAction
+import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
@@ -54,6 +59,7 @@ object ServerMixinAccess {
     ): Boolean {
         val world = player.engine?.world ?: return false
         val space = slotStack.maxStackSize - slotStack.count
+        val playerInventory = table.getGeneralPlayer(player)?.get<PlayerInventory>()
         if (world.merge(item, cursorItem) && space > 0) {
             when (clickType) {
                 ClickAction.PRIMARY  -> {
@@ -66,19 +72,13 @@ object ServerMixinAccess {
                     cursorStack.decrement(1)
                 }
             }
+            if (cursorStack.isEmpty) {
+                playerInventory?.cursorItem = null
+            }
             return true
+        } else {
+            return false
         }
-
-        var success = false
-        val gunAmmoConsumeCount = item.gunAmmoConsumeCount(world, cursorItem)
-        if (gunAmmoConsumeCount != 0)  {
-            success = true
-        }
-
-        val enginePlayer = table.getGeneralPlayer(player) ?: return success
-        enginePlayer.input.add(InputAction.SlotClick(cursorItem, item))
-
-        return success
     }
 
     fun isAchievementMessagesDisabled() = disableAchievementMessages

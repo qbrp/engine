@@ -4,8 +4,8 @@ import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.item.ItemTooltip
-import org.lain.engine.player.ProgressionAnimation
-import org.lain.engine.player.ProgressionAnimationId
+import org.lain.engine.player.interaction.ProgressionAnimation
+import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.Namespace.Holder
 import org.lain.engine.util.Intent
 import org.lain.engine.util.IntentId

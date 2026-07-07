@@ -55,30 +55,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyDeleteChatMessage(message)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_PACKET) {
-        updatePlayerDetailed(playerId) {
-            applyInteractionPacket(it, interaction)
-        }
-    }
-
-    registerGameSessionReceiver(CLIENTBOUND_INTERACTION_SELECTION_ENDPOINT) {
-        applyInteractionSelectionPacket(selection)
-    }
-
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INTERACTION_SELECTION_SELECT_ENDPOINT) {
-        updatePlayerDetailed(player) {
-            applyPlayerInteractionSelectionSelectPacket(it, variantId)
-        }
-    }
-
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INPUT_PACKET) { _ ->
-        updatePlayerDetailed(playerId) {
-            applyPlayerInputPacket(it, actions)
-        }
-    }
-
     registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { _ ->
-        applyPlaySoundPacket(play, context)
+        applyPlaySoundPacket(play, ignorePhysics)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT) { gameSession ->

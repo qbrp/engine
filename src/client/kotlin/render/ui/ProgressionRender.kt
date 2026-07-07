@@ -9,8 +9,8 @@ import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText
-import org.lain.engine.player.InteractionComponent
-import org.lain.engine.player.ProgressionType
+import org.lain.engine.player.interaction.Progression
+import org.lain.engine.player.interaction.ProgressionType
 import org.lain.engine.util.math.lerp
 import kotlin.math.pow
 
@@ -35,17 +35,15 @@ private const val FADE_DELAY = 20
 fun renderInteractionProgression(
     context: GuiGraphics,
     renderState: InteractionProgressionRenderState,
-    interaction: InteractionComponent?,
+    progression: Progression?,
     dt: Float
 ) {
     renderState.time += dt
-    val progression = interaction?.progression
     var progress = 0f
     if (progression != null) {
-        renderState.progressionType = progression
-
-        progress = interaction.progress
-        val (duration, animation) = progression
+        renderState.progressionType = progression.type
+        progress = progression.progress
+        val (duration, animation) = progression.type
         val frames = animation.frames
         val size = frames.size.coerceAtLeast(1)
         val index = (size * progress)
@@ -60,8 +58,8 @@ fun renderInteractionProgression(
             renderState.endTime = renderState.time
             text = animation.successText
         }
-        interaction.text?.let { text = it }
-        interaction.placeholders.forEach { (placeholder, set) ->
+        progression.text?.let { text = it }
+        progression.placeholders.forEach { (placeholder, set) ->
             text = text.replace("{$placeholder}", set)
         }
         renderState.text = text.parseMiniMessageClient()
@@ -96,7 +94,7 @@ fun renderInteractionProgression(
             val color = ColorMc.color(renderState.opacity, CommonColors.WHITE)
             context.drawString(textRenderer, text, 2 + scale + 4, y, color)
             val width = textRenderer.width(text)
-            if (progress < 1f && interaction != null && interaction.text == null) {
+            if (progress < 1f && progression != null && progression.text == null) {
                 val dotIndex = ((renderState.time / DOT_ANIMATION_SPEED).toInt()) % DOTS.size
                 val dot = DOTS[dotIndex]
                 context.drawString(

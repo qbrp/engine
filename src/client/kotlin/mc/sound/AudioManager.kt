@@ -65,7 +65,7 @@ class MinecraftAudioManager(
         soundSetCache.invalidate()
     }
 
-    override fun playSound(player: SoundPlay) {
+    override fun playSound(player: SoundPlay, ignorePhysics: Boolean) {
         val event = player.sound
         val soundSet = soundSetCache.get(event)
         soundManager.play(
@@ -75,7 +75,8 @@ class MinecraftAudioManager(
                 player.pitch,
                 soundSet,
                 player.category.toMinecraft(),
-                ImmutableEVec3(player.pos)
+                ImmutableEVec3(player.pos),
+                static = ignorePhysics
             )
         )
     }

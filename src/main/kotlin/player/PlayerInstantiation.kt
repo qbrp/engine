@@ -15,11 +15,16 @@ import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.player.interaction.PlayerInput
+import org.lain.engine.player.prepareContainers
+import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.server.*
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.EntityCommandBuffer
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -67,7 +72,6 @@ fun commonPlayerInstance(
         set(OrientationTranslation(0f, 0f))
         set(PlayerInventory(settings.items.toMutableSet()))
         set(ArmStatus(false))
-        set(PlayerInput(mutableSetOf(), setOf()))
         set(Narration(mutableListOf()))
         set(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
         set(Hearing())
@@ -94,7 +98,6 @@ fun serverPlayerInstance(
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
 
     return commonPlayerInstance(settings, id).apply {
-        set(ServerPlayerInputMeta(false))
         set(MessageQueue())
         set(voiceApparatus)
         setNullable(persistent?.voiceLoose)
@@ -296,4 +299,13 @@ fun EnginePlayer.prepareContainers(
     // }
     container.setComponent(PlayerEquipment(this@prepareContainers))
     set(Equipment(container))
+}
+
+context(world: World, lua: LuaContext)
+fun EnginePlayer.setPlayerComponents() {
+    prepareLuaScriptComponents()
+    entityId.setComponent(Player(this))
+    entityId.setComponent(location)
+    entityId.setComponent(PersistentIdComponent(CustomPersistentId(id.toString())))
+    entityId.setComponent(PlayerInput())
 }

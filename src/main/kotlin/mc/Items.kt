@@ -70,6 +70,10 @@ fun wrapEngineItemStack(
 ): ItemStack = with(world) {
     wrapEngineItemStackVisual(itemStack, item.getName())
     wrapEngineItemStackBase(itemStack, item.requireComponent<Count>().max)
+    itemStack.set(
+        DataComponents.ITEM_MODEL,
+        engineId(resolveItemAsset(item))
+    )
 
     itemStack.set(
         ENGINE_ITEM_REFERENCE_COMPONENT,

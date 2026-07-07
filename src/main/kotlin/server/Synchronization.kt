@@ -20,7 +20,6 @@ data class PlayerNetworkState(
     var authorized: Boolean,
     val players: MutableList<EnginePlayer> = mutableListOf(),
     val chunks: MutableList<EngineChunkPos> = mutableListOf(),
-    var tick: Long = 0,
     var tickTimeout: Int = 8_000,
     val entities: MutableSet<PersistentId> = mutableSetOf(),
     val voxels: MutableSet<ImmutableVoxelPos> = mutableSetOf(),
@@ -33,22 +32,20 @@ val EnginePlayer.network
 // Common synchronizers
 
 data class Synchronizations<T : Entity>(val state: MutableMap<KClass<out Component>, State<T>> = mutableMapOf()) : Component {
-    data class State<T : Entity>(var dirty: DirtyState? = null, val synchronizer: ComponentSynchronizer<T, *>)
+    data class State<T : Entity>(var dirty: Boolean, val synchronizer: ComponentSynchronizer<T, *>)
 }
-
-data class DirtyState(val interaction: InteractionId?)
 
 inline fun <T : Entity, reified C : Component> Synchronizations<T>.submit(synchronizer: ComponentSynchronizer<T, C>) {
-    state[C::class] = Synchronizations.State(null, synchronizer)
+    state[C::class] = Synchronizations.State(false, synchronizer)
 }
 
-fun Entity.markDirty(componentClass: KClass<out Component>, interactionId: InteractionId? = null) {
+fun Entity.markDirty(componentClass: KClass<out Component>) {
     val state = require<Synchronizations<*>>().state[componentClass] ?: error("Component synchronizer for $componentClass not found")
-    state.dirty = DirtyState(interactionId)
+    state.dirty = true
 }
 
-inline fun <reified C : Component> Entity.markDirty(interactionId: InteractionId? = null) {
-    markDirty(C::class, interactionId)
+inline fun <reified C : Component> Entity.markDirty() {
+    markDirty(C::class)
 }
 
 enum class PlayerPredicate {
@@ -70,16 +67,13 @@ class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerial
         PacketCodec.Binary(
             {
                 val id = readUtf()
-                val interaction = readNullable { it.readLong() }
                 ComponentSynchronizationPacket<C>(
                     id,
-                    interaction?.let { InteractionId(it) },
                     ProtoBuf.decodeFromByteArray(serializer, readByteArray()),
                 )
             },
             {
                 writeUtf(it.id)
-                writeNullable(it.interaction?.value) { buf, value -> buf.writeLong(value) }
                 writeByteArray(ProtoBuf.encodeToByteArray(serializer, it.component))
             }
         )
@@ -112,11 +106,11 @@ inline fun <reified C : Component> PlayerComponentSynchronizer(
 
 fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStorage, entity: T, component: Synchronizations<T> = entity.require()) {
     component.state.forEach { (id, state) ->
-        if (state.dirty != null) {
+        if (state.dirty) {
             val synchronizer = state.synchronizer as ComponentSynchronizer<T, Component>
             val endpoint = synchronizer.endpoint
             val component = entity.getComponent(synchronizer.componentType) ?: error("Dirty component ${synchronizer.componentType} not found")
-            val packet = ComponentSynchronizationPacket(entity.stringId, state.dirty?.interaction, component)
+            val packet = ComponentSynchronizationPacket(entity.stringId, component)
 
             fun broadcast(world: World, location: Location, player: EnginePlayer?) {
                 var players = when (synchronizer.predicate) {
@@ -135,14 +129,13 @@ fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStora
 
             val player = entity as EnginePlayer
             broadcast(player.world, player.location, entity as? EnginePlayer)
-            state.dirty = null
+            state.dirty = false
         }
     }
 }
 
 class ComponentSynchronizationPacket<C : Component>(
     val id: String,
-    val interaction: InteractionId? = null,
     val component: C,
 ) : Packet
 

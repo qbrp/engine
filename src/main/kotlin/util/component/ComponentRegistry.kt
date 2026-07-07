@@ -10,12 +10,14 @@ import org.lain.engine.player.Outfit
 import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerContainerTag
 import org.lain.engine.player.PlayerEquipment
+import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.Savable
 import org.lain.engine.storage.SaveTag
 import org.lain.engine.storage.UnloadTag
+import org.lain.engine.util.DebugName
 import org.lain.engine.world.*
 import kotlin.reflect.KClass
 
@@ -75,9 +77,9 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
 
 fun ComponentTypeRegistry.registerComponents() {
     registerComponent<VoxelEvent>()
-    registerComponent<BulletFire>()
+    registerComponent<BulletFireEvent>()
     registerComponent<WorldSoundPlayRequest>()
-    registerComponent<Event>()
+    registerComponent<Event>(isNetworking = true)
     registerComponent<OccupiedSlots>(isNetworking = true)
     registerComponent<Slots>(isNetworking = true)
     registerComponent<Entries>()
@@ -125,4 +127,7 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<ItemProgressionAnimations>(isSavable = true, isNetworking = true)
 
     registerComponent<EntityRpcReceiver>(isNetworking = true, isSavable = true, serializationClass = null)
+
+    registerComponent<DebugName>(isNetworking = true, isSavable = true)
+    registerComponent<ActionSyncEvent>(isNetworking = true)
 }

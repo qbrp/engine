@@ -108,7 +108,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     open fun tick() {
         if (!minecraftServer.isRunning) return
-        val players = engine.playerStorage.getAll()
         val entityTableAll = dependencies.entityTable
 
         engine.update(
@@ -202,10 +201,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     override fun onPlayerInstantiated(player: EnginePlayer) {
         val entity = minecraftServer.playerList.getPlayer(player.id.value) ?: return
         entityTable.setPlayer(entity, player)
-        with(luaContext) {
-            player.prepareLuaScriptComponents()
-            player.entityId.setComponent(player.require<Location>())
-        }
     }
 
     override fun onChatMessage(message: IncomingMessage) {}

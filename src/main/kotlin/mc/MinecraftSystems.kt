@@ -118,7 +118,7 @@ fun updateServerPlayerMinecraftSystems(
                             NotLoadedEngineItemStack(
                                 world,
                                 uuid,
-                                itemStack.copy(),
+                                itemStack,
                                 reference,
                                 loadContext
                             )
@@ -143,8 +143,8 @@ fun updateServerPlayerMinecraftSystems(
             }
 
             updatePlayerMinecraftSystems(player, items.toSet(), entity, world)
-            player.remove<BookOpen>()
             excludeEngineItemDuplicates(server, entity)
+            player.entityId.removeComponent<WritableOpen>()
         }
     }
 

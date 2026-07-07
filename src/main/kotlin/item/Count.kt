@@ -11,8 +11,7 @@ import org.lain.engine.world.World
 data class Count(var value: Int, val max: Int) : Component
 
 /**
- * Попробовать совместить предметы - наслоить `mergeItem` на `baseItem`.
- * В случае успешного совмещения компонент количества `mergeItem` ставится на 0. **Предмет должен быть удалён**
+ * Можно ли совместить предметы `mergeItem` и `baseItem`.
  * @return Были ли совмещены предметы
  */
 fun World.merge(baseItem: EngineItem, mergeItem: EngineItem): Boolean {

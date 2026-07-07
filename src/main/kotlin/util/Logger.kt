@@ -1,5 +1,6 @@
 package org.lain.engine.util
 
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
@@ -15,7 +16,9 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.concurrent.fixedRateTimer
+import kotlin.reflect.jvm.jvmName
 
+@Serializable
 data class DebugName(val name: String) : Component
 
 @JvmInline
@@ -33,21 +36,32 @@ fun EntityId.getEntityDebugNameId() = getComponent<DebugName>()?.name
 
 fun EntityId.getDebugId() = EntityDebugId("$this")
 
-
+@Serializable
 data class Log(
     val message: String,
     val level: LogLevel,
-    val data: Map<String, Any>,
+    val data: Map<String, String>,
     val tick: ULong? = null,
     val world: WorldId? = null,
-    val error: Throwable? = null,
+    val error: Error? = null,
     val timestamp: Timestamp = Timestamp(),
-)
+    val thread: String = Thread.currentThread().name,
+) {
+    @Serializable
+    data class Error(val clazz: String, val data: String, val stacktrace: List<String>)
+}
+
+fun Throwable.toLogError() =
+    Log.Error(this::class.qualifiedName ?: this::class.jvmName, this.toString(), this.stackTrace.map { it.toString() })
 
 object LogMessages {
     const val ITEM_LOAD = "Item loaded"
     const val ITEM_LOAD_ERROR = "Couldn't load item"
     const val ITEM_STACK_INIT_ERROR = "Couldn't initialize item stack"
+    const val ENTITY_SYNC = "Entity synced"
+    const val ENTITY_SYNC_ADD = "Synced entity added"
+    const val PLAYER_INTERACTION = "Player interaction"
+    const val INTERACTION_SKIP = "Skipped interaction sync"
 }
 
 enum class LogLevel {
@@ -113,7 +127,14 @@ object EngineLogger {
 
     fun log(log: Log) {
         messageWriteQueue.add(log)
-        val msg = log.message
+        val startStringBuilder = StringBuilder()
+        if (log.world != null) {
+            startStringBuilder.append("[${log.world.value}]")
+        }
+        if (log.tick != null) {
+            startStringBuilder.append(" [${log.tick}] ")
+        }
+        val msg = "${startStringBuilder.toString()}${log.message} (${log.data})"
         when (log.level) {
             LogLevel.INFO -> slf4jLoggerAdapter.info(msg)
             LogLevel.WARN -> slf4jLoggerAdapter.warn(msg)

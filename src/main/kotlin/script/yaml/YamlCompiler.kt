@@ -5,8 +5,8 @@ import com.charleskorn.kaml.YamlNode
 import com.charleskorn.kaml.decodeFromStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.ProgressionAnimation
-import org.lain.engine.player.ProgressionAnimationId
+import org.lain.engine.player.interaction.ProgressionAnimation
+import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.CompilationException
 import org.lain.engine.script.CompilationResult
 import org.lain.engine.script.CompiledNamespace
