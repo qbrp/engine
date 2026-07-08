@@ -136,6 +136,8 @@ dependencies {
     modCompileOnly("com.sk89q.worldedit:worldedit-core:${project.property("worldedit_version")}")
     modCompileOnly("com.sk89q.worldedit:worldedit-fabric-mc$minecraft_version:${project.property("worldedit_version")}")
 
+    implementation("com.microsoft:credential-secure-storage:1.0.3")
+
     // Grapgene
     modImplementation("io.github.trethore:graphene-ui:1.7.2")
 

@@ -32,6 +32,7 @@ import org.lain.engine.server.desync
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -44,7 +45,9 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     val taskExecutor = TaskExecutor()
 
     private val showedNotifications = mutableSetOf<Notification>()
-    val processedInteraction = mutableSetOf<Long>()
+    val processedInteraction = mutableSetOf<InteractionIdentity>()
+
+    data class InteractionIdentity(val tick: Long, val entity: EntityId)
 
     private val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
     private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())

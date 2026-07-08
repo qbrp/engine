@@ -29,6 +29,7 @@ import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.AuthPacket
 import org.lain.engine.Constants.ENGINE_MOD_VERSION
 import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
+import org.lain.engine.client.account.EngineHttpClient
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
@@ -79,13 +80,15 @@ class EngineMinecraftClient : ClientModInitializer {
     private val decalsStorage: DecalSystem = DecalSystem()
     private val eventBus = MinecraftEngineClientEventBus(client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
+    private val engineHttpClient = EngineHttpClient()
     private val engineClient = EngineClient(
         window,
         camera,
         MinecraftChat,
         audioManager,
         uiRenderPipeline,
-        eventBus
+        eventBus,
+        engineHttpClient
     )
         .also { Injector.register(it) }
 

@@ -1,5 +1,10 @@
 package org.lain.engine.client
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.lain.engine.client.account.AccountManager
+import org.lain.engine.client.account.EngineHttpClient
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.ClientHandler
@@ -21,7 +26,6 @@ import org.lain.engine.script.lua.LuaDependencies
 import org.lain.engine.server.ServerId
 import org.lain.engine.util.DEV_MODE_COLOR
 import org.lain.engine.util.SPECTATOR_MODE_COLOR
-import org.luaj.vm2.lib.jse.JsePlatform
 import java.io.File
 
 class EngineClient(
@@ -31,6 +35,7 @@ class EngineClient(
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
     val eventBus: ClientEventBus,
+    private val http: EngineHttpClient
 ) {
     val namespacedStorage: NamespacedStorageAccess = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
     lateinit var options: EngineOptions
@@ -38,6 +43,7 @@ class EngineClient(
     val handler = ClientHandler(this, eventBus)
     val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
+    val accountManager: AccountManager = AccountManager(http)
 
     val resources
         get() = resourceManager.context
@@ -74,6 +80,10 @@ class EngineClient(
     private val luaDataStorage = LuaDataStorage()
     var compilationResult: CompilationResult? = null
     var luaContext: ClientLuaContext? = null
+
+    init {
+        CoroutineScope(Dispatchers.IO).launch { accountManager.autoLoginAsync() }
+    }
 
     fun compileScripts(): CompilationResult {
         val contentsPath = resources.contents.file

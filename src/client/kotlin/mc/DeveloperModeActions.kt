@@ -6,6 +6,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
+import org.lain.engine.client.render.ui.TestGrapheneScreen
 import org.lain.engine.client.render.ui.TransformationsEditorScreen
 import org.lain.engine.client.render.ui.WebDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
@@ -17,7 +18,6 @@ import org.lain.engine.util.math.randomInteger
 import org.lain.engine.util.math.roundToInt
 import org.lain.engine.world.*
 import org.lwjgl.glfw.GLFW
-import tytoo.grapheneui.api.GrapheneCore
 
 
 private var developerModeKeyPressedTick = 0L
@@ -97,6 +97,8 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
             } else if (key == GLFW.GLFW_KEY_6) {
                 val gameSession = gameSession ?: return@with true
                 MinecraftClient.setScreen(WebDebugScreen(gameSession.client.resources))
+            } else if (key == GLFW.GLFW_KEY_7){
+                ClientMixinAccess.setGrapheneTestScreen()
             } else {
                 return@with false
             }

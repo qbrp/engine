@@ -49,16 +49,6 @@ data class GunDisplay(
     @SerialName("selector_status") val selectorStatus: Boolean = true,
 ) : Component
 
-/**
- * @return Уменьшение количества принимаемого как патрон предмета для предмета-оружия
- */
-fun computeGunAmmoConsumeCount(world: World, item: EngineItem, gun: Gun? = null): Int = with(world) {
-    val gun = gun ?: item.getComponent<Gun>()
-    if (gun == null || item.getComponent<Item>()?.id != gun.ammunition) return 0
-    val count = item.getComponent<Count>()?.value ?: 1
-    val barrel = gun.barrel
-    return count.coerceAtMost(barrel.maxBullets - barrel.bullets)
-}
 object GunTriggerPress : Component
 
 object GunModeToggle : Component
@@ -131,14 +121,16 @@ fun World.tickGunSystem() {
 
     iterate<Gun, GunBarrelLoad>() { item, gun, (player, ammoItem) ->
         val barrel = gun.barrel
-        val ammo = computeGunAmmoConsumeCount(this@tickGunSystem, item, gun)
-        if (ammo > 0) {
-            barrel.bullets = (barrel.bullets + ammo).coerceAtMost(barrel.maxBullets)
+        val ammoCount = ammoItem.getComponent<Count>()?.value ?: 1
+        val loadAmmoCount = ammoCount.coerceAtMost(barrel.maxBullets - barrel.bullets)
+
+        if (loadAmmoCount > 0) {
+            barrel.bullets = (barrel.bullets + loadAmmoCount).coerceAtMost(barrel.maxBullets)
             gun.clicked = false
             item.emitPlaySoundEvent(ROUND_BARREL_SOUND)
-            player.set(DestroyItemSignal(ammoItem, ammo))
             item.removeComponent<GunBarrelLoad>()
             item.markDirty<Gun>()
+            player.set(DestroyItemSignal(item, loadAmmoCount))
         }
     }
 }

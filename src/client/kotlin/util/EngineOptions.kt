@@ -17,4 +17,5 @@ interface EngineOptions {
     val crosshairIndicatorVisible: Boolean
     val hotbarIndicatorsVisible: Boolean
     val labelEasingDistance: Int
+    var autoLogin: Boolean
 }

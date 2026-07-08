@@ -13,8 +13,11 @@ import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
+import org.lain.engine.client.account.AccountState
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
+import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
+import org.lain.engine.client.render.ui.TestGrapheneScreen
 import org.lain.engine.client.render.world.RenderStateComponent
 import org.lain.engine.client.render.world.modelPartOf
 import org.lain.engine.client.render.world.setEngineState
@@ -42,6 +45,16 @@ object ClientMixinAccess {
     private var resources: ResourceList? = null
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
+
+    fun getAccountState(): AccountState = client.accountManager.state
+
+    fun setGrapheneTestScreen() {
+        MinecraftClient.setScreen(TestGrapheneScreen(client))
+    }
+
+    fun setDiscordAuthorizationScreen() {
+        MinecraftClient.setScreen(DiscordAuthorizationScreen(client))
+    }
 
     fun getEngineClient() = client
 

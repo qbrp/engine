@@ -2,12 +2,16 @@ package org.lain.engine.client.render.ui
 
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.TextAlignment
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.Style
+import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
+import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.resources.ResourceContext
 import org.lain.engine.mc.literalText
 import org.lain.engine.util.file.ENGINE_DIR
@@ -30,43 +34,107 @@ fun initializeGraphene() {
         GrapheneConfig.builder()
             .container(
                 GrapheneContainerConfig.builder()
-                .http(
-                    GrapheneHttpConfig.builder()
-                    .bindHost("127.0.0.1")
-                    .randomPortInRange(20_000, 21_000)
-                    .spaFallback("/not_found.html")
-                    .fileRoot(ENGINE_DIR.resolve("web").toPath().toAbsolutePath())
-                    .build())
-                .build())
-            .global(GrapheneGlobalConfig.builder()
-                .jcefDownloadPath(Path.of("./graphene-jcef"))
-                .extensionFolder(Path.of("./engine/extensions"))
-                .remoteDebugging(
-                    GrapheneRemoteDebugConfig.builder()
-                    .randomPort()
-                    .allowedOrigins("https://chrome-devtools-frontend.appspot.com")
-                    .build())
-                .allowFileSystemAccess()
-                .build())
+                    .http(
+                        GrapheneHttpConfig.builder()
+                            .bindHost("127.0.0.1")
+                            .randomPortInRange(20_000, 21_000)
+                            .spaFallback("/not_found.html")
+                            .fileRoot(ENGINE_DIR.resolve("web").toPath().toAbsolutePath())
+                            .build()
+                    )
+                    .build()
+            )
+            .global(
+                GrapheneGlobalConfig.builder()
+                    .jcefDownloadPath(Path.of("./graphene-jcef"))
+                    .extensionFolder(Path.of("./engine/extensions"))
+                    .remoteDebugging(
+                        GrapheneRemoteDebugConfig.builder()
+                            .randomPort()
+                            .allowedOrigins("https://chrome-devtools-frontend.appspot.com")
+                            .build()
+                    )
+                    .allowFileSystemAccess()
+                    .build()
+            )
             .build()
     )
 }
 
-class HintEditScreen() : Screen(literalText("Hint editor")) {
+fun Screen.widgetWithMargins(margin: Int, url: String, marginYDown: Int = 0): GrapheneWebViewWidget {
+    return GrapheneWebViewWidget(
+        this,
+        margin,
+        margin ,
+        width - margin * 2,
+        height - margin * 2 - marginYDown,
+        Component.empty(),
+        url
+    )
+}
+
+class TestGrapheneScreen(private val engineClient: EngineClient) : Screen(literalText("Graphene test")) {
+    override fun init() {
+        val margin = 4
+        val top = 128
+
+        addRenderableWidget(
+            GrapheneWebViewWidget(
+                this,
+                margin,
+                top,
+                width - margin * 2,
+                height - top - margin,
+                Component.empty(),
+                webPageUrl("web_test")
+            )
+        )
+    }
+
+    override fun render(guiGraphics: GuiGraphics, i: Int, j: Int, f: Float) {
+        super.render(guiGraphics, i, j, f)
+
+        val textRenderer = guiGraphics.textRenderer()
+        val titleScale = 2.0f
+        val titleY = 6
+        val titleParameters = textRenderer.defaultParameters().withScale(titleScale)
+        textRenderer.accept(
+            TextAlignment.CENTER,
+            (width / titleScale / 2).toInt(),
+            (titleY / titleScale).toInt(),
+            titleParameters,
+            TEXT_TITLE
+        )
+
+        val subtextMaxWidth = width - 64
+        val subtextY = titleY + (minecraft.font.lineHeight * titleScale).toInt() + 10
+        val subtextLineHeight = minecraft.font.lineHeight + 2
+        minecraft.font.split(SUBTEXT_TITLE, subtextMaxWidth).forEachIndexed { index, line ->
+            textRenderer.accept(
+                TextAlignment.CENTER,
+                width / 2,
+                subtextY + index * subtextLineHeight,
+                line
+            )
+        }
+    }
+
+    override fun onClose() {
+        minecraft.setScreen(DiscordAuthorizationScreen(engineClient))
+    }
+
+    companion object {
+        private val TEXT_TITLE = literalText("Работает ли Graphene?").withStyle(Style.EMPTY.withBold(true))
+        private val SUBTEXT_TITLE = ("Для отрисовки графического интерфейса Engine использует движок Chromium." +
+                "<newline>Если под этой надписью ничего не видно, значит библиотека корректно не инициализировалась. Свяжитесь с разработчиком.").parseMiniMessageClient()
+    }
+}
+
+class HintEditScreen : Screen(literalText("Hint editor")) {
     private lateinit var view: GrapheneWebViewWidget
 
     protected override fun init() {
-        val margin = 8
-        view = GrapheneWebViewWidget(
-            this,
-            margin,
-            margin,
-            width - margin * 2,
-            height - margin * 2,
-            Component.empty(),
-            webPageUrl("hint_editor")
-        )
-
+        view = widgetWithMargins(8, webPageUrl("hint_editor"))
         addRenderableWidget(view)
     }
 }

@@ -5,6 +5,7 @@ import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.componentTypeOfGeneral
 import org.lain.cyberia.ecs.getOrSet
 import org.lain.cyberia.ecs.iterate
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.*
 import org.lain.engine.player.interaction.Action
@@ -72,8 +73,9 @@ fun mainClientPlayerInstance(
 }
 
 fun World.tickActionSyncSystem(handler: ClientHandler) {
-    iterate<ActionSyncEvent> { entity, event ->
-        if (event.tick !in handler.processedInteraction) {
+    iterate<ActionSyncEvent> { _, event ->
+        val identity = ClientHandler.InteractionIdentity(event.tick, event.entity)
+        if (identity !in handler.processedInteraction) {
             event.entity.setComponent(event.action, componentTypeOfGeneral(event.action) as ComponentType<Action>)
         } else {
             EngineLogger.log(
@@ -92,5 +94,5 @@ fun World.tickActionSyncSystem(handler: ClientHandler) {
 }
 
 fun World.tickProcessedActions(handler: ClientHandler) = iterate<ActionSyncEvent> { _, event ->
-    event.tick.let { handler.processedInteraction += it }
+    handler.processedInteraction += ClientHandler.InteractionIdentity(event.tick, event.entity)
 }

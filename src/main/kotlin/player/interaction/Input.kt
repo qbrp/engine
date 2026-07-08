@@ -46,9 +46,11 @@ fun World.tickPlayerInput(playerId: PlayerId? = null, clientSide: Boolean = fals
             input.lastActions.clear()
             input.lastActions.addAll(actions)
             val sightPlayer = player.whoSee(SOCIAL_INTERACTION_DISTANCE)
-            val handItem = player.handItem
+            val playerInventory = player.require<PlayerInventory>()
+            val mainHandItem = playerInventory.mainHandItem
+            val offHandItem = playerInventory.offHandItem
             val extendArm = player.extendArm
-            val gun = handItem?.getComponent<Gun>()
+            val gun = mainHandItem?.getComponent<Gun>()
 
             actions.forAction<InputAction.Attack> { action ->
                 val gunSafety = gun?.mode == FireMode.SELECTOR
@@ -63,7 +65,7 @@ fun World.tickPlayerInput(playerId: PlayerId? = null, clientSide: Boolean = fals
                     if (!clientSide) {
                         // Последним делом - социальные взаимодействия
                         input.action = HailAction(sightPlayer.id)
-                        if (handItem != null && extendArm) {
+                        if (mainHandItem != null && extendArm) {
                             input.action = GiveAction(sightPlayer.id)
                         }
                     }
@@ -71,11 +73,15 @@ fun World.tickPlayerInput(playerId: PlayerId? = null, clientSide: Boolean = fals
             }
 
             actions.forAction<InputAction.Base>() { action ->
-                val writable = handItem?.getComponent<Writable>()
+                val writable = mainHandItem?.getComponent<Writable>()
 
                 // Идём списочком по доступным действиям
                 if (gun != null) {
-                    input.action = GunModeToggleAction
+                    if (offHandItem != null && gun.ammunition == offHandItem.getComponent<Item>()?.id) {
+                        input.action = GunBarrelAmoLoadAction(mainHandItem, offHandItem)
+                    } else {
+                        input.action = GunModeToggleAction
+                    }
                 } else if (writable != null) {
                     input.action = WritableOpenAction
                 }

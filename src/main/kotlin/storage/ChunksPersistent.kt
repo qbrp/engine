@@ -16,6 +16,7 @@ import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.util.file.ensureExists
 import org.lain.engine.world.*
 import java.io.File
+import java.util.Collections
 
 private val ChunkIoCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 private val CborSerializer = Cbor {
@@ -72,7 +73,7 @@ class ChunkLoader(
     fun loadChunk(world: World, pos: EngineChunkPos): EngineChunk? = runBlocking {
         val chunkPersistent = loadChunkPersistent(pos) ?: return@runBlocking null
         val entityResolver = DatabaseEntityResolver(database)
-        val ecb = EntityCommandBuffer(world)
+        val ecb = EntityCommandBuffer(world, Collections.synchronizedList(mutableListOf()))
         val voxelJobs = chunkPersistent.voxels.map { (voxelPos, components) ->
             async(Dispatchers.IO) {
                 with(ecb) {

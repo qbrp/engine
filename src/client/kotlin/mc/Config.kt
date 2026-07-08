@@ -15,6 +15,12 @@ class EngineYamlConfig(
         ConfigType.CLIENT
     )
 ) : EngineOptions {
+    init { builder.push("auth") }
+
+    private val autoLoginProperty = builder.defineBoolean("auto_login", false)
+
+    init { builder.pop() }
+
     init { builder.push("chat") }
 
     private val chatFieldWidthProperty = builder.defineInteger("width", 340, 0, 600)
@@ -89,6 +95,12 @@ class EngineYamlConfig(
         get() = crosshairIndicatorVisibleProperty.get()
     override val hotbarIndicatorsVisible: Boolean
         get() = hotbarIndicatorsVisibleProperty.get()
+
+    override var autoLogin: Boolean
+        get() = autoLoginProperty.get()
+        set(value) {
+            autoLoginProperty.set(value)
+        }
 
     val config: IConfig = builder.build()
 }

@@ -13,14 +13,9 @@ import net.minecraft.world.level.chunk.LevelChunk
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getOrSet
 import org.lain.cyberia.ecs.hasComponent
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.computeGunAmmoConsumeCount
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
-import org.lain.engine.player.interaction.InputAction
-import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer

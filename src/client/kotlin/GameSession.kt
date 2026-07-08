@@ -3,6 +3,7 @@ package org.lain.engine.client
 import kotlinx.coroutines.runBlocking
 import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.has
+import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
@@ -238,6 +239,8 @@ class GameSession(
             tickProcessedActions(handler)
 
             for (player in players) {
+                player.remove<DestroyItemSignal>()
+                player.remove<GiveItemSignal>()
                 if (player.pos.squaredDistanceTo(mainPlayer.pos) > synchronizationRadius * synchronizationRadius) {
                     player.isLowDetailed = true
                     continue

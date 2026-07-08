@@ -127,6 +127,7 @@ class ComponentWorld(
     }
 
     fun getOrCreateEmptyDeltaBitMask(entityId: EntityId): LongArray {
+        checkOnThread()
         while(deltaBitMasks.size <= entityId) deltaBitMasks.add(null)
         return getNetworkedDeltaBitMask(entityId) ?: createBitMask()
             .also { mask -> deltaBitMasks[entityId] = mask }
