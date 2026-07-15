@@ -49,6 +49,7 @@ import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.WritableOpen
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.server.EngineServer
@@ -351,13 +352,26 @@ class EngineMinecraftClient : ClientModInitializer {
         developerStatus: DeveloperModeStatus,
     ) {
         val settings = engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId, developerStatus, listOf())
-        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-            val account = engineClient.accountManager.getAuthorized() ?: friendlyError("Вы не авторизованы")
-            engine.playerLoader.loadPreparing(
-                settings = settings,
-                account = PlayerLoadSettings.Account(account.getCharacter("test")),
-                exceptionHandler = { disconnectWithReason(DisconnectText(it)) }
+        val exceptionHandler: (Throwable) -> Unit = { exception ->
+            disconnectWithReason(
+                if (exception is HttpStatusException) {
+                    DisconnectText("${exception.statusCode}: ${exception.serializeApiError().message}")
+                } else {
+                    DisconnectText(exception)
+                }
             )
+        }
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            try {
+                val account = engineClient.accountManager.getAuthorized() ?: friendlyError("Вы не авторизованы")
+                engine.playerLoader.loadPreparing(
+                    settings = settings,
+                    account = PlayerLoadSettings.Account(account.getCharacter("test")),
+                    exceptionHandler = exceptionHandler
+                )
+            } catch (e: Exception) {
+                exceptionHandler(e)
+            }
         }
     }
 

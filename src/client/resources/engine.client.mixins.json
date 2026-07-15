@@ -20,7 +20,6 @@
     "SoundEngineAccessor",
     "SoundManagerAccessor",
     "SoundSystemMixin",
-    "TitleScreenMixin",
     "ToastManagerMixin",
     "chat.ChatHudAccessor",
     "chat.ChatHudMixin",
@@ -48,7 +47,9 @@
     "resource.TransformationDeserializerMixin",
     "screen.BookEditScreenMixin",
     "screen.CreativeInventoryScreenMixin",
+    "screen.ScreenAccessor",
     "screen.ScreenMixin",
+    "screen.TitleScreenMixin",
     "ui.ExperienceBarRendererMixin",
     "ui.GuiAccessor",
     "ui.GuiMixin"

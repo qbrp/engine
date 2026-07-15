@@ -46,7 +46,11 @@ object ClientMixinAccess {
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
-    fun getAccountState(): ConnectionState = client.accountManager.state
+    fun getConnectionState(): ConnectionState = client.accountManager.state
+
+    fun canPlaySingleplayer(): Boolean = client.accountManager.lastAccountResponse != null
+
+    fun canPlayMultiplayer(): Boolean = client.accountManager.authorized
 
     fun setGrapheneTestScreen() {
         MinecraftClient.setScreen(TestGrapheneScreen(client))

@@ -1,11 +1,14 @@
-package org.lain.engine.client.mixin;
+package org.lain.engine.client.mixin.screen;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import org.lain.engine.client.AuthorizationStatus;
 import org.lain.engine.client.account.ConnectionState;
 import org.lain.engine.client.mc.ClientMixinAccess;
@@ -21,6 +24,47 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class TitleScreenMixin {
     @Unique
     private static final int ENGINE_AUTHORIZATION_STATUS_PADDING = 4;
+    @Unique
+    private Button.Plain singleplayerButton;
+    @Unique
+    private Button.Plain multiplayerButton;
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void engine$tick(CallbackInfo ci) {
+        if (singleplayerButton != null) {
+            singleplayerButton.active = ClientMixinAccess.INSTANCE.canPlaySingleplayer();
+        }
+        if (multiplayerButton != null) {
+            multiplayerButton.active = ClientMixinAccess.INSTANCE.canPlayMultiplayer();
+        }
+    }
+
+    @Inject(
+            method = "createNormalMenuOptions(II)I",
+            at = @At("RETURN"),
+            cancellable = true
+    )
+    private void engine$afterCreateNormalMenuOptions(
+            int i,
+            int j,
+            CallbackInfoReturnable<Integer> cir
+    ) {
+        for (GuiEventListener child : ((Screen)(Object)this).children().stream().toList()) {
+            if (child instanceof Button.Plain button) {
+                Component message = button.getMessage();
+                if (message.equals(Component.translatable("menu.singleplayer"))) {
+                    singleplayerButton = button;
+                }
+                if (message.equals(Component.translatable("menu.multiplayer"))) {
+                    multiplayerButton = button;
+                }
+                if (message.equals(Component.translatable("menu.online"))) {
+                    ((ScreenAccessor)this).engine$removeWidget(button);
+                }
+            }
+        }
+        cir.setReturnValue(cir.getReturnValue() - j);
+    }
 
     @Inject(method = "render", at = @At("TAIL"))
     private void engine$renderAuthorizationStatus(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
@@ -43,7 +87,7 @@ public class TitleScreenMixin {
         }
 
         Font font = Minecraft.getInstance().font;
-        int screenWidth = ((Screen)(Object)this).width;
+        int screenWidth = ((Screen) (Object) this).width;
         String text = engine$getAuthorizationStatus().text();
         if (!engine$isAuthorizationStatusHovered(screenWidth, mouseButtonEvent.x(), mouseButtonEvent.y(), font, text)) {
             return;
@@ -56,7 +100,7 @@ public class TitleScreenMixin {
 
     @Unique
     private static AuthorizationStatus engine$getAuthorizationStatus() {
-        ConnectionState connectionState = ClientMixinAccess.INSTANCE.getAccountState();
+        ConnectionState connectionState = ClientMixinAccess.INSTANCE.getConnectionState();
         if (connectionState instanceof ConnectionState.Authorizing) {
             return new AuthorizationStatus("Авторизация", 0xFFFFFF55);
         } else if (connectionState instanceof ConnectionState.Authorized) {

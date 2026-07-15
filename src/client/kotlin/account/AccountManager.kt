@@ -27,7 +27,7 @@ class AccountManager(
     private val scope = CoroutineScope(Dispatchers.IO)
 
     @Volatile
-    var lastAccountResponse: AccountResponse? = null
+    var lastAccountResponse: AccountResponse? = AccountResponseCache.load()
 
     @Volatile
     var state: ConnectionState = ConnectionState.Unauthorized
@@ -38,6 +38,9 @@ class AccountManager(
 
     val authorizing: Boolean
         get() = state is ConnectionState.Authorizing && authJob?.isActive == true
+
+    val authorized: Boolean
+        get() = state is ConnectionState.Authorized
 
     suspend fun getAuthorized(): ClientAuthorizedAccount? {
         val authorizedState = state as? ConnectionState.Authorized
@@ -60,7 +63,9 @@ class AccountManager(
     private suspend fun onAuthorized(account: ClientAuthorizedAccount) {
         state = ConnectionState.Authorized(account)
         runCatching {
-            lastAccountResponse = account.getAccount()
+            val response = account.getAccount()
+            lastAccountResponse = response
+            AccountResponseCache.save(response)
         }
     }
 
