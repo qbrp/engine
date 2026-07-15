@@ -9,34 +9,60 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.lain.engine.mc.server.RefreshToken
 import org.lain.engine.player.account.AccountResponse
 import java.time.Duration
+import java.time.Instant
 
-sealed interface AccountState {
-    data object Unauthorized : AccountState
-    data object Authorizing : AccountState
-    data object Failed : AccountState
-    data class Authorized(val account: AccountResponse) : AccountState
+sealed interface ConnectionState {
+    data object Unauthorized : ConnectionState
+    data object Authorizing : ConnectionState
+    data class Authorized(val account: ClientAuthorizedAccount) : ConnectionState
 }
 
 class AccountManager(
-    private val httpClient: EngineHttpClient,
+    private val httpClient: ClientEngineAccountService,
 ) {
     private val mutex = Mutex()
     private val scope = CoroutineScope(Dispatchers.IO)
 
     @Volatile
-    var state: AccountState = AccountState.Unauthorized
+    var lastAccountResponse: AccountResponse? = null
+
+    @Volatile
+    var state: ConnectionState = ConnectionState.Unauthorized
         private set
 
     @Volatile
     private var authJob: Job? = null
 
-    val account: AccountResponse?
-        get() = (state as? AccountState.Authorized)?.account
-
     val authorizing: Boolean
-        get() = state is AccountState.Authorizing && authJob?.isActive == true
+        get() = state is ConnectionState.Authorizing && authJob?.isActive == true
+
+    suspend fun getAuthorized(): ClientAuthorizedAccount? {
+        val authorizedState = state as? ConnectionState.Authorized
+        val refreshTime = authorizedState?.account?.expireTime?.minus(Duration.ofSeconds(30L))
+        return if (authorizedState != null && refreshTime?.isAfter(Instant.now()) == true) {
+            authorizedState.account
+        } else {
+            val refreshToken = authorizedState?.account?.tokens?.refreshToken ?: loadRefreshTokenFromDrive()?.get()
+            val authorized = runCatching {
+                httpClient.authorizeRefreshToken(refreshToken ?: return null)
+            }.getOrElse {
+                state = ConnectionState.Unauthorized
+                return null
+            }
+            onAuthorized(authorized)
+            authorized
+        }
+    }
+
+    private suspend fun onAuthorized(account: ClientAuthorizedAccount) {
+        state = ConnectionState.Authorized(account)
+        runCatching {
+            lastAccountResponse = account.getAccount()
+        }
+    }
 
     suspend fun authorizeDiscordOAuth2(): Job {
         val previousJob = mutex.withLock {
@@ -47,18 +73,19 @@ class AccountManager(
 
         return mutex.withLock {
             scope.launch {
-                var authorization: EngineHttpClient.Authorization? = null
+                var authorization: ClientEngineAccountService.OAuth2Authorization? = null
                 try {
                     authorization = httpClient.authorizeDiscordOAuth2()
-                    state = AccountState.Authorized(authorization.await().getAccountSummary())
+                    val authorized = authorization.await()
+                    onAuthorized(authorized)
                 } catch (e: CancellationException) {
                     authorization?.abort()
-                    state = AccountState.Unauthorized
+                    state = ConnectionState.Unauthorized
                     throw e
                 }
             }.also {
                 authJob = it
-                state = AccountState.Authorizing
+                state = ConnectionState.Authorizing
             }
         }
     }
@@ -66,13 +93,13 @@ class AccountManager(
     fun autoLoginAsync() {
         scope.launch {
             mutex.withLock {
-                if (state is AccountState.Authorized || authJob?.isActive == true) {
+                if (state is ConnectionState.Authorized || authJob?.isActive == true) {
                     return@launch
                 }
 
                 loadRefreshTokenFromDrive()?.let { token ->
                     authJob = runRepeatingLoginJob(token)
-                    state = AccountState.Authorizing
+                    state = ConnectionState.Authorizing
                 }
             }
         }
@@ -81,14 +108,14 @@ class AccountManager(
     private fun runRepeatingLoginJob(token: RefreshToken): Job = scope.launch {
         while (isActive) {
             try {
-                state = AccountState.Authorized(httpClient.refresh(token).getAccountSummary())
+                val authorized = httpClient.authorizeRefreshToken(token.get())
+                onAuthorized(authorized)
                 return@launch
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state = AccountState.Failed
+                state = ConnectionState.Unauthorized
                 delay(Duration.ofSeconds(1).toMillis())
-                continue
             }
         }
     }

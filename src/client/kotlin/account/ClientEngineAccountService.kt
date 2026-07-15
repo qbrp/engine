@@ -7,68 +7,47 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import net.minecraft.util.Util
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.player.account.AccountResponse
+import org.lain.engine.mc.server.AuthorizedAccount
+import org.lain.engine.mc.server.EngineHttpClient
+import org.lain.engine.mc.server.HttpStatusException
+import org.lain.engine.mc.server.RefreshToken
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.Executors
 
-class EngineHttpClient(
-    private val backendUri: URI = URI("https://engine.qbrp.fun"),
-    private val requestTimeout: Duration = Duration.ofSeconds(5)
-) {
+class ClientEngineAccountService {
     private val logger = LoggerFactory.getLogger("Engine Backend Client")
+    private val httpClient = EngineHttpClient()
     private var server: LocalAuthorizationServer? = null
-    private var authorized: Authorized? = null
-    private val httpClient = HttpClient.newBuilder()
-        .connectTimeout(requestTimeout)
-        .followRedirects(HttpClient.Redirect.NORMAL)
-        .build()
-    private val authMutex = Mutex()
 
-    inner class Authorized(
-        val tokens: TokenResponse,
-        val expireTime: Instant = Instant.now().plusSeconds(tokens.expiresIn)
-    ) : RefreshToken {
-        override fun get(): String = tokens.refreshToken
-        init { RefreshTokenStorage.save(tokens.refreshToken) }
-
-        suspend fun getAccountSummary(): AccountResponse = withContext(Dispatchers.IO) {
-            getJson("/me", bearerToken = tokens.accessToken)
-        }
-    }
-
-    inner class Authorization internal constructor(
+    inner class OAuth2Authorization internal constructor(
         internal val server: LocalAuthorizationServer,
         private val codeCompletableDeferred: CompletableDeferred<String>
     ) {
         fun abort() {
             server.close()
-            this@EngineHttpClient.server = null
+            this@ClientEngineAccountService.server = null
             logger.info("Aborted authorization")
         }
 
-        suspend fun await(): Authorized {
+        suspend fun await(): ClientAuthorizedAccount {
             val code = codeCompletableDeferred.await()
             val tokenResponse = exchangeCode(code)
             requestMinecraftWindowFocus()
-            return Authorized(tokenResponse)
+            return ClientAuthorizedAccount(httpClient, tokenResponse)
         }
     }
 
-    suspend fun authorizeDiscordOAuth2(): Authorization = withContext(Dispatchers.IO) {
+    suspend fun authorizeDiscordOAuth2(): OAuth2Authorization = withContext(Dispatchers.IO) {
         val codeDeferred = CompletableDeferred<String>()
         val localServer = server ?: runCatching { LocalAuthorizationServer.start(codeDeferred) }
             .onFailure { logger.error("Failed to start local account authorization server", it) }
@@ -78,35 +57,20 @@ class EngineHttpClient(
             logger.info("Opening Engine account authorization page: {}", loginUri)
             Util.getPlatform().openUri(loginUri)
             server = localServer
-            Authorization(localServer, codeDeferred)
+            OAuth2Authorization(localServer, codeDeferred)
         } catch (e: Throwable) {
             localServer.close()
             throw e
         }
     }
 
-    suspend fun refresh(token: RefreshToken) = authMutex.withLock {
-        withContext(Dispatchers.IO) {
-            val returnAuthorized = authorized
-                ?.let { authorized ->
-                    if (authorized.expireTime.isBefore(Instant.now())) {
-                        authorizeRefreshToken(authorized.tokens.refreshToken)
-                    } else {
-                        authorized
-                    }
-                }
-                ?: authorizeRefreshToken(token.get())
-            returnAuthorized
-        }.also { authorized = it }
-    }
-
-    private suspend fun authorizeRefreshToken(refreshToken: String): Authorized = withContext(Dispatchers.IO) {
+    suspend fun authorizeRefreshToken(refreshToken: String): ClientAuthorizedAccount = withContext(Dispatchers.IO) {
         try {
-            val tokens = postJson<RefreshTokenRequest, TokenResponse>(
+            val tokens = httpClient.postJson<RefreshTokenRequest, TokenResponse>(
                 "/auth/refresh",
                 RefreshTokenRequest(refreshToken)
             )
-            Authorized(tokens)
+            ClientAuthorizedAccount(httpClient, tokens)
         } catch (e: HttpStatusException) {
             if (e.statusCode == 401 || e.statusCode == 403) {
                 RefreshTokenStorage.delete()
@@ -116,41 +80,7 @@ class EngineHttpClient(
     }
 
     private fun exchangeCode(code: String): TokenResponse {
-        return postJson("/auth/exchange", ExchangeCodeRequest(code))
-    }
-
-    private inline fun <reified T : Any> getJson(path: String, bearerToken: String? = null): T {
-        val builder = request(path)
-            .header("Accept", "application/json")
-            .GET()
-        if (bearerToken != null) {
-            builder.header("Authorization", "Bearer $bearerToken")
-        }
-        return sendJson(builder.build())
-    }
-
-    private inline fun <reified B : Any, reified T : Any> postJson(path: String, body: B): T {
-        return sendJson(
-            request(path)
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(Json.encodeToString(body)))
-                .build()
-        )
-    }
-
-    private inline fun <reified T : Any> sendJson(request: HttpRequest): T {
-        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
-        val responseBody = response.body()
-        if (response.statusCode() !in 200..299) {
-            throw HttpStatusException(response.statusCode(), request.uri(), responseBody)
-        }
-        return Json.decodeFromString(responseBody)
-    }
-
-    private fun request(path: String): HttpRequest.Builder {
-        return HttpRequest.newBuilder(backendUri.resolve(path))
-            .timeout(requestTimeout)
+        return httpClient.postJson("/auth/exchange", ExchangeCodeRequest(code))
     }
 
     private fun buildLoginUri(redirectUri: URI): URI {
@@ -161,7 +91,7 @@ class EngineHttpClient(
             "${key.urlEncode()}=${value.urlEncode()}"
         }
 
-        return backendUri.resolve("auth/discord/login?$query")
+        return httpClient.uri.resolve("auth/discord/login?$query")
     }
 
     private fun String.urlEncode(): String {
@@ -179,12 +109,6 @@ class EngineHttpClient(
         }
     }
 }
-
-class HttpStatusException(
-    val statusCode: Int,
-    val uri: URI,
-    val responseBody: String,
-) : RuntimeException("HTTP $statusCode from $uri: ${responseBody.take(500)}")
 
 class LocalAuthorizationServer(
     private val server: HttpServer,

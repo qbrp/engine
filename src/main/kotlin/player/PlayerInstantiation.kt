@@ -14,6 +14,10 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.account.CharacterData
+import org.lain.engine.player.character.getDisplay
+import org.lain.engine.player.character.getPhysical
+import org.lain.engine.player.character.initializeCharacterPhysicalComponents
+import org.lain.engine.player.character.setCharacterDisplayComponents
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.player.set
 import org.lain.engine.script.lua.LuaContext
@@ -23,6 +27,7 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.EntityCommandBuffer
+import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -45,6 +50,7 @@ data class PlayerInstantiateSettings(
     val items: Set<EngineItem> = setOf(),
     val skinEyeY: Float = 0f,
     val replayViewer: Boolean = false,
+    val entityId: EntityId? = null
 )
 
 data class DefaultPlayerAttributes(
@@ -62,7 +68,7 @@ fun commonPlayerInstance(
     settings: PlayerInstantiateSettings,
     id: PlayerId
 ): EnginePlayer {
-    val entity = settings.world.addEntity()
+    val entity = settings.entityId ?: settings.world.addEntity()
         .apply {
             setComponent(Location(settings.pos))
             setComponent(Velocity())
@@ -180,17 +186,30 @@ class PlayerLoader(
                 ItemLoadContext.PreparingPlayer(settings.playerId, settings.username)
             )
         } ?: return
-        val componentsToLoad = persistent?.components ?: emptyList()
         val location = Location(settings.initialPosition)
         with(EntityCommandBuffer(world)) {
+            val entity = world.addEntity()
             val player = exceptionHandler.runCatchingSuspend {
                 serverPlayerInstance(
                     world,
                     settings,
                     inventoryLoadResult,
+                    entity,
                     persistent
                 )
             } ?: return
+
+            val character = account?.character ?: run {
+                exceptionHandler(IllegalStateException("Player account character is required"))
+                return
+            }
+            val persistentCharacterData = persistent?.characters[character.profile.id]
+            val persistentCharacterPhysicalComponents = persistentCharacterData?.components
+
+            if (persistentCharacterData == null) player.initializeCharacterPhysicalComponents(character.getPhysical())
+            player.setCharacterDisplayComponents(character.getDisplay())
+
+            val componentsToLoad = persistent?.components.orEmpty() + persistentCharacterPhysicalComponents.orEmpty()
             player.prepareContainers(Uuid.next(), location, inventoryLoadResult.equipmentItems)
             player.entity.copyComponentDtoState(componentsToLoad) {
                 toDomainWithoutRelationships(
@@ -200,8 +219,8 @@ class PlayerLoader(
             }
             schedule {
                 exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications, location.position) }
+                apply(world)
             }
-            commandBuffers += world.id to this
         }
     }
 
@@ -210,7 +229,8 @@ class PlayerLoader(
         world: World,
         settings: PlayerLoadSettings,
         inventoryItemsLoadResult: InventoryItemsLoadResult,
-        persistentPlayerData: PersistentPlayerData?
+        entityId: EntityId,
+        persistentPlayerData: PersistentPlayerData?,
     ): EnginePlayer {
         return serverPlayerInstance(
             PlayerInstantiateSettings(
@@ -230,7 +250,8 @@ class PlayerLoader(
                 settings.developerModeStatus,
                 inventoryItemsLoadResult.inventoryItems.toSet(),
                 persistentPlayerData?.skinEyeY ?: 0f,
-                settings.isReplayViewer
+                settings.isReplayViewer,
+                entityId,
             ),
             persistentPlayerData,
             server.globals.defaultPlayerAttributes,

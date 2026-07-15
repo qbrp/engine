@@ -7,7 +7,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import org.lain.engine.client.AuthorizationStatus;
-import org.lain.engine.client.account.AccountState;
+import org.lain.engine.client.account.ConnectionState;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
@@ -56,10 +56,10 @@ public class TitleScreenMixin {
 
     @Unique
     private static AuthorizationStatus engine$getAuthorizationStatus() {
-        AccountState accountState = ClientMixinAccess.INSTANCE.getAccountState();
-        if (accountState instanceof AccountState.Authorizing) {
+        ConnectionState connectionState = ClientMixinAccess.INSTANCE.getAccountState();
+        if (connectionState instanceof ConnectionState.Authorizing) {
             return new AuthorizationStatus("Авторизация", 0xFFFFFF55);
-        } else if (accountState instanceof AccountState.Authorized) {
+        } else if (connectionState instanceof ConnectionState.Authorized) {
             return new AuthorizationStatus("Авторизован", 0xFF55FF55);
         } else {
             return new AuthorizationStatus("Не авторизован. Игра на серверах Engine недоступна", 0xFFFF5555);

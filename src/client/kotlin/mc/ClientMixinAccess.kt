@@ -11,7 +11,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.client.account.AccountState
+import org.lain.engine.client.account.ConnectionState
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
@@ -46,7 +46,7 @@ object ClientMixinAccess {
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
-    fun getAccountState(): AccountState = client.accountManager.state
+    fun getAccountState(): ConnectionState = client.accountManager.state
 
     fun setGrapheneTestScreen() {
         MinecraftClient.setScreen(TestGrapheneScreen(client))

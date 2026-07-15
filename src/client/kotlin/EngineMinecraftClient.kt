@@ -20,14 +20,15 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.component.WritableBookContent
 import net.minecraft.world.level.Level
-import org.lain.cyberia.ecs.apply
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.mc.server.AuthPacket
 import org.lain.engine.Constants.ENGINE_MOD_VERSION
+import org.lain.engine.client.account.ClientAuthorizedAccount
+import org.lain.engine.client.account.ConnectionState
 import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
-import org.lain.engine.client.account.EngineHttpClient
+import org.lain.engine.client.account.ClientEngineAccountService
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
@@ -47,6 +48,7 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.WritableOpen
 import org.lain.engine.mc.*
+import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.server.EngineServer
@@ -77,7 +79,7 @@ class EngineMinecraftClient : ClientModInitializer {
     private val decalsStorage: DecalSystem = DecalSystem()
     private val eventBus = MinecraftEngineClientEventBus(client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
-    private val engineHttpClient = EngineHttpClient()
+    private val engineHttpClient = ClientEngineAccountService()
     private val engineClient = EngineClient(
         window,
         camera,
@@ -117,11 +119,16 @@ class EngineMinecraftClient : ClientModInitializer {
             if (!world.isClientSide || !isInWorld(world) || gameSession == null) return@callback
             client.execute {
                 val enginePlayer = player?.let { clientPlayerTable.getPlayer(it) }
-                gameSession.callbacks.executePlaceVoxelCallback(enginePlayer, gameSession.world, blockPos.voxelPos(), blockState)
+                gameSession.callbacks.executePlaceVoxelCallback(
+                    enginePlayer,
+                    gameSession.world,
+                    blockPos.voxelPos(),
+                    blockState
+                )
             }
         }
 
-        ServerMixinAccess.blockInteractionCallback = callback@ { _, world, blockPos ->
+        ServerMixinAccess.blockInteractionCallback = callback@{ _, world, blockPos ->
             val gameSession = engineClient.gameSession
             if (!world.isClientSide || !isInWorld(world) || gameSession == null) return@callback false
             val voxel = gameSession.world.chunkStorage.getDynamicVoxel(blockPos.voxelPos()) ?: return@callback false
@@ -227,7 +234,13 @@ class EngineMinecraftClient : ClientModInitializer {
             if (skippedPlayers.isNotEmpty()) {
                 connectionLogger.warn(
                     "Состояние Minecraft не было обновлено для игроков: {}",
-                    skippedPlayers.joinToString { (player, distance) -> "${player.plainTextName} (до игрока: ${"%d".format(distance.toInt())})" }
+                    skippedPlayers.joinToString { (player, distance) ->
+                        "${player.plainTextName} (до игрока: ${
+                            "%d".format(
+                                distance.toInt()
+                            )
+                        })"
+                    }
                 )
             }
 
@@ -332,11 +345,17 @@ class EngineMinecraftClient : ClientModInitializer {
         connectionLogger.info("Игрок отключен от сервера Engine")
     }
 
-    private fun authorizeSingleplayer(engine: EngineServer, entity: AbstractClientPlayer, developerStatus: DeveloperModeStatus) {
+    private fun authorizeSingleplayer(
+        engine: EngineServer,
+        entity: AbstractClientPlayer,
+        developerStatus: DeveloperModeStatus,
+    ) {
         val settings = engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId, developerStatus, listOf())
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            val account = engineClient.accountManager.getAuthorized() ?: friendlyError("Вы не авторизованы")
             engine.playerLoader.loadPreparing(
                 settings = settings,
+                account = PlayerLoadSettings.Account(account.getCharacter("test")),
                 exceptionHandler = { disconnectWithReason(DisconnectText(it)) }
             )
         }

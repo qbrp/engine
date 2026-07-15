@@ -10,3 +10,10 @@ fun EnginePlayer.setCharacterDisplayComponents(
 ) {
     entity.setComponent(characterDisplay)
 }
+
+context(componentAccess: WriteComponentAccess)
+fun EnginePlayer.initializeCharacterPhysicalComponents(
+    physical: CharacterPhysical
+) {
+    entity.setComponent(physical)
+}

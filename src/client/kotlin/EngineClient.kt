@@ -4,7 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.lain.engine.client.account.AccountManager
-import org.lain.engine.client.account.EngineHttpClient
+import org.lain.engine.client.account.ClientEngineAccountService
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.ClientHandler
@@ -35,7 +35,7 @@ class EngineClient(
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
     val eventBus: ClientEventBus,
-    private val http: EngineHttpClient
+    private val http: ClientEngineAccountService
 ) {
     val namespacedStorage: NamespacedStorageAccess = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
     lateinit var options: EngineOptions

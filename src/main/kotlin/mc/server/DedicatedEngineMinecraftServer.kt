@@ -113,7 +113,7 @@ class ServerAuthorizationListener(
     private val connectionManager: ServerConnectionManager,
     private val server: DedicatedEngineMinecraftServer,
 ) {
-    private val httpClient = DedicatedEngineHttpClient()
+    private val httpClient = DedicatedEngineAccountService()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private suspend fun runCatching(connectionSession: ConnectionSession, statement: suspend () -> Unit) {

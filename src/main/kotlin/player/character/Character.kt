@@ -89,10 +89,17 @@ fun CharacterData.getDisplay(): CharacterDisplay {
     )
 }
 
+fun CharacterData.getPhysical(): CharacterPhysical {
+    return CharacterPhysical(
+        profile.bodyType,
+        profile.biologicalSex
+    )
+}
+
 data class CharacterPhysical(
     val bodyType: BodyType,
     val sex: BiologicalSex
-)
+) : Component
 
 ////////////////////////////////////////////////////////
 
