@@ -61,11 +61,11 @@ fun createLuaScriptComponent(value: ScriptValue, type: ScriptComponentType): Scr
 
 context(world: World, luaContext: LuaContext)
 fun EnginePlayer.prepareLuaScriptComponents() {
-    entityId.setScriptComponent(
+    entity.setScriptComponent(
         luaTableOf(luaValue("object"), coerceToLua()),
         CoreScriptComponents.PLAYER
     )
-    entityId.setScriptComponent(
+    entity.setScriptComponent(
         luaTableOf(luaValue("vector"), emptyLuaTable()),
         CoreScriptComponents.LOCATION
     )

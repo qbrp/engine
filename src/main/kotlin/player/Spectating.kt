@@ -2,8 +2,11 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.set
+import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.removeComponent
+import org.lain.cyberia.ecs.requireComponent
+import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.world.World
 
 object StartSpectatingMark : Component
 
@@ -17,16 +20,15 @@ object SpawnMark : Component
  */
 
 @Serializable
-data class Spectating(var isSpectating: Boolean = false) : Component
+data class Spectating(var enabled: Boolean = false) : Component
 
-fun EnginePlayer.startSpectating() {
-    this.set(StartSpectatingMark)
+context(world: World)
+fun EntityId.isSpectating(): Boolean = requireComponent<Spectating>().enabled
+
+val EnginePlayer.isSpectating: Boolean
+    get() = with(world) { entity.isSpectating() }
+
+fun EnginePlayer.stopSpectating() = with(world) {
+    entity.setComponent(SpawnMark)
+    entity.removeComponent<StartSpectatingMark>()
 }
-
-fun EnginePlayer.stopSpectating() {
-    this.set(SpawnMark)
-}
-
-var EnginePlayer.isSpectating
-    get() = this.require<Spectating>().isSpectating
-    set(value) { this.require<Spectating>().isSpectating = value }

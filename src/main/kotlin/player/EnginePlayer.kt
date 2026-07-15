@@ -6,25 +6,85 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import org.lain.cyberia.ecs.ComponentManager
-import org.lain.engine.util.component.ComponentState
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.ReadComponentAccess
+import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.hasComponent
+import org.lain.cyberia.ecs.removeComponent
+import org.lain.cyberia.ecs.requireComponent
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.util.component.Entity
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.World
-import org.lain.engine.world.pos
 import java.util.*
 
 class EnginePlayer(
     val id: PlayerId,
-    val entityId: EntityId,
-    val state: ComponentState = ComponentState(),
+    val entity: EntityId,
     val world: World
-) : Entity, ComponentManager by state {
+) : Entity {
     override val stringId: String get() = id.toString()
 
     override fun toString(): String {
-        return "EnginePlayer($username ($displayName), $id, $pos)"
+        return with(world) { "EnginePlayer(${entity.username()} (${entity.displayNameString()}), $id)" }
     }
+}
+
+inline fun <reified T : Component> EnginePlayer.get(): T? = with(world) {
+    entity.getComponent<T>()
+}
+
+@Deprecated("Use cyberia methods")
+fun <T : Component> EnginePlayer.getComponent(type: ComponentType<T>): T? = with(world) {
+    componentManager.getComponent(entity, type)
+}
+
+@Deprecated("Use cyberia methods")
+inline fun <reified T : Component> EnginePlayer.require(): T = with(world) {
+    entity.requireComponent<T>()
+}
+
+@Deprecated("Use cyberia methods")
+inline fun <reified T : Component> EnginePlayer.has(): Boolean = with(world) {
+    entity.hasComponent<T>()
+}
+
+@Deprecated("Use cyberia methods")
+inline fun <reified T : Component> EnginePlayer.set(component: T): T = with(world) {
+    entity.setComponent(component)
+    component
+}
+
+@Deprecated("Use cyberia methods")
+inline fun <reified T : Component> EnginePlayer.getOrSet(noinline factory: () -> T): T = with(world) {
+    entity.getComponent<T>() ?: factory().also { entity.setComponent(it) }
+}
+
+@Deprecated("Use cyberia methods")
+inline fun <reified T : Component> EnginePlayer.remove(): T? = with(world) {
+    entity.removeComponent<T>()
+}
+
+@Deprecated("Use cyberia methods")
+inline fun <reified T : Component> EnginePlayer.apply(noinline todo: T.() -> Unit): T = with(world) {
+    entity.requireComponent<T>().apply(todo)
+}
+
+@Deprecated("Use cyberia methods")
+inline fun <reified T : Component> EnginePlayer.handle(noinline todo: T.() -> Unit) {
+    get<T>()?.todo()
+}
+
+@Deprecated("Use cyberia methods")
+inline fun <reified T : Component, R> EnginePlayer.let(noinline todo: T.() -> R): R {
+    return require<T>().todo()
+}
+
+@Deprecated("Use cyberia methods")
+fun EnginePlayer.getComponents(): List<Component> = with(world) {
+    componentManager.getComponents(entity, null)
 }
 
 @JvmInline

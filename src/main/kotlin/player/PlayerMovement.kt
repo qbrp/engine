@@ -2,9 +2,12 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.apply
 import org.lain.cyberia.ecs.remove
+import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.server.markDirty
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.math.smootherstep
@@ -97,15 +100,16 @@ fun updatePlayerMovement(
     primaryAttributes: MovementDefaultAttributes,
     settings: MovementSettings,
     isClient: Boolean = false
-) {
+) = with(player.world) {
+    val entity = player.entity
     val isSpectating = player.isSpectating
     val isGameMaster = player.isInGameMasterMode
 
     val status = PlayerStatus.of(isGameMaster, isSpectating)
     val defaultSpeed = primaryAttributes.getPrimarySeed(status) ?: 0.055f
-    val attributes = player.require<PlayerAttributes>()
+    val attributes = entity.requireComponent<PlayerAttributes>()
     val speedAttribute = attributes.speed.default
-    val velocityHorizontal = player.velocity.horizontal().length()
+    val velocityHorizontal = entity.requireComponent<Velocity>().motion.horizontal().length()
 
     val minSpeed = settings.minSpeedFactor
     val staminaRegen = settings.staminaRegen
@@ -113,7 +117,7 @@ fun updatePlayerMovement(
 
     attributes.jumpStrength.default = primaryAttributes.getPrimaryJumpStrength(status) ?: 0.55f
 
-    player.apply<MovementStatus> {
+    entity.requireComponent<MovementStatus>().apply {
         val minSpeed = defaultSpeed * minSpeed
         val maxSpeed = defaultSpeed * maxSpeedMul(settings)
 
@@ -121,7 +125,7 @@ fun updatePlayerMovement(
             defaultSpeed
         } else {
             stamina = if (!isGameMaster) {
-                val jumpConsume = if (player.remove<Jump>() != null) settings.jumpStaminaConsume else 0f
+                val jumpConsume = if (entity.removeComponent<Jump>() != null) settings.jumpStaminaConsume else 0f
                 val movementConsume = abs(velocityHorizontal) / maxSpeed * staminaConsume
                 (stamina + staminaRegen - movementConsume - jumpConsume).coerceIn(0f, 1f)
             } else {

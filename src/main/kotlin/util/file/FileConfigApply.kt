@@ -3,7 +3,7 @@ package org.lain.engine.util.file
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
 import net.minecraft.core.registries.Registries
-import org.lain.engine.EngineMinecraftServer
+import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.chat.*
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.registerServerChatCommand

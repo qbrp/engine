@@ -16,10 +16,10 @@
       "org.lain.engine.client.EngineMinecraftClient"
     ],
     "server": [
-      "org.lain.engine.DedicatedServerEngineMod"
+      "org.lain.engine.mc.server.DedicatedServerEngineMod"
     ],
     "main": [
-      "org.lain.engine.CommonEngineServerMod"
+      "org.lain.engine.CommonEngineMod"
     ],
     "lambdynlights:initializer": [
       "org.lain.engine.client.mc.compat.LambDynamicLights"

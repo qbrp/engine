@@ -1,12 +1,12 @@
 package org.lain.engine.client.render
 
-import org.lain.cyberia.ecs.require
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.InteractionProgressionRenderState
 import org.lain.engine.client.render.ui.NarrationMessageRenderState
 import org.lain.engine.client.render.world.BlockHintInspectionRenderState
 import org.lain.engine.player.Narration
+import org.lain.engine.player.require
 
 class ScreenRenderer(private val client: EngineClient) {
     private val window = client.window

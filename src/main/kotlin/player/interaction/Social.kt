@@ -3,10 +3,11 @@ package org.lain.engine.player.interaction
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
-import org.lain.cyberia.ecs.set
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.getCount
 import org.lain.engine.item.getName
 import org.lain.engine.mc.displayNameMiniMessage
+import org.lain.engine.mc.displayNameText
 import org.lain.engine.player.DestroyItemSignal
 import org.lain.engine.player.GiveItemSignal
 import org.lain.engine.player.Player
@@ -41,8 +42,8 @@ fun World.tickSocialActionSystem(playerStorage: PlayerStorage) {
         var failure: String? = null
         if (toPlayer.extendArm) {
             if (toPlayer.handFree) {
-                player.set(DestroyItemSignal(handItem, handItem.getCount()))
-                toPlayer.set(GiveItemSignal(handItem, toPlayer.selectedSlot))
+                player.entity.setComponent(DestroyItemSignal(handItem, handItem.getCount()))
+                toPlayer.entity.setComponent(GiveItemSignal(handItem, toPlayer.selectedSlot))
                 toPlayer.serverNarration("$playerName передал вам $itemName", 60)
             } else {
                 player.serverNarration("$raycastPlayerName не может принять предмет, так как его руки заняты", 160)

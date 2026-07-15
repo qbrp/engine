@@ -2,9 +2,7 @@ package org.lain.engine.server
 
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.destroy
-import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.removeComponent
-import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
@@ -40,6 +38,7 @@ import org.lain.engine.util.Log
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.flush
 import org.lain.engine.util.forEachWithSelfContext
+import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.*
 import java.io.File
@@ -183,11 +182,15 @@ class EngineServer(
         //playerStorage.forEach { player -> player.replace(globals.defaultPlayerAttributes) }
     }
 
-    fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
-        with(luaContext) { player.setPlayerComponents() }
+    fun instantiatePlayer(
+        player: EnginePlayer,
+        notifications: List<Notification> = listOf(),
+        pos: Pos
+    ) = with(player.world) {
+        with(luaContext) { player.setPlayerComponents(pos) }
         eventListener.onPlayerInstantiated(player)
 
-        if (globals.spectateOnJoin) player.startSpectating()
+        if (globals.spectateOnJoin) player.entity.setComponent(StartSpectatingMark)
         playerStorage.add(player.id, player)
         players += player
         handler.onPlayerInstantiation(player, notifications)
@@ -209,7 +212,7 @@ class EngineServer(
         handler.onPlayerDestroy(player)
         callbacks.playerDestroy.execute(player.scriptContext)
         globals.savePath.playerData.savePersistentPlayerData(player)
-        player.entityId.destroy()
+        player.entity.destroy()
     }
 
     override fun execute(r: Runnable) {

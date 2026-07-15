@@ -14,7 +14,7 @@ import org.lain.engine.world.RecoilImpulse
 import org.lain.engine.world.ShootGeometry
 import org.lain.engine.world.SmokeGeometry
 import org.lain.engine.world.World
-import org.lain.engine.world.pos
+import org.lain.engine.world.location
 
 @Serializable
 data class Barrel(var bullets: Int, val maxBullets: Int)
@@ -144,7 +144,7 @@ fun updateBulletsAcoustic(world: World) = world.iterate<BulletFireEvent>() { _, 
     val affected = filterNearestPlayers(world, start, 8)
     affected.forEach { player ->
         // дистанция - 8 блоков
-        val distanceStrength = (64f - player.pos.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f
+        val distanceStrength = (64f - player.location.position.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f
         player.appendTinnitus(
             Tinnitus(
                 (event.bullet.bulletMass / DEFAULT_BULLET_MASS) * 0.19f, // тиннитус от выстрела пулей стандартной массы = 0.2

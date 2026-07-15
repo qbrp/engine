@@ -1,4 +1,4 @@
-package org.lain.engine
+package org.lain.engine.mc.server
 
 import kotlinx.coroutines.*
 import net.minecraft.core.BlockPos
@@ -13,8 +13,6 @@ import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
 import org.lain.cyberia.ecs.copyState
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
@@ -39,7 +37,6 @@ import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ServerConfig
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.util.forEachWithContext
 import org.lain.engine.world.*
 
 data class EngineMinecraftServerDependencies(

@@ -11,8 +11,10 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.LevelChunk
 import org.lain.cyberia.ecs.get
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.getOrSet
 import org.lain.cyberia.ecs.hasComponent
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.merge
 import org.lain.engine.player.*
@@ -54,32 +56,35 @@ object ServerMixinAccess {
     ): Boolean {
         val world = player.engine?.world ?: return false
         val space = slotStack.maxStackSize - slotStack.count
-        val playerInventory = table.getGeneralPlayer(player)?.get<PlayerInventory>()
-        if (world.merge(item, cursorItem) && space > 0) {
-            when (clickType) {
-                ClickAction.PRIMARY  -> {
-                    val toMove = minOf(cursorStack.count, space)
-                    slotStack.increment(toMove)
-                    cursorStack.decrement(toMove)
+        with(world) {
+            val playerInventory = table.getGeneralPlayer(player)?.entity?.getComponent<PlayerInventory>()
+            if (world.merge(item, cursorItem) && space > 0) {
+                when (clickType) {
+                    ClickAction.PRIMARY -> {
+                        val toMove = minOf(cursorStack.count, space)
+                        slotStack.increment(toMove)
+                        cursorStack.decrement(toMove)
+                    }
+
+                    ClickAction.SECONDARY -> {
+                        slotStack.increment(1)
+                        cursorStack.decrement(1)
+                    }
                 }
-                ClickAction.SECONDARY -> {
-                    slotStack.increment(1)
-                    cursorStack.decrement(1)
+                if (cursorStack.isEmpty) {
+                    playerInventory?.cursorItem = null
                 }
+                return true
+            } else {
+                return false
             }
-            if (cursorStack.isEmpty) {
-                playerInventory?.cursorItem = null
-            }
-            return true
-        } else {
-            return false
         }
     }
 
     fun isAchievementMessagesDisabled() = disableAchievementMessages
 
     fun getDisplayName(player: Player): Component? {
-        return player.engine?.displayNameMiniMessage?.parseMiniMessageLegacy() ?: player.name
+        return player.engine?.displayNameText
     }
 
     fun getFlyingSpeed(player: Player): Float {
@@ -108,7 +113,8 @@ object ServerMixinAccess {
     }
 
     fun onPlayerJump(entity: Player) {
-        entity.engine?.getOrSet { Jump }
+        val player = entity.engine ?: return
+        with(player.world) { player.entity.setComponent(Jump) }
     }
 
     fun canJump(entity: Player): Boolean {

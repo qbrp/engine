@@ -20,7 +20,7 @@ import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 import org.lain.engine.world.SoundPlay
-import org.lain.engine.world.pos
+import org.lain.engine.world.location
 import kotlin.random.Random
 
 class MinecraftAudioManager(
@@ -93,7 +93,7 @@ class MinecraftAudioManager(
         val playback = AudioSourcePlayback(
             audioSource,
             AudioSourceSoundInstance(
-                gameSession.mainPlayer.pos,
+                gameSession.mainPlayer.location.position,
                 slotId,
                 getSound(audioSource.sound, audioSource.radius),
                 audioSource.category.toMinecraft()

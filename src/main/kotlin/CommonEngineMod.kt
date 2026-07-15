@@ -15,13 +15,12 @@ import net.minecraft.server.players.NameAndId
 import net.minecraft.world.Difficulty
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.level.gamerules.GameRules
-import org.lain.cyberia.ecs.require
 import org.lain.engine.Constants.DEVELOPER_TEST_ENVIRONMENT
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.isWorldEditAvailable
 import org.lain.engine.mc.commands.registerEngineCommands
 import org.lain.engine.mc.commands.registerWorldEditCommands
-import org.lain.engine.player.DisplayName
+import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.player.RaycastProvider
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
@@ -33,10 +32,10 @@ import org.lain.engine.util.injectValue
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
  * Здесь регистрируются команды и вызываются методы майнкрафт-сервера Engine.
  * **Ответственность за создание `EngineMinecraftServer` лежит на других классах.** Здесь он получается из DI-контейнера через `Injector`
- * @see DedicatedServerEngineMod
+ * @see org.lain.engine.mc.server.DedicatedServerEngineMod
  */
 
-class CommonEngineServerMod : ModInitializer {
+class CommonEngineMod : ModInitializer {
     private val entityTable = EntityTable()
         .also { Injector.register(it) }
     private val engineServer: EngineMinecraftServer
@@ -100,16 +99,7 @@ class CommonEngineServerMod : ModInitializer {
             val hitPlayer = hitResult?.entity ?: return@register InteractionResult.PASS
             if (hitPlayer !is ServerPlayer) return@register InteractionResult.PASS
             val enginePlayer = entityTable.getGeneralPlayer(hitPlayer) ?: return@register InteractionResult.PASS
-
-            val name = enginePlayer.require<DisplayName>()
-            val username = name.username.value
-            val customName = name.custom
-
-            val message = StringBuilder()
-            message.append(customName?.textMiniMessage ?: username)
-            if (customName != null) { message.append(" <gray>($username)</gray>") }
-
-            player.sendActionBarMessage(message.toString())
+            with(enginePlayer.world) { showPlayerHint(hitPlayer, enginePlayer.entity) }
             InteractionResult.PASS
         }
 

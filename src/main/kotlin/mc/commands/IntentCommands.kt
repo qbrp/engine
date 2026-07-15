@@ -85,7 +85,7 @@ fun Context.getIntentScriptContext(inputs: List<AnyInput>): ScriptContext.Intent
         IntentActor(
             IntentActor.Type.COMMAND,
             enginePlayer,
-            enginePlayer.entityId,
+            enginePlayer.entity,
         ),
         null,
         inputs

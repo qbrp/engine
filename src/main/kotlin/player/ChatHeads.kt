@@ -3,7 +3,6 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.engine.chat.CHAT_HEADS_PERMISSION
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.let
 import org.lain.cyberia.ecs.require
 
 @Serializable

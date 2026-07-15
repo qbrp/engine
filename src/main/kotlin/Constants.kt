@@ -3,7 +3,6 @@ package org.lain.engine
 import net.fabricmc.loader.api.FabricLoader
 import org.lain.engine.Constants.DEBUG_PACKETS
 import org.slf4j.LoggerFactory
-import kotlin.system.measureNanoTime
 
 object Constants {
     const val DEBUG_PACKETS = false
@@ -13,7 +12,7 @@ object Constants {
     val DEVELOPER_TEST_ENVIRONMENT = System.getenv("ENGINE_DEV").toBoolean()
     val ALLOWED_VERSIONS = listOf(ENGINE_MOD_VERSION)
     val ENGINE_MOD_VERSION: String
-        get() = FabricLoader.getInstance().getModContainer(CommonEngineServerMod.MOD_ID).get().metadata.version.friendlyString
+        get() = FabricLoader.getInstance().getModContainer(CommonEngineMod.MOD_ID).get().metadata.version.friendlyString
 }
 
 private val PACKET_LOGGER = LoggerFactory.getLogger("Engine Packets")

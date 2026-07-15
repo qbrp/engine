@@ -17,22 +17,25 @@ import org.lain.engine.util.math.snapshot
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.pos
-import org.lain.engine.world.world
 import java.util.*
 
-fun EnginePlayer.messageSource(channel: ChatChannel) = MessageSource.Player(
-    id,
-    pos.snapshot(),
-    isSpectating,
-    chatHeadsEnabled,
-    eyePos.snapshot(),
-    displayName,
-    displayNameMiniMessage,
-    username,
-    isChannelAvailableToRead(channel),
-    isChannelAvailableToWrite(channel),
-    isChatOperator
-)
+fun EnginePlayer.messageSource(channel: ChatChannel): MessageSource.Player = with(world) {
+    with(entity) {
+        MessageSource.Player(
+            this@messageSource.id,
+            pos().snapshot(),
+            isSpectating,
+            chatHeadsEnabled,
+            eyePos.snapshot(),
+            displayNameString(),
+            displayNameMiniMessage,
+            username(),
+            isChannelAvailableToRead(channel),
+            isChannelAvailableToWrite(channel),
+            isChatOperator
+        )
+    }
+}
 
 fun World.messageSource(channel: ChatChannel) = MessageSource.World(id, players.associateBy { it.id }.mapValues { (_, player) -> player.messageSource(channel) })
 
@@ -94,12 +97,12 @@ data class MessageSource(
             player: EnginePlayer,
             channel: ChatChannel,
             time: Long = System.currentTimeMillis()
-        ): MessageSource {
+        ): MessageSource = with(player.world) {
             return MessageSource(
                 player.world.messageSource(channel),
                 MessageAuthor(player.displayNameMiniMessage, player.messageSource(channel)),
                 Timestamp(time),
-                ImmutableEVec3(player.pos)
+                ImmutableEVec3(player.entity.pos())
             )
         }
     }

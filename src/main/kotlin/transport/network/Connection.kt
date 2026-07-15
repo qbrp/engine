@@ -21,6 +21,7 @@ data class ConnectionSession(
     val playerId: PlayerId,
     val isOp: Boolean,
     var mods: Set<String> = emptySet(),
+    var sessionTicket: String? = null
 )
 
 class ServerConnectionManager(
@@ -44,7 +45,7 @@ class ServerConnectionManager(
 
     fun disconnect(connectionSession: ConnectionSession, reason: String)  {
         val playerId = connectionSession.playerId
-        val entity = entityTable.server.getEntity(playerId) as? ServerPlayer ?: minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
+        val entity = entityTable.server.getEntity(playerId) ?: minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
         val networkHandler = entity.connection
         networkHandler.disconnect(DisconnectText(reason))
     }

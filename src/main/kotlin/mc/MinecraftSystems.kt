@@ -1,25 +1,19 @@
 package org.lain.engine.mc
 
-import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import org.lain.cyberia.ecs.*
-import org.lain.engine.EngineMinecraftServer
+import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.storage.ItemLoadContext
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.dataFixItem
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.util.addIfNotNull
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
-import org.lain.engine.world.location
 import org.lain.engine.world.pos
 import org.slf4j.LoggerFactory
 
@@ -78,7 +72,7 @@ fun updateServerPlayerMinecraftSystems(
             notUpdatedPlayers.remove(player)
 
             val entityInventory = entity.inventory
-            val giveItemSignal = player.remove<GiveItemSignal>()
+            val giveItemSignal = player.entity.removeComponent<GiveItemSignal>()
             if (giveItemSignal != null) {
                 val item = giveItemSignal.item
                 val itemStack = wrapEngineItemStack(item, ITEM_STACK_MATERIAL.copy())
@@ -94,10 +88,10 @@ fun updateServerPlayerMinecraftSystems(
             val itemStacks = entity.visibleInventoryItems + screenHandler.carried
             val items: MutableList<EngineItemStack> = mutableListOf()
 
-            val destroyItemSignal = player.remove<DestroyItemSignal>()
+            val destroyItemSignal = player.entity.removeComponent<DestroyItemSignal>()
             val loadContext = ItemLoadContext.FromInventory(
                 player.id,
-                player.pos
+                player.entity.pos()
             )
             for (itemStack in itemStacks) {
                 var item: EngineItem? = null
@@ -142,9 +136,9 @@ fun updateServerPlayerMinecraftSystems(
                 if (item != null) items.add(EngineItemStack(item, itemStack))
             }
 
-            updatePlayerMinecraftSystems(player, items.toSet(), entity, world)
+            updatePlayerMinecraftSystems(player.entity, items.toSet(), entity)
             excludeEngineItemDuplicates(server, entity)
-            player.entityId.removeComponent<WritableOpen>()
+            player.entity.removeComponent<WritableOpen>()
         }
     }
 
@@ -153,14 +147,14 @@ fun updateServerPlayerMinecraftSystems(
     }
 }
 
+context(world: World)
 fun updatePlayerMinecraftSystems(
-    player: EnginePlayer,
+    player: EntityId,
     items: Set<EngineItemStack>,
-    entity: Player,
-    world: World,
-) = with(world) {
-    val location = player.require<Location>()
-    val velocity = player.require<Velocity>()
+    entity: Player
+) {
+    val location = player.requireComponent<Location>()
+    val velocity = player.requireComponent<Velocity>()
     val pos = entity.position()
 
     velocity.prev.set(location.position)
@@ -178,7 +172,7 @@ fun updatePlayerMinecraftSystems(
         velocity.set = null
     }
 
-    player.apply<OrientationTranslation> {
+    player.requireComponent<OrientationTranslation>().apply {
         if (yaw != 0f) {
             entity.yaw += yaw
             yaw = 0f
@@ -189,24 +183,24 @@ fun updatePlayerMinecraftSystems(
         }
     }
 
-    player.apply<Orientation> {
+    player.requireComponent<Orientation>().apply {
         yaw = entity.yaw
         pitch = entity.pitch
     }
 
-    player.apply<PlayerModel> {
+    player.requireComponent<PlayerModel>().apply {
         scale = entity.scale
         standingEyeHeight = entity.eyeHeight
         height = entity.bodyHeight * scale
     }
 
-    player.apply<MovementStatus> {
+    player.requireComponent<MovementStatus>().apply {
         isSprinting = entity.isSprinting
     }
 
     if (entity is ServerPlayer) {
-        val hasSpawnMark = player.has<SpawnMark>()
-        val hasSpectatorMark = player.has<StartSpectatingMark>()
+        val hasSpawnMark = player.hasComponent<SpawnMark>()
+        val hasSpectatorMark = player.hasComponent<StartSpectatingMark>()
         val gameMode = entity.currentGameMode
         val previousGameMode = entity.previousGameMode
 
@@ -223,17 +217,17 @@ fun updatePlayerMinecraftSystems(
             )
         }
 
-        if (hasSpawnMark) player.remove<SpawnMark>()
-        if (hasSpectatorMark) player.remove<StartSpectatingMark>()
+        if (hasSpawnMark) player.removeComponent<SpawnMark>()
+        if (hasSpectatorMark) player.removeComponent<StartSpectatingMark>()
     }
 
-    player.isInGameMasterMode = entity.isCreative
-    player.isSpectating = entity.isSpectator
+    player.requireComponent<GameMaster>().enabled = entity.isCreative
+    player.requireComponent<Spectating>().enabled = entity.isSpectator
 
     val items = items.toMutableList()
     val playerMinecraftInventory = entity.inventory
 
-    val playerInventory = player.require<PlayerInventory>()
+    val playerInventory = player.requireComponent<PlayerInventory>()
     val remainingPlayerInventoryItems = playerInventory.items.toMutableList() // к удалению
 
     val mainItemStack = entity.mainHandItem
@@ -275,7 +269,7 @@ fun updatePlayerMinecraftSystems(
         }
     }
 
-    player.remove<GiveItemSignal>()
+    player.removeComponent<GiveItemSignal>()
 }
 
 fun World.prepareItemMinecraftSystem() = iterate<Item, UpdateMeta> { item, _, updateMeta ->
@@ -287,7 +281,7 @@ fun World.prepareItemMinecraftSystem() = iterate<Item, UpdateMeta> { item, _, up
 fun updatePlayerOwnedItems(world: World, player: EnginePlayer) = with(world) {
     val equipmentItems = player.collectOwnedItems(world).toMutableList()
     equipmentItems.addIfNotNull(player.cursorItem)
-    val location = player.location
+    val location = player.entity.requireComponent<Location>() //???
     val allItems = player.items + equipmentItems
     if (allItems.isNotEmpty()) {
         val component = HoldsBy(player)

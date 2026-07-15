@@ -14,7 +14,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
-import org.lain.engine.EngineMinecraftServer
+import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.chat.acoustic.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
@@ -23,6 +23,7 @@ import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
 import org.lain.engine.util.then
+import org.lain.engine.world.location
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.pos
@@ -542,7 +543,7 @@ class MinecraftAcousticManager(
                     val minX = scene.minX.toFloat()
                     val minY = scene.minY.toFloat()
                     val minZ = scene.minZ.toFloat()
-                    val playerPos = player.pos
+                    val playerPos = player.location.position
                         .sub(minX, minY, minZ)
                     coroutineScope.launch {
                         val volumes = generation.volume.array

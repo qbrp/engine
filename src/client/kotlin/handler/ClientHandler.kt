@@ -1,7 +1,6 @@
 package org.lain.engine.client.handler
 
 import kotlinx.coroutines.*
-import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
 import org.lain.cyberia.ecs.*
 import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.ChannelId
@@ -66,7 +65,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
                 VerificationResponsePacket(
                     DeveloperModeStatus(client.developerMode, client.acousticDebug),
-                    client.namespacedStorage.get().namespaceHashMap
+                    client.namespacedStorage.get().namespaceHashMap,
+                    ""
                 )
             )
         }
@@ -85,7 +85,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         val gameSession = client.gameSession
         if (gameSession != null) {
             with(gameSession.world) {
-                val input = gameSession.mainPlayer.entityId.requireComponent<PlayerInput>()
+                val input = gameSession.mainPlayer.entity.requireComponent<PlayerInput>()
                 val actions = input.actions.toMutableSet()
                 handlePlayerInput(input, actions, gameSession)
             }
@@ -103,7 +103,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     fun postTick() {
         val gameSession = gameSession
         if (gameSession != null) {
-            val input = with(gameSession.world) { gameSession.mainPlayer.entityId.requireComponent<PlayerInput>() }
+            val input = with(gameSession.world) { gameSession.mainPlayer.entity.requireComponent<PlayerInput>() }
             input.actions.clear()
         }
     }
@@ -221,9 +221,9 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             waitNextTick()
         }
 
-        player.replaceOrSet(data.movementStatus)
-        player.replaceOrSet(data.attributes)
-        player.replaceOrSet(data.armStatus)
+        player.set(data.movementStatus)
+        player.set(data.attributes)
+        player.set(data.armStatus)
         player.require<PlayerModel>().skinEyeY = data.skinEyeY
         player.isLowDetailed = false
         client.eventBus.onFullPlayerData(client, player.id, data)
@@ -395,7 +395,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             IntentActor(
                 actor.type,
                 enginePlayer,
-                enginePlayer.entityId
+                enginePlayer.entity
             )
         }
         val target = dto.target?.let {

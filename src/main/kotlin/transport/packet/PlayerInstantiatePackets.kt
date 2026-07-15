@@ -227,7 +227,8 @@ val CLIENTBOUND_PLAYER_DESTROY_ENDPOINT = Endpoint<PlayerDestroyPacket>()
 @Serializable
 data class VerificationResponsePacket(
     val developerModeStatus: DeveloperModeStatus,
-    val namespaces: NamespaceHashMap
+    val namespaces: NamespaceHashMap,
+    val characterId: String
 ) : Packet
 
 val SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT = Endpoint<VerificationResponsePacket>()

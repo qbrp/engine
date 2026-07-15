@@ -6,6 +6,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 value class Color(val integer: Int) {
     constructor(long: Long) : this(long.toInt())
+    val a: Int get() = (integer ushr 24) and 0xFF
+    val r: Int get() = (integer ushr 16) and 0xFF
+    val g: Int get() = (integer ushr 8) and 0xFF
+    val b: Int get() = integer and 0xFF
 
     val alpha
         get() = integer ushr 24 and 0xFF
@@ -23,22 +27,10 @@ value class Color(val integer: Int) {
         val cA = colorA.coerceIn(0f, 1f)
         val aA = alphaA.coerceIn(0f, 1f)
 
-        val a1 = (integer ushr 24) and 0xFF
-        val r1 = (integer ushr 16) and 0xFF
-        val g1 = (integer ushr 8) and 0xFF
-        val b1 = integer and 0xFF
-
-        val other = other.integer
-        val a2 = (other ushr 24) and 0xFF
-        val r2 = (other ushr 16) and 0xFF
-        val g2 = (other ushr 8) and 0xFF
-        val b2 = other and 0xFF
-
-        val outR = (r1 * (1f - cA) + r2 * cA).toInt().coerceIn(0, 255)
-        val outG = (g1 * (1f - cA) + g2 * cA).toInt().coerceIn(0, 255)
-        val outB = (b1 * (1f - cA) + b2 * cA).toInt().coerceIn(0, 255)
-
-        val outA = (a1 * (1f - aA) + a2 * aA).toInt().coerceIn(0, 255)
+        val outR = (r * (1f - cA) + other.r * cA).toInt().coerceIn(0, 255)
+        val outG = (g * (1f - cA) + other.g * cA).toInt().coerceIn(0, 255)
+        val outB = (b * (1f - cA) + other.b * cA).toInt().coerceIn(0, 255)
+        val outA = (a * (1f - aA) + other.a * aA).toInt().coerceIn(0, 255)
 
         return Color((outA shl 24) or (outR shl 16) or (outG shl 8) or outB)
     }

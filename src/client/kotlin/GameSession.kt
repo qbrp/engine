@@ -241,7 +241,7 @@ class GameSession(
             for (player in players) {
                 player.remove<DestroyItemSignal>()
                 player.remove<GiveItemSignal>()
-                if (player.pos.squaredDistanceTo(mainPlayer.pos) > synchronizationRadius * synchronizationRadius) {
+                if (player.location.position.squaredDistanceTo(mainPlayer.location.position) > synchronizationRadius * synchronizationRadius) {
                     player.isLowDetailed = true
                     continue
                 } else {
@@ -309,7 +309,7 @@ class GameSession(
         playerStorage.add(player.id, player)
         context(world, luaContext) {
             player.prepareContainers(data.equipmentContainer, player.location, equipment)
-            player.setPlayerComponents()
+            player.setPlayerComponents(player.location.position)
             callbacks.playerInstantiate.execute(player.scriptContext)
         }
     }

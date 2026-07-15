@@ -1,7 +1,10 @@
-package org.lain.engine.client.account
+package org.lain.engine.player.account
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.lain.engine.player.character.BiologicalCategory
+import org.lain.engine.player.character.BiologicalSex
+import org.lain.engine.player.character.BodyType
 
 @Serializable
 data class CharacterNameDto(
@@ -74,38 +77,20 @@ data class LookResponse(
 )
 
 @Serializable
-data class LookSummaryResponse(
-    val id: String,
-    val title: String,
-    val base: Boolean,
+data class CharacterData(
+    val profile: CharacterProfileResponse,
+    val looks: List<LookResponse>,
 )
 
 @Serializable
-data class CharacterResponse(
+data class CharacterProfileResponse(
     val id: String,
     val accountId: String,
     val name: CharacterNameDto,
     val biologicalCategory: BiologicalCategory,
     val biologicalSex: BiologicalSex,
     val appearanceDescription: String,
-    val looks: List<LookSummaryResponse>,
     val height: Double,
     val bodyType: BodyType,
-    @SerialName("gender_params")
-    val genderParams: GenderParamsDto,
-)
-
-@Serializable
-data class CharacterSummaryResponse(
-    val id: String,
-    val accountId: String,
-    val name: CharacterNameDto,
-    val biologicalCategory: BiologicalCategory,
-    val biologicalSex: BiologicalSex,
-    val appearanceDescription: String,
-    val looks: List<LookSummaryResponse>,
-    val height: Double,
-    val bodyType: BodyType,
-    @SerialName("gender_params")
     val genderParams: GenderParamsDto,
 )

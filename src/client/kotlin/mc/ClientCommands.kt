@@ -7,27 +7,20 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.shapes.CollisionContext
 import org.lain.cyberia.ecs.exists
-import org.lain.cyberia.ecs.getAll
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.EngineClient
-import org.lain.engine.item.BULLET_FIRE_RADIUS
-import org.lain.engine.mc.commands.getString
-import org.lain.engine.mc.getWorld
 import org.lain.engine.mc.literalText
-import org.lain.engine.mc.toMinecraft
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.handItem
 import org.lain.engine.script.lua.LuaFunctionChunk
 import org.lain.engine.script.lua.coerceToLua
-import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.world.LightBehaviour
 import org.lain.engine.world.LightSource
 import org.lain.engine.world.Luminance
 import org.luaj.vm2.LuaError
-import org.luaj.vm2.LuaValue
 
 fun registerClientEngineCommands(engineClient: EngineClient) {
     ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
@@ -38,7 +31,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                         .executes { ctx ->
                             val gameSession = engineClient.gameSession ?: return@executes 0
                             with(gameSession.world) {
-                                val entity = gameSession.mainPlayer.entityId
+                                val entity = gameSession.mainPlayer.entity
                                 if (entity.hasComponent<LightSource>()) {
                                     entity.removeComponent<LightSource>()
                                     entity.removeComponent<Luminance>()
@@ -201,7 +194,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                     ClientCommandManager.literal("self")
                         .executes { ctx ->
                             val gameSession = engineClient.gameSession ?: return@executes 0
-                            gameSession.viewEntityDebug(gameSession.mainPlayer.entityId)
+                            gameSession.viewEntityDebug(gameSession.mainPlayer.entity)
                             1
                         }
                 )

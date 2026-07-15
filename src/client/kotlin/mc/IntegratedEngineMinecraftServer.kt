@@ -3,8 +3,8 @@ package org.lain.engine.client.mc
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
-import org.lain.engine.EngineMinecraftServer
-import org.lain.engine.EngineMinecraftServerDependencies
+import org.lain.engine.mc.server.EngineMinecraftServer
+import org.lain.engine.mc.server.EngineMinecraftServerDependencies
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.transport.ClientTransportContext

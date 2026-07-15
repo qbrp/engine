@@ -7,6 +7,7 @@ import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.messageSource
 import org.lain.engine.mc.displayNameMiniMessage
+import org.lain.engine.mc.displayNameText
 import org.lain.engine.mc.hasPermission
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.username

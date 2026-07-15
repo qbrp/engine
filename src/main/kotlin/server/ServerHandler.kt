@@ -10,11 +10,10 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
 import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.replaceOrSet
-import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.set
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.*
-import org.lain.engine.debugPacket
 import org.lain.engine.item.Item
 import org.lain.engine.item.Writable
 import org.lain.engine.item.getOwner
@@ -156,10 +155,12 @@ class ServerHandler(
     private fun onEntityDebugView(player: PlayerId, persistentId: PersistentId) = updatePlayer(player) {
         if (!hasPermission("entity_debug")) return@updatePlayer
         val entity = world.persistentIdToEntity[persistentId] ?: desync("Сущность $persistentId не существует")
-        replaceOrSet {
-            EntityDebugViewComponent(
-                entity,
-                with(world) { entity.snapshotDebugData() }
+        with(world) {
+            this@updatePlayer.entity.setComponent(
+                EntityDebugViewComponent(
+                    entity,
+                    entity.snapshotDebugData()
+                )
             )
         }
     }
@@ -188,7 +189,7 @@ class ServerHandler(
     }
 
     private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputAction>) = updatePlayerWithContext(playerId) {
-        val playerInput = this.entityId.requireComponent<PlayerInput>()
+        val playerInput = this.entity.requireComponent<PlayerInput>()
         playerInput.actions.clear()
         playerInput.actions.addAll(input)
         playerInput.tick = tick
@@ -296,7 +297,7 @@ class ServerHandler(
 
         players.forEachWithContext({ it.world }) { player ->
             val world = player.world
-            val input = player.entityId.requireComponent<PlayerInput>()
+            val input = player.entity.requireComponent<PlayerInput>()
             val state = player.network
             val playerLocation = player.location
             val playerPosition = playerLocation.position
@@ -317,7 +318,7 @@ class ServerHandler(
             state.worldSynced = true
 
             val nearbyPlayers = filterNearestPlayers(world, playerPosition, playerSynchronizationRadius, players).toMutableList()
-            val playersToDesynchronize = state.players.filter { it.pos.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
+            val playersToDesynchronize = state.players.filter { it.location.position.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
             state.players.removeAll(playersToDesynchronize)
 
             val entitiesInRadius: HashSet<PersistentId> = hashSetOf()
@@ -549,7 +550,7 @@ class ServerHandler(
         packet: (EnginePlayer) -> P
     ) {
         for (player in playerStorage) {
-            if (player.world == world && player.pos.squaredDistanceTo(pos) >= playerSynchronizationRadius * playerSynchronizationRadius) {
+            if (player.world == world && player.location.position.squaredDistanceTo(pos) >= playerSynchronizationRadius * playerSynchronizationRadius) {
                 sendS2C(packet(player), player.id)
             }
         }
@@ -564,7 +565,7 @@ class ServerHandler(
         packet: P
     ) {
         for (player in world.players) {
-            if (player !in exclude && player.pos.squaredDistanceTo(center.position) <= radius * radius) {
+            if (player !in exclude && player.location.position.squaredDistanceTo(center.position) <= radius * radius) {
                 sendS2C(packet, player.id)
             }
         }

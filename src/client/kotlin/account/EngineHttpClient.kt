@@ -4,16 +4,15 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import net.minecraft.util.Util
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.player.account.AccountResponse
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
-import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.URI
 import java.net.URLDecoder
@@ -21,26 +20,16 @@ import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.net.http.HttpTimeoutException
 import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.Executors
-import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.toKotlinDuration
-
-private val BACKEND_LOGGER = LoggerFactory.getLogger("Engine Backend Client")
-
-interface RefreshToken {
-    fun get(): String
-}
-
-fun loadRefreshTokenFromDrive() = RefreshTokenStorage.load()
 
 class EngineHttpClient(
     private val backendUri: URI = URI("https://engine.qbrp.fun"),
     private val requestTimeout: Duration = Duration.ofSeconds(5)
 ) {
+    private val logger = LoggerFactory.getLogger("Engine Backend Client")
     private var server: LocalAuthorizationServer? = null
     private var authorized: Authorized? = null
     private val httpClient = HttpClient.newBuilder()
@@ -68,7 +57,7 @@ class EngineHttpClient(
         fun abort() {
             server.close()
             this@EngineHttpClient.server = null
-            BACKEND_LOGGER.info("Aborted authorization")
+            logger.info("Aborted authorization")
         }
 
         suspend fun await(): Authorized {
@@ -82,11 +71,11 @@ class EngineHttpClient(
     suspend fun authorizeDiscordOAuth2(): Authorization = withContext(Dispatchers.IO) {
         val codeDeferred = CompletableDeferred<String>()
         val localServer = server ?: runCatching { LocalAuthorizationServer.start(codeDeferred) }
-            .onFailure { BACKEND_LOGGER.error("Failed to start local account authorization server", it) }
+            .onFailure { logger.error("Failed to start local account authorization server", it) }
             .getOrThrow()
         try {
             val loginUri = buildLoginUri(localServer.redirectUri)
-            BACKEND_LOGGER.info("Opening Engine account authorization page: {}", loginUri)
+            logger.info("Opening Engine account authorization page: {}", loginUri)
             Util.getPlatform().openUri(loginUri)
             server = localServer
             Authorization(localServer, codeDeferred)
@@ -228,7 +217,7 @@ class LocalAuthorizationServer(
                     Thread.sleep(500L)
                     server.stop(0)
                     executor.shutdown()
-                    BACKEND_LOGGER.info("Stopped local Engine account authorization server")
+                    //BACKEND_LOGGER.info("Stopped local Engine account authorization server")
                 }.apply {
                     name = "Engine Account Callback Server Shutdown"
                     isDaemon = true
@@ -240,7 +229,7 @@ class LocalAuthorizationServer(
             }
             server.start()
 
-            BACKEND_LOGGER.info("Started local Engine account authorization server at {}", redirectUri)
+            //BACKEND_LOGGER.info("Started local Engine account authorization server at {}", redirectUri)
             return LocalAuthorizationServer(server, redirectUri)
         }
 

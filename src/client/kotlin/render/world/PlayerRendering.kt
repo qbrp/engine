@@ -59,7 +59,7 @@ fun GameSession.updatePlayerEntityRenderStates(playerTable: EntityTable) = with(
         .mapNotNull { it to (playerTable.client.getPlayer(it) ?: return@mapNotNull null) }
         .filter { (entity, player) -> !player.isLowDetailed }
         .associate { (entity, player) ->
-            player to player.replaceOrSet(RenderStateComponent(EnginePlayerRenderState(player, entity))).renderState
+            player to player.getOrSet { RenderStateComponent(EnginePlayerRenderState(player, entity)) }.renderState
         }
 
     iterate<PlayerEquipment, Entries>() { _, (player), (entries) ->

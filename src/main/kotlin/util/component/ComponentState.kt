@@ -3,7 +3,7 @@ package org.lain.engine.util.component
 import org.lain.cyberia.ecs.*
 import java.util.concurrent.ConcurrentHashMap
 
-interface Entity : ComponentManager {
+interface Entity {
     val stringId: String
 }
 

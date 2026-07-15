@@ -1,13 +1,6 @@
 package org.lain.engine.script.lua
 
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.hasComponent
-import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.*
-import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.world.Location
-import org.lain.engine.world.World
 import org.lain.engine.world.invokeCommand
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
@@ -63,12 +56,12 @@ fun EnginePlayer.coerceToLua(): LuaUserdata {
                 val player = self.asEnginePlayer()
                 when(key.tojstring()) {
                     "uuid" -> player.id.value.toString().toLuaValue()
-                    "id" -> player.entityId.toLuaValue()
-                    "entity" -> with(player.world) { player.entityId.coerceToLua() }
+                    "id" -> player.entity.toLuaValue()
+                    "entity" -> with(player.world) { player.entity.coerceToLua() }
                     "world" -> player.world.getLuaValue()
                     "is_spectating" -> player.isSpectating.toLuaValue()
                     "is_game_master" -> player.isInGameMasterMode.toLuaValue()
-                    else -> context.playerMetaTable.get(key) ?: with(player.world) { player.entityId.coerceToLua().get(key) }
+                    else -> context.playerMetaTable.get(key) ?: with(player.world) { player.entity.coerceToLua().get(key) }
                 }
             }
         }

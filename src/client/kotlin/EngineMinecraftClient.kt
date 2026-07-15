@@ -21,14 +21,12 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.component.WritableBookContent
 import net.minecraft.world.level.Level
 import org.lain.cyberia.ecs.apply
-import org.lain.cyberia.ecs.handle
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.removeComponent
-import org.lain.engine.AuthPacket
+import org.lain.engine.mc.server.AuthPacket
 import org.lain.engine.Constants.ENGINE_MOD_VERSION
-import org.lain.engine.SERVERBOUND_AUTH_ENDPOINT
+import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.client.account.EngineHttpClient
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
@@ -38,7 +36,6 @@ import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
-import org.lain.engine.client.render.ui.InteractionSelectionScreen
 import org.lain.engine.client.render.ui.initializeGraphene
 import org.lain.engine.client.render.ui.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
@@ -53,7 +50,7 @@ import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.server.EngineServer
-import org.lain.engine.serverMinecraftPlayerLoadSettings
+import org.lain.engine.mc.server.serverMinecraftPlayerLoadSettings
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
@@ -266,7 +263,7 @@ class EngineMinecraftClient : ClientModInitializer {
                     EngineItemStack(item, itemStack)
                 }.toSet()
 
-                updatePlayerMinecraftSystems(player, items, entity, world)
+                with(world) { updatePlayerMinecraftSystems(player.entity, items, entity) }
                 updatePlayerOwnedItems(world, player)
             } catch (e: Exception) {
                 throw PlayerTickException(player, e)
@@ -350,7 +347,8 @@ class EngineMinecraftClient : ClientModInitializer {
             .sendC2SPacket(
                 AuthPacket(
                     fabricLoader.allMods.map { it.metadata.id },
-                    ENGINE_MOD_VERSION
+                    ENGINE_MOD_VERSION,
+                    ""
                 )
             )
     }

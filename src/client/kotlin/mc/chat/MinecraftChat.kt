@@ -13,7 +13,7 @@ import org.lain.engine.client.mixin.chat.ChatHudAccessor
 import org.lain.engine.client.render.ui.ChatChannelsBar
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.mc.Text
-import org.lain.engine.mc.displayNameMiniMessage
+import org.lain.engine.mc.displayNameText
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT
 import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT
@@ -75,7 +75,7 @@ object MinecraftChat : ChatEventBus {
                     TypingPlayer(
                         player,
                         playerListEntry.skin,
-                        enginePlayer.displayNameMiniMessage.parseMiniMessageClient()
+                        enginePlayer.displayNameText
                     )
                 )
             }

@@ -86,7 +86,7 @@ fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
                 player.chatHeadsEnabled,
                 equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentIdComponent>().id },
                 player.require<PlayerModel>().skinEyeY,
-                componentManager.getSavableComponents(player.entityId).map { it.toSnapshotDto() }
+                componentManager.getSavableComponents(player.entity).map { it.toSnapshotDto() }
             )
         )
     )

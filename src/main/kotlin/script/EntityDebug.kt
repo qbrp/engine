@@ -4,8 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.handle
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.handle
 import org.lain.engine.script.lua.LuaEntityComponent
 import org.lain.engine.script.lua.luaValue
 import org.lain.engine.script.lua.toLuaValue

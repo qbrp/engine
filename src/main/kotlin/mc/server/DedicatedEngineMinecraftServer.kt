@@ -1,21 +1,23 @@
-package org.lain.engine
+package org.lain.engine.mc.server
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import net.fabricmc.api.DedicatedServerModInitializer
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
-import net.minecraft.CrashReport
-import net.minecraft.ReportedException
 import net.minecraft.server.level.ServerPlayer
-import org.lain.engine.mc.*
+import org.lain.engine.Constants
 import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.getPlayer
+import org.lain.engine.mc.hasPermission
+import org.lain.engine.mc.isOp
+import org.lain.engine.mc.players
+import org.lain.engine.mc.sendMessage
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.Username
-import org.lain.engine.script.*
-import org.lain.engine.script.lua.*
+import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.Notification
 import org.lain.engine.server.network
 import org.lain.engine.transport.Endpoint
@@ -25,83 +27,13 @@ import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.network.ServerNetworkTransport
 import org.lain.engine.transport.network.SessionId
-import org.lain.engine.transport.packet.*
-import org.lain.engine.util.file.ENGINE_DIR
-import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.util.registerMinecraftServer
-import java.io.File
-import java.util.*
+import org.lain.engine.transport.packet.CLIENTBOUND_VERIFICATION_ENDPOINT
+import org.lain.engine.transport.packet.DeveloperModeStatus
+import org.lain.engine.transport.packet.GeneralServerData
+import org.lain.engine.transport.packet.SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT
+import org.lain.engine.transport.packet.VerificationDataPacket
+import java.util.UUID
 
-class SetupException(val exceptions: List<CompilationException>) : Exception()
-
-class DedicatedServerEngineMod : DedicatedServerModInitializer {
-    private lateinit var luaContext: LuaContext
-    private var namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
-
-    private fun createLuaContext(entrypointScript: File) = LuaContext(
-        LuaDependencies(
-            EngineLuaGlobals(),
-            namespacedStorage,
-            ENGINE_DIR.scripts.path,
-            LuaDataStorage()
-        ),
-        FileScriptSource(entrypointScript),
-    )
-
-    override fun onInitializeServer() {
-        val config = loadOrCreateServerConfig()
-        val entrypointScript = getLuaEntrypointDir(config.server)
-        if (!entrypointScript.exists()) {
-            entrypointScript.createNewFile()
-            entrypointScript.writeDefaultLuaEntrypointScript()
-        }
-        luaContext = createLuaContext(entrypointScript)
-        luaContext.setup()
-        val compilationResult = setupContents(entrypointScript)
-
-        ServerLifecycleEvents.SERVER_STARTING.register { server ->
-            val dependencies = EngineMinecraftServerDependencies(server, luaContext, compilationResult, config, namespacedStorage)
-            registerMinecraftServer(
-                DedicatedEngineMinecraftServer(dependencies)
-            )
-        }
-    }
-
-    fun setupContents(entrypointScript: File): CompilationResult {
-        val scanner = Scanner(System.`in`)
-        error@ while (true) {
-            try {
-                val result = compileContents(ENGINE_DIR.contents, luaContext)
-                if (result.exceptions.isNotEmpty()) {
-                    throw SetupException(result.exceptions)
-                }
-                return result
-            } catch (e: Exception) {
-                LOGGER.error("Не удалось скомпилировать ресурсы Engine!")
-
-                if (e is SetupException) {
-                    e.exceptions.forEach {
-                        LOGGER.error(it.errorString)
-                    }
-                } else {
-                    LOGGER.error(e.message)
-                }
-
-                LOGGER.info("Перекомпилировать заново? y - да, n - выключить сервер")
-                while (true) {
-                    when (scanner.nextLine().lowercase()) {
-                        "y" -> {
-                            luaContext = createLuaContext(entrypointScript)
-                            continue@error
-                        }
-                        "n" -> throw ReportedException(CrashReport("Engine compilation", e))
-                        else -> LOGGER.warn("y - да, n - выключить сервер")
-                    }
-                }
-            }
-        }
-    }
-}
 
 class DedicatedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,
@@ -110,7 +42,11 @@ class DedicatedEngineMinecraftServer(
         dependencies.minecraftServer,
         dependencies.entityTable
     ),
-    override val transportContext: ServerTransportContext = ServerNetworkTransport(dependencies.minecraftServer, connectionManager, dependencies.playerStorage),
+    override val transportContext: ServerTransportContext = ServerNetworkTransport(
+        dependencies.minecraftServer,
+        connectionManager,
+        dependencies.playerStorage
+    ),
 ) : EngineMinecraftServer(dependencies) {
     val authorizationListener = ServerAuthorizationListener(
         connectionManager,
@@ -168,6 +104,7 @@ class DedicatedEngineMinecraftServer(
 data class AuthPacket(
     val mods: List<String>,
     val version: String,
+    val sessionTicket: String
 ) : Packet
 
 val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
@@ -176,19 +113,36 @@ class ServerAuthorizationListener(
     private val connectionManager: ServerConnectionManager,
     private val server: DedicatedEngineMinecraftServer,
 ) {
+    private val httpClient = DedicatedEngineHttpClient()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private suspend fun runCatching(connectionSession: ConnectionSession, statement: suspend () -> Unit) {
+        try {
+            statement()
+        } catch (e: Throwable) {
+            server.engine.execute {
+                connectionManager.disconnect(
+                    connectionSession,
+                    "Не удалось авторизоваться из-за внутренней ошибки сервера"
+                )
+                e.printStackTrace()
+            }
+        }
+    }
 
     fun run() {
         SERVERBOUND_AUTH_ENDPOINT.registerReceiver { ctx ->
             val packet = this
             val playerId = ctx.sender
-            val entity = server.minecraftServer.getPlayer(playerId) ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
+            val entity = server.minecraftServer.getPlayer(playerId)
+                ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
             onAuth(packet, entity, playerId)
         }
         SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.registerReceiver { ctx ->
             val playerId = ctx.sender
-            val entity = server.minecraftServer.getPlayer(playerId) ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
-            onVerificationResponse(developerModeStatus, namespaces, entity, playerId)
+            val entity = server.minecraftServer.getPlayer(playerId)
+                ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
+            onVerificationResponse(developerModeStatus, namespaces, entity, playerId, characterId)
         }
     }
 
@@ -209,7 +163,10 @@ class ServerAuthorizationListener(
 
         val mods = packet.mods
         val minimapPermission = entity.isOp || entity.hasPermission("minimap")
-        val hasMinimap = mods.contains("xaeroworldmap") || mods.contains("xaerominimap") || mods.contains("voxelmap") || mods.contains("journeymap")
+        val hasMinimap =
+            mods.contains("xaeroworldmap") || mods.contains("xaerominimap") || mods.contains("voxelmap") || mods.contains(
+                "journeymap"
+            )
         if (!minimapPermission && hasMinimap) {
             connectionManager.disconnect(
                 connection,
@@ -218,17 +175,31 @@ class ServerAuthorizationListener(
         }
         connection.mods = mods.toSet()
 
-        CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
-            VerificationDataPacket(
-                GeneralServerData(engine.globals.serverId)
-            ),
-            id
-        )
+        coroutineScope.launch {
+            runCatching(connection) {
+                val authorized = httpClient.getAuthorized(packet.sessionTicket)
+                authorized.getAccount() // проверка на валидность
+
+                CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
+                    VerificationDataPacket(
+                        GeneralServerData(engine.globals.serverId)
+                    ),
+                    id
+                )
+            }
+        }
     }
 
-    private fun onVerificationResponse(developerModeStatus: DeveloperModeStatus, playerNamespaces: NamespaceHashMap, entity: ServerPlayer, playerId: PlayerId) {
+    private fun onVerificationResponse(
+        developerModeStatus: DeveloperModeStatus,
+        playerNamespaces: NamespaceHashMap,
+        entity: ServerPlayer,
+        playerId: PlayerId,
+        selectedCharacter: String
+    ) {
         val engine = server.engine
         val connection = connectionManager.getSession(playerId)
+        val ticket = connection.sessionTicket!!
         if (engine.globals.requireIdenticalNamespaces) {
             val serverNamespacesHash = engine.namespacedStorage.get().namespaceHashMap
 
@@ -269,8 +240,10 @@ class ServerAuthorizationListener(
 
         val settings = engine.serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications)
         coroutineScope.launch {
+            val character = httpClient.getAuthorized(ticket).getCharacter(selectedCharacter)
             engine.playerLoader.loadPreparing(
                 settings = settings,
+                account = PlayerLoadSettings.Account(character),
                 exceptionHandler = { connectionManager.disconnect(playerId, it) }
             )
         }

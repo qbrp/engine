@@ -8,6 +8,7 @@ import net.minecraft.core.component.DataComponentType
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.Style
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
@@ -30,8 +31,7 @@ import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.CollisionContext
 import org.joml.Vector3f
 import org.joml.Vector3fc
-import org.lain.cyberia.ecs.require
-import org.lain.engine.CommonEngineServerMod
+import org.lain.engine.CommonEngineMod
 import org.lain.engine.player.*
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.ScriptContext
@@ -116,11 +116,15 @@ fun MinecraftServer.getPlayer(id: PlayerId) = playerList.getPlayer(id.value)
 
 var Player.yaw
     get() = yRot
-    set(value) { yRot = value }
+    set(value) {
+        yRot = value
+    }
 
 var Player.pitch
     get() = xRot
-    set(value) { xRot = value }
+    set(value) {
+        xRot = value
+    }
 
 val Entity.bodyHeight
     get() = bbHeight
@@ -155,11 +159,31 @@ fun Player.sendMessage(messageMm: String) {
     displayClientMessage(messageMm.parseMiniMessage(), false)
 }
 
-val EnginePlayer.displayNameMiniMessage
-    get() = this.require<DisplayName>().let { it.custom?.textMiniMessage ?: it.username.value }
+fun List<ColoredChar>.getText(): Component {
+    val component = Component.empty()
+    forEach {
+        component.append(
+            Component
+                .literal(it.char.toString())
+                .withStyle(
+                    Style.EMPTY.withColor(it.color.integer)
+                )
+        )
+    }
+    return component
+}
 
-val CustomName.textMiniMessage
-    get() = "<gradient:#${color1.hexString()}:#${(color2 ?: color1).hexString()}>$string</gradient>"
+val EnginePlayer.displayNameText
+    get() = displayName.getText()
+
+val EnginePlayer.displayNameMiniMessage: String
+    get() {
+        val name = displayName
+        val color1 = name.first().color
+        val color2 = name.last().color
+        val nameString = name.joinToString(separator = "") { it.char.toString() }
+        return "<gradient:#${color1.hexString()}:#${(color2).hexString()}>$nameString</gradient>"
+    }
 
 fun EngineServer.getWorld(world: Level): World {
     return getWorld(world.engine)
@@ -169,7 +193,7 @@ fun EngineServer.getWorld(world: Level): World {
 
 fun vanillaId(id: String) = Identifier.withDefaultNamespace(id)
 
-fun engineId(path: String) = Identifier.fromNamespaceAndPath(CommonEngineServerMod.MOD_ID, path)!!
+fun engineId(path: String) = Identifier.fromNamespaceAndPath(CommonEngineMod.MOD_ID, path)!!
 
 fun isIdPathValid(id: String) = Identifier.isValidPath(id)
 
@@ -219,7 +243,7 @@ fun MutableEVec3.set(vec3: Vec3) {
     this.z = vec3.z.toFloat()
 }
 
-fun Direction.engine() = when(this) {
+fun Direction.engine() = when (this) {
     Direction.DOWN -> EDirection.DOWN
     Direction.UP -> EDirection.UP
     Direction.NORTH -> EDirection.NORTH

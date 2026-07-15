@@ -5,7 +5,6 @@ import com.daqem.yamlconfig.client.gui.screen.ConfigScreen
 import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.minecraft.client.KeyMapping
-import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.control.*
@@ -100,7 +99,7 @@ class KeybindManager(
         }
 
         engineClient.gameSession?.apply {
-            val input = with(world) { mainPlayer.entityId.requireComponent<PlayerInput>().actions }
+            val input = with(world) { mainPlayer.entity.requireComponent<PlayerInput>().actions }
             if (base.isPressed) input.add(InputAction.Base)
             if (attack.isPressed) input.add(InputAction.Attack)
             if (takeOffEquip.isPressed) input.add(InputAction.TakeOff)

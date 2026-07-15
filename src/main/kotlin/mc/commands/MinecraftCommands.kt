@@ -12,7 +12,6 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.EntityArgument
@@ -497,9 +496,9 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         val id = SoundEventId(id)
         val player = ctx.requirePlayer()
         val event = storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
-        val pos = pos?.engine() ?: player.pos.copy()
+        val pos = pos?.engine() ?: ImmutableEVec3(player.location.position)
         val distance = event.sources.maxOf { it.distance }
-        val players = ctx.requirePlayer().world.players.filter { playerP -> playerP.pos.squaredDistanceTo(pos) <= distance * distance }
+        val players = ctx.requirePlayer().world.players.filter { playerP -> playerP.location.position.squaredDistanceTo(pos) <= distance * distance }
         server.engine.handler.playSoundLocal(
             SoundPlay(event, pos, EngineSoundCategory.AMBIENT, volume),
             ignorePhysics,

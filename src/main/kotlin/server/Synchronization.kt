@@ -40,7 +40,11 @@ inline fun <T : Entity, reified C : Component> Synchronizations<T>.submit(synchr
 }
 
 fun Entity.markDirty(componentClass: KClass<out Component>) {
-    val state = require<Synchronizations<*>>().state[componentClass] ?: error("Component synchronizer for $componentClass not found")
+    val synchronizations = when (this) {
+        is EnginePlayer -> require<Synchronizations<*>>()
+        else -> error("Synchronizations are not available for $this")
+    }
+    val state = synchronizations.state[componentClass] ?: error("Component synchronizer for $componentClass not found")
     state.dirty = true
 }
 
@@ -104,12 +108,12 @@ inline fun <reified C : Component> PlayerComponentSynchronizer(
 )
 
 
-fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStorage, entity: T, component: Synchronizations<T> = entity.require()) {
+fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStorage, entity: T, component: Synchronizations<T> = (entity as EnginePlayer).require()) {
     component.state.forEach { (id, state) ->
         if (state.dirty) {
             val synchronizer = state.synchronizer as ComponentSynchronizer<T, Component>
             val endpoint = synchronizer.endpoint
-            val component = entity.getComponent(synchronizer.componentType) ?: error("Dirty component ${synchronizer.componentType} not found")
+            val component = (entity as EnginePlayer).getComponent(synchronizer.componentType) ?: error("Dirty component ${synchronizer.componentType} not found")
             val packet = ComponentSynchronizationPacket(entity.stringId, component)
 
             fun broadcast(world: World, location: Location, player: EnginePlayer?) {
@@ -141,7 +145,9 @@ class ComponentSynchronizationPacket<C : Component>(
 
 // Player
 
-val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>(PlayerPredicate.OTHERS) { player, component -> player.replace(component.copy()) }
+val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>(PlayerPredicate.OTHERS) { player, component ->
+    with(player.world) { player.entity.setComponent(component.copy()) }
+}
 val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(PlayerPredicate.ALL, Propagation.GLOBAL) { player, name -> player.customName = name.custom }
 val PLAYER_SPEED_INTENTION_SYNCHRONIZER = PlayerComponentSynchronizer<MovementStatus>(PlayerPredicate.OTHERS) { player, status ->
     player.require<MovementStatus>().intention = status.intention
@@ -153,6 +159,8 @@ val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(Playe
         clientNarration.addAll(narration.messages)
     }
 }
-val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.ALL) { player, component -> player.replace(component.copy()) }
+val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.ALL) { player, component ->
+    with(player.world) { player.entity.setComponent(component.copy()) }
+}
 val PLAYER_MODEL_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerModel>(PlayerPredicate.ALL) { player, component -> player.require<PlayerModel>().skinEyeY = component.skinEyeY }
 val PLAYER_HEARING_SYNCHRONIZER = PlayerComponentSynchronizer<Hearing>(PlayerPredicate.SELF) { player, component -> player.require<Hearing>().tinnitus = component.tinnitus }

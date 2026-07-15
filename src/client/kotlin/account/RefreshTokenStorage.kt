@@ -7,6 +7,12 @@ import com.microsoft.credentialstorage.model.StoredTokenType
 import java.util.Arrays
 import java.util.UUID
 
+interface RefreshToken {
+    fun get(): String
+}
+
+fun loadRefreshTokenFromDrive() = RefreshTokenStorage.load()
+
 object RefreshTokenStorage {
     private val store: SecretStore<StoredToken> =
         StorageProvider.getTokenStorage(

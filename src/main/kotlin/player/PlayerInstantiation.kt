@@ -6,17 +6,16 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
-import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.set
 import org.lain.cyberia.ecs.setComponent
-import org.lain.cyberia.ecs.setNullable
 import org.lain.engine.container.createContainer
 import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.player.account.CharacterData
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.player.prepareContainers
+import org.lain.engine.player.set
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.server.*
@@ -24,12 +23,10 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.EntityCommandBuffer
-import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
-import org.lain.engine.world.location
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.apply
@@ -60,35 +57,41 @@ data class DefaultPlayerAttributes(
     val tirednessMultiplier: Float = 1f,
 ) : Component
 
+context(write: WriteComponentAccess)
 fun commonPlayerInstance(
     settings: PlayerInstantiateSettings,
     id: PlayerId
 ): EnginePlayer {
-    return EnginePlayer(id, settings.world.addEntity(), world = settings.world).apply {
-        set(Location(settings.pos))
-        set(Velocity())
-        set(Orientation())
-        set(PlayerModel(skinEyeY = settings.skinEyeY))
-        set(OrientationTranslation(0f, 0f))
-        set(PlayerInventory(settings.items.toMutableSet()))
-        set(ArmStatus(false))
-        set(Narration(mutableListOf()))
-        set(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
-        set(Hearing())
-        set(ScriptBindings())
-        set(settings.displayName)
-        set(settings.movementStatus)
-        set(settings.spectating)
-        set(settings.gameMaster)
-        set(settings.attributes)
-        set(Synchronizations<EnginePlayer>(mutableMapOf()))
-            .also { it.initializeSynchronizers() }
-        if (settings.replayViewer) {
-            set(ReplayViewer)
+    val entity = settings.world.addEntity()
+        .apply {
+            setComponent(Location(settings.pos))
+            setComponent(Velocity())
+            setComponent(Orientation())
+            setComponent(PlayerModel(skinEyeY = settings.skinEyeY))
+            setComponent(OrientationTranslation(0f, 0f))
+            setComponent(PlayerInventory(settings.items.toMutableSet()))
+            setComponent(ArmStatus(false))
+            setComponent(Narration(mutableListOf()))
+            setComponent(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
+            setComponent(Hearing())
+            setComponent(ScriptBindings())
+            setComponent(settings.displayName)
+            setComponent(settings.movementStatus)
+            setComponent(settings.spectating)
+            setComponent(settings.gameMaster)
+            setComponent(settings.attributes)
+            setComponent(
+                Synchronizations<EnginePlayer>(mutableMapOf())
+                    .also { it.initializeSynchronizers() }
+            )
+            if (settings.replayViewer) {
+                setComponent(ReplayViewer)
+            }
         }
-    }
+    return EnginePlayer(id, entity, world = settings.world)
 }
 
+context(write: WriteComponentAccess)
 fun serverPlayerInstance(
     settings: PlayerInstantiateSettings,
     persistent: PersistentPlayerData? = null,
@@ -96,17 +99,18 @@ fun serverPlayerInstance(
     id: PlayerId,
 ): EnginePlayer {
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
-
-    return commonPlayerInstance(settings, id).apply {
-        set(MessageQueue())
-        set(voiceApparatus)
-        setNullable(persistent?.voiceLoose)
-        set(defaults)
-        set(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
-        set(PlayerNetworkState(false))
-        require<PlayerAttributes>().gravity.default = defaults.gravity
-        set(AcousticMessageQueue(LinkedList()))
+    val player = commonPlayerInstance(settings, id)
+    player.entity.apply {
+        setComponent(MessageQueue())
+        setComponent(voiceApparatus)
+        persistent?.voiceLoose?.let { setComponent(it) }
+        setComponent(defaults)
+        setComponent(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
+        setComponent(PlayerNetworkState(false))
+        //require<PlayerAttributes>().gravity.default = defaults.gravity
+        setComponent(AcousticMessageQueue(LinkedList()))
     }
+    return player
 }
 
 private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
@@ -130,7 +134,9 @@ data class PlayerLoadSettings(
     val developerModeStatus: DeveloperModeStatus,
     val world: World,
     val isReplayViewer: Boolean = false
-)
+) {
+    data class Account(val character: CharacterData)
+}
 
 class PlayerLoader(
     private val server: EngineServer,
@@ -157,6 +163,7 @@ class PlayerLoader(
 
     suspend fun loadPreparing(
         settings: PlayerLoadSettings,
+        account: PlayerLoadSettings.Account? = null,
         exceptionHandler: (Throwable) -> Unit
     ) {
         if (server.playerStorage.get(settings.playerId) != null) {
@@ -173,30 +180,32 @@ class PlayerLoader(
                 ItemLoadContext.PreparingPlayer(settings.playerId, settings.username)
             )
         } ?: return
-        val player = exceptionHandler.runCatchingSuspend {
-            serverPlayerInstance(
-                world,
-                settings,
-                inventoryLoadResult,
-                persistent
-            )
-        } ?: return
         val componentsToLoad = persistent?.components ?: emptyList()
+        val location = Location(settings.initialPosition)
         with(EntityCommandBuffer(world)) {
-            player.prepareContainers(Uuid.next(), player.location, inventoryLoadResult.equipmentItems)
-            player.entityId.copyComponentDtoState(componentsToLoad) {
+            val player = exceptionHandler.runCatchingSuspend {
+                serverPlayerInstance(
+                    world,
+                    settings,
+                    inventoryLoadResult,
+                    persistent
+                )
+            } ?: return
+            player.prepareContainers(Uuid.next(), location, inventoryLoadResult.equipmentItems)
+            player.entity.copyComponentDtoState(componentsToLoad) {
                 toDomainWithoutRelationships(
                     world.itemStorage,
                     server.namespacedStorage
                 )
             }
             schedule {
-                exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications) }
+                exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications, location.position) }
             }
             commandBuffers += world.id to this
         }
     }
 
+    context(write: WriteComponentAccess)
     private fun serverPlayerInstance(
         world: World,
         settings: PlayerLoadSettings,
@@ -284,7 +293,7 @@ fun EnginePlayer.prepareContainers(
         persistentId = persistentId("inventory-$playerUuid"),
     )
     void.setComponent(PlayerContainerTag)
-    set(PlayerContainer(void))
+    entity.setComponent(PlayerContainer(void))
 
     val container = componentAccess.createSlotContainer(
         location,
@@ -298,14 +307,14 @@ fun EnginePlayer.prepareContainers(
     // container.removeComponent<PersistentId>()
     // }
     container.setComponent(PlayerEquipment(this@prepareContainers))
-    set(Equipment(container))
+    entity.setComponent(Equipment(container))
 }
 
 context(world: World, lua: LuaContext)
-fun EnginePlayer.setPlayerComponents() {
+fun EnginePlayer.setPlayerComponents(pos: Pos) {
     prepareLuaScriptComponents()
-    entityId.setComponent(Player(this))
-    entityId.setComponent(location)
-    entityId.setComponent(PersistentIdComponent(CustomPersistentId(id.toString())))
-    entityId.setComponent(PlayerInput())
+    entity.setComponent(Player(this))
+    entity.setComponent(Location(pos))
+    entity.setComponent(PersistentIdComponent(CustomPersistentId(id.toString())))
+    entity.setComponent(PlayerInput())
 }

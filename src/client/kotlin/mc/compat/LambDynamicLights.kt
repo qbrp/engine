@@ -20,6 +20,7 @@ import org.lain.engine.mc.MathMc
 import org.lain.engine.mc.MutableBlockPos
 import org.lain.engine.mc.toMinecraft
 import org.lain.engine.player.Orientation
+import org.lain.engine.player.get
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.inject

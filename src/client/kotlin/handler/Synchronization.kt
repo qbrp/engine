@@ -3,7 +3,6 @@ package org.lain.engine.client.handler
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.componentTypeOfGeneral
-import org.lain.cyberia.ecs.getOrSet
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
@@ -38,15 +37,17 @@ fun lowDetailedClientPlayerInstance(
     world: World,
     data: GeneralPlayerData
 ): EnginePlayer {
-    return commonPlayerInstance(
-        PlayerInstantiateSettings(
-            world,
-            LOD_POS,
-            data.displayName,
-            developerModeStatus = DeveloperModeStatus()
-        ),
-        id
-    ).also { it.isLowDetailed = true }
+    return with(world) {
+        commonPlayerInstance(
+            PlayerInstantiateSettings(
+                world,
+                LOD_POS,
+                data.displayName,
+                developerModeStatus = DeveloperModeStatus()
+            ),
+            id
+        ).also { it.isLowDetailed = true }
+    }
 }
 
 fun mainClientPlayerInstance(
@@ -55,21 +56,23 @@ fun mainClientPlayerInstance(
     data: ServerPlayerData,
     developerModeStatus: DeveloperModeStatus
 ): EnginePlayer {
-    return commonPlayerInstance(
-        PlayerInstantiateSettings(
-            world,
-            LOD_POS,
-            data.general.displayName,
-            MovementStatus(
-                intention = data.speedIntention,
-                stamina = data.stamina
+    return with(world) {
+        commonPlayerInstance(
+            PlayerInstantiateSettings(
+                world,
+                LOD_POS,
+                data.general.displayName,
+                MovementStatus(
+                    intention = data.speedIntention,
+                    stamina = data.stamina
+                ),
+                data.attributes,
+                developerModeStatus = developerModeStatus,
+                skinEyeY = data.skinEyeY
             ),
-            data.attributes,
-            developerModeStatus = developerModeStatus,
-            skinEyeY = data.skinEyeY
-        ),
-        id
-    ).also { it.isLowDetailed = false }
+            id
+        ).also { it.isLowDetailed = false }
+    }
 }
 
 fun World.tickActionSyncSystem(handler: ClientHandler) {

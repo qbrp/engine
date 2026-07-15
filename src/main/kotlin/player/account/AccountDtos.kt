@@ -1,4 +1,4 @@
-package org.lain.engine.client.account
+package org.lain.engine.player.account
 
 import kotlinx.serialization.Serializable
 
@@ -17,6 +17,6 @@ data class AccountResponse(
     val id: String,
     val nickname: String,
     val registeredAt: String,
-    val characters: List<CharacterResponse> = emptyList(),
+    val characters: List<CharacterData> = emptyList(),
 )
 

@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - В многопользовательской игре показывает загруженных клиентом игроков, включая главного
  * - В выделенном сервере показывает всех игроков
  *
- * @see org.lain.engine.CommonEngineServerMod
+ * @see org.lain.engine.CommonEngineMod
  */
 class EntityTable {
     // Только для сервера

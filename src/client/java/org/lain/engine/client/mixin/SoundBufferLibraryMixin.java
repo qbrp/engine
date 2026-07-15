@@ -3,7 +3,7 @@ package org.lain.engine.client.mixin;
 import com.mojang.blaze3d.audio.SoundBuffer;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.resources.Identifier;
-import org.lain.engine.CommonEngineServerMod;
+import org.lain.engine.CommonEngineMod;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,7 +28,7 @@ public class SoundBufferLibraryMixin {
             cancellable = true
     )
     public void engine$loadStatic(Identifier id, CallbackInfoReturnable<CompletableFuture<SoundBuffer>> cir) {
-        if (Objects.equals(id.getNamespace(), CommonEngineServerMod.MOD_ID) && !id.getPath().startsWith("sounds/builtin")) {
+        if (Objects.equals(id.getNamespace(), CommonEngineMod.MOD_ID) && !id.getPath().startsWith("sounds/builtin")) {
             cir.setReturnValue(
                 loadEngineStaticSound(
                     ClientMixinAccess.INSTANCE.getAssets(),

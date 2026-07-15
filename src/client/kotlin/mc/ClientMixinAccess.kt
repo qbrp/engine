@@ -9,9 +9,7 @@ import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.Avatar
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
-import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.account.AccountState
 import org.lain.engine.client.chat.AcceptedMessage
@@ -32,6 +30,8 @@ import org.lain.engine.mc.engine
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
+import org.lain.engine.player.get
+import org.lain.engine.player.require
 import org.lain.engine.player.interaction.processLeftClickInteraction
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.injectEntityTable
