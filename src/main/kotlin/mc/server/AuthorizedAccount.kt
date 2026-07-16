@@ -3,7 +3,7 @@ package org.lain.engine.mc.server
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.lain.engine.player.account.AccountResponse
-import org.lain.engine.player.account.CharacterData
+import org.lain.engine.player.account.CharacterDataResponse
 import java.net.http.HttpClient
 import java.time.Instant
 
@@ -18,7 +18,7 @@ open class AuthorizedAccount(
         }
     }
 
-    suspend fun getCharacter(id: String): CharacterData = withContext(Dispatchers.IO) {
+    suspend fun getCharacter(id: String): CharacterDataResponse = withContext(Dispatchers.IO) {
         checkValid()
         httpClient.getJson("characters/$id", bearerToken)
     }

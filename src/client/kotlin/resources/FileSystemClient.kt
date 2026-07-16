@@ -17,6 +17,7 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.server.ServerId
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.file.ENGINE_DIR
+import org.lain.engine.util.file.ensureExists
 import org.lain.engine.util.file.getBuiltinResource
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -24,6 +25,10 @@ import java.util.concurrent.atomic.AtomicReference
 
 fun getServerFile(serverId: ServerId) = ENGINE_DIR
     .resolve(serverId.value)
+
+val SKINS_DIR = ENGINE_DIR
+    .resolve("skins")
+    .also { it.mkdirs() }
 
 @JvmInline
 value class SourceFile(val file: File) {

@@ -3,12 +3,7 @@ package org.lain.engine.mc.server
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.withContext
-import org.lain.engine.player.account.AccountResponse
-import org.lain.engine.player.account.CharacterData
 import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
 import java.time.Duration
 import java.time.Instant
 

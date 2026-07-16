@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
@@ -37,6 +38,7 @@ import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
+import org.lain.engine.client.render.ui.CharacterSelectionScreen
 import org.lain.engine.client.render.ui.initializeGraphene
 import org.lain.engine.client.render.ui.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
@@ -45,15 +47,18 @@ import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.world.registerWorldRenderEvents
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.sendC2SPacket
+import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.WritableOpen
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.mc.server.EngineHttpClient
 import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.server.EngineServer
 import org.lain.engine.mc.server.serverMinecraftPlayerLoadSettings
+import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
@@ -80,7 +85,6 @@ class EngineMinecraftClient : ClientModInitializer {
     private val decalsStorage: DecalSystem = DecalSystem()
     private val eventBus = MinecraftEngineClientEventBus(client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
-    private val engineHttpClient = ClientEngineAccountService()
     private val engineClient = EngineClient(
         window,
         camera,
@@ -88,7 +92,7 @@ class EngineMinecraftClient : ClientModInitializer {
         audioManager,
         uiRenderPipeline,
         eventBus,
-        engineHttpClient
+        EngineHttpClient()
     )
         .also { Injector.register(it) }
 
@@ -363,10 +367,15 @@ class EngineMinecraftClient : ClientModInitializer {
         }
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             try {
-                val account = engineClient.accountManager.getAuthorized() ?: friendlyError("Вы не авторизованы")
+                val accountManager = engineClient.accountManager
+                val account = accountManager.getAuthorized()?.getAccount()
+                    ?: accountManager.lastAccountResponse
+                    ?: friendlyError("Вы не авторизованы")
                 engine.playerLoader.loadPreparing(
                     settings = settings,
-                    account = PlayerLoadSettings.Account(account.getCharacter("test")),
+                    account = PlayerLoadSettings.Account(
+                        awaitCharacterSelection(account.characters.map { it.map() }) ?: return@launch
+                    ),
                     exceptionHandler = exceptionHandler
                 )
             } catch (e: Exception) {
@@ -384,6 +393,18 @@ class EngineMinecraftClient : ClientModInitializer {
                     ""
                 )
             )
+    }
+
+    /**
+     * @return null если экран выбора персонажей был закрыт
+     */
+    private suspend fun awaitCharacterSelection(characters: List<EngineCharacter>): EngineCharacter? {
+        val screen = withContext(MinecraftClientDispatcher) {
+            val screen = CharacterSelectionScreen(characters, engineClient.skinTextureManager)
+            client.setScreen(screen)
+            screen
+        }
+        return screen.awaitCharacterSelection()
     }
 
     private fun disconnectWithReason(text: Text) {

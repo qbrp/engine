@@ -56,6 +56,10 @@ object ClientMixinAccess {
         MinecraftClient.setScreen(TestGrapheneScreen(client))
     }
 
+    fun onYamlConfigScreenClosed() {
+        client.onOptionsUpdate()
+    }
+
     fun setDiscordAuthorizationScreen() {
         MinecraftClient.setScreen(DiscordAuthorizationScreen(client))
     }

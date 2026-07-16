@@ -181,6 +181,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
                 engine.playerLoader.loadPreparing(
                     settings = settings,
+                    account = PlayerLoadSettings.Account(null),
                     exceptionHandler = {},
                 )
             }

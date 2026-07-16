@@ -15,6 +15,12 @@ class EngineYamlConfig(
         ConfigType.CLIENT
     )
 ) : EngineOptions {
+    init { builder.push("connection") }
+
+    private val skinDownloadRetryDelayOption = builder.defineInteger("skin_download_retry_delay", 15, 3, 180)
+
+    init { builder.pop() }
+
     init { builder.push("auth") }
 
     private val autoLoginProperty = builder.defineBoolean("auto_login", false)
@@ -101,6 +107,9 @@ class EngineYamlConfig(
         set(value) {
             autoLoginProperty.set(value)
         }
+
+    override val skinDownloadRetryDelay: Int
+        get() = skinDownloadRetryDelayOption.get()
 
     val config: IConfig = builder.build()
 }

@@ -3,6 +3,7 @@ package org.lain.engine.util.component
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.engine.server.EngineServer
 import org.lain.engine.world.World
 
 class EntityCommandBuffer(
@@ -10,8 +11,11 @@ class EntityCommandBuffer(
     private val commands: MutableList<(WriteComponentAccess) -> Unit> = mutableListOf(),
 ) : WriteComponentAccess {
 
-    fun schedule(statement: WriteComponentAccess.() -> Unit) {
-        commands.add(statement)
+    fun schedule(server: EngineServer, statement: (WriteComponentAccess.() -> Unit)? = null) {
+        server.execute {
+            apply(world)
+            statement?.invoke(this)
+        }
     }
 
     override fun <T : Component> removeComponent(

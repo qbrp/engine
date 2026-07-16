@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
+import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.ClientHandler
@@ -17,6 +18,7 @@ import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
+import org.lain.engine.mc.server.EngineHttpClient
 import org.lain.engine.player.developerMode
 import org.lain.engine.script.*
 import org.lain.engine.script.lua.EngineLuaGlobals
@@ -35,7 +37,7 @@ class EngineClient(
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
     val eventBus: ClientEventBus,
-    private val http: ClientEngineAccountService
+    httpClient: EngineHttpClient,
 ) {
     val namespacedStorage: NamespacedStorageAccess = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
     lateinit var options: EngineOptions
@@ -43,7 +45,8 @@ class EngineClient(
     val handler = ClientHandler(this, eventBus)
     val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
-    val accountManager: AccountManager = AccountManager(http)
+    val accountManager: AccountManager = AccountManager(ClientEngineAccountService(httpClient))
+    val skinTextureManager = SkinTextureManager(httpClient.rest)
 
     val resources
         get() = resourceManager.context
@@ -82,7 +85,11 @@ class EngineClient(
     var luaContext: ClientLuaContext? = null
 
     init {
-        CoroutineScope(Dispatchers.IO).launch { accountManager.autoLoginAsync() }
+         accountManager.autoLoginAsync()
+    }
+
+    fun onOptionsUpdate() {
+        skinTextureManager.onOptions(options)
     }
 
     fun compileScripts(): CompilationResult {

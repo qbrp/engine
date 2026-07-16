@@ -18,4 +18,5 @@ interface EngineOptions {
     val hotbarIndicatorsVisible: Boolean
     val labelEasingDistance: Int
     var autoLogin: Boolean
+    val skinDownloadRetryDelay: Int
 }

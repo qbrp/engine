@@ -24,9 +24,8 @@ import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.Executors
 
-class ClientEngineAccountService {
+class ClientEngineAccountService(private val httpClient: EngineHttpClient) {
     private val logger = LoggerFactory.getLogger("Engine Backend Client")
-    private val httpClient = EngineHttpClient()
     private var server: LocalAuthorizationServer? = null
 
     inner class OAuth2Authorization internal constructor(

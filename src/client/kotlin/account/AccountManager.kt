@@ -4,11 +4,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.mc.server.RefreshToken
 import org.lain.engine.player.account.AccountResponse
 import java.time.Duration
@@ -24,7 +26,7 @@ class AccountManager(
     private val httpClient: ClientEngineAccountService,
 ) {
     private val mutex = Mutex()
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     @Volatile
     var lastAccountResponse: AccountResponse? = AccountResponseCache.load()
@@ -116,7 +118,11 @@ class AccountManager(
                 val authorized = httpClient.authorizeRefreshToken(token.get())
                 onAuthorized(authorized)
                 return@launch
+            } catch (e: HttpStatusException) {
+                state = ConnectionState.Unauthorized
+                throw e
             } catch (e: CancellationException) {
+                state = ConnectionState.Unauthorized
                 throw e
             } catch (e: Exception) {
                 state = ConnectionState.Unauthorized

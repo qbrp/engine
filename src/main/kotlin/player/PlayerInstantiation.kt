@@ -6,20 +6,19 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
-import org.lain.cyberia.ecs.set
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.createContainer
 import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.mc.commands.friendlyError
-import org.lain.engine.player.account.CharacterData
+import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.applyCharacter
 import org.lain.engine.player.character.getDisplay
 import org.lain.engine.player.character.getPhysical
 import org.lain.engine.player.character.initializeCharacterPhysicalComponents
 import org.lain.engine.player.character.setCharacterDisplayComponents
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.player.set
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.server.*
@@ -27,7 +26,6 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.EntityCommandBuffer
-import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -49,8 +47,7 @@ data class PlayerInstantiateSettings(
     val developerModeStatus: DeveloperModeStatus,
     val items: Set<EngineItem> = setOf(),
     val skinEyeY: Float = 0f,
-    val replayViewer: Boolean = false,
-    val entityId: EntityId? = null
+    val replayViewer: Boolean = false
 )
 
 data class DefaultPlayerAttributes(
@@ -68,7 +65,7 @@ fun commonPlayerInstance(
     settings: PlayerInstantiateSettings,
     id: PlayerId
 ): EnginePlayer {
-    val entity = settings.entityId ?: settings.world.addEntity()
+    val entity =  settings.world.addEntity()
         .apply {
             setComponent(Location(settings.pos))
             setComponent(Velocity())
@@ -141,15 +138,13 @@ data class PlayerLoadSettings(
     val world: World,
     val isReplayViewer: Boolean = false
 ) {
-    data class Account(val character: CharacterData)
+    data class Account(val character: EngineCharacter?)
 }
 
 class PlayerLoader(
     private val server: EngineServer,
     private val itemLoader: ItemLoader,
 ) {
-    private val commandBuffers = ConcurrentLinkedQueue<Pair<WorldId, EntityCommandBuffer>>()
-
     private suspend fun <R> ((Throwable) -> Unit).runCatchingSuspend(block: suspend () -> R): R? {
         return kotlin.runCatching { block() }
             .onFailure {
@@ -169,7 +164,7 @@ class PlayerLoader(
 
     suspend fun loadPreparing(
         settings: PlayerLoadSettings,
-        account: PlayerLoadSettings.Account? = null,
+        account: PlayerLoadSettings.Account,
         exceptionHandler: (Throwable) -> Unit
     ) {
         if (server.playerStorage.get(settings.playerId) != null) {
@@ -188,28 +183,20 @@ class PlayerLoader(
         } ?: return
         val location = Location(settings.initialPosition)
         with(EntityCommandBuffer(world)) {
-            val entity = world.addEntity()
             val player = exceptionHandler.runCatchingSuspend {
                 serverPlayerInstance(
                     world,
                     settings,
                     inventoryLoadResult,
-                    entity,
                     persistent
                 )
             } ?: return
 
-            val character = account?.character ?: run {
-                exceptionHandler(IllegalStateException("Player account character is required"))
-                return
-            }
-            val persistentCharacterData = persistent?.characters[character.profile.id]
-            val persistentCharacterPhysicalComponents = persistentCharacterData?.components
+            val character = account.character
+            val persistentCharacterData = persistent?.characters[character?.profile?.id]
+            character?.let { player.applyCharacter(it, persistentCharacterData) }
 
-            if (persistentCharacterData == null) player.initializeCharacterPhysicalComponents(character.getPhysical())
-            player.setCharacterDisplayComponents(character.getDisplay())
-
-            val componentsToLoad = persistent?.components.orEmpty() + persistentCharacterPhysicalComponents.orEmpty()
+            val componentsToLoad = persistent?.components.orEmpty()
             player.prepareContainers(Uuid.next(), location, inventoryLoadResult.equipmentItems)
             player.entity.copyComponentDtoState(componentsToLoad) {
                 toDomainWithoutRelationships(
@@ -217,9 +204,8 @@ class PlayerLoader(
                     server.namespacedStorage
                 )
             }
-            schedule {
+            schedule(server) {
                 exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications, location.position) }
-                apply(world)
             }
         }
     }
@@ -229,7 +215,6 @@ class PlayerLoader(
         world: World,
         settings: PlayerLoadSettings,
         inventoryItemsLoadResult: InventoryItemsLoadResult,
-        entityId: EntityId,
         persistentPlayerData: PersistentPlayerData?,
     ): EnginePlayer {
         return serverPlayerInstance(
@@ -251,7 +236,6 @@ class PlayerLoader(
                 inventoryItemsLoadResult.inventoryItems.toSet(),
                 persistentPlayerData?.skinEyeY ?: 0f,
                 settings.isReplayViewer,
-                entityId,
             ),
             persistentPlayerData,
             server.globals.defaultPlayerAttributes,
@@ -291,12 +275,6 @@ class PlayerLoader(
         }
 
         InventoryItemsLoadResult(inventoryItems.await(), equipment.await())
-    }
-
-    fun applyCommands(world: World) {
-        commandBuffers.forEach { (worldId, buffer) ->
-            if (world.id == worldId) buffer.apply(world)
-        }
     }
 }
 

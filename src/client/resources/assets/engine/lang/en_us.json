@@ -3,6 +3,8 @@
   "yamlconfig.engine.engine-config": "Настройки клиента",
   "yamlconfig.engine.engine-config.auth": "Авторизация",
   "yamlconfig.engine.engine-config.auth.auto_login": "Автоматически входить в аккаунт по сохранённому токену",
+  "yamlconfig.engine.engine-config.connection": "Соединение",
+  "yamlconfig.engine.engine-config.connection.skin_download_retry_delay": "Задержка повтора скачивания скина",
   "yamlconfig.engine.engine-config.ui": "Интерфейс",
   "yamlconfig.engine.engine-config.ui.indicator-visible": "Показывать ванильный индикатор атаки",
   "yamlconfig.engine.engine-config.ui.hotbar-visible": "Показывать индикаторы хотбара",

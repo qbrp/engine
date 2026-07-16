@@ -17,6 +17,6 @@ data class AccountResponse(
     val id: String,
     val nickname: String,
     val registeredAt: String,
-    val characters: List<CharacterData> = emptyList(),
+    val characters: List<CharacterDataResponse> = emptyList(),
 )
 

@@ -240,7 +240,9 @@ class ServerAuthorizationListener(
 
         val settings = engine.serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications)
         coroutineScope.launch {
-            val character = httpClient.getAuthorized(ticket).getCharacter(selectedCharacter)
+            val character = httpClient.getAuthorized(ticket)
+                .getCharacter(selectedCharacter)
+                .map()
             engine.playerLoader.loadPreparing(
                 settings = settings,
                 account = PlayerLoadSettings.Account(character),

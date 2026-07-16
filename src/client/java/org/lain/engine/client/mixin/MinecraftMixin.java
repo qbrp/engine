@@ -1,5 +1,6 @@
 package org.lain.engine.client.mixin;
 
+import com.daqem.yamlconfig.client.gui.screen.ConfigScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Overlay;
 import net.minecraft.client.gui.screens.Screen;
@@ -28,6 +29,10 @@ public abstract class MinecraftMixin {
     @Shadow
     public abstract void setScreen(@org.jspecify.annotations.Nullable Screen screen);
 
+    @Shadow
+    @org.jspecify.annotations.Nullable
+    public Screen screen;
+
     @Inject(
             method = "setOverlay",
             at = @At("HEAD")
@@ -35,6 +40,16 @@ public abstract class MinecraftMixin {
     public void engine$showGrapheneTestScreen(Overlay overlay, CallbackInfo ci) {
         if (this.overlay instanceof GrapheneNativeDownloadOverlay && overlay == null && GrapheneCore.isInitialized()) {
             ClientMixinAccess.INSTANCE.setGrapheneTestScreen();
+        }
+    }
+
+    @Inject(
+            method = "setScreen",
+            at = @At("HEAD")
+    )
+    public void engine$invokeOptionsChangedListener(Screen screen, CallbackInfo ci) {
+        if (this.screen instanceof ConfigScreen && screen == null) {
+            ClientMixinAccess.INSTANCE.onYamlConfigScreenClosed();
         }
     }
 
