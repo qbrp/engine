@@ -305,8 +305,7 @@ class ServerHandler(
 
             val worldState = world.state
             val worldEntityComponentsToSync = when(state.worldSynced) {
-                true -> worldComponents.getOrCreateEmptyDeltaBitMask(worldState)
-                    .let { bitMask -> worldState.getAll(bitMask) }
+                true -> worldComponents.getDirtyNetworkedComponents(worldState)
                 false -> worldComponents.getNetworkedComponents(worldState)
             }
             if (worldEntityComponentsToSync.isNotEmpty()) {
@@ -324,11 +323,9 @@ class ServerHandler(
             val entitiesInRadius: HashSet<PersistentId> = hashSetOf()
             val playerUsername = player.username
             world.iterate<Networked, Location, PersistentIdComponent>() { entity, _, entityLocation, (persistentId) ->
-                if (entity.hasComponent<Player>()) return@iterate
                 if (entityLocation.position.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
                     val componentsToSynchronize = if (state.entities.contains(persistentId)) {
-                        val delta = worldComponents.getOrCreateEmptyDeltaBitMask(entity)
-                        entity.getAll(delta)
+                        worldComponents.getDirtyNetworkedComponents(entity)
                     } else {
                         worldComponents.getNetworkedComponents(entity)
                     }
@@ -366,8 +363,7 @@ class ServerHandler(
             world.iterate<Networked, DynamicVoxelInterest, ChunkedPos> { voxel, _, _, (chunkPos, voxelPos, centerPos) ->
                 if (centerPos.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
                     val componentsToSynchronize = if (state.voxels.contains(voxelPos)) {
-                        val delta = worldComponents.getOrCreateEmptyDeltaBitMask(voxel)
-                        voxel.getAll(delta)
+                        worldComponents.getDirtyNetworkedComponents(voxel)
                     } else {
                         worldComponents.getNetworkedComponents(voxel)
                     }

@@ -4,14 +4,18 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.apply
+import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
+import org.lain.engine.player.isInGameMasterMode
+import org.lain.engine.player.isSpectating
 import org.lain.engine.server.markDirty
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.math.smootherstep
 import org.lain.engine.util.math.smoothstep
+import org.lain.engine.world.World
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -95,47 +99,41 @@ fun speedMul(
 
 fun maxSpeedMul(settings: MovementSettings) = speedMul(1f, 1f, true, settings)
 
-fun updatePlayerMovement(
-    player: EnginePlayer,
+fun World.tickMovementSystem(
     primaryAttributes: MovementDefaultAttributes,
     settings: MovementSettings,
-    isClient: Boolean = false
-) = with(player.world) {
-    val entity = player.entity
-    val isSpectating = player.isSpectating
-    val isGameMaster = player.isInGameMasterMode
+) = iterate<MovementStatus, PlayerAttributes, Velocity>() { entity, movement, attributes, velocity ->
+    val isSpectating = entity.requireComponent<Spectating>().enabled
+    val isGameMaster = entity.requireComponent<GameMaster>().enabled
 
     val status = PlayerStatus.of(isGameMaster, isSpectating)
     val defaultSpeed = primaryAttributes.getPrimarySeed(status) ?: 0.055f
-    val attributes = entity.requireComponent<PlayerAttributes>()
     val speedAttribute = attributes.speed.default
-    val velocityHorizontal = entity.requireComponent<Velocity>().motion.horizontal().length()
+    val velocityHorizontal = velocity.motion.horizontal().length()
 
-    val minSpeed = settings.minSpeedFactor
+    val minSpeedFactor = settings.minSpeedFactor
     val staminaRegen = settings.staminaRegen
     val staminaConsume = settings.staminaConsumption
 
     attributes.jumpStrength.default = primaryAttributes.getPrimaryJumpStrength(status) ?: 0.55f
 
-    entity.requireComponent<MovementStatus>().apply {
-        val minSpeed = defaultSpeed * minSpeed
-        val maxSpeed = defaultSpeed * maxSpeedMul(settings)
+    val minSpeed = defaultSpeed * minSpeedFactor
+    val maxSpeed = defaultSpeed * maxSpeedMul(settings)
 
-        attributes.speed.default = if (isSpectating) {
-            defaultSpeed
+    attributes.speed.default = if (isSpectating) {
+        defaultSpeed
+    } else {
+        movement.stamina = if (!isGameMaster) {
+            val jumpConsume = if (entity.removeComponent<Jump>() != null) settings.jumpStaminaConsume else 0f
+            val movementConsume = abs(velocityHorizontal) / maxSpeed * staminaConsume
+            (movement.stamina + staminaRegen - movementConsume - jumpConsume).coerceIn(0f, 1f)
         } else {
-            stamina = if (!isGameMaster) {
-                val jumpConsume = if (entity.removeComponent<Jump>() != null) settings.jumpStaminaConsume else 0f
-                val movementConsume = abs(velocityHorizontal) / maxSpeed * staminaConsume
-                (stamina + staminaRegen - movementConsume - jumpConsume).coerceIn(0f, 1f)
-            } else {
-                1f
-            }
-
-            val maxSpeed = attributes.maxSpeed.get()
-            val minSpeed = min(minSpeed, maxSpeed)
-            val target = (defaultSpeed * speedMul(intention, stamina, isSprinting, settings)).coerceIn(minSpeed, maxSpeed)
-            lerp(speedAttribute, target, 0.2f)
+            1f
         }
+
+        val maxSpeed = attributes.maxSpeed.get()
+        val minSpeed = min(minSpeed, maxSpeed)
+        val target = (defaultSpeed * speedMul(movement.intention, movement.stamina, movement.isSprinting, settings)).coerceIn(minSpeed, maxSpeed)
+        lerp(speedAttribute, target, 0.2f)
     }
 }

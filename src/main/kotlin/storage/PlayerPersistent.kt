@@ -3,10 +3,8 @@ package org.lain.engine.storage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import net.fabricmc.loader.impl.lib.sat4j.minisat.constraints.cnf.Lits
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerSlots
 import org.lain.engine.player.*
@@ -91,11 +89,11 @@ fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
                 voiceLoose = player.get<VoiceLoose>()?.copy(),
                 chatHeads = player.chatHeadsEnabled,
                 equipment = equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentIdComponent>().id },
-                skinEyeY = player.require<PlayerModel>().skinEyeY,
+                skinEyeY = player.require<EnginePlayerModel>().skinEyeY,
                 components = componentManager.getSavableComponents(player.entity).map { it.toSnapshotDto() },
                 characters = player.get<AppliedCharacters>()
                     ?.characters
-                    ?.associateWith { PersistentPlayerData.Character(emptyList()) }
+                    ?.mapValues { (id, state) -> PersistentPlayerData.Character(state.components) }
                     ?: emptyMap()
             )
         )

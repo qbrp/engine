@@ -10,6 +10,10 @@ import org.lain.engine.player.Outfit
 import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerContainerTag
 import org.lain.engine.player.PlayerEquipment
+import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.player.character.CharacterDisplay
+import org.lain.engine.player.character.CharacterPhysical
+import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.script.ScriptComponent
@@ -130,4 +134,9 @@ fun ComponentTypeRegistry.registerComponents() {
 
     registerComponent<DebugName>(isNetworking = true, isSavable = true)
     registerComponent<ActionSyncEvent>(isNetworking = true)
+
+    registerComponent<CharacterDisplay>(isNetworking = true)
+    registerComponent<CharacterPhysical>(isNetworking = true)
+    registerComponent<AppliedCharacter>(isNetworking = true)
+    registerComponent<SelectedLook>(isNetworking = true)
 }

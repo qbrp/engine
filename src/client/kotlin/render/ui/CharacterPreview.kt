@@ -10,14 +10,12 @@ import net.minecraft.world.entity.player.PlayerModelType
 import net.minecraft.world.entity.player.PlayerSkin
 import net.minecraft.world.item.ItemStack
 
-data class CharacterSkin(val asset: ClientAsset.Texture, val model: PlayerModelType)
-
-fun createCharacterRenderState(
-    skin: CharacterSkin,
+fun createCharacterPreviewRenderState(
+    skin: PlayerSkin,
     scale: Float,
 ): AvatarRenderState {
     return AvatarRenderState().apply {
-        this.skin = PlayerSkin(skin.asset, null, null, skin.model, true)
+        this.skin = skin
         this.scale = scale
         ageScale = scale
         boundingBoxWidth = 0.6f

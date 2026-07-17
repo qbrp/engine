@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.entity.RenderLayerParent
 import net.minecraft.client.renderer.entity.layers.RenderLayer
 import net.minecraft.client.renderer.entity.state.AvatarRenderState
 import net.minecraft.client.renderer.texture.OverlayTexture
+import org.lain.engine.client.render.player.getEngineState
 
 class EquipmentFeatureRenderer(
     context: RenderLayerParent<AvatarRenderState, PlayerModel>,

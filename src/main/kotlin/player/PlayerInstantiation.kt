@@ -12,12 +12,9 @@ import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.player.character.AppliedCharacters
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.applyCharacter
-import org.lain.engine.player.character.getDisplay
-import org.lain.engine.player.character.getPhysical
-import org.lain.engine.player.character.initializeCharacterPhysicalComponents
-import org.lain.engine.player.character.setCharacterDisplayComponents
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.prepareLuaScriptComponents
@@ -26,12 +23,11 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.EntityCommandBuffer
+import org.lain.engine.util.component.Networked
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
 import java.util.*
-import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.apply
 
 data class Player(val obj: EnginePlayer) : Component
@@ -70,7 +66,7 @@ fun commonPlayerInstance(
             setComponent(Location(settings.pos))
             setComponent(Velocity())
             setComponent(Orientation())
-            setComponent(PlayerModel(skinEyeY = settings.skinEyeY))
+            setComponent(EnginePlayerModel(skinEyeY = settings.skinEyeY))
             setComponent(OrientationTranslation(0f, 0f))
             setComponent(PlayerInventory(settings.items.toMutableSet()))
             setComponent(ArmStatus(false))
@@ -112,6 +108,8 @@ fun serverPlayerInstance(
         setComponent(PlayerNetworkState(false))
         //require<PlayerAttributes>().gravity.default = defaults.gravity
         setComponent(AcousticMessageQueue(LinkedList()))
+        setComponent(AppliedCharacters(mutableMapOf()))
+        setComponent(Networked)
     }
     return player
 }

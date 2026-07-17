@@ -7,6 +7,7 @@ import org.lain.engine.client.MinecraftEngineClientEventBus
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.legacy.TextCache
+import org.lain.engine.client.render.player.updatePlayerEntityRenderStates
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.square
 import org.lain.engine.mc.voxelPos

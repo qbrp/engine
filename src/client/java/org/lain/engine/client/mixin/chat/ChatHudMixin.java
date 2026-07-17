@@ -16,6 +16,7 @@ import net.minecraft.util.CommonColors;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.entity.player.PlayerSkin;
 import org.jspecify.annotations.NonNull;
 import org.lain.engine.client.chat.AcceptedMessage;
 import org.lain.engine.client.chat.ClientMessagesKt;

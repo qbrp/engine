@@ -46,7 +46,9 @@ fun lowDetailedClientPlayerInstance(
                 developerModeStatus = DeveloperModeStatus()
             ),
             id
-        ).also { it.isLowDetailed = true }
+        ).also {
+            it.isLowDetailed = true
+        }
     }
 }
 

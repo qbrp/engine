@@ -32,6 +32,7 @@ fun EngineCharacter.getPhysical(): CharacterPhysical {
     )
 }
 
+@Serializable
 data class CharacterPhysical(
     val bodyType: BodyType,
     val sex: BiologicalSex

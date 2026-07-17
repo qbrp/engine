@@ -15,6 +15,7 @@ import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.MAP
 import org.lain.engine.client.render.WARNING
+import org.lain.engine.client.render.tickSkinSystem
 import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.script.updateClientServerboundChannelSystem
 import org.lain.engine.client.util.LittleNotification
@@ -248,9 +249,9 @@ class GameSession(
                     player.isLowDetailed = false
                 }
 
-                updatePlayerMovement(player, movementDefaultAttributes, movementSettings, true)
                 updateHearing(player)
             }
+            tickMovementSystem(movementDefaultAttributes, movementSettings)
 
             tickGunSystem()
             tickFireTimeSystem()
@@ -279,6 +280,8 @@ class GameSession(
             }
 
             flushEntityRpcMessageReceiver()
+
+            world.tickSkinSystem(client.skinTextureManager)
 
             endTickTaskExecutor.flush()
         }

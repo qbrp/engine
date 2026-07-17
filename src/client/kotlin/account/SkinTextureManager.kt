@@ -10,9 +10,7 @@ import kotlinx.coroutines.withContext
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.core.ClientAsset
-import net.minecraft.world.entity.player.PlayerModelType
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.ui.CharacterSkin
 import org.lain.engine.client.resources.SKINS_DIR
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.MinecraftClientDispatcher
@@ -20,7 +18,6 @@ import org.lain.engine.mc.engineId
 import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.player.character.Look
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -31,8 +28,6 @@ import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
-import javax.xml.datatype.Duration
-import kotlin.concurrent.atomics.AtomicReference
 
 class SkinTextureManager(
     private val httpClient: HttpClient
@@ -50,9 +45,9 @@ class SkinTextureManager(
         skinDownloadRetryDelay.set(options.skinDownloadRetryDelay)
     }
 
-    fun getSkin(look: Look, model: PlayerModelType): CharacterSkin {
+    fun getTexture(look: Look): ClientAsset.Texture {
         val cacheKey = cacheKey(look)
-        loaded[cacheKey]?.let { return CharacterSkin(it.asset, model) }
+        loaded[cacheKey]?.let { return it.asset }
 
         if (loading.add(cacheKey)) {
             scope.launch {
@@ -60,7 +55,7 @@ class SkinTextureManager(
             }
         }
 
-        return CharacterSkin(DefaultPlayerSkin.getDefaultSkin().body, model)
+        return DefaultPlayerSkin.getDefaultSkin().body
     }
 
     override fun close() {
@@ -91,7 +86,7 @@ class SkinTextureManager(
 
             register(cacheKey, file, look.skin.url)
         } catch (e: Throwable) {
-            logger.error("Failed to load character skin ${look.id} from ${look.skin.url}", e)
+            logger.error("Не удалось загрузить скин образа ${look.id} с ${look.skin.url}", e)
             delay(skinDownloadRetryDelay.toLong() * 1000L) // чтобы не делать слишком частые повторы
         } finally {
             loading.remove(cacheKey)
@@ -111,17 +106,17 @@ class SkinTextureManager(
 
         val contentType = response.headers().firstValue("Content-Type").orElse(null)
         if (contentType != null && !contentType.substringBefore(";").trim().startsWith("image/")) {
-            throw IllegalArgumentException("Skin response is not an image: $contentType")
+            throw IllegalArgumentException("Ответ сервера не является изображением: $contentType")
         }
 
         val contentLength = response.headers().firstValueAsLong("Content-Length")
         if (contentLength.isPresent && contentLength.asLong > maxSkinBytes) {
-            throw IllegalArgumentException("Skin response is too large: ${contentLength.asLong} bytes")
+            throw IllegalArgumentException("Ответ сервера слишком большой: ${contentLength.asLong} байт")
         }
 
         response.body().also { bytes ->
             if (bytes.size > maxSkinBytes) {
-                throw IllegalArgumentException("Skin response is too large: ${bytes.size} bytes")
+                throw IllegalArgumentException("Ответ сервера слишком большой: ${bytes.size} bytes")
             }
         }
     }
@@ -155,19 +150,19 @@ class SkinTextureManager(
 
     private fun validateSkinBytes(bytes: ByteArray) {
         if (bytes.isEmpty()) {
-            throw IllegalArgumentException("Skin image is empty")
+            throw IllegalArgumentException("Изображение скина пустое")
         }
         if (bytes.size > maxSkinBytes) {
-            throw IllegalArgumentException("Skin image is too large: ${bytes.size} bytes")
+            throw IllegalArgumentException("Изображение скина слишком большое: ${bytes.size} байт")
         }
 
         val image = runCatching { NativeImage.read(bytes) }
-            .getOrElse { throw IllegalArgumentException("Skin image cannot be decoded", it) }
+            .getOrElse { throw IllegalArgumentException("Невозможно декодировать изображение скина", it) }
 
         image.use {
             val validSize = (it.width == 64 && it.height == 64) || (it.width == 64 && it.height == 32)
             if (!validSize) {
-                throw IllegalArgumentException("Skin image has invalid size: ${it.width}x${it.height}")
+                throw IllegalArgumentException("Размер скина неправильный: ${it.width}x${it.height}")
             }
         }
     }

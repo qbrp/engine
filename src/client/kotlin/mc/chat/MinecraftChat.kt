@@ -2,10 +2,12 @@ package org.lain.engine.client.mc.chat
 
 import net.minecraft.client.GuiMessage
 import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.world.entity.player.PlayerSkin
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
+import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mc.parseMiniMessageClient
@@ -67,14 +69,13 @@ object MinecraftChat : ChatEventBus {
     fun registerEndpoints() {
         CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.registerClientReceiver {
             val gameSession = client.gameSession ?: return@registerClientReceiver
-            val playerListEntry = getPlayerInfo(player) ?: return@registerClientReceiver
             val enginePlayer = gameSession.playerStorage.get(player) ?: return@registerClientReceiver
 
             if (enginePlayer != gameSession.mainPlayer || client.developerMode) {
                 typingPlayers.add(
                     TypingPlayer(
                         player,
-                        playerListEntry.skin,
+                        ClientMixinAccess.getPlayerSkin(enginePlayer),
                         enginePlayer.displayNameText
                     )
                 )
@@ -88,10 +89,6 @@ object MinecraftChat : ChatEventBus {
             }
             typingPlayers.removeIf { player == it.id }
         }
-    }
-
-    private fun getPlayerInfo(id: PlayerId): PlayerInfo? {
-        return MinecraftClient.connection?.onlinePlayers?.find { it.profile.id == id.value }
     }
 
     fun onCloseChatInput() {

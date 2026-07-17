@@ -6,15 +6,16 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.renderer.entity.state.AvatarRenderState
-import net.minecraft.world.entity.Pose
+import net.minecraft.world.entity.player.PlayerSkin
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lain.engine.client.account.SkinTextureManager
+import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.mc.getText
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.Look
-import org.lain.engine.player.character.getSkinModel
+import org.lain.engine.player.character.computeCharacterModel
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -96,12 +97,13 @@ class CharacterSelectionScreen(
             val heightScale = character.profile.height.toFloat() * 0.5319149f
             val entityScale = BASE_ENTITY_SCALE * visualScale * heightScale
             val look = character.baseLook() ?: return@character
-            val model = character.profile.bodyType.getSkinModel(
+            val model = computeCharacterModel(
+                character.profile.bodyType,
                 character.profile.biologicalCategory,
                 character.profile.biologicalSex
             )
-            val renderState = createCharacterRenderState(
-                skinTextureManager.getSkin(look, model),
+            val renderState = createCharacterPreviewRenderState(
+                CharacterSkin(skinTextureManager.getTexture(look), model),
                 1f
             )
 

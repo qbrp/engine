@@ -1,24 +1,30 @@
 package org.lain.engine.client.mc
 
 import net.minecraft.client.model.player.PlayerModel
+import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.client.player.AbstractClientPlayer
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.client.renderer.entity.state.AvatarRenderState
+import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.Avatar
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.entity.player.PlayerSkin
 import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.account.ConnectionState
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
+import org.lain.engine.client.render.getSkin
+import org.lain.engine.client.render.player.RenderStateComponent
+import org.lain.engine.client.render.player.modelPartOf
+import org.lain.engine.client.render.player.setEngineState
+import org.lain.engine.client.render.player.update
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.TestGrapheneScreen
-import org.lain.engine.client.render.world.RenderStateComponent
-import org.lain.engine.client.render.world.modelPartOf
-import org.lain.engine.client.render.world.setEngineState
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
@@ -30,6 +36,7 @@ import org.lain.engine.mc.engine
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
+import org.lain.engine.player.PlayerId
 import org.lain.engine.player.get
 import org.lain.engine.player.require
 import org.lain.engine.player.interaction.processLeftClickInteraction
@@ -116,7 +123,17 @@ object ClientMixinAccess {
         val enginePlayer = entityTable.client.getPlayer(playerLikeEntity) ?: return
         val renderState = enginePlayer.get<RenderStateComponent>()?.renderState ?: return
         renderState.detachedEquipment.forEach { it.playerModelPart = modelPartOf(it.playerPart, model) }
+        playerEntityRenderState.update(enginePlayer)
         playerEntityRenderState.setEngineState(renderState)
+    }
+
+    fun getPlayerSkin(enginePlayer: EnginePlayer): PlayerSkin {
+        return enginePlayer.getSkin()
+    }
+
+    fun getPlayerSkin(player: PlayerInfo): PlayerSkin? {
+        val enginePlayer = client.gameSession?.getPlayer(PlayerId(player.profile.id))
+        return enginePlayer?.getSkin()
     }
 
     private val identifierCache = mutableMapOf<String, Identifier>()

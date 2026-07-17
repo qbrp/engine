@@ -3,13 +3,12 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.markDirty
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.require
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.EVec3
 import org.lain.engine.world.Location
 
 @Serializable
-data class PlayerModel(
+data class EnginePlayerModel(
     var scale: Float = 1f,
     var standingEyeHeight: Float = 0.8f,
     var height: Float = 1f,
@@ -19,19 +18,19 @@ data class PlayerModel(
 val EnginePlayer.eyePos: EVec3
     get() {
         val location = require<Location>()
-        val standingEyeHeight = require<PlayerModel>().standingEyeHeight
+        val standingEyeHeight = require<EnginePlayerModel>().standingEyeHeight
         return Vec3(location.x, location.y + standingEyeHeight, location.z)
     }
 
 var EnginePlayer.skinEyeY: Float
-    get() = this.require<PlayerModel>().skinEyeY
+    get() = this.require<EnginePlayerModel>().skinEyeY
     set(value) {
-        this.require<PlayerModel>().skinEyeY = value
-        markDirty<PlayerModel>()
+        this.require<EnginePlayerModel>().skinEyeY = value
+        markDirty<EnginePlayerModel>()
     }
 
 val EnginePlayer.height
-    get() = require<PlayerModel>().height
+    get() = require<EnginePlayerModel>().height
 
 enum class ArmPose {
     NEUTRAL, EXPOSE, HOLD_WEAPON

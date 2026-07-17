@@ -188,7 +188,7 @@ fun updatePlayerMinecraftSystems(
         pitch = entity.pitch
     }
 
-    player.requireComponent<PlayerModel>().apply {
+    player.requireComponent<EnginePlayerModel>().apply {
         scale = entity.scale
         standingEyeHeight = entity.eyeHeight
         height = entity.bodyHeight * scale
@@ -198,9 +198,10 @@ fun updatePlayerMinecraftSystems(
         isSprinting = entity.isSprinting
     }
 
+    val spectatingComponent = player.requireComponent<Spectating>()
+    val hasSpawnMark = player.hasComponent<SpawnMark>()
+    val hasSpectatorMark = player.hasComponent<StartSpectatingMark>()
     if (entity is ServerPlayer) {
-        val hasSpawnMark = player.hasComponent<SpawnMark>()
-        val hasSpectatorMark = player.hasComponent<StartSpectatingMark>()
         val gameMode = entity.currentGameMode
         val previousGameMode = entity.previousGameMode
 
@@ -217,12 +218,16 @@ fun updatePlayerMinecraftSystems(
             )
         }
 
+        if (!hasSpawnMark && !entity.isSpectator && spectatingComponent.enabled) {
+            entity.setGameMode(McGameModes.SPECTATOR)
+        }
+
         if (hasSpawnMark) player.removeComponent<SpawnMark>()
         if (hasSpectatorMark) player.removeComponent<StartSpectatingMark>()
     }
 
     player.requireComponent<GameMaster>().enabled = entity.isCreative
-    player.requireComponent<Spectating>().enabled = entity.isSpectator
+    spectatingComponent.enabled = entity.isSpectator
 
     val items = items.toMutableList()
     val playerMinecraftInventory = entity.inventory

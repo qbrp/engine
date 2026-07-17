@@ -1,0 +1,78 @@
+package org.lain.engine.client.render.player
+
+import net.minecraft.client.model.geom.ModelPart
+import net.minecraft.client.model.player.PlayerModel
+import net.minecraft.client.renderer.item.ItemStackRenderState
+import net.minecraft.core.component.DataComponents
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.requireComponent
+import org.lain.engine.client.render.item.EngineItemDisplayContext
+import org.lain.engine.client.render.item.engineOutfit
+import org.lain.engine.client.render.item.updateForLivingEntity
+import org.lain.engine.item.EngineItem
+import org.lain.engine.item.ItemAssets
+import org.lain.engine.mc.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.engineId
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.Outfit
+import org.lain.engine.player.PlayerPart
+import org.lain.engine.player.getOrSet
+import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.world.World
+
+data class EquipmentRenderState(
+    val itemRenderState: ItemStackRenderState,
+    val dependsEyeY: Boolean,
+    val playerPart: PlayerPart,
+    var playerModelPart: ModelPart? = null,
+)
+
+data class PlayerEquipmentItemStacks(val stacks: MutableMap<PersistentId, ItemStack>) : Component
+
+context(world: World)
+fun createModelPartEquipmentRenderStates(
+    items: List<EngineItem>,
+    entity: Player,
+    player: EnginePlayer
+): List<EquipmentRenderState> {
+    return items
+        .map {
+            val outfit = it.requireComponent<Outfit>()
+            val model = it.requireComponent<ItemAssets>()
+            val part = outfit.parts.first()
+            val state = ItemStackRenderState()
+            val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
+            val itemStack = equipmentStacks.computeIfAbsent(it.requireComponent<PersistentIdComponent>().id) {
+                val stack = ITEM_STACK_MATERIAL.copy()
+                stack.set(
+                    DataComponents.ITEM_MODEL,
+                    engineId(model.assets["default"] ?: "missingno")
+                )
+                stack
+            }
+            state.engineOutfit = outfit
+            updateForLivingEntity(
+                state,
+                itemStack,
+                if (part == PlayerPart.HEAD) EngineItemDisplayContext.HEAD else EngineItemDisplayContext.OUTFIT,
+                entity,
+            )
+            EquipmentRenderState(state, outfit.dependsEyeY, part)
+        }
+}
+
+fun modelPartOf(part: PlayerPart, model: PlayerModel): ModelPart = when (part) {
+    PlayerPart.HEAD -> model.head
+    PlayerPart.LEFT_ARM -> model.leftArm
+    PlayerPart.RIGHT_ARM -> model.rightArm
+    PlayerPart.LEFT_PALM -> model.leftArm
+    PlayerPart.RIGHT_PALM -> model.rightArm
+    PlayerPart.BODY -> model.body
+    PlayerPart.LEFT_LEG -> model.leftLeg
+    PlayerPart.RIGHT_LEG -> model.rightLeg
+    PlayerPart.LEFT_FEET -> model.leftLeg
+    PlayerPart.RIGHT_FEET -> model.rightLeg
+}

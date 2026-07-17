@@ -5,8 +5,8 @@ import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
-import org.lain.engine.client.render.world.EnginePlayerRenderState;
-import org.lain.engine.client.render.world.PlayerRenderingKt;
+import org.lain.engine.client.render.player.EnginePlayerRenderState;
+import org.lain.engine.client.render.player.PlayerRenderStateKt;
 import org.lain.engine.player.ArmPose;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -39,7 +39,7 @@ public abstract class HumanoidModelMixin {
     )
     private void engine$setAngles(HumanoidRenderState renderState, CallbackInfo ci) {
         if (renderState instanceof AvatarRenderState state) {
-            EnginePlayerRenderState playerRenderState = PlayerRenderingKt.getEngineState(state);
+            EnginePlayerRenderState playerRenderState = PlayerRenderStateKt.getEngineState(state);
             if (playerRenderState != null) {
                 ArmPose mainArmPose = playerRenderState.getMainArmPose();
                 ArmPose minorArmPose = playerRenderState.getMinorArmPose();

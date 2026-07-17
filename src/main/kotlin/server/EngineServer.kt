@@ -117,17 +117,19 @@ class EngineServer(
             world.prepareData()
 
             // Фаза 2.1. Обновление игрока
+            world.tickSpectatingSystem()
             world.tickPlayerInput()
 
             world.tickGunActionSystem()
             world.tickSocialActionSystem(playerStorage)
             world.tickWritableActionSystem()
 
+            world.tickMovementSystem(globals.defaultPlayerAttributes.movement, globals.movementSettings)
+
             world.players.forEach { player ->
                 handleEntityDebugView(handler, player) // Отсылаем слепок данных игроку
 
                 // Движение, голос
-                updatePlayerMovement(player, globals.defaultPlayerAttributes.movement, globals.movementSettings)
                 updatePlayerSpeaking(player, chat, vocalSettings)
                 updatePlayerVoice(player, chat, globals.vocalSettings)
 

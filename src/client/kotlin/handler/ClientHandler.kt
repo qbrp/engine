@@ -2,7 +2,6 @@ package org.lain.engine.client.handler
 
 import kotlinx.coroutines.*
 import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
@@ -224,7 +223,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         player.set(data.movementStatus)
         player.set(data.attributes)
         player.set(data.armStatus)
-        player.require<PlayerModel>().skinEyeY = data.skinEyeY
+        player.require<EnginePlayerModel>().skinEyeY = data.skinEyeY
         player.isLowDetailed = false
         client.eventBus.onFullPlayerData(client, player.id, data)
     }

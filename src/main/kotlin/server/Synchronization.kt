@@ -162,5 +162,5 @@ val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(Playe
 val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.ALL) { player, component ->
     with(player.world) { player.entity.setComponent(component.copy()) }
 }
-val PLAYER_MODEL_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerModel>(PlayerPredicate.ALL) { player, component -> player.require<PlayerModel>().skinEyeY = component.skinEyeY }
+val PLAYER_MODEL_SYNCHRONIZER = PlayerComponentSynchronizer<EnginePlayerModel>(PlayerPredicate.ALL) { player, component -> player.require<EnginePlayerModel>().skinEyeY = component.skinEyeY }
 val PLAYER_HEARING_SYNCHRONIZER = PlayerComponentSynchronizer<Hearing>(PlayerPredicate.SELF) { player, component -> player.require<Hearing>().tinnitus = component.tinnitus }

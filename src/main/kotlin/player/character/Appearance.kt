@@ -7,6 +7,7 @@ import org.lain.engine.player.ColoredChar
 import org.lain.engine.player.gradientText
 import org.lain.engine.util.Color
 
+@Serializable
 data class GenderParams(
     val breastSize: Float,
 )
@@ -25,10 +26,13 @@ data class Look(
     val base: Boolean,
 )
 
+@Serializable
+data class SelectedLook(var look: Look) : Component
 
 /**
  * Информация о персонаже, что может обновляться с сервера
  */
+@Serializable
 data class CharacterDisplay(
     val id: String,
     val name: CharacterName,
@@ -38,6 +42,7 @@ data class CharacterDisplay(
     val genderParams: GenderParams,
 ) : Component
 
+@Serializable
 data class CharacterName(
     val name: String,
     val firstColor: Color,
@@ -58,8 +63,12 @@ fun EngineCharacter.getDisplay(): CharacterDisplay {
     )
 }
 
-fun BodyType.getSkinModel(category: BiologicalCategory, sex: BiologicalSex): PlayerModelType {
-    fun default() = when(this) {
+fun computeCharacterModel(
+    bodyType: BodyType,
+    category: BiologicalCategory,
+    sex: BiologicalSex
+): PlayerModelType {
+    fun default() = when(bodyType) {
         BodyType.BROAD -> PlayerModelType.WIDE
         BodyType.NORMAL -> PlayerModelType.WIDE
         BodyType.SLIM -> PlayerModelType.SLIM
@@ -69,7 +78,7 @@ fun BodyType.getSkinModel(category: BiologicalCategory, sex: BiologicalSex): Pla
         BiologicalCategory.HUMAN, BiologicalCategory.HUMANLIKE_HUMANOID -> {
             when(sex) {
                 BiologicalSex.MALE, BiologicalSex.OTHER -> default()
-                BiologicalSex.FEMALE -> when(this) {
+                BiologicalSex.FEMALE -> when(bodyType) {
                     BodyType.NORMAL, BodyType.SLIM ->  PlayerModelType.SLIM
                     BodyType.BROAD ->  PlayerModelType.WIDE
                 }

@@ -24,7 +24,7 @@ class ComponentWorld(
     private val arraysList = ArrayList<ComponentArray<*>>()
     private val savableArrays = HashMap<String, ComponentArray<*>>()
     private val networkingArrays = HashMap<String, ComponentArray<*>>()
-    private val deltaBitMasks = ArrayList<LongArray?>()
+    private val dirtyComponentIndexesByEntity = HashMap<EntityId, MutableSet<Int>>()
 
     // Создание сущностей потокобезопасно. Добавление компонентов - нет
     private var destroyed = Collections.synchronizedList<Boolean>(mutableListOf())
@@ -57,7 +57,8 @@ class ComponentWorld(
                 networkingArrays.remove(id)
                 savableArrays.remove(id)
 
-                val arr = ComponentArray(arraysList.size, meta, type as ComponentType<Component>)
+                val arrayIndex = existingArray?.idx ?: arraysList.size
+                val arr = ComponentArray(arrayIndex, meta, type as ComponentType<Component>)
                 if (type == componentTypeOf(PersistentIdComponent::class)) {
                     arr.onAdded = { component, entity -> persistentIdToEntity[(component as PersistentIdComponent).id] = entity }
                     arr.onRemoved = { component, entity -> persistentIdToEntity.remove((component as PersistentIdComponent).id) }
@@ -75,7 +76,11 @@ class ComponentWorld(
                 }
 
                 arrays[id] = arr
-                arraysList += arr
+                if (existingArray == null) {
+                    arraysList += arr
+                } else {
+                    arraysList[arrayIndex] = arr
+                }
                 if (meta.savable) savableArrays[id] = arr
                 if (meta.networking) networkingArrays[id] = arr
             }
@@ -88,49 +93,23 @@ class ComponentWorld(
     }
 
     override fun markDirty(entity: EntityId, type: ComponentType<out Component>) {
-        getOrCreateEmptyDeltaBitMask(entity).markDirty(getComponentArray(type).idx)
+        checkOnThread()
+        require(exists(entity)) { "Entity $entity does not exist" }
+        val array = getComponentArray(type)
+        if (!array.meta.networking) return
+
+        dirtyComponentIndexesByEntity
+            .getOrPut(entity) { LinkedHashSet() }
+            .add(array.idx)
     }
 
     override fun invalidateStates(entity: EntityId) {
-        clearDirtyMask(entity)
+        clearDirtyComponents(entity)
     }
 
-    fun clearDirtyMask(entity: EntityId) {
-        val bitMask = getNetworkedDeltaBitMask(entity) ?: return
-        for (i in bitMask.indices) {
-            bitMask[i] = 0L
-        }
-    }
-
-    fun markDirtyIfBitMaskPreset(entity: EntityId, component: ComponentArray<*>) {
-        getDeltaBitMaskIfPreset(entity)?.markDirty(component.idx)
-    }
-
-    private fun LongArray.markDirty(idx: Int) {
-        val longIdx = bitMaskIdxOf(idx)
-        val bitIdx = idx and 63
-        val long = this[longIdx]
-        this[longIdx] = long or (1L shl bitIdx)
-    }
-
-    fun getDeltaBitMaskIfPreset(entity: EntityId): LongArray? {
+    fun clearDirtyComponents(entity: EntityId) {
         checkOnThread()
-        if (entity !in deltaBitMasks.indices) return null
-        val bitMask = deltaBitMasks[entity] ?: return null
-        return bitMask
-    }
-
-    fun getNetworkedDeltaBitMask(entityId: EntityId): LongArray? {
-        checkOnThread()
-        if (deltaBitMasks.size <= entityId) return null
-        return deltaBitMasks[entityId]
-    }
-
-    fun getOrCreateEmptyDeltaBitMask(entityId: EntityId): LongArray {
-        checkOnThread()
-        while(deltaBitMasks.size <= entityId) deltaBitMasks.add(null)
-        return getNetworkedDeltaBitMask(entityId) ?: createBitMask()
-            .also { mask -> deltaBitMasks[entityId] = mask }
+        dirtyComponentIndexesByEntity.remove(entity)
     }
 
     fun getNetworkedArrays(entityId: EntityId): List<ComponentArray<*>> {
@@ -158,6 +137,7 @@ class ComponentWorld(
     }
 
     fun getNetworkedComponents(entityId: EntityId): List<Component> {
+        checkOnThread()
         val output = mutableListOf<Component>()
         for (arr in networkingArrays.values) {
             val component = arr.componentOf(entityId)
@@ -168,10 +148,17 @@ class ComponentWorld(
         return output
     }
 
-    // Создаем массив из Long-ов, количество - общее число типов компонентов, делённое на 64 (сколько битов держит один Long)
-    private fun createBitMask() = LongArray((arrays.size + 63) shr 6)
-
-    private fun bitMaskIdxOf(idx: Int) = (idx shr 6)
+    fun getDirtyNetworkedComponents(entityId: EntityId): List<Component> {
+        checkOnThread()
+        val dirtyIndexes = dirtyComponentIndexesByEntity[entityId] ?: return emptyList()
+        val output = mutableListOf<Component>()
+        for (idx in dirtyIndexes) {
+            val array = arraysList.getOrNull(idx) ?: continue
+            if (!array.meta.networking) continue
+            array.componentOf(entityId)?.let { output += it }
+        }
+        return output
+    }
 
     fun collect(
         filters: List<ComponentType<out Component>>,
@@ -217,9 +204,7 @@ class ComponentWorld(
         synchronized(entityInstantiationLock) {
             freeIndexes.add(entity)
             destroyed[entity] = true
-            if (entity < deltaBitMasks.size) {
-                deltaBitMasks[entity] = null
-            }
+            dirtyComponentIndexesByEntity.remove(entity)
         }
     }
 

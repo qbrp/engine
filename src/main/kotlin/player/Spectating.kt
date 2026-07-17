@@ -3,9 +3,12 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.hasComponent
+import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.world.World
 
 object StartSpectatingMark : Component
@@ -31,4 +34,10 @@ val EnginePlayer.isSpectating: Boolean
 fun EnginePlayer.stopSpectating() = with(world) {
     entity.setComponent(SpawnMark)
     entity.removeComponent<StartSpectatingMark>()
+}
+
+fun World.tickSpectatingSystem() = iterate<Spectating>() { entity, spectating ->
+    if (!entity.hasComponent<AppliedCharacter>()) {
+        spectating.enabled = false
+    }
 }
