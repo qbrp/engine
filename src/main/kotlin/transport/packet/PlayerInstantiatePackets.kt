@@ -58,7 +58,8 @@ data class PlayerReferencedItems(
         context(world: World)
         fun of(player: EnginePlayer) = PlayerReferencedItems(
             player.items.map { it.requireComponent<PersistentIdComponent>().id },
-            player.world.getContainerItems(player.equipmentContainer).map { it.requireComponent<PersistentIdComponent>().id }
+            player.world.getContainerItems(player.equipmentContainer)
+                .map { it.requireComponent<PersistentIdComponent>().id }
         )
     }
 }
@@ -234,7 +235,11 @@ data class VerificationResponsePacket(
 val SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT = Endpoint<VerificationResponsePacket>()
 
 @Serializable
-data class GeneralServerData(val serverId: ServerId)
+data class GeneralServerData(
+    val serverId: ServerId,
+    val requireIdenticalNamespaces: Boolean,
+    val namespaceHashMap: NamespaceHashMap
+)
 
 @Serializable
 data class VerificationDataPacket(val server: GeneralServerData) : Packet

@@ -18,6 +18,8 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.Username
 import org.lain.engine.script.NamespaceHashMap
+import org.lain.engine.script.NamespaceHashMapValidationResult
+import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.Notification
 import org.lain.engine.server.network
 import org.lain.engine.transport.Endpoint
@@ -182,7 +184,11 @@ class ServerAuthorizationListener(
 
                 CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
                     VerificationDataPacket(
-                        GeneralServerData(engine.globals.serverId)
+                        GeneralServerData(
+                            engine.globals.serverId,
+                            engine.globals.requireIdenticalNamespaces,
+                            engine.namespacedStorage.get().namespaceHashMap
+                        )
                     ),
                     id
                 )
@@ -192,7 +198,7 @@ class ServerAuthorizationListener(
 
     private fun onVerificationResponse(
         developerModeStatus: DeveloperModeStatus,
-        playerNamespaces: NamespaceHashMap,
+        playerNamespaceHashMap: NamespaceHashMap,
         entity: ServerPlayer,
         playerId: PlayerId,
         selectedCharacter: String
@@ -201,34 +207,10 @@ class ServerAuthorizationListener(
         val connection = connectionManager.getSession(playerId)
         val ticket = connection.sessionTicket!!
         if (engine.globals.requireIdenticalNamespaces) {
-            val serverNamespacesHash = engine.namespacedStorage.get().namespaceHashMap
-
-            val missing = mutableListOf<String>()
-            val invalid = mutableListOf<String>()
-
-            for ((id, serverHash) in serverNamespacesHash) {
-                val clientHash = playerNamespaces[id]
-
-                when {
-                    clientHash == null -> missing += id.value
-                    clientHash != serverHash -> invalid += id.value
-                }
-            }
-
-            if (missing.isNotEmpty() || invalid.isNotEmpty()) {
-                val errorString = StringBuilder("<bold>Скрипты сервера отличаются от ваших</bold>")
-
-                if (missing.isNotEmpty()) {
-                    errorString.append("<newline>Отсутствуют: ")
-                    errorString.append(missing.joinToString())
-                }
-
-                if (invalid.isNotEmpty()) {
-                    errorString.append("<newline>Отличаются: ")
-                    errorString.append(invalid.joinToString())
-                }
-
-                friendlyError(errorString.toString())
+            val serverNamespacesHashMap = engine.namespacedStorage.get().namespaceHashMap
+            val validationResult = validateNamespaceHashMap(playerNamespaceHashMap, serverNamespacesHashMap)
+            if (validationResult is NamespaceHashMapValidationResult.Error) {
+                friendlyError(validationResult.computeErrorMessage())
             }
         }
         val username = connection.username

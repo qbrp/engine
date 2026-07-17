@@ -19,12 +19,15 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
+import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.*
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.EntityDebugData
+import org.lain.engine.script.NamespaceHashMapValidationResult
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
+import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.Notification
 import org.lain.engine.server.desync
 import org.lain.engine.storage.*
@@ -61,10 +64,19 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         CLIENTBOUND_VERIFICATION_ENDPOINT.registerClientReceiver { ctx ->
             client.createLuaContext(server.serverId)
             client.compileScripts()
+
+            val namespaceHashMap = client.namespacedStorage.get().namespaceHashMap
+            if (server.requireIdenticalNamespaces) {
+                val result = validateNamespaceHashMap(namespaceHashMap, server.namespaceHashMap)
+                if (result is NamespaceHashMapValidationResult.Error) {
+                    friendlyError(result.computeErrorMessage())
+                }
+            }
+
             SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
                 VerificationResponsePacket(
                     DeveloperModeStatus(client.developerMode, client.acousticDebug),
-                    client.namespacedStorage.get().namespaceHashMap,
+                    namespaceHashMap,
                     ""
                 )
             )
