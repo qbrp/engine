@@ -13,6 +13,7 @@ import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
+import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.MAP
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.tickSkinSystem
@@ -41,6 +42,7 @@ import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.toDomainSuspend
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.Color
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.INSPECTION_MODE_COLOR
 import org.lain.engine.util.Log
@@ -220,7 +222,6 @@ class GameSession(
             ticks++
             chatManager.tick()
 
-            val itemAccess = this@GameSession.itemStorage
             val players = playerStorage.getAll()
             world.players.clear()
             world.players.addAll(players)
@@ -230,7 +231,6 @@ class GameSession(
                 client.removeLittleNotification(SPECTATOR_NOTIFICATION)
             }
 
-            tickSpectatingSystem()
             tickPlayerModelSystem()
 
             tickPlayerInput(mainPlayer.id, true)

@@ -16,5 +16,5 @@ data class ServerGlobals(
     val movementSettings: MovementSettings = MovementSettings(),
     val chatSettings: EngineChatSettings = EngineChatSettings(),
     val requireIdenticalNamespaces: Boolean = false,
-    val spectateOnJoin: Boolean = true,
+    val spectateOnJoin: Boolean = false,
 )

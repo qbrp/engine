@@ -9,6 +9,7 @@ import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.server.ServerHandler
 import org.lain.engine.world.World
 
 object StartSpectatingMark : Component
@@ -36,8 +37,4 @@ fun EnginePlayer.stopSpectating() = with(world) {
     entity.removeComponent<StartSpectatingMark>()
 }
 
-fun World.tickSpectatingSystem() = iterate<Spectating>() { entity, spectating ->
-    if (!entity.hasComponent<AppliedCharacter>()) {
-        spectating.enabled = false
-    }
-}
+fun EnginePlayer.canChangeGameMode() = has<AppliedCharacter>()

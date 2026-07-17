@@ -117,7 +117,6 @@ class EngineServer(
             world.prepareData()
 
             // Фаза 2.1. Обновление игрока
-            world.tickSpectatingSystem()
             world.tickPlayerModelSystem()
 
             world.tickPlayerInput()

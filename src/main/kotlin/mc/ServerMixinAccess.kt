@@ -7,9 +7,11 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.inventory.ClickAction
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.context.BlockPlaceContext
+import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.LevelChunk
+import org.apache.logging.log4j.core.jmx.Server
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.getOrSet
@@ -17,8 +19,10 @@ import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.merge
+import org.lain.engine.mc.ServerMixinAccess.engine
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.server.Notification
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.injectMovementSettings
@@ -33,6 +37,30 @@ object ServerMixinAccess {
     var blockRemovedCallback: ((LevelChunk, BlockPos) -> Unit)? = null
     var blockPlacedCallback: ((Player?, BlockPos, BlockState, Level) -> Unit)? = null
     var blockInteractionCallback: ((entity: Player, world: Level, blockPos: BlockPos) -> Boolean)? = null
+
+    fun notifyPlayerGameModeChange(player: ServerPlayer, gameMode: GameType) {
+        val enginePlayer = player.engine ?: return
+        server.engine.handler.onServerNotification(
+            enginePlayer,
+            when (gameMode) {
+                GameType.SURVIVAL -> Notification.SURVIVAL_GAMEMODE
+                GameType.CREATIVE -> Notification.CREATIVE_GAMEMODE
+                GameType.ADVENTURE -> Notification.ADVENTURE_GAMEMODE
+                GameType.SPECTATOR -> Notification.SPECTATOR_GAMEMODE
+            },
+            false
+        )
+    }
+
+    fun allowedToPlay(player: ServerPlayer): Boolean {
+        val enginePlayer = player.engine ?: return false
+        return enginePlayer.canChangeGameMode()
+    }
+
+    fun sendForbiddenToPlayNotification(player: ServerPlayer) {
+        val enginePlayer = player.engine ?: return
+        server.engine.handler.onServerNotification(enginePlayer, Notification.CHANGE_GAMEMODE_FORBIDDEN, false)
+    }
 
     fun inEnginePlayer(player: ServerPlayer) = table.server.getPlayer(player) != null
 

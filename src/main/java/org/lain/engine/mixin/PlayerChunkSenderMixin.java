@@ -15,16 +15,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(PlayerChunkSender.class)
 public class PlayerChunkSenderMixin {
-    @Inject(
-            method = "sendNextChunks",
-            at = @At("HEAD"),
-            cancellable = true
-    )
-    public void engine$sendChunkBatches(ServerPlayer player, CallbackInfo ci) {
-        if (!ServerMixinAccess.INSTANCE.inEnginePlayer(player)) {
-            ci.cancel();
-        }
-    }
+//    @Inject(
+//            method = "sendNextChunks",
+//            at = @At("HEAD"),
+//            cancellable = true
+//    )
+//    public void engine$sendChunkBatches(ServerPlayer player, CallbackInfo ci) {
+//        if (!ServerMixinAccess.INSTANCE.inEnginePlayer(player)) {
+//            ci.cancel();
+//        }
+//    }
 
     @WrapOperation(
             method = "sendNextChunks",

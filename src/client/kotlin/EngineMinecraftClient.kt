@@ -374,7 +374,7 @@ class EngineMinecraftClient : ClientModInitializer {
                 engine.playerLoader.loadPreparing(
                     settings = settings,
                     account = PlayerLoadSettings.Account(
-                        awaitCharacterSelection(account.characters.map { it.map() }) ?: return@launch
+                        awaitCharacterSelection(account.characters.map { it.map() })
                     ),
                     exceptionHandler = exceptionHandler
                 )

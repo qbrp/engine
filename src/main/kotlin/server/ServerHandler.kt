@@ -53,7 +53,11 @@ enum class Notification {
     ACOUSTIC_ERROR,
     COMPILATION_ERROR,
     FREECAM,
-    ENTIITY_DEBUG_ERROR
+    SURVIVAL_GAMEMODE,
+    CREATIVE_GAMEMODE,
+    SPECTATOR_GAMEMODE,
+    ADVENTURE_GAMEMODE,
+    CHANGE_GAMEMODE_FORBIDDEN
 }
 
 class DesynchronizationException(message: String) : RuntimeException(message)

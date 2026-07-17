@@ -216,17 +216,13 @@ fun updatePlayerMinecraftSystems(
                 }
             )
         }
-
-        if (!hasSpawnMark && !entity.isSpectator && spectatingComponent.enabled) {
-            entity.setGameMode(McGameModes.SPECTATOR)
-        }
-
-        if (hasSpawnMark) player.removeComponent<SpawnMark>()
-        if (hasSpectatorMark) player.removeComponent<StartSpectatingMark>()
     }
+    if (hasSpawnMark) player.removeComponent<SpawnMark>()
+    if (hasSpectatorMark) player.removeComponent<StartSpectatingMark>()
 
     player.requireComponent<GameMaster>().enabled = entity.isCreative
     spectatingComponent.enabled = entity.isSpectator
+
 
     val items = items.toMutableList()
     val playerMinecraftInventory = entity.inventory

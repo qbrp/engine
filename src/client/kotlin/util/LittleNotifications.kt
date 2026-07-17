@@ -1,6 +1,8 @@
 package org.lain.engine.client.util
 
+import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.EngineSprite
+import org.lain.engine.client.render.QUESTION
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Color
@@ -55,7 +57,46 @@ data class LittleNotification(
                     lifeTime = 300
                 )
 
-            else -> TODO()
+            Notification.SPECTATOR_GAMEMODE ->
+                LittleNotification(
+                    "Режим наблюдателя",
+                    color = Color.AQUA,
+                    sprite = QUESTION,
+                    lifeTime = 60
+                )
+
+            Notification.CREATIVE_GAMEMODE ->
+                LittleNotification(
+                    "Режим ГМа",
+                    color = Color.AQUA,
+                    sprite = QUESTION,
+                    lifeTime = 60
+                )
+
+            Notification.SURVIVAL_GAMEMODE ->
+                LittleNotification(
+                    "Режим выживания",
+                    color = Color.AQUA,
+                    sprite = QUESTION,
+                    lifeTime = 60
+                )
+
+            Notification.ADVENTURE_GAMEMODE ->
+                LittleNotification(
+                    "Режим приключений",
+                    color = Color.AQUA,
+                    sprite = QUESTION,
+                    lifeTime = 60
+                )
+
+            Notification.CHANGE_GAMEMODE_FORBIDDEN ->
+                LittleNotification(
+                    "Нет персонажа",
+                    "Для игры требуется выбрать персонажа. Если у вас нет персонажа, создайте его и перезайдите в мир.",
+                    Color.RED,
+                    EXCLAMATION_RED,
+                    lifeTime = 160
+                )
         }
     }
 }
