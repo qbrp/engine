@@ -16,6 +16,7 @@ import org.lain.engine.mc.literalText
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.Look
 import org.lain.engine.player.character.computeCharacterModel
+import org.lain.engine.player.scale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -94,7 +95,7 @@ class CharacterSelectionScreen(
             val itemX = centerX + offset * spacing
             val distance = abs(itemX - centerX).toFloat() / centerX.coerceAtLeast(1)
             val visualScale = (1f - distance * 0.55f).coerceIn(MIN_VISUAL_SCALE, 1f)
-            val heightScale = character.profile.height.toFloat() * 0.5319149f
+            val heightScale = character.profile.height.scale
             val entityScale = BASE_ENTITY_SCALE * visualScale * heightScale
             val look = character.baseLook() ?: return@character
             val model = computeCharacterModel(

@@ -99,6 +99,10 @@ object ServerMixinAccess {
         return player.engine?.jumpStrength?.toDouble() ?: 0.1
     }
 
+    fun getScale(player: Player): Float {
+        return player.engine?.require<EnginePlayerModel>()?.scale ?: 1.0f
+    }
+
     fun onServerPlayerInitialized(entity: ServerPlayer) {
         onPlayerInstantiated(entity, table.server)
     }

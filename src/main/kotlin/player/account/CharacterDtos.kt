@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.character.BiologicalCategory
 import org.lain.engine.player.character.BiologicalSex
 import org.lain.engine.player.character.BodyType
+import org.lain.engine.player.character.CharacterHeight
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.CharacterName
 import org.lain.engine.player.character.CharacterProfile
@@ -59,7 +60,7 @@ data class CharacterProfileResponse(
         biologicalCategory,
         biologicalSex,
         appearanceDescription,
-        height,
+        CharacterHeight(height.toFloat()),
         bodyType,
         genderParams.map()
     )

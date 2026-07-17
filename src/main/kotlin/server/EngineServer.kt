@@ -118,6 +118,8 @@ class EngineServer(
 
             // Фаза 2.1. Обновление игрока
             world.tickSpectatingSystem()
+            world.tickPlayerModelSystem()
+
             world.tickPlayerInput()
 
             world.tickGunActionSystem()

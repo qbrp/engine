@@ -189,7 +189,6 @@ fun updatePlayerMinecraftSystems(
     }
 
     player.requireComponent<EnginePlayerModel>().apply {
-        scale = entity.scale
         standingEyeHeight = entity.eyeHeight
         height = entity.bodyHeight * scale
     }

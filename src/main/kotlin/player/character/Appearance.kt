@@ -38,9 +38,13 @@ data class CharacterDisplay(
     val name: CharacterName,
     val biologicalCategory: BiologicalCategory,
     val appearanceDescription: String,
-    val height: Double,
+    val height: CharacterHeight,
     val genderParams: GenderParams,
 ) : Component
+
+@Serializable
+@JvmInline
+value class CharacterHeight(val meters: Float)
 
 @Serializable
 data class CharacterName(

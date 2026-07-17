@@ -3,9 +3,13 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.markDirty
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.iterate
+import org.lain.engine.player.character.CharacterDisplay
+import org.lain.engine.player.character.CharacterHeight
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.EVec3
 import org.lain.engine.world.Location
+import org.lain.engine.world.World
 
 @Serializable
 data class EnginePlayerModel(
@@ -58,4 +62,13 @@ fun armPoseOf(
         gun && !gunLeft && !extend && safetyOff -> ArmPose.HOLD_WEAPON
         else -> ArmPose.NEUTRAL
     }
+}
+
+private val CHARACTER_HEIGHT_TO_SCALE_MULTIPLIER = 0.5319149f
+
+val CharacterHeight.scale
+    get() = meters * CHARACTER_HEIGHT_TO_SCALE_MULTIPLIER
+
+fun World.tickPlayerModelSystem() = iterate<EnginePlayerModel, CharacterDisplay>() { _, model, display ->
+    model.scale = display.height.scale
 }

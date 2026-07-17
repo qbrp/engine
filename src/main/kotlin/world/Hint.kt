@@ -22,11 +22,6 @@ data class Hint(
         newTexts.removeAt(index)
         return Hint(newTexts, uuid)
     }
-
-    fun displayText(index: Int): String {
-        val text = texts[index]
-        return "<gold>$index:</gold> <gray>$text"
-    }
 }
 
 data class HintDestroyEvent(val uuid: Uuid) : Component

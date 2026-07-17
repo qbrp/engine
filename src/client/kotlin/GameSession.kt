@@ -230,6 +230,9 @@ class GameSession(
                 client.removeLittleNotification(SPECTATOR_NOTIFICATION)
             }
 
+            tickSpectatingSystem()
+            tickPlayerModelSystem()
+
             tickPlayerInput(mainPlayer.id, true)
             tickActionSyncSystem(handler)
 

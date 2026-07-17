@@ -18,7 +18,7 @@ data class CharacterProfile(
     val biologicalCategory: BiologicalCategory,
     val biologicalSex: BiologicalSex,
     val appearanceDescription: String,
-    val height: Double,
+    val height: CharacterHeight,
     val bodyType: BodyType,
     val genderParams: GenderParams,
 )

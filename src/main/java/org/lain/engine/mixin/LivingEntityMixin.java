@@ -1,5 +1,6 @@
 package org.lain.engine.mixin;
 
+import kotlinx.datetime.Ser;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -35,6 +36,17 @@ public class LivingEntityMixin {
             } else if (is(holder, Attributes.JUMP_STRENGTH)) {
                 cir.setReturnValue(engine.getJumpStrength(player));
             }
+        }
+    }
+
+    @Inject(
+            method = "getScale",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    public void engine$getScale(CallbackInfoReturnable<Float> cir) {
+        if ((Object) this instanceof Player player) {
+            cir.setReturnValue(ServerMixinAccess.INSTANCE.getScale(player));
         }
     }
 
