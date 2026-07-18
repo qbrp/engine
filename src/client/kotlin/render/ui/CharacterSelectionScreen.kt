@@ -22,14 +22,23 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class CharacterSelectionScreen(
-    private val playerId: PlayerId,
+    private val character: EngineCharacter?,
     private val handler: ClientHandler,
-    private val characters: List<EngineCharacter>,
+    characters: List<EngineCharacter>,
     private val skinTextureManager: SkinTextureManager,
 ) : Screen(literalText("Character selection")) {
     private var selectedIndex = 0
     private val characterCompletableDeferred: CompletableDeferred<EngineCharacter?> = CompletableDeferred()
     private var overlay: CharacterApplyConfirmationWaitOverlay? = null
+
+    private val characters = run {
+        val list = characters.toMutableList()
+        if (character != null) {
+            list.removeIf { it.profile.id == character.profile.id }
+            list.addFirst(character)
+        }
+        list.toList()
+    }
 
     suspend fun awaitCharacterSelection() = characterCompletableDeferred.await()
 
@@ -130,7 +139,6 @@ class CharacterSelectionScreen(
                 character.profile.biologicalSex
             )
             val renderState = createCharacterPreviewRenderState(
-                playerId,
                 character.profile,
                 CharacterSkin(skinTextureManager.getTexture(look), model),
                 1f

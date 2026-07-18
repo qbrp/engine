@@ -365,16 +365,23 @@ class EngineMinecraftClient : ClientModInitializer {
                 }
             )
         }
+        val persistent = settings.persistentPlayerData
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             try {
                 val accountManager = engineClient.accountManager
                 val account = accountManager.getAuthorized()?.getAccount()
                     ?: accountManager.lastAccountResponse
                     ?: friendlyError("Вы не авторизованы")
+                val mappedCharacters = account.characters.map { it.map() }
                 engine.playerLoader.loadPreparing(
                     settings = settings,
                     account = PlayerLoadSettings.Account(
-                        awaitCharacterSelection(settings.playerId, account.characters.map { it.map() })
+                        awaitCharacterSelection(
+                            persistent?.appliedCharacter?.let { characterId ->
+                                mappedCharacters.firstOrNull { it.profile.id == characterId }
+                            },
+                            mappedCharacters
+                        )
                     ),
                     exceptionHandler = exceptionHandler
                 )
@@ -399,12 +406,12 @@ class EngineMinecraftClient : ClientModInitializer {
      * @return null если экран выбора персонажей был закрыт
      */
     private suspend fun awaitCharacterSelection(
-        playerId: PlayerId,
+        character: EngineCharacter?,
         characters: List<EngineCharacter>
     ): EngineCharacter? {
         val screen = withContext(MinecraftClientDispatcher) {
             val screen =
-                CharacterSelectionScreen(playerId, engineClient.handler, characters, engineClient.skinTextureManager)
+                CharacterSelectionScreen(character, engineClient.handler, characters, engineClient.skinTextureManager)
             client.setScreen(screen)
             screen
         }

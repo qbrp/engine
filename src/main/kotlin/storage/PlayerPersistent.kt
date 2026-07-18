@@ -8,6 +8,7 @@ import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerSlots
 import org.lain.engine.player.*
+import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.AppliedCharacters
 import org.lain.engine.util.Color
 import org.lain.engine.util.file.ENGINE_DIR
@@ -59,6 +60,7 @@ data class PersistentPlayerData(
     val skinEyeY: Float = 2f,
     val components: List<ComponentDto> = listOf(),
     val characters: Map<String, Character> = mapOf(),
+    val appliedCharacter: String? = null,
 ) {
     @Serializable
     data class Character(val components: List<ComponentDto>)
@@ -91,6 +93,7 @@ fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
                 equipment = equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentIdComponent>().id },
                 skinEyeY = player.require<EnginePlayerModel>().skinEyeY,
                 components = componentManager.getSavableComponents(player.entity).map { it.toSnapshotDto() },
+                appliedCharacter = player.get<AppliedCharacter>()?.character?.profile?.id,
                 characters = player.get<AppliedCharacters>()
                     ?.characters
                     ?.mapValues { (id, state) -> PersistentPlayerData.Character(state.components) }

@@ -289,6 +289,7 @@ fun EngineServer.serverMinecraftPlayerLoadSettings(
         entity.name.string,
         developerModeStatus,
         getWorld(entity.level().engine),
-        entity.isReplayViewer
+        entity.isReplayViewer,
+        globals.savePath.playerData.parsePersistentPlayerData(playerId)
     )
 }

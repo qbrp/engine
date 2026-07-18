@@ -134,7 +134,8 @@ data class PlayerLoadSettings(
     val username: String,
     val developerModeStatus: DeveloperModeStatus,
     val world: World,
-    val isReplayViewer: Boolean = false
+    val isReplayViewer: Boolean = false,
+    val persistentPlayerData: PersistentPlayerData?
 ) {
     data class Account(val character: EngineCharacter?)
 }
@@ -170,7 +171,7 @@ class PlayerLoader(
         }
 
         val world = settings.world
-        val persistent = server.globals.savePath.playerData.parsePersistentPlayerData(settings.playerId)
+        val persistent = settings.persistentPlayerData
         val inventoryLoadResult = exceptionHandler.runCatchingSuspend {
             loadInventoryItems(
                 world,

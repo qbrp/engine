@@ -23,7 +23,6 @@ import org.lain.engine.player.character.CharacterProfile
 import java.util.UUID
 
 fun createCharacterPreviewRenderState(
-    playerId: PlayerId,
     character: CharacterProfile,
     skin: PlayerSkin,
     scale: Float,
