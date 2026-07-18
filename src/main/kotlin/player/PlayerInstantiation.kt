@@ -204,6 +204,7 @@ class PlayerLoader(
                 )
             }
             server.handler.execute {
+                server.itemLoader.apply(world)
                 apply(world)
                 exceptionHandler.runCatching {
                     server.instantiatePlayer(player, settings.notifications, location.position)

@@ -12,4 +12,5 @@ interface ServerEventListener {
     fun onChatMessage(message: IncomingMessage)
     fun onCompiled(contents: NamespacedStorage)
     fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter)
+    suspend fun validateCharacter(player: EnginePlayer, characterId: String, character: EngineCharacter?): EngineCharacter
 }

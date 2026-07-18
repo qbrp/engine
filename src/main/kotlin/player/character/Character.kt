@@ -3,6 +3,7 @@ package org.lain.engine.player.character
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.engine.storage.ComponentDto
+import org.lain.engine.storage.PersistentCharacterData
 
 @Serializable
 data class EngineCharacter(
@@ -29,6 +30,4 @@ data class CharacterProfile(
 @Serializable
 data class AppliedCharacter(val character: EngineCharacter) : Component
 
-data class AppliedCharacters(val characters: MutableMap<String, State>) : Component {
-    data class State(val components: List<ComponentDto>)
-}
+data class AppliedCharacters(val characters: MutableMap<String, PersistentCharacterData>) : Component

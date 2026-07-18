@@ -8,7 +8,7 @@ import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.VoxelPos
 
-interface ClientEventBus {
+interface ClientEventListener {
     fun tick()
     fun onFullPlayerData(client: EngineClient, id: PlayerId, data: FullPlayerData)
     fun onPlayerDestroy(client: EngineClient, playerId: PlayerId)
@@ -18,5 +18,6 @@ interface ClientEventBus {
     fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk)
     fun onEntityDebugView(gameSession: GameSession)
     fun onEntityDebugViewData(data: EntityDebugData.Dto)
+    fun onCharacterSelectionMenuOpen(gameSession: GameSession)
     fun getHitResultVoxelPos(): VoxelPos?
 }

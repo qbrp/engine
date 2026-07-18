@@ -1,17 +1,23 @@
 package org.lain.engine.client
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.blockHitResult
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
+import org.lain.engine.client.render.ui.CharacterSelectionScreen
 import org.lain.engine.client.render.ui.EntityDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.player.get
 import org.lain.engine.script.EntityDebugData
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.util.Injector
@@ -20,11 +26,11 @@ import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.VoxelPos
 import java.util.*
 
-class MinecraftEngineClientEventBus(
+class MinecraftEngineClientEventListener(
     private val minecraft: Minecraft,
     private val table: EntityTable,
     private val decalSystem: DecalSystem
-) : ClientEventBus {
+) : ClientEventListener {
     private data class PendingFullPlayerData(val player: EnginePlayer, val data: FullPlayerData)
     private val pendingFullPlayerData: MutableList<PendingFullPlayerData> = LinkedList()
     var acousticDebugVolumesBlockPosCache = listOf<Pair<BlockPos, Float>>()
@@ -93,6 +99,30 @@ class MinecraftEngineClientEventBus(
         val screen = minecraft.screen
         if (screen !is EntityDebugScreen) return
         screen.applyEntityDebugData(data)
+    }
+
+    override fun onCharacterSelectionMenuOpen(gameSession: GameSession) {
+        // метод не может быть вызван, если lastAccountResponse == null, т.к. в таком случае игра недоступна
+        // см. ClientMixinAcces.canPlaySingleplayer
+        val account = gameSession.client.accountManager.lastAccountResponse!!
+        val appliedCharacter = gameSession.mainPlayer.get<AppliedCharacter>()?.character
+        CoroutineScope(Dispatchers.Default).launch {
+            val character = CharacterSelectionScreen.awaitCharacterSelection(
+                gameSession.client,
+                appliedCharacter,
+                account.characters.map { it.map() }
+            )
+            minecraft.execute {
+                val handler = gameSession.client.handler
+                if (character != null) {
+                    if (minecraft.isSingleplayer) {
+                        handler.onCharacterSelectedSingleplayer(character)
+                    } else {
+                        handler.onCharacterSelectedMultiplayer(character)
+                    }
+                }
+            }
+        }
     }
 
     override fun getHitResultVoxelPos(): VoxelPos? {

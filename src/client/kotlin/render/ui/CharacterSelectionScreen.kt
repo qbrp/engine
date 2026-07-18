@@ -2,15 +2,19 @@ package org.lain.engine.client.render.ui
 
 import com.mojang.blaze3d.platform.InputConstants
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withContext
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.renderer.entity.state.AvatarRenderState
 import org.joml.Quaternionf
 import org.joml.Vector3f
+import org.lain.engine.client.EngineClient
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.handler.ClientHandler
+import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.CharacterSkin
+import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.PlayerId
@@ -200,17 +204,35 @@ class CharacterSelectionScreen(
         }
     }
 
-    private companion object {
-        const val VISIBLE_SIDE_CHARACTERS = 3
-        const val MIN_SPACING = 72
-        const val MAX_SPACING = 140
-        const val ITEM_BOUNDS = 112
-        const val MIN_ITEM_BOUNDS = 112
-        const val BOUNDS_VERTICAL_PADDING = 24
-        const val BASE_ENTITY_SCALE = 60f
-        const val MIN_VISUAL_SCALE = 0.45f
-        const val SIDE_CHARACTER_ROTATION = 14f
-        const val DEGREES_TO_RADIANS = 0.017453292f
-        const val ENTITY_Y_OFFSET = 0.0625f
+    companion object {
+        private const val VISIBLE_SIDE_CHARACTERS = 3
+        private const val MIN_SPACING = 72
+        private const val MAX_SPACING = 140
+        private const val ITEM_BOUNDS = 112
+        private const val MIN_ITEM_BOUNDS = 112
+        private const val BOUNDS_VERTICAL_PADDING = 24
+        private const val BASE_ENTITY_SCALE = 60f
+        private const val MIN_VISUAL_SCALE = 0.45f
+        private const val SIDE_CHARACTER_ROTATION = 14f
+        private const val DEGREES_TO_RADIANS = 0.017453292f
+        private const val ENTITY_Y_OFFSET = 0.0625f
+
+        /**
+         * @return null если экран выбора персонажей был закрыт
+         */
+        suspend fun awaitCharacterSelection(
+            client: EngineClient,
+            character: EngineCharacter?,
+            characters: List<EngineCharacter>
+        ): EngineCharacter? {
+            val screen = withContext(MinecraftClientDispatcher) {
+                val screen =
+                    CharacterSelectionScreen(character, client.handler, characters, client.skinTextureManager)
+                MinecraftClient.setScreen(screen)
+                screen
+            }
+            return screen.awaitCharacterSelection()
+        }
+
     }
 }

@@ -1,5 +1,6 @@
 package org.lain.engine.player.character
 
+import org.lain.cyberia.ecs.ReadComponentAccess
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
@@ -8,6 +9,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerEventListener
 import org.lain.engine.server.ServerHandler
+import org.lain.engine.storage.PersistentCharacterData
 import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.storage.copyComponentDtoState
 import org.lain.engine.storage.toDomainWithoutRelationships
@@ -16,41 +18,43 @@ import org.lain.engine.world.World
 
 context(write: WriteComponentAccess)
 fun EnginePlayer.setCharacterDisplayComponents(
-    characterDisplay: CharacterDisplay
+    characterDisplay: CharacterDisplay,
+    look: Look
 ) {
     entity.setComponent(characterDisplay)
+    entity.setComponent(SelectedLook(look))
 }
 
 context(write: WriteComponentAccess)
 fun EnginePlayer.initializeCharacterComponents(
-    look: Look,
     physical: CharacterPhysical
 ) {
     entity.setComponent(physical)
-    entity.setComponent(SelectedLook(look))
 }
 
 context(world: World)
-fun EnginePlayer.removeCharacter() {
+fun EnginePlayer.removeCharacter(
+    appliedCharacters: AppliedCharacters = entity.requireComponent<AppliedCharacters>()
+) {
     val character = entity.getComponent<AppliedCharacter>()?.character ?: error("Персонаж не применён")
-    val charactersMap = entity.requireComponent<AppliedCharacters>().characters
-    charactersMap[character.profile.id] = AppliedCharacters.State(
+    val charactersMap = appliedCharacters.characters
+    charactersMap[character.profile.id] = PersistentCharacterData(
         listOf(
             entity.getComponent<CharacterPhysical>()
         )
-            .mapNotNull { it?.toSnapshotDto() }
+            .mapNotNull { it?.toSnapshotDto() },
+        entity.requireComponent<SelectedLook>().look.id
     )
 }
 
 context(write: WriteComponentAccess)
 suspend fun EnginePlayer.applyCharacter(
     character: EngineCharacter,
-    persistent: PersistentPlayerData.Character?,
+    persistent: PersistentCharacterData?,
     listener: ServerEventListener
 ) {
     if (persistent == null) {
-        val baseLook = character.looks.first { it.base }
-        initializeCharacterComponents(baseLook, character.getPhysical())
+        initializeCharacterComponents(character.getPhysical())
     } else {
         entity.copyComponentDtoState(persistent.components) {
             toDomainWithoutRelationships(
@@ -59,7 +63,10 @@ suspend fun EnginePlayer.applyCharacter(
             )
         }
     }
-    setCharacterDisplayComponents(character.getDisplay())
+    setCharacterDisplayComponents(
+        character.getDisplay(),
+        persistent?.look?.let { lookId -> character.looks.firstOrNull { it.id == lookId } } ?: character.baseLook
+    )
     entity.setComponent(AppliedCharacter(character))
     listener.onCharacterApplied(this, character)
 }

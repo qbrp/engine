@@ -278,6 +278,9 @@ class ComponentWorld(
         checkOnThread()
         val array = getComponentArray(type)
         array.setComponent(entity, component)
+        if (array.meta.networking) {
+            markDirty(entity, type)
+        }
     }
 
     override fun hasComponent(

@@ -2,8 +2,6 @@ package org.lain.engine.client
 
 import kotlinx.coroutines.runBlocking
 import org.lain.cyberia.ecs.copyState
-import org.lain.cyberia.ecs.has
-import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
@@ -13,7 +11,6 @@ import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
-import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.MAP
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.tickSkinSystem
@@ -42,14 +39,12 @@ import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.toDomainSuspend
 import org.lain.engine.transport.packet.*
-import org.lain.engine.util.Color
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.INSPECTION_MODE_COLOR
 import org.lain.engine.util.Log
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.*
-import java.util.*
 
 class GameSession(
     val server: ServerId,
@@ -147,7 +142,7 @@ class GameSession(
         preloadPlayerItems(items)
         instantiatePlayer(mainPlayer, player.general, mutableMapOf())
 
-        client.eventBus.onMainPlayerInstantiated(client, this, mainPlayer)
+        client.eventListener.onMainPlayerInstantiated(client, this, mainPlayer)
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
     }
@@ -213,7 +208,7 @@ class GameSession(
 
     fun onContentsUpdated() {
         client.audioManager.invalidateCache()
-        client.eventBus.onContentsUpdate()
+        client.eventListener.onContentsUpdate()
     }
 
     fun tick() {
@@ -278,7 +273,7 @@ class GameSession(
             updateClientServerboundChannelSystem(handler)
             updateVoxelEvents(null)
             handleHintEvents()
-            client.eventBus.getHitResultVoxelPos()?.let {
+            client.eventListener.getHitResultVoxelPos()?.let {
                 updateInspectionMode(inspection, inspectionMode, it)
             }
 
@@ -293,12 +288,12 @@ class GameSession(
     fun viewEntityDebug(entity: EntityId) = with(world) {
         val persistentId = entity.requireComponent<PersistentIdComponent>().id
         handler.onEntityDebugView(persistentId)
-        client.eventBus.onEntityDebugView(this@GameSession)
+        client.eventListener.onEntityDebugView(this@GameSession)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
         world.chunkStorage.setChunk(pos, chunk)
-        client.eventBus.onChunkLoad(pos, chunk)
+        client.eventListener.onChunkLoad(pos, chunk)
     }
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {

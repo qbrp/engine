@@ -49,6 +49,12 @@ data class CustomNamePersistentData(
 private fun CustomName.toPersistentData() = CustomNamePersistentData(string, color1, color2)
 
 @Serializable
+data class PersistentCharacterData(
+    val components: List<ComponentDto>,
+    val look: String
+)
+
+@Serializable
 data class PersistentPlayerData(
     @SerialName("custom_name") val customName: CustomNamePersistentData?,
     @SerialName("speed_intention") val speedIntention: Float,
@@ -59,12 +65,9 @@ data class PersistentPlayerData(
     val equipment: Map<EquipmentSlot, PersistentId> = mapOf(),
     val skinEyeY: Float = 2f,
     val components: List<ComponentDto> = listOf(),
-    val characters: Map<String, Character> = mapOf(),
+    val characters: Map<String, PersistentCharacterData> = mapOf(),
     val appliedCharacter: String? = null,
-) {
-    @Serializable
-    data class Character(val components: List<ComponentDto>)
-}
+)
 
 fun World.getEquipmentContainerSlots(container: EntityId) = getContainerSlots(container)
     .mapKeys { (slotId, _) -> EquipmentSlot.ofSlot(slotId) }
@@ -94,10 +97,7 @@ fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
                 skinEyeY = player.require<EnginePlayerModel>().skinEyeY,
                 components = componentManager.getSavableComponents(player.entity).map { it.toSnapshotDto() },
                 appliedCharacter = player.get<AppliedCharacter>()?.character?.profile?.id,
-                characters = player.get<AppliedCharacters>()
-                    ?.characters
-                    ?.mapValues { (id, state) -> PersistentPlayerData.Character(state.components) }
-                    ?: emptyMap()
+                characters = player.get<AppliedCharacters>()?.characters ?: emptyMap()
             )
         )
     )

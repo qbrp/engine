@@ -5,7 +5,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
-import org.lain.engine.client.ClientEventBus
+import org.lain.engine.client.ClientEventListener
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.AcceptedMessage
@@ -22,6 +22,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.*
+import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.EntityDebugData
@@ -39,7 +40,7 @@ import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
+class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener) {
     private val gameSession get() = client.gameSession
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
 
@@ -176,6 +177,18 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         )
     }
 
+    fun onCharacterSelectedSingleplayer(character: EngineCharacter) {
+        SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
+            CharacterApplyPacket(character.profile.id, character)
+        )
+    }
+
+    fun onCharacterSelectedMultiplayer(character: EngineCharacter) {
+        SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
+            CharacterApplyPacket(character.profile.id, null)
+        )
+    }
+
     fun onEntityDebugView(persistentId: PersistentId) {
         SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.sendC2SPacket(EntityDebugViewPacket(persistentId))
     }
@@ -246,7 +259,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         player.set(data.armStatus)
         player.require<EnginePlayerModel>().skinEyeY = data.skinEyeY
         player.isLowDetailed = false
-        client.eventBus.onFullPlayerData(client, player.id, data)
+        client.eventListener.onFullPlayerData(client, player.id, data)
     }
 
     private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.get(it) == null }
@@ -405,7 +418,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     }
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {
-        client.eventBus.onEntityDebugViewData(data)
+        client.eventListener.onEntityDebugViewData(data)
     }
 
     fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {

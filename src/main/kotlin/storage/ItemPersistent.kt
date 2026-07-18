@@ -253,7 +253,7 @@ class ItemLoader(
         }
     }
 
-    fun applyCommands(world: World) {
+    fun apply(world: World) {
         commandBuffers.flush { (worldId, buffer) ->
             if (world.id == worldId) buffer.apply(world)
         }

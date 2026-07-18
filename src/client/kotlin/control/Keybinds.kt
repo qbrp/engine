@@ -140,3 +140,10 @@ val TAKE_OFF_EQUIP = KeybindSettings(
     onPress = { client -> ClientMixinAccess.takeOffEquipPressed = true },
     onRelease = { client -> ClientMixinAccess.takeOffEquipPressed = false }
 )
+
+val SELECT_CHARACTER = KeybindSettings(
+    name = "Выбрать персонажа",
+    id = KeybindId("select_character"),
+    key = InputConstants.KEY_O,
+    onPress = { client -> client.gameSession?.let { client.eventListener.onCharacterSelectionMenuOpen(it) } }
+)

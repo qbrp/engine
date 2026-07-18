@@ -3,7 +3,7 @@ package org.lain.engine.client.render.world
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.minecraft.client.Minecraft
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.MinecraftEngineClientEventBus
+import org.lain.engine.client.MinecraftEngineClientEventListener
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.legacy.TextCache
@@ -20,7 +20,7 @@ private val TextCache = TextCache()
 fun registerWorldRenderEvents(
     client: Minecraft,
     engineClient: EngineClient,
-    eventBus: MinecraftEngineClientEventBus,
+    eventBus: MinecraftEngineClientEventListener,
     decalsStorage: DecalSystem,
     playerTable: EntityTable,
 ) {

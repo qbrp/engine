@@ -40,6 +40,7 @@ class KeybindManager(
         TOGGLE_CHAT_TYPING_INDICATOR.register()
         TOGGLE_INSPECTION.register()
         CONCENTRATION.register()
+        SELECT_CHARACTER.register()
 
         KeybindSettings(
             name = "Настройки",

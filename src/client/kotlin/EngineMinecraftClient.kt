@@ -26,10 +26,7 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.mc.server.AuthPacket
 import org.lain.engine.Constants.ENGINE_MOD_VERSION
-import org.lain.engine.client.account.ClientAuthorizedAccount
-import org.lain.engine.client.account.ConnectionState
 import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
-import org.lain.engine.client.account.ClientEngineAccountService
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
@@ -83,7 +80,7 @@ class EngineMinecraftClient : ClientModInitializer {
 
     private lateinit var lightSystem: LightSystem
     private val decalsStorage: DecalSystem = DecalSystem()
-    private val eventBus = MinecraftEngineClientEventBus(client, entityTable, decalsStorage)
+    private val eventBus = MinecraftEngineClientEventListener(client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
         window,
@@ -376,7 +373,8 @@ class EngineMinecraftClient : ClientModInitializer {
                 engine.playerLoader.loadPreparing(
                     settings = settings,
                     account = PlayerLoadSettings.Account(
-                        awaitCharacterSelection(
+                        CharacterSelectionScreen.awaitCharacterSelection(
+                            engineClient,
                             persistent?.appliedCharacter?.let { characterId ->
                                 mappedCharacters.firstOrNull { it.profile.id == characterId }
                             },
@@ -400,22 +398,6 @@ class EngineMinecraftClient : ClientModInitializer {
                     ""
                 )
             )
-    }
-
-    /**
-     * @return null если экран выбора персонажей был закрыт
-     */
-    private suspend fun awaitCharacterSelection(
-        character: EngineCharacter?,
-        characters: List<EngineCharacter>
-    ): EngineCharacter? {
-        val screen = withContext(MinecraftClientDispatcher) {
-            val screen =
-                CharacterSelectionScreen(character, engineClient.handler, characters, engineClient.skinTextureManager)
-            client.setScreen(screen)
-            screen
-        }
-        return screen.awaitCharacterSelection()
     }
 
     private fun disconnectWithReason(text: Text) {

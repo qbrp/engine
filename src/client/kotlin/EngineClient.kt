@@ -1,8 +1,5 @@
 package org.lain.engine.client
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
 import org.lain.engine.client.account.SkinTextureManager
@@ -36,13 +33,13 @@ class EngineClient(
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
-    val eventBus: ClientEventBus,
+    val eventListener: ClientEventListener,
     httpClient: EngineHttpClient,
 ) {
     val namespacedStorage: NamespacedStorageAccess = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
     lateinit var options: EngineOptions
     lateinit var thread: Thread
-    val handler = ClientHandler(this, eventBus)
+    val handler = ClientHandler(this, eventListener)
     val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
     val skinTextureManager = SkinTextureManager(httpClient.rest)
@@ -129,7 +126,7 @@ class EngineClient(
         handler.tick()
         gameSession?.tick()
         handler.postTick()
-        eventBus.tick()
+        eventListener.tick()
     }
 
     fun isOnThread() = Thread.currentThread() == thread

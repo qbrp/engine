@@ -27,7 +27,7 @@ data class Look(
 )
 
 @Serializable
-data class SelectedLook(var look: Look) : Component
+data class SelectedLook(val look: Look) : Component
 
 /**
  * Информация о персонаже, что может обновляться с сервера

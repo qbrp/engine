@@ -9,6 +9,8 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.MinecraftClientDispatcher
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.*
 import org.lain.engine.script.lua.FileScriptSource
 import org.lain.engine.script.lua.LuaContext
@@ -24,6 +26,14 @@ class IntegratedEngineMinecraftServer(
     client: EngineClient
 ) : EngineMinecraftServer(dependencies) {
     override val transportContext: ServerTransportContext = ServerSingleplayerTransport(client, engine)
+
+    override suspend fun validateCharacter(
+        player: EnginePlayer,
+        characterId: String,
+        character: EngineCharacter?
+    ): EngineCharacter {
+        return character ?: error("Не указаны данные персонажа с клиента")
+    }
 }
 
 fun EngineMinecraftClient.registerEngineIntegratedServerEvent(engineClient: EngineClient) {

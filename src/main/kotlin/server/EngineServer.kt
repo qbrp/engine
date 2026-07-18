@@ -109,7 +109,7 @@ class EngineServer(
         // Подготовка данных
         tick++
         listWorlds().forEach { world ->
-            itemLoader.applyCommands(world)
+            itemLoader.apply(world)
         } // принимаем команды из ECS-очередей
         taskQueue.flush { it.run() }
 

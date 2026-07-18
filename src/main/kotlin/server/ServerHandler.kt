@@ -1,5 +1,9 @@
 package org.lain.engine.server
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.getComponent
@@ -13,6 +17,10 @@ import org.lain.engine.item.Writable
 import org.lain.engine.item.getOwner
 import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.player.*
+import org.lain.engine.player.character.AppliedCharacters
+import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.applyCharacter
+import org.lain.engine.player.character.removeCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.EntityDebugData
@@ -32,6 +40,7 @@ import org.lain.engine.util.Intent
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
+import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.Networked
 import org.lain.engine.util.flush
@@ -129,11 +138,27 @@ class ServerHandler(
         }
         SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.registerReceiver { ctx -> onEntityDebugView(ctx.sender, persistentId) }
         SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.registerReceiver { ctx -> onEntityDebugViewStop(ctx.sender) }
+        SERVERBOUND_CHARACTER_APPLY_ENDPOINT.registerReceiver { ctx -> onCharacterApply(ctx.sender, characterId, character) }
     }
 
     fun invalidate() {
         transportContext.unregisterAll()
         taskQueue.clear()
+    }
+
+    private fun onCharacterApply(playerId: PlayerId, characterId: String, character: EngineCharacter?) = updatePlayer(playerId) {
+        val appliedCharacters = require<AppliedCharacters>()
+        val persistent = appliedCharacters.characters[characterId]
+        with(world) { removeCharacter(appliedCharacters) }
+        CoroutineScope(Dispatchers.IO).launch {
+            val eventListener = server.eventListener
+            val character = eventListener.validateCharacter(this@updatePlayer, characterId, character)
+            with(EntityCommandBuffer(world)) {
+                applyCharacter(character, persistent, eventListener)
+                onCharacterApplyConfirmation(this@updatePlayer)
+                server.execute { apply(world) }
+            }
+        }
     }
 
     private fun onEnityComponentRpcPacket(

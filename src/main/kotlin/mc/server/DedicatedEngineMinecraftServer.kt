@@ -14,9 +14,12 @@ import org.lain.engine.mc.hasPermission
 import org.lain.engine.mc.isOp
 import org.lain.engine.mc.players
 import org.lain.engine.mc.sendMessage
+import org.lain.engine.mc.server.DedicatedEngineAccountService
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.Username
+import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.NamespaceHashMapValidationResult
 import org.lain.engine.script.validateNamespaceHashMap
@@ -50,9 +53,11 @@ class DedicatedEngineMinecraftServer(
         dependencies.playerStorage
     ),
 ) : EngineMinecraftServer(dependencies) {
+    private val accountService = DedicatedEngineAccountService()
     val authorizationListener = ServerAuthorizationListener(
         connectionManager,
         this,
+        accountService
     )
 
     override fun tick() {
@@ -100,6 +105,18 @@ class DedicatedEngineMinecraftServer(
         super.onLeavePlayer(entity)
         connectionManager.removeConnectionSession(entity.engineId)
     }
+
+    override suspend fun validateCharacter(
+        player: EnginePlayer,
+        characterId: String,
+        character: EngineCharacter?
+    ): EngineCharacter {
+        val session = connectionManager.getSession(player.id)
+        return accountService
+            .getAuthorized(session.sessionTicket!!)
+            .getCharacter(characterId)
+            .map()
+    }
 }
 
 @Serializable
@@ -114,8 +131,8 @@ val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
 class ServerAuthorizationListener(
     private val connectionManager: ServerConnectionManager,
     private val server: DedicatedEngineMinecraftServer,
+    private val accountService: DedicatedEngineAccountService
 ) {
-    private val httpClient = DedicatedEngineAccountService()
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private suspend fun runCatching(connectionSession: ConnectionSession, statement: suspend () -> Unit) {
@@ -179,7 +196,7 @@ class ServerAuthorizationListener(
 
         coroutineScope.launch {
             runCatching(connection) {
-                val authorized = httpClient.getAuthorized(packet.sessionTicket)
+                val authorized = accountService.getAuthorized(packet.sessionTicket)
                 authorized.getAccount() // проверка на валидность
 
                 CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
@@ -222,7 +239,7 @@ class ServerAuthorizationListener(
 
         val settings = engine.serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications)
         coroutineScope.launch {
-            val character = httpClient.getAuthorized(ticket)
+            val character = accountService.getAuthorized(ticket)
                 .getCharacter(selectedCharacter)
                 .map()
             engine.playerLoader.loadPreparing(

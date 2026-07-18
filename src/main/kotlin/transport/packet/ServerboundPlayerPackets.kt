@@ -2,6 +2,7 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.ScriptBindings
+import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
@@ -58,3 +59,13 @@ val SERVERBOUND_ARM_STATUS_ENDPOINT = Endpoint<ArmStatusPacket>()
 data class ScriptBindingsPacket(val bindings: ScriptBindings) : Packet
 
 val SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT = Endpoint<ScriptBindingsPacket>()
+
+// Character
+
+@Serializable
+data class CharacterApplyPacket(
+    val characterId: String,
+    val character: EngineCharacter? = null
+) : Packet
+
+val SERVERBOUND_CHARACTER_APPLY_ENDPOINT = Endpoint<CharacterApplyPacket>()
