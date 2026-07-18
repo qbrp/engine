@@ -5,6 +5,8 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.server.EngineServer
+import org.lain.engine.server.ServerHandler
 import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.storage.copyComponentDtoState
 import org.lain.engine.storage.toDomainWithoutRelationships

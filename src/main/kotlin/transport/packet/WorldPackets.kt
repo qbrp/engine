@@ -19,7 +19,9 @@ data class SoundPlayPacket(
 val CLIENTBOUND_SOUND_PLAY_ENDPOINT = Endpoint<SoundPlayPacket>()
 
 @Serializable
-data class EngineChunkPacket(val chunk: EngineChunkDto) : Packet
+data class EngineChunkPacket(val chunk: EngineChunkDto) : Packet {
+    override val requireAuthorized: Boolean = false
+}
 
 @Serializable
 data class EngineChunkDto(

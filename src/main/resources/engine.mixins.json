@@ -13,6 +13,7 @@
     "LevelMixin",
     "LivingEntityMixin",
     "MeCommandMixin",
+    "MinecraftServerMixin",
     "PlayerAdvancementsMixin",
     "PlayerChunkSenderMixin",
     "PlayerListMixin",

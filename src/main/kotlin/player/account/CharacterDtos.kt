@@ -38,7 +38,11 @@ data class CharacterDataResponse(
     val profile: CharacterProfileResponse,
     val looks: List<Look>,
 ) {
-    fun map() = EngineCharacter(profile.map(), looks)
+    fun map() = EngineCharacter(
+        profile.map(),
+        looks,
+        looks.firstOrNull { it.base } ?: looks.firstOrNull() ?: error("Невалидный ответ сервера: персонаж не имеет обликов")
+    )
 }
 
 @Serializable

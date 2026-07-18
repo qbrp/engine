@@ -400,7 +400,7 @@ class EngineMinecraftClient : ClientModInitializer {
      */
     private suspend fun awaitCharacterSelection(characters: List<EngineCharacter>): EngineCharacter? {
         val screen = withContext(MinecraftClientDispatcher) {
-            val screen = CharacterSelectionScreen(characters, engineClient.skinTextureManager)
+            val screen = CharacterSelectionScreen(engineClient.handler, characters, engineClient.skinTextureManager)
             client.setScreen(screen)
             screen
         }

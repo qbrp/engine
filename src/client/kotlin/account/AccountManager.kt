@@ -23,6 +23,7 @@ sealed interface ConnectionState {
 }
 
 class AccountManager(
+    private val skinTextureManager: SkinTextureManager,
     private val httpClient: ClientEngineAccountService,
 ) {
     private val mutex = Mutex()
@@ -67,6 +68,9 @@ class AccountManager(
         runCatching {
             val response = account.getAccount()
             lastAccountResponse = response
+            response.characters
+                .flatMap { it.looks }
+                .forEach { skinTextureManager.preload(it) }
             AccountResponseCache.save(response)
         }
     }

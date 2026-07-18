@@ -104,7 +104,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     open fun tick() {
-        if (!minecraftServer.isRunning) return
         val entityTableAll = dependencies.entityTable
 
         engine.update(

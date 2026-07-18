@@ -45,8 +45,8 @@ class EngineClient(
     val handler = ClientHandler(this, eventBus)
     val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
-    val accountManager: AccountManager = AccountManager(ClientEngineAccountService(httpClient))
     val skinTextureManager = SkinTextureManager(httpClient.rest)
+    val accountManager: AccountManager = AccountManager(skinTextureManager, ClientEngineAccountService(httpClient))
 
     val resources
         get() = resourceManager.context

@@ -1,8 +1,6 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.interaction.InteractionSelection
-import org.lain.engine.player.PlayerId
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -33,3 +31,10 @@ val CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT = Endpoint<ServerSettingsUpdateP
 data class ScriptsRecompileEndpoint(val scope: String? = null) : Packet
 
 val CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT = Endpoint<ScriptsRecompileEndpoint>()
+
+@Serializable
+object CharacterApplyConfirmationPacket : Packet {
+    override val requireAuthorized: Boolean = false
+}
+
+val CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT = Endpoint<CharacterApplyConfirmationPacket>()

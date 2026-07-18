@@ -2,16 +2,10 @@ package org.lain.engine.server
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.clearMetaState
-import org.lain.cyberia.ecs.getAll
 import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.has
-import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
-import org.lain.cyberia.ecs.remove
-import org.lain.cyberia.ecs.replaceOrSet
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.cyberia.ecs.set
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.*
 import org.lain.engine.item.Item
@@ -40,11 +34,13 @@ import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.Networked
+import org.lain.engine.util.flush
 import org.lain.engine.util.forEachWithContext
 import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.let
 import kotlin.math.pow
 
@@ -79,6 +75,7 @@ class ServerHandler(
 
     private var squaredSynchronizationRadius = 0f
     private var squaredDesynchronizationRadius = 0f
+    private val taskQueue = ConcurrentLinkedQueue<() -> Unit>()
 
     private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) {
         val player = server.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
@@ -94,7 +91,7 @@ class ServerHandler(
         return server.playerStorage.get(id)
     }
 
-    private fun execute(r: Runnable) = server.execute(r)
+    fun execute(r: () -> Unit) = taskQueue.add(r)
 
     fun onServerSettingsUpdate() {
         squaredSynchronizationRadius = (playerSynchronizationRadius * playerSynchronizationRadius).toFloat()
@@ -136,6 +133,7 @@ class ServerHandler(
 
     fun invalidate() {
         transportContext.unregisterAll()
+        taskQueue.clear()
     }
 
     private fun onEnityComponentRpcPacket(
@@ -295,6 +293,10 @@ class ServerHandler(
         CHAT_LOGGER.info("Удалено сообщение игроком $player: $outcomingMessage")
     }
 
+    fun processHandlerTasks() {
+        taskQueue.flush { it() }
+    }
+
     //TODO: синхронизировать предметы по блок-сущностям (чтобы учитывать и сундуки)
     fun tick() {
         val players = playerStorage.filter { (server.isReplay && !it.has<ReplayViewer>()) || it.network.authorized }
@@ -406,6 +408,13 @@ class ServerHandler(
             it.iterate<Networked>() { entity, _ -> entity.clearMetaState() }
             it.state.clearMetaState()
         }
+    }
+
+    fun onCharacterApplyConfirmation(player: EnginePlayer) {
+        CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.sendS2C(
+            CharacterApplyConfirmationPacket,
+            player.id
+        )
     }
 
     fun onPlayerIntent(context: ScriptContext.IntentExecution, intent: Intent) {

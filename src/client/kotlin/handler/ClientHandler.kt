@@ -17,6 +17,7 @@ import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.mc.commands.friendlyError
@@ -41,7 +42,6 @@ import org.slf4j.LoggerFactory
 class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val gameSession get() = client.gameSession
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
-    private val tickDispatcher = TickDispatcher()
 
     val taskExecutor = TaskExecutor()
 
@@ -56,8 +56,19 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
     private val awaitingEntities: MutableMap<PersistentId, CompletableDeferred<PendingEntity?>> = mutableMapOf()
     private val awaitingChunks = mutableMapOf<EngineChunkPos, CompletableDeferred<EngineChunk>>()
     private val pendingEntityProvider = PendingEntityProvider(awaitingEntities)
+    private var characterApplyConfirmationCompletableDeferred: CompletableDeferred<Unit>? = null
 
     private fun newEntityResolver() = EntityResolver(pendingEntityProvider)
+
+    fun awaitCharacterApplyConfirmation(): CompletableDeferred<Unit> {
+        val completableDeferred = CompletableDeferred<Unit>()
+        characterApplyConfirmationCompletableDeferred = completableDeferred
+        return completableDeferred
+    }
+
+    fun applyCharacterApplyConfirmation() {
+        characterApplyConfirmationCompletableDeferred?.complete(Unit)
+    }
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
@@ -108,7 +119,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             taskExecutor.clear()
         }
 
-        tickDispatcher.tick()
+        MinecraftClientDispatcher.confirmTick()
     }
 
     fun postTick() {
@@ -117,10 +128,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
             val input = with(gameSession.world) { gameSession.mainPlayer.entity.requireComponent<PlayerInput>() }
             input.actions.clear()
         }
-    }
-
-    suspend fun waitNextTick() {
-        tickDispatcher.waitNextTick()
     }
 
     context(world: World)
@@ -142,6 +149,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventBus) {
         awaitingChunks[pos] = deferred
         return deferred.await()
     }
+
+    private suspend fun waitNextTick() = MinecraftClientDispatcher.waitNextTick()
 
     fun sendServerboundChannelData(persistentId: PersistentId, values: List<ScriptValue>) {
         SERVERBOUND_ENTITY_COMPONENT_RPC_ENDPOINT.sendC2SPacket(

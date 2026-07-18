@@ -324,6 +324,7 @@ class GameSession(
         playerStorage.clear()
         client.renderer.invalidate()
         handler.disable()
+        client.skinTextureManager.close()
     }
 
     fun getPlayer(id: PlayerId) = playerStorage.get(id)

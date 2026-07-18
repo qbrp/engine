@@ -148,7 +148,9 @@ data class JoinGamePacket(
     val worldData: ClientboundWorldData,
     val setupData: ClientboundSetupData,
     val notifications: List<Notification>
-) : Packet
+) : Packet {
+    override val requireAuthorized: Boolean = false
+}
 
 @OptIn(ExperimentalSerializationApi::class)
 val CLIENTBOUND_JOIN_GAME_ENDPOINT = Endpoint<JoinGamePacket>()

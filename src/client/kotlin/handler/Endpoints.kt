@@ -98,7 +98,11 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     registerGameSessionReceiver(CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT) { _ ->
-        applyEntityDebugData(data)
+         applyEntityDebugData(data)
+    }
+
+    CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.registerClientReceiver {
+        taskExecutor.add("character_apply_confirmation") { applyCharacterApplyConfirmation() }
     }
 
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)

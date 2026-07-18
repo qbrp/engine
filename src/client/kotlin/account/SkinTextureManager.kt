@@ -1,9 +1,12 @@
 package org.lain.engine.client.account
 
 import com.mojang.blaze3d.platform.NativeImage
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -14,6 +17,8 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.resources.SKINS_DIR
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.MinecraftClientDispatcher
+import org.lain.engine.client.util.launchClientContext
+import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.player.character.Look
@@ -43,6 +48,10 @@ class SkinTextureManager(
 
     fun onOptions(options: EngineOptions) {
         skinDownloadRetryDelay.set(options.skinDownloadRetryDelay)
+    }
+
+    fun preload(look: Look) {
+        scope.launch { getTexture(look) }
     }
 
     fun getTexture(look: Look): ClientAsset.Texture {

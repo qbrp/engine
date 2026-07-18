@@ -99,7 +99,7 @@ class ServerSingleplayerTransport(
         player: PlayerId,
         id: Long
     ) {
-        if (player == mainPlayer?.id || packet is JoinGamePacket || packet is EngineChunkPacket) {
+        if (player == mainPlayer?.id || !packet.requireAuthorized) {
             CommonSingleplayerEndpointRegistry.invoke(endpoint, Side.CLIENT, packet, id)
         }
     }

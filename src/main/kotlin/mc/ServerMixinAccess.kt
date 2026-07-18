@@ -38,6 +38,10 @@ object ServerMixinAccess {
     var blockPlacedCallback: ((Player?, BlockPos, BlockState, Level) -> Unit)? = null
     var blockInteractionCallback: ((entity: Player, world: Level, blockPos: BlockPos) -> Boolean)? = null
 
+    fun onProcessPackets() {
+        server.engine.handler.processHandlerTasks()
+    }
+
     fun notifyPlayerGameModeChange(player: ServerPlayer, gameMode: GameType) {
         val enginePlayer = player.engine ?: return
         server.engine.handler.onServerNotification(

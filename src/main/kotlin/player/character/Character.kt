@@ -8,6 +8,7 @@ import org.lain.engine.storage.ComponentDto
 data class EngineCharacter(
     val profile: CharacterProfile,
     val looks: List<Look>,
+    val baseLook: Look,
 )
 
 @Serializable

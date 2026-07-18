@@ -187,8 +187,8 @@ public abstract class ChatHudMixin implements EngineChatHudAccess {
                 int textX = 0;
                 for (MinecraftChat.TypingPlayer player : entities) {
                     Component name = player.getName();
-                    PlayerFaceRenderer.draw(guiGraphics, player.getSkinTextures(), textX + 1, bottomY + 1, 8, ARGB.color(CommonColors.WHITE, ARGB.color(80, 80, 80)));
-                    PlayerFaceRenderer.draw(guiGraphics, player.getSkinTextures(), textX, bottomY, 8, CommonColors.WHITE);
+                    PlayerFaceRenderer.draw(guiGraphics, player.getSkinTextures(), textX + 1, bottomY, 8, ARGB.color(CommonColors.WHITE, ARGB.color(80, 80, 80)));
+                    PlayerFaceRenderer.draw(guiGraphics, player.getSkinTextures(), textX, bottomY - 1, 8, CommonColors.WHITE);
                     textX += 10;
                     guiGraphics.drawString(minecraft.font, name, textX, bottomY + 1, CommonColors.WHITE);
                     textX += minecraft.font.width(name);

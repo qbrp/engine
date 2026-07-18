@@ -6,10 +6,10 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.renderer.entity.state.AvatarRenderState
-import net.minecraft.world.entity.player.PlayerSkin
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lain.engine.client.account.SkinTextureManager
+import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.mc.getText
 import org.lain.engine.mc.literalText
@@ -21,23 +21,36 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class CharacterSelectionScreen(
+    private val handler: ClientHandler,
     private val characters: List<EngineCharacter>,
     private val skinTextureManager: SkinTextureManager,
 ) : Screen(literalText("Character selection")) {
     private var selectedIndex = 0
-    private var characterCompletableDeferred: CompletableDeferred<EngineCharacter?> = CompletableDeferred()
+    private val characterCompletableDeferred: CompletableDeferred<EngineCharacter?> = CompletableDeferred()
+    private var overlay: CharacterApplyConfirmationWaitOverlay? = null
 
     suspend fun awaitCharacterSelection() = characterCompletableDeferred.await()
 
     private fun selectCharacter(): Boolean {
-        val selectedCharacter = characters.getOrNull(selectedIndex) ?: return false
-        characterCompletableDeferred.complete(selectedCharacter)
-        return true
+        val selectedCharacter = characters.getOrNull(selectedIndex) ?: return true
+        if (overlay != null) return false
+        overlay = CharacterApplyConfirmationWaitOverlay(
+            handler.awaitCharacterApplyConfirmation(),
+            onClose = { onClose() },
+            onFaded = {
+                //TODO: сделать функцию grabMouse, но не закрывающую текущий экран
+                //minecraft.mouseHandler.grabMouse()
+                characterCompletableDeferred.complete(selectedCharacter)
+            }
+        )
+        return false
     }
 
     override fun onClose() {
         super.onClose()
-        characterCompletableDeferred.complete(null)
+        if (!characterCompletableDeferred.isCompleted) {
+            characterCompletableDeferred.complete(null)
+        }
     }
 
     override fun init() {
@@ -68,12 +81,23 @@ class CharacterSelectionScreen(
         return true
     }
 
+    private fun isFadingOut() = overlay?.state?.get() is CharacterApplyConfirmationWaitOverlay.State.FadeOut
+
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {
         super.render(guiGraphics, mouseX, mouseY, deltaTicks)
-        renderCharacters(guiGraphics, mouseX, mouseY)
+        if (!isFadingOut()) {
+            renderCharacters(guiGraphics, mouseX, mouseY)
+        }
+        overlay?.render(guiGraphics, mouseX, mouseY, deltaTicks)
     }
 
     override fun isPauseScreen(): Boolean = false
+
+    override fun renderBackground(guiGraphics: GuiGraphics, i: Int, j: Int, f: Float) {
+        if (!isFadingOut()) {
+            super.renderBackground(guiGraphics, i, j, f)
+        }
+    }
 
     private fun renderCharacters(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int) {
         if (characters.isEmpty()) {
@@ -97,7 +121,7 @@ class CharacterSelectionScreen(
             val visualScale = (1f - distance * 0.55f).coerceIn(MIN_VISUAL_SCALE, 1f)
             val heightScale = character.profile.height.scale
             val entityScale = BASE_ENTITY_SCALE * visualScale * heightScale
-            val look = character.baseLook() ?: return@character
+            val look = character.baseLook
             val model = computeCharacterModel(
                 character.profile.bodyType,
                 character.profile.biologicalCategory,
@@ -154,10 +178,6 @@ class CharacterSelectionScreen(
         val yaw = ((mouseX - entityX) / 8f).coerceIn(-35f, 35f)
         renderState.bodyRot = 180f + -yaw * 0.35f
         renderState.yRot = -yaw
-    }
-
-    private fun EngineCharacter.baseLook(): Look? {
-        return looks.firstOrNull { it.base } ?: looks.firstOrNull()
     }
 
     private fun Double.sign(): Int {

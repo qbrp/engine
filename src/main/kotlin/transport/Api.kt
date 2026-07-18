@@ -147,7 +147,10 @@ class ServerPacketSendTask<P : Packet>(
 // Packet
 
 
-interface Packet
+interface Packet {
+    val requireAuthorized: Boolean
+        get() = true
+}
 
 // Context
 

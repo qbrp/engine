@@ -202,8 +202,12 @@ class PlayerLoader(
                     server.namespacedStorage
                 )
             }
-            schedule(server) {
-                exceptionHandler.runCatching { server.instantiatePlayer(player, settings.notifications, location.position) }
+            server.handler.execute {
+                apply(world)
+                exceptionHandler.runCatching {
+                    server.instantiatePlayer(player, settings.notifications, location.position)
+                    server.handler.onCharacterApplyConfirmation(player)
+                }
             }
         }
     }
