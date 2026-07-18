@@ -17,7 +17,7 @@ import net.minecraft.world.InteractionResult
 import net.minecraft.world.level.gamerules.GameRules
 import org.lain.engine.Constants.DEVELOPER_TEST_ENVIRONMENT
 import org.lain.engine.mc.*
-import org.lain.engine.mc.commands.isWorldEditAvailable
+import org.lain.engine.mc.commands.WORLD_EDIT_AVAILABLE
 import org.lain.engine.mc.commands.registerEngineCommands
 import org.lain.engine.mc.commands.registerWorldEditCommands
 import org.lain.engine.mc.server.EngineMinecraftServer
@@ -105,7 +105,7 @@ class CommonEngineMod : ModInitializer {
 
         CommandRegistrationCallback.EVENT.register { dispatcher, _, env ->
             dispatcher.registerEngineCommands(env.includeDedicated)
-            if (isWorldEditAvailable()) dispatcher.registerWorldEditCommands()
+            if (WORLD_EDIT_AVAILABLE) dispatcher.registerWorldEditCommands()
         }
 
         Injector.register(environment)

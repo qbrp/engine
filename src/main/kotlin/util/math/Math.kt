@@ -42,6 +42,14 @@ fun lerp(start: Float, end: Float, t: Float): Float {
     return start * (1 - t) + end * t
 }
 
+fun easeInOutCubic(t: Float): Float {
+    return if (t < 0.5f) {
+        4f * t * t * t
+    } else {
+        1f - (-2f * t + 2f).let { it * it * it } / 2f
+    }
+}
+
 fun easeInStep(current: Float, target: Float, deltaTick: Float, smoothing: Float = 0.8f): Float {
     val t = 1f - smoothing.pow(deltaTick)
     return current + (target - current) * t

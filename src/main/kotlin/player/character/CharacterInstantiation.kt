@@ -6,6 +6,7 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.EngineServer
+import org.lain.engine.server.ServerEventListener
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.storage.PersistentPlayerData
 import org.lain.engine.storage.copyComponentDtoState
@@ -45,6 +46,7 @@ context(write: WriteComponentAccess)
 suspend fun EnginePlayer.applyCharacter(
     character: EngineCharacter,
     persistent: PersistentPlayerData.Character?,
+    listener: ServerEventListener
 ) {
     if (persistent == null) {
         val baseLook = character.looks.first { it.base }
@@ -59,4 +61,5 @@ suspend fun EnginePlayer.applyCharacter(
     }
     setCharacterDisplayComponents(character.getDisplay())
     entity.setComponent(AppliedCharacter(character))
+    listener.onCharacterApplied(this, character)
 }

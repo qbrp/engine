@@ -40,6 +40,9 @@
     "render.ItemRenderStateMixin",
     "render.ItemStackRenderStateAccessor",
     "render.ScreenAccessor",
+    "render.wildfire.CloudSyncMixin",
+    "render.wildfire.GenderRenderStateAccessor",
+    "render.wildfire.GenderRenderStateMixin",
     "resource.JsonUnbakedModelAccessor",
     "resource.ModelManagerMixin",
     "resource.SimpleReloadInstanceMixin",
@@ -60,5 +63,10 @@
   },
   "overwrites": {
     "requireAnnotations": true
-  }
+  },
+  "mixins": [
+    "render.wildfire.BreastPhysicsAccessor",
+    "render.wildfire.EntityConfigAccessor",
+    "render.wildfire.WildfireEventHandlerMixin"
+  ]
 }

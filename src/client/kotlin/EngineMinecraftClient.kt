@@ -374,7 +374,7 @@ class EngineMinecraftClient : ClientModInitializer {
                 engine.playerLoader.loadPreparing(
                     settings = settings,
                     account = PlayerLoadSettings.Account(
-                        awaitCharacterSelection(account.characters.map { it.map() })
+                        awaitCharacterSelection(settings.playerId, account.characters.map { it.map() })
                     ),
                     exceptionHandler = exceptionHandler
                 )
@@ -398,9 +398,13 @@ class EngineMinecraftClient : ClientModInitializer {
     /**
      * @return null если экран выбора персонажей был закрыт
      */
-    private suspend fun awaitCharacterSelection(characters: List<EngineCharacter>): EngineCharacter? {
+    private suspend fun awaitCharacterSelection(
+        playerId: PlayerId,
+        characters: List<EngineCharacter>
+    ): EngineCharacter? {
         val screen = withContext(MinecraftClientDispatcher) {
-            val screen = CharacterSelectionScreen(engineClient.handler, characters, engineClient.skinTextureManager)
+            val screen =
+                CharacterSelectionScreen(playerId, engineClient.handler, characters, engineClient.skinTextureManager)
             client.setScreen(screen)
             screen
         }

@@ -2,8 +2,8 @@ package org.lain.engine.client.mc
 
 import net.minecraft.client.Minecraft
 import org.joml.Quaternionf
+import org.lain.engine.client.mc.compat.CAMERA_OVERHAUL_AVAILABLE
 import org.lain.engine.client.mc.compat.createCameraOverhaulShakeSlot
-import org.lain.engine.client.mc.compat.isCameraOverhaulAvailable
 import org.lain.engine.client.render.Camera
 import org.lain.engine.client.render.ShakeEffect
 import org.lain.engine.mc.engine
@@ -35,7 +35,7 @@ class MinecraftCamera(
         get() = client.cameraEntity?.position()?.engine() ?: VEC3_ZERO
 
     override fun shake(effect: ShakeEffect) {
-        if (isCameraOverhaulAvailable()) {
+        if (CAMERA_OVERHAUL_AVAILABLE) {
             createCameraOverhaulShakeSlot(
                 effect.trauma,
                 effect.frequency * 15f,

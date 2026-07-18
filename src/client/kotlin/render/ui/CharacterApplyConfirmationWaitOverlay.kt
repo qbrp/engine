@@ -12,6 +12,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Overlay
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.util.Color
+import org.lain.engine.util.math.easeInOutCubic
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -67,7 +68,7 @@ class CharacterApplyConfirmationWaitOverlay(
         val state = state.get()
         state.tick = (state.tick + f).coerceAtMost(FADE_TIME)
         val tick = state.tick
-        val progress = (tick / FADE_TIME).coerceIn(0f, 1f)
+        val progress = easeInOutCubic(tick / FADE_TIME).coerceIn(0f, 1f)
         val overlayOpacity = when (state) {
             is State.FadeIn -> progress
                 .also {

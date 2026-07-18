@@ -95,7 +95,6 @@ dependencies {
     modImplementation("maven.modrinth:ui-lib:${project.property("ui_lib")}-fabric")
     modApi("maven.modrinth:architectury-api:${project.property("architectury_api")}+fabric")
 
-
     // Kyori Adventure
     val adventurePlatform = project.property("adventure_platform_version")
     modImplementation(include("net.kyori:adventure-platform-fabric:$adventurePlatform")!!)
@@ -104,6 +103,9 @@ dependencies {
     include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.9.0")!!)
     shaded("com.charleskorn.kaml:kaml:0.104.0")
     shaded("de.javagl:obj:0.4.0")
+
+    // Secure Storage
+    implementation("com.microsoft:credential-secure-storage:1.0.3")
 
     // Permission API
     modImplementation("me.lucko:fabric-permissions-api:${project.property("fabric_permissions_version")}")
@@ -128,6 +130,9 @@ dependencies {
         .let { it[0] to it[1] }
     modCompileOnly("maven.modrinth:cameraoverhaul:${cameraOverhaulVersion}-fabric+mc.$cameraOverhaulMinecraftVersion-plus")
 
+    // Wildfire Gender Mod
+    modImplementation("maven.modrinth:female-gender:5.0.0-Beta.3+1.21.11")
+
     // API Lamb Dynamic Lights
     modCompileOnly("dev.lambdaurora.lambdynamiclights:lambdynamiclights-api:${project.property("lambdynamiclights_version")}")
     modLocalRuntime("dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime:${project.property("lambdynamiclights_version")}")
@@ -136,9 +141,7 @@ dependencies {
     modCompileOnly("com.sk89q.worldedit:worldedit-core:${project.property("worldedit_version")}")
     modCompileOnly("com.sk89q.worldedit:worldedit-fabric-mc$minecraft_version:${project.property("worldedit_version")}")
 
-    implementation("com.microsoft:credential-secure-storage:1.0.3")
-
-    // Grapgene
+    // Graphene
     modImplementation("io.github.trethore:graphene-ui:1.7.2")
 
     // Lua

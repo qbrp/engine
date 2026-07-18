@@ -13,6 +13,7 @@ import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.mc.getText
 import org.lain.engine.mc.literalText
+import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.Look
 import org.lain.engine.player.character.computeCharacterModel
@@ -21,6 +22,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class CharacterSelectionScreen(
+    private val playerId: PlayerId,
     private val handler: ClientHandler,
     private val characters: List<EngineCharacter>,
     private val skinTextureManager: SkinTextureManager,
@@ -128,6 +130,8 @@ class CharacterSelectionScreen(
                 character.profile.biologicalSex
             )
             val renderState = createCharacterPreviewRenderState(
+                playerId,
+                character.profile,
                 CharacterSkin(skinTextureManager.getTexture(look), model),
                 1f
             )

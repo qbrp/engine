@@ -140,7 +140,7 @@ class CommandIntentBehaviour(private val _context: Context?, private val entity:
     }
 
     override fun generateSelection(): IntentSelection? {
-        if (!isWorldEditAvailable()) friendlyError("World edit API is not available")
+        if (WORLD_EDIT_AVAILABLE) friendlyError("World edit API is not available")
         val source = context?.source ?: friendlyError("World edit API is not available from client")
         val actor = FabricAdapter.adaptCommandSource(source)
         val session = WorldEdit.getInstance().sessionManager.get(actor)

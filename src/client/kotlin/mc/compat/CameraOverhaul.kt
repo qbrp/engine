@@ -4,7 +4,7 @@ import mirsario.cameraoverhaul.ScreenShakes
 import org.lain.engine.util.isClassAvailable
 import org.lain.engine.util.math.Pos
 
-fun isCameraOverhaulAvailable(): Boolean = isClassAvailable("mirsario.cameraoverhaul.CameraOverhaul")
+val CAMERA_OVERHAUL_AVAILABLE = isClassAvailable("mirsario.cameraoverhaul.CameraOverhaul")
 
 fun createCameraOverhaulShakeSlot(trauma: Float, frequency: Float, length: Float, position: Pos?, radius: Float?) {
     val slot = ScreenShakes.createDirect()

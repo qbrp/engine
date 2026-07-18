@@ -9,7 +9,7 @@ import org.lain.engine.world.BULLET_DAMAGE_DECALS_LAYER
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.removeDecals
 
-fun isWorldEditAvailable() = isClassAvailable("com.sk89q.worldedit.WorldEdit")
+val WORLD_EDIT_AVAILABLE = isClassAvailable("com.sk89q.worldedit.WorldEdit")
 
 fun ServerCommandDispatcher.registerWorldEditCommands() {
     val server by injectMinecraftEngineServer()

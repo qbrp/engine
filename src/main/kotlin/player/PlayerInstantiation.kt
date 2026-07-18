@@ -192,7 +192,7 @@ class PlayerLoader(
 
             val character = account.character
             val persistentCharacterData = persistent?.characters[character?.profile?.id]
-            character?.let { player.applyCharacter(it, persistentCharacterData) }
+            character?.let { player.applyCharacter(it, persistentCharacterData, server.eventListener) }
 
             val componentsToLoad = persistent?.components.orEmpty()
             player.prepareContainers(Uuid.next(), location, inventoryLoadResult.equipmentItems)

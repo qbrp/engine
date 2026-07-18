@@ -22,6 +22,8 @@ import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.registerIntentCommands
 import org.lain.engine.mc.commands.updateCommandInvokeSystem
 import org.lain.engine.player.*
+import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.*
 import org.lain.engine.script.lua.*
 import org.lain.engine.server.EngineServer
@@ -198,6 +200,12 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     override fun onPlayerInstantiated(player: EnginePlayer) {
         val entity = minecraftServer.playerList.getPlayer(player.id.value) ?: return
         entityTable.setPlayer(entity, player)
+        // onCharacterApplied не срабатывает при первой загрузке игрока, т.к. меню выбора персонажей появляется
+        // до его появления мира, из-за чего не срабатывает условие entityTable.getEntity(player) ?: return@execute
+        // Повторно вызываем метод принятия персонажа после инстанцирования игрока в мире
+        player.get<AppliedCharacter>()?.let { (character) ->
+            onCharacterApplied(player, character)
+        }
     }
 
     override fun onChatMessage(message: IncomingMessage) {}
@@ -206,6 +214,15 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         val commandManager = minecraftServer.commands
         commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler = engine.handler)
         minecraftServer.players.forEach { commandManager.sendCommands(it) }
+    }
+
+    override fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter) {
+        engine.execute {
+            val entity = entityTable.getEntity(player) ?: return@execute
+            if (GENDER_MOD_AVAILABLE) {
+                syncPlayerGenderConfig(entity, character.profile.biologicalSex, character.profile.genderParams)
+            }
+        }
     }
 
     fun onBlockBreak(pos: BlockPos, world: Level) {
