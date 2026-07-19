@@ -34,6 +34,7 @@ class EngineItemModel(
         heldItemContext: ItemOwner?,
         seed: Int
     ) {
+        // TODO: попробовать изобрести свой пайплайн рендеринга, т.к. ванильный жрёт очень много
         itemModel.update(state, stack, resolver, displayContext, world, heldItemContext, seed)
         state.culling = !disableCulling
         if (state.engineOutfit != null && outfitTransformation != null) {

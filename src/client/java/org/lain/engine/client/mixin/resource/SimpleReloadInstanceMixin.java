@@ -22,6 +22,7 @@ public class SimpleReloadInstanceMixin {
             at = @At("HEAD")
     )
     private static void engine$reload(ResourceManager resourceManager, List<PreparableReloadListener> list, Executor executor, Executor executor2, CompletableFuture<Unit> completableFuture, boolean bl, CallbackInfoReturnable<ReloadInstance> cir) {
+        //TODO: возможно стоит делать асинхронно?
         ClientMixinAccess.INSTANCE.createResourceList();
     }
 }
