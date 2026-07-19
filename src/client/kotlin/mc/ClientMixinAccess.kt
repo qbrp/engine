@@ -24,6 +24,7 @@ import org.lain.engine.client.render.player.modelPartOf
 import org.lain.engine.client.render.player.setEngineState
 import org.lain.engine.client.render.player.update
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
+import org.lain.engine.client.render.ui.EngineTitleMenu
 import org.lain.engine.client.render.ui.TestGrapheneScreen
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
@@ -53,11 +54,9 @@ object ClientMixinAccess {
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
-    fun getConnectionState(): ConnectionState = client.accountManager.state
-
-    fun canPlaySingleplayer(): Boolean = client.accountManager.lastAccountResponse != null
-
-    fun canPlayMultiplayer(): Boolean = client.accountManager.authorized
+    fun openEngineTitleMenu(fading: Boolean) {
+        MinecraftClient.setScreen(EngineTitleMenu(fading, client))
+    }
 
     fun setGrapheneTestScreen() {
         MinecraftClient.setScreen(TestGrapheneScreen(client))
@@ -139,12 +138,12 @@ object ClientMixinAccess {
     private val identifierCache = mutableMapOf<String, Identifier>()
 
     fun getEngineItemModel(itemStack: ItemStack): Identifier? {
-        if (!client.gameSessionActive) return null
+        val gameSession = client.gameSession ?: return null
         val engineItem = itemStack.engine()?.getClientItem() ?: return null
-        return with(client.gameSession?.world ?: return null) {
-            resolveItemAsset(engineItem).let { path ->
-                identifierCache.computeIfAbsent(path) { engineId(path) }
-            }
+
+        return with(gameSession.world) {
+            val path = resolveItemAsset(engineItem)
+            identifierCache.getOrPut(path) { engineId(path) }
         }
     }
 

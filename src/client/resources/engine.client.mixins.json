@@ -53,7 +53,7 @@
     "screen.CreativeInventoryScreenMixin",
     "screen.ScreenAccessor",
     "screen.ScreenMixin",
-    "screen.TitleScreenMixin",
+    "screen.TitleScreenAccessor",
     "ui.ExperienceBarRendererMixin",
     "ui.GuiAccessor",
     "ui.GuiMixin"

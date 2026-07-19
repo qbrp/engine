@@ -4,9 +4,12 @@ import com.daqem.yamlconfig.client.gui.screen.ConfigScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Overlay;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.player.LocalPlayer;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mixin.screen.TitleScreenAccessor;
+import org.lain.engine.client.render.ui.EngineTitleMenu;
 import org.lain.engine.client.render.ui.TestGrapheneScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -45,11 +48,15 @@ public abstract class MinecraftMixin {
 
     @Inject(
             method = "setScreen",
-            at = @At("HEAD")
+            at = @At("HEAD"),
+            cancellable = true
     )
     public void engine$invokeOptionsChangedListener(Screen screen, CallbackInfo ci) {
         if (this.screen instanceof ConfigScreen && screen == null) {
             ClientMixinAccess.INSTANCE.onYamlConfigScreenClosed();
+        } else if (screen instanceof TitleScreen titleScreen && !(this.screen instanceof EngineTitleMenu)) {
+            ClientMixinAccess.INSTANCE.openEngineTitleMenu(((TitleScreenAccessor)titleScreen).engine$isFading());
+            ci.cancel();
         }
     }
 

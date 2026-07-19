@@ -110,7 +110,7 @@ class CharacterSelectionScreen(
 
     override fun renderBackground(guiGraphics: GuiGraphics, i: Int, j: Int, f: Float) {
         if (!isFadingOut()) {
-            super.renderBackground(guiGraphics, i, j, f)
+            super.renderBlurredBackground(guiGraphics)
         }
     }
 

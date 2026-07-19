@@ -1,0 +1,11 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "engine:alvera.ttf",
+      "size": 64.0,
+      "oversample": 6.0,
+      "shift": [0.0, 0.0]
+    }
+  ]
+}

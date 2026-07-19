@@ -2,6 +2,7 @@ package org.lain.engine.client
 
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
+import org.lain.engine.client.account.ConnectionState
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
@@ -80,6 +81,15 @@ class EngineClient(
     private val luaDataStorage = LuaDataStorage()
     var compilationResult: CompilationResult? = null
     var luaContext: ClientLuaContext? = null
+
+    val connectionState
+        get() = accountManager.state
+
+    val canPlaySingleplayer
+        get() = accountManager.lastAccountResponse != null
+
+    val canPlayMultiplayer
+        get() = accountManager.authorized
 
     init {
          accountManager.autoLoginAsync()
