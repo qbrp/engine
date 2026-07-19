@@ -35,9 +35,21 @@ class Inject<T>(private val provider: () -> T?) {
     }
 }
 
+class InjectCaching<T>(private val provider: () -> T?) {
+    private var cached: T? = null
+    operator fun getValue(thisRef: Any?, prop: KProperty<*>): T {
+        return cached
+            ?: provider()
+                ?.also { cached = it }
+            ?: error("Dependency ${prop.name} is not initialized")
+    }
+}
+
 inline fun <reified T : Any> injectValue() = Injector.resolve(T::class)
 
 inline fun <reified T: Any> inject() = Inject { Injector.resolve(T::class) }
+
+inline fun <reified T: Any> injectCaching() = InjectCaching { Injector.resolve(T::class) }
 
 enum class Environment {
     CLIENT, SERVER

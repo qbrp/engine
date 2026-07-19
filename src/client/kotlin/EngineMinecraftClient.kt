@@ -59,6 +59,7 @@ import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
+import org.lain.engine.util.component.registerAllClient
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 import org.lain.engine.world.ImmutableVoxelPos
@@ -106,6 +107,7 @@ class EngineMinecraftClient : ClientModInitializer {
 
     override fun onInitializeClient() {
         ComponentTypeRegistry.registerComponentsClient()
+        ComponentTypeRegistry.registerAllClient()
         engineClient.options = config
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engineClient)
@@ -274,7 +276,7 @@ class EngineMinecraftClient : ClientModInitializer {
             try {
                 val itemStacks = (entity.visibleInventoryItems + entity.carriedItem).toSet()
                 val items = itemStacks.mapNotNull { itemStack ->
-                    val item = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getClientItem() ?: return@mapNotNull null
+                    val item = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getClientItem(engineClient) ?: return@mapNotNull null
                     EngineItemStack(item, itemStack)
                 }.toSet()
 

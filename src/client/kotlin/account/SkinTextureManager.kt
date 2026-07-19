@@ -55,13 +55,10 @@ class SkinTextureManager(
     }
 
     fun getTexture(look: Look): ClientAsset.Texture {
-        val cacheKey = cacheKey(look)
-        loaded[cacheKey]?.let { return it.asset }
+        loaded[look.id]?.let { return it.asset }
 
-        if (loading.add(cacheKey)) {
-            scope.launch {
-                loadSkin(look, cacheKey)
-            }
+        if (loading.add(look.id)) {
+            scope.launch { loadSkin(look) }
         }
 
         return DefaultPlayerSkin.getDefaultSkin().body
@@ -76,9 +73,9 @@ class SkinTextureManager(
         loading.clear()
     }
 
-    private suspend fun loadSkin(look: Look, cacheKey: String) {
+    private suspend fun loadSkin(look: Look) {
         try {
-            val file = cachePath(cacheKey)
+            val file = cachePath(look)
             if (Files.exists(file)) {
                 runCatching { validateSkinBytes(Files.readAllBytes(file)) }
                     .onFailure {
@@ -93,12 +90,12 @@ class SkinTextureManager(
                 writeAtomically(file, bytes)
             }
 
-            register(cacheKey, file, look.skin.url)
+            register(look.id, file, look.skin.url)
         } catch (e: Throwable) {
             logger.error("Не удалось загрузить скин образа ${look.id} с ${look.skin.url}", e)
             delay(skinDownloadRetryDelay.toLong() * 1000L) // чтобы не делать слишком частые повторы
         } finally {
-            loading.remove(cacheKey)
+            loading.remove(look.id)
         }
     }
 
@@ -130,23 +127,23 @@ class SkinTextureManager(
         }
     }
 
-    private suspend fun register(cacheKey: String, file: Path, url: String) = withContext(Dispatchers.IO) {
+    private suspend fun register(lookId: String, file: Path, url: String) = withContext(Dispatchers.IO) {
         val bytes = Files.readAllBytes(file)
         validateSkinBytes(bytes)
         val image = NativeImage.read(bytes)
-        val textureId = engineId("character_skins/$cacheKey")
+        val textureId = engineId("character_skins/$lookId")
         val asset = ClientAsset.DownloadedTexture(textureId, url)
 
         withContext(MinecraftClientDispatcher) {
-            if (loaded.containsKey(cacheKey)) {
+            if (loaded.containsKey(lookId)) {
                 image.close()
                 return@withContext
             }
 
-            val texture = DynamicTexture({ "Engine character skin $cacheKey" }, image)
+            val texture = DynamicTexture({ "Engine character skin $lookId" }, image)
             MinecraftClient.textureManager.register(textureId, texture)
             texture.upload()
-            loaded[cacheKey] = LoadedSkin(asset, texture)
+            loaded[lookId] = LoadedSkin(asset, texture)
         }
     }
 
@@ -176,7 +173,8 @@ class SkinTextureManager(
         }
     }
 
-    private fun cachePath(cacheKey: String): Path {
+    private fun cachePath(look: Look): Path {
+        val cacheKey = cacheKey(look)
         return SKINS_DIR
             .resolve(cacheKey.substring(0, 2))
             .resolve(cacheKey.substring(2, 4))

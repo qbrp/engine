@@ -87,7 +87,7 @@ fun WorldMetaTable() = luaTable {
         }
 
         when (typesL.size) {
-            1 -> world.iterate1(typesL[0].ecsType) { entity, component ->
+            1 -> world.iterate1(typesL[0].requireType()) { entity, component ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
                     self,
@@ -97,8 +97,8 @@ fun WorldMetaTable() = luaTable {
             }
 
             2 -> world.iterate2(
-                typesL[0].ecsType,
-                typesL[1].ecsType
+                typesL[0].requireType(),
+                typesL[1].requireType()
             ) { entity, component1, component2 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
@@ -112,9 +112,9 @@ fun WorldMetaTable() = luaTable {
             }
 
             3 -> world.iterate3(
-                typesL[0].ecsType,
-                typesL[1].ecsType,
-                typesL[2].ecsType
+                typesL[0].requireType(),
+                typesL[1].requireType(),
+                typesL[2].requireType()
             ) { entity, component1, component2, component3 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
@@ -129,10 +129,10 @@ fun WorldMetaTable() = luaTable {
             }
 
             4 -> world.iterate4(
-                typesL[0].ecsType,
-                typesL[1].ecsType,
-                typesL[2].ecsType,
-                typesL[3].ecsType
+                typesL[0].requireType(),
+                typesL[1].requireType(),
+                typesL[2].requireType(),
+                typesL[3].requireType()
             ) { entity, component1, component2, component3, component4 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
@@ -148,11 +148,11 @@ fun WorldMetaTable() = luaTable {
             }
 
             5 -> world.iterate5(
-                typesL[0].ecsType,
-                typesL[1].ecsType,
-                typesL[2].ecsType,
-                typesL[3].ecsType,
-                typesL[4].ecsType
+                typesL[0].requireType(),
+                typesL[1].requireType(),
+                typesL[2].requireType(),
+                typesL[3].requireType(),
+                typesL[4].requireType()
             ) { entity, component1, component2, component3, component4, component5 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(

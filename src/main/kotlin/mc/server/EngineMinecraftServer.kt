@@ -150,7 +150,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
                 it.chunkSource.chunkMap.getPlayers(ChunkPos(chunkPos.x, chunkPos.z), false)
                     .mapNotNull { entity -> entityTable.getPlayer(entity) }
             }
-            world.registerScriptComponents(engine.namespacedStorage)
+            world.registerComponentTypes(engine.namespacedStorage)
             with(world) { world.state.copyState(engine.loadWorldComponents(world)) }
             engine.addWorld(world)
             dependencies.entityTable.setWorld(id, it)

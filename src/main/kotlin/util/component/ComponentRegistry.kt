@@ -41,7 +41,7 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
     private val types: MutableMap<String, Entry<out Component>> = HashMap()
     private val ids: MutableMap<KClass<out Component>, String> = HashMap() // кеш ID
 
-    data class Entry<T : Component>(val type: ComponentType<T>, val meta: ComponentMeta)
+    data class Entry<T : Component>(val type: IndexedComponentType<T>, val meta: ComponentMeta)
 
     private fun KClass<out Component>.cachedId(): String {
         return ids.getOrPut(this) { qualifiedName!!.replace(".", "_") }
@@ -63,10 +63,16 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
     }
 
     fun registerComponent(kClass: KClass<out Component>, meta: ComponentMeta, id: String? = null) {
-        registerComponent(kClass, ComponentType((id ?: kClass.simpleName!!).lowercase()), meta)
+        registerComponent(
+            kClass,
+            EngineComponentType(
+                (id ?: kClass.simpleName!!).lowercase()
+            ),
+            meta
+        )
     }
 
-    fun registerComponent(kClass: KClass<out Component>, type: ComponentType<out Component>, meta: ComponentMeta) {
+    fun registerComponent(kClass: KClass<out Component>, type: IndexedComponentType<out Component>, meta: ComponentMeta) {
         types[kClass.cachedId()] = Entry(type, meta)
     }
 
@@ -78,6 +84,8 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
         return (types[kClass.cachedId()] ?: error("Component type ${kClass.qualifiedName} not registered")).type as ComponentType<T>
     }
 }
+
+fun getKotlinComponentTypeEntries() = ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }
 
 fun ComponentTypeRegistry.registerComponents() {
     registerComponent<VoxelEvent>()
@@ -110,7 +118,6 @@ fun ComponentTypeRegistry.registerComponents() {
 
     registerComponent<WorldSoundPlayRequest.Item>(id = "sound_play_item")
     registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_positioned")
-    registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_simple")
 
     registerComponent<HoldsBy>()
     registerComponent<Item>(isSavable = true, isNetworking = true)

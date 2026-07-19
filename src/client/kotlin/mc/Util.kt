@@ -20,6 +20,7 @@ import org.lain.engine.mc.TEXT_LOGGER
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.removeLegacyFormattingCodes
 import org.lain.engine.util.inject
+import org.lain.engine.util.injectCaching
 
 typealias ItemAsset = ClientItem
 
@@ -39,9 +40,9 @@ val Minecraft.blockHitResult
 
 val MissingSpriteId get() = MissingTextureAtlasSprite.getLocation()
 
-fun injectClient() = inject<EngineClient>()
+fun injectClient() = injectCaching<EngineClient>()
 
-fun injectMinecraftClient() = inject<EngineMinecraftClient>()
+fun injectMinecraftClient() = injectCaching<EngineMinecraftClient>()
 
 fun String.parseMiniMessageClient(): Text {
     val text = this.removeLegacyFormattingCodes()

@@ -3,6 +3,7 @@ package org.lain.engine.script
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.util.component.ComponentMeta
+import org.lain.engine.util.component.IndexedComponentType
 
 @JvmInline
 value class ScriptComponentId(val id: String) {
@@ -15,10 +16,12 @@ class ScriptComponent(val value: Any, val type: ScriptComponentType) : Component
     }
 }
 
-data class ScriptComponentType(
+class ScriptComponentType(
     val ecsType: ComponentType<ScriptComponent>,
     val meta: ComponentMeta
-) : ComponentType<ScriptComponent> by ecsType
+) : IndexedComponentType<ScriptComponent>(ecsType.id) {
+    override fun toString(): String = "ScriptComponentType($idx, $id, $meta)"
+}
 
 fun String.toScriptComponentId(): ScriptComponentId = ScriptComponentId(this)
 

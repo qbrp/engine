@@ -1,5 +1,6 @@
 package org.lain.engine.client
 
+import org.lain.engine.client.mc.injectClient
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemAccess
 import org.lain.engine.mc.EngineItemReferenceComponent
@@ -13,9 +14,7 @@ class ClientItemStorage : Storage<PersistentId, EngineItem>(), ItemAccess {
     }
 }
 
-fun injectClientItemStorage() = inject<ClientItemStorage>()
-
-fun EngineItemReferenceComponent.getClientItem(): EngineItem? {
-    val itemStorage by injectClientItemStorage()
-    return itemStorage.get(uuid)
+fun EngineItemReferenceComponent.getClientItem(client: EngineClient): EngineItem? {
+    val itemStorage = client.gameSession?.itemStorage
+    return itemStorage?.get(uuid)
 }

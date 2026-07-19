@@ -167,7 +167,7 @@ class GameSession(
     }
 
     fun applyCompilation(result: CompilationResult) {
-        world.registerScriptComponents(namespacedStorage)
+        world.registerComponentTypes(namespacedStorage)
         result.callbacks?.let { callbacks = it }
         luaContext.setupClientGameSession(this)
 

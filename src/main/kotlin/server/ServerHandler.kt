@@ -429,9 +429,8 @@ class ServerHandler(
             }
         }
 
-        server.listWorlds().forEachWithContext({ it }) {
-            it.iterate<Networked>() { entity, _ -> entity.clearMetaState() }
-            it.state.clearMetaState()
+        server.listWorlds().forEach {
+            it.componentManager.invalidateNetworkingState() // TODO: это оптимизация, надо проверить, не создает ли она баги
         }
     }
 

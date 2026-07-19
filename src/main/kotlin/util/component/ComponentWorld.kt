@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
+import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.Storage
@@ -20,10 +21,9 @@ class ComponentWorld(
     val persistentIdToEntity: ConcurrentHashMap<PersistentId, EntityId>,
     val itemStorage: Storage<PersistentId, EngineItem>
 ) : MutableComponentAccess, IterationComponentAccess {
-    private val arrays = LinkedHashMap<String, ComponentArray<*>>()
-    private val arraysList = ArrayList<ComponentArray<*>>()
-    private val savableArrays = HashMap<String, ComponentArray<*>>()
-    private val networkingArrays = HashMap<String, ComponentArray<*>>()
+    private val arrays = ArrayList<ComponentArray<*>>()
+    private val savableArrays = ArrayList<ComponentArray<*>>()
+    private val networkingArrays = ArrayList<ComponentArray<*>>()
     private val dirtyComponentIndexesByEntity = HashMap<EntityId, MutableSet<Int>>()
 
     // Создание сущностей потокобезопасно. Добавление компонентов - нет
@@ -32,7 +32,12 @@ class ComponentWorld(
     private var lastIndex = AtomicInteger()
     private val entityInstantiationLock = Any()
 
-    init { invalidateComponentArrays(ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }) }
+    init {
+        registerComponentArrays(
+            ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }
+            + CoreScriptComponents.getAll().map { it to it.meta }
+        )
+    }
 
     inline fun <reified T : Component> getComponentArray(): ComponentArray<T> {
         return getComponentArray(componentTypeOf(T::class))
@@ -40,25 +45,44 @@ class ComponentWorld(
 
     @Suppress("UNCHECKED_CAST")
     fun <T : Component> getComponentArray(type: ComponentType<T>): ComponentArray<T> {
-        return arrays[type.id] as? ComponentArray<T> ?: error("No component array for $type")
+        return arrays[type.castIndexed().idx] as? ComponentArray<T> ?: error("No component array for $type")
     }
 
     fun listArrays(): List<ComponentArray<*>> {
         checkOnThread()
-        return arraysList
+        return arrays
     }
 
-    fun invalidateComponentArrays(entries: List<Pair<ComponentType<out Component>, ComponentMeta>>) {
+    fun registerComponentArrays(entries: List<Pair<IndexedComponentType<out Component>, ComponentMeta>>) {
         checkOnThread()
-        entries.forEach { (type, meta) ->
-            val id = type.id
-            val existingArray = arrays[id]
-            if (existingArray == null || existingArray.meta != meta) {
-                networkingArrays.remove(id)
-                savableArrays.remove(id)
 
-                val arrayIndex = existingArray?.idx ?: arraysList.size
-                val arr = ComponentArray(arrayIndex, meta, type as ComponentType<Component>)
+        val oldArrays = arrays.toList()
+        arrays.clear()
+        savableArrays.clear()
+        networkingArrays.clear()
+
+        entries
+            .sortedBy { (type, _) -> type.idx }
+            .forEach { (type, meta) ->
+                val idx = type.idx
+                if (idx != arrays.size) {
+                    error("Invalid component type sequence for $type: $idx must be ${arrays.size}")
+                }
+
+                val existing = oldArrays.getOrNull(idx)
+                if (existing != null && existing.type.id != type.id) {
+                    error("Component type index changed at $idx: ${existing.type} -> $type")
+                }
+
+                val arr = if (existing != null && existing.type == type) {
+                    existing
+                } else {
+                    ComponentArray(idx, meta, type as ComponentType<Component>)
+                }
+                arr.onAdded = null
+                arr.onRemoved = null
+
+                arrays += arr
                 if (type == componentTypeOf(PersistentIdComponent::class)) {
                     arr.onAdded = { component, entity -> persistentIdToEntity[(component as PersistentIdComponent).id] = entity }
                     arr.onRemoved = { component, entity -> persistentIdToEntity.remove((component as PersistentIdComponent).id) }
@@ -75,16 +99,9 @@ class ComponentWorld(
                     }
                 }
 
-                arrays[id] = arr
-                if (existingArray == null) {
-                    arraysList += arr
-                } else {
-                    arraysList[arrayIndex] = arr
-                }
-                if (meta.savable) savableArrays[id] = arr
-                if (meta.networking) networkingArrays[id] = arr
+                if (meta.savable) savableArrays.add(arr)
+                if (meta.networking) networkingArrays.add(arr)
             }
-        }
     }
 
     private fun checkOnThread() {
@@ -103,6 +120,11 @@ class ComponentWorld(
             .add(array.idx)
     }
 
+    fun invalidateNetworkingState() {
+        checkOnThread()
+        dirtyComponentIndexesByEntity.clear()
+    }
+
     override fun invalidateStates(entity: EntityId) {
         clearDirtyComponents(entity)
     }
@@ -115,7 +137,7 @@ class ComponentWorld(
     fun getNetworkedArrays(entityId: EntityId): List<ComponentArray<*>> {
         checkOnThread()
         val output = mutableListOf<ComponentArray<*>>()
-        for (arr in arraysList) {
+        for (arr in arrays) {
             val component = arr.componentOf(entityId)
             if (component != null && arr.meta.networking) {
                 output += arr
@@ -127,7 +149,7 @@ class ComponentWorld(
     fun getSavableComponents(entityId: EntityId): List<Component> {
         checkOnThread()
         val output = mutableListOf<Component>()
-        for (arr in savableArrays.values) {
+        for (arr in savableArrays) {
             val component = arr.componentOf(entityId)
             if (component != null && arr.meta.savable) {
                 output += component
@@ -139,7 +161,7 @@ class ComponentWorld(
     fun getNetworkedComponents(entityId: EntityId): List<Component> {
         checkOnThread()
         val output = mutableListOf<Component>()
-        for (arr in networkingArrays.values) {
+        for (arr in networkingArrays) {
             val component = arr.componentOf(entityId)
             if (component != null && arr.meta.networking) {
                 output += component
@@ -153,7 +175,7 @@ class ComponentWorld(
         val dirtyIndexes = dirtyComponentIndexesByEntity[entityId] ?: return emptyList()
         val output = mutableListOf<Component>()
         for (idx in dirtyIndexes) {
-            val array = arraysList.getOrNull(idx) ?: continue
+            val array = arrays.getOrNull(idx) ?: continue
             if (!array.meta.networking) continue
             array.componentOf(entityId)?.let { output += it }
         }
@@ -165,13 +187,13 @@ class ComponentWorld(
         statement: (ComponentArray<*>) -> Boolean
     ): List<Pair<EntityId, ComponentState>> {
         checkOnThread()
-        val filterArrays = filters.map { filter -> arrays[filter.id] ?: error("No component filter found for $filter") }
+        val filterArrays = filters.map { filter -> arrays[filter.castIndexed().idx] ?: error("No component filter found for $filter") }
         val list = mutableListOf<Pair<EntityId, ComponentState>>()
         loop@ for (entityId in filterArrays.flatMap { it.denseEntities }.toSet()) {
             filterArrays.forEach { if (entityId !in it.denseEntities) continue@loop }
             val componentState = ComponentState()
             list += entityId to componentState
-            for ((id, array) in arrays) {
+            for (array in arrays) {
                 if (!statement(array)) continue
                 val component = array.componentOf(entityId) ?: continue
                 componentState.setComponent(array.type as ComponentType<Component>, component)
@@ -200,7 +222,7 @@ class ComponentWorld(
     // главный поток
     override fun destroy(entity: EntityId) {
         require(exists(entity)) { "Entity $entity does not exist" }
-        arrays.forEach { (_, array) -> array.removeComponent(entity) }
+        arrays.forEach { array -> array.removeComponent(entity) }
         synchronized(entityInstantiationLock) {
             freeIndexes.add(entity)
             destroyed[entity] = true
@@ -211,6 +233,7 @@ class ComponentWorld(
     // главный поток
     override fun exists(entity: EntityId): Boolean {
         checkOnThread()
+        //TODO: профайлер показывает здесь просадку из-за синхронизации листа destroyed
         return entity < destroyed.size && !destroyed[entity]
     }
 
@@ -227,8 +250,8 @@ class ComponentWorld(
                     val bitIndex = java.lang.Long.numberOfTrailingZeros(bits)
                     val arrayIndex = i * 64 + bitIndex
 
-                    if (arrayIndex < arraysList.size) {
-                        val array = arraysList[arrayIndex]
+                    if (arrayIndex < arrays.size) {
+                        val array = arrays[arrayIndex]
                         array.componentOf(entity)?.let {
                             action(array, it)
                         }
@@ -238,7 +261,7 @@ class ComponentWorld(
                 }
             }
         } else {
-            arraysList.forEach { array ->
+            arrays.forEach { array ->
                 array.componentOf(entity)?.let {
                     action(array, it)
                 }
@@ -276,6 +299,7 @@ class ComponentWorld(
 
     override fun <T : Component> setComponentWithType(entity: EntityId, component: T, type: ComponentType<T>) {
         checkOnThread()
+        require(exists(entity)) { "Entity $entity does not exist" }
         val array = getComponentArray(type)
         array.setComponent(entity, component)
         if (array.meta.networking) {

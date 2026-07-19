@@ -14,6 +14,7 @@ import org.lain.engine.util.Intent
 import org.lain.engine.util.IntentId
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.util.Timestamp
+import org.lain.engine.util.component.getKotlinComponentTypeEntries
 import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.world.SoundEvent
@@ -21,6 +22,7 @@ import org.lain.engine.world.SoundEventId
 import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
 import java.io.File
+import kotlin.to
 
 val File.contents: File get() = this.resolve("contents")
     .also { it.mkdirs() }
@@ -136,14 +138,18 @@ fun NamespacedStorageAccess.loadContentsCompileResult(result: CompilationResult)
     )
 }
 
-fun World.registerScriptComponents(namespacesStorage: NamespacedStorageAccess) {
-    registerScriptComponents(namespacesStorage.components.values.toList() + CoreScriptComponents.getAll())
+fun World.registerComponentTypes(namespacesStorage: NamespacedStorageAccess) {
+    val kotlinTypeEntries = getKotlinComponentTypeEntries()
+    val builtinLuaTypes = CoreScriptComponents.getAll()
+    val namespaceLuaTypes = namespacesStorage.components.values.toList()
+    val luaTypeEntries = (namespaceLuaTypes + builtinLuaTypes).map { it to it.meta }.toList()
+    componentManager.registerComponentArrays(kotlinTypeEntries + luaTypeEntries)
 }
 
 fun EngineServer.applyContentsCompileResult(result: CompilationResult) {
     result.callbacks?.let { callbacks = it }
     namespacedStorage.loadContentsCompileResult(result)
-    listWorlds().forEach { it.registerScriptComponents(namespacedStorage) }
+    listWorlds().forEach { it.registerComponentTypes(namespacedStorage) }
     handler.onScriptsCompiled()
 }
 

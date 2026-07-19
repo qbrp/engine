@@ -13,10 +13,35 @@ fun ComponentTypeRegistry.registerAll() {
             .setUrls(ClasspathHelper.forPackage("org.lain.engine"))
             .setScanners(Scanners.SubTypes)
     )
-    reflections.getSubTypesOf(Component::class.java).forEach {
-        val kclass = it.kotlin
-        if (!isRegistered(kclass) && it != ScriptComponent::class.java && !it.isInterface && !it.isAnonymousClass) {
-            registerComponent(kclass, ComponentMeta(false, kclass, false), it.simpleName)
+    reflections.getSubTypesOf(Component::class.java)
+        .asSequence()
+        .filter { it != ScriptComponent::class.java }
+        .filter { !it.isInterface && !it.isAnonymousClass }
+        .filter { !it.name.startsWith("org.lain.engine.client.") }
+        .sortedBy { it.name }
+        .forEach {
+            val kclass = it.kotlin
+            if (!isRegistered(kclass) && it != ScriptComponent::class.java) {
+                registerComponent(kclass, ComponentMeta(false, kclass, false), it.simpleName)
+            }
         }
-    }
+}
+
+fun ComponentTypeRegistry.registerAllClient() {
+    val reflections = Reflections(
+        ConfigurationBuilder()
+            .setUrls(ClasspathHelper.forPackage("org.lain.engine.client"))
+            .setScanners(Scanners.SubTypes)
+    )
+    reflections.getSubTypesOf(Component::class.java)
+        .asSequence()
+        .filter { it != ScriptComponent::class.java }
+        .filter { !it.isInterface && !it.isAnonymousClass }
+        .sortedBy { it.name }
+        .forEach {
+            val kclass = it.kotlin
+            if (!isRegistered(kclass) && it != ScriptComponent::class.java) {
+                registerComponent(kclass, ComponentMeta(false, kclass, false), it.simpleName)
+            }
+        }
 }

@@ -54,10 +54,6 @@ class World(
         ticks++
     }
 
-    fun registerScriptComponents(components: List<ScriptComponentType>) {
-        componentManager.invalidateComponentArrays(components.map { it to it.meta })
-    }
-
     /**
      * Создает сущность с компонентами `event` и Event. Следует использовать как альтернативу очередям событий.
      * Последний сигнализирует о том, что сущность нужно уничтожить в конце тика

@@ -7,6 +7,7 @@ import org.lain.engine.script.*
 import org.lain.engine.script.yaml.namespacedId
 import org.lain.engine.util.*
 import org.lain.engine.util.component.ComponentMeta
+import org.lain.engine.util.component.IndexedComponentType
 import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId

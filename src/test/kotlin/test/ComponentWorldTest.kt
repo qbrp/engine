@@ -6,7 +6,6 @@ import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.script.emptyNamespacedStorage
-import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentArray
 import org.lain.engine.util.component.ComponentMeta
@@ -23,6 +22,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.assertThrows
+import org.lain.engine.util.component.EngineComponentType
+import org.lain.engine.util.component.IndexedComponentType
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -37,7 +38,7 @@ class ComponentWorldTest : EngineTest() {
             ConcurrentHashMap(),
             Storage()
         )
-        componentWorld.invalidateComponentArrays(testEntries)
+        componentWorld.registerComponentArrays(testEntries)
     }
 
     @Test
@@ -239,7 +240,7 @@ class ComponentWorldTest : EngineTest() {
             itemStorage = ItemStorage(),
             thread = Thread.currentThread()
         )
-        world.componentManager.invalidateComponentArrays(testEntries)
+        world.componentManager.registerComponentArrays(testEntries)
         return world
     }
 
@@ -248,9 +249,9 @@ class ComponentWorldTest : EngineTest() {
     private data class Name(val value: String) : Component
 
     private companion object {
-        val positionType = ComponentType<Position>("test_position")
-        val velocityType = ComponentType<Velocity>("test_velocity")
-        val nameType = ComponentType<Name>("test_name")
+        val positionType = EngineComponentType<Position>("test_position")
+        val velocityType = EngineComponentType<Velocity>("test_velocity")
+        val nameType = EngineComponentType<Name>("test_name")
 
         val basicMeta = ComponentMeta(savable = false, serializationClass = null, networking = false)
         val networkingMeta = ComponentMeta(savable = false, serializationClass = null, networking = true)

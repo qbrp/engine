@@ -139,7 +139,7 @@ object ClientMixinAccess {
 
     fun getEngineItemModel(itemStack: ItemStack): Identifier? {
         val gameSession = client.gameSession ?: return null
-        val engineItem = itemStack.engine()?.getClientItem() ?: return null
+        val engineItem = itemStack.engine()?.getClientItem(client) ?: return null
 
         return with(gameSession.world) {
             val path = resolveItemAsset(engineItem)
@@ -149,7 +149,7 @@ object ClientMixinAccess {
 
     fun getEngineItem(itemStack: ItemStack): EngineItem? {
         return client.gameSession?.let {
-            itemStack.engine()?.getClientItem()
+            itemStack.engine()?.getClientItem(client)
         }
     }
 
@@ -164,7 +164,7 @@ object ClientMixinAccess {
     }
 
     fun onCursorStackSet(itemStack: ItemStack?) {
-        val engineItem = if (itemStack?.isEmpty == true) null else itemStack?.engine()?.getClientItem()
+        val engineItem = if (itemStack?.isEmpty == true) null else itemStack?.engine()?.getClientItem(client)
         client.handler.onCursorItem(engineItem)
     }
 

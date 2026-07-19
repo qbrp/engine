@@ -113,10 +113,6 @@ public abstract class ItemStackMixin {
 
     @Unique
     private static Integer getEngineItem(ItemStack itemStack) {
-        EngineItemReferenceComponent component = itemStack.get(ItemsKt.getENGINE_ITEM_REFERENCE_COMPONENT());
-        if (component == null) {
-            return null;
-        }
-        return ClientItemStorageKt.getClientItem(component);
+        return ClientMixinAccess.INSTANCE.getEngineItem(itemStack);
     }
 }
