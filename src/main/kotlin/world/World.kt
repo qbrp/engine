@@ -37,7 +37,8 @@ class World(
     val itemStorage: Storage<PersistentId, EngineItem>,
     val persistentIdToEntity: ConcurrentHashMap<PersistentId, EntityId> = ConcurrentHashMap(),
     thread: Thread,
-    val componentManager: ComponentWorld = ComponentWorld(thread, persistentIdToEntity, itemStorage),
+    registerEngineKotlinComponents: Boolean = true,
+    val componentManager: ComponentWorld = ComponentWorld(thread, persistentIdToEntity, itemStorage, registerEngineKotlinComponents),
     val state: EntityId = componentManager.addWorldStateEntity(),
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     private val scriptContext = ScriptContext.World(this)

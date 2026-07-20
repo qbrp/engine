@@ -1,6 +1,7 @@
 package org.lain.engine.server
 
 import org.lain.engine.chat.IncomingMessage
+import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.NamespacedStorage
@@ -12,5 +13,10 @@ interface ServerEventListener {
     fun onChatMessage(message: IncomingMessage)
     fun onCompiled(contents: NamespacedStorage)
     fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter)
-    suspend fun validateCharacter(player: EnginePlayer, characterId: String, character: EngineCharacter?): EngineCharacter
+    suspend fun validateCharacter(
+        player: EnginePlayer,
+        characterId: String,
+        character: EngineCharacter?,
+        sessionTicket: SessionTicket?
+    ): EngineCharacter
 }

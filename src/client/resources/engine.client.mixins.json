@@ -51,6 +51,7 @@
     "resource.TransformationDeserializerMixin",
     "screen.BookEditScreenMixin",
     "screen.CreativeInventoryScreenMixin",
+    "screen.LevelLoadingScreenMixin",
     "screen.ScreenAccessor",
     "screen.ScreenMixin",
     "screen.TitleScreenAccessor",

@@ -11,9 +11,14 @@ class DedicatedEngineAccountService {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val httpClient = EngineHttpClient(URI.create("http://localhost:8080"))
 
-    fun getAuthorized(sessionTicket: String) = AuthorizedAccount(
-        httpClient,
-        sessionTicket,
-        Instant.now().plus(Duration.ofMillis(30L))
-    )
+    fun getAuthorized(sessionTicket: SessionTicket): AuthorizedAccount {
+        if (Instant.now().isAfter(sessionTicket.expiresAt)) {
+            error("Время действия сессионного тикета истекло")
+        }
+        return AuthorizedAccount(
+            httpClient,
+            sessionTicket.hash,
+            sessionTicket.expiresAt
+        )
+    }
 }

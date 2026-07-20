@@ -145,7 +145,7 @@ fun CommandSourceStack.hasPermission(text: String): Boolean {
     return false
 }
 
-class FriendlyException(message: String) : Exception(message)
+open class FriendlyException(message: String) : Exception(message)
 
 fun friendlyError(message: String): Nothing = throw FriendlyException(message)
 

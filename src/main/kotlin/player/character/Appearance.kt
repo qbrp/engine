@@ -35,7 +35,7 @@ data class SelectedLook(val look: Look) : Component
 @Serializable
 data class CharacterDisplay(
     val id: String,
-    val name: CharacterName,
+    val name: CharacterGradientName,
     val biologicalCategory: BiologicalCategory,
     val appearanceDescription: String,
     val height: CharacterHeight,
@@ -47,12 +47,12 @@ data class CharacterDisplay(
 value class CharacterHeight(val meters: Float)
 
 @Serializable
-data class CharacterName(
+data class CharacterGradientName(
     val name: String,
     val firstColor: Color,
     val secondColor: Color? = null,
 ) {
-    val gradientText: List<ColoredChar>
+    val gradientChars: List<ColoredChar>
         get() = gradientText(name, firstColor, secondColor ?: firstColor)
 }
 

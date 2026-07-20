@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
@@ -24,9 +23,7 @@ import net.minecraft.world.level.Level
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
-import org.lain.engine.mc.server.AuthPacket
-import org.lain.engine.Constants.ENGINE_MOD_VERSION
-import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
+import org.lain.engine.client.account.NotAuthorizedException
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
@@ -35,7 +32,7 @@ import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
-import org.lain.engine.client.render.ui.CharacterSelectionScreen
+import org.lain.engine.client.render.ui.character.CharacterSelectionScreen
 import org.lain.engine.client.render.ui.initializeGraphene
 import org.lain.engine.client.render.ui.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
@@ -43,19 +40,15 @@ import org.lain.engine.client.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.world.registerWorldRenderEvents
 import org.lain.engine.client.transport.ClientTransportContext
-import org.lain.engine.client.transport.sendC2SPacket
-import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.WritableOpen
 import org.lain.engine.mc.*
-import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.mc.server.EngineHttpClient
 import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.server.EngineServer
 import org.lain.engine.mc.server.serverMinecraftPlayerLoadSettings
-import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
@@ -81,7 +74,7 @@ class EngineMinecraftClient : ClientModInitializer {
 
     private lateinit var lightSystem: LightSystem
     private val decalsStorage: DecalSystem = DecalSystem()
-    private val eventBus = MinecraftEngineClientEventListener(client, entityTable, decalsStorage)
+    private val eventBus = MinecraftEngineClientEventListener(this, client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
         window,
@@ -201,9 +194,9 @@ class EngineMinecraftClient : ClientModInitializer {
                 val developerMode = DeveloperModeStatus(engineClient.developerMode, engineClient.acousticDebug)
                 if (client.isSingleplayer) {
                     val engine = server?.engine ?: throw RuntimeException("Server not started")
-                    authorizeSingleplayer(engine, mainPlayerEntity, developerMode)
+                    setupSingleplayer(engine, mainPlayerEntity, developerMode)
                 } else {
-                    authorizeMultiplayer()
+                    engineClient.authorizeMultiplayer(fabricLoader.allMods.map { it.metadata.id })
                 }
                 inAuthorization = true
             }
@@ -335,6 +328,7 @@ class EngineMinecraftClient : ClientModInitializer {
 
     fun onDisconnect() {
         if (engineClient.gameSession == null) return
+        engineClient.multiplayerAuthorization?.cancel()
         uiRenderPipeline.invalidate()
         entityTable.client.invalidate()
         decalsStorage.unload()
@@ -349,7 +343,7 @@ class EngineMinecraftClient : ClientModInitializer {
         connectionLogger.info("Игрок отключен от сервера Engine")
     }
 
-    private fun authorizeSingleplayer(
+    private fun setupSingleplayer(
         engine: EngineServer,
         entity: AbstractClientPlayer,
         developerStatus: DeveloperModeStatus,
@@ -370,7 +364,7 @@ class EngineMinecraftClient : ClientModInitializer {
                 val accountManager = engineClient.accountManager
                 val account = accountManager.getAuthorized()?.getAccount()
                     ?: accountManager.lastAccountResponse
-                    ?: friendlyError("Вы не авторизованы")
+                    ?: throw NotAuthorizedException()
                 val mappedCharacters = account.characters.map { it.map() }
                 engine.playerLoader.loadPreparing(
                     settings = settings,
@@ -391,18 +385,7 @@ class EngineMinecraftClient : ClientModInitializer {
         }
     }
 
-    private fun authorizeMultiplayer() {
-        SERVERBOUND_AUTH_ENDPOINT
-            .sendC2SPacket(
-                AuthPacket(
-                    fabricLoader.allMods.map { it.metadata.id },
-                    ENGINE_MOD_VERSION,
-                    ""
-                )
-            )
-    }
-
-    private fun disconnectWithReason(text: Text) {
+    fun disconnectWithReason(text: Text) {
         client.connection?.connection?.disconnect(text) ?: run {
             connectionLogger.warn("Игрок отключен от несуществующего сервера")
         }

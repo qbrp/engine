@@ -36,7 +36,7 @@ context(world: World)
 fun EnginePlayer.removeCharacter(
     appliedCharacters: AppliedCharacters = entity.requireComponent<AppliedCharacters>()
 ) {
-    val character = entity.getComponent<AppliedCharacter>()?.character ?: error("Персонаж не применён")
+    val character = entity.getComponent<AppliedCharacter>()?.character ?: return
     val charactersMap = appliedCharacters.characters
     charactersMap[character.profile.id] = PersistentCharacterData(
         listOf(

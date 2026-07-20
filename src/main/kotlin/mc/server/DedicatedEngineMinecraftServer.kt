@@ -14,11 +14,11 @@ import org.lain.engine.mc.hasPermission
 import org.lain.engine.mc.isOp
 import org.lain.engine.mc.players
 import org.lain.engine.mc.sendMessage
-import org.lain.engine.mc.server.DedicatedEngineAccountService
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.Username
+import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.NamespaceHashMapValidationResult
@@ -109,11 +109,11 @@ class DedicatedEngineMinecraftServer(
     override suspend fun validateCharacter(
         player: EnginePlayer,
         characterId: String,
-        character: EngineCharacter?
+        character: EngineCharacter?,
+        sessionTicket: SessionTicket?
     ): EngineCharacter {
-        val session = connectionManager.getSession(player.id)
         return accountService
-            .getAuthorized(session.sessionTicket!!)
+            .getAuthorized(sessionTicket ?: error("Не указан сессионный тикет"))
             .getCharacter(characterId)
             .map()
     }
@@ -123,7 +123,7 @@ class DedicatedEngineMinecraftServer(
 data class AuthPacket(
     val mods: List<String>,
     val version: String,
-    val sessionTicket: String
+    val sessionTicket: SessionTicketDto
 ) : Packet
 
 val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
@@ -192,11 +192,13 @@ class ServerAuthorizationListener(
                 "<bold>Вы были исключены с сервера из-за мода на мини-карту</bold><newline>$MINIMAP_WARNING"
             )
         }
+        val sessionTicket = packet.sessionTicket.map()
         connection.mods = mods.toSet()
+        connection.sessionTicket = sessionTicket
 
         coroutineScope.launch {
             runCatching(connection) {
-                val authorized = accountService.getAuthorized(packet.sessionTicket)
+                val authorized = accountService.getAuthorized(sessionTicket)
                 authorized.getAccount() // проверка на валидность
 
                 CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
@@ -218,7 +220,7 @@ class ServerAuthorizationListener(
         playerNamespaceHashMap: NamespaceHashMap,
         entity: ServerPlayer,
         playerId: PlayerId,
-        selectedCharacter: String
+        selectedCharacter: String?
     ) {
         val engine = server.engine
         val connection = connectionManager.getSession(playerId)
@@ -239,9 +241,11 @@ class ServerAuthorizationListener(
 
         val settings = engine.serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications)
         coroutineScope.launch {
-            val character = accountService.getAuthorized(ticket)
-                .getCharacter(selectedCharacter)
-                .map()
+            val character = selectedCharacter?.let {
+                accountService.getAuthorized(ticket)
+                    .getCharacter(it)
+                    .map()
+            }
             engine.playerLoader.loadPreparing(
                 settings = settings,
                 account = PlayerLoadSettings.Account(character),

@@ -31,7 +31,7 @@ interface Grid3<T> {
 
     fun indexOf(x: Int, y: Int, z: Int) = z * (w * h) + y * (w) + x
 
-    fun inBounds(x: Int, y: Int, z: Int) = x in 0..w && y in 0..h && z in 0..d
+    fun inBounds(x: Int, y: Int, z: Int) = x in 0 until w && y in 0 until h && z in 0 until d
 
     operator fun get(idx: Int): T
 

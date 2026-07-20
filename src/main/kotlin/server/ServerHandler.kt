@@ -16,9 +16,14 @@ import org.lain.engine.item.Item
 import org.lain.engine.item.Writable
 import org.lain.engine.item.getOwner
 import org.lain.engine.mc.ReplayViewer
+import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.*
+import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.AppliedCharacters
 import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.Look
+import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.character.applyCharacter
 import org.lain.engine.player.character.removeCharacter
 import org.lain.engine.player.interaction.InputAction
@@ -104,7 +109,8 @@ class ServerHandler(
 
     fun onServerSettingsUpdate() {
         squaredSynchronizationRadius = (playerSynchronizationRadius * playerSynchronizationRadius).toFloat()
-        squaredDesynchronizationRadius = (playerSynchronizationRadius + playerDesynchronizationThreshold).toFloat().pow(2)
+        squaredDesynchronizationRadius =
+            (playerSynchronizationRadius + playerDesynchronizationThreshold).toFloat().pow(2)
         CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT.broadcast {
             ServerSettingsUpdatePacket(
                 ClientboundServerSettings.of(server, it)
@@ -117,14 +123,26 @@ class ServerHandler(
 
         SERVERBOUND_SPEED_INTENTION_PACKET.registerReceiver { ctx -> onPlayerSpeedIntentionSet(ctx.sender, value) }
         SERVERBOUND_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessage(ctx.sender, text, channel) }
-        SERVERBOUND_DEVELOPER_MODE_PACKET.registerReceiver { ctx -> onDeveloperModeEnabled(ctx.sender, status.enabled, status.acoustic) }
+        SERVERBOUND_DEVELOPER_MODE_PACKET.registerReceiver { ctx ->
+            onDeveloperModeEnabled(
+                ctx.sender,
+                status.enabled,
+                status.acoustic
+            )
+        }
         SERVERBOUND_VOLUME_PACKET.registerReceiver { ctx -> onPlayerVolume(ctx.sender, volume) }
         SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessageDelete(ctx.sender, message) }
         SERVERBOUND_CURSOR_ITEM_ENDPOINT.registerReceiver { ctx -> onPlayerCursorItem(ctx.sender, item) }
         SERVERBOUND_CHAT_TYPING_START_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingStart(ctx.sender, channel) }
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingEnd(ctx.sender) }
         SERVERBOUND_ARM_STATUS_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
-        SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.registerReceiver { ctx -> onWriteableContentsUpdate(ctx.sender, item, contents) }
+        SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.registerReceiver { ctx ->
+            onWriteableContentsUpdate(
+                ctx.sender,
+                item,
+                contents
+            )
+        }
         SERVERBOUND_INPUT_PACKET.registerReceiver { ctx -> onPlayerInput(ctx.sender, tick, actions) }
         SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
         SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx -> onScriptBindings(ctx.sender, bindings) }
@@ -138,7 +156,15 @@ class ServerHandler(
         }
         SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.registerReceiver { ctx -> onEntityDebugView(ctx.sender, persistentId) }
         SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.registerReceiver { ctx -> onEntityDebugViewStop(ctx.sender) }
-        SERVERBOUND_CHARACTER_APPLY_ENDPOINT.registerReceiver { ctx -> onCharacterApply(ctx.sender, characterId, character) }
+        SERVERBOUND_CHARACTER_APPLY_ENDPOINT.registerReceiver { ctx ->
+            onCharacterApply(
+                ctx.sender,
+                characterId,
+                character,
+                sessionTicket?.map()
+            )
+        }
+        SERVERBOUND_LOOK_APPLY_ENDPOINT.registerReceiver { ctx -> onLookApply(ctx.sender, lookId) }
     }
 
     fun invalidate() {
@@ -146,13 +172,25 @@ class ServerHandler(
         taskQueue.clear()
     }
 
-    private fun onCharacterApply(playerId: PlayerId, characterId: String, character: EngineCharacter?) = updatePlayer(playerId) {
+    private fun onLookApply(playerId: PlayerId, lookId: String) = updatePlayer(playerId) {
+        val character = require<AppliedCharacter>().character
+        val look = character.looks.find { it.id == lookId } ?: desync("Образ $lookId не существует")
+        set(SelectedLook(look))
+        onCharacterApplyConfirmation(this@updatePlayer)
+    }
+
+    private fun onCharacterApply(
+        playerId: PlayerId,
+        characterId: String,
+        character: EngineCharacter?,
+        sessionTicket: SessionTicket?
+    ) = updatePlayer(playerId) {
         val appliedCharacters = require<AppliedCharacters>()
         val persistent = appliedCharacters.characters[characterId]
         with(world) { removeCharacter(appliedCharacters) }
         CoroutineScope(Dispatchers.IO).launch {
             val eventListener = server.eventListener
-            val character = eventListener.validateCharacter(this@updatePlayer, characterId, character)
+            val character = eventListener.validateCharacter(this@updatePlayer, characterId, character, sessionTicket)
             with(EntityCommandBuffer(world)) {
                 applyCharacter(character, persistent, eventListener)
                 onCharacterApplyConfirmation(this@updatePlayer)
@@ -166,14 +204,16 @@ class ServerHandler(
         entityPersistentId: PersistentId,
         delta: List<ScriptValue>
     ) = updatePlayerWithContext(sender) {
-        val entity = world.persistentIdToEntity[entityPersistentId] ?: desync("Сущности $entityPersistentId не существует")
+        val entity =
+            world.persistentIdToEntity[entityPersistentId] ?: desync("Сущности $entityPersistentId не существует")
         entity.requireComponent<EntityRpcReceiver>().values.addAll(
             delta.map { EntityRpcReceiver.Message(this, it) }
         )
     }
 
     private fun onScriptBindings(player: PlayerId, bindings: ScriptBindings) = updatePlayer(player) {
-        fun <C : ScriptContext> ScriptId.ensureExists() = require(server.namespacedStorage.getVoidScript<C>(this) != null)
+        fun <C : ScriptContext> ScriptId.ensureExists() =
+            require(server.namespacedStorage.getVoidScript<C>(this) != null)
         bindings.base?.ensureExists<ScriptContext.Player>()
         bindings.attack?.ensureExists<ScriptContext.Player>()
         set(bindings)
@@ -196,44 +236,48 @@ class ServerHandler(
         remove<EntityDebugViewComponent>()
     }
 
-    private fun onVoxelBlockHint(player: PlayerId, pos: VoxelPos, action: VoxelBlockHintPacket.Action) = updatePlayer(player) {
-        when (action) {
-            is VoxelBlockHintPacket.Action.Add -> {
-                if (hasPermission("blockhint.set")) {
-                    world.singleBlockVoxelEvent(pos, VoxelUpdate.AddHint(action.text))
-                }
-            }
-            is VoxelBlockHintPacket.Action.Remove -> {
-                if (hasPermission("blockhint.remove")) {
-                    val hint = world.chunkStorage.getBlockHint(pos) ?: desync("Описание блока не существует")
-                    if (hint.texts.size - 1 < action.index || action.index < 0) {
-                        desync("Невалидный индекс")
+    private fun onVoxelBlockHint(player: PlayerId, pos: VoxelPos, action: VoxelBlockHintPacket.Action) =
+        updatePlayer(player) {
+            when (action) {
+                is VoxelBlockHintPacket.Action.Add -> {
+                    if (hasPermission("blockhint.set")) {
+                        world.singleBlockVoxelEvent(pos, VoxelUpdate.AddHint(action.text))
                     }
-                    world.singleBlockVoxelEvent(pos, VoxelUpdate.RemoveHint(action.index))
+                }
+
+                is VoxelBlockHintPacket.Action.Remove -> {
+                    if (hasPermission("blockhint.remove")) {
+                        val hint = world.chunkStorage.getBlockHint(pos) ?: desync("Описание блока не существует")
+                        if (hint.texts.size - 1 < action.index || action.index < 0) {
+                            desync("Невалидный индекс")
+                        }
+                        world.singleBlockVoxelEvent(pos, VoxelUpdate.RemoveHint(action.index))
+                    }
                 }
             }
         }
-    }
 
-    private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputAction>) = updatePlayerWithContext(playerId) {
-        val playerInput = this.entity.requireComponent<PlayerInput>()
-        playerInput.actions.clear()
-        playerInput.actions.addAll(input)
-        playerInput.tick = tick
-    }
-
-    private fun onWriteableContentsUpdate(playerId: PlayerId, persistentId: PersistentId, contents: List<String>) = updatePlayerWithContext(playerId) {
-        val item = this.handItem
-        val writable = item?.getComponent<Writable>()
-        if (item?.requireComponent<PersistentIdComponent>()?.id != persistentId || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
-        if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
-
-        if (writable.contents != contents) {
-            writable.contents = contents.map { it.trim() }
-            item.markDirty<Writable>()
-            backupBookContent(username, item.requireComponent<Item>().id, contents)
+    private fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputAction>) =
+        updatePlayerWithContext(playerId) {
+            val playerInput = this.entity.requireComponent<PlayerInput>()
+            playerInput.actions.clear()
+            playerInput.actions.addAll(input)
+            playerInput.tick = tick
         }
-    }
+
+    private fun onWriteableContentsUpdate(playerId: PlayerId, persistentId: PersistentId, contents: List<String>) =
+        updatePlayerWithContext(playerId) {
+            val item = this.handItem
+            val writable = item?.getComponent<Writable>()
+            if (item?.requireComponent<PersistentIdComponent>()?.id != persistentId || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
+            if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
+
+            if (writable.contents != contents) {
+                writable.contents = contents.map { it.trim() }
+                item.markDirty<Writable>()
+                backupBookContent(username, item.requireComponent<Item>().id, contents)
+            }
+        }
 
     private fun onPlayerArmStatus(playerId: PlayerId, extend: Boolean) = updatePlayer(playerId) {
         extendArm = extend
@@ -251,7 +295,7 @@ class ServerHandler(
 
         val range = channel.typeIndicatorRange
         val nearestPlayers = range?.let { player.filterNearestPlayers(it) }
-        val players = nearestPlayers ?: when(acoustic) {
+        val players = nearestPlayers ?: when (acoustic) {
             is Acoustic.Global -> playerStorage.getAll()
             is Acoustic.Distance -> player.filterNearestPlayers(acoustic.radius)
             is Acoustic.Realistic -> {
@@ -286,10 +330,11 @@ class ServerHandler(
         speak(content, channelId)
     }
 
-    private fun onDeveloperModeEnabled(playerId: PlayerId, enabled: Boolean, acoustic: Boolean) = updatePlayer(playerId) {
-        developerMode = enabled
-        acousticDebug = acoustic
-    }
+    private fun onDeveloperModeEnabled(playerId: PlayerId, enabled: Boolean, acoustic: Boolean) =
+        updatePlayer(playerId) {
+            developerMode = enabled
+            acousticDebug = acoustic
+        }
 
     // FIXME: Искать предметы по инвентарю игрока, а не глобально
     private fun onPlayerCursorItem(playerId: PlayerId, itemId: PersistentId?) = updatePlayerWithContext(playerId) {
@@ -335,20 +380,22 @@ class ServerHandler(
             val worldComponents = world.componentManager
 
             val worldState = world.state
-            val worldEntityComponentsToSync = when(state.worldSynced) {
+            val worldEntityComponentsToSync = when (state.worldSynced) {
                 true -> worldComponents.getDirtyNetworkedComponents(worldState)
                 false -> worldComponents.getNetworkedComponents(worldState)
             }
             if (worldEntityComponentsToSync.isNotEmpty()) {
                 CLIENTBOUND_WORLD_STATE_DELTA_PACKET.sendS2C(
-                        WorldStateDeltaPacket(worldEntityComponentsToSync.map { it.toSnapshotDto() }),
+                    WorldStateDeltaPacket(worldEntityComponentsToSync.map { it.toSnapshotDto() }),
                     player.id
                 )
             }
             state.worldSynced = true
 
-            val nearbyPlayers = filterNearestPlayers(world, playerPosition, playerSynchronizationRadius, players).toMutableList()
-            val playersToDesynchronize = state.players.filter { it.location.position.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
+            val nearbyPlayers =
+                filterNearestPlayers(world, playerPosition, playerSynchronizationRadius, players).toMutableList()
+            val playersToDesynchronize =
+                state.players.filter { it.location.position.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
             state.players.removeAll(playersToDesynchronize)
 
             val entitiesInRadius: HashSet<PersistentId> = hashSetOf()
@@ -449,7 +496,7 @@ class ServerHandler(
         )
     }
 
-    fun onChunkSend(world: World, chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer)  {
+    fun onChunkSend(world: World, chunk: EngineChunk, pos: EngineChunkPos, player: EnginePlayer) {
         CLIENTBOUND_CHUNK_ENDPOINT.sendS2C(
             EngineChunkPacket(
                 EngineChunkDto(
@@ -609,7 +656,7 @@ class ServerHandler(
         radius: Int = playerSynchronizationRadius,
         packet: P
     ) {
-        broadcastInRadius(player.world, player.location, radius, packet=packet)
+        broadcastInRadius(player.world, player.location, radius, packet = packet)
     }
 
     fun <P : Packet> Endpoint<P>.broadcastInRadius(
@@ -618,6 +665,12 @@ class ServerHandler(
         excludeSelf: Boolean = false,
         radius: Int = playerSynchronizationRadius
     ) {
-        broadcastInRadius(player.world, player.location, radius, exclude=if (excludeSelf) listOf(player) else emptyList(), packet=packet)
+        broadcastInRadius(
+            player.world,
+            player.location,
+            radius,
+            exclude = if (excludeSelf) listOf(player) else emptyList(),
+            packet = packet
+        )
     }
 }

@@ -15,11 +15,17 @@ data class RefreshTokenRequest(
 )
 
 @Serializable
+data class RevokeSessionTicketRequest(
+    val sessionTicket: String,
+)
+
+
+@Serializable
 data class TokenResponse(
     val accessToken: String,
     val refreshToken: String,
-    @SerialName("expires_in")
-    val expiresIn: Long,
+    @SerialName("expires_at")
+    val expiresAt: Long,
 ) : RefreshToken {
     override fun get(): String = refreshToken
 }

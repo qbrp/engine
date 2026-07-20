@@ -2,7 +2,6 @@ package org.lain.engine.player.character
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.engine.storage.ComponentDto
 import org.lain.engine.storage.PersistentCharacterData
 
 @Serializable
@@ -16,7 +15,7 @@ data class EngineCharacter(
 data class CharacterProfile(
     val id: String,
     val accountId: String,
-    val name: CharacterName,
+    val name: CharacterGradientName,
     val biologicalCategory: BiologicalCategory,
     val biologicalSex: BiologicalSex,
     val appearanceDescription: String,

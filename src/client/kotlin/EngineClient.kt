@@ -7,6 +7,7 @@ import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.ClientHandler
+import org.lain.engine.client.handler.MultiplayerAuthorization
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.*
 import org.lain.engine.client.render.legacy.EngineUi
@@ -97,6 +98,13 @@ class EngineClient(
 
     fun onOptionsUpdate() {
         skinTextureManager.onOptions(options)
+    }
+
+    var multiplayerAuthorization: MultiplayerAuthorization? = null
+        private set
+
+    fun authorizeMultiplayer(modIds: List<String>) {
+        multiplayerAuthorization = MultiplayerAuthorization(modIds, this, handler)
     }
 
     fun compileScripts(): CompilationResult {

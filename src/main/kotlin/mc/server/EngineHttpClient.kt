@@ -27,12 +27,17 @@ class EngineHttpClient(val uri: URI = URI("http://localhost:8080")) {
         )
     }
 
-    inline fun <reified B : Any, reified T : Any> postJson(path: String, body: B, bearerToken: String? = null): T {
+    inline fun <reified B, reified T : Any> postJson(path: String, body: B? = null, bearerToken: String? = null): T {
         return sendJson(
             request(path)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(Json.encodeToString(body)))
+                .POST(
+                    body?.let {
+                        HttpRequest.BodyPublishers.ofString(Json.encodeToString(body))
+                    }
+                        ?: HttpRequest.BodyPublishers.noBody()
+                )
                 .apply {
                     bearerToken?.let { header("Authorization", "Bearer $bearerToken") }
                 }
@@ -46,7 +51,15 @@ class EngineHttpClient(val uri: URI = URI("http://localhost:8080")) {
         if (response.statusCode() !in 200..299) {
             throw HttpStatusException(response.statusCode(), request.uri(), responseBody)
         }
-        return Json.decodeFromString(responseBody)
+        return decodeResponse<T>(responseBody)
+    }
+
+    inline fun <reified T> decodeResponse(responseBody: String): T {
+        return if (T::class == String::class) {
+            responseBody as T
+        } else {
+            Json.decodeFromString<T>(responseBody)
+        }
     }
 
     fun request(path: String): HttpRequest.Builder {

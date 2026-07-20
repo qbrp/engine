@@ -1,5 +1,6 @@
 package org.lain.engine.test
 
+import org.junit.jupiter.api.BeforeAll
 import org.lain.engine.bootstrap
 import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemId
@@ -29,8 +30,11 @@ fun DummyItemPrefab() = ItemPrefab(
 )
 
 abstract class EngineTest {
-    init {
-        ComponentTypeRegistry.registerAll()
-        bootstrap()
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun beforeAll(): Unit {
+            bootstrap()
+        }
     }
 }

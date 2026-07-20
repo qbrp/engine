@@ -20,4 +20,5 @@ interface ClientEventListener {
     fun onEntityDebugViewData(data: EntityDebugData.Dto)
     fun onCharacterSelectionMenuOpen(gameSession: GameSession)
     fun getHitResultVoxelPos(): VoxelPos?
+    fun disconnect(reason: String)
 }

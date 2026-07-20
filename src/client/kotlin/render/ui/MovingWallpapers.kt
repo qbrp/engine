@@ -39,20 +39,13 @@ object MovingWallpapers {
     private var wallpaperTransitionTicks = 0.0f
     private var currentWallpaperIndex = random.nextInt(WALLPAPERS.size)
     private var incomingWallpaperIndex: Int? = null
-    private var animationTicks = 0.0f
 
     private val width
         get() = MinecraftClient.window.guiScaledWidth
     private val height
         get() = MinecraftClient.window.guiScaledHeight
-    private val shouldMove: Boolean
-        get() = MinecraftClient.screen !is LevelLoadingScreen
 
     fun render(guiGraphics: GuiGraphics, delta: Float) {
-        if (shouldMove) {
-            animationTicks += delta
-        }
-
         renderWallpaper(
             guiGraphics,
             WALLPAPERS[currentWallpaperIndex],
@@ -74,7 +67,7 @@ object MovingWallpapers {
             0f, 1f
         )
 
-        updateWallpaper(delta)
+        updateWallpaper(delta.coerceAtMost(0.333f))
     }
 
     fun updateWallpaper(delta: Float) {

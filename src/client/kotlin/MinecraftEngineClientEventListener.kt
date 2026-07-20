@@ -1,23 +1,23 @@
 package org.lain.engine.client
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
+import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.blockHitResult
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
-import org.lain.engine.client.render.ui.CharacterSelectionScreen
 import org.lain.engine.client.render.ui.EntityDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
+import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.get
+import org.lain.engine.player.require
 import org.lain.engine.script.EntityDebugData
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.util.Injector
@@ -25,8 +25,10 @@ import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.VoxelPos
 import java.util.*
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 class MinecraftEngineClientEventListener(
+    private val engineMinecraftClient: EngineMinecraftClient,
     private val minecraft: Minecraft,
     private val table: EntityTable,
     private val decalSystem: DecalSystem
@@ -41,6 +43,10 @@ class MinecraftEngineClientEventListener(
             pendingFullPlayerData.remove(player)
             tryApplyFullPlayerData(player.player, player.data)
         }
+    }
+
+    override fun disconnect(reason: String) {
+        engineMinecraftClient.disconnectWithReason(DisconnectText(reason))
     }
 
     override fun onFullPlayerData(
@@ -101,28 +107,17 @@ class MinecraftEngineClientEventListener(
         screen.applyEntityDebugData(data)
     }
 
+    @OptIn(ExperimentalAtomicApi::class)
     override fun onCharacterSelectionMenuOpen(gameSession: GameSession) {
-        // метод не может быть вызван, если lastAccountResponse == null, т.к. в таком случае игра недоступна
-        // см. ClientMixinAcces.canPlaySingleplayer
-        val account = gameSession.client.accountManager.lastAccountResponse!!
-        val appliedCharacter = gameSession.mainPlayer.get<AppliedCharacter>()?.character
-        CoroutineScope(Dispatchers.Default).launch {
-            val character = CharacterSelectionScreen.awaitCharacterSelection(
-                gameSession.client,
-                appliedCharacter,
-                account.characters.map { it.map() }
-            )
-            minecraft.execute {
-                val handler = gameSession.client.handler
-                if (character != null) {
-                    if (minecraft.isSingleplayer) {
-                        handler.onCharacterSelectedSingleplayer(character)
-                    } else {
-                        handler.onCharacterSelectedMultiplayer(character)
-                    }
-                }
-            }
+        val mainPlayer = gameSession.mainPlayer
+        val appliedCharacter = mainPlayer.get<AppliedCharacter>()?.character
+        val selectedLook = mainPlayer.get<SelectedLook>()?.look
+        val currentPlayerCharacter = if (appliedCharacter != null && selectedLook != null) {
+            ClientHandler.CurrentPlayerCharacter(appliedCharacter, selectedLook)
+        } else {
+            null
         }
+        gameSession.client.handler.selectCharacter(minecraft.isSingleplayer, currentPlayerCharacter)
     }
 
     override fun getHitResultVoxelPos(): VoxelPos? {

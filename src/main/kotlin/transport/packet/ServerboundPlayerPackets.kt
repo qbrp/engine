@@ -1,7 +1,9 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.ScriptBindings
+import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.storage.PersistentId
@@ -65,7 +67,13 @@ val SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT = Endpoint<ScriptBindingsPacket>()
 @Serializable
 data class CharacterApplyPacket(
     val characterId: String,
-    val character: EngineCharacter? = null
+    val character: EngineCharacter? = null,
+    val sessionTicket: SessionTicketDto? = null
 ) : Packet
 
 val SERVERBOUND_CHARACTER_APPLY_ENDPOINT = Endpoint<CharacterApplyPacket>()
+
+@Serializable
+data class LookApplyPacket(val lookId: String) : Packet
+
+val SERVERBOUND_LOOK_APPLY_ENDPOINT = Endpoint<LookApplyPacket>()

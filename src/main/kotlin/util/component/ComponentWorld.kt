@@ -4,11 +4,13 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
+import org.lain.engine.listKotlinComponentTypeEntries
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.Storage
 import org.lain.engine.world.World
+import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -19,7 +21,8 @@ typealias EntityId = Int
 class ComponentWorld(
     val thread: Thread,
     val persistentIdToEntity: ConcurrentHashMap<PersistentId, EntityId>,
-    val itemStorage: Storage<PersistentId, EngineItem>
+    val itemStorage: Storage<PersistentId, EngineItem>,
+    registerEngineKotlinComponents: Boolean = true
 ) : MutableComponentAccess, IterationComponentAccess {
     private val arrays = ArrayList<ComponentArray<*>>()
     private val savableArrays = ArrayList<ComponentArray<*>>()
@@ -33,10 +36,9 @@ class ComponentWorld(
     private val entityInstantiationLock = Any()
 
     init {
-        registerComponentArrays(
-            ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }
-            + CoreScriptComponents.getAll().map { it to it.meta }
-        )
+        if (registerEngineKotlinComponents) {
+            registerComponentArrays(listKotlinComponentTypeEntries())
+        }
     }
 
     inline fun <reified T : Component> getComponentArray(): ComponentArray<T> {
@@ -57,6 +59,7 @@ class ComponentWorld(
         checkOnThread()
 
         val oldArrays = arrays.toList()
+        val typesById = mutableSetOf<String>()
         arrays.clear()
         savableArrays.clear()
         networkingArrays.clear()
@@ -65,6 +68,11 @@ class ComponentWorld(
             .sortedBy { (type, _) -> type.idx }
             .forEach { (type, meta) ->
                 val idx = type.idx
+                if (typesById.contains(type.id)) {
+                    LOGGER.warn("Список типов компонентов для регистрации содержит дубликат ${type.id}")
+                    return@forEach
+                }
+
                 if (idx != arrays.size) {
                     error("Invalid component type sequence for $type: $idx must be ${arrays.size}")
                 }
@@ -73,6 +81,8 @@ class ComponentWorld(
                 if (existing != null && existing.type.id != type.id) {
                     error("Component type index changed at $idx: ${existing.type} -> $type")
                 }
+
+                typesById.add(type.id)
 
                 val arr = if (existing != null && existing.type == type) {
                     existing
@@ -427,6 +437,10 @@ class ComponentWorld(
             val componentE = arr5.componentOf(entity) ?: continue
             action(entity, componentA, componentB, componentC, componentD, componentE)
         }
+    }
+
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(ComponentWorld::class.java)
     }
 }
 

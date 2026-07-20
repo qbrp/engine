@@ -39,7 +39,7 @@ fun initializeGraphene() {
                             .bindHost("127.0.0.1")
                             .randomPortInRange(20_000, 21_000)
                             .spaFallback("/not_found.html")
-                            .fileRoot(ENGINE_DIR.resolve("web").toPath().toAbsolutePath())
+                            .fileRoot("engine/web")
                             .build()
                     )
                     .build()

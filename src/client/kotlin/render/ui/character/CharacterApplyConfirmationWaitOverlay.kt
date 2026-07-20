@@ -1,6 +1,5 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.ui.character
 
-import com.sun.jna.platform.linux.XAttr
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -9,11 +8,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.gui.screens.Overlay
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.easeInOutCubic
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 // Майнкрафт доказал бесполезность самого себя. Изначально это был подкласс Overlay, с которым я очень долго ебался,

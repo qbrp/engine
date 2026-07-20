@@ -4,15 +4,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.account.CharacterDataResponse
-import java.net.http.HttpClient
+import org.lain.engine.player.account.SessionTicketDto
 import java.time.Instant
 
 open class AuthorizedAccount(
-    private val httpClient: EngineHttpClient,
+    protected val httpClient: EngineHttpClient,
     val bearerToken: String,
     val expireTime: Instant
 ) {
-    private fun checkValid() {
+    protected fun checkValid() {
         check(Instant.now().isBefore(expireTime)) {
             "Backend session expired"
         }
@@ -26,5 +26,10 @@ open class AuthorizedAccount(
     suspend fun getAccount(): AccountResponse = withContext(Dispatchers.IO) {
         checkValid()
         httpClient.getJson("/me", bearerToken = bearerToken)
+    }
+
+    suspend fun getSessionTicket(): SessionTicketDto = withContext(Dispatchers.IO) {
+        checkValid()
+        httpClient.postJson<Unit, SessionTicketDto>("/auth/session-ticket", bearerToken = bearerToken)
     }
 }

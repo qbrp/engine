@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Overlay;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.mc.ClientMixinAccess;
@@ -36,6 +37,10 @@ public abstract class MinecraftMixin {
     @org.jspecify.annotations.Nullable
     public Screen screen;
 
+    @Shadow
+    @org.jspecify.annotations.Nullable
+    public ClientLevel level;
+
     @Inject(
             method = "setOverlay",
             at = @At("HEAD")
@@ -56,6 +61,9 @@ public abstract class MinecraftMixin {
             ClientMixinAccess.INSTANCE.onYamlConfigScreenClosed();
         } else if (screen instanceof TitleScreen titleScreen && !(this.screen instanceof EngineTitleMenu)) {
             ClientMixinAccess.INSTANCE.openEngineTitleMenu(((TitleScreenAccessor)titleScreen).engine$isFading());
+            ci.cancel();
+        } else if (screen == null && level == null) {
+            ClientMixinAccess.INSTANCE.openEngineTitleMenu(false);
             ci.cancel();
         }
     }

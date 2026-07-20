@@ -1,4 +1,4 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.ui.character
 
 import com.wildfire.api.IGenderArmor
 import com.wildfire.main.WildfireGender
@@ -16,8 +16,6 @@ import org.lain.engine.client.mixin.render.wildfire.EntityConfigAccessor
 import org.lain.engine.client.mixin.render.wildfire.GenderRenderStateAccessor
 import org.lain.engine.mc.GENDER_MOD_AVAILABLE
 import org.lain.engine.mc.wildfireGender
-import org.lain.engine.player.Player
-import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.BiologicalSex
 import org.lain.engine.player.character.CharacterProfile
 import java.util.UUID

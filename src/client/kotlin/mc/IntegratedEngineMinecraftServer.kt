@@ -9,6 +9,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.MinecraftClientDispatcher
+import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.*
@@ -30,7 +31,8 @@ class IntegratedEngineMinecraftServer(
     override suspend fun validateCharacter(
         player: EnginePlayer,
         characterId: String,
-        character: EngineCharacter?
+        character: EngineCharacter?,
+        sessionTicket: SessionTicket?
     ): EngineCharacter {
         return character ?: error("Не указаны данные персонажа с клиента")
     }

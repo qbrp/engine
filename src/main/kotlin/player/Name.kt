@@ -3,9 +3,7 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.character.CharacterDisplay
 import org.lain.engine.util.Color
@@ -88,7 +86,7 @@ var EnginePlayer.customName
     }
 
 context(world: World)
-fun EntityId.displayName() = getComponent<CharacterDisplay>()?.name?.gradientText ?: requireComponent<DisplayName>().gradientText
+fun EntityId.displayName() = getComponent<CharacterDisplay>()?.name?.gradientChars ?: requireComponent<DisplayName>().gradientText
 
 context(world: World)
 fun EntityId.displayNameString() = displayName().joinToString(separator = "") { it.char.toString() }

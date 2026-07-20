@@ -6,6 +6,7 @@ import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.commands.FriendlyException
 import org.lain.engine.mc.getPlayer
+import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.Username
@@ -21,7 +22,7 @@ data class ConnectionSession(
     val playerId: PlayerId,
     val isOp: Boolean,
     var mods: Set<String> = emptySet(),
-    var sessionTicket: String? = null
+    var sessionTicket: SessionTicket? = null
 )
 
 class ServerConnectionManager(

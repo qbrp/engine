@@ -12,8 +12,11 @@ import org.lain.engine.world.World
 
 @Serializable
 sealed class InputAction {
+    @Serializable
     object Base : InputAction()
+    @Serializable
     object Attack : InputAction()
+    @Serializable
     object TakeOff : InputAction()
 }
 

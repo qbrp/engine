@@ -2,7 +2,6 @@ package org.lain.engine.test
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentCollisionException
-import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.script.emptyNamespacedStorage
@@ -21,9 +20,12 @@ import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.assertThrows
-import org.lain.engine.util.component.EngineComponentType
-import org.lain.engine.util.component.IndexedComponentType
+import org.lain.cyberia.ecs.componentTypeOf
+import org.lain.engine.bootstrap
+import org.lain.engine.listKotlinComponentTypeEntries
+import org.lain.engine.util.component.castIndexed
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -36,37 +38,38 @@ class ComponentWorldTest : EngineTest() {
         componentWorld = ComponentWorld(
             Thread.currentThread(),
             ConcurrentHashMap(),
-            Storage()
+            Storage(),
+            registerEngineKotlinComponents = false
         )
-        componentWorld.registerComponentArrays(testEntries)
+        componentWorld.registerComponentArrays(testEntries + listKotlinComponentTypeEntries())
     }
 
     @Test
     fun componentArrayKeepsDenseStorageConsistentWhenRemovingMiddleElement() {
         val array = ComponentArray(0, basicMeta, positionType)
 
-        array.setComponent(10, Position(10))
-        array.setComponent(20, Position(20))
-        array.setComponent(30, Position(30))
+        array.setComponent(10, TestPosition(10))
+        array.setComponent(20, TestPosition(20))
+        array.setComponent(30, TestPosition(30))
 
-        assertEquals(Position(20), array.removeComponent(20))
+        assertEquals(TestPosition(20), array.removeComponent(20))
 
-        assertEquals(listOf(Position(10), Position(30)), array.components)
+        assertEquals(listOf(TestPosition(10), TestPosition(30)), array.components)
         assertEquals(10, array.entityOf(0))
         assertEquals(30, array.entityOf(1))
         assertNull(array.componentOf(20))
-        assertEquals(Position(30), array.componentOf(30))
+        assertEquals(TestPosition(30), array.componentOf(30))
     }
 
     @Test
     fun componentStateRejectsTwoComponentsOfSameType() {
         val state = ComponentState()
-        val position = Position(1)
+        val position = TestPosition(1)
 
         assertSame(position, state.setComponent(positionType, position))
 
         assertThrows<ComponentCollisionException> {
-            state.setComponent(positionType, Position(2))
+            state.setComponent(positionType, TestPosition(2))
         }
     }
 
@@ -74,25 +77,25 @@ class ComponentWorldTest : EngineTest() {
     fun componentStateIndexesComponentsByTypeAndName() {
         val state = ComponentState()
 
-        state.setComponent(positionType, Position(7))
+        state.setComponent(positionType, TestPosition(7))
 
-        assertEquals(Position(7), state.getComponent(positionType))
-        assertEquals(Position(7), state.getComponent<Position>("test_position"))
-        assertEquals(Position(7), state.removeComponent(positionType))
+        assertEquals(TestPosition(7), state.getComponent(positionType))
+        assertEquals(TestPosition(7), state.getComponent<TestPosition>(positionType.id))
+        assertEquals(TestPosition(7), state.removeComponent(positionType))
         assertNull(state.getComponent(positionType))
-        assertNull(state.getComponent<Position>("test_position"))
+        assertNull(state.getComponent<TestPosition>(positionType.id))
     }
 
     @Test
     fun componentWorldAddsReadsRemovesAndDestroysComponents() {
         val entity = componentWorld.addEntity()
 
-        componentWorld.setComponentWithType(entity, Position(3), positionType)
+        componentWorld.setComponentWithType(entity, TestPosition(3), positionType)
 
         assertTrue(componentWorld.exists(entity))
         assertTrue(componentWorld.hasComponent(entity, positionType))
-        assertEquals(Position(3), componentWorld.getComponent(entity, positionType))
-        assertEquals(Position(3), componentWorld.removeComponent(entity, positionType))
+        assertEquals(TestPosition(3), componentWorld.getComponent(entity, positionType))
+        assertEquals(TestPosition(3), componentWorld.removeComponent(entity, positionType))
         assertFalse(componentWorld.hasComponent(entity, positionType))
 
         componentWorld.destroy(entity)
@@ -119,10 +122,10 @@ class ComponentWorldTest : EngineTest() {
     fun networkingComponentsAreTrackedAsDirtyUntilCleared() {
         val entity = componentWorld.addEntity()
 
-        componentWorld.setComponentWithType(entity, Velocity(4), velocityType)
+        componentWorld.setComponentWithType(entity, TestVelocity(4), velocityType)
 
-        assertEquals(listOf(Velocity(4)), componentWorld.getNetworkedComponents(entity))
-        assertEquals(listOf(Velocity(4)), componentWorld.getDirtyNetworkedComponents(entity))
+        assertEquals(listOf(TestVelocity(4)), componentWorld.getNetworkedComponents(entity))
+        assertEquals(listOf(TestVelocity(4)), componentWorld.getDirtyNetworkedComponents(entity))
 
         componentWorld.clearDirtyComponents(entity)
 
@@ -133,7 +136,7 @@ class ComponentWorldTest : EngineTest() {
     fun nonNetworkedComponentsAreNotMarkedDirty() {
         val entity = componentWorld.addEntity()
 
-        componentWorld.setComponentWithType(entity, Position(9), positionType)
+        componentWorld.setComponentWithType(entity, TestPosition(9), positionType)
         componentWorld.markDirty(entity, positionType)
 
         assertTrue(componentWorld.getDirtyNetworkedComponents(entity).isEmpty())
@@ -143,11 +146,11 @@ class ComponentWorldTest : EngineTest() {
     fun savableComponentsAreFilteredByMetadata() {
         val entity = componentWorld.addEntity()
 
-        componentWorld.setComponentWithType(entity, Position(1), positionType)
-        componentWorld.setComponentWithType(entity, Name("saved"), nameType)
-        componentWorld.setComponentWithType(entity, Velocity(2), velocityType)
+        componentWorld.setComponentWithType(entity, TestPosition(1), positionType)
+        componentWorld.setComponentWithType(entity, TestName("saved"), nameType)
+        componentWorld.setComponentWithType(entity, TestVelocity(2), velocityType)
 
-        assertEquals(listOf(Name("saved")), componentWorld.getSavableComponents(entity))
+        assertEquals(listOf(TestName("saved")), componentWorld.getSavableComponents(entity))
     }
 
     @Test
@@ -155,11 +158,11 @@ class ComponentWorldTest : EngineTest() {
         val matching = componentWorld.addEntity()
         val missingVelocity = componentWorld.addEntity()
 
-        componentWorld.setComponentWithType(matching, Position(1), positionType)
-        componentWorld.setComponentWithType(matching, Velocity(2), velocityType)
-        componentWorld.setComponentWithType(matching, Name("kept"), nameType)
-        componentWorld.setComponentWithType(missingVelocity, Position(3), positionType)
-        componentWorld.setComponentWithType(missingVelocity, Name("ignored"), nameType)
+        componentWorld.setComponentWithType(matching, TestPosition(1), positionType)
+        componentWorld.setComponentWithType(matching, TestVelocity(2), velocityType)
+        componentWorld.setComponentWithType(matching, TestName("kept"), nameType)
+        componentWorld.setComponentWithType(missingVelocity, TestPosition(3), positionType)
+        componentWorld.setComponentWithType(missingVelocity, TestName("ignored"), nameType)
 
         val collected = componentWorld.collect(listOf(positionType, velocityType)) { array ->
             array.type == positionType || array.type == nameType
@@ -168,8 +171,8 @@ class ComponentWorldTest : EngineTest() {
         assertEquals(1, collected.size)
         val (entity, state) = collected.single()
         assertEquals(matching, entity)
-        assertEquals(Position(1), state.getComponent(positionType))
-        assertEquals(Name("kept"), state.getComponent(nameType))
+        assertEquals(TestPosition(1), state.getComponent(positionType))
+        assertEquals(TestName("kept"), state.getComponent(nameType))
         assertNull(state.getComponent(velocityType))
     }
 
@@ -179,21 +182,21 @@ class ComponentWorldTest : EngineTest() {
         val matchingB = componentWorld.addEntity()
         val missingVelocity = componentWorld.addEntity()
 
-        componentWorld.setComponentWithType(matchingA, Position(1), positionType)
-        componentWorld.setComponentWithType(matchingA, Velocity(10), velocityType)
-        componentWorld.setComponentWithType(matchingB, Position(2), positionType)
-        componentWorld.setComponentWithType(matchingB, Velocity(20), velocityType)
-        componentWorld.setComponentWithType(missingVelocity, Position(3), positionType)
+        componentWorld.setComponentWithType(matchingA, TestPosition(1), positionType)
+        componentWorld.setComponentWithType(matchingA, TestVelocity(10), velocityType)
+        componentWorld.setComponentWithType(matchingB, TestPosition(2), positionType)
+        componentWorld.setComponentWithType(matchingB, TestVelocity(20), velocityType)
+        componentWorld.setComponentWithType(missingVelocity, TestPosition(3), positionType)
 
-        val visited = mutableMapOf<EntityId, Pair<Position, Velocity>>()
+        val visited = mutableMapOf<EntityId, Pair<TestPosition, TestVelocity>>()
         componentWorld.iterate2(positionType, velocityType) { entity, position, velocity ->
             visited[entity] = position to velocity
         }
 
         assertEquals(
             mapOf(
-                matchingA to (Position(1) to Velocity(10)),
-                matchingB to (Position(2) to Velocity(20))
+                matchingA to (TestPosition(1) to TestVelocity(10)),
+                matchingB to (TestPosition(2) to TestVelocity(20))
             ),
             visited
         )
@@ -206,7 +209,7 @@ class ComponentWorldTest : EngineTest() {
 
         val thread = Thread {
             failure = assertThrows<IllegalStateException> {
-                componentWorld.setComponentWithType(entity, Position(1), positionType)
+                componentWorld.setComponentWithType(entity, TestPosition(1), positionType)
             }
         }
 
@@ -222,14 +225,14 @@ class ComponentWorldTest : EngineTest() {
         val buffer = EntityCommandBuffer(world)
 
         val entity = buffer.addEntity()
-        buffer.setComponentWithType(entity, Position(42), positionType)
+        buffer.setComponentWithType(entity, TestPosition(42), positionType)
 
         assertTrue(world.exists(entity))
         assertFalse(world.hasComponent(entity, positionType))
 
         buffer.apply(world)
 
-        assertEquals(Position(42), world.getComponent(entity, positionType))
+        assertEquals(TestPosition(42), world.getComponent(entity, positionType))
         assertTrue(buffer.isEmpty())
     }
 
@@ -238,24 +241,25 @@ class ComponentWorldTest : EngineTest() {
             WorldId("component-test"),
             namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage()),
             itemStorage = ItemStorage(),
-            thread = Thread.currentThread()
+            thread = Thread.currentThread(),
+            registerEngineKotlinComponents = true,
         )
-        world.componentManager.registerComponentArrays(testEntries)
+        world.componentManager.registerComponentArrays(testEntries + listKotlinComponentTypeEntries())
         return world
     }
 
-    private data class Position(val x: Int) : Component
-    private data class Velocity(val x: Int) : Component
-    private data class Name(val value: String) : Component
+    private data class TestPosition(val x: Int) : Component
+    private data class TestVelocity(val x: Int) : Component
+    private data class TestName(val value: String) : Component
 
     private companion object {
-        val positionType = EngineComponentType<Position>("test_position")
-        val velocityType = EngineComponentType<Velocity>("test_velocity")
-        val nameType = EngineComponentType<Name>("test_name")
+        val positionType = componentTypeOf(TestPosition::class).castIndexed()
+        val velocityType = componentTypeOf(TestVelocity::class).castIndexed()
+        val nameType = componentTypeOf(TestName::class).castIndexed()
 
         val basicMeta = ComponentMeta(savable = false, serializationClass = null, networking = false)
         val networkingMeta = ComponentMeta(savable = false, serializationClass = null, networking = true)
-        val savableMeta = ComponentMeta(savable = true, serializationClass = Name::class, networking = false)
+        val savableMeta = ComponentMeta(savable = true, serializationClass = TestName::class, networking = false)
 
         val testEntries = listOf(
             positionType to basicMeta,

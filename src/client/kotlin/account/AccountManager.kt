@@ -10,17 +10,25 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import org.lain.engine.mc.commands.FriendlyException
 import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.mc.server.RefreshToken
+import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.account.AccountResponse
 import java.time.Duration
 import java.time.Instant
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.fetchAndUpdate
 
 sealed interface ConnectionState {
     data object Unauthorized : ConnectionState
     data object Authorizing : ConnectionState
     data class Authorized(val account: ClientAuthorizedAccount) : ConnectionState
 }
+
+class NotAuthorizedException : FriendlyException("Вы не авторизованы")
 
 class AccountManager(
     private val skinTextureManager: SkinTextureManager,
@@ -44,6 +52,12 @@ class AccountManager(
 
     val authorized: Boolean
         get() = state is ConnectionState.Authorized
+
+    suspend fun sessionTicketOperation(authorized: ClientAuthorizedAccount, statement: suspend (SessionTicket) -> Unit) = withContext(Dispatchers.IO) {
+        val ticket = authorized.getSessionTicket().map()
+        statement(ticket)
+        authorized.revokeSessionTicket(ticket.hash)
+    }
 
     suspend fun getAuthorized(): ClientAuthorizedAccount? {
         val authorizedState = state as? ConnectionState.Authorized

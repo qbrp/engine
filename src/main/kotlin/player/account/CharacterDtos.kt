@@ -6,7 +6,7 @@ import org.lain.engine.player.character.BiologicalSex
 import org.lain.engine.player.character.BodyType
 import org.lain.engine.player.character.CharacterHeight
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.player.character.CharacterName
+import org.lain.engine.player.character.CharacterGradientName
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.GenderParams
 import org.lain.engine.player.character.Look
@@ -19,7 +19,7 @@ data class CharacterNameDto(
     val firstColor: String,
     val secondColor: String? = null,
 ) {
-    fun map(): CharacterName = CharacterName(
+    fun map(): CharacterGradientName = CharacterGradientName(
         name,
         Color(parseHexColor(firstColor)),
         secondColor?.let { Color(parseHexColor(it)) }
