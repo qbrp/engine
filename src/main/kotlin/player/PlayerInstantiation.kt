@@ -144,27 +144,9 @@ class PlayerLoader(
     private val server: EngineServer,
     private val itemLoader: ItemLoader,
 ) {
-    private suspend fun <R> ((Throwable) -> Unit).runCatchingSuspend(block: suspend () -> R): R? {
-        return kotlin.runCatching { block() }
-            .onFailure {
-                it.printStackTrace()
-                this(it)
-            }
-            .getOrNull()
-    }
-
-    private fun ((Throwable) -> Unit).runCatching(block: () -> Unit) {
-        kotlin.runCatching { block() }
-            .onFailure {
-                it.printStackTrace()
-                this(it)
-            }
-    }
-
     suspend fun loadPreparing(
         settings: PlayerLoadSettings,
-        account: PlayerLoadSettings.Account,
-        exceptionHandler: (Throwable) -> Unit
+        account: PlayerLoadSettings.Account
     ) {
         if (server.playerStorage.get(settings.playerId) != null) {
             friendlyError("Игрок уже находится на сервере")
@@ -172,25 +154,15 @@ class PlayerLoader(
 
         val world = settings.world
         val persistent = settings.persistentPlayerData
-        val inventoryLoadResult = exceptionHandler.runCatchingSuspend {
-            loadInventoryItems(
-                world,
-                settings.inventoryItems,
-                persistent?.equipment ?: mapOf(),
-                ItemLoadContext.PreparingPlayer(settings.playerId, settings.username)
-            )
-        } ?: return
+        val inventoryLoadResult = loadInventoryItems(
+            world,
+            settings.inventoryItems,
+            persistent?.equipment ?: mapOf(),
+            ItemLoadContext.PreparingPlayer(settings.playerId, settings.username)
+        )
         val location = Location(settings.initialPosition)
         with(EntityCommandBuffer(world)) {
-            val player = exceptionHandler.runCatchingSuspend {
-                serverPlayerInstance(
-                    world,
-                    settings,
-                    inventoryLoadResult,
-                    persistent
-                )
-            } ?: return
-
+            val player = serverPlayerInstance(world, settings, inventoryLoadResult, persistent)
             val character = account.character
             val persistentCharacterData = persistent?.characters[character?.profile?.id]
             character?.let { player.applyCharacter(it, persistentCharacterData, server.eventListener) }
@@ -203,13 +175,11 @@ class PlayerLoader(
                     server.namespacedStorage
                 )
             }
-            server.handler.execute {
+            withContext(server.dispatcher) {
                 server.itemLoader.apply(world)
                 apply(world)
-                exceptionHandler.runCatching {
-                    server.instantiatePlayer(player, settings.notifications, location.position)
-                    server.handler.onCharacterApplyConfirmation(player)
-                }
+                server.instantiatePlayer(player, settings.notifications, location.position)
+                server.handler.onCharacterApplyConfirmation(player)
             }
         }
     }
@@ -305,10 +275,6 @@ fun EnginePlayer.prepareContainers(
         items = equipmentItems.mapKeys { (slot, _) -> slot.slotId },
         persistentId = persistentId
     )
-    // DEBUG
-    // if (!username.startsWith("Player")) {
-    // container.removeComponent<PersistentId>()
-    // }
     container.setComponent(PlayerEquipment(this@prepareContainers))
     entity.setComponent(Equipment(container))
 }

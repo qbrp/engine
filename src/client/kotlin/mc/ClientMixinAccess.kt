@@ -54,9 +54,9 @@ object ClientMixinAccess {
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
-    fun canCloseLevelLoadingScreen() = client.multiplayerAuthorization?.canCloseLevelLoadingScreen ?: false
+    fun canCloseLevelLoadingScreen() = client.joinFlow?.canCloseLevelLoadingScreen ?: false
 
-    fun multiplayerConnectionState() = client.multiplayerAuthorization?.state
+    fun multiplayerConnectionState() = client.joinFlow?.state
 
     fun openEngineTitleMenu(fading: Boolean) {
         MinecraftClient.setScreen(EngineTitleMenu(fading, client))

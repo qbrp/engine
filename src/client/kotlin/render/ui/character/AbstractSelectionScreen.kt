@@ -10,7 +10,7 @@ import org.lain.engine.player.character.EngineCharacter
 
 abstract class AbstractSelectionScreen<T> : Screen(literalText("Character selection")) {
     abstract val looksWheel: LooksWheel<T>
-    protected var overlay: CharacterApplyConfirmationWaitOverlay? = null
+    var overlay: CharacterApplyConfirmationWaitOverlay? = null
 
     abstract fun onEntrySelected(selected: LooksWheel.Entry<T>)
 
@@ -28,7 +28,10 @@ abstract class AbstractSelectionScreen<T> : Screen(literalText("Character select
     }
 
     override fun keyPressed(keyEvent: KeyEvent): Boolean {
-        return if (!looksWheel.keyPressed(keyEvent)) {
+        return if (keyEvent.isEscape) {
+            onClose()
+            true
+        } else if (!looksWheel.keyPressed(keyEvent)) {
             super.keyPressed(keyEvent)
         } else {
             true

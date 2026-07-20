@@ -15,10 +15,13 @@ class CharacterSelectionScreen(
     characters: List<EngineCharacter>,
     skinTextureManager: SkinTextureManager,
     private val handler: ClientHandler,
+    private val requestId: Long? = null,
 ) : AbstractSelectionScreen<EngineCharacter>() {
     private val characterCompletableDeferred: CompletableDeferred<EngineCharacter?> = CompletableDeferred()
     override val looksWheel: LooksWheel<EngineCharacter> = run {
-        val entries = characters.map { LooksWheel.Entry(it.baseLook, it.profile.name.gradientChars.getText(), it.profile, it) }
+        val entries = characters.map {
+            LooksWheel.Entry(it.baseLook, it.profile.name.gradientChars.getText(), it.profile, it, it.profile.id)
+        }
         val initial = entries.find { it.profile.id == character?.profile?.id }
         LooksWheel(
             skinTextureManager,
@@ -38,7 +41,9 @@ class CharacterSelectionScreen(
     suspend fun awaitSelection() = characterCompletableDeferred.await()
 
     override fun onEntrySelected(selected: LooksWheel.Entry<EngineCharacter>) {
-        overlay = CharacterApplyConfirmationWaitOverlay(selected.data, characterCompletableDeferred, handler)
+        if (overlay == null) {
+            overlay = CharacterApplyConfirmationWaitOverlay(selected.data, characterCompletableDeferred, handler, requestId)
+        }
     }
 
     companion object {
@@ -48,11 +53,12 @@ class CharacterSelectionScreen(
         suspend fun awaitCharacterSelection(
             client: EngineClient,
             character: EngineCharacter?,
-            characters: List<EngineCharacter>
+            characters: List<EngineCharacter>,
+            requestId: Long? = null
         ): EngineCharacter? {
             val screen = withContext(MinecraftClientDispatcher) {
                 val screen =
-                    CharacterSelectionScreen(character, characters, client.skinTextureManager, client.handler)
+                    CharacterSelectionScreen(character, characters, client.skinTextureManager, client.handler, requestId)
                 MinecraftClient.setScreen(screen)
                 screen
             }

@@ -1,5 +1,8 @@
 package org.lain.engine.storage
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -7,6 +10,7 @@ import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerSlots
+import org.lain.engine.mc.DisconnectText
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.AppliedCharacters
@@ -82,25 +86,36 @@ fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
     val stamina = movementStatus.stamina
 
     val equipmentSlots = getEquipmentContainerSlots(player.equipmentContainer)
+    val voiceApparatus = player.require<VoiceApparatus>().copy()
+    val voiceLoose = player.get<VoiceLoose>()?.copy()
+    val chatHeadsEnabled = player.chatHeadsEnabled
+    val equipment = equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentIdComponent>().id }
+    val skinEyeY = player.require<EnginePlayerModel>().skinEyeY
+    val savableComponents = componentManager.getSavableComponents(player.entity).map { it.toSnapshotDto() }
+    val appliedCharacter = player.get<AppliedCharacter>()?.character?.profile?.id
+    val characters = player.get<AppliedCharacters>()?.characters ?: emptyMap()
 
-    file.ensureExists()
-    file.writeText(
-        PLAYERS_JSON.encodeToString(
-            PersistentPlayerData(
-                customName = customName?.toPersistentData(),
-                speedIntention = speedIntention,
-                stamina = stamina,
-                voiceApparatus = player.require<VoiceApparatus>().copy(),
-                voiceLoose = player.get<VoiceLoose>()?.copy(),
-                chatHeads = player.chatHeadsEnabled,
-                equipment = equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentIdComponent>().id },
-                skinEyeY = player.require<EnginePlayerModel>().skinEyeY,
-                components = componentManager.getSavableComponents(player.entity).map { it.toSnapshotDto() },
-                appliedCharacter = player.get<AppliedCharacter>()?.character?.profile?.id,
-                characters = player.get<AppliedCharacters>()?.characters ?: emptyMap()
+    //TODO: логировать ошибки
+    CoroutineScope(Dispatchers.IO).launch {
+        file.ensureExists()
+        file.writeText(
+            PLAYERS_JSON.encodeToString(
+                PersistentPlayerData(
+                    customName = customName?.toPersistentData(),
+                    speedIntention = speedIntention,
+                    stamina = stamina,
+                    voiceApparatus = voiceApparatus,
+                    voiceLoose = voiceLoose,
+                    chatHeads = chatHeadsEnabled,
+                    equipment = equipment,
+                    skinEyeY = skinEyeY,
+                    components = savableComponents,
+                    appliedCharacter = appliedCharacter,
+                    characters = characters,
+                )
             )
         )
-    )
+    }
 }
 
 fun File.parsePersistentPlayerData(playerId: PlayerId): PersistentPlayerData? {

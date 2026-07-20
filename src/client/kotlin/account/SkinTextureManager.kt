@@ -1,12 +1,11 @@
 package org.lain.engine.client.account
 
 import com.mojang.blaze3d.platform.NativeImage
-import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -17,8 +16,6 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.resources.SKINS_DIR
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.MinecraftClientDispatcher
-import org.lain.engine.client.util.launchClientContext
-import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.player.character.Look
@@ -40,9 +37,10 @@ class SkinTextureManager(
     private val skinRequestTimeout = java.time.Duration.ofSeconds(10)
     private val maxSkinBytes = 1024 * 1024
     private val logger = LoggerFactory.getLogger("Engine Skin Texture Manager")
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val loaded = ConcurrentHashMap<String, LoadedSkin>()
     private val loading = ConcurrentHashMap.newKeySet<String>()
+    private val cacheKeys = ConcurrentHashMap<String, CachedSkinKey>()
 
     private var skinDownloadRetryDelay = AtomicInteger(5)
 
@@ -51,31 +49,41 @@ class SkinTextureManager(
     }
 
     fun preload(look: Look) {
-        scope.launch { getTexture(look) }
+        getOrDownloadTexture(look)
     }
 
-    fun getTexture(look: Look): ClientAsset.Texture {
-        loaded[look.id]?.let { return it.asset }
+    fun getOrDownloadTextureNullable(look: Look): ClientAsset.Texture? {
+        loaded[look.id]
+            ?.takeIf { it.url == look.skin.url }
+            ?.let { return it.asset }
 
-        if (loading.add(look.id)) {
-            scope.launch { loadSkin(look) }
+        val key = resolveCacheKey(look)
+        if (loading.add(key)) {
+            scope.launch { loadSkin(look, key) }
         }
 
-        return DefaultPlayerSkin.getDefaultSkin().body
+        return null
+    }
+
+    fun getOrDownloadTexture(look: Look): ClientAsset.Texture {
+        return getOrDownloadTextureNullable(look) ?: DefaultPlayerSkin.getDefaultSkin().body
     }
 
     override fun close() {
-        loaded.values.forEach { loadedSkin ->
-            MinecraftClient.textureManager.release(loadedSkin.asset.texturePath())
-            loadedSkin.texture.close()
-        }
+        loaded.values.forEach { it.close() }
         loaded.clear()
         loading.clear()
+        cacheKeys.clear()
     }
 
-    private suspend fun loadSkin(look: Look) {
+    fun clearCoroutines() {
+        scope.cancel()
+        scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    }
+
+    private suspend fun loadSkin(look: Look, key: String) {
         try {
-            val file = cachePath(look)
+            val file = cachePath(key)
             if (Files.exists(file)) {
                 runCatching { validateSkinBytes(Files.readAllBytes(file)) }
                     .onFailure {
@@ -90,12 +98,13 @@ class SkinTextureManager(
                 writeAtomically(file, bytes)
             }
 
-            register(look.id, file, look.skin.url)
+            register(key, look.id, file, look.skin.url)
         } catch (e: Throwable) {
-            logger.error("Не удалось загрузить скин образа ${look.id} с ${look.skin.url}", e)
+            if (e is CancellationException) throw e
+            //logger.error("Не удалось загрузить скин образа ${look.id} с ${look.skin.url}", e)
             delay(skinDownloadRetryDelay.toLong() * 1000L) // чтобы не делать слишком частые повторы
         } finally {
-            loading.remove(look.id)
+            loading.remove(key)
         }
     }
 
@@ -127,15 +136,15 @@ class SkinTextureManager(
         }
     }
 
-    private suspend fun register(lookId: String, file: Path, url: String) = withContext(Dispatchers.IO) {
+    private suspend fun register(key: String, lookId: String, file: Path, url: String) = withContext(Dispatchers.IO) {
         val bytes = Files.readAllBytes(file)
         validateSkinBytes(bytes)
         val image = NativeImage.read(bytes)
-        val textureId = engineId("character_skins/$lookId")
+        val textureId = engineId("character_skins/$key")
         val asset = ClientAsset.DownloadedTexture(textureId, url)
 
         withContext(MinecraftClientDispatcher) {
-            if (loaded.containsKey(lookId)) {
+            if (loaded[lookId]?.key == key) {
                 image.close()
                 return@withContext
             }
@@ -143,7 +152,7 @@ class SkinTextureManager(
             val texture = DynamicTexture({ "Engine character skin $lookId" }, image)
             MinecraftClient.textureManager.register(textureId, texture)
             texture.upload()
-            loaded[lookId] = LoadedSkin(asset, texture)
+            loaded.put(lookId, LoadedSkin(key, url, asset, texture))?.takeIf { it.key != key }?.close()
         }
     }
 
@@ -173,8 +182,7 @@ class SkinTextureManager(
         }
     }
 
-    private fun cachePath(look: Look): Path {
-        val cacheKey = cacheKey(look)
+    private fun cachePath(cacheKey: String): Path {
         return SKINS_DIR
             .resolve(cacheKey.substring(0, 2))
             .resolve(cacheKey.substring(2, 4))
@@ -182,7 +190,16 @@ class SkinTextureManager(
             .toPath()
     }
 
-    private fun cacheKey(look: Look): String = sha256("${look.id}:${look.skin.url}")
+    private fun resolveCacheKey(look: Look): String {
+        val cached = cacheKeys[look.id]
+        if (cached?.url == look.skin.url) {
+            return cached.key
+        }
+
+        val key = sha256("${look.id}:${look.skin.url}")
+        cacheKeys[look.id] = CachedSkinKey(look.skin.url, key)
+        return key
+    }
 
     private fun sha256(value: String): String {
         return MessageDigest
@@ -191,8 +208,20 @@ class SkinTextureManager(
             .joinToString("") { byte -> "%02x".format(byte) }
     }
 
+    private data class CachedSkinKey(
+        val url: String,
+        val key: String
+    )
+
     private data class LoadedSkin(
+        val key: String,
+        val url: String,
         val asset: ClientAsset.Texture,
         val texture: DynamicTexture,
-    )
+    ) {
+        fun close() {
+            MinecraftClient.textureManager.release(asset.texturePath())
+            texture.close()
+        }
+    }
 }

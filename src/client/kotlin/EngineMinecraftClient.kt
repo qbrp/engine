@@ -1,9 +1,5 @@
 package org.lain.engine.client
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
@@ -12,7 +8,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.gui.screens.inventory.BookEditScreen
-import net.minecraft.client.player.AbstractClientPlayer
 import net.minecraft.client.renderer.entity.player.AvatarRenderer
 import net.minecraft.server.network.Filterable
 import net.minecraft.util.profiling.Profiler
@@ -23,7 +18,7 @@ import net.minecraft.world.level.Level
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
-import org.lain.engine.client.account.NotAuthorizedException
+import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
@@ -32,7 +27,7 @@ import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
-import org.lain.engine.client.render.ui.character.CharacterSelectionScreen
+import org.lain.engine.client.render.ui.character.AbstractSelectionScreen
 import org.lain.engine.client.render.ui.initializeGraphene
 import org.lain.engine.client.render.ui.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
@@ -44,12 +39,8 @@ import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.WritableOpen
 import org.lain.engine.mc.*
 import org.lain.engine.mc.server.EngineHttpClient
-import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.server.EngineServer
-import org.lain.engine.mc.server.serverMinecraftPlayerLoadSettings
-import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.util.component.registerAllClient
@@ -62,7 +53,7 @@ import kotlin.math.sqrt
 
 class EngineMinecraftClient : ClientModInitializer {
     private val client = MinecraftClient
-    private val fabricLoader = FabricLoader.getInstance()
+    val fabricLoader = FabricLoader.getInstance()
     private val entityTable by injectEntityTable()
     private val dynamicLights by injectDynamicLightsContext()
     private val clientPlayerTable by lazy { entityTable.client }
@@ -74,7 +65,7 @@ class EngineMinecraftClient : ClientModInitializer {
 
     private lateinit var lightSystem: LightSystem
     private val decalsStorage: DecalSystem = DecalSystem()
-    private val eventBus = MinecraftEngineClientEventListener(this, client, entityTable, decalsStorage)
+    private val eventBus = MinecraftEngineClientInfrastructure(this, client, entityTable, decalsStorage)
     private var config: EngineYamlConfig = EngineYamlConfig()
     private val engineClient = EngineClient(
         window,
@@ -102,6 +93,7 @@ class EngineMinecraftClient : ClientModInitializer {
         ComponentTypeRegistry.registerComponentsClient()
         ComponentTypeRegistry.registerAllClient()
         engineClient.options = config
+        engineClient.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engineClient)
         registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
@@ -191,12 +183,13 @@ class EngineMinecraftClient : ClientModInitializer {
 
         try {
             if (readyToAuthorize && mainPlayerEntity != null && !inAuthorization) {
-                val developerMode = DeveloperModeStatus(engineClient.developerMode, engineClient.acousticDebug)
                 if (client.isSingleplayer) {
                     val engine = server?.engine ?: throw RuntimeException("Server not started")
-                    setupSingleplayer(engine, mainPlayerEntity, developerMode)
+                    engineClient.startJoinFlow(
+                        GameSessionJoinFlow.JoinType.Singleplayer(engine)
+                    )
                 } else {
-                    engineClient.authorizeMultiplayer(fabricLoader.allMods.map { it.metadata.id })
+                    engineClient.startJoinFlow(GameSessionJoinFlow.JoinType.Multiplayer)
                 }
                 inAuthorization = true
             }
@@ -327,8 +320,10 @@ class EngineMinecraftClient : ClientModInitializer {
     }
 
     fun onDisconnect() {
+        engineClient.stopJoinFlow()
+        (MinecraftClient.screen as? AbstractSelectionScreen<*>)?.overlay?.job?.cancel()
         if (engineClient.gameSession == null) return
-        engineClient.multiplayerAuthorization?.cancel()
+        engineClient.skinTextureManager.clearCoroutines()
         uiRenderPipeline.invalidate()
         entityTable.client.invalidate()
         decalsStorage.unload()
@@ -341,48 +336,6 @@ class EngineMinecraftClient : ClientModInitializer {
         readyToAuthorize = false
         inAuthorization = false
         connectionLogger.info("Игрок отключен от сервера Engine")
-    }
-
-    private fun setupSingleplayer(
-        engine: EngineServer,
-        entity: AbstractClientPlayer,
-        developerStatus: DeveloperModeStatus,
-    ) {
-        val settings = engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId, developerStatus, listOf())
-        val exceptionHandler: (Throwable) -> Unit = { exception ->
-            disconnectWithReason(
-                if (exception is HttpStatusException) {
-                    DisconnectText("${exception.statusCode}: ${exception.serializeApiError().message}")
-                } else {
-                    DisconnectText(exception)
-                }
-            )
-        }
-        val persistent = settings.persistentPlayerData
-        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-            try {
-                val accountManager = engineClient.accountManager
-                val account = accountManager.getAuthorized()?.getAccount()
-                    ?: accountManager.lastAccountResponse
-                    ?: throw NotAuthorizedException()
-                val mappedCharacters = account.characters.map { it.map() }
-                engine.playerLoader.loadPreparing(
-                    settings = settings,
-                    account = PlayerLoadSettings.Account(
-                        CharacterSelectionScreen.awaitCharacterSelection(
-                            engineClient,
-                            persistent?.appliedCharacter?.let { characterId ->
-                                mappedCharacters.firstOrNull { it.profile.id == characterId }
-                            },
-                            mappedCharacters
-                        )
-                    ),
-                    exceptionHandler = exceptionHandler
-                )
-            } catch (e: Exception) {
-                exceptionHandler(e)
-            }
-        }
     }
 
     fun disconnectWithReason(text: Text) {

@@ -37,7 +37,7 @@ fun createCharacterPreviewRenderState(
             setData(
                 GenderRenderStateAccessor.`engine$getRenderStateDataKey`(),
                 createGenderRenderState(
-                    UUID.fromString(character.id),
+                    character.id.toStableUuid(),
                     character.genderParams.breastSize,
                     character.biologicalSex
                 )
@@ -75,6 +75,11 @@ fun createCharacterPreviewRenderState(
         wornHeadType = null
         wornHeadProfile = null
     }
+}
+
+private fun String.toStableUuid(): UUID {
+    return runCatching { UUID.fromString(this) }
+        .getOrElse { UUID.nameUUIDFromBytes(toByteArray(Charsets.UTF_8)) }
 }
 
 fun createGenderRenderState(characterId: UUID, bustSize: Float, biologicalSex: BiologicalSex): GenderRenderState {

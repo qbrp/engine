@@ -68,12 +68,16 @@ val SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT = Endpoint<ScriptBindingsPacket>()
 data class CharacterApplyPacket(
     val characterId: String,
     val character: EngineCharacter? = null,
-    val sessionTicket: SessionTicketDto? = null
+    val sessionTicket: SessionTicketDto? = null,
+    val requestId: Long? = null
 ) : Packet
 
 val SERVERBOUND_CHARACTER_APPLY_ENDPOINT = Endpoint<CharacterApplyPacket>()
 
 @Serializable
-data class LookApplyPacket(val lookId: String) : Packet
+data class LookApplyPacket(
+    val lookId: String,
+    val requestId: Long? = null
+) : Packet
 
 val SERVERBOUND_LOOK_APPLY_ENDPOINT = Endpoint<LookApplyPacket>()

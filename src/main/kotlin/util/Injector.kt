@@ -5,11 +5,12 @@ import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.MovementSettings
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.ServerTransportContext
+import java.util.Collections
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
 object Injector {
-    private val map = mutableMapOf<KClass<*>, Any>()
+    private val map = Collections.synchronizedMap<KClass<*>, Any>(mutableMapOf())
 
     fun <T: Any> register(clazz: KClass<T>, instance: T) {
         map[clazz] = instance

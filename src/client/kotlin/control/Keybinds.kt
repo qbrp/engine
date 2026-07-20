@@ -145,5 +145,5 @@ val SELECT_CHARACTER = KeybindSettings(
     name = "Выбрать персонажа",
     id = KeybindId("select_character"),
     key = InputConstants.KEY_O,
-    onPress = { client -> client.gameSession?.let { client.eventListener.onCharacterSelectionMenuOpen(it) } }
+    onPress = { client -> client.gameSession?.let { client.infrastructure.onCharacterSelectionMenuOpen(it) } }
 )

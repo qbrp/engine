@@ -12,7 +12,6 @@ import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.character.computeCharacterModel
 import org.lain.engine.player.getOrSet
-import org.lain.engine.player.require
 import org.lain.engine.world.World
 
 data class EnginePlayerSkin(
@@ -34,7 +33,7 @@ fun World.tickSkinSystem(
 ) = iterate<EnginePlayerSkin, SelectedLook, AppliedCharacter>() { entity, enginePlayerSkin, (look), (character) ->
     val characterProfile = character.profile
     enginePlayerSkin.skin = CharacterSkin(
-        skinTextureManager.getTexture(look),
+        skinTextureManager.getOrDownloadTextureNullable(look) ?: enginePlayerSkin.skin.body,
         computeCharacterModel(
             characterProfile.bodyType,
             characterProfile.biologicalCategory,

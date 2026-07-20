@@ -6,7 +6,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.LevelLoadTracker;
 import net.minecraft.network.chat.Component;
-import org.lain.engine.client.handler.MultiplayerAuthorization;
+import org.lain.engine.client.handler.GameSessionJoinFlow;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -32,11 +32,7 @@ public class LevelLoadingScreenMixin {
             )
     )
     private boolean engine$isLevelReady(LevelLoadTracker instance) {
-        if (!Minecraft.getInstance().isSingleplayer()) {
-            return instance.isLevelReady() && ClientMixinAccess.INSTANCE.canCloseLevelLoadingScreen();
-        } else {
-            return instance.isLevelReady();
-        }
+        return instance.isLevelReady() && ClientMixinAccess.INSTANCE.canCloseLevelLoadingScreen();
     }
 
     @Redirect(
@@ -47,12 +43,12 @@ public class LevelLoadingScreenMixin {
             )
     )
     private void engine$drawStateString(GuiGraphics instance, Font font, Component component, int i, int j, int k) {
-        MultiplayerAuthorization.State state = ClientMixinAccess.INSTANCE.multiplayerConnectionState();
+        GameSessionJoinFlow.State state = ClientMixinAccess.INSTANCE.multiplayerConnectionState();
         if (!loadTracker.isLevelReady() || state == null) {
             instance.drawCenteredString(font, component, i, j, k);
         } else {
             Component stateText;
-            if (state == MultiplayerAuthorization.State.AUTHORIZATION) {
+            if (state == GameSessionJoinFlow.State.AUTHORIZATION) {
                 stateText = AUTHORIZATION_STATE_TEXT;
             } else {
                 stateText = COMPILATION_STATE_TEXT;

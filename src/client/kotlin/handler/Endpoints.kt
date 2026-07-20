@@ -10,7 +10,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     clientAcknowledgeHandler.run()
 
     CLIENTBOUND_JOIN_GAME_ENDPOINT.registerClientReceiver { _ ->
-        taskExecutor.add("join_game") { applyJoinGame(playerData, worldData, setupData, notifications) }
+        taskExecutor.add("join_game") { applyJoinGame(this) }
     }
 
     // Players
@@ -102,7 +102,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.registerClientReceiver {
-        taskExecutor.add("character_apply_confirmation") { applyCharacterApplyConfirmation() }
+        taskExecutor.add("character_apply_confirmation") { applyCharacterApplyConfirmation(requestId, errorMessage) }
     }
 
     registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)

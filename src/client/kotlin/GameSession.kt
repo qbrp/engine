@@ -15,6 +15,8 @@ import org.lain.engine.client.render.MAP
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.tickSkinSystem
 import org.lain.engine.client.render.updateShootShakeSystem
+import org.lain.engine.client.script.ClientCompilation
+import org.lain.engine.client.script.ClientLuaContext
 import org.lain.engine.client.script.updateClientServerboundChannelSystem
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
@@ -32,6 +34,7 @@ import org.lain.engine.player.interaction.tickPlayerInput
 import org.lain.engine.player.interaction.tickSocialActionSystem
 import org.lain.engine.player.interaction.tickWritableActionSystem
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
 import org.lain.engine.server.ServerId
@@ -53,8 +56,11 @@ class GameSession(
     player: ServerPlayerData,
     val handler: ClientHandler,
     val client: EngineClient,
-    val hintState: ClientHintState = ClientHintState()
+    val compilation: ClientCompilation,
+    compilationResult: CompilationResult,
+    val hintState: ClientHintState = ClientHintState(),
 ) {
+    val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
     val itemStorage = ClientItemStorage()
     val world = World(
         world.id,
@@ -96,10 +102,10 @@ class GameSession(
     val mainPlayer = mainClientPlayerInstance(player.id, this.world, player, DeveloperModeStatus(client.developerMode, client.acousticDebug))
     @Volatile var ticks = 0L
         private set
-    val namespacedStorage get() = client.namespacedStorage
-    val luaContext get() = client.luaContext ?: error("Lua context is not initialized")
+
     var callbacks: Callbacks = Callbacks()
     val endTickTaskExecutor = TaskExecutor()
+    val luaContext = compilation.luaContext
 
     var inspectionMode: Boolean = false
         set(value) {
@@ -136,13 +142,13 @@ class GameSession(
     }
 
     init {
-        applyCompilation(client.compilationResult ?: error("Compilation is not initialized"))
+        applyCompilation(compilationResult)
 
         val items = (player.items + player.equipment.values).associateBy { it.persistentId }
         preloadPlayerItems(items)
         instantiatePlayer(mainPlayer, player.general, mutableMapOf())
 
-        client.eventListener.onMainPlayerInstantiated(client, this, mainPlayer)
+        client.infrastructure.onMainPlayerInstantiated(client, this, mainPlayer)
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
     }
@@ -167,6 +173,7 @@ class GameSession(
     }
 
     fun applyCompilation(result: CompilationResult) {
+        namespacedStorage.loadContentsCompileResult(result)
         world.registerComponentTypes(namespacedStorage)
         result.callbacks?.let { callbacks = it }
         luaContext.setupClientGameSession(this)
@@ -192,7 +199,7 @@ class GameSession(
 
     fun recompile() {
         try {
-            applyCompilation(client.compileScripts())
+            applyCompilation(luaContext.compileContents())
         } catch (e: Exception) {
             client.applyLittleNotification(
                 LittleNotification(
@@ -208,7 +215,7 @@ class GameSession(
 
     fun onContentsUpdated() {
         client.audioManager.invalidateCache()
-        client.eventListener.onContentsUpdate()
+        client.infrastructure.onContentsUpdate()
     }
 
     fun tick() {
@@ -273,7 +280,7 @@ class GameSession(
             updateClientServerboundChannelSystem(handler)
             updateVoxelEvents(null)
             handleHintEvents()
-            client.eventListener.getHitResultVoxelPos()?.let {
+            client.infrastructure.getHitResultVoxelPos()?.let {
                 updateInspectionMode(inspection, inspectionMode, it)
             }
 
@@ -288,12 +295,12 @@ class GameSession(
     fun viewEntityDebug(entity: EntityId) = with(world) {
         val persistentId = entity.requireComponent<PersistentIdComponent>().id
         handler.onEntityDebugView(persistentId)
-        client.eventListener.onEntityDebugView(this@GameSession)
+        client.infrastructure.onEntityDebugView(this@GameSession)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
         world.chunkStorage.setChunk(pos, chunk)
-        client.eventListener.onChunkLoad(pos, chunk)
+        client.infrastructure.onChunkLoad(pos, chunk)
     }
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {

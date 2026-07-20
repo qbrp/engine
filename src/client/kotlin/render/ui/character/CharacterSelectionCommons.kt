@@ -8,9 +8,10 @@ import org.lain.engine.player.character.EngineCharacter
 fun Screen.CharacterApplyConfirmationWaitOverlay(
     character: EngineCharacter?,
     characterCompletableDeferred: CompletableDeferred<EngineCharacter?>,
-    handler: ClientHandler
+    handler: ClientHandler,
+    requestId: Long? = null
 ) = CharacterApplyConfirmationWaitOverlay(
-    handler.awaitCharacterApplyConfirmation(),
+    handler.deferCharacterApplyConfirmation(requestId),
     onClose = { onClose() },
     onFaded = {
         //TODO: сделать функцию grabMouse, но не закрывающую текущий экран

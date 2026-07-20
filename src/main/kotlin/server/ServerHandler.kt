@@ -1,9 +1,11 @@
 package org.lain.engine.server
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.getComponent
@@ -161,10 +163,11 @@ class ServerHandler(
                 ctx.sender,
                 characterId,
                 character,
-                sessionTicket?.map()
+                sessionTicket?.map(),
+                requestId
             )
         }
-        SERVERBOUND_LOOK_APPLY_ENDPOINT.registerReceiver { ctx -> onLookApply(ctx.sender, lookId) }
+        SERVERBOUND_LOOK_APPLY_ENDPOINT.registerReceiver { ctx -> onLookApply(ctx.sender, lookId, requestId) }
     }
 
     fun invalidate() {
@@ -172,29 +175,43 @@ class ServerHandler(
         taskQueue.clear()
     }
 
-    private fun onLookApply(playerId: PlayerId, lookId: String) = updatePlayer(playerId) {
+    private fun onLookApply(playerId: PlayerId, lookId: String, requestId: Long?) = updatePlayer(playerId) {
         val character = require<AppliedCharacter>().character
         val look = character.looks.find { it.id == lookId } ?: desync("Образ $lookId не существует")
         set(SelectedLook(look))
-        onCharacterApplyConfirmation(this@updatePlayer)
+        onCharacterApplyConfirmation(this@updatePlayer, requestId)
     }
 
     private fun onCharacterApply(
         playerId: PlayerId,
         characterId: String,
         character: EngineCharacter?,
-        sessionTicket: SessionTicket?
+        sessionTicket: SessionTicket?,
+        requestId: Long?
     ) = updatePlayer(playerId) {
         val appliedCharacters = require<AppliedCharacters>()
         val persistent = appliedCharacters.characters[characterId]
         with(world) { removeCharacter(appliedCharacters) }
         CoroutineScope(Dispatchers.IO).launch {
-            val eventListener = server.eventListener
-            val character = eventListener.validateCharacter(this@updatePlayer, characterId, character, sessionTicket)
-            with(EntityCommandBuffer(world)) {
-                applyCharacter(character, persistent, eventListener)
-                onCharacterApplyConfirmation(this@updatePlayer)
-                server.execute { apply(world) }
+            try {
+                val eventListener = server.eventListener
+                val validatedCharacter =
+                    eventListener.validateCharacter(this@updatePlayer, characterId, character, sessionTicket)
+                withContext(server.dispatcher) {
+                    with(EntityCommandBuffer(world)) {
+                        applyCharacter(validatedCharacter, persistent, eventListener)
+                        apply(world)
+                    }
+                    onCharacterApplyConfirmation(this@updatePlayer, requestId)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val message = e.message ?: "Не удалось применить персонажа"
+                server.execute {
+                    onCharacterApplyConfirmation(this@updatePlayer, requestId, message)
+                }
+                e.printStackTrace()
             }
         }
     }
@@ -481,9 +498,9 @@ class ServerHandler(
         }
     }
 
-    fun onCharacterApplyConfirmation(player: EnginePlayer) {
+    fun onCharacterApplyConfirmation(player: EnginePlayer, requestId: Long? = null, errorMessage: String? = null) {
         CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.sendS2C(
-            CharacterApplyConfirmationPacket,
+            CharacterApplyConfirmationPacket(requestId, errorMessage),
             player.id
         )
     }

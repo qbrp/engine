@@ -2,32 +2,24 @@ package org.lain.engine.client
 
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
-import org.lain.engine.client.account.ConnectionState
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.ClientHandler
-import org.lain.engine.client.handler.MultiplayerAuthorization
+import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.*
 import org.lain.engine.client.render.legacy.EngineUi
 import org.lain.engine.client.resources.ResourceManager
-import org.lain.engine.client.script.ClientLuaContext
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.mc.server.EngineHttpClient
 import org.lain.engine.player.developerMode
-import org.lain.engine.script.*
-import org.lain.engine.script.lua.EngineLuaGlobals
-import org.lain.engine.script.lua.FileScriptSource
 import org.lain.engine.script.lua.LuaDataStorage
-import org.lain.engine.script.lua.LuaDependencies
-import org.lain.engine.server.ServerId
 import org.lain.engine.util.DEV_MODE_COLOR
 import org.lain.engine.util.SPECTATOR_MODE_COLOR
-import java.io.File
 
 class EngineClient(
     val window: Window,
@@ -35,13 +27,12 @@ class EngineClient(
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
-    val eventListener: ClientEventListener,
+    val infrastructure: ClientInfrastructure,
     httpClient: EngineHttpClient,
 ) {
-    val namespacedStorage: NamespacedStorageAccess = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
     lateinit var options: EngineOptions
     lateinit var thread: Thread
-    val handler = ClientHandler(this, eventListener)
+    val handler = ClientHandler(this, infrastructure)
     val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
     val skinTextureManager = SkinTextureManager(httpClient.rest)
@@ -79,9 +70,7 @@ class EngineClient(
     val gameSessionActive
         get() = gameSession != null
 
-    private val luaDataStorage = LuaDataStorage()
-    var compilationResult: CompilationResult? = null
-    var luaContext: ClientLuaContext? = null
+    val luaDataStorage = LuaDataStorage()
 
     val connectionState
         get() = accountManager.state
@@ -93,47 +82,23 @@ class EngineClient(
         get() = accountManager.authorized
 
     init {
-         accountManager.autoLoginAsync()
+        accountManager.autoLoginAsync()
     }
 
     fun onOptionsUpdate() {
         skinTextureManager.onOptions(options)
     }
 
-    var multiplayerAuthorization: MultiplayerAuthorization? = null
+    var joinFlow: GameSessionJoinFlow? = null
         private set
 
-    fun authorizeMultiplayer(modIds: List<String>) {
-        multiplayerAuthorization = MultiplayerAuthorization(modIds, this, handler)
+    fun startJoinFlow(joinType: GameSessionJoinFlow.JoinType) {
+        joinFlow = GameSessionJoinFlow(joinType, this, handler)
     }
 
-    fun compileScripts(): CompilationResult {
-        val contentsPath = resources.contents.file
-        val result = compileContents(contentsPath, luaContext ?: error("Lua context not initialized"))
-        compilationResult = result
-        namespacedStorage.loadContentsCompileResult(result)
-        return compilationResult!!
-    }
-
-    fun createLuaDependencies(scriptsPath: File): LuaDependencies {
-        return LuaDependencies(
-            EngineLuaGlobals(),
-            namespacedStorage,
-            scriptsPath.path,
-            luaDataStorage
-        )
-    }
-
-    fun createLuaContext(serverId: ServerId): ClientLuaContext {
-        val scriptsPath = resources.scripts.file
-        return ClientLuaContext(
-            this,
-            FileScriptSource(scriptsPath.luaEntrypointDir(serverId)),
-            createLuaDependencies(scriptsPath),
-        ).also {
-            luaContext = it
-            it.setup()
-        }
+    fun stopJoinFlow() {
+        joinFlow?.cancel()
+        joinFlow = null
     }
 
     var ticks = 0L
@@ -144,7 +109,7 @@ class EngineClient(
         handler.tick()
         gameSession?.tick()
         handler.postTick()
-        eventListener.tick()
+        infrastructure.tick()
     }
 
     fun isOnThread() = Thread.currentThread() == thread

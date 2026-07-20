@@ -1,5 +1,6 @@
 package org.lain.engine.server
 
+import kotlinx.coroutines.asCoroutineDispatcher
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.removeComponent
@@ -62,6 +63,7 @@ class EngineServer(
     var globals: ServerGlobals = ServerGlobals(id, savePath=savePath)
         private set
     val handler = ServerHandler(this)
+    val dispatcher = asCoroutineDispatcher()
 
     private val taskQueue = ConcurrentLinkedQueue<Runnable>()
     internal val worlds: MutableMap<WorldId, World> = mutableMapOf()
@@ -189,12 +191,12 @@ class EngineServer(
         notifications: List<Notification> = listOf(),
         pos: Pos
     ) = with(player.world) {
-        with(luaContext) { player.setPlayerComponents(pos) }
-        eventListener.onPlayerInstantiated(player)
-
-        if (globals.spectateOnJoin) player.entity.setComponent(StartSpectatingMark)
         playerStorage.add(player.id, player)
         players += player
+        eventListener.onPlayerInstantiated(player)
+
+        with(luaContext) { player.setPlayerComponents(pos) }
+        if (globals.spectateOnJoin) player.entity.setComponent(StartSpectatingMark)
         handler.onPlayerInstantiation(player, notifications)
 
         chat.trySendJoinMessage(player)

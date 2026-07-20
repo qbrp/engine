@@ -6,7 +6,9 @@ import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerItems
 import org.lain.engine.item.EngineItem
+import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.*
+import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
@@ -231,7 +233,8 @@ val CLIENTBOUND_PLAYER_DESTROY_ENDPOINT = Endpoint<PlayerDestroyPacket>()
 data class VerificationResponsePacket(
     val developerModeStatus: DeveloperModeStatus,
     val namespaces: NamespaceHashMap,
-    val characterId: String?
+    val characterId: String?,
+    val sessionTicket: SessionTicketDto
 ) : Packet
 
 val SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT = Endpoint<VerificationResponsePacket>()

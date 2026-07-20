@@ -1,8 +1,10 @@
 package org.lain.engine.client.render.ui.character
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -31,29 +33,34 @@ class CharacterApplyConfirmationWaitOverlay(
     var state = AtomicReference<State>(fadeIn)
         private set
 
-    init {
-        CoroutineScope(Dispatchers.Default).launch {
-            fadeIn.deferred.await()
-            client.execute { onFaded.invoke() }
-            try {
-                withTimeout(5000L) {
-                    state.set(State.Wait())
-                    characterResponseDeferred.await()
-                }
-            } catch (e: TimeoutCancellationException) {
-                close()
-                return@launch
+    var job: Job = CoroutineScope(Dispatchers.Default).launch {
+        fadeIn.deferred.await()
+        client.execute { onFaded.invoke() }
+        try {
+            withTimeout(5000L) {
+                state.set(State.Wait())
+                characterResponseDeferred.await()
             }
-            delay(250)
-            val fadeOut = State.FadeOut()
-            state.set(fadeOut)
-            fadeOut.deferred.await()
+        } catch (e: TimeoutCancellationException) {
             close()
+            return@launch
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            close()
+            return@launch
         }
+        delay(250)
+        val fadeOut = State.FadeOut()
+        state.set(fadeOut)
+        fadeOut.deferred.await()
+        close()
     }
 
     private fun close() {
-        client.execute { onClose.invoke() }
+        client.execute {
+            onClose.invoke()
+        }
     }
 
     fun render(

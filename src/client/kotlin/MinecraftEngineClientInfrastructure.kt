@@ -4,6 +4,8 @@ import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.mc.ClientMixinAccess
+import org.lain.engine.client.mc.IntegratedEngineMinecraftServer
+import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.blockHitResult
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
@@ -11,29 +13,36 @@ import org.lain.engine.client.render.ui.EntityDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.server.serverMinecraftPlayerLoadSettings
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.get
-import org.lain.engine.player.require
 import org.lain.engine.script.EntityDebugData
+import org.lain.engine.server.EngineServer
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.util.Injector
+import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.VoxelPos
 import java.util.*
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-class MinecraftEngineClientEventListener(
+class MinecraftEngineClientInfrastructure(
     private val engineMinecraftClient: EngineMinecraftClient,
     private val minecraft: Minecraft,
     private val table: EntityTable,
-    private val decalSystem: DecalSystem
-) : ClientEventListener {
+    private val decalSystem: DecalSystem,
+    override val modIds: List<String> = engineMinecraftClient.fabricLoader.allMods.map { it.metadata.id }
+) : ClientInfrastructure {
     private data class PendingFullPlayerData(val player: EnginePlayer, val data: FullPlayerData)
+
     private val pendingFullPlayerData: MutableList<PendingFullPlayerData> = LinkedList()
     var acousticDebugVolumesBlockPosCache = listOf<Pair<BlockPos, Float>>()
         private set
@@ -47,6 +56,18 @@ class MinecraftEngineClientEventListener(
 
     override fun disconnect(reason: String) {
         engineMinecraftClient.disconnectWithReason(DisconnectText(reason))
+    }
+
+    override fun createIntegratedServerPlayerLoadSettings(client: EngineClient, server: EngineServer): PlayerLoadSettings {
+        val minecraftServer by injectMinecraftEngineServer()
+        minecraftServer as IntegratedEngineMinecraftServer
+        val entity = MinecraftClient.player!!
+        return server.serverMinecraftPlayerLoadSettings(
+            entity,
+            entity.engineId,
+            DeveloperModeStatus(client.developerMode, client.acousticDebug),
+            listOf()
+        )
     }
 
     override fun onFullPlayerData(

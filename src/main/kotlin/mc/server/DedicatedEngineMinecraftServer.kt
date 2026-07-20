@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.Constants
@@ -122,8 +123,7 @@ class DedicatedEngineMinecraftServer(
 @Serializable
 data class AuthPacket(
     val mods: List<String>,
-    val version: String,
-    val sessionTicket: SessionTicketDto
+    val version: String
 ) : Packet
 
 val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
@@ -161,7 +161,7 @@ class ServerAuthorizationListener(
             val playerId = ctx.sender
             val entity = server.minecraftServer.getPlayer(playerId)
                 ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
-            onVerificationResponse(developerModeStatus, namespaces, entity, playerId, characterId)
+            onVerificationResponse(developerModeStatus, namespaces, entity, playerId, characterId, sessionTicket.map())
         }
     }
 
@@ -192,15 +192,10 @@ class ServerAuthorizationListener(
                 "<bold>Вы были исключены с сервера из-за мода на мини-карту</bold><newline>$MINIMAP_WARNING"
             )
         }
-        val sessionTicket = packet.sessionTicket.map()
         connection.mods = mods.toSet()
-        connection.sessionTicket = sessionTicket
 
         coroutineScope.launch {
             runCatching(connection) {
-                val authorized = accountService.getAuthorized(sessionTicket)
-                authorized.getAccount() // проверка на валидность
-
                 CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
                     VerificationDataPacket(
                         GeneralServerData(
@@ -220,11 +215,11 @@ class ServerAuthorizationListener(
         playerNamespaceHashMap: NamespaceHashMap,
         entity: ServerPlayer,
         playerId: PlayerId,
-        selectedCharacter: String?
+        selectedCharacter: String?,
+        sessionTicket: SessionTicket
     ) {
         val engine = server.engine
         val connection = connectionManager.getSession(playerId)
-        val ticket = connection.sessionTicket!!
         if (engine.globals.requireIdenticalNamespaces) {
             val serverNamespacesHashMap = engine.namespacedStorage.get().namespaceHashMap
             val validationResult = validateNamespaceHashMap(playerNamespaceHashMap, serverNamespacesHashMap)
@@ -241,16 +236,21 @@ class ServerAuthorizationListener(
 
         val settings = engine.serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications)
         coroutineScope.launch {
-            val character = selectedCharacter?.let {
-                accountService.getAuthorized(ticket)
-                    .getCharacter(it)
-                    .map()
+            try {
+                val character = selectedCharacter?.let {
+                    accountService.getAuthorized(sessionTicket)
+                        .getCharacter(it)
+                        .map()
+                }
+                engine.playerLoader.loadPreparing(
+                    settings = settings,
+                    account = PlayerLoadSettings.Account(character)
+                )
+            } catch (e: Exception) {
+                withContext(server.engine.dispatcher) {
+                    connectionManager.disconnect(playerId, e)
+                }
             }
-            engine.playerLoader.loadPreparing(
-                settings = settings,
-                account = PlayerLoadSettings.Account(character),
-                exceptionHandler = { connectionManager.disconnect(playerId, it) }
-            )
         }
     }
 

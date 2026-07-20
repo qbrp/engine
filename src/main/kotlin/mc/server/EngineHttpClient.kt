@@ -7,7 +7,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-class EngineHttpClient(val uri: URI = URI("http://localhost:8080")) {
+class EngineHttpClient(val uri: URI = URI("https://engine.qbrp.fun")) {
     private val requestTimeout: Duration = Duration.ofSeconds(3)
     val rest = HttpClient
         .newBuilder()

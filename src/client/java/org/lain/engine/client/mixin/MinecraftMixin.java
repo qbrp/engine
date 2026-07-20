@@ -94,10 +94,10 @@ public abstract class MinecraftMixin {
     }
 
     @Inject(
-            method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;Z)V",
+            method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;ZZ)V",
             at = @At("HEAD")
     )
-    public void engine$disconnect(Screen screen, boolean bl, CallbackInfo ci) {
+    public void engine$disconnect(Screen screen, boolean bl, boolean bl2, CallbackInfo ci) {
         ClientMixinAccess.INSTANCE.onDisconnect();
     }
 }

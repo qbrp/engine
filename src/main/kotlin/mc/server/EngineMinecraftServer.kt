@@ -175,19 +175,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         engine.stop()
     }
 
-    open fun onJoinPlayer(entity: ServerPlayer) {
-        // загрузка камеры происходит в EngineMinecraftClient
-        if (dependencies.isReplay && !entity.isReplayViewer) {
-            val settings = engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId)
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-                engine.playerLoader.loadPreparing(
-                    settings = settings,
-                    account = PlayerLoadSettings.Account(null),
-                    exceptionHandler = {},
-                )
-            }
-        }
-    }
+    open fun onJoinPlayer(entity: ServerPlayer) {}
 
     open fun onLeavePlayer(entity: ServerPlayer) {
         val player = entityTable.getPlayer(entity) ?: return

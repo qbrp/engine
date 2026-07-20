@@ -1,20 +1,31 @@
 package org.lain.engine.client.mc
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
+import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.mc.server.EngineMinecraftServerDependencies
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.MinecraftClientDispatcher
+import org.lain.engine.client.util.withClientContext
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.isReplayViewer
 import org.lain.engine.mc.server.SessionTicket
+import org.lain.engine.mc.server.serverMinecraftPlayerLoadSettings
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.EngineLuaGlobals
 import org.lain.engine.script.lua.FileScriptSource
 import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.LuaDependencies
 import org.lain.engine.script.lua.writeDefaultLuaEntrypointScript
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
@@ -24,7 +35,7 @@ import org.lain.engine.util.registerMinecraftServer
 
 class IntegratedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,
-    client: EngineClient
+    private val client: EngineClient
 ) : EngineMinecraftServer(dependencies) {
     override val transportContext: ServerTransportContext = ServerSingleplayerTransport(client, engine)
 
@@ -35,6 +46,25 @@ class IntegratedEngineMinecraftServer(
         sessionTicket: SessionTicket?
     ): EngineCharacter {
         return character ?: error("Не указаны данные персонажа с клиента")
+    }
+
+    override fun onJoinPlayer(entity: ServerPlayer) {
+        // загрузка камеры происходит в EngineMinecraftClient
+        if (dependencies.isReplay && !entity.isReplayViewer) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val settings =
+                        withClientContext { engine.serverMinecraftPlayerLoadSettings(entity, entity.engineId) }
+                    engine.playerLoader.loadPreparing(
+                        settings = settings,
+                        account = PlayerLoadSettings.Account(null)
+                    )
+                } catch (e: Throwable) {
+                    client.infrastructure.disconnect("Не удалось настроить повтор: ${e.message ?: "Неизвестная ошибка"}")
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 }
 
@@ -47,23 +77,24 @@ fun EngineMinecraftClient.registerEngineIntegratedServerEvent(engineClient: Engi
             entrypoint.createNewFile()
             entrypoint.writeDefaultLuaEntrypointScript()
         }
-        val context = LuaContext(engineClient.createLuaDependencies(ENGINE_DIR.scripts), FileScriptSource(entrypoint))
+        val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
+        val context = LuaContext(
+            LuaDependencies(
+                EngineLuaGlobals(),
+                namespacedStorage,
+                ENGINE_DIR.scripts.path,
+                engineClient.luaDataStorage,
+            ), FileScriptSource(entrypoint)
+        )
         context.setup()
         val compilationResult = compileContents(ENGINE_DIR.contents, context)
-
-        runBlocking {
-            withContext(MinecraftClientDispatcher) {
-                engineClient.createLuaContext(serverId)
-                engineClient.compileScripts()
-            }
-        }
 
         val dependencies = EngineMinecraftServerDependencies(
             server,
             context,
             compilationResult,
             config,
-            ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
+            namespacedStorage
         )
         Injector.register<ClientTransportContext>(ClientSingleplayerTransport(engineClient))
 

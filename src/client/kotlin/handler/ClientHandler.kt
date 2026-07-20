@@ -6,7 +6,7 @@ import org.lain.engine.Constants.ENGINE_MOD_VERSION
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
-import org.lain.engine.client.ClientEventListener
+import org.lain.engine.client.ClientInfrastructure
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.account.NotAuthorizedException
@@ -47,7 +47,7 @@ import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener) {
+class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure) {
     private val gameSession get() = client.gameSession
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
 
@@ -65,58 +65,56 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener)
     private val awaitingChunks = mutableMapOf<EngineChunkPos, CompletableDeferred<EngineChunk>>()
     private val pendingEntityProvider = PendingEntityProvider(awaitingEntities)
 
-    private var characterApplyConfirmationCompletableDeferred: CompletableDeferred<Unit>? = null
-    private var joinGamePacketCompletableDeferred: CompletableDeferred<Unit>? = null
+    private val characterApplyConfirmationDeferreds: MutableMap<Long?, MutableList<CompletableDeferred<Unit>>> =
+        mutableMapOf()
 
     private fun newEntityResolver() = EntityResolver(pendingEntityProvider)
 
-    suspend fun awaitJoinGamePacket() = withClientContext {
+    fun deferCharacterApplyConfirmation(requestId: Long? = null): CompletableDeferred<Unit> {
         val completableDeferred = CompletableDeferred<Unit>()
-        joinGamePacketCompletableDeferred = completableDeferred
-        completableDeferred.await()
-    }
-
-    suspend fun awaitCharacterApplyConfirmationSuspend() {
-        awaitCharacterApplyConfirmation().await()
-    }
-
-    fun awaitCharacterApplyConfirmation(): CompletableDeferred<Unit> {
-        val completableDeferred = CompletableDeferred<Unit>()
-        characterApplyConfirmationCompletableDeferred = completableDeferred
+        characterApplyConfirmationDeferreds.getOrPut(requestId) { mutableListOf() } += completableDeferred
         return completableDeferred
     }
 
-    fun applyCharacterApplyConfirmation() {
-        characterApplyConfirmationCompletableDeferred?.complete(Unit)
+    fun applyCharacterApplyConfirmation(requestId: Long?, errorMessage: String?) {
+        val deferreds = characterApplyConfirmationDeferreds.remove(requestId).orEmpty()
+        deferreds.forEach {
+            if (errorMessage == null) {
+                it.complete(Unit)
+            } else {
+                it.completeExceptionally(RuntimeException(errorMessage))
+            }
+        }
     }
 
     fun run() {
         runEndpoints(clientAcknowledgeHandler)
         CLIENTBOUND_VERIFICATION_ENDPOINT.registerClientReceiver { ctx ->
-            client.multiplayerAuthorization?.verificationStateStartCompletableDeferred?.complete(this)
+            client.joinFlow?.verificationStateStartCompletableDeferred?.complete(server)
         }
     }
 
-    suspend fun sendAuthPacket(modIds: List<String>, sessionTicket: SessionTicket) = withClientContext {
+    suspend fun sendAuthPacket(modIds: List<String>) = withClientContext {
         SERVERBOUND_AUTH_ENDPOINT
             .sendC2SPacket(
                 AuthPacket(
                     modIds,
-                    ENGINE_MOD_VERSION,
-                    sessionTicket.toDto()
+                    ENGINE_MOD_VERSION
                 )
             )
     }
 
     suspend fun sendVerificationPacket(
         namespaceHashMap: NamespaceHashMap,
-        selectedCharacter: EngineCharacter?
+        selectedCharacter: EngineCharacter?,
+        sessionTicket: SessionTicket
     ) = withClientContext {
         SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
             VerificationResponsePacket(
                 DeveloperModeStatus(client.developerMode, client.acousticDebug),
                 namespaceHashMap,
-                selectedCharacter?.profile?.id
+                selectedCharacter?.profile?.id,
+                sessionTicket.toDto()
             )
         )
     }
@@ -135,29 +133,36 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener)
                     characters,
                     character.look
                 )
+            } ?: run {
+                val requestId = nextIdFast()
+                CharacterSelectionScreen.awaitCharacterSelection(client, character?.data, characters, requestId)
+                    ?.let { LookSelectionScreen.Result.SelectedCharacter(it, requestId) }
             }
-                ?: CharacterSelectionScreen.awaitCharacterSelection(client, character?.data, characters)
-                    ?.let { LookSelectionScreen.Result.SelectedCharacter(it) }
                 ?: return@launch
             withClientContext {
                 when (selectionResult) {
                     is LookSelectionScreen.Result.SelectedCharacter -> {
                         if (isSingleplayer) {
-                            onCharacterSelectedSingleplayer(selectionResult.character)
+                            onCharacterSelectedSingleplayer(selectionResult.character, selectionResult.requestId)
                         } else {
                             accountManager.sessionTicketOperation(
                                 accountManager.getAuthorized() ?: throw NotAuthorizedException()
                             ) { sessionTicket ->
+                                val requestId = selectionResult.requestId
                                 withClientContext {
-                                    onCharacterSelectedMultiplayer(selectionResult.character, sessionTicket)
-                                    awaitCharacterApplyConfirmationSuspend()
+                                    onCharacterSelectedMultiplayer(
+                                        selectionResult.character,
+                                        sessionTicket,
+                                        requestId
+                                    )
                                 }
+                                deferCharacterApplyConfirmation(requestId).await()
                             }
                         }
                     }
 
                     is LookSelectionScreen.Result.SelectedLook -> {
-                        onLookSelected(selectionResult.look.id)
+                        onLookSelected(selectionResult.look.id, selectionResult.requestId)
                     }
                 }
             }
@@ -170,6 +175,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener)
         awaitingEntities.clear()
         processedInteraction.clear()
         awaitingChunks.clear()
+        characterApplyConfirmationDeferreds.clear()
         pendingEntityProvider.clear()
     }
 
@@ -246,20 +252,24 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener)
         )
     }
 
-    fun onCharacterSelectedSingleplayer(character: EngineCharacter) {
+    fun onCharacterSelectedSingleplayer(character: EngineCharacter, requestId: Long? = null) {
         SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
-            CharacterApplyPacket(character.profile.id, character)
+            CharacterApplyPacket(character.profile.id, character, requestId = requestId)
         )
     }
 
-    fun onCharacterSelectedMultiplayer(character: EngineCharacter, sessionTicket: SessionTicket) {
+    fun onCharacterSelectedMultiplayer(
+        character: EngineCharacter,
+        sessionTicket: SessionTicket,
+        requestId: Long? = null
+    ) {
         SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
-            CharacterApplyPacket(character.profile.id, null, sessionTicket.toDto())
+            CharacterApplyPacket(character.profile.id, null, sessionTicket.toDto(), requestId)
         )
     }
 
-    fun onLookSelected(lookId: String) {
-        SERVERBOUND_LOOK_APPLY_ENDPOINT.sendC2SPacket(LookApplyPacket(lookId))
+    fun onLookSelected(lookId: String, requestId: Long? = null) {
+        SERVERBOUND_LOOK_APPLY_ENDPOINT.sendC2SPacket(LookApplyPacket(lookId, requestId))
     }
 
     fun onEntityDebugView(persistentId: PersistentId) {
@@ -332,7 +342,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener)
         player.set(data.armStatus)
         player.require<EnginePlayerModel>().skinEyeY = data.skinEyeY
         player.isLowDetailed = false
-        client.eventListener.onFullPlayerData(client, player.id, data)
+        client.infrastructure.onFullPlayerData(client, player.id, data)
     }
 
     private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.get(it) == null }
@@ -346,31 +356,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener)
         eventBus.onPlayerDestroy(client, player.id)
     }
 
-    fun applyJoinGame(
-        playerData: ServerPlayerData,
-        worldData: ClientboundWorldData,
-        data: ClientboundSetupData,
-        notifications: List<Notification>
-    ) = runBlocking {
-        joinGamePacketCompletableDeferred?.complete(Unit)
-
+    fun applyJoinGame(joinGamePacket: JoinGamePacket) = runBlocking {
         if (client.gameSession != null) {
             error("Игровая сессия уже запущена!")
         }
 
-        val gameSession = GameSession(
-            data.serverId,
-            data,
-            worldData,
-            playerData,
-            this@ClientHandler,
-            client
-        )
-
-        client.joinGameSession(gameSession)
-        gameSession.chatManager.updateSettings(data.settings.chat)
-        notifications.forEach { applyNotification(it, false) }
-        SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.sendC2SPacket(ConfirmationPacket)
+        client.joinFlow?.joinGamePacketCompletableDeferred?.complete(joinGamePacket)
     }
 
     fun applyServerSettingsUpdate(settings: ClientboundServerSettings) = with(gameSession!!) {
@@ -495,7 +486,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientEventListener)
         }
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {
-        client.eventListener.onEntityDebugViewData(data)
+        client.infrastructure.onEntityDebugViewData(data)
     }
 
     fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {

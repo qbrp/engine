@@ -21,8 +21,7 @@ data class ConnectionSession(
     val username: Username,
     val playerId: PlayerId,
     val isOp: Boolean,
-    var mods: Set<String> = emptySet(),
-    var sessionTicket: SessionTicket? = null
+    var mods: Set<String> = emptySet()
 )
 
 class ServerConnectionManager(

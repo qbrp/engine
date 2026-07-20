@@ -61,6 +61,10 @@ class CommonEngineMod : ModInitializer {
             }
         }
 
+        ServerTickEvents.START_SERVER_TICK.register {
+            engineServer.tick()
+        }
+
         ServerWorldEvents.LOAD.register { server, world ->
             if (DEVELOPER_TEST_ENVIRONMENT) {
                 world.dayTime = 0
@@ -80,10 +84,6 @@ class CommonEngineMod : ModInitializer {
 
         ServerPlayConnectionEvents.DISCONNECT.register { handler, server ->
             server.execute { engineServer.onLeavePlayer(handler.player) }
-        }
-
-        ServerTickEvents.START_SERVER_TICK.register {
-            engineServer.tick()
         }
 
         ServerChunkEvents.CHUNK_UNLOAD.register { world, chunk ->

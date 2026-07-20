@@ -13,7 +13,6 @@ import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.mc.Text
-import org.lain.engine.mc.getText
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.Look
@@ -32,7 +31,8 @@ class LooksWheel<T>(
         val look: Look,
         val text: Text,
         val profile: CharacterProfile,
-        val data: T
+        val data: T,
+        val key: String = look.id
     )
 
     private var selectedIndex = 0
@@ -40,7 +40,7 @@ class LooksWheel<T>(
     private val entries = run {
         val list = looks.toMutableList()
         if (initialLook != null) {
-            list.removeIf { it.look.id == initialLook.look.id }
+            list.removeIf { it.key == initialLook.key }
             list.addFirst(initialLook)
         }
         list.toList()
@@ -125,7 +125,7 @@ class LooksWheel<T>(
             )
             val renderState = createCharacterPreviewRenderState(
                 entry.profile,
-                CharacterSkin(skinTextureManager.getTexture(look), model),
+                CharacterSkin(skinTextureManager.getOrDownloadTexture(look), model),
                 1f
             )
 
