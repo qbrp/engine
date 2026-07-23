@@ -1,0 +1,46 @@
+body {
+  margin: 0;
+  background: #050505;
+  color: #c1c1c1;
+  font-family: "Dos2000";
+  overflow: hidden;
+}
+
+.terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.output {
+    padding: 8px;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.input-line {
+    display: flex;
+    align-items: center;
+}
+
+.input {
+  flex: 1;
+  outline: none;
+  color: #c1c1c1;
+  font-family: inherit;
+  font-size: 1em;
+  caret-color: #c1c1c1;
+  white-space: pre;
+}
+
+.line {
+  margin: 2px 0;
+  white-space: pre-wrap;
+  content-visibility: auto;
+  contain-intrinsic-size: 1em;
+}
+
+html {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}

@@ -196,7 +196,7 @@ class EngineServer(
         eventListener.onPlayerInstantiated(player)
 
         with(luaContext) { player.setPlayerComponents(pos) }
-        if (globals.spectateOnJoin) player.entity.setComponent(StartSpectatingMark)
+        if (!globals.spectateOnJoin) { player.stopSpectating() }
         handler.onPlayerInstantiation(player, notifications)
 
         chat.trySendJoinMessage(player)

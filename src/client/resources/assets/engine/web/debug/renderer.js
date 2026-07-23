@@ -102,13 +102,13 @@ export function rendererRenderEntity(data, rootEl) {
 	elMeta.replaceChildren();
 	addBadge(elMeta, `clientSide: ${Boolean(data.clientSide)}`);
 	addBadge(elMeta, `components: ${Array.isArray(data.components) ? data.components.length : 0}`);
-	addBadge(elMeta, `objects: ${Object.keys(data.objects ?? {}).length}`);
+	addBadge(elMeta, `objects: ${Object.keys(data.debugObjects ?? {}).length}`);
 
 	elStatus.textContent = "Ожидание...";
 
 	_syncComponents(
 		Array.isArray(data.components) ? data.components : [],
-		data.objects || {},
+		data.debugObjects || {},
 		elComponents,
 	);
 }
@@ -401,7 +401,7 @@ function _patchEntryInto(container, entry, objects, path, seen, autoexpand) {
 
 	switch (entry.type) {
 		case "primitive":
-			domSetLeaf(container, domCreateTextSpan(String(entry.value), "value"));
+			domSetLeaf(container, domCreateTextSpan(entry.entry.string, "value"));
 			return;
 
 		case "null":

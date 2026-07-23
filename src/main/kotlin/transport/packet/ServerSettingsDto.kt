@@ -10,7 +10,8 @@ data class ClientboundServerSettings(
     val playerDesynchronizationThreshold: Int,
     val chat: ClientChatSettings,
     val movement: MovementSettings,
-    val defaultAttributes: ClientDefaultAttributes
+    val defaultAttributes: ClientDefaultAttributes,
+    val spectateOnJoin: Boolean
 ) {
     companion object {
         fun of(server: EngineServer, player: EnginePlayer): ClientboundServerSettings {
@@ -20,6 +21,7 @@ data class ClientboundServerSettings(
                 ClientChatSettings.of(server.globals.chatSettings, player),
                 server.globals.movementSettings,
                 ClientDefaultAttributes.of(server.globals.defaultPlayerAttributes),
+                server.globals.spectateOnJoin,
             )
         }
     }

@@ -28,6 +28,8 @@ val UI by lazy { GrapheneCore.handle(EngineMinecraftClient::class.java) }
 
 fun webPageUrl(path: String) = UI.httpUrl("$path.html")
 
+fun builtinWebPageUrl(path: String) = UI.appAssets().asset("web/$path.html")
+
 fun initializeGraphene() {
     GrapheneCore.register(
         EngineMinecraftClient::class.java,
@@ -134,7 +136,7 @@ class HintEditScreen : Screen(literalText("Hint editor")) {
     private lateinit var view: GrapheneWebViewWidget
 
     protected override fun init() {
-        view = widgetWithMargins(8, webPageUrl("hint_editor"))
+        view = widgetWithMargins(8, builtinWebPageUrl("hint_editor"))
         addRenderableWidget(view)
     }
 }
@@ -153,7 +155,7 @@ class WebDebugScreen(private val resourceContext: ResourceContext) : Screen(lite
             width - margin * 2,
             height - margin * 3 - editBoxHeight,
             Component.empty(),
-            webPageUrl(lastPage ?: "debug")
+            builtinWebPageUrl(lastPage ?: "debug")
         )
         addRenderableWidget(view)
 

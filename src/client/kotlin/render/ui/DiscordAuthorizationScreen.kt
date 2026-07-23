@@ -13,7 +13,7 @@ class DiscordAuthorizationScreen(private val client: EngineClient) : Screen(lite
     private var job: Job? = null
 
     override fun init() {
-        val widget = widgetWithMargins(4, webPageUrl("login"))
+        val widget = widgetWithMargins(4, builtinWebPageUrl("login"))
         addRenderableWidget(widget)
         widget.bridge().onEvent("login") { _, _ ->
             CoroutineScope(Dispatchers.IO).launch {

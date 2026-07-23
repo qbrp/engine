@@ -105,7 +105,7 @@ dependencies {
     shaded("de.javagl:obj:0.4.0")
 
     // Secure Storage
-    implementation("com.microsoft:credential-secure-storage:1.0.3")
+    shaded("com.microsoft:credential-secure-storage:1.0.3")
 
     // Permission API
     modImplementation("me.lucko:fabric-permissions-api:${project.property("fabric_permissions_version")}")

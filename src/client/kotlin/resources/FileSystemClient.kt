@@ -6,6 +6,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.client.EngineClient
@@ -135,8 +137,7 @@ data class AutoGenerationList(
     )
 }
 
-private fun bakeResourceContext(gameSession: GameSession?): ResourceContext {
-    val serverId = gameSession?.server
+private fun bakeResourceContext(serverId: ServerId?): ResourceContext {
     val assetsSource = ASSETS.fetch(serverId).getOrThrow()
 
     return ResourceContext(
@@ -160,14 +161,13 @@ class ResourceManager(
     private val client: EngineClient
 ) {
     private val logger = LoggerFactory.getLogger("Engine Resources")
-    private val ioCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val _context = AtomicReference(bakeResourceContext(client.gameSession))
+    private val _context = AtomicReference(bakeResourceContext(null))
     val context: ResourceContext
         get() = _context.get()
 
-    fun reload(gameSession: GameSession) = ioCoroutineScope.async {
+    suspend fun reload(serverId: ServerId) = withContext(Dispatchers.IO) {
         try {
-            _context.set(bakeResourceContext(gameSession))
+            _context.set(bakeResourceContext(serverId))
         } catch (e: Throwable) {
             client.execute {
                 client.applyLittleNotification(

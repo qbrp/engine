@@ -16,6 +16,7 @@ import org.lain.engine.mc.server.HttpStatusException
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.script.CompilationResult
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.NamespaceHashMapValidationResult
 import org.lain.engine.script.NamespacedStorageAccess
@@ -54,8 +55,6 @@ class GameSessionJoinFlow(
 
     val canCloseLevelLoadingScreen
         get() = state == State.CHARACTER_SELECTION
-
-    data class ServerData(val id: ServerId, val verificationNamespaceHashMap: NamespaceHashMap?)
 
     private suspend fun handshake(authorized: ClientAuthorizedAccount?): ServerData = when (joinType) {
         is JoinType.Multiplayer -> {
@@ -99,11 +98,12 @@ class GameSessionJoinFlow(
             is JoinType.Singleplayer -> {
                 val integratedServer = joinType.integratedServer
                 val settings = withClientContext { platform.createIntegratedServerPlayerLoadSettings(client, integratedServer) }
+                val joinGamePacketDefer = deferJoinGamePacket()
                 integratedServer.playerLoader.loadPreparing(
                     settings = settings,
                     account = PlayerLoadSettings.Account(selectedCharacter),
                 )
-                deferJoinGamePacket().await()
+                joinGamePacketDefer.await()
             }
         }
     }
@@ -117,23 +117,36 @@ class GameSessionJoinFlow(
             val server = handshake(authorized)
 
             state = State.COMPILATION
-            val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
-            val luaContext = createLuaContext(namespacedStorage, server.id)
-            val compilation = ClientCompilation(luaContext, client)
-            val compilationResult = withClientContext {
-                val result = compilation.compileScripts()
-                namespacedStorage.loadContentsCompileResult(result)
-                result
-            }
+            val (namespaceHashMap, compilationResult, compilation) = coroutineScope {
+                val deferred = async {
+                    val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
+                    val luaContext = createLuaContext(namespacedStorage, server.id)
+                    val compilation = ClientCompilation(luaContext, client)
+                    val compilationResult = withClientContext {
+                        val result = compilation.compileScripts()
+                        namespacedStorage.loadContentsCompileResult(result)
+                        result
+                    }
 
-            // потокобезопасный доступ к namespacedStorage
-            val namespaceHashMap = namespacedStorage.get().namespaceHashMap
-            val verificationNamespaceHashMap = server.verificationNamespaceHashMap
-            if (verificationNamespaceHashMap != null) {
-                val result = validateNamespaceHashMap(namespaceHashMap, verificationNamespaceHashMap)
-                if (result is NamespaceHashMapValidationResult.Error) {
-                    friendlyError(result.computeErrorMessage())
+                    // потокобезопасный доступ к namespacedStorage
+                    val namespaceHashMap = namespacedStorage.get().namespaceHashMap
+                    val verificationNamespaceHashMap = server.verificationNamespaceHashMap
+                    if (verificationNamespaceHashMap != null) {
+                        val result = validateNamespaceHashMap(namespaceHashMap, verificationNamespaceHashMap)
+                        if (result is NamespaceHashMapValidationResult.Error) {
+                            friendlyError(result.computeErrorMessage())
+                        }
+                    }
+
+                    ResourceCompilationResult(namespaceHashMap, compilationResult, compilation)
                 }
+
+                val resourceReloadJob = launch {
+                    client.resourceManager.reload(server.id)
+                }
+
+                resourceReloadJob.join()
+                deferred.await()
             }
 
             val characters = listAccountCharacters(account, authorized)
@@ -158,9 +171,9 @@ class GameSessionJoinFlow(
                     compilation,
                     compilationResult
                 )
+
                 client.joinGameSession(gameSession)
 
-                gameSession.chatManager.updateSettings(setupData.settings.chat)
                 notifications.forEach {
                     handler.applyNotification(it, false)
                 }
@@ -222,4 +235,12 @@ class GameSessionJoinFlow(
         data class Singleplayer(val integratedServer: EngineServer) : JoinType()
         object Multiplayer : JoinType()
     }
+
+    data class ServerData(val id: ServerId, val verificationNamespaceHashMap: NamespaceHashMap?)
+
+    data class ResourceCompilationResult(
+        val namespaceHashMap: NamespaceHashMap,
+        val compilationResult: CompilationResult,
+        val compilation: ClientCompilation
+    )
 }

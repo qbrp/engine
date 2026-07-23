@@ -151,6 +151,11 @@ class GameSession(
         client.infrastructure.onMainPlayerInstantiated(client, this, mainPlayer)
         client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
+        chatManager.updateSettings(setup.settings.chat)
+
+        if (setup.settings.spectateOnJoin) {
+            client.sendSpectatingNotification()
+        }
     }
 
     private fun preloadPlayerItems(items: Map<PersistentId, ClientboundItemData>) = with(world) {

@@ -15,6 +15,7 @@ import org.lain.engine.item.Writable
 import org.lain.engine.item.WritableOpen
 import org.lain.engine.item.emitPlaySoundEvent
 import org.lain.engine.player.Player
+import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.handItem
 import org.lain.engine.world.World
 
@@ -29,11 +30,11 @@ object StartShootAction : Action
 @Serializable
 object StopShootAction : Action
 
-data class Shooting(val gunItem: EngineItem) : Component
+data class Shooting(val mainHand: Boolean, val offHand: Boolean) : Component
 
 fun World.tickGunActionSystem() {
     iterate<StartShootAction, Player> { entity, _, (player) ->
-        entity.setComponent(Shooting(player.handItem ?: return@iterate))
+        entity.setComponent(Shooting(mainHand = true, offHand = false))
         entity.removeComponent<StartShootAction>()
     }
 
@@ -43,8 +44,9 @@ fun World.tickGunActionSystem() {
         entity.syncAction(intent)
     }
 
-    iterate<Shooting> { entity, (gunItem) ->
-        gunItem.setComponent(GunTriggerPress)
+    iterate<Shooting, PlayerInventory> { entity, (byMainHand, byOffHand), inventory ->
+        if (byMainHand) inventory.mainHandItem?.setComponent(GunTriggerPress)
+        if (byOffHand) inventory.offHandItem?.setComponent(GunTriggerPress)
     }
 
     iterate<GunModeToggleAction, Player> { entity, intent, (player) ->

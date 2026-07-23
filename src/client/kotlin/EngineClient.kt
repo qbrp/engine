@@ -173,18 +173,13 @@ class EngineClient(
         renderer.littleNotificationsRenderer.removeNotification(slot)
     }
 
-    suspend fun joinGameSession(gameSession: GameSession) {
-        val reload = resourceManager.reload(gameSession)
-        reload.join()
+    fun joinGameSession(gameSession: GameSession) {
         this.gameSession = gameSession
-        sendSpectatingNotification()
     }
 
     fun leaveGameSession() {
         val gameSession = gameSession ?: error("Game session is not active")
         gameSession.destroy()
-        //compilationResult = null
-        //с богом
         this.gameSession = null
     }
 }

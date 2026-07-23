@@ -1,0 +1,28 @@
+div {
+    text-align: center;
+}
+
+textarea {
+    color: white;
+    border: none;
+    background: transparent;
+    resize: none;
+
+}
+
+textarea:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+textarea::placeholder {
+  color: rgb(255, 255, 255);
+}
+
+textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 60px;
+  width: 300px;
+}

@@ -1,0 +1,22 @@
+div {
+    text-align: center;
+}
+
+.image-box {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+
+    width: min(220px, calc(100vw - 48px));
+    height: min(320px, calc(100vh - 48px));
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+
+.image-box img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}

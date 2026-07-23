@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Авторизация</title>
+
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="login.css">
+
+    <script>
+        document.documentElement.classList.add("preload");
+
+        window.addEventListener("load", () => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.add("ready");
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+<main class="login_page">
+    <section class="login_header">
+        <h1>Авторизация</h1>
+        <p>Чтобы играть на серверах с Engine, требуется войти или создать аккаунт.</p>
+    </section>
+
+    <section class="login_box">
+        <a href="javascript:void(0)" id="login">Войти через Discord</a>
+
+        <label class="auto_login_row">
+            <input type="checkbox" id="auto_login_checkbox" name="auto_login">
+            <span class="auto_login_label">Автоматически авторизоваться при запуске игры</span>
+        </label>
+    </section>
+</main>
+
+<script type="module" src="login.js"></script>
+</body>
+</html>

@@ -120,7 +120,7 @@ fun assertIdentifierValid(namespaceId: NamespaceId, id: String) {
     if (!isIdPathValid(id)) throw CompilationException(namespaceId, InvalidIdException(id))
 }
 
-fun NamespacedStorageAccess.    loadContentsCompileResult(result: CompilationResult) {
+fun NamespacedStorageAccess.loadContentsCompileResult(result: CompilationResult) {
     update(
         namespacedStorageWithBuiltins(
             result.namespaces.map { (id, namespace) ->
