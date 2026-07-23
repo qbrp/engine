@@ -15,6 +15,7 @@ import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.character.AppliedCharacters
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.applyCharacter
+import org.lain.engine.player.character.prepareCharacter
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.prepareLuaScriptComponents
@@ -165,7 +166,7 @@ class PlayerLoader(
             val player = serverPlayerInstance(world, settings, inventoryLoadResult, persistent)
             val character = account.character
             val persistentCharacterData = persistent?.characters[character?.profile?.id]
-            character?.let { player.applyCharacter(it, persistentCharacterData, server.eventListener) }
+            persistentCharacterData?.let { player.prepareCharacter(persistentCharacterData) }
 
             val componentsToLoad = persistent?.components.orEmpty()
             player.prepareContainers(Uuid.next(), location, inventoryLoadResult.equipmentItems)
@@ -176,6 +177,7 @@ class PlayerLoader(
                 )
             }
             withContext(server.dispatcher) {
+                character?.let { player.applyCharacter(it, persistentCharacterData, server.platform) }
                 server.itemLoader.apply(world)
                 apply(world)
                 server.instantiatePlayer(player, settings.notifications, location.position)

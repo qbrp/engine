@@ -45,48 +45,55 @@ fun World.tickPlayerInput(playerId: PlayerId? = null, clientSide: Boolean = fals
             return@iterate
         }
 
-        if (actions != lastActions && !player.isSpectating) {
-            input.lastActions.clear()
-            input.lastActions.addAll(actions)
-            val sightPlayer = player.whoSee(SOCIAL_INTERACTION_DISTANCE)
-            val playerInventory = player.require<PlayerInventory>()
-            val mainHandItem = playerInventory.mainHandItem
-            val offHandItem = playerInventory.offHandItem
-            val extendArm = player.extendArm
-            val gun = mainHandItem?.getComponent<Gun>()
+        run {
+            if (actions != lastActions && !player.isSpectating) {
+                input.lastActions.clear()
+                input.lastActions.addAll(actions)
+                val sightPlayer = player.whoSee(SOCIAL_INTERACTION_DISTANCE)
+                val playerInventory = player.require<PlayerInventory>()
+                val mainHandItem = playerInventory.mainHandItem
+                val offHandItem = playerInventory.offHandItem
+                val extendArm = player.extendArm
+                val gun = mainHandItem?.getComponent<Gun>()
 
-            actions.forAction<InputAction.Attack> { action ->
-                val gunSafety = gun?.mode == FireMode.SELECTOR
-
-                // Первым делом - боевые взаимодействия
-                if (gun != null && !gunSafety) {
-                    input.action = StartShootAction
-                    return@forAction
+                if (entity.hasComponent<Shooting>() && (gun == null || InputAction.Attack !in actions)) {
+                    entity.setComponent(StopShootAction)
+                    return@run
                 }
 
-                if (sightPlayer != null) {
-                    if (!clientSide) {
-                        // Последним делом - социальные взаимодействия
-                        input.action = HailAction(sightPlayer.id)
-                        if (mainHandItem != null && extendArm) {
-                            input.action = GiveAction(sightPlayer.id)
+                actions.forAction<InputAction.Attack> { action ->
+                    val gunSafety = gun?.mode == FireMode.SELECTOR
+
+                    // Первым делом - боевые взаимодействия
+                    if (gun != null && !gunSafety) {
+                        input.action = StartShootAction
+                        return@forAction
+                    }
+
+                    if (sightPlayer != null) {
+                        if (!clientSide) {
+                            // Последним делом - социальные взаимодействия
+                            input.action = HailAction(sightPlayer.id)
+                            if (mainHandItem != null && extendArm) {
+                                input.action = GiveAction(sightPlayer.id)
+                            }
                         }
                     }
                 }
-            }
 
-            actions.forAction<InputAction.Base>() { action ->
-                val writable = mainHandItem?.getComponent<Writable>()
+                actions.forAction<InputAction.Base>() { action ->
+                    val writable = mainHandItem?.getComponent<Writable>()
 
-                // Идём списочком по доступным действиям
-                if (gun != null) {
-                    if (offHandItem != null && gun.ammunition == offHandItem.getComponent<Item>()?.id) {
-                        input.action = GunBarrelAmoLoadAction(mainHandItem, offHandItem)
-                    } else {
-                        input.action = GunModeToggleAction
+                    // Идём списочком по доступным действиям
+                    if (gun != null) {
+                        if (offHandItem != null && gun.ammunition == offHandItem.getComponent<Item>()?.id) {
+                            input.action = GunBarrelAmoLoadAction(mainHandItem, offHandItem)
+                        } else {
+                            input.action = GunModeToggleAction
+                        }
+                    } else if (writable != null) {
+                        input.action = WritableOpenAction
                     }
-                } else if (writable != null) {
-                    input.action = WritableOpenAction
                 }
             }
         }
@@ -104,7 +111,7 @@ fun World.tickPlayerInput(playerId: PlayerId? = null, clientSide: Boolean = fals
                 tick = ticks.toULong()
             )
         )
-        entity.setComponent<Action>(intent, componentTypeOfGeneral(intent) as ComponentType<Action>)
+        entity.setComponent(intent, componentTypeOfGeneral(intent) as ComponentType<Action>)
         input.action = null
     }
 }

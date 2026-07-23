@@ -3,11 +3,9 @@ package org.lain.engine.server
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.clearMetaState
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
@@ -18,15 +16,14 @@ import org.lain.engine.item.Item
 import org.lain.engine.item.Writable
 import org.lain.engine.item.getOwner
 import org.lain.engine.mc.ReplayViewer
-import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.AppliedCharacters
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.player.character.Look
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.character.applyCharacter
+import org.lain.engine.player.character.prepareCharacter
 import org.lain.engine.player.character.removeCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
@@ -191,14 +188,15 @@ class ServerHandler(
     ) = updatePlayer(playerId) {
         val appliedCharacters = require<AppliedCharacters>()
         val persistent = appliedCharacters.characters[characterId]
-        with(world) { removeCharacter(appliedCharacters) }
+        with(world) { removeCharacter(server.platform, appliedCharacters) }
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val eventListener = server.eventListener
+                val eventListener = server.platform
                 val validatedCharacter =
                     eventListener.validateCharacter(this@updatePlayer, characterId, character, sessionTicket)
                 withContext(server.dispatcher) {
                     with(EntityCommandBuffer(world)) {
+                        persistent?.let { prepareCharacter(it) }
                         applyCharacter(validatedCharacter, persistent, eventListener)
                         apply(world)
                     }

@@ -4,7 +4,6 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.removeComponent
-import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.trySendJoinMessage
@@ -14,6 +13,7 @@ import org.lain.engine.container.postUpdateContainerSystems
 import org.lain.engine.container.updateContainerSystems
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.player.character.removeCharacter
 import org.lain.engine.player.interaction.tickSocialActionSystem
 import org.lain.engine.player.interaction.tickGunActionSystem
 import org.lain.engine.player.interaction.tickPlayerInput
@@ -50,7 +50,7 @@ class EngineServer(
     id: ServerId,
     val playerStorage: PlayerStorage,
     val acousticSimulator: AcousticSimulator,
-    val eventListener: ServerEventListener,
+    val platform: ServerPlatform,
     val namespacedStorage: NamespacedStorageAccess,
     val thread: Thread,
     val isReplay: Boolean,
@@ -193,7 +193,7 @@ class EngineServer(
     ) = with(player.world) {
         playerStorage.add(player.id, player)
         players += player
-        eventListener.onPlayerInstantiated(player)
+        platform.onPlayerInstantiated(player)
 
         with(luaContext) { player.setPlayerComponents(pos) }
         if (!globals.spectateOnJoin) { player.stopSpectating() }
@@ -211,10 +211,12 @@ class EngineServer(
 
         player.equipmentContainer.destroy()
         player.mainContainer.destroy()
+        player.removeCharacter(platform)
+
+        callbacks.playerDestroy.execute(player.scriptContext)
 
         chat.trySendLeaveMessage(player)
         handler.onPlayerDestroy(player)
-        callbacks.playerDestroy.execute(player.scriptContext)
         globals.savePath.playerData.savePersistentPlayerData(player)
         player.entity.destroy()
     }

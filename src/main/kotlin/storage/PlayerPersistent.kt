@@ -7,13 +7,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerSlots
-import org.lain.engine.mc.DisconnectText
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.AppliedCharacters
+import org.lain.engine.server.ServerPlatform
 import org.lain.engine.util.Color
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.ensureExists
@@ -55,8 +54,11 @@ private fun CustomName.toPersistentData() = CustomNamePersistentData(string, col
 @Serializable
 data class PersistentCharacterData(
     val components: List<ComponentDto>,
-    val look: String
+    val look: String,
+    val items: SerializedInventory
 )
+
+typealias SerializedInventory = String
 
 @Serializable
 data class PersistentPlayerData(
@@ -76,7 +78,9 @@ data class PersistentPlayerData(
 fun World.getEquipmentContainerSlots(container: EntityId) = getContainerSlots(container)
     .mapKeys { (slotId, _) -> EquipmentSlot.ofSlot(slotId) }
 
-fun File.savePersistentPlayerData(player: EnginePlayer) = with(player.world) {
+fun File.savePersistentPlayerData(
+    player: EnginePlayer
+) = with(player.world) {
     val id = player.id.value.toString()
     val file = resolve("$id.json")
 

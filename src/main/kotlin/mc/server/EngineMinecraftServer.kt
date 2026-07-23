@@ -2,9 +2,13 @@ package org.lain.engine.mc.server
 
 import kotlinx.coroutines.*
 import net.minecraft.core.BlockPos
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.TagParser
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.util.ProblemReporter
+import net.minecraft.world.ItemStackWithSlot
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ChunkPos
@@ -12,6 +16,8 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
+import net.minecraft.world.level.storage.TagValueInput
+import net.minecraft.world.level.storage.TagValueOutput
 import org.lain.cyberia.ecs.copyState
 import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
@@ -28,7 +34,7 @@ import org.lain.engine.script.*
 import org.lain.engine.script.lua.*
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
-import org.lain.engine.server.ServerEventListener
+import org.lain.engine.server.ServerPlatform
 import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
@@ -55,7 +61,7 @@ data class EngineMinecraftServerDependencies(
 )
 
 abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies) :
-    ServerEventListener {
+    ServerPlatform {
     val minecraftServer = dependencies.minecraftServer
     val database = connectDatabase(minecraftServer)
     protected val playerStorage = dependencies.playerStorage
@@ -196,7 +202,31 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         }
     }
 
-    override fun onChatMessage(message: IncomingMessage) {}
+    override fun serializeInventory(player: EnginePlayer): String {
+        val entity = entityTable.getEntity(player.id)!!
+        val output = TagValueOutput.createWithContext(
+            ProblemReporter.ScopedCollector(org.lain.engine.storage.LOGGER),
+            minecraftServer.registries().compositeAccess()
+        )
+        entity.inventory.save(output.list("Inventory", ItemStackWithSlot.CODEC))
+        val tag = output.buildResult()
+        return tag.toString()
+    }
+
+    override fun clearInventory(player: EnginePlayer) {
+        val entity = entityTable.getEntity(player.id)!!
+        entity.inventory.clearContent()
+    }
+
+    override fun openInventory(player: EnginePlayer, inventory: SerializedInventory) {
+        val entity = entityTable.getEntity(player.id) ?: minecraftServer.getPlayer(player.id)!!
+        val output = TagValueInput.create(
+            ProblemReporter.ScopedCollector(org.lain.engine.storage.LOGGER),
+            minecraftServer.registries().compositeAccess(),
+            TagParser.parseCompoundFully(inventory)
+        )
+        entity.inventory.load(output.listOrEmpty("Inventory", ItemStackWithSlot.CODEC))
+    }
 
     override fun onCompiled(contents: NamespacedStorage) {
         val commandManager = minecraftServer.commands

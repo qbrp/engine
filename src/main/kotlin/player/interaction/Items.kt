@@ -33,9 +33,10 @@ object StopShootAction : Action
 data class Shooting(val mainHand: Boolean, val offHand: Boolean) : Component
 
 fun World.tickGunActionSystem() {
-    iterate<StartShootAction, Player> { entity, _, (player) ->
+    iterate<StartShootAction, Player> { entity, intent, (player) ->
         entity.setComponent(Shooting(mainHand = true, offHand = false))
         entity.removeComponent<StartShootAction>()
+        entity.syncAction(intent)
     }
 
     iterate<StopShootAction> { entity, intent ->

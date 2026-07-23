@@ -158,7 +158,7 @@ fun EngineServer.loadContents(
     result: CompilationResult = compileContents(ENGINE_DIR.contents, luaContext)
 ) {
     applyContentsCompileResult(result)
-    eventListener.onCompiled(namespacedStorage.get())
+    platform.onCompiled(namespacedStorage.get())
     result.log()
 }
 
