@@ -13,6 +13,7 @@ import org.lain.engine.world.World
 
 @Serializable
 data class EnginePlayerModel(
+    var lastTickScale: Float = 1f,
     var scale: Float = 1f,
     var standingEyeHeight: Float = 0.8f,
     var height: Float = 1f,

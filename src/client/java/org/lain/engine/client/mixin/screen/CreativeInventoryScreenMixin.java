@@ -1,6 +1,7 @@
 package org.lain.engine.client.mixin.screen;
 
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
+import net.minecraft.world.item.CreativeModeTab;
 import org.lain.engine.client.mixin.CreativeModeTabAccessor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,7 +19,7 @@ public class CreativeInventoryScreenMixin {
                     target = "Lnet/minecraft/world/item/CreativeModeTabs;tabs()Ljava/util/List;"
             )
     )
-    public List<CreativeModeTabAccessor> engine$hideItemGroupTooltip() {
+    public List<CreativeModeTab> engine$hideItemGroupTooltip() {
         return new ArrayList<>();
     }
 }

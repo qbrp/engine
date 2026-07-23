@@ -124,7 +124,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
             val accountManager = client.accountManager
             // метод не может быть вызван, если lastAccountResponse == null, т.к. в таком случае игра недоступна
             // см. EngineClient.canPlaySingleplayer
-            val account = accountManager.lastAccountResponse!!
+            val account = accountManager.requireAccountResponse()
             val characters = account.characters.map { it.map() }
             val selectionResult = character?.let {
                 LookSelectionScreen.awaitGeneralSelection(

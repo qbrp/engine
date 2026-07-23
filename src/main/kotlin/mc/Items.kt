@@ -10,6 +10,7 @@ import net.minecraft.util.Unit
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.component.ItemLore
+import net.minecraft.world.item.component.TooltipDisplay
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.*
 import org.lain.engine.storage.PersistentId
@@ -60,6 +61,11 @@ fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int) {
     itemStack.set(
         DataComponents.MAX_STACK_SIZE,
         maxStackSize
+    )
+    itemStack.set(
+        DataComponents.TOOLTIP_DISPLAY,
+        TooltipDisplay.DEFAULT
+            .withHidden(DataComponents.UNBREAKABLE, true)
     )
 }
 

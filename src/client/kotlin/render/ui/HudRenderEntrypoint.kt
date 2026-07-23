@@ -30,8 +30,9 @@ fun registerHudRenderEvent(
         screenRenderer.chatOpen = client.screen is ChatScreen
         val mouseX = mouse.getScaledXPos(window)
         val mouseY = mouse.getScaledYPos(window)
-        val mainPlayer = engineClient.gameSession?.mainPlayer
-        if (mainPlayer != null) {
+        val gameSession = engineClient.gameSession
+        val mainPlayer = gameSession?.mainPlayer
+        if (gameSession != null && mainPlayer != null) {
             mainPlayer.handle<Narration> {
                 renderNarrations(
                     context,
@@ -44,6 +45,12 @@ fun registerHudRenderEvent(
                 context,
                 screenRenderer.interactionProgression,
                 with(mainPlayer.world) { mainPlayer.entity.getComponent<Progression>() },
+                deltaTick
+            )
+            renderMovementStatus(
+                context,
+                screenRenderer.movementStatus,
+                gameSession,
                 deltaTick
             )
             screenRenderer.renderScreen(deltaTick)

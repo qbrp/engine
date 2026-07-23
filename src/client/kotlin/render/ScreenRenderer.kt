@@ -1,8 +1,8 @@
 package org.lain.engine.client.render
 
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.InteractionProgressionRenderState
+import org.lain.engine.client.render.ui.MovementStatusRenderState
 import org.lain.engine.client.render.ui.NarrationMessageRenderState
 import org.lain.engine.client.render.world.BlockHintInspectionRenderState
 import org.lain.engine.player.Narration
@@ -17,6 +17,7 @@ class ScreenRenderer(private val client: EngineClient) {
     val littleNotificationsRenderer = LittleNotificationsRenderManager(window, client.ui)
     val narrations = mutableListOf<NarrationMessageRenderState>()
     val interactionProgression = InteractionProgressionRenderState(0f)
+    val movementStatus = MovementStatusRenderState()
     var chatOpen = false
     var blockHintInspectionRenderState: BlockHintInspectionRenderState? = null
 
@@ -34,10 +35,6 @@ class ScreenRenderer(private val client: EngineClient) {
             }
             narrations.removeIf { narrationMessages.get(it.id) == null }
         }
-    }
-
-    fun setupGameSession(gameSession: GameSession) {
-        client.ui.addFragment { MovementBar(gameSession) }
     }
 
     fun invalidate() {

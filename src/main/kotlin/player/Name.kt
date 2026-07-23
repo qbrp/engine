@@ -49,7 +49,7 @@ data class ColoredChar(val char: Char, val color: Color)
 
 fun gradientText(text: String, color1: Color, color2: Color): List<ColoredChar> {
     return text.mapIndexed { index, ch ->
-        ColoredChar(ch, color1.blend(color2, (index / text.length).toFloat()))
+        ColoredChar(ch, color1.blend(color2, index.toFloat() / text.length))
     }
 }
 

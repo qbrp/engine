@@ -42,7 +42,6 @@ fun <T : Component> EnginePlayer.getComponent(type: ComponentType<T>): T? = with
     componentManager.getComponent(entity, type)
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component> EnginePlayer.require(): T = with(world) {
     entity.requireComponent<T>()
 }
@@ -52,13 +51,11 @@ inline fun <reified T : Component> EnginePlayer.has(): Boolean = with(world) {
     entity.hasComponent<T>()
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component> EnginePlayer.set(component: T): T = with(world) {
     entity.setComponent(component)
     component
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component> EnginePlayer.getOrSet(noinline factory: () -> T): T = with(world) {
     entity.getComponent<T>() ?: factory().also { entity.setComponent(it) }
 }

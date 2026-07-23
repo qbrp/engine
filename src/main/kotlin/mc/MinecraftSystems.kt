@@ -191,6 +191,10 @@ fun updatePlayerMinecraftSystems(
     player.requireComponent<EnginePlayerModel>().apply {
         standingEyeHeight = entity.eyeHeight
         height = entity.bodyHeight * scale
+        if (lastTickScale != scale) {
+            lastTickScale = scale
+            entity.refreshDimensions()
+        }
     }
 
     player.requireComponent<MovementStatus>().apply {

@@ -1,4 +1,4 @@
-package org.lain.engine.client.mixin.ui;
+package org.lain.engine.client.mixin.hud;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphics;

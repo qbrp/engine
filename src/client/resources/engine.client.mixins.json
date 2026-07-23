@@ -55,9 +55,9 @@
     "screen.ScreenAccessor",
     "screen.ScreenMixin",
     "screen.TitleScreenAccessor",
-    "ui.ExperienceBarRendererMixin",
-    "ui.GuiAccessor",
-    "ui.GuiMixin"
+    "hud.ExperienceBarRendererMixin",
+    "hud.GuiAccessor",
+    "hud.GuiMixin"
   ],
   "injectors": {
     "defaultRequire": 1

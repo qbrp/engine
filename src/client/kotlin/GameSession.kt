@@ -149,7 +149,6 @@ class GameSession(
         instantiatePlayer(mainPlayer, player.general, mutableMapOf())
 
         client.infrastructure.onMainPlayerInstantiated(client, this, mainPlayer)
-        client.renderer.setupGameSession(this)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
         chatManager.updateSettings(setup.settings.chat)
 

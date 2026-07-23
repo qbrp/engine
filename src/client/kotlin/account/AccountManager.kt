@@ -53,11 +53,17 @@ class AccountManager(
     val authorized: Boolean
         get() = state is ConnectionState.Authorized
 
+    fun requireAccountResponse() = lastAccountResponse ?: throw NotAuthorizedException()
+
     suspend fun <T> sessionTicketOperation(authorized: ClientAuthorizedAccount, statement: suspend (SessionTicket) -> T) = withContext<T>(Dispatchers.IO) {
         val ticket = authorized.getSessionTicket().map()
         val result = statement(ticket)
         authorized.revokeSessionTicket(ticket.hash)
         result
+    }
+
+    suspend fun getAvailableAccountResponse(): AccountResponse {
+        return getAuthorized()?.getAccount() ?: requireAccountResponse()
     }
 
     suspend fun getAuthorized(): ClientAuthorizedAccount? {
