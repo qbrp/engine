@@ -37,6 +37,7 @@ import org.lain.engine.script.*
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.script.lua.tickScriptVoxelAdapter
 import org.lain.engine.server.ServerId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
@@ -287,6 +288,7 @@ class GameSession(
             client.infrastructure.getHitResultVoxelPos()?.let {
                 updateInspectionMode(inspection, inspectionMode, it)
             }
+            tickScriptVoxelAdapter()
 
             flushEntityRpcMessageReceiver()
 

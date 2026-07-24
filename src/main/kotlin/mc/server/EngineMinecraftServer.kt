@@ -114,6 +114,10 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     open fun tick() {
         val entityTableAll = dependencies.entityTable
 
+        val overworld = minecraftServer.overworld()
+        engine.defaultWorld.tickVoxelAdapterSystem(overworld)
+        engine.defaultWorld.tickVoxelDoorSystem(overworld)
+
         engine.update(
             prepareData = {
                 val itemStackToLoad = mutableListOf<NotLoadedEngineItemStack>()

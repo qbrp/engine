@@ -26,6 +26,7 @@ import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.lua.adaptScriptNetworkingComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.script.lua.tickScriptVoxelAdapter
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ChunkLoader
 import org.lain.engine.storage.ItemLoader
@@ -158,6 +159,7 @@ class EngineServer(
                 flushEntityRpcMessageReceiver()
                 adaptScriptPlayerComponents()
                 adaptScriptLightComponents()
+                tickScriptVoxelAdapter()
             }
 
             // Обработка взаимодействий с вокселями

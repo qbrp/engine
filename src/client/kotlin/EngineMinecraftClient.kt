@@ -250,6 +250,7 @@ class EngineMinecraftClient : ClientModInitializer {
         val mainPlayerEntity = client.player
         val gameSession = engineClient.gameSession ?: return
         val world = gameSession.world
+        val level = MinecraftClient.level ?: return
 
         gameSession.mainPlayer.apply<OrientationTranslation> {
             if (yaw != 0f || pitch != 0f) {
@@ -257,6 +258,8 @@ class EngineMinecraftClient : ClientModInitializer {
             }
         }
 
+        world.tickVoxelAdapterSystem(level)
+        world.tickVoxelDoorSystem(level)
         world.prepareItemMinecraftSystem()
         players.forEach { (entity, player) ->
             try {

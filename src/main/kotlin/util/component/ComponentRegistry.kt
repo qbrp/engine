@@ -146,4 +146,6 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<CharacterPhysical>(isNetworking = true)
     registerComponent<AppliedCharacter>(isNetworking = true)
     registerComponent<SelectedLook>(isNetworking = true)
+
+    registerComponent<VoxelDoor>(isNetworking = true, isSavable = true)
 }

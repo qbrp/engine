@@ -39,6 +39,7 @@ object CoreScriptComponents {
     val ENTITY_RPC_RECEIVER = register("core/networking/entity_rpc_receiver", ComponentMeta(savable = false, networking = false, serializationClass = null))
     val ENTITY_RPC_QUEUE = register("core/networking/entity_rpc_queue", ComponentMeta(savable = false, networking = false, serializationClass = null))
     val DYNAMIC_VOXEL_INTEREST = register("core/networking/voxel_interest", ComponentMeta(savable = true, networking = false, serializationClass = null))
+    val VOXEL_DOOR = register("core/voxel/door", ComponentMeta(savable = true, networking = true, serializationClass = null))
 
     fun get(id: ScriptComponentId) = all[id]
 

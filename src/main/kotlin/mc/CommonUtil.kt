@@ -48,6 +48,8 @@ val Player.engineId
 
 fun Pos.toBlockPos(): BlockPos = BlockPos.containing(asVec3().toMinecraft())
 
+fun VoxelPos.toBlockPos() = BlockPos(x, y, z)
+
 fun EngineChunkPos.square(radius: Int): List<EngineChunkPos> {
     val chunks = mutableListOf<EngineChunkPos>()
     for (r in 0..radius) {
