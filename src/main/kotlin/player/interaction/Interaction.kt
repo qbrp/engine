@@ -20,11 +20,9 @@ context(world: World)
 fun EntityId.syncAction(action: Action) {
     val location = requireComponent<Location>()
     val event = ActionSyncEvent(this, action, requireComponent<PlayerInput>().tick)
-    world.emitEvent(event)
+    world.emitEvent(event, true)
         .apply {
             setComponent(DebugName("Action synchronization event ($action)"))
-            setComponent(Networked)
             setComponent(location)
-            setComponent(PersistentIdComponent(persistentId("event-${System.identityHashCode(event)}")))
         }
 }

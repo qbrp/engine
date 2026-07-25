@@ -23,6 +23,7 @@ import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
 import org.lain.engine.client.mc.compat.injectDynamicLightsContext
+import org.lain.engine.client.mc.compat.tickGenderSystem
 import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
@@ -306,6 +307,7 @@ class EngineMinecraftClient : ClientModInitializer {
         updateBulletsVisual(gameSession.world, minecraftWorld)
         lightSystem.update(gameSession)
         decalsStorage.update(gameSession.world)
+        gameSession.tickGenderSystem()
         gameSession.world.clearEvents()
         audioManager.tick(gameSession)
     }

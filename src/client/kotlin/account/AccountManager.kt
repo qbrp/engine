@@ -66,6 +66,13 @@ class AccountManager(
         return getAuthorized()?.getAccount() ?: requireAccountResponse()
     }
 
+    fun getAccountResponseUpdateLaunching(): AccountResponse {
+        return requireAccountResponse()
+            .also {
+                scope.launch { getAuthorized()?.getAccount() }
+            }
+    }
+
     suspend fun getAuthorized(): ClientAuthorizedAccount? {
         val authorizedState = state as? ConnectionState.Authorized
         val refreshTime = authorizedState?.account?.expireTime?.minus(Duration.ofSeconds(30L))

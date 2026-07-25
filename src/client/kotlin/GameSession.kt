@@ -28,7 +28,9 @@ import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.tickFireTimeSystem
 import org.lain.engine.item.tickGunSystem
+import org.lain.engine.mc.applyGenderConfig
 import org.lain.engine.player.*
+import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.interaction.tickGunActionSystem
 import org.lain.engine.player.interaction.tickPlayerInput
 import org.lain.engine.player.interaction.tickSocialActionSystem
@@ -37,6 +39,7 @@ import org.lain.engine.script.*
 import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.script.lua.tickScriptVoxelAdapter
 import org.lain.engine.server.ServerId
 import org.lain.engine.storage.PersistentId
@@ -127,21 +130,6 @@ class GameSession(
         }
     val inspection = InspectionMode()
 
-    fun logInMainThread(loggerGetter: context(World) GameSession.(tick: ULong) -> Log) {
-        val tick = ticks
-        client.execute {
-            with(world) {
-                with(this@GameSession) {
-                    EngineLogger.log(loggerGetter(tick.toULong()))
-                }
-            }
-        }
-    }
-
-    fun toggleInspectionMode() {
-        inspectionMode = !inspectionMode
-    }
-
     init {
         applyCompilation(compilationResult)
 
@@ -156,6 +144,23 @@ class GameSession(
         if (setup.settings.spectateOnJoin) {
             client.sendSpectatingNotification()
         }
+
+        player.character?.let { this.world.emitEvent(CharacterApplyEvent(it, mainPlayer.id)) }
+    }
+
+    fun logInMainThread(loggerGetter: context(World) GameSession.(tick: ULong) -> Log) {
+        val tick = ticks
+        client.execute {
+            with(world) {
+                with(this@GameSession) {
+                    EngineLogger.log(loggerGetter(tick.toULong()))
+                }
+            }
+        }
+    }
+
+    fun toggleInspectionMode() {
+        inspectionMode = !inspectionMode
     }
 
     private fun preloadPlayerItems(items: Map<PersistentId, ClientboundItemData>) = with(world) {
@@ -323,7 +328,7 @@ class GameSession(
         playerStorage.add(player.id, player)
         context(world, luaContext) {
             player.prepareContainers(data.equipmentContainer, player.location, equipment)
-            player.setPlayerComponents(player.location.position)
+            player.prepareLuaScriptComponents()
             callbacks.playerInstantiate.execute(player.scriptContext)
         }
     }

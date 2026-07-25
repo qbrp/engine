@@ -11,6 +11,7 @@ import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerContainerTag
 import org.lain.engine.player.PlayerEquipment
 import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.character.CharacterDisplay
 import org.lain.engine.player.character.CharacterPhysical
 import org.lain.engine.player.character.SelectedLook
@@ -146,6 +147,7 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<CharacterPhysical>(isNetworking = true)
     registerComponent<AppliedCharacter>(isNetworking = true)
     registerComponent<SelectedLook>(isNetworking = true)
+    registerComponent<CharacterApplyEvent>(isNetworking = true)
 
     registerComponent<VoxelDoor>(isNetworking = true, isSavable = true)
 }

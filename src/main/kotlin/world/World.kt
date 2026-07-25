@@ -11,6 +11,8 @@ import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.storage.ComponentLoadSettings
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.storage.persistentId
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentWorld
 import org.lain.engine.util.component.EntityId
@@ -63,12 +65,15 @@ class World(
         return componentManager.addEntity {
             setComponent(event, type)
             setComponent(Event)
-            if (networked) setComponent(Networked)
+            if (networked) {
+                setComponent(Networked)
+                setComponent(PersistentIdComponent(persistentId("event-${System.identityHashCode(event)}")))
+            }
         }
     }
 
-    inline fun <reified T : Component> emitEvent(event: T): EntityId {
-        return emitEvent(event, componentTypeOf(T::class))
+    inline fun <reified T : Component> emitEvent(event: T, networked: Boolean = false): EntityId {
+        return emitEvent(event, componentTypeOf(T::class), networked)
     }
 
     fun clearEvents() {

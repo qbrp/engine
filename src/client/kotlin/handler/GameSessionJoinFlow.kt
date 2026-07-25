@@ -149,6 +149,7 @@ class GameSessionJoinFlow(
                 deferred.await()
             }
 
+            state = State.CHARACTER_LOAD
             val characters = listAccountCharacters(account, authorized)
             val selectedCharacter = withClientContext {
                 state = State.CHARACTER_SELECTION
@@ -228,7 +229,7 @@ class GameSessionJoinFlow(
     }
 
     enum class State {
-        AUTHORIZATION, COMPILATION, CHARACTER_SELECTION
+        AUTHORIZATION, COMPILATION, CHARACTER_LOAD, CHARACTER_SELECTION
     }
 
     sealed class JoinType {

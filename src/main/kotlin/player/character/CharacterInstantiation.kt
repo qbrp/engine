@@ -1,16 +1,23 @@
 package org.lain.engine.player.character
 
+import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerId
 import org.lain.engine.server.ServerPlatform
 import org.lain.engine.storage.PersistentCharacterData
 import org.lain.engine.storage.copyComponentDtoState
 import org.lain.engine.storage.toDomainWithoutRelationships
 import org.lain.engine.storage.toSnapshotDto
 import org.lain.engine.world.World
+import org.lain.engine.world.location
+
+@Serializable
+data class CharacterApplyEvent(val character: EngineCharacter, val playerId: PlayerId) : Component
 
 context(write: WriteComponentAccess)
 fun EnginePlayer.setCharacterDisplayComponents(
@@ -72,5 +79,7 @@ fun EnginePlayer.applyCharacter(
     )
     entity.setComponent(AppliedCharacter(character))
     persistent?.items?.let { platform.openInventory(this, it) }
+    world.emitEvent(CharacterApplyEvent(character, id), true)
+        .apply { setComponent(location) }
     platform.onCharacterApplied(this, character)
 }

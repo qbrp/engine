@@ -1,5 +1,6 @@
 package org.lain.engine.client.handler
 
+import com.wildfire.main.networking.WildfireSync
 import kotlinx.coroutines.*
 import org.lain.cyberia.ecs.*
 import org.lain.engine.Constants.ENGINE_MOD_VERSION
@@ -24,11 +25,13 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.item.EngineItem
+import org.lain.engine.mc.applyGenderConfig
 import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
 import org.lain.engine.mc.server.AuthPacket
 import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.*
+import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.Look
 import org.lain.engine.player.interaction.InputAction
@@ -124,7 +127,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
             val accountManager = client.accountManager
             // метод не может быть вызван, если lastAccountResponse == null, т.к. в таком случае игра недоступна
             // см. EngineClient.canPlaySingleplayer
-            val account = accountManager.requireAccountResponse()
+            val account = accountManager.getAccountResponseUpdateLaunching()
             val characters = account.characters.map { it.map() }
             val selectionResult = character?.let {
                 LookSelectionScreen.awaitGeneralSelection(

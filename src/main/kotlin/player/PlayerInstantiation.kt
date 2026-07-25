@@ -64,6 +64,7 @@ fun commonPlayerInstance(
 ): EnginePlayer {
     val entity =  settings.world.addEntity()
         .apply {
+            setComponent(PersistentIdComponent(CustomPersistentId(id.toString())))
             setComponent(Location(settings.pos))
             setComponent(Velocity())
             setComponent(Orientation())
@@ -75,6 +76,7 @@ fun commonPlayerInstance(
             setComponent(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
             setComponent(Hearing())
             setComponent(ScriptBindings())
+            setComponent(PlayerInput())
             setComponent(settings.displayName)
             setComponent(settings.movementStatus)
             setComponent(settings.spectating)
@@ -88,7 +90,9 @@ fun commonPlayerInstance(
                 setComponent(ReplayViewer)
             }
         }
-    return EnginePlayer(id, entity, world = settings.world)
+    val player = EnginePlayer(id, entity, world = settings.world)
+    entity.setComponent(Player(player))
+    return player
 }
 
 context(write: WriteComponentAccess)
@@ -177,10 +181,9 @@ class PlayerLoader(
                 )
             }
             withContext(server.dispatcher) {
-                character?.let { player.applyCharacter(it, persistentCharacterData, server.platform) }
                 server.itemLoader.apply(world)
                 apply(world)
-                server.instantiatePlayer(player, settings.notifications, location.position)
+                server.instantiatePlayer(player, settings.notifications, character, persistentCharacterData)
                 server.handler.onCharacterApplyConfirmation(player)
             }
         }
@@ -279,13 +282,4 @@ fun EnginePlayer.prepareContainers(
     )
     container.setComponent(PlayerEquipment(this@prepareContainers))
     entity.setComponent(Equipment(container))
-}
-
-context(world: World, lua: LuaContext)
-fun EnginePlayer.setPlayerComponents(pos: Pos) {
-    prepareLuaScriptComponents()
-    entity.setComponent(Player(this))
-    entity.setComponent(Location(pos))
-    entity.setComponent(PersistentIdComponent(CustomPersistentId(id.toString())))
-    entity.setComponent(PlayerInput())
 }

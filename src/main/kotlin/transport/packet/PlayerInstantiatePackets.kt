@@ -9,6 +9,8 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.*
 import org.lain.engine.player.account.SessionTicketDto
+import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
@@ -114,7 +116,8 @@ data class ServerPlayerData(
     val baseVolume: Float,
     val items: List<ClientboundItemData>,
     val equipment: Map<EquipmentSlot, ClientboundItemData>,
-    val skinEyeY: Float
+    val skinEyeY: Float,
+    val character: EngineCharacter?
 ) {
     val id
         get() = general.playerId
@@ -139,6 +142,7 @@ data class ServerPlayerData(
                     .getEquipmentContainerSlots(player.equipmentContainer)
                     .mapValues { (_, item) -> ClientboundItemData.of(item) },
                 player.skinEyeY,
+                player.get<AppliedCharacter>()?.character
             )
         }
     }

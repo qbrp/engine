@@ -28,6 +28,9 @@
     "chat.ChatScreenMixin",
     "chat.GuiMessageLineMixin",
     "chat.GuiMessageMixin",
+    "hud.ExperienceBarRendererMixin",
+    "hud.GuiAccessor",
+    "hud.GuiMixin",
     "render.AvatarRendererMixin",
     "render.BlockModelWrapperAccessor",
     "render.CameraMixin",
@@ -54,10 +57,7 @@
     "screen.LevelLoadingScreenMixin",
     "screen.ScreenAccessor",
     "screen.ScreenMixin",
-    "screen.TitleScreenAccessor",
-    "hud.ExperienceBarRendererMixin",
-    "hud.GuiAccessor",
-    "hud.GuiMixin"
+    "screen.TitleScreenAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
@@ -68,6 +68,7 @@
   "mixins": [
     "render.wildfire.BreastPhysicsAccessor",
     "render.wildfire.EntityConfigAccessor",
-    "render.wildfire.WildfireEventHandlerMixin"
+    "render.wildfire.WildfireEventHandlerMixin",
+    "wildfire.WildfireEventHandlerMixin"
   ]
 }

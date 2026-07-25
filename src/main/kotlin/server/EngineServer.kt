@@ -13,6 +13,8 @@ import org.lain.engine.container.postUpdateContainerSystems
 import org.lain.engine.container.updateContainerSystems
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.applyCharacter
 import org.lain.engine.player.character.removeCharacter
 import org.lain.engine.player.interaction.tickSocialActionSystem
 import org.lain.engine.player.interaction.tickGunActionSystem
@@ -26,10 +28,12 @@ import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.lua.adaptScriptNetworkingComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.script.lua.tickScriptVoxelAdapter
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ChunkLoader
 import org.lain.engine.storage.ItemLoader
+import org.lain.engine.storage.PersistentCharacterData
 import org.lain.engine.storage.SaveTimers
 import org.lain.engine.storage.playerData
 import org.lain.engine.storage.savePersistentPlayerData
@@ -191,13 +195,15 @@ class EngineServer(
     fun instantiatePlayer(
         player: EnginePlayer,
         notifications: List<Notification> = listOf(),
-        pos: Pos
+        engineCharacter: EngineCharacter? = null,
+        characterPersistentCharacter: PersistentCharacterData? = null
     ) = with(player.world) {
         playerStorage.add(player.id, player)
         players += player
         platform.onPlayerInstantiated(player)
 
-        with(luaContext) { player.setPlayerComponents(pos) }
+        with(luaContext) { player.prepareLuaScriptComponents() }
+        engineCharacter?.let { player.applyCharacter(engineCharacter, characterPersistentCharacter, platform) }
         if (!globals.spectateOnJoin) { player.stopSpectating() }
         handler.onPlayerInstantiation(player, notifications)
 

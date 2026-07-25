@@ -9,7 +9,9 @@ import java.time.Instant
 
 class DedicatedEngineAccountService {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val httpClient = EngineHttpClient()
+    private val httpClient = EngineHttpClient(
+        requestTimeout = Duration.ofSeconds(5)
+    )
 
     fun getAuthorized(sessionTicket: SessionTicket): AuthorizedAccount {
         if (Instant.now().isAfter(sessionTicket.expiresAt)) {

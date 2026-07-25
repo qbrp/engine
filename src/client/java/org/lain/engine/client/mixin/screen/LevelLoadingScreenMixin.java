@@ -23,6 +23,8 @@ public class LevelLoadingScreenMixin {
     private final static Component AUTHORIZATION_STATE_TEXT = Component.literal("Авторизация...");
     @Unique
     private final static Component COMPILATION_STATE_TEXT = Component.literal("Компиляция ресурсов...");
+    @Unique
+    private final static Component CHARACTER_LOAD_TEXT = Component.literal("Загрузка персонажей...");
 
     @Redirect(
             method = "tick",
@@ -50,6 +52,8 @@ public class LevelLoadingScreenMixin {
             Component stateText;
             if (state == GameSessionJoinFlow.State.AUTHORIZATION) {
                 stateText = AUTHORIZATION_STATE_TEXT;
+            } else if (state == GameSessionJoinFlow.State.CHARACTER_LOAD) {
+                stateText = CHARACTER_LOAD_TEXT;
             } else {
                 stateText = COMPILATION_STATE_TEXT;
             }
