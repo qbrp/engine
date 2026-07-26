@@ -1,6 +1,7 @@
 package org.lain.engine.script.lua
 
 import kotlinx.serialization.json.*
+import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.storage.LOGGER
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.Input
@@ -25,6 +26,12 @@ import kotlin.math.floor
 
 fun File.writeDefaultLuaEntrypointScript() {
     writeText(getBuiltinResource("entrypoint.lua")?.readText() ?: "")
+}
+
+fun InputAction.toLuaTable() = when (this) {
+    InputAction.Attack -> luaTable { "type"("attack") }
+    InputAction.Base -> luaTable { "type"("base") }
+    InputAction.TakeOff -> luaTable { "type"("take_off") }
 }
 
 fun LuaValue.nullable() = if (isnil()) null else this

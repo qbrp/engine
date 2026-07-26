@@ -208,10 +208,8 @@ open class WebScreen(
 ) : Screen(literalText("Web Screen")) {
     lateinit var widget: GrapheneWebViewWidget
     var onClose: (() -> Unit)? = null
-    val unsubscribes: MutableList<() -> Unit> = mutableListOf()
 
     protected override fun init() {
-        unsubscribes.forEach { it() }
         val (x, y, width, height) = sizeResolver(width, height)
         widget = GrapheneWebViewWidget(
             this,
@@ -229,7 +227,6 @@ open class WebScreen(
         super.onClose()
         widget.close()
         onClose?.invoke()
-        unsubscribes.forEach { it() }
     }
 
     override fun isPauseScreen(): Boolean {

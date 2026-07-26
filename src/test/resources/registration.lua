@@ -57,6 +57,12 @@ VoxelActionScriptContext = {}
 ---@field world World
 VoxelActionScriptContext = {}
 
+---@class WorkspaceOpenContext
+---@field add_window fun(self: WorkspaceOpenContext, id: string, url: string, width: number, height: number): WebWidgetBehaviour
+---@field game_session GameSession
+---clientside
+WorkspaceOpenContext = {}
+
 ---@param id string
 ---@param fun fun(context)
 function Script.new(id, fun)
@@ -111,6 +117,13 @@ end
 ---@param fun fun(context: World)
 function Callbacks:on_world_tick(fun)
     self.world_tick = fun
+    return self
+end
+
+---@return Callbacks
+---@param fun fun(context: WorkspaceOpenContext)
+function Callbacks:on_workspace_open(fun)
+    self.workspace_open = fun
     return self
 end
 

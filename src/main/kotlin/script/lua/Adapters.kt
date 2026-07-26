@@ -4,6 +4,7 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerInventory
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.SBool
 import org.lain.engine.script.SNil
@@ -71,6 +72,7 @@ fun EnginePlayer.prepareLuaScriptComponents() {
     )
 }
 
+context(luaContext: LuaContext)
 fun World.adaptScriptPlayerComponents() {
     iterate<Location> { entity, location ->
         val scriptLocation = entity.getComponent(CoreScriptComponents.LOCATION) ?: return@iterate
@@ -83,6 +85,16 @@ fun World.adaptScriptPlayerComponents() {
         vector.set(1, location.x.toLuaValue())
         vector.set(2, location.y.toLuaValue())
         vector.set(3, location.z.toLuaValue())
+    }
+    iterate<PlayerInventory>() { entity, playerInventory ->
+        val scriptInventory = entity.getComponent(CoreScriptComponents.PLAYER_INVENTORY) ?: run {
+            entity.setScriptComponent(luaTableOf(), CoreScriptComponents.PLAYER_INVENTORY)
+        }
+        val table = scriptInventory.luaValue.checktable()
+        table.set("main_hand_item", playerInventory.mainHandItem?.coerceToLua() ?: LuaValue.NIL)
+        table.set("off_hand_item", playerInventory.offHandItem?.coerceToLua() ?: LuaValue.NIL)
+        table.set("selected_slot", playerInventory.selectedSlot)
+        table.set("items", LuaTable.listOf(playerInventory.items.map { it.coerceToLua() }.toTypedArray()))
     }
 }
 

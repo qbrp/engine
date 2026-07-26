@@ -20,15 +20,15 @@ import org.lain.engine.player.handItem
 import org.lain.engine.world.World
 
 @Serializable
-object GunModeToggleAction : Action
+object GunModeToggleAction : Component
 
-data class GunBarrelAmoLoadAction(val gunItem: EngineItem, val ammoItem: EngineItem) : Action
-
-@Serializable
-object StartShootAction : Action
+data class GunBarrelAmoLoadAction(val gunItem: EngineItem, val ammoItem: EngineItem) : Component
 
 @Serializable
-object StopShootAction : Action
+object StartShootAction : Component
+
+@Serializable
+object StopShootAction : Component
 
 data class Shooting(val mainHand: Boolean, val offHand: Boolean) : Component
 
@@ -64,7 +64,7 @@ fun World.tickGunActionSystem() {
 }
 
 @Serializable
-object WritableOpenAction : Action
+object WritableOpenAction : Component
 
 fun World.tickWritableActionSystem() {
     iterate<WritableOpenAction, Player>() { entity, action, (player) ->

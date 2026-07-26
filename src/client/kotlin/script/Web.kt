@@ -4,10 +4,12 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.ui.WebScreen
 import org.lain.engine.client.render.ui.WebWidgetScreenParameters
 import org.lain.engine.client.render.ui.WebWidgetSizeParameters
+import org.lain.engine.script.lua.LuaTableBuilder
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.nullable
 import org.lain.engine.script.lua.toLuaValue
 import org.luaj.vm2.LuaValue
+import tytoo.grapheneui.api.widget.GrapheneWebViewWidget
 import java.util.concurrent.CompletableFuture
 
 context(lua: ClientLuaContext)
@@ -31,47 +33,9 @@ fun WebTable() = luaTable {
         val pause = parameters.get("pause").nullable()?.toboolean() ?: false
         val background = parameters.get("background").nullable()?.toboolean() ?: true
         val screen = WebScreen(lua.client.resources, url, WebWidgetScreenParameters(pause, background), resolver)
-        val bridge by lazy { screen.widget.bridge() }
         MinecraftClient.setScreen(screen)
         luaTable {
-            "url"(url)
-            function1("on_ready") { resolverL ->
-                val resolver = resolverL.checkfunction()
-                val subscribe = bridge.onReady { resolver.invoke() }
-                screen.unsubscribes += { subscribe.unsubscribe() }
-                LuaValue.NIL
-            }
-            function2("on_event") { idL, resolverL ->
-                val resolver = resolverL.checkfunction()
-                val id = idL.tojstring()
-                val subscribe = bridge.onEvent(id) { channel, payloadJson ->
-                    resolver.invoke(channel.toLuaValue(), payloadJson.toLuaValue())
-                }
-                screen.unsubscribes += { subscribe.unsubscribe() }
-                LuaValue.NIL
-            }
-            function2("on_request") { idL, resolverL ->
-                val resolver = resolverL.checkfunction()
-                val id = idL.tojstring()
-                val subscribe = bridge.onRequest(id) { channel, payloadJson ->
-                    CompletableFuture.completedFuture(
-                        try {
-                            resolver.invoke(channel.toLuaValue(), payloadJson.toLuaValue()).tojstring()
-                        } catch (e: Throwable) {
-                            e.printStackTrace()
-                            throw e
-                        }
-                    )
-                }
-                screen.unsubscribes += { subscribe.unsubscribe() }
-                LuaValue.NIL
-            }
-            function2("emit") { idL, payloadL ->
-                val id = idL.tojstring()
-                val payload = payloadL.tojstring()
-                bridge.emit(id, payload)
-                LuaValue.NIL
-            }
+            webWidgetBehaviour { screen.widget }
             function0("close") {
                 screen.onClose()
                 LuaValue.NIL
@@ -81,5 +45,45 @@ fun WebTable() = luaTable {
                 LuaValue.NIL
             }
         }
+    }
+}
+
+fun LuaTableBuilder.webWidgetBehaviour(widgetGetter: () -> GrapheneWebViewWidget) {
+    val bridge by lazy { widgetGetter().bridge() }
+
+    "url"(widgetGetter().currentUrl())
+    function1("on_ready") { resolverL ->
+        val resolver = resolverL.checkfunction()
+        bridge.onReady { resolver.invoke() }
+        LuaValue.NIL
+    }
+    function2("on_event") { idL, resolverL ->
+        val resolver = resolverL.checkfunction()
+        val id = idL.tojstring()
+        val subscribe = bridge.onEvent(id) { channel, payloadJson ->
+            resolver.invoke(channel.toLuaValue(), payloadJson.toLuaValue())
+        }
+        LuaValue.NIL
+    }
+    function2("on_request") { idL, resolverL ->
+        val resolver = resolverL.checkfunction()
+        val id = idL.tojstring()
+        val subscribe = bridge.onRequest(id) { channel, payloadJson ->
+            CompletableFuture.completedFuture(
+                try {
+                    resolver.invoke(channel.toLuaValue(), payloadJson.toLuaValue()).tojstring()
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                    throw e
+                }
+            )
+        }
+        LuaValue.NIL
+    }
+    function2("emit") { idL, payloadL ->
+        val id = idL.tojstring()
+        val payload = payloadL.tojstring()
+        bridge.emit(id, payload)
+        LuaValue.NIL
     }
 }

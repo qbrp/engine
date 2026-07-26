@@ -1,6 +1,5 @@
 package org.lain.engine.client.mixin.chat;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.CommandSuggestions;
@@ -18,9 +17,9 @@ import org.jspecify.annotations.NonNull;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.chat.MinecraftChat;
 import org.lain.engine.client.mc.MinecraftKeybindKt;
-import org.lain.engine.client.render.ui.ChatChannelsBar;
-import org.lain.engine.client.render.ui.HandStatusButtonWidget;
-import org.lain.engine.client.render.ui.ShakingTextFieldWidget;
+import org.lain.engine.client.render.ui.hud.ChatChannelsBar;
+import org.lain.engine.client.render.ui.hud.HandStatusButtonWidget;
+import org.lain.engine.client.render.ui.hud.ShakingTextFieldWidget;
 import org.lain.engine.client.mixin.render.ScreenAccessor;
 import org.lain.engine.mc.CommonUtilKt;
 import org.lwjgl.glfw.GLFW;

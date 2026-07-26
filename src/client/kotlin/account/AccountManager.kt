@@ -63,7 +63,10 @@ class AccountManager(
     }
 
     suspend fun getAvailableAccountResponse(): AccountResponse {
-        return getAuthorized()?.getAccount() ?: requireAccountResponse()
+        return runCatching { getAuthorized()?.getAccount() }
+            .onFailure { it.printStackTrace() }
+            .getOrNull()
+            ?: requireAccountResponse()
     }
 
     fun getAccountResponseUpdateLaunching(): AccountResponse {
@@ -72,6 +75,8 @@ class AccountManager(
                 scope.launch { getAuthorized()?.getAccount() }
             }
     }
+
+    suspend fun requireAuthorized() = getAuthorized() ?: throw NotAuthorizedException()
 
     suspend fun getAuthorized(): ClientAuthorizedAccount? {
         val authorizedState = state as? ConnectionState.Authorized

@@ -22,6 +22,7 @@ interface ClientInfrastructure {
     fun onEntityDebugView(gameSession: GameSession)
     fun onEntityDebugViewData(data: EntityDebugData.Dto)
     fun onCharacterSelectionMenuOpen(gameSession: GameSession)
+    fun onWorkspaceMenuOpen(gameSession: GameSession)
     fun getHitResultVoxelPos(): VoxelPos?
     fun disconnect(reason: String)
     fun createIntegratedServerPlayerLoadSettings(client: EngineClient, server: EngineServer): PlayerLoadSettings

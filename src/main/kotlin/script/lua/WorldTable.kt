@@ -1,6 +1,7 @@
 package org.lain.engine.script.lua
 
 import org.lain.cyberia.ecs.*
+import org.lain.engine.script.ScriptAction
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.util.component.EntityId

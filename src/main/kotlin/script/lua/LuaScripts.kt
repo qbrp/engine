@@ -14,46 +14,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaContext: LuaContext, 
     }
 
     override fun execute(context: C): ExecutionResult<R> = with(luaContext) {
-        val arguments = when(context) {
-            is ScriptContext.Player -> {
-                context.player.coerceToLua()
-            }
-            is ScriptContext.World -> {
-                context.world.getLuaValue()
-            }
-            is ScriptContext.VoxelAction -> {
-                luaTableOf(
-                    luaValue("player"), context.player?.coerceToLua() ?: LuaValue.NIL,
-                    luaValue("world"), context.world.getLuaValue(),
-                    luaValue("voxel_pos"), context.pos.toLuaValue(),
-                    luaValue("voxel_meta"), context.meta.coerceToLua(),
-                )
-            }
-            is ScriptContext.IntentExecution -> {
-                val (actor, target, inputs, behaviour) = context
-                luaTableOf(
-                    luaValue("world"), actor.player.world.getLuaValue(),
-                    luaValue("actor"), luaTableOf(
-                        luaValue("type"), actor.type.name.lowercase().toLuaValue(),
-                        luaValue("player"), actor.player.coerceToLua(),
-                        luaValue("entity"), actor.entity.toLuaValue(),
-                    ),
-                    luaValue("target"), target?.toLuaValue() ?: LuaValue.NIL,
-                    luaValue("inputs"), inputs.toLuaTable(),
-                    luaValue("gen_target"), zeroArgFunction { behaviour.generateTarget().toLuaValue() },
-                    luaValue("gen_selection"), zeroArgFunction { behaviour.generateSelection()?.toLuaValue() ?: LuaValue.NIL },
-                    luaValue("feedback"), oneArgFunction {
-                        behaviour.feedback(it.tojstring())
-                        LuaValue.NIL
-                    }
-                )
-            }
-
-            is ScriptContext.ItemLoad -> luaTableOf(
-                luaValue("world"), context.world.getLuaValue(),
-                luaValue("item"), with(context.world) { context.item.coerceToLua() },
-            )
-        }
+        val arguments = luaContext.mapScriptContext(context)
         return try {
             val result = luaFunction.invoke(arguments).arg1().toKotlin()
             ExecutionResult.Success(
@@ -79,6 +40,8 @@ fun LuaValue.toKotlin(): Any? {
 }
 
 context(writeComponentAccess: WriteComponentAccess)
-fun EntityId.setScriptComponent(value: LuaValue, type: ScriptComponentType) {
-    setComponent(ScriptComponent(value, type), type)
+fun EntityId.setScriptComponent(value: LuaValue, type: ScriptComponentType): ScriptComponent {
+    val component = ScriptComponent(value, type)
+    setComponent(component, type)
+    return component
 }

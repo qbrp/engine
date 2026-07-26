@@ -16,6 +16,12 @@ import org.lain.engine.player.character.CharacterDisplay
 import org.lain.engine.player.character.CharacterPhysical
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.interaction.ActionSyncEvent
+import org.lain.engine.player.interaction.GiveAction
+import org.lain.engine.player.interaction.GunModeToggleAction
+import org.lain.engine.player.interaction.HailAction
+import org.lain.engine.player.interaction.StartShootAction
+import org.lain.engine.player.interaction.StopShootAction
+import org.lain.engine.player.interaction.WritableOpenAction
 import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.storage.PersistentIdComponent
@@ -150,4 +156,11 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<CharacterApplyEvent>(isNetworking = true)
 
     registerComponent<VoxelDoor>(isNetworking = true, isSavable = true)
+
+    registerComponent<GiveAction>(isNetworking = true)
+    registerComponent<HailAction>(isNetworking = true)
+    registerComponent<GunModeToggleAction>(isNetworking = true)
+    registerComponent<StartShootAction>(isNetworking = true)
+    registerComponent<StopShootAction>(isNetworking = true)
+    registerComponent<WritableOpenAction>(isNetworking = true)
 }

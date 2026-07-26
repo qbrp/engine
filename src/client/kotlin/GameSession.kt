@@ -14,6 +14,7 @@ import org.lain.engine.client.handler.*
 import org.lain.engine.client.render.MAP
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.tickSkinSystem
+import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.ClientLuaContext
@@ -110,6 +111,7 @@ class GameSession(
     var callbacks: Callbacks = Callbacks()
     val endTickTaskExecutor = TaskExecutor()
     val luaContext = compilation.luaContext
+    var workspaceSavedState: Workspace.SavedState? = null
 
     var inspectionMode: Boolean = false
         set(value) {
@@ -245,7 +247,7 @@ class GameSession(
 
             tickPlayerModelSystem()
 
-            tickPlayerInput(mainPlayer.id, true)
+            tickPlayerInput(callbacks, mainPlayer.id, true)
             tickActionSyncSystem(handler)
 
             tickGunActionSystem()
@@ -329,7 +331,7 @@ class GameSession(
         context(world, luaContext) {
             player.prepareContainers(data.equipmentContainer, player.location, equipment)
             player.prepareLuaScriptComponents()
-            callbacks.playerInstantiate.execute(player.scriptContext)
+            callbacks.of(CallbackType.PLAYER_INSTANTIATE)?.execute(player.scriptContext)
         }
     }
 

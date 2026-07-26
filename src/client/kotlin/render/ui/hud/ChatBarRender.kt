@@ -1,4 +1,4 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.ui.hud
 
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractWidget
@@ -17,6 +17,8 @@ import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.HAND
 import org.lain.engine.client.render.MENTION
 import org.lain.engine.client.render.Rect2
+import org.lain.engine.client.render.ui.ColorMc
+import org.lain.engine.client.render.ui.drawEngineSprite
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.extendArm

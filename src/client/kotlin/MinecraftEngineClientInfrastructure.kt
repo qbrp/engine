@@ -10,6 +10,7 @@ import org.lain.engine.client.mc.blockHitResult
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.client.render.ui.EntityDebugScreen
+import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.EntityTable
@@ -139,6 +140,12 @@ class MinecraftEngineClientInfrastructure(
             null
         }
         gameSession.client.handler.selectCharacter(minecraft.isSingleplayer, currentPlayerCharacter)
+    }
+
+    override fun onWorkspaceMenuOpen(gameSession: GameSession) {
+        MinecraftClient.setScreen(
+            Workspace(gameSession, gameSession.workspaceSavedState)
+        )
     }
 
     override fun getHitResultVoxelPos(): VoxelPos? {

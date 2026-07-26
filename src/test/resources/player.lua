@@ -53,7 +53,7 @@ function Player:remove_component(component)
 end
 
 ---@generic T : Component
----@param component Component|ComponentType
+---@param component T
 ---@return T?
 function Player:get_component(component)
     assert(component, "component type must be not null")

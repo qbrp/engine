@@ -2,7 +2,7 @@ package org.lain.engine.client.render
 
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.render.ui.InteractionProgressionRenderState
-import org.lain.engine.client.render.ui.MovementStatusRenderState
+import org.lain.engine.client.render.ui.hud.MovementStatusRenderState
 import org.lain.engine.client.render.ui.NarrationMessageRenderState
 import org.lain.engine.client.render.world.BlockHintInspectionRenderState
 import org.lain.engine.player.Narration

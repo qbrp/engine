@@ -23,7 +23,8 @@ import org.lain.engine.world.World
 import java.util.*
 import kotlin.reflect.KClass
 
-class ComponentSerializerNotRegisteredException(val componentClass: KClass<out Any>) : Exception("Serializer not registered for component ${componentClass.simpleName}")
+class ComponentSerializerNotRegisteredException(val componentClass: KClass<out Any>) :
+    Exception("Serializer not registered for component ${componentClass.simpleName}")
 
 @OptIn(InternalSerializationApi::class)
 @Suppress("UNCHECKED_CAST")
@@ -57,14 +58,6 @@ fun SerializersModuleBuilder.polymorphicComponentSubclasses() {
         subclass(ContainedInDto::class, ContainedInDto.serializer())
         subclass(EntityRpcReceiverDto::class, EntityRpcReceiverDto.serializer())
         subclass(ActionSyncEventDto::class, ActionSyncEventDto.serializer())
-    }
-    polymorphic(Action::class) {
-        subclass(GiveAction::class, GiveAction.serializer())
-        subclass(HailAction::class, HailAction.serializer())
-        subclass(GunModeToggleAction::class, GunModeToggleAction.serializer())
-        subclass(StartShootAction::class, StartShootAction.serializer())
-        subclass(StopShootAction::class, StopShootAction.serializer())
-        subclass(WritableOpenAction::class, WritableOpenAction.serializer())
     }
 }
 
@@ -118,7 +111,11 @@ data class ChildrenComponentDto(val isScript: Boolean, val children: Set<Persist
 data class ContainedInDto(val container: PersistentId) : ComponentData
 
 @Serializable
-data class ActionSyncEventDto(val entity: PersistentIdComponent, val action: Action, val tick: Long) : ComponentData
+data class ActionSyncEventDto(
+    val entity: PersistentIdComponent,
+    val action: ComponentDto,
+    val tick: Long
+) : ComponentData
 
 // на клиенте превращается в EntityRpcQueue
 @Serializable
@@ -148,15 +145,27 @@ fun Component.toSnapshotDto(): ComponentDto {
         is OccupiedSlots -> CopyComponentDto(OccupiedSlots(slots.toMutableSet()))
         is Writable -> CopyComponentDto(this.copy())
         is Parent -> ParentComponentDto(false, entity.requireComponent())
-        is Children -> ChildrenComponentDto(false, entities.map { it.requireComponent<PersistentIdComponent>() }.toSet())
+        is Children -> ChildrenComponentDto(
+            false,
+            entities.map { it.requireComponent<PersistentIdComponent>() }.toSet()
+        )
+
         is EntityRpcReceiver -> EntityRpcReceiverDto
-        is ActionSyncEvent -> ActionSyncEventDto(entity.requireComponent<PersistentIdComponent>(), action, tick)
+        is ActionSyncEvent -> ActionSyncEventDto(
+            entity.requireComponent<PersistentIdComponent>(),
+            action.toSnapshotDto(),
+            tick
+        )
+
         else -> CopyComponentDto(this)
     }
     return ComponentDto(type.id, data)
 }
 
-fun ComponentDto.toDomainWithoutRelationships(itemStorage: Storage<PersistentId, EngineItem>, namespacedStorage: NamespacedStorageAccess): Component? {
+fun ComponentDto.toDomainWithoutRelationships(
+    itemStorage: Storage<PersistentId, EngineItem>,
+    namespacedStorage: NamespacedStorageAccess
+): Component? {
     return toDomain(
         ComponentLoadSettings(itemStorage, namespacedStorage, mutableMapOf()),
         { error("This entity type not supports components with relationships") }
@@ -178,7 +187,8 @@ suspend fun ComponentDto.toDomainSuspend(
     entityGetter: suspend (PersistentId) -> EntityId?,
     scriptComponentTypeNotFound: (ScriptComponentId, ScriptComponentDto) -> ScriptComponentType = { id, dto -> error("Invalid script component type $id") },
 ): Component? {
-    val notNullEntityGetter: suspend (PersistentIdComponent) -> EntityId = { settings.persistentIdToEntity[it.id] ?: entityGetter(it.id) ?: error("Entity with id $id not found") }
+    val notNullEntityGetter: suspend (PersistentIdComponent) -> EntityId =
+        { settings.persistentIdToEntity[it.id] ?: entityGetter(it.id) ?: error("Entity with id $id not found") }
     val data = when (data) {
         is CopyComponentDto -> data.component
         is ScriptComponentDto -> {
@@ -210,19 +220,28 @@ suspend fun ComponentDto.toDomainSuspend(
         }
 
         // isClient означает, что мы получаем компонент по сети, а значит RpcReceiver нужно преобразовать в RpcQueue
-        is EntityRpcReceiverDto -> when(settings.isClient) {
+        is EntityRpcReceiverDto -> when (settings.isClient) {
             true -> EntityRpcQueue(LinkedList())
             false -> EntityRpcReceiver(LinkedList())
         }
 
-        is ActionSyncEventDto -> ActionSyncEvent(notNullEntityGetter(data.entity), data.action, data.tick)
+        is ActionSyncEventDto -> ActionSyncEvent(
+            notNullEntityGetter(data.entity),
+            data.action.toDomainSuspend(
+                settings,
+                entityGetter,
+                scriptComponentTypeNotFound
+            )!!,
+            data.tick
+        )
 
         is ContainedInDto -> null
     }
     return data
 }
 
-data class ComponentLoadException(val dto: ComponentDto, override val cause: Throwable) : RuntimeException("Cannot load component $dto")
+data class ComponentLoadException(val dto: ComponentDto, override val cause: Throwable) :
+    RuntimeException("Cannot load component $dto")
 
 private suspend fun ComponentDto.toDomainCatching(toDomainFunction: suspend ComponentDto.() -> Component?): Component? {
     return try {

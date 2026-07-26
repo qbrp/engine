@@ -1,8 +1,6 @@
 package org.lain.engine.client.mc.chat
 
 import net.minecraft.client.GuiMessage
-import net.minecraft.client.multiplayer.PlayerInfo
-import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.world.entity.player.PlayerSkin
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
@@ -10,9 +8,8 @@ import org.lain.engine.client.chat.*
 import org.lain.engine.client.mc.ClientMixinAccess
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
-import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
-import org.lain.engine.client.render.ui.ChatChannelsBar
+import org.lain.engine.client.render.ui.hud.ChatChannelsBar
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.displayNameText

@@ -5,6 +5,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponentType
@@ -50,9 +51,9 @@ class World(
 
 
     fun tickCallbacks(callbacks: Callbacks) {
-        callbacks.worldTick.execute(scriptContext)
+        callbacks.of(CallbackType.WORLD_TICK)?.execute(scriptContext)
         if (ticks % 20 == 0L) {
-            callbacks.worldTickSecond.execute(scriptContext)
+            callbacks.of(CallbackType.WORLD_TICK_20)?.execute(scriptContext)
         }
         ticks++
     }

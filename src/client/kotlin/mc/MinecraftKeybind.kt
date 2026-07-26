@@ -41,6 +41,7 @@ class KeybindManager(
         TOGGLE_INSPECTION.register()
         CONCENTRATION.register()
         SELECT_CHARACTER.register()
+        OPEN_WORKSPACE.register()
 
         KeybindSettings(
             name = "Настройки",

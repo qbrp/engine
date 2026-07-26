@@ -7,7 +7,6 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.*
-import org.lain.engine.player.interaction.Action
 import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
@@ -81,7 +80,7 @@ fun World.tickActionSyncSystem(handler: ClientHandler) {
     iterate<ActionSyncEvent> { _, event ->
         val identity = ClientHandler.InteractionIdentity(event.tick, event.entity)
         if (identity !in handler.processedInteraction) {
-            event.entity.setComponent(event.action, componentTypeOfGeneral(event.action) as ComponentType<Action>)
+            event.entity.setComponent(event.action, componentTypeOfGeneral(event.action) as ComponentType<Component>)
         } else {
             EngineLogger.log(
                 Log(

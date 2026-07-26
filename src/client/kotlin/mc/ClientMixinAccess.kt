@@ -26,6 +26,7 @@ import org.lain.engine.client.render.player.update
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.EngineTitleMenu
 import org.lain.engine.client.render.ui.TestGrapheneScreen
+import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
@@ -53,6 +54,8 @@ object ClientMixinAccess {
     private var resources: ResourceList? = null
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
+
+    fun shouldFocusChat() = MinecraftClient.screen is Workspace
 
     fun canCloseLevelLoadingScreen() = client.joinFlow?.canCloseLevelLoadingScreen ?: false
 

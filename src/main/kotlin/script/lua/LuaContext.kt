@@ -3,6 +3,9 @@ package org.lain.engine.script.lua
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.extendArm
+import org.lain.engine.player.interaction.SOCIAL_INTERACTION_DISTANCE
+import org.lain.engine.player.isSpectating
 import org.lain.engine.script.*
 import org.lain.engine.script.yaml.namespacedId
 import org.lain.engine.util.*
@@ -123,6 +126,59 @@ open class LuaContext(
         globals.set("worlds", worldsList)
     }
 
+    open fun mapScriptContext(context: ScriptContext): LuaValue = when(context) {
+        is ScriptContext.Player -> {
+            context.player.coerceToLua()
+        }
+        is ScriptContext.World -> {
+            context.world.getLuaValue()
+        }
+        is ScriptContext.VoxelAction -> {
+            luaTableOf(
+                luaValue("player"), context.player?.coerceToLua() ?: LuaValue.NIL,
+                luaValue("world"), context.world.getLuaValue(),
+                luaValue("voxel_pos"), context.pos.toLuaValue(),
+                luaValue("voxel_meta"), context.meta.coerceToLua(),
+            )
+        }
+        is ScriptContext.IntentExecution -> {
+            val (actor, target, inputs, behaviour) = context
+            luaTableOf(
+                luaValue("world"), actor.player.world.getLuaValue(),
+                luaValue("actor"), luaTableOf(
+                    luaValue("type"), actor.type.name.lowercase().toLuaValue(),
+                    luaValue("player"), actor.player.coerceToLua(),
+                    luaValue("entity"), actor.entity.toLuaValue(),
+                ),
+                luaValue("target"), target?.toLuaValue() ?: LuaValue.NIL,
+                luaValue("inputs"), inputs.toLuaTable(),
+                luaValue("gen_target"), zeroArgFunction { behaviour.generateTarget().toLuaValue() },
+                luaValue("gen_selection"), zeroArgFunction { behaviour.generateSelection()?.toLuaValue() ?: LuaValue.NIL },
+                luaValue("feedback"), oneArgFunction {
+                    behaviour.feedback(it.tojstring())
+                    LuaValue.NIL
+                }
+            )
+        }
+
+        is ScriptContext.ItemLoad -> luaTableOf(
+            luaValue("world"), context.world.getLuaValue(),
+            luaValue("item"), with(context.world) { context.item.coerceToLua() },
+        )
+
+        is ScriptContext.PlayerInputTick -> luaTable {
+            val input = context.input
+            "player"(context.player.coerceToLua())
+            "actions"(LuaTable.listOf(input.actions.map { it.toLuaTable() }.toTypedArray()))
+            "last_actions"(LuaTable.listOf(input.lastActions.map { it.toLuaTable() }.toTypedArray()))
+            "is_spectating"(context.player.isSpectating)
+            "social_interaction_distance"(SOCIAL_INTERACTION_DISTANCE)
+            "extend_arm"(context.player.extendArm)
+        }
+
+        else -> error("Контекст скрипта $context не может быть использован на стороне сервера")
+    }
+
     open fun setupGlobals() {}
 
     open fun setup(
@@ -215,41 +271,25 @@ open class LuaContext(
         return globals.loadfile(script.path).call()
     }
 
+    open fun listCallbackTypes() = CallbackType.list()
+
     private fun compileCallbacks(): Callbacks {
-        val playerInstantiate = mutableListOf<PlayerInstantiateCallback>()
-        val playerDestroy = mutableListOf<PlayerDestroyCallback>()
-        val worldTickSecond = mutableListOf<WorldTickSecondCallback>()
-        val worldTick = mutableListOf<WorldTickCallback>()
-        val placeVoxel = mutableListOf<PlaceVoxelCallback>()
-        val itemLoad = mutableListOf<ItemLoadCallback>()
+        val callbacks = mutableMapOf<CallbackType<*>, ScriptCallback<ScriptContext>>()
+        val callbackTypes = listCallbackTypes()
 
-        callbacksFunctions.forEach {
-            val table = it.call().checktable()
-
-            fun <C : ScriptContext, R : Any> MutableList<ScriptCallback<C, R>>.addTableCallback(name: String) {
-                addIfNotNull {
-                    val script = table.get(name).nullable()?.checkfunction()
-                        ?.let { function -> LuaScript<C, R>(this@LuaContext, function) } ?: return@addIfNotNull null
-                    ScriptCallback(listOf(script))
-                }
+        callbacksFunctions.forEach { func ->
+            val table = func.call().checktable()
+            callbackTypes.forEach { type ->
+                val script = table.get(type.id).nullable()?.checkfunction()
+                    ?.let { function -> LuaScript<ScriptContext, Unit>(this@LuaContext, function) }
+                    ?: return@forEach
+                val existing = callbacks[type]
+                callbacks[type] = existing?.let { it.copy(scripts = it.scripts + script) }
+                    ?: ScriptCallback(listOf(script))
             }
-
-            playerInstantiate.addTableCallback("player_instantiate")
-            playerDestroy.addTableCallback("player_destroy")
-            worldTickSecond.addTableCallback("world_tick_second")
-            worldTick.addTableCallback("world_tick")
-            placeVoxel.addTableCallback("place_voxel")
-            placeVoxel.addTableCallback("item_load")
         }
 
-        return Callbacks(
-            ScriptCallback(playerInstantiate.flatMap { it.scripts }),
-            ScriptCallback(playerDestroy.flatMap { it.scripts }),
-            ScriptCallback(worldTickSecond.flatMap { it.scripts }),
-            ScriptCallback(worldTick.flatMap { it.scripts }),
-            ScriptCallback(placeVoxel.flatMap { it.scripts }),
-            ScriptCallback(itemLoad.flatMap { it.scripts }),
-        )
+        return Callbacks(callbacks.toMap())
     }
 
     fun compileContents(): CompilationResult {

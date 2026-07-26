@@ -16,13 +16,11 @@ import net.minecraft.util.CommonColors;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraft.world.entity.player.PlayerSkin;
 import org.jspecify.annotations.NonNull;
 import org.lain.engine.client.chat.AcceptedMessage;
-import org.lain.engine.client.chat.ClientMessagesKt;
 import org.lain.engine.client.mc.*;
 import org.lain.engine.client.mc.chat.*;
-import org.lain.engine.client.render.ui.ChatHudRenderKt;
+import org.lain.engine.client.render.ui.hud.ChatHudRenderKt;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -124,6 +122,8 @@ public abstract class ChatHudMixin implements EngineChatHudAccess {
         if (this.isChatHidden()) {
             return;
         }
+
+        chatFocused = chatFocused && ClientMixinAccess.INSTANCE.shouldFocusChat();
 
         int totalLines = this.visibleMessages.size();
         if (totalLines <= 0) {

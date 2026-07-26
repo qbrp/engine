@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.require
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.IntentActor
 import org.lain.engine.util.IntentSelection
@@ -18,10 +19,11 @@ interface IntentBehaviour {
     fun feedback(string: String)
 }
 
-sealed class ScriptContext {
+open class ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext()
     data class World(val world: EngineWorld) : ScriptContext()
     data class ItemLoad(val world: EngineWorld, val item: EngineItem) : ScriptContext()
+    data class PlayerInputTick(val player: EnginePlayer, val input: PlayerInput) : ScriptContext()
     data class VoxelAction(
         val player: EnginePlayer?,
         val world: EngineWorld,

@@ -30,7 +30,7 @@ import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.client.render.ui.character.AbstractSelectionScreen
 import org.lain.engine.client.render.ui.initializeGraphene
-import org.lain.engine.client.render.ui.registerHudRenderEvent
+import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer

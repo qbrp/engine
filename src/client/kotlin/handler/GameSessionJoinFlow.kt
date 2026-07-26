@@ -56,7 +56,7 @@ class GameSessionJoinFlow(
     val canCloseLevelLoadingScreen
         get() = state == State.CHARACTER_SELECTION
 
-    private suspend fun handshake(authorized: ClientAuthorizedAccount?): ServerData = when (joinType) {
+    private suspend fun handshake(): ServerData = when (joinType) {
         is JoinType.Multiplayer -> {
             val deferred = deferVerificationState()
             handler.sendAuthPacket(client.infrastructure.modIds)
@@ -73,23 +73,23 @@ class GameSessionJoinFlow(
         }
     }
 
-    private suspend fun listAccountCharacters(response: AccountResponse, authorized: ClientAuthorizedAccount?): List<EngineCharacter> {
-        val authorizedAccount = authorized?.getAccount()
-        if (joinType is JoinType.Multiplayer && authorizedAccount == null) {
-            throw NotAuthorizedException()
+    private suspend fun listAccountCharacters(): List<EngineCharacter> {
+        val response = when (joinType) {
+            is JoinType.Multiplayer -> { accountManager.requireAuthorized().getAccount() }
+            is JoinType.Singleplayer -> {
+                accountManager.getAvailableAccountResponse()
+            }
         }
-        val characters = authorizedAccount?.characters ?: response.characters
-        return characters.map { it.map() }
+        return response.characters.map { it.map() }
     }
 
     private suspend fun acknowledge(
-        authorized: ClientAuthorizedAccount?,
         namespaceHashMap: NamespaceHashMap,
         selectedCharacter: EngineCharacter?
     ): JoinGamePacket {
         return when (joinType) {
             is JoinType.Multiplayer -> {
-                accountManager.sessionTicketOperation(authorized ?: throw NotAuthorizedException()) { sessionTicket ->
+                accountManager.sessionTicketOperation(accountManager.requireAuthorized()) { sessionTicket ->
                     val deferred = deferJoinGamePacket()
                     handler.sendVerificationPacket(namespaceHashMap, selectedCharacter, sessionTicket)
                     deferred.await()
@@ -110,11 +110,8 @@ class GameSessionJoinFlow(
 
     private val job = CoroutineScope(Dispatchers.IO).launch {
         try {
-            val accountManager = client.accountManager
-            val authorized = accountManager.getAuthorized()
-            val account = accountManager.lastAccountResponse ?: throw NotAuthorizedException()
-
-            val server = handshake(authorized)
+            accountManager.requireAccountResponse()
+            val server = handshake()
 
             state = State.COMPILATION
             val (namespaceHashMap, compilationResult, compilation) = coroutineScope {
@@ -150,7 +147,7 @@ class GameSessionJoinFlow(
             }
 
             state = State.CHARACTER_LOAD
-            val characters = listAccountCharacters(account, authorized)
+            val characters = listAccountCharacters()
             val selectedCharacter = withClientContext {
                 state = State.CHARACTER_SELECTION
                 CharacterSelectionScreen.awaitCharacterSelection(
@@ -160,7 +157,7 @@ class GameSessionJoinFlow(
                 )
             }
 
-            val (serverPlayerData, worldData, setupData, notifications) = acknowledge(authorized, namespaceHashMap, selectedCharacter)
+            val (serverPlayerData, worldData, setupData, notifications) = acknowledge(namespaceHashMap, selectedCharacter)
             withClientContext {
                 val gameSession = GameSession(
                     setupData.serverId,

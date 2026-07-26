@@ -1,7 +1,8 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.ui.hud
 
 import org.lain.engine.client.GameSession
 import net.minecraft.client.gui.GuiGraphics
+import org.lain.engine.client.render.ui.fill
 import org.lain.engine.player.isSpectating
 import org.lain.engine.util.Color
 import org.lain.engine.util.SPEED_COLOR

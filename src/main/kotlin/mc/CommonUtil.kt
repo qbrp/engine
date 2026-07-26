@@ -33,6 +33,7 @@ import org.joml.Vector3f
 import org.joml.Vector3fc
 import org.lain.engine.CommonEngineMod
 import org.lain.engine.player.*
+import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.EngineServer
@@ -285,7 +286,7 @@ val ChunkAccess.endX get() = this.pos.maxBlockX
 val ChunkAccess.endZ get() = this.pos.maxBlockZ
 
 fun Callbacks.executePlaceVoxelCallback(player: EnginePlayer?, world: World, pos: VoxelPos, state: BlockState) {
-    placeVoxel.execute(
+    of(CallbackType.PLACE_VOXEL)?.execute(
         ScriptContext.VoxelAction(
             player,
             world,

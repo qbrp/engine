@@ -1,4 +1,4 @@
-package org.lain.engine.client.render.ui
+package org.lain.engine.client.render.ui.hud
 
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics

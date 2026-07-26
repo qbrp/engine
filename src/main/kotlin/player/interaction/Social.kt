@@ -1,6 +1,7 @@
 package org.lain.engine.player.interaction
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
@@ -21,10 +22,10 @@ import org.lain.engine.player.serverNarration
 import org.lain.engine.world.World
 
 @Serializable
-data class HailAction(val toPlayer: PlayerId) : Action
+data class HailAction(val toPlayer: PlayerId) : Component
 
 @Serializable
-data class GiveAction(val toPlayer: PlayerId) : Action
+data class GiveAction(val toPlayer: PlayerId) : Component
 
 fun World.tickSocialActionSystem(playerStorage: PlayerStorage) {
     iterate<Player, HailAction> { e, (player), (toPlayerId) ->

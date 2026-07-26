@@ -4,6 +4,9 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.script.CallbackType
+import org.lain.engine.script.Callbacks
+import org.lain.engine.script.ScriptContext
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
@@ -23,13 +26,11 @@ sealed class InputAction {
 data class PlayerInput(
     val actions: MutableSet<InputAction> = mutableSetOf(),
     val lastActions: MutableSet<InputAction> = mutableSetOf(),
-    var action: Action? = null,
+    var action: Component? = null,
     var tick: Long = 0
 ) : Component
 
 const val SOCIAL_INTERACTION_DISTANCE = 15
-
-interface Action : Component
 
 /** @return Отменить стандартное взаимодействие */
 context(world: World)
@@ -38,12 +39,14 @@ fun processLeftClickInteraction(player: EnginePlayer, handItem: EngineItem? = pl
     return handItem?.isGun() == true
 }
 
-fun World.tickPlayerInput(playerId: PlayerId? = null, clientSide: Boolean = false) {
+fun World.tickPlayerInput(callbacks: Callbacks, playerId: PlayerId? = null, clientSide: Boolean = false) {
     iterate<PlayerInput, Player> { entity, input, (player) ->
         val (actions, lastActions) = input
         if (playerId != null && player.id != playerId) {
             return@iterate
         }
+
+        callbacks.of(CallbackType.PLAYER_INPUT_TICK)?.execute(ScriptContext.PlayerInputTick(player, input))
 
         run {
             if (actions != lastActions && !player.isSpectating) {
@@ -111,7 +114,7 @@ fun World.tickPlayerInput(playerId: PlayerId? = null, clientSide: Boolean = fals
                 tick = ticks.toULong()
             )
         )
-        entity.setComponent(intent, componentTypeOfGeneral(intent) as ComponentType<Action>)
+        entity.setComponent(intent, componentTypeOfGeneral(intent) as ComponentType<Component>)
         input.action = null
     }
 }

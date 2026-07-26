@@ -10,6 +10,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.container.AssignedSlot
 import org.lain.engine.item.*
 import org.lain.engine.player.*
+import org.lain.engine.script.CallbackType
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.EngineServer
@@ -233,7 +234,7 @@ class ItemLoader(
             commandBuffers += world.id to commandBuffer
             server.logInMainThread(world) { tick ->
                 // для удобства выполняем другие операции здесь, т.к. функция работает также, как и EntityResolver.schedule
-                server.callbacks.itemLoad.execute(ScriptContext.ItemLoad(world, entity))
+                server.callbacks.of(CallbackType.ITEM_LOAD)?.execute(ScriptContext.ItemLoad(world, entity))
 
                 Log(
                     LogMessages.ITEM_LOAD,

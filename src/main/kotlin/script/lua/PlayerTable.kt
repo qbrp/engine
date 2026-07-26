@@ -1,6 +1,8 @@
 package org.lain.engine.script.lua
 
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.syncAction
+import org.lain.engine.script.ScriptComponent
 import org.lain.engine.world.invokeCommand
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
@@ -43,6 +45,18 @@ fun PlayerMetaTable() = luaTable {
         player.invokeCommand(commandStr, rootBl)
         NIL
     }
+    function2("sync_action") { self, action ->
+        val player = self.asEnginePlayer()
+        with(player.world) {
+            player.entity.syncAction(
+                ScriptComponent(
+                    action,
+                    action.get("type").asEngineScriptComponentType().requireType()
+                )
+            )
+        }
+        NIL
+    }
 }
 
 fun LuaValue.asEnginePlayer() = this.checkuserdata() as EnginePlayer
@@ -54,14 +68,16 @@ fun EnginePlayer.coerceToLua(): LuaUserdata {
         luaTable {
             index { self, key ->
                 val player = self.asEnginePlayer()
-                when(key.tojstring()) {
+                when (key.tojstring()) {
                     "uuid" -> player.id.value.toString().toLuaValue()
                     "id" -> player.entity.toLuaValue()
                     "entity" -> with(player.world) { player.entity.coerceToLua() }
                     "world" -> player.world.getLuaValue()
                     "is_spectating" -> player.isSpectating.toLuaValue()
                     "is_game_master" -> player.isInGameMasterMode.toLuaValue()
-                    else -> context.playerMetaTable.get(key) ?: with(player.world) { player.entity.coerceToLua().get(key) }
+                    else -> context.playerMetaTable.get(key) ?: with(player.world) {
+                        player.entity.coerceToLua().get(key)
+                    }
                 }
             }
         }

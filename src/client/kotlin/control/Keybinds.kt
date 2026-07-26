@@ -147,3 +147,10 @@ val SELECT_CHARACTER = KeybindSettings(
     key = InputConstants.KEY_O,
     onPress = { client -> client.gameSession?.let { client.infrastructure.onCharacterSelectionMenuOpen(it) } }
 )
+
+val OPEN_WORKSPACE = KeybindSettings(
+    name = "Открыть рабочий стол",
+    id = KeybindId("open_workspace"),
+    key = InputConstants.KEY_APOSTROPHE,
+    onPress = { client -> client.gameSession?.let { client.infrastructure.onWorkspaceMenuOpen(it) } }
+)

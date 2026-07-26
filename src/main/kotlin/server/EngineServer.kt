@@ -20,6 +20,7 @@ import org.lain.engine.player.interaction.tickSocialActionSystem
 import org.lain.engine.player.interaction.tickGunActionSystem
 import org.lain.engine.player.interaction.tickPlayerInput
 import org.lain.engine.player.interaction.tickWritableActionSystem
+import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.flushEntityRpcMessageReceiver
@@ -126,7 +127,7 @@ class EngineServer(
             // Фаза 2.1. Обновление игрока
             world.tickPlayerModelSystem()
 
-            world.tickPlayerInput()
+            world.tickPlayerInput(callbacks)
 
             world.tickGunActionSystem()
             world.tickSocialActionSystem(playerStorage)
@@ -208,7 +209,7 @@ class EngineServer(
         handler.onPlayerInstantiation(player, notifications)
 
         chat.trySendJoinMessage(player)
-        callbacks.playerInstantiate.execute(player.scriptContext)
+        callbacks.of(CallbackType.PLAYER_INSTANTIATE)?.execute(player.scriptContext)
     }
 
     fun destroyPlayer(player: EnginePlayer) = with(player.world) {
@@ -221,7 +222,7 @@ class EngineServer(
         player.mainContainer.destroy()
         player.removeCharacter(platform)
 
-        callbacks.playerDestroy.execute(player.scriptContext)
+        callbacks.of(CallbackType.PLAYER_DESTROY)?.execute(player.scriptContext)
 
         chat.trySendLeaveMessage(player)
         handler.onPlayerDestroy(player)
