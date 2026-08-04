@@ -23,14 +23,15 @@ import org.lain.engine.player.interaction.tickWritableActionSystem
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
+import org.lain.engine.script.ScriptSystemDispatcher
 import org.lain.engine.script.flushEntityRpcMessageReceiver
 import org.lain.engine.script.handleEntityDebugView
-import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.lua.adaptScriptNetworkingComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.script.lua.library.tickScriptVoxelAdapter
 import org.lain.engine.script.lua.prepareLuaScriptComponents
-import org.lain.engine.script.lua.tickScriptVoxelAdapter
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ChunkLoader
 import org.lain.engine.storage.ItemLoader
@@ -45,7 +46,6 @@ import org.lain.engine.util.Log
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.flush
 import org.lain.engine.util.forEachWithSelfContext
-import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.*
 import java.io.File
@@ -62,7 +62,7 @@ class EngineServer(
     val isReplay: Boolean,
     savePath: File,
     database: Database,
-    val luaContext: LuaContext,
+    val luaScriptEngine: LuaScriptEngine,
     val saveTimers: SaveTimers
 ): Executor {
     @Volatile
@@ -79,6 +79,7 @@ class EngineServer(
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val voidContainer by lazy { defaultWorld.createContainer(Location(Vec3(0f))) }
     var callbacks = Callbacks()
+    val scriptSystemDispatcher = ScriptSystemDispatcher()
     val itemLoader = ItemLoader(this, database)
     val playerLoader = PlayerLoader(this, itemLoader)
     val chunkLoader = ChunkLoader(this, database)
@@ -149,8 +150,8 @@ class EngineServer(
             }
 
             // Обновление оружейных систем
+            world.tickMagazineSystem()
             world.tickGunSystem()
-            world.tickFireTimeSystem()
             world.tickRecoilSystem()
             updateBulletsAcoustic(world)
             updateBulletHitSystem()
@@ -158,9 +159,10 @@ class EngineServer(
             // Вызов обновления системы контейнеров
             updateContainerSystems()
 
-            with(luaContext) {
+            with(luaScriptEngine) {
                 adaptScriptNetworkingComponents()
                 world.tickCallbacks(callbacks)
+                scriptSystemDispatcher.tick(world)
                 flushEntityRpcMessageReceiver()
                 adaptScriptPlayerComponents()
                 adaptScriptLightComponents()
@@ -203,7 +205,7 @@ class EngineServer(
         players += player
         platform.onPlayerInstantiated(player)
 
-        with(luaContext) { player.prepareLuaScriptComponents() }
+        with(luaScriptEngine) { player.prepareLuaScriptComponents() }
         engineCharacter?.let { player.applyCharacter(engineCharacter, characterPersistentCharacter, platform) }
         if (!globals.spectateOnJoin) { player.stopSpectating() }
         handler.onPlayerInstantiation(player, notifications)

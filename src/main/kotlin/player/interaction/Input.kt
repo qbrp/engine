@@ -58,6 +58,8 @@ fun World.tickPlayerInput(callbacks: Callbacks, playerId: PlayerId? = null, clie
                 val offHandItem = playerInventory.offHandItem
                 val extendArm = player.extendArm
                 val gun = mainHandItem?.getComponent<Gun>()
+                val gunFireState = mainHandItem?.getComponent<GunFireState>()
+                val barrel = mainHandItem?.getComponent<Barrel>()
 
                 if (entity.hasComponent<Shooting>() && (gun == null || InputAction.Attack !in actions)) {
                     entity.setComponent(StopShootAction)
@@ -65,10 +67,10 @@ fun World.tickPlayerInput(callbacks: Callbacks, playerId: PlayerId? = null, clie
                 }
 
                 actions.forAction<InputAction.Attack> { action ->
-                    val gunSafety = gun?.mode == FireMode.SELECTOR
+                    val gunSafety = gunFireState?.mode == FireMode.SELECTOR
 
                     // Первым делом - боевые взаимодействия
-                    if (gun != null && !gunSafety) {
+                    if (gun != null && gunSafety == false) {
                         input.action = StartShootAction
                         return@forAction
                     }
@@ -86,14 +88,19 @@ fun World.tickPlayerInput(callbacks: Callbacks, playerId: PlayerId? = null, clie
 
                 actions.forAction<InputAction.Base>() { action ->
                     val writable = mainHandItem?.getComponent<Writable>()
+                    val magazine = mainHandItem?.getComponent<Magazine>()
+                    val gunBarrelSupportsDirectAmmoLoad = barrel?.ammunition == (offHandItem?.getComponent<Item>()?.id ?: false)
+                            && !mainHandItem.hasComponent<GunMagazines>()
 
                     // Идём списочком по доступным действиям
                     if (gun != null) {
-                        if (offHandItem != null && gun.ammunition == offHandItem.getComponent<Item>()?.id) {
-                            input.action = GunBarrelAmoLoadAction(mainHandItem, offHandItem)
+                        if (offHandItem != null && (gunBarrelSupportsDirectAmmoLoad || offHandItem.hasComponent<Magazine>())) {
+                            input.action = GunLoadAction(mainHandItem, offHandItem)
                         } else {
                             input.action = GunModeToggleAction
                         }
+                    } else if (magazine != null && magazine.ammunition == offHandItem?.getComponent<Item>()?.id) {
+                        input.action = MagazineLoadAction(player, offHandItem)
                     } else if (writable != null) {
                         input.action = WritableOpenAction
                     }

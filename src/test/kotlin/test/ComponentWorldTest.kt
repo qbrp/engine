@@ -4,7 +4,6 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentCollisionException
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
-import org.lain.engine.script.emptyNamespacedStorage
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentArray
 import org.lain.engine.util.component.ComponentMeta
@@ -25,6 +24,8 @@ import org.junit.jupiter.api.assertThrows
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.engine.bootstrap
 import org.lain.engine.listKotlinComponentTypeEntries
+import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.ScriptEngine
 import org.lain.engine.util.component.castIndexed
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.BeforeTest
@@ -239,9 +240,10 @@ class ComponentWorldTest : EngineTest() {
     private fun testWorld(): World {
         val world = World(
             WorldId("component-test"),
-            namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage()),
+            namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage()),
             itemStorage = ItemStorage(),
             thread = Thread.currentThread(),
+            scriptEngine = ScriptEngine.Dummy,
             registerEngineKotlinComponents = true,
         )
         world.componentManager.registerComponentArrays(testEntries + listKotlinComponentTypeEntries())

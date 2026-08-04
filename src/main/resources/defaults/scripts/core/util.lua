@@ -17,10 +17,8 @@ Log = Log
 is_client = is_client
 
 --- Сохранить значение на всю игровую сессию
----@param default
----@param slot string
----@param module string
-function remember(default, slot, module) return _remember(default, slot, module or "global") end
+---@type fun(default: any, slot: string, module?: string)
+remember = remember
 
 ---@param time number
 ---@return number
@@ -59,14 +57,15 @@ function tablestr(t, recursive, indent, seen)
     seen = seen or {}
     local output = {}
     for key, value in pairs(t) do
+        local value_representation
         if (value == t) then
-            value = "self"
+            value_representation = "self"
         elseif (recursive and type(value) == "table") then
             if (seen[value]) then
-                value = tostring(value) .. " repeat"
+                value_representation = tostring(value) .. " repeat"
             else
                 seen[value] = true
-                value = tablestr(value, true, indent + 2, seen)
+                value_representation = tablestr(value, true, indent + 2, seen)
             end
         end
         table.insert(output, key .. " : " .. tostring(value))
@@ -81,4 +80,10 @@ function tablestr(t, recursive, indent, seen)
             .. "\n"
             .. string.rep(" ", indent - 2)
             .. "}"
+end
+
+---@generic T
+---@return T
+function empty_table()
+    return {}
 end

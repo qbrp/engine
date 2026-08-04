@@ -8,6 +8,4 @@ val MinecraftServer.isReplayServer
     get() = this::class.qualifiedName == "com.moulberry.flashback.playback.ReplayServer"
 
 val Player.isReplayViewer
-    get() = this::class.qualifiedName == "com.moulberry.flashback.playback.ReplayPlayer"
-
-object ReplayViewer : Component
+    get() = this::class.qualifiedName == "com.moulberry.flashback.playback.ReplayPlayer" || name.string.startsWith("Replay Viewer")

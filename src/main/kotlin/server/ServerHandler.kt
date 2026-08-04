@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
 import org.lain.cyberia.ecs.requireComponent
@@ -15,7 +16,6 @@ import org.lain.engine.chat.*
 import org.lain.engine.item.Item
 import org.lain.engine.item.Writable
 import org.lain.engine.item.getOwner
-import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
@@ -82,6 +82,7 @@ data class Children(val entities: MutableSet<EntityId>) : Component
 class ServerHandler(
     private val server: EngineServer,
 ) {
+    private var running = false
     private val transportContext by injectServerTransportContext()
     private val playerStorage: PlayerStorage get() = server.playerStorage
     private val globals: ServerGlobals get() = server.globals
@@ -120,6 +121,7 @@ class ServerHandler(
     }
 
     fun run() {
+        running = true
         GlobalAcknowledgeListener.start()
 
         SERVERBOUND_SPEED_INTENTION_PACKET.registerReceiver { ctx -> onPlayerSpeedIntentionSet(ctx.sender, value) }
@@ -149,7 +151,7 @@ class ServerHandler(
         SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx -> onScriptBindings(ctx.sender, bindings) }
         SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx -> onPlayerInstantiationConfirm(ctx.sender) }
         SERVERBOUND_ENTITY_COMPONENT_RPC_ENDPOINT.registerReceiver { ctx ->
-            onEnityComponentRpcPacket(
+            onEntityComponentRpcPacket(
                 ctx.sender,
                 entity,
                 delta
@@ -170,8 +172,10 @@ class ServerHandler(
     }
 
     fun invalidate() {
+        if (!running) return
         transportContext.unregisterAll()
         taskQueue.clear()
+        running = false
     }
 
     private fun onLookApply(playerId: PlayerId, lookId: String, requestId: Long?) = updatePlayer(playerId) {
@@ -198,7 +202,7 @@ class ServerHandler(
                     eventListener.validateCharacter(this@updatePlayer, characterId, character, sessionTicket)
                 withContext(server.dispatcher) {
                     with(EntityCommandBuffer(world)) {
-                        persistent?.let { prepareCharacter(it) }
+                        persistent?.let { prepareCharacter(world.componentLoadSettings, it) }
                         applyCharacter(validatedCharacter, persistent, eventListener)
                         apply(world)
                     }
@@ -216,7 +220,7 @@ class ServerHandler(
         }
     }
 
-    private fun onEnityComponentRpcPacket(
+    private fun onEntityComponentRpcPacket(
         sender: PlayerId,
         entityPersistentId: PersistentId,
         delta: List<ScriptValue>
@@ -419,6 +423,7 @@ class ServerHandler(
             val playerUsername = player.username
             world.iterate<Networked, Location, PersistentIdComponent>() { entity, _, entityLocation, (persistentId) ->
                 if (entityLocation.position.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
+                    if (entity.hasComponent<DynamicVoxelInterest>()) return@iterate
                     val componentsToSynchronize = if (state.entities.contains(persistentId)) {
                         worldComponents.getDirtyNetworkedComponents(entity)
                     } else {

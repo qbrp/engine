@@ -30,31 +30,47 @@ fun EngineItem.getTooltip(debug: Boolean): List<String> {
         }
     val lines = compiledLines?.toMutableList() ?: mutableListOf()
 
+    getComponent<Magazine>()?.let { magazine ->
+        val fullness = magazine.bullets.toFloat() / magazine.capacity
+        lines += "<gray>Предназначен для ${magazine.ammunition}"
+        lines += when(fullness) {
+            0f -> "<red>Пустой"
+            in 0f..0.3f -> "<gold>Почти пустой"
+            in 0.3f..0.5f -> "<yellow>Заполнен наполовину"
+            in 0.5f..0.7f -> "<dark_green>Заполнено больше половины"
+            in 0.7f..0.9f -> "<dark_green>Почти полон"
+            else -> "<green>Полный"
+        }
+    }
+
     getComponent<Gun>()?.let { gun ->
         val display = getComponent<GunDisplay>()
-        val ammunition = gun.ammunition
-        val ammunitionName = display?.ammunition ?: ammunition?.value
+        val barrel = getComponent<Barrel>()
+        val fireState = getComponent<GunFireState>()
+        val ammunitionName =
+            display?.ammunition?.let { "Боеприпасы $it" }
+            ?: display?.magazine?.let { "Принимает $it" }
 
         if (ammunitionName != null) {
-            lines += "<aqua>■</aqua> <gray>Боеприпасы $ammunitionName"
+            lines += "<gray>$ammunitionName"
         }
 
         val showSelector = display?.selectorStatus ?: true
-        if (showSelector) {
-            val selector = when (gun.mode) {
+        if (showSelector && fireState != null) {
+            val selector = when (fireState.mode) {
                 FireMode.SELECTOR -> "<red>предохранитель"
                 FireMode.SINGLE -> "<green>одиночный"
                 FireMode.AUTO -> "<yellow>автоматический"
             }
-            lines += "<aqua>■</aqua> <gray>Режим огня:</gray> $selector"
+            lines += "<gray>Режим огня:</gray> $selector"
         }
 
-        if (ammunition != null && gun.barrel.maxBullets > 0) {
-            val charged = when(gun.barrel.bullets > 0) {
+        if (barrel != null && barrel.maxBullets > 0) {
+            val charged = when(barrel.bullets > 0) {
                 true -> "<green>Заряжен"
                 false -> "<red>Разряжен"
             }
-            lines += "<aqua>■</aqua> $charged"
+            lines += charged
         }
     }
 

@@ -8,7 +8,9 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
+import org.lain.engine.script.ScriptEngine
 import org.lain.engine.server.ServerPlatform
+import org.lain.engine.storage.ComponentLoadSettings
 import org.lain.engine.storage.PersistentCharacterData
 import org.lain.engine.storage.copyComponentDtoState
 import org.lain.engine.storage.toDomainWithoutRelationships
@@ -55,12 +57,9 @@ fun EnginePlayer.removeCharacter(
 
 
 context(write: WriteComponentAccess)
-suspend fun EnginePlayer.prepareCharacter(persistent: PersistentCharacterData) {
+suspend fun EnginePlayer.prepareCharacter(settings: ComponentLoadSettings, persistent: PersistentCharacterData) {
     entity.copyComponentDtoState(persistent.components) {
-        toDomainWithoutRelationships(
-            world.itemStorage,
-            world.namespacedStorage
-        )
+        toDomainWithoutRelationships(settings)
     }
 }
 

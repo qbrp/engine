@@ -16,21 +16,21 @@ end
 ---@field invoke_command fun(self: World, command: string)
 ---@field iterate fun(self: World, func: fun(...))
 ---@field add_entity fun(self: World): Entity
----@field set_dynamic_voxel fun(self: World, voxel_pos: number[], networked: boolean): Entity
----@field get_dynamic_voxel fun(self: World, voxel_pos: number[]): Entity?
+---@field set_dynamic_voxel fun(self: World, voxel_pos: number[3], networked: boolean): Entity
+---@field get_dynamic_voxel fun(self: World, voxel_pos: number[3]): Entity?
 ---@field emit fun(self: World, event: Component, networked: boolean?): Entity
 World = World
 worlds = worlds
 
 ---@class Entity
----@field
 ---@field mark_dirty fun(self: Entity, component: Component)
 ---@field has_component fun(self: Entity, component: Component): boolean
----@field get_component fun(self: Entity, component: Component): table
+---@field get_component fun<T : Component>(self: Entity, component: T): T
 ---@field remove_component fun(self: Entity, component: Component): table?
 ---@field set_component fun(self: Entity, component: Component): table?
 ---@field get_all_components fun(self: Entity): Component[]
 ---@field exists fun(self: Entity): Component[]
+---@field destroy fun(self: Entity)
 Entity = Entity
 
 ---@class VoxelMeta
@@ -40,12 +40,12 @@ Entity = Entity
 --------------------------------------------
 
 ---@class LocationComponent : Component
----@field vector number[]
+---@field pos number[]
 LocationComponent = Component.of("core/location")
 
----@field x number
----@field y number
----@field z number
+---@param x number
+---@param y number
+---@param z number
 ---@return LocationComponent
 function LocationComponent.new(x, y, z)
     assert(x ~= nil, "x must be not null")
@@ -54,11 +54,23 @@ function LocationComponent.new(x, y, z)
     return LocationComponent:construct({ vector = { x, y, z } })
 end
 
----@field vector number[]
+---@param vector number[]
 ---@return LocationComponent
 function LocationComponent.vector(vector)
     assert(vector ~= nil, "vector must be not null")
     return LocationComponent.new(vector[1], vector[2], vector[3])
+end
+
+--------------------------------------------
+
+---@class DoorComponent : Component
+---@field open boolean
+DoorComponent = Component.of("core/voxel/door")
+
+---@param open boolean? default false
+---@return DoorComponent
+function DoorComponent.new(open)
+    return DoorComponent:construct({ open = open or false })
 end
 
 --------------------------------------------

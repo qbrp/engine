@@ -2,7 +2,6 @@ package org.lain.engine.mc.server
 
 import kotlinx.coroutines.*
 import net.minecraft.core.BlockPos
-import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.TagParser
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
@@ -19,12 +18,12 @@ import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.TagValueInput
 import net.minecraft.world.level.storage.TagValueOutput
 import org.lain.cyberia.ecs.copyState
-import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
+import org.lain.engine.mc.commands.ScriptPathSuggestionProvider
 import org.lain.engine.mc.commands.registerIntentCommands
 import org.lain.engine.mc.commands.updateCommandInvokeSystem
 import org.lain.engine.player.*
@@ -49,7 +48,7 @@ import org.lain.engine.world.*
 
 data class EngineMinecraftServerDependencies(
     val minecraftServer: MinecraftServer,
-    val luaContext: LuaContext,
+    val luaScriptEngine: LuaScriptEngine,
     val compilationResult: CompilationResult,
     val config: ServerConfig = loadOrCreateServerConfig(),
     val namespacedStorage: NamespacedStorageAccess,
@@ -71,7 +70,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     val entityTable = dependencies.entityTable.server
     val acousticSimulator =
         MinecraftAcousticManager(this, dependencies.entityTable, acousticSceneBank, acousticBlockData)
-    val luaContext: LuaContext = dependencies.luaContext
+    val luaScriptEngine: LuaScriptEngine = dependencies.luaScriptEngine
     val timers = SaveTimers(
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
@@ -86,7 +85,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         dependencies.isReplay,
         minecraftServer.getWorldPath(LevelResource.ROOT).toFile(),
         database,
-        luaContext,
+        luaScriptEngine,
         timers,
     )
 
@@ -144,19 +143,26 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     open fun run() {
+        val compilationResult = dependencies.compilationResult
+        if (compilationResult.exceptions.isNotEmpty()) {
+            compilationResult.logExceptions()
+            throw SetupException(compilationResult.exceptions)
+        }
+
         Injector.register<PlayerPermissionsProvider>(MinecraftPermissionProvider(entityTable))
         Injector.register<ServerTransportContext>(transportContext)
         Injector.register(engine.globals.movementSettings)
         applyConfigCatching(config)
-        val compilationResult = dependencies.compilationResult
-        luaContext.setupGame(LuaRuntimeDependencies(playerStorage, engine.worlds))
-        engine.loadContents(luaContext, compilationResult)
+        luaScriptEngine.setupGame(
+            LuaScriptEngine.RuntimeDependencies(playerStorage, engine.worlds)
+        )
+        engine.recompileContents(luaScriptEngine, compilationResult)
         if (compilationResult.exceptions.isNotEmpty()) {
             error("Не удалось скомпилировать ресурсы Engine!")
         }
         minecraftServer.allLevels.forEach {
             val id = it.engine
-            val world = world(id, engine.thread, ItemStorage(), engine.namespacedStorage) { chunkPos ->
+            val world = world(id, engine.thread, ItemStorage(), engine.namespacedStorage, engine.luaScriptEngine) { chunkPos ->
                 it.chunkSource.chunkMap.getPlayers(ChunkPos(chunkPos.x, chunkPos.z), false)
                     .mapNotNull { entity -> entityTable.getPlayer(entity) }
             }
@@ -164,14 +170,14 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             with(world) { world.state.copyState(engine.loadWorldComponents(world)) }
             engine.addWorld(world)
             dependencies.entityTable.setWorld(id, it)
-            luaContext.loadWorld(world)
+            luaScriptEngine.loadWorld(world)
         }
         engine.run()
     }
 
     fun recompileEngineContents(player: EnginePlayer?) {
         try {
-            engine.loadContents(luaContext)
+            engine.recompileContents(luaScriptEngine)
         } catch (e: Throwable) {
             CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
             if (player != null) {
@@ -235,6 +241,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     override fun onCompiled(contents: NamespacedStorage) {
         val commandManager = minecraftServer.commands
         commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler = engine.handler)
+        ScriptPathSuggestionProvider.onScriptsCompiled()
         minecraftServer.players.forEach { commandManager.sendCommands(it) }
     }
 
@@ -282,7 +289,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     fun onWorldUnload(world: Level) {
-        val engineWorld = engine.getWorld(world)
+        val engineWorld = engine.worlds[world.engine] ?: return
         engine.saveWorld(engineWorld)
     }
 }

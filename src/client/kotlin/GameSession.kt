@@ -17,7 +17,6 @@ import org.lain.engine.client.render.tickSkinSystem
 import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.script.ClientCompilation
-import org.lain.engine.client.script.ClientLuaContext
 import org.lain.engine.client.script.updateClientServerboundChannelSystem
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
@@ -27,9 +26,8 @@ import org.lain.engine.container.updateContainerOperationSystem
 import org.lain.engine.container.updatePlayerContainerSystem
 import org.lain.engine.container.updateSlotContainers
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.tickFireTimeSystem
 import org.lain.engine.item.tickGunSystem
-import org.lain.engine.mc.applyGenderConfig
+import org.lain.engine.item.tickMagazineSystem
 import org.lain.engine.player.*
 import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.interaction.tickGunActionSystem
@@ -37,11 +35,10 @@ import org.lain.engine.player.interaction.tickPlayerInput
 import org.lain.engine.player.interaction.tickSocialActionSystem
 import org.lain.engine.player.interaction.tickWritableActionSystem
 import org.lain.engine.script.*
-import org.lain.engine.script.lua.LuaContext
 import org.lain.engine.script.lua.adaptScriptLightComponents
 import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.script.lua.library.tickScriptVoxelAdapter
 import org.lain.engine.script.lua.prepareLuaScriptComponents
-import org.lain.engine.script.lua.tickScriptVoxelAdapter
 import org.lain.engine.server.ServerId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
@@ -65,13 +62,16 @@ class GameSession(
     compilationResult: CompilationResult,
     val hintState: ClientHintState = ClientHintState(),
 ) {
-    val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
+    val luaContext = compilation.luaContext
+    val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
+    val scriptSystemDispatcher = ScriptSystemDispatcher()
     val itemStorage = ClientItemStorage()
     val world = World(
         world.id,
         thread = client.thread,
         isClient = true,
         namespacedStorage = namespacedStorage,
+        scriptEngine = luaContext,
         itemStorage = itemStorage
     )
 
@@ -110,7 +110,6 @@ class GameSession(
 
     var callbacks: Callbacks = Callbacks()
     val endTickTaskExecutor = TaskExecutor()
-    val luaContext = compilation.luaContext
     var workspaceSavedState: Workspace.SavedState? = null
 
     var inspectionMode: Boolean = false
@@ -185,8 +184,9 @@ class GameSession(
     }
 
     fun applyCompilation(result: CompilationResult) {
-        namespacedStorage.loadContentsCompileResult(result)
+        namespacedStorage.loadCompilationResult(result)
         world.registerComponentTypes(namespacedStorage)
+        scriptSystemDispatcher.load(result.phases, namespacedStorage)
         result.callbacks?.let { callbacks = it }
         luaContext.setupClientGameSession(this)
 
@@ -270,8 +270,8 @@ class GameSession(
             }
             tickMovementSystem(movementDefaultAttributes, movementSettings)
 
+            tickMagazineSystem()
             tickGunSystem()
-            tickFireTimeSystem()
             tickRecoilSystem()
             updateShootShakeSystem(mainPlayer, client.camera)
 
@@ -286,7 +286,7 @@ class GameSession(
             clearAssignItemsOperations(world)
 
             // Scripts
-            adaptScriptPlayerComponents()
+            with(luaContext) { adaptScriptPlayerComponents() }
             tickCallbacks(callbacks)
             adaptScriptLightComponents()
             updateClientServerboundChannelSystem(handler)
@@ -295,7 +295,7 @@ class GameSession(
             client.infrastructure.getHitResultVoxelPos()?.let {
                 updateInspectionMode(inspection, inspectionMode, it)
             }
-            tickScriptVoxelAdapter()
+            world.tickScriptVoxelAdapter()
 
             flushEntityRpcMessageReceiver()
 

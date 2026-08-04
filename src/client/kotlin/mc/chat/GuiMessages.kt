@@ -10,8 +10,9 @@ import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.literalText
+import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
-import org.lain.engine.script.emptyNamespacedStorage
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.world
 
@@ -84,6 +85,7 @@ fun DummyWorld() = world(
     Thread.currentThread(),
     ItemStorage(),
     ThreadSafeNamespaceStorageAccessImpl(
-        emptyNamespacedStorage()
-    )
+        NamespacedStorage()
+    ),
+    ScriptEngine.Dummy,
 )

@@ -13,7 +13,6 @@ import org.lain.engine.container.OccupiedSlots
 import org.lain.engine.item.*
 import org.lain.engine.player.interaction.*
 import org.lain.engine.script.*
-import org.lain.engine.script.lua.*
 import org.lain.engine.server.Children
 import org.lain.engine.server.Parent
 import org.lain.engine.util.Storage
@@ -125,6 +124,7 @@ data class ComponentLoadSettings(
     val itemStorage: Storage<PersistentId, EngineItem>,
     val namespacedStorage: NamespacedStorageAccess,
     val persistentIdToEntity: MutableMap<PersistentId, EntityId>,
+    val scriptEngine: ScriptEngine,
     val isClient: Boolean = false
 )
 
@@ -136,11 +136,13 @@ fun Component.toSnapshotDto(): ComponentDto {
     }
     val data = when (this) {
         //TODO: проработать Lua-bridge через абстракцию
-        is ScriptComponent -> ScriptComponentDto(luaValue.toScriptValue())
+        is ScriptComponent -> ScriptComponentDto(value)
         is Count -> CopyComponentDto(this.copy())
         is Entries -> CopyComponentDto(Entries(items.toMutableList()))
         is Flashlight -> CopyComponentDto(this.copy())
-        is Gun -> CopyComponentDto(this.copy())
+        is GunFireState -> CopyComponentDto(this.copy())
+        is GunMagazines -> CopyComponentDto(this.copy())
+        is Barrel -> CopyComponentDto(this.copy())
         is Luminance -> CopyComponentDto(this.copy())
         is OccupiedSlots -> CopyComponentDto(OccupiedSlots(slots.toMutableSet()))
         is Writable -> CopyComponentDto(this.copy())
@@ -164,13 +166,23 @@ fun Component.toSnapshotDto(): ComponentDto {
 
 fun ComponentDto.toDomainWithoutRelationships(
     itemStorage: Storage<PersistentId, EngineItem>,
-    namespacedStorage: NamespacedStorageAccess
+    namespacedStorage: NamespacedStorageAccess,
+    scriptEngine: ScriptEngine
+): Component? {
+    return toDomainWithoutRelationships(
+        ComponentLoadSettings(itemStorage, namespacedStorage, mutableMapOf(), scriptEngine),
+    )
+}
+
+fun ComponentDto.toDomainWithoutRelationships(
+    settings: ComponentLoadSettings
 ): Component? {
     return toDomain(
-        ComponentLoadSettings(itemStorage, namespacedStorage, mutableMapOf()),
+        settings,
         { error("This entity type not supports components with relationships") }
     )
 }
+
 
 fun ComponentDto.toDomain(
     settings: ComponentLoadSettings,
@@ -187,6 +199,7 @@ suspend fun ComponentDto.toDomainSuspend(
     entityGetter: suspend (PersistentId) -> EntityId?,
     scriptComponentTypeNotFound: (ScriptComponentId, ScriptComponentDto) -> ScriptComponentType = { id, dto -> error("Invalid script component type $id") },
 ): Component? {
+    val scriptEngine = settings.scriptEngine
     val notNullEntityGetter: suspend (PersistentIdComponent) -> EntityId =
         { settings.persistentIdToEntity[it.id] ?: entityGetter(it.id) ?: error("Entity with id $id not found") }
     val data = when (data) {
@@ -197,7 +210,7 @@ suspend fun ComponentDto.toDomainSuspend(
                 ?: CoreScriptComponents.get(componentId)
                 ?: scriptComponentTypeNotFound(componentId, data)
             val type = scriptComponent
-            createLuaScriptComponent(data.value, type)
+            scriptEngine.createScriptComponent(data.value, type)
         }
 
         is ChildrenComponentDto -> when (data.isScript) {
@@ -205,16 +218,18 @@ suspend fun ComponentDto.toDomainSuspend(
                 data.children.map { notNullEntityGetter(it) }.toMutableSet()
             )
 
-            true -> ScriptComponent(
-                data.children.map { notNullEntityGetter(it) }.toLuaArray { it.toLuaValue() },
+            true -> scriptEngine.createScriptComponent(
+                SList(
+                    data.children.map { SInt(notNullEntityGetter(it)) }
+                ),
                 CoreScriptComponents.CHILDREN
             )
         }
 
         is ParentComponentDto -> when (data.isScript) {
             false -> Parent(notNullEntityGetter(data.parent))
-            true -> ScriptComponent(
-                data.parent.id.toString().toLuaValue(),
+            true -> scriptEngine.createScriptComponent(
+                SString(data.parent.id.toString()),
                 CoreScriptComponents.PARENT
             )
         }

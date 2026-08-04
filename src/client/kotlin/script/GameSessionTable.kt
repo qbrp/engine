@@ -1,11 +1,11 @@
 package org.lain.engine.client.script
 
 import org.lain.engine.client.GameSession
-import org.lain.engine.script.lua.LuaContext
-import org.lain.engine.script.lua.coerceToLua
+import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.luaTable
 
-context(lua: LuaContext)
+context(lua: LuaScriptEngine)
 fun GameSessionTable(gameSession: GameSession) = luaTable {
     "main_player"(gameSession.mainPlayer.coerceToLua())
 }

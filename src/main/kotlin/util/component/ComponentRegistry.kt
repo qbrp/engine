@@ -134,8 +134,15 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<ItemName>(isSavable = true, isNetworking = true)
     registerComponent<ItemTooltip>(isSavable = true, isNetworking = true)
     registerComponent<ItemSounds>(isSavable = true, isNetworking = true)
+
     registerComponent<Gun>(isSavable = true, isNetworking = true)
     registerComponent<GunDisplay>(isSavable = true, isNetworking = true)
+    registerComponent<GunFireState>(isSavable = true, isNetworking = true)
+    registerComponent<GunMagazines>(isSavable = true, isNetworking = true)
+    registerComponent<Barrel>(isSavable = true, isNetworking = true)
+
+    registerComponent<Magazine>(isSavable = true, isNetworking = true)
+
     registerComponent<Count>(isSavable = true, isNetworking = true)
     registerComponent<Mass>(isSavable = true, isNetworking = true)
     registerComponent<Outfit>(isSavable = true, isNetworking = true)

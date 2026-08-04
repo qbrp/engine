@@ -5,21 +5,18 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.webPageUrl
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.ScriptContext
-import org.lain.engine.script.lua.LuaContext
-import org.lain.engine.script.lua.LuaDependencies
-import org.lain.engine.script.lua.LuaRuntimeDependencies
-import org.lain.engine.script.lua.ScriptSource
+import org.lain.engine.script.ScriptSource
+import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.luaTable
-import org.lain.engine.script.lua.luaTableOf
-import org.lain.engine.script.lua.toLuaValue
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
-class ClientLuaContext(
+class ClientLuaScriptEngine(
     val client: EngineClient,
     entrypoint: ScriptSource,
-    dependencies: LuaDependencies,
-) : LuaContext(dependencies, entrypoint) {
+    dependencies: Dependencies,
+) : LuaScriptEngine(dependencies, entrypoint) {
+    var lastAudioSlotId = 0
     val audioSourceTable = LuaTable()
     val webTable = WebTable()
     lateinit var gameSessionTable: LuaTable
@@ -67,7 +64,7 @@ class ClientLuaContext(
     fun setupClientGameSession(gameSession: GameSession) {
         val world = gameSession.world
         setupGame(
-            LuaRuntimeDependencies(gameSession.playerStorage, mutableMapOf(world.id to world))
+            RuntimeDependencies(gameSession.playerStorage, mutableMapOf(world.id to world))
         )
         gameSessionTable = GameSessionTable(gameSession)
         globals.setupAudio()

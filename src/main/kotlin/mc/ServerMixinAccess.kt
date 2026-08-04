@@ -155,7 +155,7 @@ object ServerMixinAccess {
 
     fun canJump(entity: Player): Boolean {
         return entity.engine?.let { player ->
-            val settings by injectMovementSettings()
+            val settings by injectMovementSettings() //TODO: заменить на прямое получение значения
             canPlayerJump(player, settings)
         } ?: true
     }

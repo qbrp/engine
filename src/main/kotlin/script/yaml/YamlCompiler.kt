@@ -168,6 +168,7 @@ internal fun compileContentsYaml(directory: File): CompilationResult = with(crea
         namespaces as Map<NamespaceId, CompiledNamespace>,
         errors,
         null,
+        listOf(),
         0L
     )
 }

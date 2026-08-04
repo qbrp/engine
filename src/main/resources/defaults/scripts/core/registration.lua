@@ -1,13 +1,16 @@
 require("core.util")
 require("core.bridge")
 
----@class Namespace
+---@class NamespaceOptions
 ---@field id string
----@field items Item[]? empty default
----@field scripts Script[]? empty default
----@field components ComponentTypeSettings[]? empty default
----@field intents Intent[]? empty default
-Namespace = Namespace or {}
+---@field items? Item[]
+---@field scripts? Script[]
+---@field components? ComponentTypeSettings[]
+---@field intents? Intent[]
+---@field systems? System[]
+
+---@class Namespace : NamespaceOptions
+Namespace = {} or Namespace
 Namespace.__index = Namespace
 
 ---@return Namespace
@@ -17,18 +20,14 @@ function Namespace.of(id)
     return setmetatable({ id = id }, Namespace)
 end
 
----@class ComponentTypeSettings
----@field id string
----@field savable string
----@field networking string
----
-
 --------------------------------------------------------------------------------
 --- Компиляция
 --------------------------------------------------------------------------------
 
 ---@class CompilationResult
----@field namespaces Namespace[]
+---@field namespaces? Namespace[]
+---@field callbacks? Callbacks
+---@field phases? SystemPhase[]
 CompilationResult = {}
 CompilationResult.__index = CompilationResult
 
@@ -38,7 +37,7 @@ function CompilationResult.new(namespaces)
     return obj
 end
 
----@param namespace Namespace
+---@param namespace NamespaceOptions
 function CompilationResult:namespace(namespace)
     assert(namespace.id ~= nil, "namespace.id must be not null")
     table.insert(self.namespaces, namespace)
@@ -68,17 +67,29 @@ end
 --- Контексты скриптов
 --------------------------------------------------------------------------------
 
+
+---@class LoadItemScriptContext
+---@field item Entity
+---@field world World
+LoadItemScriptContext = LoadItemScriptContext
+
 ---@class InteractionScriptContext
 ---@field player Player
 ---@field raycast_player Player?
-InteractionScriptContext = {}
+InteractionScriptContext = InteractionScriptContext
 
 ---@class VoxelActionScriptContext
 ---@field player Player?
 ---@field world World
 ---@field voxel_pos number[]
 ---@field voxel_meta VoxelMeta
-VoxelActionScriptContext = {}
+VoxelActionScriptContext = VoxelActionScriptContext
+
+---@class WorkspaceOpenScriptContext
+---@field add_window fun(self: WorkspaceOpenScriptContext, id: string, url: string, width: number, height: number): WebWidgetBehaviour
+---@field game_session GameSession
+---clientside
+WorkspaceOpenContext = WorkspaceOpenContext
 
 ---@param id string
 ---@param fun fun(context)
@@ -87,10 +98,81 @@ function Script.new(id, fun)
 end
 
 --------------------------------------------------------------------------------
+--- Системы
+--------------------------------------------------------------------------------
+
+---@class SystemPhase
+---@field id string
+---@field systems string[] systems ids
+
+---@param id string
+---@param systems string[]
+---@return SystemPhase
+function SystemPhase(id, systems)
+    assert(#systems > 0, "systems list is empty")
+    return {
+        id = id,
+        systems = systems
+    }
+end
+
+---@param id string
+---@param systems System[]
+function CompilationResult:phase(id, systems)
+    if self.phases == nil then
+        self.phases = empty_table()
+    end
+
+    table.insert(
+        self.phases,
+        SystemPhase(
+            id,
+            map(systems, function(elem)
+                return elem.id
+            end)
+        )
+    )
+end
+
+---@class System
+---@field id string
+---@field query Component[]
+---@field side? SystemSide default SERVER
+---@field update fun(world: World, entity: Entity, ...)
+
+---@enum SystemSide
+SystemSide = {
+    SERVER = "server",
+    CLIENT = "client",
+    BOTH = "both"
+}
+
+---@param id string
+---@param query Component[]
+---@param func? fun(world: World, entity: Entity, ...: Component)
+---@param side? SystemSide default SERVER
+---@return System
+function System(id, query, side, func)
+    return {
+        id = id,
+        query = query,
+        update = func or function()
+            Log.info(id .. " system update function not defined")
+        end,
+        side = side or SystemSide.SERVER
+    }
+end
+
+--------------------------------------------------------------------------------
 --- Компоненты
 --------------------------------------------------------------------------------
 
----@param components ComponentTypeSettings[]|string[]
+---@class ComponentTypeSettings
+---@field id? string
+---@field savable? boolean
+---@field networking? boolean
+
+---@param components (ComponentTypeSettings|string)[]
 ---@return ComponentTypeSettings[]
 function ComponentList(components)
     return map(components, function(elem)
@@ -126,80 +208,66 @@ ComponentList { "component_1", "component_2", "component_3" }
 ---
 
 --------------------------------------------------------------------------------
+--- Регистрация
+--------------------------------------------------------------------------------
+
+---@class Registration
+---@field on_compilation fun(func: fun(): CompilationResult)
+Registration = Registration
+
+--------------------------------------------------------------------------------
 --- События
 --------------------------------------------------------------------------------
 
----@return Callbacks
-function Callbacks.build()
-    return setmetatable({}, Callbacks)
-end
+---@class Callbacks
+---@field player_instantiate? fun(context: Player)
+---@field player_destroy? fun(context: Player)
+---@field world_tick_20? fun(context: World)
+---@field world_tick? fun(context: World)
+---@field place_voxel? fun(context: VoxelActionScriptContext)
+---@field load_item? fun(context: LoadItemScriptContext)
+---@field workspace_open? fun(context: WorkspaceOpenScriptContext)
+---@field player_input_tick? fun(context: PlayerInputTickScriptContext)
 
 ---@return Callbacks
+function CompilationResult:get_or_create_callbacks()
+    if self.callbacks ~= nil then
+        return self.callbacks
+    else
+        local callbacks = empty_table()
+        self.callbacks = callbacks
+        return callbacks
+    end
+end
+
 ---@param fun fun(context: LoadItemScriptContext)
-function Callbacks:on_load_item(fun)
-    self.place_voxel = fun
-    return self
+function CompilationResult:on_load_item(fun)
+    self:get_or_create_callbacks().load_item = fun
 end
 
----@return Callbacks
 ---@param fun fun(context: VoxelActionScriptContext)
-function Callbacks:on_place_voxel(fun)
-    self.place_voxel = fun
-    return self
+function CompilationResult:on_place_voxel(fun)
+    self:get_or_create_callbacks().place_voxel = fun
 end
 
----@return Callbacks
 ---@param fun fun(context: World)
-function Callbacks:on_world_tick_20(fun)
-    self.world_tick_20 = fun
-    return self
+function CompilationResult:on_world_tick_20(fun)
+    self:get_or_create_callbacks().world_tick_20 = fun
 end
 
----@return Callbacks
 ---@param fun fun(context: World)
-function Callbacks:on_world_tick(fun)
-    self.world_tick = fun
-    return self
+function CompilationResult:on_world_tick(fun)
+    self:get_or_create_callbacks().world_tick = fun
 end
 
-------------------
-
----@param types ComponentType[]|Component[]
----@param fun fun(world: World, entity: Entity, ...)
----@param env string client or server
----@return Callbacks
-function Callbacks:system(types, fun, env)
-    env = env or "server"
-    if (self.systems == nil) then
-        self.systems = {}
-    end
-    table.insert(self.systems, function(world)
-        if (env == "server" and world.is_client) then
-            return
-        end
-        if (env == "client" and not world.is_client) then
-            return
-        end
-        assert(fun, "system function must be not null")
-        world:iterate(types, fun)
-    end)
-    return self
+---@param fun fun(context: WorkspaceOpenScriptContext)
+function CompilationResult:on_workspace_open(fun)
+    self:get_or_create_callbacks().workspace_open = fun
 end
 
-------------------
-
-function Callbacks:submit()
-    if (self.systems ~= nil) then
-        local base_world_tick = self.world_tick
-        self:on_world_tick(function(world)
-            if (base_world_tick ~= nil) then base_world_tick(world) end
-            for index, value in ipairs(self.systems) do
-                value(world)
-            end
-        end)
-    end
-
-    callbacks(self)
+---@param fun fun(context: PlayerInputTickScriptContext)
+function CompilationResult:on_player_input_tick(fun)
+    self:get_or_create_callbacks().player_input_tick = fun
 end
 
 --------------------------------------------------------------------------------
@@ -230,11 +298,11 @@ end
 ---@field feedback fun(text: string)
 IntentScriptContext = {}
 
----@field name string
----@field script string id
----@field permission boolean,
----@field inputs IntentInput[]
----@field actors string[]
+---@param name string
+---@param script string id
+---@param permission boolean,
+---@param inputs? IntentInput[]
+---@param actors? string[]
 ---@return Intent
 function Intent.of(id, script, permission, name, inputs, actors)
     return setmetatable({

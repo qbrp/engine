@@ -1,7 +1,10 @@
-package org.lain.engine.script.lua
+package org.lain.engine.script.lua.compilation
 
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.nullable
+import org.lain.engine.script.lua.toMap
+import org.lain.engine.script.lua.toStringMap
 import org.lain.engine.util.NamespaceId
 import org.lain.engine.world.SoundEventId
 import org.luaj.vm2.LuaTable
@@ -44,5 +47,5 @@ fun compileItemsLua(namespaceId: NamespaceId, items: List<LuaTable>): List<Compi
         tooltip,
         writable,
         flashlight,
-    ).also { LOGGER.debug("Загружен предмет {}", itemId) }
+    ).also { SCRIPT_LOGGERRR.debug("Загружен предмет {}", itemId) }
 }

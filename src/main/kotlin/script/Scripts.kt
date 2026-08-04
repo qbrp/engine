@@ -1,6 +1,7 @@
 package org.lain.engine.script
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.require
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.EnginePlayer
@@ -9,6 +10,7 @@ import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.IntentActor
 import org.lain.engine.util.IntentSelection
 import org.lain.engine.util.IntentTarget
+import org.lain.engine.util.component.ComponentArray
 import org.lain.engine.world.VoxelMeta
 import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.World as EngineWorld
@@ -19,23 +21,28 @@ interface IntentBehaviour {
     fun feedback(string: String)
 }
 
-open class ScriptContext {
-    data class Player(val player: EnginePlayer) : ScriptContext()
-    data class World(val world: EngineWorld) : ScriptContext()
-    data class ItemLoad(val world: EngineWorld, val item: EngineItem) : ScriptContext()
-    data class PlayerInputTick(val player: EnginePlayer, val input: PlayerInput) : ScriptContext()
+interface ScriptContext {
+    data class Player(val player: EnginePlayer) : ScriptContext
+    data class World(val world: EngineWorld) : ScriptContext
+    data class ItemLoad(val world: EngineWorld, val item: EngineItem) : ScriptContext
+    data class PlayerInputTick(val player: EnginePlayer, val input: PlayerInput) : ScriptContext
     data class VoxelAction(
         val player: EnginePlayer?,
         val world: EngineWorld,
         val pos: VoxelPos,
         val meta: VoxelMeta
-    ) : ScriptContext()
+    ) : ScriptContext
     data class IntentExecution(
         val actor: IntentActor,
         val target: IntentTarget? = null,
         val inputValues: List<AnyInputValue>,
         val behaviour: IntentBehaviour
-    ) : ScriptContext()
+    ) : ScriptContext
+    interface SystemEntityHandle : ScriptContext {
+        val components: Collection<ScriptComponent>
+        val world: EngineWorld
+        val entity: EntityId
+    }
 }
 
 val EnginePlayer.scriptContext: ScriptContext.Player

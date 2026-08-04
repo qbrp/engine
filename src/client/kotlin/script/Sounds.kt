@@ -2,10 +2,11 @@ package org.lain.engine.client.script
 
 import org.lain.engine.client.util.AudioSource
 import org.lain.engine.client.util.SoundParameters
+import org.lain.engine.script.lua.luaNum
+import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.luaValue
 import org.lain.engine.script.lua.nullable
 import org.lain.engine.script.lua.oneArgFunction
-import org.lain.engine.script.lua.twoArgFunction
 import org.lain.engine.world.EngineSoundCategory
 import org.lain.engine.world.SoundId
 import org.luaj.vm2.Globals
@@ -16,7 +17,7 @@ import org.luaj.vm2.lib.ThreeArgFunction
 import org.luaj.vm2.lib.TwoArgFunction
 import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
-context(ctx: ClientLuaContext)
+context(ctx: ClientLuaScriptEngine)
 fun AudioSource.coerceToLua(): LuaUserdata {
     val userdata = LuaUserdata(this)
 
@@ -25,12 +26,12 @@ fun AudioSource.coerceToLua(): LuaUserdata {
             set("__index", object : TwoArgFunction() {
                 override fun call(self: LuaValue, key: LuaValue): LuaValue {
                     return when (key.tojstring()) {
-                        "x" -> luaValue(this@coerceToLua.x)
-                        "y" -> luaValue(this@coerceToLua.y)
-                        "z" -> luaValue(this@coerceToLua.z)
+                        "x" -> x.toDouble().luaNum()
+                        "y" -> y.toDouble().luaNum()
+                        "z" -> z.toDouble().luaNum()
 
-                        "volume" -> luaValue(this@coerceToLua.volume)
-                        "pitch" -> luaValue(this@coerceToLua.pitch)
+                        "volume" -> volume.toDouble().luaNum()
+                        "pitch" -> pitch.toDouble().luaNum()
 
                         "spatial" -> luaValue(this@coerceToLua.spatial)
                         "is_ended" -> luaValue(this@coerceToLua.isEnded)
@@ -88,19 +89,21 @@ fun AudioSource.coerceToLua(): LuaUserdata {
 }
 fun LuaValue.coerceToEngineAudioSource() = this.checkuserdata() as AudioSource
 
-context(ctx: ClientLuaContext)
-fun Globals.setupAudio() {
+context(ctx: ClientLuaScriptEngine)
+fun Globals.setupAudio() = luaTable {
     val audioManager = ctx.client.audioManager
-    ctx.audioSourceTable.set("_create", oneArgFunction { parameters ->
-        val toId: (LuaValue) -> SoundId = { SoundId(it.tojstring()) }
-        val soundL = parameters.get("sound")
+
+    function1("create") { parametersL ->
+        fun LuaValue.toSoundId() = SoundId(this.tojstring())
+
+        val soundL = parametersL.get("sound")
         val soundParameters = when(soundL.type()) {
             LuaValue.TTABLE -> SoundParameters(
-                toId(soundL.get("id")),
+                soundL.get("id").toSoundId(),
                 soundL.get("stream").toboolean(),
             )
             LuaValue.TSTRING -> SoundParameters(
-                toId(soundL),
+                soundL.toSoundId(),
                 false
             )
             else -> error("invalid sound type: ${soundL.type()}")
@@ -108,23 +111,24 @@ fun Globals.setupAudio() {
 
         AudioSource(
             soundParameters,
-            parameters.get("category").nullable()?.tojstring()?.lowercase()?.let { EngineSoundCategory.valueOf(it) } ?: EngineSoundCategory.AMBIENT,
-            parameters.get("x").nullable()?.tofloat() ?: 0f,
-            parameters.get("y").nullable()?.tofloat() ?: 0f,
-            parameters.get("z").nullable()?.tofloat() ?: 0f,
-            parameters.get("volume")?.nullable()?.tofloat() ?: 1f,
-            parameters.get("pitch")?.nullable()?.tofloat() ?: 1f,
-            parameters.get("spatial")?.nullable()?.toboolean() ?: false,
-            parameters.get("radius")?.nullable()?.toint() ?: 16
+            parametersL.get("category").nullable()?.tojstring()?.lowercase()?.let { EngineSoundCategory.valueOf(it) } ?: EngineSoundCategory.AMBIENT,
+            parametersL.get("x").nullable()?.tofloat() ?: 0f,
+            parametersL.get("y").nullable()?.tofloat() ?: 0f,
+            parametersL.get("z").nullable()?.tofloat() ?: 0f,
+            parametersL.get("volume")?.nullable()?.tofloat() ?: 1f,
+            parametersL.get("pitch")?.nullable()?.tofloat() ?: 1f,
+            parametersL.get("spatial")?.nullable()?.toboolean() ?: false,
+            parametersL.get("radius")?.nullable()?.toint() ?: 16
         ).coerceToLua()
-    })
-    ctx.audioSourceTable.set("_play", twoArgFunction { self, slotId ->
-        val audioSource = self.coerceToEngineAudioSource()
-        audioManager.addAudioSource(audioSource, slotId.tojstring())
-        LuaValue.NIL
-    })
+    }
 
-    ctx.audioSourceTable.set("_stop", oneArgFunction { self ->
+    function1("play") { self ->
+        val audioSource = self.coerceToEngineAudioSource()
+        audioManager.addAudioSource(audioSource, ctx.lastAudioSlotId++.toString())
+        LuaValue.NIL
+    }
+
+    ctx.audioSourceTable.set("stop", oneArgFunction { self ->
         audioManager.stopAudioSource(self.coerceToEngineAudioSource())
         LuaValue.NIL
     })

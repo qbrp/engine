@@ -5,6 +5,8 @@ import net.minecraft.client.KeyMapping
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.script.lua.oneArgFunction
 import org.lain.engine.script.lua.threeArgFunction
+import org.lain.engine.script.lua.library.toLuaValue
+import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.script.lua.twoArgFunction
 import org.luaj.vm2.Globals
@@ -15,7 +17,7 @@ object KeyMappingsStatus {
     val disabled: MutableSet<KeyMapping> = mutableSetOf()
 }
 
-context(ctx: ClientLuaContext)
+context(ctx: ClientLuaScriptEngine)
 fun Globals.setupKeyMappings() {
     val keysLibrary = LuaTable()
     val keyMappings = (MinecraftClient.options.keyMappings + KeyBindingRegistryImpl.process(emptyArray<KeyMapping>()))
@@ -27,7 +29,7 @@ fun Globals.setupKeyMappings() {
             val meta = LuaTable()
             meta.set("__index", twoArgFunction { self, key ->
                 when (key.tojstring()) {
-                    "is_down" -> keyMapping.isDown.toLuaValue()
+                    "is_down" -> keyMapping.isDown.luaBool()
                     else -> self.rawget(key)
                 }
             })

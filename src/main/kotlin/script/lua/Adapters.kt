@@ -5,29 +5,17 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerInventory
-import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.SBool
-import org.lain.engine.script.SNil
-import org.lain.engine.script.SNumber
-import org.lain.engine.script.SString
-import org.lain.engine.script.STable
-import org.lain.engine.script.ScriptComponent
-import org.lain.engine.script.ScriptComponentType
-import org.lain.engine.script.ScriptValue
-import org.lain.engine.script.EntityRpcReceiver
-import org.lain.engine.world.DynamicVoxelInterest
-import org.lain.engine.world.LightBehaviour
-import org.lain.engine.world.LightSource
-import org.lain.engine.world.Location
-import org.lain.engine.world.Luminance
-import org.lain.engine.world.World
+import org.lain.engine.script.*
+import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.world.*
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
-import java.util.LinkedList
+import java.util.*
 
 fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
     LuaValue.TNIL -> SNil
     LuaValue.TBOOLEAN -> SBool(toboolean())
+    LuaValue.TINT -> SInt(toint())
     LuaValue.TNUMBER -> SNumber(todouble())
     LuaValue.TSTRING -> SString(tojstring())
     LuaValue.TTABLE -> {
@@ -45,51 +33,50 @@ fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
 
 fun ScriptValue.toLuaValue(): LuaValue = when (this) {
     SNil -> LuaValue.NIL
-    is SBool -> value.toLuaValue()
-    is SNumber -> value.toLuaValue()
-    is SString -> value.toLuaValue()
+    is SBool -> value.luaBool()
+    is SNumber -> value.luaNum()
+    is SString -> value.luaStr()
     is STable -> LuaTable.tableOf(
         map
             .toList()
             .flatMap { (k, v) -> listOf(k.toLuaValue(), v.toLuaValue()) }
             .toTypedArray()
     )
+    is SInt -> value.luaNum()
+    is SList -> values.toLuaList { it.toLuaValue() }
 }
 
-fun createLuaScriptComponent(value: ScriptValue, type: ScriptComponentType): ScriptComponent {
-    return ScriptComponent(value.toLuaValue(), type)
-}
-
-context(world: World, luaContext: LuaContext)
+context(world: World, luaScriptEngine: LuaScriptEngine)
 fun EnginePlayer.prepareLuaScriptComponents() {
-    entity.setScriptComponent(
+    entity.setLuaScriptComponent(
         luaTableOf(luaValue("object"), coerceToLua()),
         CoreScriptComponents.PLAYER
     )
-    entity.setScriptComponent(
+    entity.setLuaScriptComponent(
         luaTableOf(luaValue("vector"), emptyLuaTable()),
         CoreScriptComponents.LOCATION
     )
 }
 
-context(luaContext: LuaContext)
+context(luaScriptEngine: LuaScriptEngine)
 fun World.adaptScriptPlayerComponents() {
     iterate<Location> { entity, location ->
-        val scriptLocation = entity.getComponent(CoreScriptComponents.LOCATION) ?: return@iterate
+        val scriptLocation = entity.getComponent(CoreScriptComponents.LOCATION)?.castLua() ?: return@iterate
         val table = scriptLocation.luaValue
         val vector = table.get("vector")?.checktable()
             ?: LuaValue.tableOf().also {
                 table.set("vector", it)
             }
 
-        vector.set(1, location.x.toLuaValue())
-        vector.set(2, location.y.toLuaValue())
-        vector.set(3, location.z.toLuaValue())
+        vector.set(1, location.x.toDouble().luaNum())
+        vector.set(2, location.y.toDouble().luaNum())
+        vector.set(3, location.z.toDouble().luaNum())
     }
     iterate<PlayerInventory>() { entity, playerInventory ->
-        val scriptInventory = entity.getComponent(CoreScriptComponents.PLAYER_INVENTORY) ?: run {
-            entity.setScriptComponent(luaTableOf(), CoreScriptComponents.PLAYER_INVENTORY)
-        }
+        val scriptInventory = entity.getComponent(CoreScriptComponents.PLAYER_INVENTORY)?.castLua()
+            ?: run {
+                entity.setLuaScriptComponent(luaTableOf(), CoreScriptComponents.PLAYER_INVENTORY)
+            }
         val table = scriptInventory.luaValue.checktable()
         table.set("main_hand_item", playerInventory.mainHandItem?.coerceToLua() ?: LuaValue.NIL)
         table.set("off_hand_item", playerInventory.offHandItem?.coerceToLua() ?: LuaValue.NIL)
@@ -110,18 +97,18 @@ fun World.adaptScriptLightComponents() {
     val luminanceArray = componentManager.getComponentArray<Luminance>()
     val lightSourceArray = componentManager.getComponentArray<LightSource>()
     iterate(CoreScriptComponents.LIGHT_SOURCE) { entity, lightSource ->
-        val behaivour = lightSource.luaValue.get("behaviour").checktable()
+        val behaivour = lightSource.castLua().luaValue.get("behaviour").checktable()
         lightSourceArray.getOrSet(entity) { LightSource(behaivour.toLightBehaviour()) }
     }
     iterate(CoreScriptComponents.LUMINANCE) { entity, luminance ->
-        val level = luminance.luaValue.get("level").toint()
+        val level = luminance.castLua().luaValue.get("level").toint()
         luminanceArray.getOrSet(entity, { Luminance(level) }).let {
             it.value = level
         }
     }
 }
 
-context(lua: LuaContext)
+context(lua: LuaScriptEngine)
 fun World.adaptScriptNetworkingComponents() {
     val serverboundChannelComponentArray = componentManager.getComponentArray(CoreScriptComponents.ENTITY_RPC_RECEIVER)
     val dynamicVoxelInterestComponentArray = componentManager.getComponentArray<DynamicVoxelInterest>()
@@ -135,13 +122,13 @@ fun World.adaptScriptNetworkingComponents() {
 
     iterate<EntityRpcReceiver>() { entity, channel ->
         val channelL = serverboundChannelComponentArray.getOrSet(entity) {
-            ScriptComponent(
-                luaTableOf(
-                    luaValue("messages"), emptyLuaTable()
-                ),
+            LuaScriptComponent(
+                luaTable {
+                    "messages"(emptyLuaTable())
+                },
                 CoreScriptComponents.ENTITY_RPC_RECEIVER
             )
-        }
+        }.castLua()
         val valuesTable = LuaTable()
         channel.values.forEachIndexed { i, msg ->
             valuesTable.set(

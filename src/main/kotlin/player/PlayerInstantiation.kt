@@ -10,15 +10,11 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.createContainer
 import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
-import org.lain.engine.mc.ReplayViewer
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.character.AppliedCharacters
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.player.character.applyCharacter
 import org.lain.engine.player.character.prepareCharacter
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.script.lua.LuaContext
-import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.server.*
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
@@ -170,14 +166,15 @@ class PlayerLoader(
             val player = serverPlayerInstance(world, settings, inventoryLoadResult, persistent)
             val character = account.character
             val persistentCharacterData = persistent?.characters[character?.profile?.id]
-            persistentCharacterData?.let { player.prepareCharacter(persistentCharacterData) }
+            persistentCharacterData?.let { player.prepareCharacter(world.componentLoadSettings, persistentCharacterData) }
 
             val componentsToLoad = persistent?.components.orEmpty()
             player.prepareContainers(Uuid.next(), location, inventoryLoadResult.equipmentItems)
             player.entity.copyComponentDtoState(componentsToLoad) {
                 toDomainWithoutRelationships(
                     world.itemStorage,
-                    server.namespacedStorage
+                    server.namespacedStorage,
+                    server.luaScriptEngine
                 )
             }
             withContext(server.dispatcher) {

@@ -8,6 +8,8 @@ import org.lain.engine.script.EntityRpcQueue
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.script.ScriptComponent
+import org.lain.engine.script.lua.LuaScriptComponent
+import org.lain.engine.script.lua.castLua
 import org.lain.engine.script.lua.emptyLuaTable
 import org.lain.engine.script.lua.luaTableOf
 import org.lain.engine.script.lua.luaValue
@@ -24,13 +26,13 @@ fun World.updateClientServerboundChannelSystem(handler: ClientHandler) {
 
     iterate<EntityRpcQueue>() { entity, channelK ->
         val channelL = serverboundChannelComponentArrayLua.getOrSet(entity) {
-            ScriptComponent(
+            LuaScriptComponent(
                 luaTableOf(
                     luaValue("values"), luaTableOf()
                 ),
                 CoreScriptComponents.ENTITY_RPC_QUEUE
             )
-        }
+        }.castLua()
 
         val valuesL = channelL.luaValue.get("values")
         channelK.values.addAll(

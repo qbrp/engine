@@ -80,7 +80,7 @@ fun resolveSize(context: UiContext, fragment: Fragment, constraints: Size): Size
         SpriteSizing.Stretch -> {
             totalSize.stretch(constraints.width, constraints.height)
         }
-        null -> {}
+        else -> {}
     }
 
     fragment.text?.let { text ->

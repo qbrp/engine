@@ -76,7 +76,7 @@ class ChunkLoader(
         val ecb = EntityCommandBuffer(world, Collections.synchronizedList(mutableListOf()))
         val voxelJobs = chunkPersistent.voxels.map { (voxelPos, components) ->
             async(Dispatchers.IO) {
-                with(ecb) {
+                context(ecb, server.luaScriptEngine) {
                     val entity = entityResolver.loadEntity(
                         world.componentLoadSettings,
                         components

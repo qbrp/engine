@@ -4,8 +4,13 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.lua.setScriptComponent
-import org.lain.engine.script.lua.toLuaValue
+import org.lain.engine.script.SInt
+import org.lain.engine.script.SList
+import org.lain.engine.script.SNumber
+import org.lain.engine.script.STable
+import org.lain.engine.script.ScriptEngine
+import org.lain.engine.script.lua.setLuaScriptComponent
+import org.lain.engine.script.lua.library.toLuaValue
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.VoxelPosId
 import org.lain.engine.util.component.EntityId
@@ -22,6 +27,7 @@ data class ChunkedPos(
     val centerPos: EVec3
 ) : Component
 
+context(scriptEngine: ScriptEngine)
 fun World.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false): EntityId {
     val entity = addEntity()
     entity.setDynamicVoxel(pos, networked)
@@ -29,7 +35,7 @@ fun World.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false): EntityId {
     return entity
 }
 
-context(access: WriteComponentAccess)
+context(scriptEngine: ScriptEngine, access: WriteComponentAccess)
 fun EntityId.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false) {
     val centerPos = pos.toCenterPos()
     val immutableVoxelPos = ImmutableVoxelPos(pos)
@@ -39,8 +45,16 @@ fun EntityId.setDynamicVoxel(pos: VoxelPos, networked: Boolean = false) {
     setComponent(ChunkedPos(EngineChunkPos(pos), immutableVoxelPos, centerPos))
     if (networked) setComponent(Networked)
     setComponent(Location(pos.toCenterPos()))
-    setScriptComponent(
-        pos.toLuaValue(),
-        CoreScriptComponents.DYNAMIC_VOXEL
+    setComponent(
+        scriptEngine.createScriptComponent(
+            SList(
+                listOf(
+                    SInt(pos.x),
+                    SInt(pos.y),
+                    SInt(pos.z)
+                )
+            ),
+            CoreScriptComponents.DYNAMIC_VOXEL
+        )
     )
 }

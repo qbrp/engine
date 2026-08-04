@@ -339,6 +339,31 @@ class ComponentWorld(
         return getComponentArray(type).componentOf(entity)
     }
 
+    fun <T : Component> iterate(
+        types: List<ComponentType<T>>,
+        statement: MutableComponentAccess.(mutableCollection: Collection<T>, entity: EntityId) -> Unit
+    ) {
+        checkOnThread()
+        require(types.isNotEmpty()) { "Component query must not be empty" }
+
+        val arrays = types.map { getComponentArray(it) }
+        val smallerArr = arrays.minBy { it.components.size }
+        val componentsList = mutableListOf<T>()
+        loop@ for (i in smallerArr.denseEntities.indices.reversed()) {
+            val entity = smallerArr.denseEntities[i]
+            componentsList.clear()
+            arrays.forEach {
+                val component = it.componentOf(entity)
+                if (component != null) {
+                    componentsList += component
+                } else {
+                    continue@loop
+                }
+            }
+            statement(componentsList, entity)
+        }
+    }
+
     override fun <A : Component> iterate1(kclass1: ComponentType<A>, action: MutableComponentAccess.(EntityId, A) -> Unit) {
         checkOnThread()
         val arr1 = getComponentArray(kclass1)

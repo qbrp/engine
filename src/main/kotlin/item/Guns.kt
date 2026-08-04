@@ -3,7 +3,6 @@ package org.lain.engine.item
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.set
 import org.lain.engine.player.*
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.VEC3_ZERO
@@ -17,25 +16,36 @@ import org.lain.engine.world.World
 import org.lain.engine.world.location
 
 @Serializable
-data class Barrel(var bullets: Int, val maxBullets: Int)
+data class Barrel(
+    var bullets: Int,
+    val maxBullets: Int,
+    val ammunition: ItemId?
+) : Component
 
 @Serializable
 data class Gun(
-    val barrel: Barrel = Barrel(0, 2),
-    var clicked: Boolean = false,
-    val ammunition: ItemId?,
     val smoke: ImmutableEVec3? = null,
     val rate: Int = 10,
-    var fireTime: Int = 0,
+    val modes: List<FireMode> = listOf(FireMode.SELECTOR, FireMode.SINGLE, FireMode.AUTO)
+) : Component
+
+@Serializable
+data class GunFireState(
+    var cooldown: Int = 0,
     var mode: FireMode = FireMode.SELECTOR,
-    val modes: List<FireMode> = listOf(FireMode.SELECTOR, FireMode.SINGLE, FireMode.AUTO),
+    var clicked: Boolean = false,
+    var triggerPressed: Boolean = false,
+    var fired: Boolean = false
 ) : Component {
-    fun copy(): Gun {
-        return Gun(
-            Barrel(barrel.bullets, barrel.maxBullets),
-            clicked, ammunition, smoke, rate, fireTime, mode, modes
-        )
-    }
+    fun copy() = GunFireState(cooldown, mode, clicked, triggerPressed, fired)
+}
+
+@Serializable
+data class GunMagazines(
+    val supports: ItemId,
+    var base: Magazine? = null,
+) : Component {
+    fun copy() = GunMagazines(supports, base?.copy())
 }
 
 @Serializable
@@ -46,12 +56,15 @@ enum class FireMode {
 @Serializable
 data class GunDisplay(
     val ammunition: String? = null,
+    val magazine: String? = null,
     @SerialName("selector_status") val selectorStatus: Boolean = true,
 ) : Component
 
-object GunTriggerPress : Component
+object GunTriggerPressed : Component
 
 object GunModeToggle : Component
+
+data class GunMagazineLoad(val player: EnginePlayer, val magazineItem: EngineItem) : Component
 
 data class GunBarrelLoad(val player: EnginePlayer, val ammoItem: EngineItem) : Component
 
@@ -63,25 +76,43 @@ private const val GUN_TRIGGER_SOUND = "gun_trigger"
 private const val GUNFIRE_SOUND = "gunfire"
 private const val SELECTOR_TOGGLE_SOUND = "selector"
 
-fun World.tickFireTimeSystem() = iterate<Gun> { item, gun ->
-    if (gun.fireTime > 0) {
-        gun.fireTime--
-    }
-}
-
 context(world: World)
 fun EngineItem.isGun() = hasComponent<Gun>()
 
 fun World.tickGunSystem() {
-    iterate<Gun, HoldsBy, GunTriggerPress>() { item, gun, (shooter), _ ->
-        val barrel = gun.barrel
-
-        if (gun.fireTime == 0) {
-            item.emitPlaySoundEvent(GUN_TRIGGER_SOUND)
-            gun.fireTime = gun.rate
+    iterate<GunFireState> { item, fireState ->
+        if (item.hasComponent<GunTriggerPressed>() && fireState.mode != FireMode.SELECTOR) {
+            if (!fireState.triggerPressed) {
+                item.emitPlaySoundEvent(GUN_TRIGGER_SOUND)
+                fireState.triggerPressed = true
+            }
+        } else {
+            fireState.triggerPressed = false
+            fireState.fired = false
         }
 
-        if (barrel.bullets > 0 && gun.fireTime > 0) {
+        if (fireState.cooldown >= 0) {
+            fireState.cooldown--
+        }
+    }
+
+    // подача патронов
+    iterate<GunMagazines, Barrel, GunFireState> { item, magazines, barrel, fireState ->
+        val magazine = magazines.base
+        if (magazine != null && barrel.bullets < barrel.maxBullets && magazine.bullets > 0) {
+            magazine.bullets--
+            barrel.bullets++
+            item.markDirty<Barrel>()
+            item.markDirty<GunMagazines>()
+        }
+    }
+
+    // стрельба из патронника
+    iterate<Gun, Barrel, HoldsBy, GunFireState>() { item, gun, barrel, (shooter), fireState ->
+        val canContinueShoot = (!fireState.fired || fireState.mode == FireMode.AUTO) && fireState.mode != FireMode.SELECTOR
+        if (fireState.triggerPressed && fireState.cooldown < 0 && barrel.bullets > 0 && canContinueShoot) {
+            fireState.cooldown = gun.rate
+            fireState.fired = true
             barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
             item.emitPlaySoundEvent(GUNFIRE_SOUND)
 
@@ -98,40 +129,40 @@ fun World.tickGunSystem() {
                 )
             )
         } else {
-            if (!gun.clicked) {
+            if (!fireState.clicked) {
                 item.emitPlaySoundEvent(CLICK_SOUND)
-                gun.clicked = true
+                fireState.clicked = true
             }
         }
-
-        item.removeComponent<GunTriggerPress>()
     }
 
-    iterate<Gun, GunModeToggle>() { item, gun, _ ->
+    iterate<Gun, GunFireState, GunModeToggle>() { item, gun, fireState, _ ->
         val modes = gun.modes
         if (modes.isNotEmpty()) {
-            val currentIndex = modes.indexOf(gun.mode)
+            val currentIndex = modes.indexOf(fireState.mode)
             val nextIndex = (currentIndex + 1) % modes.size
-            gun.mode = modes[nextIndex]
+            fireState.mode = modes[nextIndex]
             item.emitPlaySoundEvent(SELECTOR_TOGGLE_SOUND)
             item.removeComponent<GunModeToggle>()
-            item.markDirty<Gun>()
+            item.markDirty<GunFireState>()
         }
     }
 
-    iterate<Gun, GunBarrelLoad>() { item, gun, (player, ammoItem) ->
-        val barrel = gun.barrel
-        val ammoCount = ammoItem.getComponent<Count>()?.value ?: 1
-        val loadAmmoCount = ammoCount.coerceAtMost(barrel.maxBullets - barrel.bullets)
-
-        if (loadAmmoCount > 0) {
-            barrel.bullets = (barrel.bullets + loadAmmoCount).coerceAtMost(barrel.maxBullets)
-            gun.clicked = false
-            item.emitPlaySoundEvent(ROUND_BARREL_SOUND)
-            item.removeComponent<GunBarrelLoad>()
-            item.markDirty<Gun>()
-            player.set(DestroyItemSignal(item, loadAmmoCount))
+    iterate<GunMagazines, GunFireState, GunMagazineLoad>() { item, magazines, fireState, (player, magazineItem) ->
+        item.removeComponent<GunMagazineLoad>()
+        if (magazines.base != null) {
+            player.serverNarration("<red>Магазин уже вставлен", 40)
+            return@iterate
+        } else if (magazines.supports != magazineItem.requireComponent<Item>().id) {
+            player.serverNarration("<red>Магазин не подходит", 40)
+            return@iterate
         }
+        magazines.base = magazineItem.getComponent<Magazine>()?.copy() ?: return@iterate
+        fireState.clicked = false
+        item.emitPlaySoundEvent(ROUND_BARREL_SOUND)
+        item.markDirty<GunMagazines>()
+        item.markDirty<GunFireState>()
+        player.set(DestroyItemSignal(magazineItem))
     }
 }
 

@@ -16,6 +16,7 @@ import org.lain.engine.container.Entries
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.FireMode
 import org.lain.engine.item.Gun
+import org.lain.engine.item.GunFireState
 import org.lain.engine.item.isGun
 import org.lain.engine.mc.EntityTable
 import org.lain.engine.player.ArmPose
@@ -94,5 +95,5 @@ fun armPoseOf(main: Boolean, extendsArm: Boolean, inventory: PlayerInventory): A
 
 context(world: World)
 private fun EngineItem?.isGunWithoutSelector(): Boolean {
-    return (this?.getComponent<Gun>() ?: return false).mode != FireMode.SELECTOR
+    return (this?.getComponent<GunFireState>() ?: return false).mode != FireMode.SELECTOR
 }

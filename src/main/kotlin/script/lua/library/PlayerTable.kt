@@ -1,18 +1,40 @@
-package org.lain.engine.script.lua
+package org.lain.engine.script.lua.library
 
 import org.lain.engine.player.*
 import org.lain.engine.player.interaction.syncAction
 import org.lain.engine.script.ScriptComponent
+import org.lain.engine.script.lua.LuaScriptComponent
+import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.luaBool
+import org.lain.engine.script.lua.luaNum
+import org.lain.engine.script.lua.luaStr
+import org.lain.engine.script.lua.luaTable
+import org.lain.engine.script.lua.nullable
 import org.lain.engine.world.invokeCommand
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
 
-context(lua: LuaContext)
+context(lua: LuaScriptEngine)
 fun PlayerMetaTable() = luaTable {
+    index { self, key ->
+        val player = self.asEnginePlayer()
+        when (key.tojstring()) {
+            "uuid" -> player.id.value.toString().luaStr()
+            "id" -> player.entity.luaNum()
+            "entity" -> with(player.world) { player.entity.coerceToLua() }
+            "world" -> player.world.luaWorld()
+            "is_spectating" -> player.isSpectating.luaBool()
+            "is_game_master" -> player.isInGameMasterMode.luaBool()
+            else -> with(player.world) {
+                player.entity.coerceToLua().get(key)
+            }
+        }
+    }
+
     function2("has_permission") { self, permission ->
         val player = self.asEnginePlayer()
-        player.hasPermission(permission.tojstring()).toLuaValue()
+        player.hasPermission(permission.tojstring()).luaBool()
     }
     function2("set_flying_speed") { self, speed ->
         val player = self.asEnginePlayer()
@@ -29,7 +51,7 @@ fun PlayerMetaTable() = luaTable {
         player.resetCustomMaxSpeed()
         NIL
     }
-    function2("narration") { self, narration ->
+    function2("narration_internal") { self, narration ->
         val player = self.asEnginePlayer()
         player.serverNarration(
             narration.get("message").tojstring(),
@@ -49,9 +71,9 @@ fun PlayerMetaTable() = luaTable {
         val player = self.asEnginePlayer()
         with(player.world) {
             player.entity.syncAction(
-                ScriptComponent(
+                LuaScriptComponent(
                     action,
-                    action.get("type").asEngineScriptComponentType().requireType()
+                    action.componentType
                 )
             )
         }
@@ -61,26 +83,9 @@ fun PlayerMetaTable() = luaTable {
 
 fun LuaValue.asEnginePlayer() = this.checkuserdata() as EnginePlayer
 
-context(context: LuaContext)
+context(context: LuaScriptEngine)
 fun EnginePlayer.coerceToLua(): LuaUserdata {
     val userdata = LuaUserdata(this)
-    userdata.setmetatable(
-        luaTable {
-            index { self, key ->
-                val player = self.asEnginePlayer()
-                when (key.tojstring()) {
-                    "uuid" -> player.id.value.toString().toLuaValue()
-                    "id" -> player.entity.toLuaValue()
-                    "entity" -> with(player.world) { player.entity.coerceToLua() }
-                    "world" -> player.world.getLuaValue()
-                    "is_spectating" -> player.isSpectating.toLuaValue()
-                    "is_game_master" -> player.isInGameMasterMode.toLuaValue()
-                    else -> context.playerMetaTable.get(key) ?: with(player.world) {
-                        player.entity.coerceToLua().get(key)
-                    }
-                }
-            }
-        }
-    )
+    userdata.setmetatable(context.playerMetaTable)
     return userdata
 }

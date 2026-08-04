@@ -20,36 +20,35 @@ data class OutfitConfig(
 )
 
 @Serializable
+data class MagazineConfig(val capacity: Int, val initial: Int = 0, val ammunition: ItemId)
+
+@Serializable
+data class BarrelConfig(
+    val ammunition: ItemId,
+    val bullets: Int,
+    val initial: Int = 0
+)
+@Serializable
 data class GunConfig(
-    val barrel: BarrelConfig = BarrelConfig(1, 0),
-    val ammunition: AmmunitionConfig? = null,
     val display: GunDisplay? = null,
     val smoke: List<Float>? = null,
     val modes: List<FireMode>? = null,
-    val rate: Int = 15
+    val rate: Int = 15,
+    @SerialName("magazines") val magazines: String? = null
 ) {
-    @Serializable
-    data class BarrelConfig(val bullets: Int, val initial: Int = 0)
-    @Serializable
-    data class AmmunitionConfig(val item: ItemId, val display: String? = null)
+    fun gunMagazinesComponent() = if (magazines != null) {
+        GunMagazines(ItemId(magazines))
+    } else {
+        null
+    }
 
     fun gunComponent(): Gun {
         val modes = modes?.takeIf { it.isNotEmpty() } ?: listOf(FireMode.SELECTOR, FireMode.SINGLE, FireMode.AUTO)
         return Gun(
-            barrel.let { Barrel(it.initial, it.bullets) },
-            true,
-            ammunition?.item,
             smoke?.let { Vec3(it[0], it[1], it[2]) },
             rate,
-            0,
-            modes.first(),
             modes
         )
-    }
-
-    fun gunDisplayComponent(): GunDisplay? {
-        val ammunitionDisplay = ammunition?.display
-        return display?.copy(ammunition=ammunitionDisplay ?: display.ammunition)
     }
 }
 
@@ -70,6 +69,8 @@ data class ItemConfig(
     val assets: Map<String, String>? = null,
     @SerialName("progression_animations") val progressionAnimations: Map<String, ProgressionAnimationId>? = null,
     val flashlight: org.lain.engine.script.FlashlightConfig? = null,
+    val magazine: MagazineConfig? = null,
+    val barrel: BarrelConfig? = null
 )
 
 context(ctx: YamlCompilationContext)
@@ -111,7 +112,9 @@ internal fun compileItemsYaml(itemConfigs: Map<String, ItemConfig>, namespace: Y
             Outfit(slot, display, parts, dependsEyeY = dependsEyeY)
         } ?: config.hat?.let { Outfit(EquipmentSlot.CAP, OutfitDisplay.Separated, listOf(PlayerPart.HEAD)) }
 
-        val gunDisplayComponent = config.gun?.gunDisplayComponent()
+        val gunDisplayComponent = config.gun?.display
+        val gunComponent = config.gun?.gunComponent()
+        val gunFireStateComponent = config.gun?.let { GunFireState() }
 
         CompiledItem(
             namespace.id,
@@ -127,8 +130,12 @@ internal fun compileItemsYaml(itemConfigs: Map<String, ItemConfig>, namespace: Y
             config.flashlight
         ) {
             listOfNotNull(
-                config.gun?.gunComponent(),
+                gunComponent,
+                gunFireStateComponent,
+                config.magazine?.let { Magazine(it.capacity, it.initial, it.ammunition) },
                 gunDisplayComponent,
+                config.barrel?.let { Barrel(it.initial, it.bullets, it.ammunition) },
+                config.gun?.gunMagazinesComponent(),
                 outfit,
             )
         }

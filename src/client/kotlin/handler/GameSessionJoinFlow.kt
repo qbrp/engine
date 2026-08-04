@@ -3,29 +3,27 @@ package org.lain.engine.client.handler
 import kotlinx.coroutines.*
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.account.ClientAuthorizedAccount
-import org.lain.engine.client.account.NotAuthorizedException
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.render.ui.character.CharacterSelectionScreen
 import org.lain.engine.client.script.ClientCompilation
-import org.lain.engine.client.script.ClientLuaContext
+import org.lain.engine.client.script.ClientLuaScriptEngine
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.mc.server.HttpStatusException
+import org.lain.engine.mc.server.SetupException
 import org.lain.engine.player.PlayerLoadSettings
-import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.script.CompilationException
 import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.FileScriptSource
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.NamespaceHashMapValidationResult
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
-import org.lain.engine.script.emptyNamespacedStorage
-import org.lain.engine.script.loadContentsCompileResult
-import org.lain.engine.script.lua.EngineLuaGlobals
-import org.lain.engine.script.lua.FileScriptSource
-import org.lain.engine.script.lua.LuaDependencies
+import org.lain.engine.script.loadCompilationResult
+import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.luaEntrypointDir
 import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.EngineServer
@@ -42,9 +40,11 @@ class GameSessionJoinFlow(
 ) {
     private val accountManager = client.accountManager
     private val platform = client.infrastructure
+
     @Volatile
     var verificationStateStartCompletableDeferred: CompletableDeferred<GeneralServerData>? = null
         private set
+
     @Volatile
     var joinGamePacketCompletableDeferred: CompletableDeferred<JoinGamePacket>? = null
         private set
@@ -54,7 +54,7 @@ class GameSessionJoinFlow(
         private set
 
     val canCloseLevelLoadingScreen
-        get() = state == State.CHARACTER_SELECTION
+        get() = state == State.CHARACTER_SELECTION || state == State.DONE
 
     private suspend fun handshake(): ServerData = when (joinType) {
         is JoinType.Multiplayer -> {
@@ -68,6 +68,7 @@ class GameSessionJoinFlow(
                     )
                 }
         }
+
         is JoinType.Singleplayer -> {
             ServerData(joinType.integratedServer.globals.serverId, null)
         }
@@ -75,7 +76,10 @@ class GameSessionJoinFlow(
 
     private suspend fun listAccountCharacters(): List<EngineCharacter> {
         val response = when (joinType) {
-            is JoinType.Multiplayer -> { accountManager.requireAuthorized().getAccount() }
+            is JoinType.Multiplayer -> {
+                accountManager.requireAuthorized().getAccount()
+            }
+
             is JoinType.Singleplayer -> {
                 accountManager.getAvailableAccountResponse()
             }
@@ -95,9 +99,11 @@ class GameSessionJoinFlow(
                     deferred.await()
                 }
             }
+
             is JoinType.Singleplayer -> {
                 val integratedServer = joinType.integratedServer
-                val settings = withClientContext { platform.createIntegratedServerPlayerLoadSettings(client, integratedServer) }
+                val settings =
+                    withClientContext { platform.createIntegratedServerPlayerLoadSettings(client, integratedServer) }
                 val joinGamePacketDefer = deferJoinGamePacket()
                 integratedServer.playerLoader.loadPreparing(
                     settings = settings,
@@ -116,12 +122,16 @@ class GameSessionJoinFlow(
             state = State.COMPILATION
             val (namespaceHashMap, compilationResult, compilation) = coroutineScope {
                 val deferred = async {
-                    val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(emptyNamespacedStorage())
+                    val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
                     val luaContext = createLuaContext(namespacedStorage, server.id)
                     val compilation = ClientCompilation(luaContext, client)
                     val compilationResult = withClientContext {
                         val result = compilation.compileScripts()
-                        namespacedStorage.loadContentsCompileResult(result)
+                        if (result.exceptions.isNotEmpty()) {
+                            result.logExceptions()
+                            throw SetupException(result.exceptions)
+                        }
+                        namespacedStorage.loadCompilationResult(result)
                         result
                     }
 
@@ -146,18 +156,25 @@ class GameSessionJoinFlow(
                 deferred.await()
             }
 
-            state = State.CHARACTER_LOAD
-            val characters = listAccountCharacters()
-            val selectedCharacter = withClientContext {
-                state = State.CHARACTER_SELECTION
-                CharacterSelectionScreen.awaitCharacterSelection(
-                    client,
-                    null,
-                    characters
-                )
+            val selectedCharacter = if (!joinType.isReplay) {
+                state = State.CHARACTER_LOAD
+                val characters = listAccountCharacters()
+                withClientContext {
+                    state = State.CHARACTER_SELECTION
+                    CharacterSelectionScreen.awaitCharacterSelection(
+                        client,
+                        null,
+                        characters
+                    )
+                }
+            } else {
+                null
             }
 
-            val (serverPlayerData, worldData, setupData, notifications) = acknowledge(namespaceHashMap, selectedCharacter)
+            val (serverPlayerData, worldData, setupData, notifications) = acknowledge(
+                namespaceHashMap,
+                selectedCharacter
+            )
             withClientContext {
                 val gameSession = GameSession(
                     setupData.serverId,
@@ -177,6 +194,7 @@ class GameSessionJoinFlow(
                 }
 
                 SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.sendC2SPacket(ConfirmationPacket)
+                state = State.DONE
             }
         } catch (e: CancellationException) {
             LOGGER.info("Отменена корутина входа на сервер")
@@ -195,13 +213,13 @@ class GameSessionJoinFlow(
         }
     }
 
-    fun createLuaContext(namespacedStorage: NamespacedStorageAccess, serverId: ServerId): ClientLuaContext {
+    fun createLuaContext(namespacedStorage: NamespacedStorageAccess, serverId: ServerId): ClientLuaScriptEngine {
         val scriptsPath = client.resources.scripts.file
-        return ClientLuaContext(
+        return ClientLuaScriptEngine(
             client,
             FileScriptSource(scriptsPath.luaEntrypointDir(serverId)),
-            LuaDependencies(
-                EngineLuaGlobals(),
+            LuaScriptEngine.Dependencies(
+                LuaScriptEngine.globals(),
                 namespacedStorage,
                 scriptsPath.path,
                 client.luaDataStorage
@@ -226,12 +244,12 @@ class GameSessionJoinFlow(
     }
 
     enum class State {
-        AUTHORIZATION, COMPILATION, CHARACTER_LOAD, CHARACTER_SELECTION
+        AUTHORIZATION, COMPILATION, CHARACTER_LOAD, CHARACTER_SELECTION, DONE
     }
 
-    sealed class JoinType {
-        data class Singleplayer(val integratedServer: EngineServer) : JoinType()
-        object Multiplayer : JoinType()
+    sealed class JoinType(val isReplay: Boolean) {
+        class Singleplayer(val integratedServer: EngineServer, isReplay: Boolean) : JoinType(isReplay)
+        object Multiplayer : JoinType(false)
     }
 
     data class ServerData(val id: ServerId, val verificationNamespaceHashMap: NamespaceHashMap?)

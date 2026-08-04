@@ -141,7 +141,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
                 CharacterSelectionScreen.awaitCharacterSelection(client, character?.data, characters, requestId)
                     ?.let { LookSelectionScreen.Result.SelectedCharacter(it, requestId) }
             }
-                ?: return@launch
+            ?: return@launch
             withClientContext {
                 when (selectionResult) {
                     is LookSelectionScreen.Result.SelectedCharacter -> {
@@ -432,24 +432,26 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     }
 
     fun applyDynamicVoxelDelta(gameSession: GameSession, voxelPos: VoxelPos, components: List<ComponentDto>) =
-        with(gameSession.world) {
-            val entity = chunkStorage.getDynamicVoxel(voxelPos) ?: run {
-                val entity = addEntity()
-                entity.setDynamicVoxel(voxelPos, false)
-                entity
-            }
+        context(gameSession.luaContext) {
+            with(gameSession.world) {
+                val entity = chunkStorage.getDynamicVoxel(voxelPos) ?: run {
+                    val entity = addEntity()
+                    entity.setDynamicVoxel(voxelPos, false)
+                    entity
+                }
 
-            coroutineScope.launch {
-                entity.copyState(
-                    components.toDomainSuspend {
-                        toDomain(
-                            componentLoadSettings,
-                            entityGetter = { null },
-                        )
-                    }
-                )
-                val chunk = awaitChunk(gameSession, EngineChunkPos(voxelPos))
-                chunk.dynamicVoxels[voxelPos] = entity
+                coroutineScope.launch {
+                    entity.copyState(
+                        components.toDomainSuspend {
+                            toDomain(
+                                componentLoadSettings,
+                                entityGetter = { null },
+                            )
+                        }
+                    )
+                    val chunk = awaitChunk(gameSession, EngineChunkPos(voxelPos))
+                    chunk.dynamicVoxels[voxelPos] = entity
+                }
             }
         }
 
@@ -521,7 +523,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
 
     fun applyWorldState(gameSession: GameSession, components: List<ComponentDto>) = with(gameSession.world) {
         runBlocking {
-            state.copyComponentDtoState(components) { toDomainWithoutRelationships(itemStorage, namespacedStorage) }
+            state.copyComponentDtoState(components) {
+                toDomainWithoutRelationships(
+                    itemStorage,
+                    namespacedStorage,
+                    gameSession.luaContext
+                )
+            }
         }
     }
 

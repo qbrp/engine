@@ -36,7 +36,7 @@ fun EngineServer.loadWorldComponents(world: World): List<Component> {
     if (!file.exists()) return emptyList()
     return WorldJson.decodeFromString<WorldPersistent>(file.readText()).components.mapNotNull {
         try {
-            it.toDomainWithoutRelationships(world.itemStorage, namespacedStorage)
+            it.toDomainWithoutRelationships(world.componentLoadSettings)
         } catch (e: Exception) {
             LOGGER.error("Не удалость загрузить компонент $it состояния мира ${world.id}", e)
             null

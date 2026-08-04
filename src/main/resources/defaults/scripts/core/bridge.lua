@@ -1,28 +1,4 @@
 --------------------------------------------------------------------------------
----- События
---------------------------------------------------------------------------------
-
----@class Callbacks
----@field player_instantiate fun(context: Player)
----@field player_destroy fun(context: Player)
----@field world_tick_20 fun(context: World)
----@field world_tick fun(context: World)
----@field place_voxel fun(context: VoxelActionScriptContext)
-Callbacks = {}
-Callbacks.__index = Callbacks
-
----@param arg fun(): Callbacks | Callbacks
-function callbacks(arg)
-    if type(arg) == "function" then
-        _callbacks(arg)
-    else
-        _callbacks(function()
-            return arg
-        end)
-    end
-end
-
---------------------------------------------------------------------------------
 ---- Реестры
 --------------------------------------------------------------------------------
 
@@ -67,8 +43,8 @@ Script.__index = Script
 IntentInput = IntentInput or {}
 IntentInput.__index = IntentInput
 
----@field id string
----@field type string "text", "int", "double", "logic", "table" available
+---@param id string
+---@param type string "text", "int", "double", "logic", "table" available
 ---@return IntentInput
 function IntentInput.of(id, type)
     return setmetatable({ id = id, type = type }, IntentInput)
@@ -85,39 +61,3 @@ Intent = Intent or {}
 Intent.__index = Intent
 
 ------------------
-
----@param func fun(): CompilationResult
-function compilation(func) _compilation(func) end
-
---------------------------------------------------------------------------------
----- Аудио
---------------------------------------------------------------------------------
-
----@class Sound
----@field id string
----@field stream boolean false default
-
---- Userdata
----@class AudioSource
----@field sound string|Sound
----@field category string
----@field x number
----@field y number
----@field z number
----@field is_relative boolean true default
----@field volume number from 0 to 1, default 1
----@field pitch number from 0 to 1, default 1
----@field attenuate boolean false default
----@field is_ended boolean
----@field radius number default 16
-AudioSource = AudioSource or {}
-
----@param parameters AudioSource
----@return AudioSource
-function AudioSource.__create(parameters) return AudioSource._create(parameters) end
-
----@field slot string
-function AudioSource:__play(slot) self:_play(slot) end
-
----@field slot string
-function AudioSource:__stop() self:_stop() end

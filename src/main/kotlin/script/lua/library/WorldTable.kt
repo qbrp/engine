@@ -1,9 +1,24 @@
-package org.lain.engine.script.lua
+package org.lain.engine.script.lua.library
 
 import org.lain.cyberia.ecs.*
-import org.lain.engine.script.ScriptAction
 import org.lain.engine.script.ScriptComponent
-import org.lain.engine.script.ScriptComponentType
+import org.lain.engine.script.lua.LuaScriptComponent
+import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.castLua
+import org.lain.engine.script.lua.getLuaScriptComponent
+import org.lain.engine.script.lua.hasLuaScriptComponent
+import org.lain.engine.script.lua.luaBool
+import org.lain.engine.script.lua.luaStr
+import org.lain.engine.script.lua.luaTable
+import org.lain.engine.script.lua.luaUserdataTable
+import org.lain.engine.script.lua.castLua
+import org.lain.engine.script.lua.luaNum
+import org.lain.engine.script.lua.nullable
+import org.lain.engine.script.lua.removeLuaScriptComponent
+import org.lain.engine.script.lua.setLuaScriptComponent
+import org.lain.engine.script.lua.toList
+import org.lain.engine.script.lua.toLuaList
+import org.lain.engine.script.lua.toVoxelPos
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.World
 import org.lain.engine.world.invokeCommand
@@ -16,7 +31,7 @@ import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
 // World
 
-context(lua: LuaContext)
+context(lua: LuaScriptEngine)
 fun WorldMetaTable() = luaTable {
     function2("invoke_command") { self, command ->
         val world = self.asEngineWorld()
@@ -33,7 +48,7 @@ fun WorldMetaTable() = luaTable {
         val entity = with(world) {
             val e = world.addEntity()
             components.forEach { (type, component) ->
-                e.setScriptComponent(component, type.requireType())
+                e.setLuaScriptComponent(component, type.requireType())
             }
             e.coerceToLua()
         }
@@ -52,7 +67,10 @@ fun WorldMetaTable() = luaTable {
         val voxelPos = pos.toVoxelPos()
         with(world) {
             val entity = setDynamicVoxel(voxelPos, networked.nullable()?.toboolean() ?: false)
-            debugScript("voxel", "($entity) created dynamic voxel, networked = $networked")
+            debugScript(
+                "voxel",
+                "($entity) created dynamic voxel, networked = $networked"
+            )
             entity.coerceToLua()
         }
     }
@@ -60,7 +78,7 @@ fun WorldMetaTable() = luaTable {
     function2("get_dynamic_voxel") { self, pos ->
         val world = self.asEngineWorld()
         val voxelPos = pos.toVoxelPos()
-        with(world) { chunkStorage.getDynamicVoxel(voxelPos)?.coerceToLua() ?: LuaValue.NIL }
+        with(world) { chunkStorage.getDynamicVoxel(voxelPos)?.coerceToLua() ?: NIL }
     }
 
     function3("emit") { self, event, networkedL ->
@@ -69,7 +87,7 @@ fun WorldMetaTable() = luaTable {
         val networked = networkedL.toboolean()
         with(world) {
             world.emitEvent(
-                ScriptComponent(event, eventType),
+                LuaScriptComponent(event, eventType),
                 eventType,
                 networked
             ).coerceToLua()
@@ -93,7 +111,7 @@ fun WorldMetaTable() = luaTable {
                 func.invoke(
                     self,
                     luaEntity.coercedTable,
-                    component.luaValue
+                    component.castLua().luaValue
                 )
             }
 
@@ -106,8 +124,8 @@ fun WorldMetaTable() = luaTable {
                     arrayOf(
                         self,
                         luaEntity.coercedTable,
-                        component1.luaValue,
-                        component2.luaValue
+                        component1.castLua().luaValue,
+                        component2.castLua().luaValue
                     )
                 )
             }
@@ -122,9 +140,9 @@ fun WorldMetaTable() = luaTable {
                     arrayOf(
                         self,
                         luaEntity.coercedTable,
-                        component1.luaValue,
-                        component2.luaValue,
-                        component3.luaValue
+                        component1.castLua().luaValue,
+                        component2.castLua().luaValue,
+                        component3.castLua().luaValue
                     )
                 )
             }
@@ -140,10 +158,10 @@ fun WorldMetaTable() = luaTable {
                     arrayOf(
                         self,
                         luaEntity.coercedTable,
-                        component1.luaValue,
-                        component2.luaValue,
-                        component3.luaValue,
-                        component4.luaValue
+                        component1.castLua().luaValue,
+                        component2.castLua().luaValue,
+                        component3.castLua().luaValue,
+                        component4.castLua().luaValue
                     )
                 )
             }
@@ -160,11 +178,11 @@ fun WorldMetaTable() = luaTable {
                     arrayOf(
                         self,
                         luaEntity.coercedTable,
-                        component1.luaValue,
-                        component2.luaValue,
-                        component3.luaValue,
-                        component4.luaValue,
-                        component5.luaValue
+                        component1.castLua().luaValue,
+                        component2.castLua().luaValue,
+                        component3.castLua().luaValue,
+                        component4.castLua().luaValue,
+                        component5.castLua().luaValue
                     )
                 )
             }
@@ -173,13 +191,13 @@ fun WorldMetaTable() = luaTable {
     }
 }
 
-context(lua: LuaContext)
+context(lua: LuaScriptEngine)
 fun World.coerceToLua(): LuaUserdata {
     val world = this
 
     val parameters = luaTable {
-        "id"(id.value.toLuaValue())
-        "is_client"(isClient.toLuaValue())
+        "id"(id.value.luaStr())
+        "is_client"(isClient.luaBool())
     }
 
     val userdata = LuaUserdata(world)
@@ -188,7 +206,7 @@ fun World.coerceToLua(): LuaUserdata {
             "parameters"(parameters)
             index { self, key ->
                 if (key.tojstring() == "players") {
-                    players.toLuaArray { it.coerceToLua() }
+                    players.toLuaList { it.coerceToLua() }
                 } else {
                     parameters.get(key)?.nullable() ?: lua.worldMetaTable.get(key)
                 }
@@ -199,14 +217,14 @@ fun World.coerceToLua(): LuaUserdata {
     return userdata
 }
 
-context(lua: LuaContext)
+context(lua: LuaScriptEngine)
 fun setupWorldTableState(world: World, table: LuaUserdata) {
     table.getmetatable().get("parameters").set("state", with(world) { world.state.coerceToLua() })
 }
 
-context(lua: LuaContext)
-fun World.getLuaValue(): LuaValue {
-    return lua.worldsList[id.value.toLuaValue()]
+context(lua: LuaScriptEngine)
+fun World.luaWorld(): LuaValue {
+    return lua.worldsList[id.value.luaStr()]
 }
 
 fun LuaValue.asEngineWorld() = this.checkuserdata() as World
@@ -228,64 +246,64 @@ data class LuaEntityComponent(val entity: LuaEntity, val coercedTable: LuaValue)
     }
 }
 
-fun EntityMetaTable() = luaTable {
-    function1("exists") { self ->
-        val entity = self.asEngineEntity()
+fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
+    functionSelf("exists") { entity ->
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
-        with(world) { entityId.exists() }.toLuaValue()
+        with(world) {
+            entityId.exists().luaBool()
+        }
     }
-    function2("get_component") { self, component ->
-        val entity = self.asEngineEntity()
+    functionSelf2("get_component") { entity, component ->
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
-        val type = component.checktable().get("type").asEngineScriptComponentType()
-        world.getLuaComponent(entityId, type.requireType()) ?: NIL
+        with(world) {
+            entityId.getLuaScriptComponent(component.componentType) ?: NIL
+        }
     }
-    function2("has_component") { self, component ->
-        val entity = self.asEngineEntity()
+    functionSelf2("has_component") { entity, component ->
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
-        val type = component.checktable().get("type").asEngineScriptComponentType()
-        luaValue(world.hasLuaComponent(entityId, type.requireType()))
+        with(world) {
+            entityId.hasLuaScriptComponent(component.componentType).luaBool()
+        }
     }
-    function2("set_component") { self, component ->
-        val entity = self.asEngineEntity()
+    functionSelf2("set_component") { entity, component ->
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
-        val type = component.checktable().get("type").asEngineScriptComponentType()
-        with(world) { entityId.setScriptComponent(component, type.requireType()) }
+        val type = component.componentType
+        with(world) {
+            entityId.setLuaScriptComponent(component, type)
+        }
         debugScript("entity", "($entity) ${type.id} added")
         NIL
     }
-    function2("remove_component") { self, component ->
-        val entity = self.asEngineEntity()
+    functionSelf2("remove_component") { entity, component ->
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
-        val type = component.checktable().get("type").asEngineScriptComponentType()
+        val type = component.componentType
         debugScript("entity", "($entity) ${type.id} removed")
-        world.removeLuaComponent(entityId, type.requireType()) ?: NIL
+        with(world) {
+            entityId.removeLuaScriptComponent(type) ?: NIL
+        }
     }
-    function2("mark_dirty") { self, component ->
-        val entity = self.asEngineEntity()
+    functionSelf2("mark_dirty") { entity, component ->
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
-        val type = component.checktable().get("type").asEngineScriptComponentType()
+        val type = component.componentType
         debugScript("entity", "($entity) ${type.id} marked for sync")
-        world.markDirty(entityId, type.requireType())
-        LuaValue.NIL
+        world.markDirty(entityId, type)
+        NIL
     }
-    function1("get_all_components") { self ->
-        val entity = self.asEngineEntity()
+    functionSelf("get_all_components") { entity ->
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
         world.getComponents(entityId)
             .filterIsInstance<ScriptComponent>()
             .filter { it.value is LuaTable }
-            .toLuaArray { it.luaValue }
+            .toLuaList { it.castLua().luaValue }
     }
-    function1("destroy") { self ->
-        val entity = self.asEngineEntity()
+    functionSelf("destroy") { entity ->
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
         debugScript("entity", "($entity) destroyed")
@@ -294,10 +312,10 @@ fun EntityMetaTable() = luaTable {
     }
 }
 
-context(lua: LuaContext, world: World)
+context(lua: LuaScriptEngine, world: World)
 fun EntityId.coerceToLua(): LuaValue {
-    val idL = luaValue(this)
-    val worldL = world.getLuaValue()
+    val idL = luaNum()
+    val worldL = world.luaWorld()
     return getComponent<LuaEntityComponent>()?.coercedTable ?: run {
         val metatable = LuaTable()
         metatable.set("__index", lua.entityMetaTable)
@@ -310,21 +328,3 @@ fun EntityId.coerceToLua(): LuaValue {
 }
 
 fun LuaValue.asEngineEntity() = this.checkuserdata() as LuaEntity
-
-val ScriptComponent.luaValue
-    get() = value as? LuaValue ?: error("Component not supports lua")
-
-private fun World.hasLuaComponent(entityId: EntityId, componentType: ScriptComponentType): Boolean {
-    return hasComponent(entityId, componentType)
-}
-
-private fun World.getLuaComponent(entityId: EntityId, componentType: ScriptComponentType): LuaValue? {
-    val component = getComponent(entityId, componentType) ?: return null
-    return (component.value as? LuaValue) ?: error("Component ${componentType.id} not supports lua")
-}
-
-private fun World.removeLuaComponent(entityId: EntityId, componentType: ScriptComponentType): LuaValue? {
-    val component = removeComponent(entityId, componentType) ?: return null
-    if (component.value !is LuaValue) error("Removed non-lua component with type ${componentType.id}")
-    return component.value
-}

@@ -4,9 +4,10 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.mc.InvalidIdException
 import org.lain.engine.mc.isIdPathValid
+import org.lain.engine.mc.server.SetupException
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
-import org.lain.engine.script.lua.LuaContext
+import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.yaml.compileContentsYaml
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
@@ -36,12 +37,11 @@ val EngineServer.luaEntrypointDir: File
 fun File.luaEntrypointDir(serverId: ServerId): File {
     return resolve("${serverId}.lua")
 }
-
 fun getLuaEntrypointDir(serverId: ServerId): File {
     return ENGINE_DIR.scripts.luaEntrypointDir(serverId)
 }
 
-internal val LOGGER = LoggerFactory.getLogger("Script Engine")
+internal val SCRIPT_LOGGERRR = LoggerFactory.getLogger("Script Engine")
 
 data class CompilationException(val namespace: NamespaceId, val error: Exception) : Exception(error) {
     val errorString: String
@@ -56,6 +56,7 @@ data class CompilationResult(
     val namespaces: Map<NamespaceId, CompiledNamespace>,
     val exceptions: List<CompilationException>,
     val callbacks: Callbacks?,
+    val phases: List<SystemPhase>,
     val time: Long
 ) {
     fun log() {
@@ -102,10 +103,11 @@ data class CompiledNamespace(
     val progressionAnimations: Map<ProgressionAnimationId, ProgressionAnimation>,
     val scripts: Map<ScriptId, Script<*, *>> = mapOf(),
     val components: Map<ScriptComponentId, ScriptComponentType> = mapOf(),
-    val intents: Map<IntentId, Intent> = mapOf()
+    val intents: Map<IntentId, Intent> = mapOf(),
+    val systems: Map<ScriptSystemId, ScriptSystem> = mapOf()
 ) {
     val identifiers: List<String> get() {
-        val maps = listOf(items, sounds, scripts, progressionAnimations, scripts, components, intents)
+        val maps = listOf(items, sounds, scripts, progressionAnimations, scripts, components, intents, systems)
         return maps.flatMap {
             it.map { (id, obj) -> id.toString() }
         }
@@ -114,26 +116,59 @@ data class CompiledNamespace(
     data class Item(val prefab: ItemPrefab) {
         val id get() = prefab.id
     }
+
+    data class ScriptSystem(
+        val queryComponents: List<ScriptComponentId>,
+        val side: SystemSide,
+        val entityHandleScript: VoidScript<ScriptContext.SystemEntityHandle>,
+    )
 }
 
 fun assertIdentifierValid(namespaceId: NamespaceId, id: String) {
     if (!isIdPathValid(id)) throw CompilationException(namespaceId, InvalidIdException(id))
 }
 
-fun NamespacedStorageAccess.loadContentsCompileResult(result: CompilationResult) {
+fun NamespacedStorageAccess.loadCompilationResult(result: CompilationResult) {
+    val compiledNamespaces = result.namespaces
+
+    val namespaces = compiledNamespaces.map { (id, namespace) ->
+        Namespace(
+            id,
+            ContentHolder(namespace.items.mapValues { it.value.prefab }),
+            ContentHolder(namespace.sounds),
+            ContentHolder(namespace.progressionAnimations),
+            ContentHolder(namespace.scripts),
+            ContentHolder(namespace.components),
+            ContentHolder(namespace.intents)
+        )
+    }
+        .associateBy { it.id }
+
+    val components = namespaces.collect { it.components }
+    val compiledSystems = compiledNamespaces.collect { it.systems }
+    // Восстановление связей
+    val systems = ContentHolder(
+        compiledSystems.mapValues { (id, compiledSystem) ->
+            ScriptSystemDefinition(
+                compiledSystem.queryComponents.map {
+                    components[it] ?: error("Missing component type ${it.id}")
+                },
+                compiledSystem.side,
+                compiledSystem.entityHandleScript
+            )
+        }
+    )
+
     update(
-        namespacedStorageWithBuiltins(
-            result.namespaces.map { (id, namespace) ->
-                Namespace(
-                    id,
-                    Namespace.Holder(namespace.items.mapValues { it.value.prefab }),
-                    Namespace.Holder(namespace.sounds),
-                    Namespace.Holder(namespace.progressionAnimations),
-                    Namespace.Holder(namespace.scripts),
-                    Namespace.Holder(namespace.components),
-                    Namespace.Holder(namespace.intents),
-                )
-            }
+        NamespacedStorage(
+            namespaces,
+            namespaces.collect { it.sounds },
+            namespaces.collect { it.items },
+            namespaces.collect { it.progressionAnimations },
+            namespaces.collect { it.scripts },
+            components,
+            namespaces.collect { it.intents },
+            systems
         )
     )
 }
@@ -148,14 +183,15 @@ fun World.registerComponentTypes(namespacesStorage: NamespacedStorageAccess) {
 
 fun EngineServer.applyContentsCompileResult(result: CompilationResult) {
     result.callbacks?.let { callbacks = it }
-    namespacedStorage.loadContentsCompileResult(result)
+    namespacedStorage.loadCompilationResult(result)
     listWorlds().forEach { it.registerComponentTypes(namespacedStorage) }
+    scriptSystemDispatcher.load(result.phases, namespacedStorage)
     handler.onScriptsCompiled()
 }
 
-fun EngineServer.loadContents(
-    luaContext: LuaContext,
-    result: CompilationResult = compileContents(ENGINE_DIR.contents, luaContext)
+fun EngineServer.recompileContents(
+    luaScriptEngine: LuaScriptEngine,
+    result: CompilationResult = compileContents(ENGINE_DIR.contents, luaScriptEngine)
 ) {
     applyContentsCompileResult(result)
     platform.onCompiled(namespacedStorage.get())
@@ -163,15 +199,16 @@ fun EngineServer.loadContents(
 }
 
 // Функция с побочными эффектами
-fun compileContents(contents: File, luaContext: LuaContext): CompilationResult {
+fun compileContents(contents: File, luaScriptEngine: LuaScriptEngine): CompilationResult {
     val start = Timestamp()
     val result1 = compileContentsYaml(contents)
-    luaContext.runEntrypoint()
-    val result2 = luaContext.compileContents()
+    luaScriptEngine.runEntrypoint()
+    val result2 = luaScriptEngine.compileContents()
     val result = CompilationResult(
         result1.namespaces + result2.namespaces,
         result1.exceptions + result2.exceptions,
         result2.callbacks,
+        result1.phases + result2.phases,
         start.timeElapsed()
     ).withValidatedIdentifiers()
 

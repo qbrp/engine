@@ -5,7 +5,7 @@ import org.lain.engine.Constants.DEBUG_PACKETS
 import org.slf4j.LoggerFactory
 
 object Constants {
-    const val DEBUG_PACKETS = false
+    const val DEBUG_PACKETS = true
     const val SIMULATE_LATENCY = false
     const val DEBUG_ALL = false
     const val LOAD_LUA_LIBRARIES = true

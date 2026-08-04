@@ -15,7 +15,8 @@ import org.lain.engine.mc.literalText
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.handItem
 import org.lain.engine.script.lua.LuaFunctionChunk
-import org.lain.engine.script.lua.coerceToLua
+import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.luaWorld
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.world.LightBehaviour
 import org.lain.engine.world.LightSource
@@ -36,7 +37,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                     entity.removeComponent<LightSource>()
                                     entity.removeComponent<Luminance>()
                                 } else {
-                                    entity.setComponent(LightSource(LightBehaviour.Sphere(6)))
+                                    entity.setComponent(LightSource(LightBehaviour.Cone()))
                                     entity.setComponent(Luminance(14))
                                 }
                             }
@@ -62,7 +63,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                             function.execute(
                                                 this,
                                                 gameSession.mainPlayer.coerceToLua(), //player
-                                                gameSession.world.coerceToLua() //world
+                                                gameSession.world.luaWorld() //world
                                             )
                                                 .tojstring()
                                         )

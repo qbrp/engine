@@ -11,8 +11,8 @@ import org.luaj.vm2.lib.VarArgFunction
 fun luaTable(block: LuaTableBuilder.() -> Unit): LuaTable =
     LuaTableBuilder().apply(block).build()
 
-class LuaTableBuilder {
-    private val table = LuaTable()
+open class LuaTableBuilder {
+    protected val table = LuaTable()
 
     fun build(): LuaTable = table
 
@@ -156,3 +156,29 @@ private fun Any?.toLua(): LuaValue = when (this) {
 
     else -> LuaValue.userdataOf(this)
 }
+
+class UserdataLuaTableBuilder<T> : LuaTableBuilder() {
+    @Suppress("UNCHECKED_CAST")
+    fun LuaValue.cast() = checkuserdata() as T
+
+    fun functionSelf(name: String, body: (T) -> LuaValue) = function1(name) { self ->
+        body(self.cast())
+    }
+
+    fun functionSelf2(name: String, body: (T, LuaValue) -> LuaValue) = function2(name) { self, arg1 ->
+        body(self.cast(), arg1)
+    }
+
+    fun functionSelf3(name: String, body: (T, LuaValue, LuaValue) -> LuaValue) =
+        function3(name) { self, arg1, arg2 ->
+            body(self.cast(), arg1, arg2)
+        }
+
+    fun functionSelf4(name: String, body: (T, LuaValue, LuaValue, LuaValue) -> LuaValue) =
+        function4(name) { self, arg1, arg2, arg3 ->
+            body(self.cast(), arg1, arg2, arg3)
+        }
+}
+
+fun <T> luaUserdataTable(builder: UserdataLuaTableBuilder<T>.() -> Unit) =
+    UserdataLuaTableBuilder<T>().apply(builder).build()

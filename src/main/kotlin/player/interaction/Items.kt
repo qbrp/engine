@@ -3,13 +3,20 @@ package org.lain.engine.player.interaction
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
+import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.item.Barrel
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.GunBarrelLoad
+import org.lain.engine.item.GunMagazineLoad
+import org.lain.engine.item.GunMagazines
 import org.lain.engine.item.GunModeToggle
-import org.lain.engine.item.GunTriggerPress
+import org.lain.engine.item.GunTriggerPressed
+import org.lain.engine.item.Item
+import org.lain.engine.item.Magazine
 import org.lain.engine.item.WRITEABLE_OPEN_SOUND
 import org.lain.engine.item.Writable
 import org.lain.engine.item.WritableOpen
@@ -22,7 +29,7 @@ import org.lain.engine.world.World
 @Serializable
 object GunModeToggleAction : Component
 
-data class GunBarrelAmoLoadAction(val gunItem: EngineItem, val ammoItem: EngineItem) : Component
+data class GunLoadAction(val gunItem: EngineItem, val item: EngineItem) : Component
 
 @Serializable
 object StartShootAction : Component
@@ -39,15 +46,17 @@ fun World.tickGunActionSystem() {
         entity.syncAction(intent)
     }
 
-    iterate<StopShootAction> { entity, intent ->
-        entity.removeComponent<Shooting>()
+    iterate<StopShootAction, PlayerInventory> { entity, intent, inventory ->
+        val shooting = entity.removeComponent<Shooting>()
         entity.removeComponent<StopShootAction>()
+        if (shooting?.mainHand == true) inventory.mainHandItem?.removeComponent<GunTriggerPressed>()
+        if (shooting?.offHand == true) inventory.offHandItem?.removeComponent<GunTriggerPressed>()
         entity.syncAction(intent)
     }
 
     iterate<Shooting, PlayerInventory> { entity, (byMainHand, byOffHand), inventory ->
-        if (byMainHand) inventory.mainHandItem?.setComponent(GunTriggerPress)
-        if (byOffHand) inventory.offHandItem?.setComponent(GunTriggerPress)
+        if (byMainHand) inventory.mainHandItem?.setComponent(GunTriggerPressed)
+        if (byOffHand) inventory.offHandItem?.setComponent(GunTriggerPressed)
     }
 
     iterate<GunModeToggleAction, Player> { entity, intent, (player) ->
@@ -57,9 +66,14 @@ fun World.tickGunActionSystem() {
         entity.removeComponent<GunModeToggleAction>()
     }
 
-    iterate<GunBarrelAmoLoadAction, Player> { entity, (gunItem, ammoItem), (player) ->
-        gunItem.setComponent(GunBarrelLoad(player, ammoItem))
-        entity.removeComponent<GunBarrelAmoLoadAction>()
+    iterate<GunLoadAction, Player> { entity, (gunItem, loadItem), (player) ->
+        val loadItemId = loadItem.requireComponent<Item>().id
+        if (loadItem.hasComponent<Magazine>() && loadItemId == gunItem.getComponent<GunMagazines>()?.supports) {
+            gunItem.setComponent(GunMagazineLoad(player, loadItem))
+        } else if (loadItemId == gunItem.getComponent<Barrel>()?.ammunition) {
+            gunItem.setComponent(GunBarrelLoad(player, loadItem))
+        }
+        entity.removeComponent<GunLoadAction>()
     }
 }
 

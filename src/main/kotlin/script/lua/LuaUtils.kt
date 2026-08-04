@@ -1,8 +1,7 @@
 package org.lain.engine.script.lua
 
-import kotlinx.serialization.json.*
 import org.lain.engine.player.interaction.InputAction
-import org.lain.engine.storage.LOGGER
+import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.Input
 import org.lain.engine.util.IntentSelection
@@ -15,13 +14,8 @@ import org.lain.engine.world.VoxelPos
 import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaTable
-import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
-import org.luaj.vm2.Varargs
-import org.luaj.vm2.ast.Str
-import org.luaj.vm2.lib.*
 import java.io.File
-import java.util.*
 import kotlin.math.floor
 
 fun File.writeDefaultLuaEntrypointScript() {
@@ -36,22 +30,6 @@ fun InputAction.toLuaTable() = when (this) {
 
 fun LuaValue.nullable() = if (isnil()) null else this
 
-fun LuaTable.toStringMap(): Map<String, String> {
-    val map = mutableMapOf<String, String>()
-    for (key in keys()) {
-        map[key.tojstring()] = get(key).tojstring()
-    }
-    return map
-}
-
-fun <V> LuaTable.toMap(valueTransform: (LuaValue) -> V): Map<String, V> {
-    val map = mutableMapOf<String, V>()
-    for (key in keys()) {
-        map[key.tojstring()] = valueTransform(get(key))
-    }
-    return map
-}
-
 class LuaFunctionChunk(function: String, vararg args: String) {
     private val str = "return function(${args.joinToString { it }}) $function end"
 
@@ -59,38 +37,10 @@ class LuaFunctionChunk(function: String, vararg args: String) {
         return globals.load(str).checkfunction()
     }
 
-    fun execute(context: LuaContext, vararg args: LuaValue): LuaValue {
+    fun execute(context: LuaScriptEngine, vararg args: LuaValue): LuaValue {
         return getFunction(context.globals).invoke(args.toList().toTypedArray()).arg1()
     }
 }
-
-fun luaTableOf(vararg values: LuaValue): LuaTable {
-    return LuaTable.tableOf(values)
-}
-
-fun emptyLuaTable(): LuaTable = LuaTable.tableOf()
-
-fun luaValue(string: String) = LuaValue.valueOf(string)
-
-fun String.toLuaValue(): LuaValue = luaValue(this)
-
-fun luaValueNullable(string: String?) = LuaValue.valueOf(string) ?: LuaValue.NIL
-
-fun luaValue(int: Int) = LuaValue.valueOf(int)
-
-fun Int.toLuaValue(): LuaValue = luaValue(this)
-
-fun luaValue(float: Float) = LuaValue.valueOf(float.toDouble())
-
-fun Float.toLuaValue(): LuaValue = luaValue(this)
-
-fun luaValue(boolean: Boolean) = LuaValue.valueOf(boolean)
-
-fun Boolean.toLuaValue(): LuaValue = luaValue(this)
-
-fun luaValue(double: Double) = LuaValue.valueOf(double)
-
-fun Double.toLuaValue(): LuaValue = luaValue(this)
 
 fun List<AnyInputValue>.toLuaTable(): LuaTable {
     val table = LuaTable()
@@ -98,17 +48,29 @@ fun List<AnyInputValue>.toLuaTable(): LuaTable {
     return table
 }
 
-fun Any?.toLuaValue(type: Input.Type<*>): LuaValue {
-    return when (type) {
-        Input.Type.Logic -> (this as Boolean).toLuaValue()
-        Input.Type.Integer -> (this as Int).toLuaValue()
-        Input.Type.Double -> (this as Double).toLuaValue()
-        Input.Type.Table -> TODO()
-        is Input.Type.Text -> (this as String).toLuaValue()
+fun LuaValue.toKotlin(): Any? {
+    return when (type()) {
+        LuaValue.TNIL -> null
+        LuaValue.TBOOLEAN -> toboolean()
+        LuaValue.TINT -> toint()
+        LuaValue.TSTRING -> tojstring()
+        LuaValue.TFUNCTION -> { checkfunction().call() }
+        LuaValue.TTABLE -> { checktable().toMap { it.toKotlin() } }
+        else -> error("Invalid type: " + type())
     }
 }
 
-context(ctx: LuaContext)
+fun Any?.toLuaValue(type: Input.Type<*>): LuaValue {
+    return when (type) {
+        Input.Type.Logic -> (this as Boolean).luaBool()
+        Input.Type.Integer -> (this as Int).luaNum()
+        Input.Type.Double -> (this as Double).luaNum()
+        Input.Type.Table -> TODO()
+        is Input.Type.Text -> (this as String).luaStr()
+    }
+}
+
+context(ctx: LuaScriptEngine)
 fun IntentTarget.toLuaValue(): LuaTable = luaTableOf(
     luaValue("player"), player?.coerceToLua() ?: LuaValue.NIL,
     luaValue("voxel_pos"), voxelPos.toLuaValue(),
@@ -120,29 +82,9 @@ fun IntentSelection.toLuaValue() = luaTableOf(
     luaValue("pos2"), pos2.toLuaValue(),
 )
 
-fun <T> List<T>.toLuaArray(transform: (T) -> LuaValue): LuaTable {
-    return LuaTable.listOf(map(transform).toTypedArray())
-}
+fun VoxelPos.toLuaValue() = luaListOf(x, y, z)
 
-fun <V> LuaTable.toList(valueTransform: (LuaValue) -> V): List<V> {
-    val list = mutableListOf<V>()
-    for (i in 1..this.length()) {
-        list.add(valueTransform(this.get(i)))
-    }
-    return list
-}
-
-fun VoxelPos.toLuaValue(): LuaTable {
-    return LuaValue.listOf(
-        arrayOf(luaValue(x), luaValue(y), luaValue(z)),
-    )
-}
-
-fun EVec3.toLuaValue(): LuaTable {
-    return LuaValue.listOf(
-        arrayOf(luaValue(x), luaValue(y), luaValue(z))
-    )
-}
+fun EVec3.toLuaValue() = luaListOf(x.toDouble(), y.toDouble(), z.toDouble())
 
 fun LuaValue.toVoxelPos(): VoxelPos {
     val elements = checktable().toList { it.tofloat() }
@@ -160,29 +102,6 @@ fun LuaValue.toVector3f(): EVec3 {
     return Vec3(elements[0], elements[1], elements[2])
 }
 
-fun LuaValue.asEngineScriptComponentType(): LazyScriptComponentType {
-    return checkuserdata(LazyScriptComponentType::class.java) as? LazyScriptComponentType ?: error("Invalid component type value")
-}
-
-fun LazyScriptComponentType.toLuaValue(): LuaValue {
-    val userdata = LuaUserdata(this)
-
-    val meta = object : LuaTable() {
-        init {
-            set("__index", object : TwoArgFunction() {
-                override fun call(self: LuaValue, key: LuaValue): LuaValue {
-                    return when (key.tojstring()) {
-                        "id" -> { luaValue(requireType().id) }
-                        else -> NIL
-                    }
-                }
-            })
-        }
-    }
-    userdata.setmetatable(meta)
-    return userdata
-}
-
 fun LuaTable.toIntentInput(): Input<out Any> {
     val id = get("id").tojstring()
     val type = when(val type = get("type").tojstring()) {
@@ -194,40 +113,4 @@ fun LuaTable.toIntentInput(): Input<out Any> {
         else -> error("Unsupported table type $type")
     }
     return Input(id, type)
-}
-
-fun zeroArgFunction(builder: () -> LuaValue) = object : ZeroArgFunction() {
-    override fun call(): LuaValue {
-        return builder.invoke() ?: LuaValue.NIL
-    }
-}
-
-fun oneArgFunction(builder: (LuaValue) -> LuaValue?) = object : OneArgFunction() {
-    override fun call(arg: LuaValue): LuaValue {
-        return builder.invoke(arg) ?: LuaValue.NIL
-    }
-}
-
-fun twoArgFunction(builder: (LuaValue, LuaValue) -> LuaValue?) = object : TwoArgFunction() {
-    override fun call(arg: LuaValue, arg2: LuaValue): LuaValue {
-        return builder.invoke(arg, arg2) ?: LuaValue.NIL
-    }
-}
-
-fun threeArgFunction(builder: (LuaValue, LuaValue, LuaValue) -> LuaValue?) = object : ThreeArgFunction() {
-    override fun call(arg: LuaValue, arg2: LuaValue, arg3: LuaValue): LuaValue {
-        return builder.invoke(arg, arg2, arg3) ?: LuaValue.NIL
-    }
-}
-
-fun fourArgFunction(builder: (LuaValue, LuaValue, LuaValue, LuaValue) -> LuaValue?) = object : VarArgFunction() {
-    override fun onInvoke(args: Varargs): Varargs {
-        return builder.invoke(args.arg(1), args.arg(2), args.arg(3), args.arg(4)) ?: LuaValue.NIL
-    }
-}
-
-fun varargsFunction(builder: (Varargs) -> Varargs?) = object : VarArgFunction() {
-    override fun onInvoke(args: Varargs): Varargs {
-        return builder.invoke(args) ?: LuaValue.NIL
-    }
 }

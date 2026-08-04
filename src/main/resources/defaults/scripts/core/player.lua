@@ -5,7 +5,7 @@ require("core.component")
 ---@class Player : Entity
 ---@field id string
 ---@field uuid string
----@field entity_id number
+---@field entity Entity
 ---@field world World
 ---@field is_game_master boolean
 ---@field is_spectating boolean
@@ -15,7 +15,23 @@ require("core.component")
 ---@field set_custom_max_speed fun(self: Player, speed: number)
 ---@field reset_custom_speed fun(self: Player)
 ---@field narration_internal fun(narration: Narration)
+---@field set_action_component fun(self: Player, component: Component)
 Player = Player
+
+--------------------------------------------------------------------------------
+---- Взаимодействия
+--------------------------------------------------------------------------------
+
+---@class InputAction
+---@field type "base, attack, take_off"
+
+---@class PlayerInputTickScriptContext
+---@field player Player
+---@field actions InputAction[]
+---@field last_actions InputAction[]
+---@field is_spectating boolean
+---@field social_interaction_distance number
+---@field extend_arm boolean
 
 --------------------------------------------------------------------------------
 ---- Встроенные системы
@@ -56,28 +72,18 @@ end
 ---- Компонентные утилиты
 --------------------------------------------------------------------------------
 
+
+---@class PlayerInventoryComponent : Component
+---@field main_hand_item Entity
+---@field off_hand_item Entity
+---@field items Entity[]
+---@field selected_slot number int
+---readonly
+PlayerInventoryComponent = Component.of("core/player/inventory")
+
 ---@class PlayerComponent : Component
 ---@field object Player
 PlayerComponent = Component.of("core/player/component")
-
----@param types ComponentType[]|Component[]
----@param fun fun(player: Player, ...)
-function World:iterate_players(types, fun)
-    table.insert(types, 1, PlayerComponent)
-    self:iterate(types, function(entity, player, ...)
-        fun(player.object, ...)
-    end)
-end
-
-
----@param types ComponentType[]|Component[]
----@param fun fun(world: World, player: Player, ...)
----@param env string client or server
----@return Callbacks
-function Callbacks:player_system(types, fun, env)
-    table.insert(types, PlayerComponent)
-    return self:system(types, function(world, entity, player, ...) fun(world, player.object) end, env)
-end
 
 --------------------------------------------------------------------------------
 ---- Заморозка
@@ -89,13 +95,15 @@ end
 local FreezeComponent = Component.of("core/player/freeze")
 
 ---@return FreezeComponent
----@field duration number
+---@param duration number
 function FreezeComponent.new(duration) return FreezeComponent:construct { duration=duration, time=0 } end
 
----@param world World
----@param player Player
+local FreezeSystem = System("freeze", { PlayerComponent, FreezeComponent })
+
+---@param player_component PlayerComponent
 ---@param freeze FreezeComponent
-local function FreezeSystem(world, player, freeze)
+function FreezeSystem.update(world, entity, player_component, freeze)
+    local player = player_component.object
     if (freeze.time > freeze.duration) then
         player:remove_component(FreezeComponent)
         return
@@ -115,6 +123,11 @@ end
 ---- Инициализация
 --------------------------------------------------------------------------------
 
-Callbacks.build()
-        :player_system({ FreezeComponent }, FreezeSystem)
-        :submit()
+function CompilationResult:setup_player()
+    self:namespace {
+        id = "core/player",
+        components = ComponentList { "freeze" },
+        systems = { FreezeSystem }
+    }
+    self:phase("player", { FreezeSystem })
+end

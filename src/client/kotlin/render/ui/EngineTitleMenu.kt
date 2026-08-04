@@ -1,5 +1,6 @@
 package org.lain.engine.client.render.ui
 
+import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.SharedConstants
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
@@ -7,6 +8,7 @@ import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.PlainTextButton
 import net.minecraft.client.gui.screens.CreditsAndAttributionScreen
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.screens.TitleScreen
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen
 import net.minecraft.client.gui.screens.multiplayer.SafetyScreen
 import net.minecraft.client.gui.screens.options.AccessibilityOptionsScreen
@@ -14,6 +16,7 @@ import net.minecraft.client.gui.screens.options.LanguageSelectScreen
 import net.minecraft.client.gui.screens.options.OptionsScreen
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen
+import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.network.chat.Component
@@ -137,6 +140,15 @@ class EngineTitleMenu(
 
     override fun renderBackground(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         MovingWallpapers.render(guiGraphics, delta)
+    }
+
+    override fun keyPressed(keyEvent: KeyEvent): Boolean {
+        return if (keyEvent.key == InputConstants.KEY_F10) {
+            minecraft.setScreen(TitleScreen())
+            true
+        } else {
+            super.keyPressed(keyEvent)
+        }
     }
 
     override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {

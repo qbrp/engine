@@ -1,6 +1,3 @@
----@type World
-local World = World
-
 --- https://easings.net/
 Easing = {
     ease_in_sine = function(t)
@@ -16,22 +13,26 @@ Easing = {
 
 --------------------------------------------------
 
----@class Tween
+---@class TweenOptions
 ---@field start number
 ---@field final number
 ---@field easing Easing
 ---@field duration number
 ---@field progress number
 ---@field apply fun(entity: Entity, value: number)
-Tween = {}
+
+---@class Tween : TweenOptions
+Tween = Tween or {}
 
 ---@param start number
 ---@param final number
 ---@param duration number
 ---@param apply fun(entity: Entity, value: number)
 ---@param easing Easing?
+---@return Tween
 function Tween.create(start, final, duration, apply, easing)
-    return {
+    ---@type TweenOptions
+    local tween = {
         start = start,
         final = final,
         duration = duration,
@@ -39,6 +40,7 @@ function Tween.create(start, final, duration, apply, easing)
         progress = 0,
         apply = apply
     }
+    return tween
 end
 
 --------------------------------------------------
@@ -90,11 +92,11 @@ TweenTargetComponent = Component.of("core/tween/target")
 ---@field tweens Tween[]
 TweenContainerComponent = Component.of("core/tween/container")
 
----@param world World
----@param entity Entity
+local TweenSystem = System("tween", { TweenContainerComponent, TweenTargetComponent })
+
 ---@param container TweenContainerComponent
 ---@param target TweenTargetComponent
-local function TweenSystem(world, entity, container, target)
+function TweenSystem.update(world, entity, container, target)
     if not target.entity:exists() then
         entity:destroy()
         return
@@ -131,6 +133,11 @@ local function TweenSystem(world, entity, container, target)
     end
 end
 
-Callbacks.build()
-     :system({ TweenContainerComponent, TweenTargetComponent }, TweenSystem)
-     :submit()
+function CompilationResult:setup_tween()
+    self:namespace {
+        id = "core/tween",
+        components = ComponentList { "container", "target" },
+        systems = { TweenSystem }
+    }
+    self:phase("tween", { TweenSystem })
+end

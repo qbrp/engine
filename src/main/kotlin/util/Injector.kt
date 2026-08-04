@@ -56,8 +56,6 @@ enum class Environment {
     CLIENT, SERVER
 }
 
-fun injectEnvironment() = inject<Environment>()
-
 fun injectServerTransportContext() = inject<ServerTransportContext>()
 
 fun injectEngineServer() = inject<EngineServer>()

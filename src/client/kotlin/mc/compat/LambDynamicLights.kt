@@ -20,6 +20,7 @@ import org.lain.engine.mc.MathMc
 import org.lain.engine.mc.MutableBlockPos
 import org.lain.engine.mc.toMinecraft
 import org.lain.engine.player.Orientation
+import org.lain.engine.player.Player
 import org.lain.engine.player.get
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.EntityId
@@ -94,7 +95,7 @@ class LightSystem(private val context: DynamicLightsContext) {
         location: Location
     ): EngineDynamicLightBehavior? = when (behaviour) {
         is LightBehaviour.Cone -> {
-            val owner = entity.getOwner() ?: return null
+            val owner = entity.getComponent<Player>()?.obj ?: entity.getOwner() ?: return null
             val orientation = owner.get<Orientation>() ?: return null
             val location = owner.location
             val mcWorld = MinecraftClient.level ?: return null

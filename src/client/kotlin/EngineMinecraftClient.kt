@@ -187,7 +187,7 @@ class EngineMinecraftClient : ClientModInitializer {
                 if (client.isSingleplayer) {
                     val engine = server?.engine ?: throw RuntimeException("Server not started")
                     engineClient.startJoinFlow(
-                        GameSessionJoinFlow.JoinType.Singleplayer(engine)
+                        GameSessionJoinFlow.JoinType.Singleplayer(engine, mainPlayerEntity.isReplayViewer)
                     )
                 } else {
                     engineClient.startJoinFlow(GameSessionJoinFlow.JoinType.Multiplayer)

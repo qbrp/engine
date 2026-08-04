@@ -123,7 +123,7 @@ public abstract class ChatHudMixin implements EngineChatHudAccess {
             return;
         }
 
-        chatFocused = chatFocused && ClientMixinAccess.INSTANCE.shouldFocusChat();
+        chatFocused = chatFocused || ClientMixinAccess.INSTANCE.shouldFocusChat();
 
         int totalLines = this.visibleMessages.size();
         if (totalLines <= 0) {

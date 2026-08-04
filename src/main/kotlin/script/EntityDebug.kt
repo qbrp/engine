@@ -6,23 +6,19 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.handle
-import org.lain.engine.script.lua.LuaEntityComponent
-import org.lain.engine.script.lua.luaValue
-import org.lain.engine.script.lua.toLuaValue
+import org.lain.engine.script.DebugEntry.*
+import org.lain.engine.script.DebugPrimitive.*
+import org.lain.engine.script.lua.library.LuaEntityComponent
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.World
-import org.luaj.vm2.LuaTable
-import org.luaj.vm2.LuaValue
 import java.util.UUID
 import javax.naming.OperationNotSupportedException
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty1
-import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.memberProperties
-import kotlin.reflect.jvm.isAccessible
 
 data class EntityDebugData(
     val id: EntityId,
@@ -61,36 +57,37 @@ sealed class DebugObject {
 @Serializable
 @SerialName("primitive")
 sealed class DebugPrimitive {
-    abstract fun toLuaValue(): LuaValue
+    abstract fun toScriptValue(): ScriptValue
     abstract fun toJvmValue(): Any
 
     @Serializable @SerialName("str") class Str(val string: String) : DebugPrimitive() {
-        override fun toLuaValue(): LuaValue = LuaValue.valueOf(string)
+        override fun toScriptValue(): ScriptValue = SString(string)
         override fun toJvmValue(): Any = string
     }
     @Serializable @SerialName("bool") class Bool(val bool: Boolean) : DebugPrimitive() {
         val string = bool.toString()
-        override fun toLuaValue(): LuaValue = LuaValue.valueOf(bool.toString())
+        override fun toScriptValue(): ScriptValue = SBool(bool)
         override fun toJvmValue(): Any = bool
     }
     @Serializable @SerialName("int") class Int(val int: kotlin.Int) : DebugPrimitive() {
         val string = int.toString()
-        override fun toLuaValue(): LuaValue = LuaValue.valueOf(int.toString())
+        override fun toScriptValue(): ScriptValue = SNumber(int.toDouble())
         override fun toJvmValue(): Any = int
     }
     @Serializable @SerialName("double") class Double(val double: kotlin.Double) : DebugPrimitive() {
         val string = double.toString()
-        override fun toLuaValue(): LuaValue = LuaValue.valueOf(double.toString())
+        override fun toScriptValue(): ScriptValue = SNumber(double)
         override fun toJvmValue(): Any = double
     }
     @Serializable @SerialName("uuid") class Uuid(val uuid: String) : DebugPrimitive() {
-        val string = uuid.toString()
-        override fun toLuaValue(): LuaValue = LuaValue.valueOf(uuid)
-        override fun toJvmValue(): Any = uuid
+        val string = uuid
+        override fun toScriptValue(): ScriptValue = SString(uuid)
+        override fun toJvmValue(): Any = UUID.fromString(uuid)
     }
     @Serializable @SerialName("enum") data class Enum(val enumClass: String, val name: String) : DebugPrimitive() {
         val string = name
-        override fun toLuaValue(): LuaValue = name.toLuaValue()
+        override fun toScriptValue(): ScriptValue = SString(name)
+        @Suppress("UNCHECKED_CAST")
         override fun toJvmValue(): Any {
             val clazz = Class.forName(enumClass)
             val result = (clazz.enumConstants as Array<kotlin.Enum<*>>)
@@ -100,7 +97,7 @@ sealed class DebugPrimitive {
     }
     @Serializable @SerialName("other") class Other(val str: String) : DebugPrimitive() {
         override fun toJvmValue(): Any { throw OperationNotSupportedException() }
-        override fun toLuaValue(): LuaValue { throw OperationNotSupportedException() }
+        override fun toScriptValue(): ScriptValue { throw OperationNotSupportedException() }
         val string = str
     } // non editable
 }
@@ -145,7 +142,7 @@ fun EntityId.snapshotDebugData(): EntityDebugData {
             with(context) {
                 runCatching { component.toDebugData(type) }
                     .onFailure {
-                        LOGGER.error("Невозможно получить данные для отладки компонента: $type", it)
+                        SCRIPT_LOGGERRR.error("Невозможно получить данные для отладки компонента: $type", it)
                     }
                     .getOrNull()
             }
@@ -159,16 +156,15 @@ fun EntityId.snapshotDebugData(): EntityDebugData {
     )
 }
 
-context(world: World)
-fun EntityId.setDataDebug(debugData: EntityDebugData, objectId: Int, property: String, value: DebugPrimitive) {
-    val obj = debugData.gameObjects[objectId] ?: error("Object $objectId not found")
-    if (obj is LuaValue && obj.checktable() != null) {
-        val table = obj.checktable()
-        table.set(property, value.toLuaValue())
-    } else {
-        val clazz = obj::class
-        val property = clazz.memberProperties.find { it.name == property } as KMutableProperty1<Any, Any?>
-        property.set(obj, value.toLuaValue())
+fun EntityDebugData.setDataDebug(objectId: Int, property: String, value: DebugPrimitive) {
+    when (val obj = gameObjects[objectId] ?: error("Object $objectId not found")) {
+        is ScriptDebugTarget -> obj.set(property, value.toScriptValue())
+        else -> {
+            val mutableProperty = obj::class.memberProperties
+                .find { it.name == property } as? KMutableProperty1<Any, Any?>
+                ?: error("Mutable property $property not found on ${obj::class.qualifiedName}")
+            mutableProperty.set(obj, value.toJvmValue())
+        }
     }
 }
 
@@ -179,17 +175,19 @@ class DebugSerializationContext(
     val gameObjects: MutableMap<Int, Any> = mutableMapOf(),
 ) {
     fun appendObjectJvm(id: Int, obj: Any) {
-        appendObject(id, obj, obj.toJvmDebugObject())
+        registerObject(id, obj)
+        debugObjects[id] = obj.toJvmDebugObject()
     }
 
-    fun appendObjectLua(id: Int, obj: LuaTable) {
-        appendObject(id, obj, obj.toLuaDebugObject())
+    fun appendObjectScript(id: Int, obj: STable, target: ScriptDebugTarget?) {
+        val gameObject = target ?: obj
+        registerObject(id, gameObject, target?.identity ?: obj)
+        debugObjects[id] = obj.toScriptDebugObject(target)
     }
 
-    fun appendObject(id: Int, obj: Any, debugObject: DebugObject) {
-        debugObjects[id] = debugObject
+    fun registerObject(id: Int, obj: Any, identity: Any = obj) {
         gameObjects[id] = obj
-        visited[this.identityKey()] = id
+        visited[identity.identityKey()] = id
     }
 
     fun nextId() = lastId++
@@ -197,7 +195,6 @@ class DebugSerializationContext(
 
 private fun Any.identityKey(): Int = System.identityHashCode(this)
 
-//TODO: проработать Lua-bridge через абстракцию
 context(ctx: DebugSerializationContext)
 fun Component.toDebugData(type: ComponentType<out Component>): ComponentDebugData {
     val component = this@toDebugData
@@ -205,8 +202,9 @@ fun Component.toDebugData(type: ComponentType<out Component>): ComponentDebugDat
     when (type) {
         is ScriptComponentType -> {
             component as ScriptComponent
-            val table = component.luaValue.checktable()
-            ctx.appendObjectLua(id, table)
+            val table = component.value as? STable
+                ?: error("Script component ${type.id} root value must be a table")
+            ctx.appendObjectScript(id, table, component.debugTarget)
         }
 
         else -> ctx.appendObjectJvm(id, component)
@@ -216,24 +214,47 @@ fun Component.toDebugData(type: ComponentType<out Component>): ComponentDebugDat
 }
 
 context(ctx: DebugSerializationContext)
-private fun LuaValue.toLuaDebugEntry(): DebugEntry = when(type()) {
-    LuaValue.TNIL -> DebugEntry.Null
-    LuaValue.TTABLE -> DebugEntry.Reference(appendSerializationContext { it.checktable().toLuaDebugObject() })
-    LuaValue.TSTRING ->  DebugEntry.Primitive(false, DebugPrimitive.Str(tojstring()))
-    LuaValue.TINT -> DebugEntry.Primitive(false, DebugPrimitive.Int(toint()))
-    LuaValue.TNUMBER -> DebugEntry.Primitive(false, DebugPrimitive.Double(todouble()))
-    LuaValue.TBOOLEAN -> DebugEntry.Primitive(false, DebugPrimitive.Bool(toboolean()))
-    else -> DebugEntry.Primitive(true, DebugPrimitive.Other(tojstring()))
+private fun ScriptValue.toScriptDebugEntry(
+    readonly: Boolean,
+    target: ScriptDebugTarget? = null
+): DebugEntry = when (this) {
+    SNil -> DebugEntry.Null
+    is STable -> Reference(appendScriptSerializationContext(target))
+    is SString -> Primitive(readonly, Str(value))
+    is SNumber -> Primitive(readonly, Double(value))
+    is SBool -> Primitive(readonly, Bool(value))
+    is SInt -> Primitive(readonly, Int(value))
+    is SList -> TODO("Списки не поддерживаются, т.к. используются только для перевода ScriptValue -> LuaValue")
 }
 
 context(ctx: DebugSerializationContext)
-private fun LuaTable.toLuaDebugObject() = DebugObject.Table(
-    keys().associate { key ->
-        val rawValue = this[key]
-        val keyStr = key.tojstring()
-        keyStr to rawValue.toLuaDebugEntry()
+private fun STable.toScriptDebugObject(target: ScriptDebugTarget?) = DebugObject.Table(
+    map.entries.associate { (key, value) ->
+        val childTarget = if (value is STable) target?.child(key) else null
+        key.toDebugKey() to value.toScriptDebugEntry(target == null, childTarget)
     }
 )
+
+context(ctx: DebugSerializationContext)
+private fun STable.appendScriptSerializationContext(target: ScriptDebugTarget?): Int {
+    val identity = target?.identity ?: this
+    ctx.visited[identity.identityKey()]?.let { return it }
+
+    val id = ctx.nextId()
+    ctx.registerObject(id, target ?: this, identity)
+    ctx.debugObjects[id] = toScriptDebugObject(target)
+    return id
+}
+
+private fun ScriptValue.toDebugKey(): String = when (this) {
+    SNil -> "nil"
+    is SString -> value
+    is SNumber -> value.toString()
+    is SInt -> value.toString()
+    is SBool -> value.toString()
+    is STable -> "table@${identityKey().toString(16)}"
+    is SList -> "list@${identityKey().toString(16)}"
+}
 
 context(ctx: DebugSerializationContext)
 private fun Any?.toJvmDebugEntry(readonly: Boolean): DebugEntry {
@@ -286,6 +307,7 @@ context(ctx: DebugSerializationContext)
 private fun <T : Any> T.appendSerializationContext(transformer: context(DebugSerializationContext) (T) -> DebugObject): Int {
     ctx.visited[this.identityKey()]?.let { return it }
     val id = ctx.nextId()
-    ctx.appendObject(id, this, transformer(this))
+    ctx.registerObject(id, this)
+    ctx.debugObjects[id] = transformer(this)
     return id
 }

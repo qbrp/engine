@@ -1,49 +1,29 @@
-require("core.bridge")
+---@diagnostic disable: unnecessary-assert
 require("core.world")
 require("core.component")
 require("core.tween")
 
----@type World for EmmyLua
-local World = World
----@type AudioSource for EmmyLua
-local AudioSource = AudioSource
----@type Tween for EmmyLua
-local Tween = Tween
+---@class Sound
+---@field id string
+---@field stream boolean false default
 
---------------------------------------------------------------------------------
----- Генерация идентификаторов
---------------------------------------------------------------------------------
-
-local last_generated_id = 0
-
----@return number
-local function generate_slot_id()
-    last_generated_id = last_generated_id + 1
-    return last_generated_id
-end
-
---------------------------------------------------------------------------------
----- Источники
---------------------------------------------------------------------------------
-
----@param parameters AudioSource
----@return AudioSource
-function AudioSource.create(parameters)
-    assert(parameters, "parameters must be not null")
-    assert(parameters.sound, "sound must be not null")
-    return AudioSource.__create(parameters)
-end
-
----@param slot string?
----@return string
-function AudioSource:play(slot)
-    local source2 = slot or "audio_slot_" .. generate_slot_id()
-    self:__play(source2)
-    return source2
-end
-
-function AudioSource:stop() self:__stop() end
-
+---Userdata
+---@class AudioSource
+---@field sound string|Sound
+---@field category string
+---@field x number
+---@field y number
+---@field z number
+---@field is_relative boolean true default
+---@field volume number from 0 to 1, default 1
+---@field pitch number from 0 to 1, default 1
+---@field attenuate boolean false default
+---@field is_ended boolean
+---@field radius number default 16
+---@field play fun(self: AudioSource)
+---@field stop fun(self: AudioSource)
+---@field create fun(parameters: AudioSource): AudioSource
+AudioSource = AudioSource
 
 --------------------------------------------------------------------------------
 ---- Звуки-сущности
@@ -62,14 +42,15 @@ function SoundComponent:play()
     self.slot = self.source:play()
 end
 
----@field sound string|table
----@field parameters AudioSource
----@return Entity, RepeatableComponent
+---@overload fun(self: World, sound: string, parameters?: AudioSource): Entity, SoundComponent
+---@param sound Sound
+---@param parameters? AudioSource
+---@return Entity, SoundComponent
 function World:add_sound_entity(sound, parameters)
     assert(sound, "sound must be not null")
     assert(self.is_client, "world must be client")
     local entity = self:add_entity()
-    parameters = parameters or {}
+    parameters = parameters or empty_table()
     if (not type(sound) == table) then
         parameters.sound = { id = sound }
     else
@@ -93,36 +74,38 @@ end
 
 ---@class RepeatableComponent : Component
 ---@field repeats_left number
+---@field eternal boolean
 RepeatableComponent = Component.of("core/sound/repeatable")
 
 ---@param repeats number
+---@param eternal boolean
 ---@return RepeatableComponent
 function RepeatableComponent.new(repeats, eternal)
     return RepeatableComponent:construct({ repeats_left = repeats, eternal = eternal })
 end
 
+local RepeatSystem = System("repeats", { SoundComponent, RepeatableComponent }, SystemSide.CLIENT)
+
 ---@param sound SoundComponent
 ---@param repeatable RepeatableComponent
----@param world World
----@param entity Entity
-local function RepeatableSystem(world, entity, sound, repeatable)
+function RepeatSystem.update(world, entity, sound, repeatable)
     local audio_source = sound.source
-    if (audio_source.is_ended) then
-        if (not repeatable.eternal) then
-            repeatable.repeats_left = repeatable.repeats_left - 1
+        if (audio_source.is_ended) then
+            if (not repeatable.eternal) then
+                repeatable.repeats_left = repeatable.repeats_left - 1
+            end
+            if (repeatable.repeats_left > 0) then
+                local copied_entity = world:add_entity()
+                for_each(entity:get_all_components(), function(component)
+                    if (component.type ~= SoundComponent.type) then
+                        copied_entity:set_component(component)
+                    end
+                end)
+                copied_entity:set_component(SoundComponent:construct { source = audio_source })
+                audio_source:play()
+                entity:destroy()
+            end
         end
-        if (repeatable.repeats_left > 0) then
-            local copied_entity = world:add_entity()
-            for_each(entity:get_all_components(), function(component)
-                if (component.type ~= SoundComponent.type) then
-                    copied_entity:set_component(component)
-                end
-            end)
-            copied_entity:set_component(SoundComponent:construct { source = sound.source })
-            sound.source:play()
-            entity:destroy()
-        end
-    end
 end
 
 ------------------
@@ -158,11 +141,11 @@ function VoxelSoundComponent.of(voxel_pos)
     return VoxelSoundComponent:construct({ voxel_pos = voxel_pos })
 end
 
----@param world World
+local VoxelSoundTrackSystem = System("voxel_sound_tracking", { SoundComponent, VoxelSoundComponent }, SystemSide.CLIENT)
+
 ---@param voxel_sound VoxelSoundComponent
 ---@param sound SoundComponent
----@param entity Entity
-local function VoxelSoundTrackSystem(world, entity, sound, voxel_sound)
+function VoxelSoundTrackSystem.update(world, entity, sound, voxel_sound)
     if (world:get_dynamic_voxel(voxel_sound.voxel_pos) == nil) then
         sound.source:stop()
         entity:destroy()
@@ -171,17 +154,24 @@ end
 
 ------------------
 
+local PlaybackSystem = System("playback", { SoundComponent }, SystemSide.CLIENT)
+
 ---@param sound SoundComponent
----@param world World
----@param entity Entity
-local function PlaybackSystem(world, entity, sound)
+function PlaybackSystem.update(world, entity, sound)
     if (sound.source.is_ended) then
         entity:destroy()
     end
 end
 
-Callbacks.build()
-        :system({ SoundComponent, VoxelSoundComponent }, VoxelSoundTrackSystem, "client")
-        :system({ SoundComponent, RepeatableComponent }, RepeatableSystem, "client")
-        :system({ SoundComponent }, PlaybackSystem, "client")
-        :submit()
+function CompilationResult:setup_audio()
+    self:namespace {
+        id = "core/sound",
+        components = ComponentList { "component", "repeatable", "voxel" },
+        systems = { PlaybackSystem, VoxelSoundTrackSystem, RepeatSystem }
+    }
+    self:phase("audio", {
+        VoxelSoundTrackSystem,
+        RepeatSystem,
+        PlaybackSystem,
+    })
+end

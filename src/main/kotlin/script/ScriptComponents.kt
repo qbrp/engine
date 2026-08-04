@@ -10,10 +10,11 @@ value class ScriptComponentId(val id: String) {
     override fun toString(): String = id
 }
 
-class ScriptComponent(val value: Any, val type: ScriptComponentType) : Component {
-    override fun toString(): String {
-        return "${type.id}($value)"
-    }
+interface ScriptComponent : Component {
+    val value: ScriptValue
+    val type: ScriptComponentType
+    val debugTarget: ScriptDebugTarget?
+        get() = null
 }
 
 class ScriptComponentType(

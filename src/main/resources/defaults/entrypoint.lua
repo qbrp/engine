@@ -2,14 +2,14 @@
 
 require("core.registration")
 
-compilation(function()
+Registration.compilation(function()
     local result = CompilationResult.new()
-    result:namespace {
-        id = "generated",
-        items = {},
-        scripts = {},
-        components = {},
-        intents = {}
-    }
-    return result
+        result:namespace {
+            id = "generated",
+            items = {},
+            scripts = {},
+            components = {},
+            intents = {}
+        }
+        return result
 end)

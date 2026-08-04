@@ -1,9 +1,6 @@
 require("core.component")
 require("core.world")
 
----@type World for EmmyLua
-local World = World
-
 ---@class Area
 ---@field x1 number
 ---@field x2 number
@@ -105,8 +102,8 @@ function RelativeTeleportationScript(context)
         return
     end
 
-    for _, player in ipairs(world.players) do
-        local position = player.entity:get_component(LocationComponent).vector
+    for _, player in pairs(world.players) do
+        local position = player:get_component(LocationComponent).pos
         local inside = position[1] >= from.x1 and position[1] <= from.x2 and
             position[2] >= from.y1 and position[2] <= from.y2 and
             position[3] >= from.z1 and position[3] <= from.z2
@@ -124,7 +121,6 @@ function RelativeTeleportationScript(context)
                 to.z1 + relative_position[3]
             }
 
-            info(player.invoke_command)
             player:invoke_command(
                 "tp " ..
                     tostring(new_position[1]) .. " " ..
@@ -134,4 +130,41 @@ function RelativeTeleportationScript(context)
             )
         end
     end
+end
+
+function CompilationResult:setup_area()
+    self:namespace {
+        id = "core/area",
+        components = ComponentList {
+            { id = "map_persistent", savable = true },
+            { id = "map_state"}
+        },
+        intents = {
+            Intent.of(
+                    "create_area",
+                    "core/area/create_area",
+                    true,
+                    "Создать зону",
+                    { IntentInput.of("id", "text") }
+            ),
+            Intent.of(
+                    "list_areas",
+                    "core/area/list_areas",
+                    true,
+                    "Вывести список зон"
+            ),
+            Intent.of(
+                "relative_tp",
+                "core/area/relative_tp",
+                true,
+                "Относительная телепортация",
+                { IntentInput.of("from", "text"), IntentInput.of("to", "text") }
+            )
+        },
+        scripts = {
+            Script.new("create_area", CreateAreaScript),
+            Script.new("list_areas", ListAreasScript),
+            Script.new("relative_tp", RelativeTeleportationScript)
+        }
+    }
 end

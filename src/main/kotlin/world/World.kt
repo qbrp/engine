@@ -5,11 +5,13 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.MovementSettings
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptContext
+import org.lain.engine.script.ScriptEngine
 import org.lain.engine.storage.ComponentLoadSettings
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
@@ -43,9 +45,10 @@ class World(
     registerEngineKotlinComponents: Boolean = true,
     val componentManager: ComponentWorld = ComponentWorld(thread, persistentIdToEntity, itemStorage, registerEngineKotlinComponents),
     val state: EntityId = componentManager.addWorldStateEntity(),
+    val scriptEngine: ScriptEngine,
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     private val scriptContext = ScriptContext.World(this)
-    val componentLoadSettings = ComponentLoadSettings(itemStorage, namespacedStorage, persistentIdToEntity, true)
+    val componentLoadSettings = ComponentLoadSettings(itemStorage, namespacedStorage, persistentIdToEntity, scriptEngine, true)
     val chunkStorage: ChunkStorage = ChunkStorage(this, componentLoadSettings)
     var ticks = 0L
 
@@ -87,6 +90,7 @@ fun world(
     thread: Thread,
     itemStorage: ItemStorage,
     namespacedStorage: NamespacedStorageAccess,
+    scriptEngine: ScriptEngine,
     playersWatchingChunkProvider: EnginePlayersWatchingChunkProvider? = null
 ): World {
     return World(
@@ -94,6 +98,7 @@ fun world(
         playersWatchingChunkProvider = playersWatchingChunkProvider,
         itemStorage = itemStorage,
         thread = thread,
+        scriptEngine = scriptEngine,
         namespacedStorage = namespacedStorage
     )
 }

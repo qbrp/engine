@@ -6,11 +6,13 @@ Web = Web
 ---@field pause boolean
 ---@field background boolean
 
----@class WebWidget
+---@class WebWidget : WebWidgetBehaviour
+---@field on_close fun(resolver: fun())
+---@field close fun()
+
+---@class WebWidgetBehaviour
 ---@field url string
 ---@field on_ready fun(resolver: fun())
 ---@field on_event fun(id: string, resolver: fun(channel: string, payload: string))
 ---@field on_request fun(id: string, resolver: fun(channel: string, payload: string): string)
----@field on_close fun(resolver: fun())
 ---@field emit fun(id: string, payload: string)
----@field close fun()

@@ -1,25 +1,22 @@
 require("core.world")
 require("core.registration")
 
----@type World for EmmyLua
-local World = World
-
 ------------------
 
 ---@class LightSourceBehaviour
 ---@field type string sphere, cone
----@field params any
+---@field params table
 LightSourceBehaviour = {}
 
----@field radius number blocks
+---@param radius number blocks
 ---@return LightSourceBehaviour
 function LightSourceBehaviour.sphere(radius)
-    return {
+    return setmetatable({
         type = "sphere",
         params = {
             radius = radius
         }
-    }
+    }, LightSourceBehaviour)
 end
 
 --- @class LightSourceComponent : Component
@@ -27,7 +24,7 @@ end
 --- Builtin
 LightSourceComponent = Component.of("core/light/source")
 
----@field behaviour LightSourceBehaviour
+---@param behaviour LightSourceBehaviour
 ---@return LightSourceComponent
 function LightSourceComponent.new(behaviour)
     assert(behaviour ~= nil, "behaviour must be not null")
@@ -41,7 +38,7 @@ end
 --- Builtin
 LuminanceComponent = Component.of("core/light/luminance")
 
----@field level number from 0 to 14
+---@param level number from 0 to 14
 ---@return LuminanceComponent
 function LuminanceComponent.new(level)
     assert(level ~= nil, "light level must be not null")
@@ -50,19 +47,19 @@ end
 
 ------------------
 
----@field behaviour LightSourceBehaviour
----@field level number from 0 to 14
----@field pos number[]
+---@param behaviour LightSourceBehaviour
+---@param level number from 0 to 14
+---@param pos number[]
 ---@return Entity
 function World:add_light_entity(behaviour, level, pos)
     local entity = self:add_entity()
-    entity:set_light_entity(behaviour, level, pos, entity)
+    entity:set_light_entity(behaviour, level, pos)
     return entity
 end
 
----@field behaviour LightSourceBehaviour
----@field level number from 0 to 14
----@field pos number[]
+---@param behaviour LightSourceBehaviour
+---@param level number from 0 to 14
+---@param pos number[]
 function Entity:set_light_entity(behaviour, level, pos)
     self:set_component(LightSourceComponent.new(behaviour))
     self:set_component(LuminanceComponent.new(level))
@@ -78,11 +75,11 @@ end
 --- Each character represents a light from min level to max level, mapped from 'A' to 'O'.
 --- Example: pattern "AOAOO" -> 0,14,0,14,14
 --- @field index number
-FlashingComponent = Component.of("core/light/flashing", { networking = true, savable = true })
+FlashingComponent = Component.of("core/light/flashing")
 
----@field min number
----@field max number
----@field pattern string
+---@param min number
+---@param max number
+---@param pattern string
 ---@return FlashingComponent
 function FlashingComponent.new(pattern, min, max)
     assert(min < max, "max light level must be greater than min")
@@ -92,11 +89,11 @@ end
 
 ticks = 0
 
----@param world World
----@param entity Entity
+local FlashSystem = System("flashing", { FlashingComponent, LuminanceComponent }, SystemSide.CLIENT)
+
 ---@param flash FlashingComponent
 ---@param luminance LuminanceComponent
-local function FlashSystem(world, entity, flash, luminance)
+function FlashSystem.update(world, entity, flash, luminance)
     local index = flash.index
     local char = flash.pattern:sub(index, index)
     local char_index = string.byte(char) - string.byte('a')
@@ -110,7 +107,18 @@ local function FlashSystem(world, entity, flash, luminance)
     end
 end
 
-Callbacks.build()
-        :on_world_tick(function(context) if (context.is_client) then ticks = ticks + 1 end end)
-        :system({ FlashingComponent, LuminanceComponent }, FlashSystem, "client")
-        :submit()
+function CompilationResult:setup_light()
+    self:namespace {
+        id = "core/light",
+        components = ComponentList {
+            { id = "flashing", savable = true, networking = true }
+        },
+        systems = { FlashSystem }
+    }
+    self:on_world_tick(function(context)
+        if context.is_client then
+            ticks = ticks + 1
+        end
+    end)
+    self:phase("light", { FlashSystem })
+end

@@ -7,20 +7,22 @@ import org.lain.engine.client.render.ui.WebWidgetSizeParameters
 import org.lain.engine.script.lua.LuaTableBuilder
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.nullable
-import org.lain.engine.script.lua.toLuaValue
+import org.lain.engine.script.lua.library.toLuaValue
+import org.lain.engine.script.lua.luaNum
+import org.lain.engine.script.lua.luaStr
 import org.luaj.vm2.LuaValue
 import tytoo.grapheneui.api.widget.GrapheneWebViewWidget
 import java.util.concurrent.CompletableFuture
 
-context(lua: ClientLuaContext)
+context(lua: ClientLuaScriptEngine)
 fun WebTable() = luaTable {
     function3("open_screen") { urlL, parametersL, resolverL ->
         val url = urlL.tojstring()
         val resolverFunction = resolverL.checkfunction()
         val resolver: (Int, Int) -> WebWidgetSizeParameters = { screenWidth, screenHeight ->
             val varargs = resolverFunction.invoke(
-                screenWidth.toLuaValue(),
-                screenHeight.toLuaValue()
+                screenWidth.toDouble().luaNum(),
+                screenHeight.toDouble().luaNum()
             )
             WebWidgetSizeParameters(
                 varargs.arg(1).toint(),
@@ -61,7 +63,7 @@ fun LuaTableBuilder.webWidgetBehaviour(widgetGetter: () -> GrapheneWebViewWidget
         val resolver = resolverL.checkfunction()
         val id = idL.tojstring()
         val subscribe = bridge.onEvent(id) { channel, payloadJson ->
-            resolver.invoke(channel.toLuaValue(), payloadJson.toLuaValue())
+            resolver.invoke(channel.luaStr(), payloadJson.luaStr())
         }
         LuaValue.NIL
     }
@@ -71,7 +73,7 @@ fun LuaTableBuilder.webWidgetBehaviour(widgetGetter: () -> GrapheneWebViewWidget
         val subscribe = bridge.onRequest(id) { channel, payloadJson ->
             CompletableFuture.completedFuture(
                 try {
-                    resolver.invoke(channel.toLuaValue(), payloadJson.toLuaValue()).tojstring()
+                    resolver.invoke(channel.luaStr(), payloadJson.luaStr()).tojstring()
                 } catch (e: Throwable) {
                     e.printStackTrace()
                     throw e
