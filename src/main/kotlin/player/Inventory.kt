@@ -2,7 +2,6 @@ package org.lain.engine.player
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.require
 import org.lain.engine.item.EngineItem
 /**
  * # Инвентарь игрока
@@ -22,7 +21,8 @@ data class PlayerContainer(val containerId: EntityId) : Component
 object PlayerContainerTag : Component
 
 // Уничтожить предмет в инвентаре игрока, обработать игрой
-data class DestroyItemSignal(val item: EngineItem, val count: Int = 1) : Component
+// Назначать на предмет
+data class DecrementItem(val count: Int = 1) : Component
 
 data class GiveItemSignal(val item: EngineItem, val slot: Int?) : Component
 

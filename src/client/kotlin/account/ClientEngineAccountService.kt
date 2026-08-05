@@ -4,15 +4,11 @@ import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import net.minecraft.util.Util
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.mc.server.AuthorizedAccount
-import org.lain.engine.mc.server.EngineHttpClient
-import org.lain.engine.mc.server.HttpStatusException
-import org.lain.engine.mc.server.RefreshToken
+import org.lain.engine.server.account.EngineHttpClient
+import org.lain.engine.server.account.HttpStatusException
 import org.lwjgl.glfw.GLFW
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
@@ -20,8 +16,6 @@ import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.time.Duration
-import java.time.Instant
 import java.util.concurrent.Executors
 
 class ClientEngineAccountService(private val httpClient: EngineHttpClient) {

@@ -33,10 +33,9 @@ data class PlayerInstantiateSettings(
     val world: World,
     val pos: Pos,
     val displayName: DisplayName,
+    val mode: PlayerModeComponent = PlayerModeComponent(PlayerMode.SPECTATOR),
     val movementStatus: MovementStatus = MovementStatus(),
     val attributes: PlayerAttributes = PlayerAttributes(),
-    val spectating: Spectating = Spectating(),
-    val gameMaster: GameMaster = GameMaster(),
     val developerModeStatus: DeveloperModeStatus,
     val items: Set<EngineItem> = setOf(),
     val skinEyeY: Float = 0f,
@@ -65,7 +64,6 @@ fun commonPlayerInstance(
             setComponent(Velocity())
             setComponent(Orientation())
             setComponent(EnginePlayerModel(skinEyeY = settings.skinEyeY))
-            setComponent(OrientationTranslation(0f, 0f))
             setComponent(PlayerInventory(settings.items.toMutableSet()))
             setComponent(ArmStatus(false))
             setComponent(Narration(mutableListOf()))
@@ -73,10 +71,10 @@ fun commonPlayerInstance(
             setComponent(Hearing())
             setComponent(ScriptBindings())
             setComponent(PlayerInput())
+            setComponent(PlayerPhysics(false))
             setComponent(settings.displayName)
             setComponent(settings.movementStatus)
-            setComponent(settings.spectating)
-            setComponent(settings.gameMaster)
+            setComponent(settings.mode)
             setComponent(settings.attributes)
             setComponent(
                 Synchronizations<EnginePlayer>(mutableMapOf())
@@ -136,7 +134,8 @@ data class PlayerLoadSettings(
     val developerModeStatus: DeveloperModeStatus,
     val world: World,
     val isReplayViewer: Boolean = false,
-    val persistentPlayerData: PersistentPlayerData?
+    val persistentPlayerData: PersistentPlayerData?,
+    val playerMode: PlayerMode
 ) {
     data class Account(val character: EngineCharacter?)
 }
@@ -201,13 +200,12 @@ class PlayerLoader(
                     Username(settings.username.filter { !it.isWhitespace() }),
                     persistentPlayerData?.customName?.toDomain(settings.username)
                 ),
+                PlayerModeComponent(settings.playerMode),
                 MovementStatus(
                     intention = persistentPlayerData?.speedIntention ?: MovementStatus.DEFAULT_INTENTION,
                     stamina = persistentPlayerData?.stamina ?: MovementStatus.DEFAULT_STAMINA
                 ),
                 PlayerAttributes(),
-                Spectating(),
-                GameMaster(),
                 settings.developerModeStatus,
                 inventoryItemsLoadResult.inventoryItems.toSet(),
                 persistentPlayerData?.skinEyeY ?: 0f,

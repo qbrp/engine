@@ -3,7 +3,7 @@ package org.lain.engine.client.mixin;
 import com.mojang.blaze3d.audio.SoundBuffer;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.resources.Identifier;
-import org.lain.engine.CommonEngineMod;
+import org.lain.engine.mc.CommonEngineMod;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

@@ -1,7 +1,6 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.ScriptBindings
 import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.EngineCharacter

@@ -1,4 +1,4 @@
-package org.lain.engine
+package org.lain.engine.mc
 
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
@@ -15,8 +15,8 @@ import net.minecraft.server.players.NameAndId
 import net.minecraft.world.Difficulty
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.level.gamerules.GameRules
-import org.lain.engine.Constants.DEVELOPER_TEST_ENVIRONMENT
-import org.lain.engine.mc.*
+import org.lain.engine.Constants
+import org.lain.engine.bootstrap
 import org.lain.engine.mc.commands.WORLD_EDIT_AVAILABLE
 import org.lain.engine.mc.commands.registerEngineCommands
 import org.lain.engine.mc.commands.registerWorldEditCommands
@@ -54,7 +54,7 @@ class CommonEngineMod : ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
             Injector.register<RaycastProvider>(MinecraftRaycastProvider(injectValue()))
             engineServer.run()
-            if (DEVELOPER_TEST_ENVIRONMENT) {
+            if (Constants.DEVELOPER_TEST_ENVIRONMENT) {
                 val gameRules = server.worldData.gameRules
                 gameRules.set(GameRules.ADVANCE_TIME, false, server)
                 server.setDifficulty(Difficulty.PEACEFUL, true)
@@ -66,7 +66,7 @@ class CommonEngineMod : ModInitializer {
         }
 
         ServerWorldEvents.LOAD.register { server, world ->
-            if (DEVELOPER_TEST_ENVIRONMENT) {
+            if (Constants.DEVELOPER_TEST_ENVIRONMENT) {
                 world.dayTime = 0
             }
         }
@@ -76,7 +76,7 @@ class CommonEngineMod : ModInitializer {
         }
 
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
-            if (DEVELOPER_TEST_ENVIRONMENT) {
+            if (Constants.DEVELOPER_TEST_ENVIRONMENT) {
                 server.playerList.op(NameAndId(handler.player.gameProfile))
             }
             engineServer.onJoinPlayer(handler.player)

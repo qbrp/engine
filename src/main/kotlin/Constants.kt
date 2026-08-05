@@ -2,6 +2,7 @@ package org.lain.engine
 
 import net.fabricmc.loader.api.FabricLoader
 import org.lain.engine.Constants.DEBUG_PACKETS
+import org.lain.engine.mc.CommonEngineMod
 import org.slf4j.LoggerFactory
 
 object Constants {

@@ -72,3 +72,6 @@ fun EntityId.removeLuaScriptComponent(componentType: ScriptComponentType): LuaVa
 }
 
 fun ScriptComponent.castLua() = this as LuaScriptComponent
+
+val ScriptComponent.castedLuaValue
+    get() = castLua().luaValue

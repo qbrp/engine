@@ -25,8 +25,6 @@ import org.lain.engine.world.World
 
 private val ItemStackIoCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-data class EngineItemStack(val engineItem: EngineItem, val itemStack: ItemStack)
-
 // TODO: в будущем, в теории, можно организовать структуру по другому, чтобы не дублировать одинаковые переменные
 // Конкретнее: сделать sealed class Holder, и от него PlayerInventory, PropInventory, VoxelInventory и т.д.
 data class NotLoadedEngineItemStack(
@@ -38,7 +36,7 @@ data class NotLoadedEngineItemStack(
 )
 
 fun updateMinecraftItemLoadSystem(
-    itemStacksToLoad: MutableList<NotLoadedEngineItemStack>,
+    itemStacksToLoad: List<NotLoadedEngineItemStack>,
     engine: EngineServer
 ) {
     if (itemStacksToLoad.isNotEmpty()) {

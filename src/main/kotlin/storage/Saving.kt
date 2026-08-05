@@ -42,7 +42,7 @@ fun updateUnloadSystem(handler: ServerHandler, world: World, timers: SaveTimers)
             item.setComponent(SaveTag)
             val containedIn = item.getComponent<ContainedIn>()
             val containerUnloaded = containedIn != null && !containedIn.container.exists()
-            if (!item.hasComponent<HoldsBy>() || containerUnloaded) {
+            if (!item.hasComponent<HeldBy>() || containerUnloaded) {
                 item.setComponent(UnloadTag)
                 unloaded.addIfNotNull(item.getComponent<PersistentIdComponent>()?.id)
             }

@@ -102,38 +102,40 @@ fun maxSpeedMul(settings: MovementSettings) = speedMul(1f, 1f, true, settings)
 fun World.tickMovementSystem(
     primaryAttributes: MovementDefaultAttributes,
     settings: MovementSettings,
-) = iterate<MovementStatus, PlayerAttributes, Velocity>() { entity, movement, attributes, velocity ->
-    val isSpectating = entity.requireComponent<Spectating>().enabled
-    val isGameMaster = entity.requireComponent<GameMaster>().enabled
+) {
+    iterate<MovementStatus, PlayerModeComponent, PlayerAttributes, Velocity>() { entity, movement, playerMode, attributes, velocity ->
+        val isSpectating = playerMode.isSpectator
+        val isGameMaster = playerMode.isGameMaster
 
-    val status = PlayerStatus.of(isGameMaster, isSpectating)
-    val defaultSpeed = primaryAttributes.getPrimarySeed(status) ?: 0.055f
-    val speedAttribute = attributes.speed.default
-    val velocityHorizontal = velocity.motion.horizontal().length()
+        val status = PlayerStatus.of(isGameMaster, isSpectating)
+        val defaultSpeed = primaryAttributes.getPrimarySeed(status) ?: 0.055f
+        val speedAttribute = attributes.speed.default
+        val velocityHorizontal = velocity.motion.horizontal().length()
 
-    val minSpeedFactor = settings.minSpeedFactor
-    val staminaRegen = settings.staminaRegen
-    val staminaConsume = settings.staminaConsumption
+        val minSpeedFactor = settings.minSpeedFactor
+        val staminaRegen = settings.staminaRegen
+        val staminaConsume = settings.staminaConsumption
 
-    attributes.jumpStrength.default = primaryAttributes.getPrimaryJumpStrength(status) ?: 0.55f
+        attributes.jumpStrength.default = primaryAttributes.getPrimaryJumpStrength(status) ?: 0.55f
 
-    val minSpeed = defaultSpeed * minSpeedFactor
-    val maxSpeed = defaultSpeed * maxSpeedMul(settings)
+        val minSpeed = defaultSpeed * minSpeedFactor
+        val maxSpeed = defaultSpeed * maxSpeedMul(settings)
 
-    attributes.speed.default = if (isSpectating) {
-        defaultSpeed
-    } else {
-        movement.stamina = if (!isGameMaster) {
-            val jumpConsume = if (entity.removeComponent<Jump>() != null) settings.jumpStaminaConsume else 0f
-            val movementConsume = abs(velocityHorizontal) / maxSpeed * staminaConsume
-            (movement.stamina + staminaRegen - movementConsume - jumpConsume).coerceIn(0f, 1f)
+        attributes.speed.default = if (isSpectating) {
+            defaultSpeed
         } else {
-            1f
-        }
+            movement.stamina = if (!isGameMaster) {
+                val jumpConsume = if (entity.removeComponent<Jump>() != null) settings.jumpStaminaConsume else 0f
+                val movementConsume = abs(velocityHorizontal) / maxSpeed * staminaConsume
+                (movement.stamina + staminaRegen - movementConsume - jumpConsume).coerceIn(0f, 1f)
+            } else {
+                1f
+            }
 
-        val maxSpeed = attributes.maxSpeed.get()
-        val minSpeed = min(minSpeed, maxSpeed)
-        val target = (defaultSpeed * speedMul(movement.intention, movement.stamina, movement.isSprinting, settings)).coerceIn(minSpeed, maxSpeed)
-        lerp(speedAttribute, target, 0.2f)
+            val maxSpeed = attributes.maxSpeed.get()
+            val minSpeed = min(minSpeed, maxSpeed)
+            val target = (defaultSpeed * speedMul(movement.intention, movement.stamina, movement.isSprinting, settings)).coerceIn(minSpeed, maxSpeed)
+            lerp(speedAttribute, target, 0.2f)
+        }
     }
 }

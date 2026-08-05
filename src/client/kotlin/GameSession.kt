@@ -17,7 +17,7 @@ import org.lain.engine.client.render.tickSkinSystem
 import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.updateShootShakeSystem
 import org.lain.engine.client.script.ClientCompilation
-import org.lain.engine.client.script.updateClientServerboundChannelSystem
+import org.lain.engine.client.script.lua.library.ecs.applyLuaEntityRpcQueues
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.util.processWorldSounds
@@ -35,10 +35,11 @@ import org.lain.engine.player.interaction.tickPlayerInput
 import org.lain.engine.player.interaction.tickSocialActionSystem
 import org.lain.engine.player.interaction.tickWritableActionSystem
 import org.lain.engine.script.*
-import org.lain.engine.script.lua.adaptScriptLightComponents
-import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.script.lua.library.ecs.applyLuaPlayerComponents
+import org.lain.engine.script.lua.library.ecs.applyLugLightComponents
+import org.lain.engine.script.lua.library.ecs.prepareLuaScriptComponents
+import org.lain.engine.script.lua.library.ecs.refreshLuaComponentsView
 import org.lain.engine.script.lua.library.tickScriptVoxelAdapter
-import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.server.ServerId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
@@ -257,7 +258,7 @@ class GameSession(
             tickProcessedActions(handler)
 
             for (player in players) {
-                player.remove<DestroyItemSignal>()
+                player.remove<DecrementItem>()
                 player.remove<GiveItemSignal>()
                 if (player.location.position.squaredDistanceTo(mainPlayer.location.position) > synchronizationRadius * synchronizationRadius) {
                     player.isLowDetailed = true
@@ -286,10 +287,13 @@ class GameSession(
             clearAssignItemsOperations(world)
 
             // Scripts
-            with(luaContext) { adaptScriptPlayerComponents() }
+            with(luaContext) { refreshLuaComponentsView() }
             tickCallbacks(callbacks)
-            adaptScriptLightComponents()
-            updateClientServerboundChannelSystem(handler)
+            applyLugLightComponents()
+            with(luaContext) {
+                applyLuaEntityRpcQueues(handler)
+                applyLuaPlayerComponents()
+            }
             updateVoxelEvents(null)
             handleHintEvents()
             client.infrastructure.getHitResultVoxelPos()?.let {

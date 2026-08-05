@@ -6,6 +6,7 @@ import org.lain.engine.mc.ServerMixinAccess;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Player.class)
@@ -26,5 +27,16 @@ public abstract class PlayerMixin {
     )
     public void engine$modifyFlyingSpeed(CallbackInfoReturnable<Float> cir) {
         cir.setReturnValue(cir.getReturnValue() * ServerMixinAccess.INSTANCE.getFlyingSpeed((Player)(Object)this));
+    }
+
+    @Inject(method = "aiStep", at = @At("HEAD"))
+    private void engine$modifyNoPhysics(CallbackInfo ci)
+    {
+        Player self = (Player)(Object)this;
+        Boolean noPhysics = ServerMixinAccess.INSTANCE.noPhysics(self);
+
+        if (noPhysics != null) {
+            self.noPhysics = noPhysics;
+        }
     }
 }

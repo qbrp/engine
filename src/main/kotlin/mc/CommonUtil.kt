@@ -31,7 +31,7 @@ import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.CollisionContext
 import org.joml.Vector3f
 import org.joml.Vector3fc
-import org.lain.engine.CommonEngineMod
+import org.lain.engine.mc.CommonEngineMod
 import org.lain.engine.player.*
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks

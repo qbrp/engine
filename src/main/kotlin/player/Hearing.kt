@@ -65,20 +65,20 @@ fun updateAcousticHearing(player: EnginePlayer, handler: ServerHandler, settings
 
 
 // МЕХАНИКА ОТКЛЮЧЕНА
-fun EnginePlayer.appendTinnitus(tinnitus: Tinnitus) = handle<Hearing> {
-    return@handle
-    val oldTinnitus = this.tinnitus
-    if (oldTinnitus == null) {
-        this.tinnitus = Hearing.ActiveTinnitus(tinnitus, 0)
-    } else {
-        val newDuration = max(oldTinnitus.tinnitus.duration, tinnitus.duration)
-        this.tinnitus = Hearing.ActiveTinnitus(
-            tinnitus.copy(
-                trauma = oldTinnitus.tinnitus.trauma + tinnitus.trauma,
-                duration = newDuration.coerceAtLeast(1)
-            ),
-            (oldTinnitus.elapsed - newDuration).coerceAtLeast(0)
-        )
-    }
-    this@appendTinnitus.markDirty<Hearing>()
-}
+//fun EnginePlayer.appendTinnitus(tinnitus: Tinnitus) = handle<Hearing> {
+//    return@handle
+//    val oldTinnitus = this.tinnitus
+//    if (oldTinnitus == null) {
+//        this.tinnitus = Hearing.ActiveTinnitus(tinnitus, 0)
+//    } else {
+//        val newDuration = max(oldTinnitus.tinnitus.duration, tinnitus.duration)
+//        this.tinnitus = Hearing.ActiveTinnitus(
+//            tinnitus.copy(
+//                trauma = oldTinnitus.tinnitus.trauma + tinnitus.trauma,
+//                duration = newDuration.coerceAtLeast(1)
+//            ),
+//            (oldTinnitus.elapsed - newDuration).coerceAtLeast(0)
+//        )
+//    }
+//    this@appendTinnitus.markDirty<Hearing>()
+//}

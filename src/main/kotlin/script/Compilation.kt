@@ -151,7 +151,7 @@ fun NamespacedStorageAccess.loadCompilationResult(result: CompilationResult) {
         compiledSystems.mapValues { (id, compiledSystem) ->
             ScriptSystemDefinition(
                 compiledSystem.queryComponents.map {
-                    components[it] ?: error("Missing component type ${it.id}")
+                    components[it] ?: CoreScriptComponents.get(it) ?: error("Missing component type ${it.id}")
                 },
                 compiledSystem.side,
                 compiledSystem.entityHandleScript

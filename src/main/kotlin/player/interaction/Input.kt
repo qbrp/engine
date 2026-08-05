@@ -100,7 +100,7 @@ fun World.tickPlayerInput(callbacks: Callbacks, playerId: PlayerId? = null, clie
                             input.action = GunModeToggleAction
                         }
                     } else if (magazine != null && magazine.ammunition == offHandItem?.getComponent<Item>()?.id) {
-                        input.action = MagazineLoadAction(player, offHandItem)
+                        input.action = MagazineLoadAction(offHandItem)
                     } else if (writable != null) {
                         input.action = WritableOpenAction
                     }

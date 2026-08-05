@@ -4,9 +4,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import org.lain.engine.mc.EngineItemReferenceComponent;
-import org.lain.engine.mc.ItemsKt;
+import org.lain.engine.mc.ItemStacksKt;
 import org.lain.engine.mc.ServerMixinAccess;
 import org.lain.engine.player.EnginePlayer;
 import org.lain.engine.world.World;
@@ -40,7 +39,7 @@ public abstract class ItemStackMixin {
 
     @Unique
     private static Integer getEngineItem(World world, ItemStack itemStack) {
-        EngineItemReferenceComponent component = itemStack.get(ItemsKt.getENGINE_ITEM_REFERENCE_COMPONENT());
+        EngineItemReferenceComponent component = itemStack.get(ItemStacksKt.getENGINE_ITEM_REFERENCE_COMPONENT());
         if (component == null) {
             return null;
         }

@@ -22,14 +22,6 @@ fun File.writeDefaultLuaEntrypointScript() {
     writeText(getBuiltinResource("entrypoint.lua")?.readText() ?: "")
 }
 
-fun InputAction.toLuaTable() = when (this) {
-    InputAction.Attack -> luaTable { "type"("attack") }
-    InputAction.Base -> luaTable { "type"("base") }
-    InputAction.TakeOff -> luaTable { "type"("take_off") }
-}
-
-fun LuaValue.nullable() = if (isnil()) null else this
-
 class LuaFunctionChunk(function: String, vararg args: String) {
     private val str = "return function(${args.joinToString { it }}) $function end"
 
@@ -40,12 +32,6 @@ class LuaFunctionChunk(function: String, vararg args: String) {
     fun execute(context: LuaScriptEngine, vararg args: LuaValue): LuaValue {
         return getFunction(context.globals).invoke(args.toList().toTypedArray()).arg1()
     }
-}
-
-fun List<AnyInputValue>.toLuaTable(): LuaTable {
-    val table = LuaTable()
-    forEach { table.set(luaValue(it.input.id), it.value.toLuaValue(it.input.type)) }
-    return table
 }
 
 fun LuaValue.toKotlin(): Any? {
@@ -60,31 +46,7 @@ fun LuaValue.toKotlin(): Any? {
     }
 }
 
-fun Any?.toLuaValue(type: Input.Type<*>): LuaValue {
-    return when (type) {
-        Input.Type.Logic -> (this as Boolean).luaBool()
-        Input.Type.Integer -> (this as Int).luaNum()
-        Input.Type.Double -> (this as Double).luaNum()
-        Input.Type.Table -> TODO()
-        is Input.Type.Text -> (this as String).luaStr()
-    }
-}
-
-context(ctx: LuaScriptEngine)
-fun IntentTarget.toLuaValue(): LuaTable = luaTableOf(
-    luaValue("player"), player?.coerceToLua() ?: LuaValue.NIL,
-    luaValue("voxel_pos"), voxelPos.toLuaValue(),
-    luaValue("pos"), pos.asVec3().toLuaValue(),
-)
-
-fun IntentSelection.toLuaValue() = luaTableOf(
-    luaValue("pos1"), pos1.toLuaValue(),
-    luaValue("pos2"), pos2.toLuaValue(),
-)
-
 fun VoxelPos.toLuaValue() = luaListOf(x, y, z)
-
-fun EVec3.toLuaValue() = luaListOf(x.toDouble(), y.toDouble(), z.toDouble())
 
 fun LuaValue.toVoxelPos(): VoxelPos {
     val elements = checktable().toList { it.tofloat() }
@@ -94,12 +56,6 @@ fun LuaValue.toVoxelPos(): VoxelPos {
         floor(elements[1]),
         floor(elements[2])
     )
-}
-
-fun LuaValue.toVector3f(): EVec3 {
-    val elements = checktable().toList { it.tofloat() }
-    require(elements.size == 3) { "Invalid vector elements count: $elements" }
-    return Vec3(elements[0], elements[1], elements[2])
 }
 
 fun LuaTable.toIntentInput(): Input<out Any> {

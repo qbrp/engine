@@ -148,6 +148,8 @@ object ServerMixinAccess {
         }
     }
 
+    fun noPhysics(entity: Player) = entity.engine?.get<PlayerPhysics>()?.noClip
+
     fun onPlayerJump(entity: Player) {
         val player = entity.engine ?: return
         with(player.world) { player.entity.setComponent(Jump) }

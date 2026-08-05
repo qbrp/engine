@@ -1,7 +1,6 @@
-package org.lain.engine.mc.server
+package org.lain.engine.server.account
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import java.net.URI
 

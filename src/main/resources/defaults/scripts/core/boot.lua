@@ -9,6 +9,7 @@ require("core.tween")
 require("core.audio")
 require("core.light")
 require("core.area")
+vec3 = require("core.vec3")
 
 Registration.on_compilation(function()
     local result = CompilationResult.new()

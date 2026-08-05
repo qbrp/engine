@@ -2,9 +2,8 @@ package org.lain.engine.client.account
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.lain.engine.mc.server.AuthorizedAccount
-import org.lain.engine.mc.server.EngineHttpClient
-import org.lain.engine.mc.server.RefreshToken
+import org.lain.engine.server.account.AuthorizedAccount
+import org.lain.engine.server.account.EngineHttpClient
 import java.time.Instant
 
 class ClientAuthorizedAccount(

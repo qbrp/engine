@@ -15,7 +15,7 @@ import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.mc.server.EngineHttpClient
+import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.player.developerMode
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.util.DEV_MODE_COLOR

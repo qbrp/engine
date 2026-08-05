@@ -1,4 +1,4 @@
-package org.lain.engine.mc.server
+package org.lain.engine.server.account
 
 import org.lain.engine.player.account.SessionTicketDto
 import java.time.Instant

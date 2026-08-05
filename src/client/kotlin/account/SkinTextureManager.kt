@@ -17,7 +17,7 @@ import org.lain.engine.client.resources.SKINS_DIR
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.engineId
-import org.lain.engine.mc.server.HttpStatusException
+import org.lain.engine.server.account.HttpStatusException
 import org.lain.engine.player.character.Look
 import org.slf4j.LoggerFactory
 import java.net.URI

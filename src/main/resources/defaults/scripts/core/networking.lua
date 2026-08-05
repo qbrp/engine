@@ -3,12 +3,12 @@ require("core.component")
 ------------------
 
 ---@class EntityRpcQueueComponent : Component
----@field values any[]
+---@field send fun(self: EntityRpcQueueComponent, value: table)
 EntityRpcQueueComponent = Component.of("core/networking/entity_rpc_queue")
 
 ---@return EntityRpcQueueComponent
 function EntityRpcQueueComponent.empty()
-    return EntityRpcQueueComponent:construct({ values = {} })
+    return EntityRpcQueueComponent:construct({})
 end
 
 ------------------
@@ -18,12 +18,12 @@ end
 EntityRpcReceiverComponent = Component.of("core/networking/entity_rpc_receiver")
 
 ---@class EntityRpcMessage
----@field value any
+---@field data table
 ---@field sender Player
 
 ---@return EntityRpcReceiverComponent
 function EntityRpcReceiverComponent.empty()
-    return EntityRpcReceiverComponent:construct({ values = {} })
+    return EntityRpcReceiverComponent:construct({})
 end
 
 ------------------

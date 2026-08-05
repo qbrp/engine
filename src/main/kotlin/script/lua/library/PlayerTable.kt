@@ -10,6 +10,7 @@ import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaStr
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.nullable
+import org.lain.engine.script.lua.varargsFunction
 import org.lain.engine.world.invokeCommand
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
@@ -27,7 +28,18 @@ fun PlayerMetaTable() = luaTable {
             "is_spectating" -> player.isSpectating.luaBool()
             "is_game_master" -> player.isInGameMasterMode.luaBool()
             else -> with(player.world) {
-                player.entity.coerceToLua().get(key)
+                val entity = player.entity.coerceToLua()
+                val method = entity.get(key)
+
+                if (!method.isfunction()) {
+                    method
+                } else {
+                    varargsFunction { args ->
+                        method.invoke(
+                            LuaValue.varargsOf(entity, args.subargs(2))
+                        )
+                    }
+                }
             }
         }
     }

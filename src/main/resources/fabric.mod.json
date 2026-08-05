@@ -19,7 +19,7 @@
       "org.lain.engine.mc.server.DedicatedServerEngineMod"
     ],
     "main": [
-      "org.lain.engine.CommonEngineMod"
+      "org.lain.engine.mc.CommonEngineMod"
     ],
     "lambdynlights:initializer": [
       "org.lain.engine.client.mc.compat.LambDynamicLights"

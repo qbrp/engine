@@ -41,7 +41,6 @@ fun WriteComponentAccess.createItem(
     item.setComponent(Item(uuid, prefab.id))
     item.setComponent(ItemName(prefab.name))
     item.setComponent(Networked)
-    item.setComponent(UpdateMeta(false))
     item.setComponent(Count(1, prefab.maxCount))
     item.createDebugName(prefab.id)
     prefab.progressionAnimations?.let { item.setComponent(it) }

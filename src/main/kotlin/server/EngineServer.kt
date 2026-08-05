@@ -27,11 +27,12 @@ import org.lain.engine.script.ScriptSystemDispatcher
 import org.lain.engine.script.flushEntityRpcMessageReceiver
 import org.lain.engine.script.handleEntityDebugView
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.adaptScriptLightComponents
-import org.lain.engine.script.lua.adaptScriptNetworkingComponents
-import org.lain.engine.script.lua.adaptScriptPlayerComponents
+import org.lain.engine.script.lua.library.ecs.applyLugLightComponents
+import org.lain.engine.script.lua.library.ecs.applyLuaNetworkingComponents
+import org.lain.engine.script.lua.library.ecs.applyLuaPlayerComponents
+import org.lain.engine.script.lua.library.ecs.prepareLuaScriptComponents
+import org.lain.engine.script.lua.library.ecs.refreshLuaComponentsView
 import org.lain.engine.script.lua.library.tickScriptVoxelAdapter
-import org.lain.engine.script.lua.prepareLuaScriptComponents
 import org.lain.engine.script.scriptContext
 import org.lain.engine.storage.ChunkLoader
 import org.lain.engine.storage.ItemLoader
@@ -124,6 +125,8 @@ class EngineServer(
 
         worlds.forEachWithSelfContext { world ->
             world.prepareData()
+            world.resetItemOwnershipState()
+            world.tickItemOwnershipSystem()
 
             // Фаза 2.1. Обновление игрока
             world.tickPlayerModelSystem()
@@ -160,13 +163,14 @@ class EngineServer(
             updateContainerSystems()
 
             with(luaScriptEngine) {
-                adaptScriptNetworkingComponents()
+                applyLuaNetworkingComponents()
                 world.tickCallbacks(callbacks)
                 scriptSystemDispatcher.tick(world)
                 flushEntityRpcMessageReceiver()
-                adaptScriptPlayerComponents()
-                adaptScriptLightComponents()
+                refreshLuaComponentsView()
+                applyLugLightComponents()
                 tickScriptVoxelAdapter()
+                applyLuaPlayerComponents()
             }
 
             // Обработка взаимодействий с вокселями
@@ -218,7 +222,7 @@ class EngineServer(
         playerStorage.remove(player.id)
         players -= player
 
-        (player.collectOwnedItems(this) + player.items).forEach { item -> item.removeComponent<HoldsBy>() }
+        (player.collectOwnedItems(this) + player.items).forEach { item -> item.removeComponent<HeldBy>() }
 
         player.equipmentContainer.destroy()
         player.mainContainer.destroy()

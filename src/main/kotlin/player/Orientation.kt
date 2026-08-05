@@ -8,8 +8,10 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 data class Orientation(
-    var yaw: Float = 0f,
-    var pitch: Float = 0f
+    var yaw: Float = 0f, //readonly проекция
+    var pitch: Float = 0f, //readonly проекция
+    var translationYaw: Float = 0f, //writable
+    var translationPitch: Float = 0f //writable
 ) : Component {
     val rotationVector: EVec3
         get() {
@@ -23,10 +25,8 @@ data class Orientation(
         }
 }
 
-data class OrientationTranslation(var yaw: Float, var pitch: Float) : Component
-
 fun EnginePlayer.translateRotation(yaw: Float = 0f, pitch: Float = 0f) {
-    val translation = this.require<OrientationTranslation>()
-    translation.yaw += yaw
-    translation.pitch += pitch
+    val translation = this.require<Orientation>()
+    translation.translationYaw += yaw
+    translation.translationPitch += pitch
 }

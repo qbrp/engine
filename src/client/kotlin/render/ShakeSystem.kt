@@ -3,7 +3,7 @@ package org.lain.engine.client.render
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.client.mc.BulletHit
-import org.lain.engine.item.HoldsBy
+import org.lain.engine.item.HeldBy
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.RecoilImpulse
@@ -25,7 +25,8 @@ data class ShakeEffect(
 data class ShakeLocation(val position: Pos, val radius: Float)
 
 fun World.updateShootShakeSystem(mainPlayer: EnginePlayer, camera: Camera) {
-    iterate<RecoilImpulse, HoldsBy> { item, recoil, (owner) ->
+    iterate<RecoilImpulse, HeldBy> { item, recoil, (owner) ->
+        if (owner == null) return@iterate
         if (owner.id == mainPlayer.id) {
             camera.shake(
                 ShakeEffect(

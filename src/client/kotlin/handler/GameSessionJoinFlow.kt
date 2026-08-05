@@ -10,11 +10,10 @@ import org.lain.engine.client.script.ClientLuaScriptEngine
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.commands.friendlyError
-import org.lain.engine.mc.server.HttpStatusException
+import org.lain.engine.server.account.HttpStatusException
 import org.lain.engine.mc.server.SetupException
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.script.CompilationException
 import org.lain.engine.script.CompilationResult
 import org.lain.engine.script.FileScriptSource
 import org.lain.engine.script.NamespaceHashMap

@@ -1,4 +1,4 @@
-package org.lain.engine.mc.server
+package org.lain.engine.server.account
 
 import kotlinx.serialization.json.Json
 import java.net.URI

@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.Item
-import org.lain.engine.item.UpdateMeta
 import org.lain.engine.util.DebugName
 import org.lain.engine.util.EntityDebugId
 import org.lain.engine.util.EntityDebugNameId
@@ -43,8 +42,8 @@ class EntityResolver(private val entityProvider: EntityProvider) {
                         )
                     }
                 ).also { component ->
+                    //TODO: убрать в систему? зачем это здесь
                     if (component is Item && persistentId != null) {
-                        entity.setComponent(UpdateMeta(false))
                         entity.setComponent(Networked)
                     }
                 }

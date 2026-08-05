@@ -12,15 +12,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.lain.engine.mc.commands.FriendlyException
-import org.lain.engine.mc.server.HttpStatusException
-import org.lain.engine.mc.server.RefreshToken
-import org.lain.engine.mc.server.SessionTicket
+import org.lain.engine.server.account.HttpStatusException
+import org.lain.engine.server.account.RefreshToken
+import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.account.AccountResponse
 import java.time.Duration
 import java.time.Instant
-import kotlin.concurrent.atomics.AtomicReference
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.concurrent.atomics.fetchAndUpdate
 
 sealed interface ConnectionState {
     data object Unauthorized : ConnectionState

@@ -1,7 +1,6 @@
 package org.lain.engine.script.lua.library
 
 import org.lain.cyberia.ecs.*
-import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.castLua
@@ -299,9 +298,9 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
         val entityId = entity.id.toint()
         val world = entity.world.asEngineWorld()
         world.getComponents(entityId)
-            .filterIsInstance<ScriptComponent>()
-            .filter { it.value is LuaTable }
-            .toLuaList { it.castLua().luaValue }
+            .filterIsInstance<LuaScriptComponent>()
+            .filter { it.luaValue.istable() }
+            .toLuaList { it.luaValue }
     }
     functionSelf("destroy") { entity ->
         val entityId = entity.id.toint()

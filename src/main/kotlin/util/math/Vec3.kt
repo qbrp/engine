@@ -1,6 +1,7 @@
 package org.lain.engine.util.math
 
 import kotlinx.serialization.Serializable
+import net.minecraft.world.phys.Vec3
 import org.joml.Math
 import org.lain.engine.world.VoxelPos
 import kotlin.math.min
@@ -19,6 +20,12 @@ interface Pos {
 }
 
 fun Pos.asVec3() = Vec3(this.x, this.y, this.z)
+
+fun Pos.asMutableVec3() = MutableEVec3(this.x, this.y, this.z)
+
+fun EVec3.mutable(): MutableEVec3 = this as? MutableEVec3 ?: mutableCopy()
+
+fun EVec3.mutableCopy(): MutableEVec3 = MutableEVec3(this)
 
 fun Pos.snapshot() = ImmutableEVec3(this)
 
@@ -202,10 +209,10 @@ data class MutableEVec3(
         this.z /= z
     }
 
-    fun mutateAdd(x: Float = this.x, y: Float = this.y, z: Float = this.z) {
-        this.x = x
-        this.y = y
-        this.z = z
+    fun mutateAdd(x: Float = 0f, y: Float = 0f, z: Float = 0f) {
+        this.x += x
+        this.y += y
+        this.z += z
     }
 
     fun mutateLerp(x: Float, y: Float, z: Float, alpha: Float = 1f) {

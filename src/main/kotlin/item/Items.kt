@@ -16,11 +16,6 @@ import java.util.concurrent.ConcurrentHashMap
  */
 typealias EngineItem = EntityId
 
-data class UpdateMeta(var adaptedThisTick: Boolean = false) : Component
-
-context(world: World)
-fun EngineItem.getUpdateMeta() = getComponent<UpdateMeta>() ?: UpdateMeta().also { setComponent(it) }
-
 @JvmInline
 @Serializable
 value class ItemId(val value: String) {

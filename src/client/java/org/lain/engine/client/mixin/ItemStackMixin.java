@@ -14,13 +14,9 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.component.TooltipProvider;
 import org.jetbrains.annotations.Nullable;
-import org.lain.cyberia.ecs.ComponentType;
-import org.lain.engine.client.ClientItemStorageKt;
 import org.lain.engine.client.mc.ClientMixinAccess;
 import org.lain.engine.client.mc.UtilKt;
-import org.lain.engine.item.TooltipKt;
-import org.lain.engine.mc.EngineItemReferenceComponent;
-import org.lain.engine.mc.ItemsKt;
+import org.lain.engine.mc.ItemStacksKt;
 import org.lain.engine.mc.ServerMixinAccess;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -61,7 +57,7 @@ public abstract class ItemStackMixin {
             cancellable = true
     )
     public void engine$getTooltip(Item.TooltipContext tooltipContext, @org.jspecify.annotations.Nullable Player player, TooltipFlag tooltipFlag, CallbackInfoReturnable<List<Component>> cir) {
-        if (components.has(ItemsKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
+        if (components.has(ItemStacksKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
             ArrayList<Component> list = Lists.newArrayList();
             list.add(getStyledHoverName());
             cir.setReturnValue(list);
@@ -90,7 +86,7 @@ public abstract class ItemStackMixin {
                 textConsumer.accept(UtilKt.parseMiniMessageClient(line));
             }
         }
-        if (engineItem != null || components.has(ItemsKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
+        if (engineItem != null || components.has(ItemStacksKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
             ci.cancel();
         }
     }

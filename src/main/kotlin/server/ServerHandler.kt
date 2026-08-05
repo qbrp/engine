@@ -16,7 +16,7 @@ import org.lain.engine.chat.*
 import org.lain.engine.item.Item
 import org.lain.engine.item.Writable
 import org.lain.engine.item.getOwner
-import org.lain.engine.mc.server.SessionTicket
+import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.AppliedCharacters
@@ -76,8 +76,6 @@ fun desync(message: String): Nothing = throw DesynchronizationException(message)
 data class Parent(val entity: EntityId) : Component
 
 data class Children(val entities: MutableSet<EntityId>) : Component
-
-
 
 class ServerHandler(
     private val server: EngineServer,

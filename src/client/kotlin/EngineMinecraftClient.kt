@@ -39,7 +39,7 @@ import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.item.WritableOpen
 import org.lain.engine.mc.*
-import org.lain.engine.mc.server.EngineHttpClient
+import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.player.*
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.Injector
@@ -48,6 +48,8 @@ import org.lain.engine.util.component.registerAllClient
 import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.item.resetItemOwnershipState
+import org.lain.engine.item.tickItemOwnershipSystem
 import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.math.sqrt
@@ -253,29 +255,37 @@ class EngineMinecraftClient : ClientModInitializer {
         val world = gameSession.world
         val level = MinecraftClient.level ?: return
 
-        gameSession.mainPlayer.apply<OrientationTranslation> {
-            if (yaw != 0f || pitch != 0f) {
-                camera.impulse(-yaw, -pitch)
+        gameSession.mainPlayer.apply<Orientation> {
+            if (translationYaw != 0f || translationPitch != 0f) {
+                camera.impulse(-translationYaw, -translationPitch)
             }
         }
 
         world.tickVoxelAdapterSystem(level)
         world.tickVoxelDoorSystem(level)
-        world.prepareItemMinecraftSystem()
+        world.resetMinecraftItemState()
+        world.resetItemOwnershipState()
         players.forEach { (entity, player) ->
             try {
-                val itemStacks = (entity.visibleInventoryItems + entity.carriedItem).toSet()
-                val items = itemStacks.mapNotNull { itemStack ->
-                    val item = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getClientItem(engineClient) ?: return@mapNotNull null
-                    EngineItemStack(item, itemStack)
-                }.toSet()
+                val items = (entity.visibleInventoryItems.asSequence() + sequenceOf(entity.carriedItem))
+                    .distinct()
+                    .mapNotNull { itemStack ->
+                        val item = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT)
+                            ?.getClientItem(engineClient)
+                            ?: return@mapNotNull null
+                        EngineItemStack(item, itemStack)
+                    }
 
-                with(world) { updatePlayerMinecraftSystems(player.entity, items, entity) }
-                updatePlayerOwnedItems(world, player)
+                with(world) {
+                    synchronizeMinecraftPlayerState(player.entity, entity)
+                    synchronizeMinecraftPlayerInventory(player.entity, items, entity)
+                }
             } catch (e: Exception) {
                 throw PlayerTickException(player, e)
             }
         }
+        world.tickItemOwnershipSystem()
+        world.synchronizeMinecraftItemStackVisuals()
 
         if (engineClient.ticks % 20L == 0L) {
             updateRandomEngineItemGroupIcon()

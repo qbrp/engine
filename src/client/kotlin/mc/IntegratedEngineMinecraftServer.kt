@@ -7,7 +7,7 @@ import org.lain.engine.mc.server.EngineMinecraftServerDependencies
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.transport.ClientTransportContext
-import org.lain.engine.mc.server.SessionTicket
+import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.*
@@ -18,7 +18,6 @@ import org.lain.engine.util.Injector
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.registerMinecraftServer
-import org.luaj.vm2.Lua
 
 class IntegratedEngineMinecraftServer(
     dependencies: EngineMinecraftServerDependencies,

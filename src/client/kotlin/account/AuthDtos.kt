@@ -2,7 +2,7 @@ package org.lain.engine.client.account
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.lain.engine.mc.server.RefreshToken
+import org.lain.engine.server.account.RefreshToken
 
 @Serializable
 data class ExchangeCodeRequest(

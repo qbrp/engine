@@ -2,11 +2,9 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import org.lain.cyberia.ecs.require
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerItems
 import org.lain.engine.item.EngineItem
-import org.lain.engine.mc.server.SessionTicket
 import org.lain.engine.player.*
 import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.AppliedCharacter

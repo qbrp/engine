@@ -1,9 +1,8 @@
-package org.lain.engine.mc.server
+package org.lain.engine.server.account
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import java.net.URI
 import java.time.Duration
 import java.time.Instant
 

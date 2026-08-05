@@ -2,7 +2,7 @@ package org.lain.engine.player.account
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.lain.engine.mc.server.SessionTicket
+import org.lain.engine.server.account.SessionTicket
 import java.time.Instant
 
 @Serializable

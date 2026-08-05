@@ -4,7 +4,7 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.item.DEFAULT_WEAPON_MASS
-import org.lain.engine.item.HoldsBy
+import org.lain.engine.item.HeldBy
 import org.lain.engine.item.Item
 import org.lain.engine.player.translateRotation
 import org.lain.engine.util.math.EVec3
@@ -29,7 +29,8 @@ data class RecoilImpulse(
     val bullet: BulletParameters
 ) : Component
 
-fun World.tickRecoilSystem(remove: Boolean = true) = iterate<Item, RecoilImpulse, HoldsBy> { item, _, recoil, (owner) ->
+fun World.tickRecoilSystem(remove: Boolean = true) = iterate<Item, RecoilImpulse, HeldBy> { item, _, recoil, (owner) ->
+    if (owner == null) return@iterate
     owner.translateRotation(pitch = -(recoil.bullet.recoilSpeed * 3f))
     if (remove) { item.removeComponent<RecoilImpulse>() }
 }

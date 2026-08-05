@@ -1,14 +1,8 @@
 package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.markDirty
-import org.lain.cyberia.ecs.removeComponent
-import org.lain.engine.player.DestroyItemSignal
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.set
+import org.lain.cyberia.ecs.*
+import org.lain.engine.player.DecrementItem
 import org.lain.engine.world.World
 
 @Serializable
@@ -18,10 +12,10 @@ data class Magazine(
     val ammunition: ItemId
 ) : Component
 
-data class MagazineLoadAction(val player: EnginePlayer, val ammoItem: EngineItem) : Component
+data class MagazineLoadAction(val ammoItem: EngineItem) : Component
 
 fun World.tickMagazineSystem() {
-    iterate<Magazine, MagazineLoadAction>() { item, magazine, (player, ammoItem) ->
+    iterate<Magazine, MagazineLoadAction>() { item, magazine, (ammoItem) ->
         val ammoCount = ammoItem.getComponent<Count>()?.value ?: 1
         val loadAmmoCount = ammoCount.coerceAtMost(magazine.capacity - magazine.bullets)
 
@@ -30,7 +24,7 @@ fun World.tickMagazineSystem() {
                 .coerceAtMost(magazine.capacity)
             item.removeComponent<MagazineLoadAction>()
             item.markDirty<Magazine>()
-            player.set(DestroyItemSignal(ammoItem, loadAmmoCount))
+            ammoItem.setComponent(DecrementItem(loadAmmoCount))
         }
     }
 }

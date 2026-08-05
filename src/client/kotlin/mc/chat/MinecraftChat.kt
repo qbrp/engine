@@ -61,6 +61,10 @@ object MinecraftChat : ChatEventBus {
         override fun equals(other: Any?): Boolean {
             return other is TypingPlayer && id == other.id
         }
+
+        override fun hashCode(): Int {
+            return id.hashCode()
+        }
     }
 
     fun registerEndpoints() {

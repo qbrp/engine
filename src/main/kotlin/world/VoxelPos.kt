@@ -25,7 +25,11 @@ data class ImmutableVoxelPos(override val x: Int, override val y: Int, override 
     override fun equals(other: Any?): Boolean {
         return other is VoxelPos && this.x == other.x && this.y == other.y && this.z == other.z
     }
+
+    override fun hashCode(): Int = createHashCode()
 }
+
+fun VoxelPos.createHashCode(): Int = 31 * (31 * x + y) + z
 
 @Serializable
 data class MutableVoxelPos(
@@ -36,6 +40,8 @@ data class MutableVoxelPos(
     override fun equals(other: Any?): Boolean {
         return other is VoxelPos && this.x == other.x && this.y == other.y && this.z == other.z
     }
+
+    override fun hashCode(): Int = createHashCode()
 }
 
 fun VoxelPos(x: Int, y: Int, z: Int): VoxelPos = ImmutableVoxelPos(x, y, z)

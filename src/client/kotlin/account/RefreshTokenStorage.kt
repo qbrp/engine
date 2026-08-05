@@ -4,9 +4,8 @@ import com.microsoft.credentialstorage.SecretStore
 import com.microsoft.credentialstorage.StorageProvider
 import com.microsoft.credentialstorage.model.StoredToken
 import com.microsoft.credentialstorage.model.StoredTokenType
-import org.lain.engine.mc.server.RefreshToken
+import org.lain.engine.server.account.RefreshToken
 import java.util.Arrays
-import java.util.UUID
 
 fun loadRefreshTokenFromDrive() = RefreshTokenStorage.load()
 

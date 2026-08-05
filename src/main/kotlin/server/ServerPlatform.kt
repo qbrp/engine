@@ -1,6 +1,6 @@
 package org.lain.engine.server
 
-import org.lain.engine.mc.server.SessionTicket
+import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.NamespacedStorage

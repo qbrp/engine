@@ -88,9 +88,13 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         luaScriptEngine,
         timers,
     )
+    private val minecraftSystem = MinecraftSystem(
+        dependencies.entityTable,
+        this,
+    )
 
     protected abstract val transportContext: ServerTransportContext
-    protected open val connectionManager: ServerConnectionManager? = null
+    open val connectionManager: ServerConnectionManager? = null
 
     context(world: World)
     open fun wrapItemStack(itemId: ItemId, itemStack: ItemStack): EngineItem {
@@ -119,18 +123,8 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
         engine.update(
             prepareData = {
-                val itemStackToLoad = mutableListOf<NotLoadedEngineItemStack>()
+                minecraftSystem.tick(this)
                 updateCommandInvokeSystem(entityTableAll)
-                prepareItemMinecraftSystem()
-                updateServerPlayerMinecraftSystems(
-                    this@EngineMinecraftServer,
-                    entityTableAll,
-                    this,
-                    connectionManager,
-                    itemStackToLoad
-                )
-                updateMinecraftItemLoadSystem(itemStackToLoad, engine)
-                players.forEach { player -> updatePlayerOwnedItems(this, player) }
             },
             updateBulletHitSystem = {
                 val level = entityTableAll.getMcWorld(id) as? ServerLevel
@@ -319,6 +313,7 @@ fun EngineServer.serverMinecraftPlayerLoadSettings(
         developerModeStatus,
         getWorld(entity.level().engine),
         entity.isReplayViewer,
-        globals.savePath.playerData.parsePersistentPlayerData(playerId)
+        globals.savePath.playerData.parsePersistentPlayerData(playerId),
+        entity.enginePlayerMode
     )
 }

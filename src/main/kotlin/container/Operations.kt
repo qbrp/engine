@@ -55,9 +55,10 @@ fun clearAssignItemsOperations(world: World) {
 
 context(world: World)
 fun updatePlayerContainerSystem() {
-    world.iterate<Item, ContainedIn, HoldsBy>() { item, _, (container), (owner) ->
+    world.iterate<Item, ContainedIn, HeldBy>() { item, _, (container), (owner) ->
+        if (owner == null) return@iterate
         if (!container.hasComponent<PlayerContainerTag>()) {
-            owner.getOrSet { DestroyItemSignal(item, item.getCount()) }
+            item.setComponent(DecrementItem(item.getCount()))
         } else if (item !in owner.items) {
             val inventory = owner.require<PlayerInventory>()
             val slot = if (inventory.mainHandFree) inventory.selectedSlot else null

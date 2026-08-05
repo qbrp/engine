@@ -108,7 +108,8 @@ fun World.tickGunSystem() {
     }
 
     // стрельба из патронника
-    iterate<Gun, Barrel, HoldsBy, GunFireState>() { item, gun, barrel, (shooter), fireState ->
+    iterate<Gun, Barrel, HeldBy, GunFireState>() { item, gun, barrel, (shooter), fireState ->
+        if (shooter == null) return@iterate
         val canContinueShoot = (!fireState.fired || fireState.mode == FireMode.AUTO) && fireState.mode != FireMode.SELECTOR
         if (fireState.triggerPressed && fireState.cooldown < 0 && barrel.bullets > 0 && canContinueShoot) {
             fireState.cooldown = gun.rate
@@ -162,7 +163,7 @@ fun World.tickGunSystem() {
         item.emitPlaySoundEvent(ROUND_BARREL_SOUND)
         item.markDirty<GunMagazines>()
         item.markDirty<GunFireState>()
-        player.set(DestroyItemSignal(magazineItem))
+        player.set(DecrementItem(magazineItem))
     }
 }
 
@@ -171,16 +172,16 @@ val DEFAULT_BULLET_MASS = 0.004f
 val DEFAULT_BULLET_SPEED = 800f
 
 fun updateBulletsAcoustic(world: World) = world.iterate<BulletFireEvent>() { _, event ->
-    val start = event.shoot.start
-    val affected = filterNearestPlayers(world, start, 8)
-    affected.forEach { player ->
-        // дистанция - 8 блоков
-        val distanceStrength = (64f - player.location.position.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f
-        player.appendTinnitus(
-            Tinnitus(
-                (event.bullet.bulletMass / DEFAULT_BULLET_MASS) * 0.19f, // тиннитус от выстрела пулей стандартной массы = 0.2
-                ((20 * 8) * distanceStrength).toInt()
-            )
-        )
-    }
+//    val start = event.shoot.start
+//    val affected = filterNearestPlayers(world, start, 8)
+//    affected.forEach { player ->
+//        // дистанция - 8 блоков
+//        val distanceStrength = (64f - player.location.position.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f
+//        player.appendTinnitus(
+//            Tinnitus(
+//                (event.bullet.bulletMass / DEFAULT_BULLET_MASS) * 0.19f, // тиннитус от выстрела пулей стандартной массы = 0.2
+//                ((20 * 8) * distanceStrength).toInt()
+//            )
+//        )
+//    }
 }

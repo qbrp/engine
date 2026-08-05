@@ -126,7 +126,7 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<WorldSoundPlayRequest.Item>(id = "sound_play_item")
     registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_positioned")
 
-    registerComponent<HoldsBy>()
+    registerComponent<HeldBy>()
     registerComponent<Item>(isSavable = true, isNetworking = true)
     registerComponent<PersistentIdComponent>(isSavable = true, isNetworking = true)
     registerComponent<ContainedIn>(isSavable = true, isNetworking = true, serializationClass = null)

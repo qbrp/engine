@@ -62,3 +62,5 @@ fun luaListOf(vararg nums: Double): LuaTable {
 fun luaListOf(vararg nums: Int): LuaTable {
     return LuaTable.listOf(nums.map { it.luaNum() }.toTypedArray())
 }
+
+fun LuaValue.nullable() = if (isnil()) null else this

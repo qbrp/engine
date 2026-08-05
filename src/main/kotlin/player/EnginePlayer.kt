@@ -32,12 +32,10 @@ class EnginePlayer(
     }
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component> EnginePlayer.get(): T? = with(world) {
     entity.getComponent<T>()
 }
 
-@Deprecated("Use cyberia methods")
 fun <T : Component> EnginePlayer.getComponent(type: ComponentType<T>): T? = with(world) {
     componentManager.getComponent(entity, type)
 }
