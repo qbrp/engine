@@ -54,8 +54,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     val taskExecutor = TaskExecutor()
 
     private val showedNotifications = mutableSetOf<Notification>()
+    //TODO: нужно очищать периодически во время сессии
     val processedInteraction = mutableSetOf<InteractionIdentity>()
 
+    //TODO: сделать стабильный ID, т.к. действия, произведённые сущностью за один тик, могут некорректно сихнронизироваться
     data class InteractionIdentity(val tick: Long, val entity: EntityId)
 
     private val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
@@ -221,9 +223,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
 
     private suspend fun awaitChunk(gameSession: GameSession, pos: EngineChunkPos): EngineChunk {
         gameSession.world.chunkStorage.getChunk(pos)?.let { return it }
-        val deferred = CompletableDeferred<EngineChunk>()
-        awaitingChunks[pos] = deferred
-        return deferred.await()
+        return awaitingChunks.getOrPut(pos) { CompletableDeferred() }.await()
     }
 
     private suspend fun waitNextTick() = MinecraftClientDispatcher.waitNextTick()
@@ -410,11 +410,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     }
 
     fun applyChunkPacket(chunkDto: EngineChunkDto) = coroutineScope.launch {
-        val session = gameSession
-        while (session == null) {
+        while (gameSession == null) {
             waitNextTick()
         }
-        session.loadChunk(chunkDto)
+        gameSession!!.loadChunk(chunkDto)
     }
 
     private fun GameSession.loadChunk(chunkDto: EngineChunkDto) = with(gameSession!!.world) {
@@ -463,6 +462,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
                 return@with
             }
             val pendingEntity = PendingEntity(components)
+            //TODO: могут быть проблемы с порядком?
             awaitingEntities[persistentId] = CompletableDeferred(pendingEntity)
             coroutineScope.launch {
                 val entity = newEntityResolver().loadEntity(

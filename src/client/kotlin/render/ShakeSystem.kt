@@ -6,7 +6,7 @@ import org.lain.engine.client.mc.BulletHit
 import org.lain.engine.item.HeldBy
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.util.math.Pos
-import org.lain.engine.world.RecoilImpulse
+import org.lain.engine.world.RecoilImpulseEvent
 import org.lain.engine.world.World
 import org.lain.engine.world.recoilSpeed
 
@@ -25,7 +25,7 @@ data class ShakeEffect(
 data class ShakeLocation(val position: Pos, val radius: Float)
 
 fun World.updateShootShakeSystem(mainPlayer: EnginePlayer, camera: Camera) {
-    iterate<RecoilImpulse, HeldBy> { item, recoil, (owner) ->
+    iterate<RecoilImpulseEvent, HeldBy> { item, recoil, (owner) ->
         if (owner == null) return@iterate
         if (owner.id == mainPlayer.id) {
             camera.shake(
@@ -36,7 +36,7 @@ fun World.updateShootShakeSystem(mainPlayer: EnginePlayer, camera: Camera) {
                 )
             )
         }
-        item.removeComponent<RecoilImpulse>()
+        item.removeComponent<RecoilImpulseEvent>()
     }
 
     iterate<BulletHit> { _, hit ->

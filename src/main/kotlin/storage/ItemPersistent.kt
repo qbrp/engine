@@ -179,8 +179,6 @@ class ItemLoader(
     private val server: EngineServer,
     private val database: Database
 ) {
-    private val commandBuffers = ConcurrentLinkedQueue<Pair<WorldId, EntityCommandBuffer>>()
-
     suspend fun loadWorldItem(
         uuid: PersistentId,
         world: World,
@@ -231,7 +229,6 @@ class ItemLoader(
                 .getOrNull()
                 ?: server.createInvalidItem()
 
-            commandBuffers += world.id to commandBuffer
             server.logInMainThread(world) { tick ->
                 // для удобства выполняем другие операции здесь, т.к. функция работает также, как и EntityResolver.schedule
                 server.callbacks.of(CallbackType.ITEM_LOAD)?.execute(ScriptContext.ItemLoad(world, entity))
@@ -250,13 +247,8 @@ class ItemLoader(
                 )
             }
 
+            commandBuffer.schedule(server)
             entity
-        }
-    }
-
-    fun apply(world: World) {
-        commandBuffers.flush { (worldId, buffer) ->
-            if (world.id == worldId) buffer.apply(world)
         }
     }
 }

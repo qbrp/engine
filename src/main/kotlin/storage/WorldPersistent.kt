@@ -19,7 +19,7 @@ private val WorldJson = Json {
     serializersModule = COMPONENT_SERIALIZERS_MODULE
 }
 
-fun EngineServer.worldSavePath(world: World) = globals.savePath.worldData.resolve(world.id.value)
+fun EngineServer.worldSavePath(world: World) = globals.savePath.worldData.resolve(world.id.value.replace(":", ""))
 
 fun EngineServer.saveWorld(world: World) = with(world) {
     val persistent = WorldPersistent(

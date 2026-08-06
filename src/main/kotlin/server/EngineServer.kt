@@ -118,9 +118,6 @@ class EngineServer(
 
         // Подготовка данных
         tick++
-        listWorlds().forEach { world ->
-            itemLoader.apply(world)
-        } // принимаем команды из ECS-очередей
         taskQueue.flush { it.run() }
 
         worlds.forEachWithSelfContext { world ->
@@ -181,10 +178,10 @@ class EngineServer(
 
             updateSaveSystem()
             updateUnloadSystem(handler, world, saveTimers)
-
-            saveTimers.items.tick()
-            saveTimers.containers.tick()
         }
+
+        saveTimers.items.tick()
+        saveTimers.containers.tick()
 
         handler.tick()
         tickTimes.add(start.timeElapsed().toInt())

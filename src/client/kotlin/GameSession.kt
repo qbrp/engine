@@ -289,6 +289,7 @@ class GameSession(
             // Scripts
             with(luaContext) { refreshLuaComponentsView() }
             tickCallbacks(callbacks)
+            scriptSystemDispatcher.tick(world)
             applyLugLightComponents()
             with(luaContext) {
                 applyLuaEntityRpcQueues(handler)

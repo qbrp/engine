@@ -6,14 +6,12 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.player.*
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.VEC3_ZERO
-import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.BulletFireEvent
 import org.lain.engine.world.BulletParameters
-import org.lain.engine.world.RecoilImpulse
+import org.lain.engine.world.RecoilImpulseEvent
 import org.lain.engine.world.ShootGeometry
 import org.lain.engine.world.SmokeGeometry
 import org.lain.engine.world.World
-import org.lain.engine.world.location
 
 @Serializable
 data class Barrel(
@@ -110,7 +108,8 @@ fun World.tickGunSystem() {
     // стрельба из патронника
     iterate<Gun, Barrel, HeldBy, GunFireState>() { item, gun, barrel, (shooter), fireState ->
         if (shooter == null) return@iterate
-        val canContinueShoot = (!fireState.fired || fireState.mode == FireMode.AUTO) && fireState.mode != FireMode.SELECTOR
+        val canContinueShoot =
+            (!fireState.fired || fireState.mode == FireMode.AUTO) && fireState.mode != FireMode.SELECTOR
         if (fireState.triggerPressed && fireState.cooldown < 0 && barrel.bullets > 0 && canContinueShoot) {
             fireState.cooldown = gun.rate
             fireState.fired = true
@@ -121,7 +120,9 @@ fun World.tickGunSystem() {
             val start = shooter.eyePos
             val shoot = ShootGeometry(start, rotationVector)
             val parameters = BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)
-            item.setComponent(RecoilImpulse(shoot, parameters))
+            emitEvent(
+                RecoilImpulseEvent(shooter, shoot, parameters)
+            )
             emitEvent(
                 BulletFireEvent(
                     shoot,

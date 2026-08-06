@@ -237,7 +237,9 @@ data class VerificationResponsePacket(
     val namespaces: NamespaceHashMap,
     val characterId: String?,
     val sessionTicket: SessionTicketDto
-) : Packet
+) : Packet {
+    override val requireAuthorized: Boolean = false
+}
 
 val SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT = Endpoint<VerificationResponsePacket>()
 
@@ -249,6 +251,8 @@ data class GeneralServerData(
 )
 
 @Serializable
-data class VerificationDataPacket(val server: GeneralServerData) : Packet
+data class VerificationDataPacket(val server: GeneralServerData) : Packet {
+    override val requireAuthorized: Boolean = false
+}
 
 val CLIENTBOUND_VERIFICATION_ENDPOINT = Endpoint<VerificationDataPacket>()

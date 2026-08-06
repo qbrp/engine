@@ -18,6 +18,8 @@ import org.lain.engine.world.*
 import java.io.File
 import java.util.Collections
 
+//TODO: Persistence jobs неупорядочены и не дожидаются shutdown. Player/chunk/world saves пишут напрямую в конечный файл без temp+atomic move; более старый job способен завершиться последним. Shutdown ждёт только отдельный blocking item save. Возможны torn JSON/CBOR и потеря последних изменений. PlayerPersistent.kt:81, ChunksPersistent.kt:52, EngineMinecraftServer.kt:183
+
 private val ChunkIoCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 private val CborSerializer = Cbor {
     serializersModule = SerializersModule {

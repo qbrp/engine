@@ -33,6 +33,7 @@ object CoreScriptComponents {
     val PLAYER = register("core/player/component")
     val PLAYER_INVENTORY = register("core/player/inventory")
     val PLAYER_PHYSICS = register("core/player/physics")
+    val PLAYER_MODE = register("core/player/game_mode")
     val LOCATION = register("core/location")
     val DYNAMIC_VOXEL = register("core/voxel/dynamic_voxel")
     val USE_RESTRICTION = register("core/voxel/use_restriction", savable = true, networking = true)

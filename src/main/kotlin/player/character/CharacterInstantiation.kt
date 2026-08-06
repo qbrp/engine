@@ -52,7 +52,6 @@ fun EnginePlayer.removeCharacter(
         entity.requireComponent<SelectedLook>().look.id,
         platform.serializeInventory(this)
     )
-    platform.clearInventory(this)
 }
 
 

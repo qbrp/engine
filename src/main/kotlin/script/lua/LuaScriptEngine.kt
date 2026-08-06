@@ -8,6 +8,7 @@ import org.lain.engine.script.lua.library.ecs.EntityRpcMessageMetaTable
 import org.lain.engine.script.lua.library.ecs.EntityRpcQueueMetaTable
 import org.lain.engine.script.lua.library.ecs.EntityRpcReceiverMetaTable
 import org.lain.engine.script.lua.library.ecs.PlayerInventoryMetaTable
+import org.lain.engine.script.lua.library.ecs.PlayerModeMetaTable
 import org.lain.engine.util.*
 import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
 import org.lain.engine.world.World
@@ -36,6 +37,7 @@ open class LuaScriptEngine(
     val worldMetaTable: LuaTable = WorldMetaTable()
     val entityMetaTable: LuaTable = EntityMetaTable()
     val playerInventoryMetaTable: LuaTable = PlayerInventoryMetaTable()
+    val playerModeMetaTable: LuaTable = PlayerModeMetaTable()
     val entityRpcReceiverMetaTable: LuaTable = EntityRpcReceiverMetaTable()
     val entityRpcMessageMetaTable: LuaTable = EntityRpcMessageMetaTable()
     val entityRpcQueueMetaTable: LuaTable = EntityRpcQueueMetaTable()

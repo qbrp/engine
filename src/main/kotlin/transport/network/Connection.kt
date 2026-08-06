@@ -10,6 +10,7 @@ import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.Username
 import org.lain.engine.server.DesynchronizationException
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 @JvmInline
 value class SessionId(val id: UUID)
@@ -27,7 +28,7 @@ class ServerConnectionManager(
     private val minecraftServer: MinecraftServer,
     private val entityTable: EntityTable
 ) {
-    private val sessions: MutableMap<PlayerId, ConnectionSession> = mutableMapOf()
+    private val sessions: ConcurrentHashMap<PlayerId, ConnectionSession> = ConcurrentHashMap()
 
     fun addConnectionSession(session: ConnectionSession) {
         sessions[session.playerId] = session
@@ -40,6 +41,8 @@ class ServerConnectionManager(
     fun getSession(playerId: PlayerId): ConnectionSession {
         return sessions[playerId] ?: error("Session $playerId not found")
     }
+
+    fun getSessionOrNull(playerId: PlayerId): ConnectionSession? = sessions[playerId]
 
     fun disconnect(connectionSession: ConnectionSession, reason: String)  {
         val playerId = connectionSession.playerId

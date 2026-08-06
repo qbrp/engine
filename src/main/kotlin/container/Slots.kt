@@ -60,7 +60,7 @@ fun World.getContainerSlots(container: EntityId): Map<SlotId, EngineItem> {
 fun World.isSlotContainerFull(container: EntityId): Boolean {
     val slots = container.getComponent<Slots>() ?: error("Not slot container")
     val occupiedSlots = container.getComponent<OccupiedSlots>() ?: error("Not slot container")
-    return occupiedSlots == slots
+    return occupiedSlots.slots.containsAll(slots.available)
 }
 
 fun updateSlotContainers(world: World) {

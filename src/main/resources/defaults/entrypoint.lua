@@ -2,7 +2,7 @@
 
 require("core.registration")
 
-Registration.compilation(function()
+Registration.on_compilation(function()
     local result = CompilationResult.new()
         result:namespace {
             id = "generated",

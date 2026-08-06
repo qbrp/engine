@@ -1,9 +1,10 @@
 package org.lain.engine.mc.server
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import net.minecraft.server.level.ServerPlayer
@@ -20,7 +21,6 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.Username
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.NamespaceHashMapValidationResult
 import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.Notification
@@ -39,6 +39,7 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralServerData
 import org.lain.engine.transport.packet.SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT
 import org.lain.engine.transport.packet.VerificationDataPacket
+import org.lain.engine.transport.packet.VerificationResponsePacket
 import java.util.UUID
 
 
@@ -85,6 +86,11 @@ class DedicatedEngineMinecraftServer(
         authorizationListener.run()
     }
 
+    override fun disable() {
+        authorizationListener.stop()
+        super.disable()
+    }
+
     override fun onJoinPlayer(entity: ServerPlayer) {
         connectionManager.addConnectionSession(
             ConnectionSession(
@@ -101,6 +107,7 @@ class DedicatedEngineMinecraftServer(
         // Уничтожаем в первую очередь запись PlayerId -> Entity
         // Она создаётся до инстанцирования игрока (см. ServerAuthorizationListener)
         val id = entity.engineId
+        connectionManager.getSessionOrNull(id)?.let { authorizationListener.onDisconnect(it.uuid) }
         if (playerStorage.get(id) == null) {
             entityTable.removePlayer(id)
         }
@@ -125,7 +132,9 @@ class DedicatedEngineMinecraftServer(
 data class AuthPacket(
     val mods: List<String>,
     val version: String
-) : Packet
+) : Packet {
+    override val requireAuthorized: Boolean = false
+}
 
 val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
 
@@ -134,21 +143,9 @@ class ServerAuthorizationListener(
     private val server: DedicatedEngineMinecraftServer,
     private val accountService: DedicatedEngineAccountService
 ) {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-    private suspend fun runCatching(connectionSession: ConnectionSession, statement: suspend () -> Unit) {
-        try {
-            statement()
-        } catch (e: Throwable) {
-            server.engine.execute {
-                connectionManager.disconnect(
-                    connectionSession,
-                    "Не удалось авторизоваться из-за внутренней ошибки сервера"
-                )
-                e.printStackTrace()
-            }
-        }
-    }
+    private val supervisorJob = SupervisorJob()
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + supervisorJob)
+    private val authorizationJobs = AwaitingResponseJobs<SessionId, VerificationResponsePacket>(coroutineScope)
 
     fun run() {
         SERVERBOUND_AUTH_ENDPOINT.registerReceiver { ctx ->
@@ -159,15 +156,28 @@ class ServerAuthorizationListener(
             onAuth(packet, entity, playerId)
         }
         SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.registerReceiver { ctx ->
-            val playerId = ctx.sender
-            val entity = server.minecraftServer.getPlayer(playerId)
-                ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
-            onVerificationResponse(developerModeStatus, namespaces, entity, playerId, characterId, sessionTicket.map())
+            onVerificationResponse(this, ctx.sender)
         }
+    }
+
+    fun onDisconnect(sessionId: SessionId) {
+        authorizationJobs.cancel(sessionId)
+    }
+
+    fun stop() {
+        authorizationJobs.cancelAll()
+        supervisorJob.cancel()
     }
 
     private fun onAuth(packet: AuthPacket, entity: ServerPlayer, id: PlayerId) {
         val connection = connectionManager.getSession(id)
+        if (authorizationJobs.isPending(connection.uuid)) {
+            friendlyError("Авторизация игрока уже выполняется")
+        }
+        if (server.engine.playerStorage.get(id) != null) {
+            friendlyError("Игрок уже авторизован")
+        }
+
         if (packet.version !in Constants.ALLOWED_VERSIONS) {
             val versionsText = if (Constants.ALLOWED_VERSIONS.size == 1) {
                 Constants.ALLOWED_VERSIONS.first()
@@ -188,70 +198,113 @@ class ServerAuthorizationListener(
                 "journeymap"
             )
         if (!minimapPermission && hasMinimap) {
-            connectionManager.disconnect(
-                connection,
+            friendlyError(
                 "<bold>Вы были исключены с сервера из-за мода на мини-карту</bold><newline>$MINIMAP_WARNING"
             )
         }
         connection.mods = mods.toSet()
 
-        coroutineScope.launch {
-            runCatching(connection) {
-                CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
-                    VerificationDataPacket(
-                        GeneralServerData(
-                            engine.globals.serverId,
-                            engine.globals.requireIdenticalNamespaces,
-                            engine.namespacedStorage.get().namespaceHashMap
-                        )
-                    ),
-                    id
-                )
+        val verificationData = GeneralServerData(
+            engine.globals.serverId,
+            engine.globals.requireIdenticalNamespaces,
+            engine.namespacedStorage.get().namespaceHashMap,
+        )
+        val job = authorizationJobs.start(connection.uuid) { verificationResponse ->
+            runAuthorization(connection, verificationData, verificationResponse)
+        }
+        if (job == null) friendlyError("Авторизация игрока уже выполняется")
+    }
+
+    private fun onVerificationResponse(packet: VerificationResponsePacket, playerId: PlayerId) {
+        val connection = connectionManager.getSession(playerId)
+        if (!authorizationJobs.complete(connection.uuid, packet)) {
+            friendlyError("Ответ верификации получен до начала авторизации или повторно")
+        }
+    }
+
+    private suspend fun runAuthorization(
+        connection: ConnectionSession,
+        verificationData: GeneralServerData,
+        verificationResponse: Deferred<VerificationResponsePacket>,
+    ) {
+        try {
+            CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
+                VerificationDataPacket(verificationData),
+                connection.playerId,
+            )
+            finishAuthorization(connection, verificationData, verificationResponse.await())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            withContext(server.engine.dispatcher) {
+                val currentSession = connectionManager.getSessionOrNull(connection.playerId)
+                if (currentSession?.uuid == connection.uuid) {
+                    connectionManager.disconnect(connection.playerId, e)
+                }
             }
         }
     }
 
-    private fun onVerificationResponse(
-        developerModeStatus: DeveloperModeStatus,
-        playerNamespaceHashMap: NamespaceHashMap,
-        entity: ServerPlayer,
-        playerId: PlayerId,
-        selectedCharacter: String?,
-        sessionTicket: SessionTicket
+    private suspend fun finishAuthorization(
+        connection: ConnectionSession,
+        verificationData: GeneralServerData,
+        response: VerificationResponsePacket,
     ) {
         val engine = server.engine
-        val connection = connectionManager.getSession(playerId)
-        if (engine.globals.requireIdenticalNamespaces) {
-            val serverNamespacesHashMap = engine.namespacedStorage.get().namespaceHashMap
-            val validationResult = validateNamespaceHashMap(playerNamespaceHashMap, serverNamespacesHashMap)
-            if (validationResult is NamespaceHashMapValidationResult.Error) {
-                friendlyError(validationResult.computeErrorMessage())
+        val settings = withContext(engine.dispatcher) {
+            requireCurrentSession(connection)
+            val entity = server.minecraftServer.getPlayer(connection.playerId)
+                ?: throw CancellationException("Игрок покинул сервер во время авторизации")
+
+            if (verificationData.requireIdenticalNamespaces) {
+                val validationResult = validateNamespaceHashMap(
+                    response.namespaces,
+                    verificationData.namespaceHashMap,
+                )
+                if (validationResult is NamespaceHashMapValidationResult.Error) {
+                    friendlyError(validationResult.computeErrorMessage())
+                }
             }
-        }
-        val username = connection.username
-        val notifications = mutableListOf<Notification>()
-        if (connection.mods.contains("freecam")) {
-            notifyOperators("Freecam", username)
-            notifications += Notification.FREECAM
+
+            val notifications = mutableListOf<Notification>()
+            if (connection.mods.contains("freecam")) {
+                notifyOperators("Freecam", connection.username)
+                notifications += Notification.FREECAM
+            }
+
+            engine.serverMinecraftPlayerLoadSettings(
+                entity,
+                connection.playerId,
+                response.developerModeStatus,
+                notifications,
+            )
         }
 
-        val settings = engine.serverMinecraftPlayerLoadSettings(entity, playerId, developerModeStatus, notifications)
-        coroutineScope.launch {
-            try {
-                val character = selectedCharacter?.let {
-                    accountService.getAuthorized(sessionTicket)
-                        .getCharacter(it)
-                        .map()
-                }
-                engine.playerLoader.loadPreparing(
-                    settings = settings,
-                    account = PlayerLoadSettings.Account(character)
-                )
-            } catch (e: Exception) {
-                withContext(server.engine.dispatcher) {
-                    connectionManager.disconnect(playerId, e)
-                }
+        val account = accountService
+            .getAuthorized(response.sessionTicket.map())
+            .getAccount()
+        val character = response.characterId?.let { characterId ->
+            val characterData = account.characters.firstOrNull { it.profile.id == characterId }
+                ?: friendlyError("Персонаж $characterId не принадлежит авторизованному аккаунту")
+            characterData.map()
+        }
+
+        withContext(engine.dispatcher) {
+            requireCurrentSession(connection)
+            if (engine.playerStorage.get(connection.playerId) != null) {
+                friendlyError("Игрок уже авторизован")
             }
+        }
+        engine.playerLoader.loadPreparing(
+            settings = settings,
+            account = PlayerLoadSettings.Account(character),
+        )
+    }
+
+    private fun requireCurrentSession(connection: ConnectionSession) {
+        val currentSession = connectionManager.getSessionOrNull(connection.playerId)
+        if (currentSession?.uuid != connection.uuid) {
+            throw CancellationException("Сессия игрока изменилась во время авторизации")
         }
     }
 

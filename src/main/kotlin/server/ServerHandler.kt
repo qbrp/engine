@@ -96,7 +96,10 @@ class ServerHandler(
         player.update()
     }
 
-    private fun updatePlayerWithContext(id: PlayerId, update: context(World) EnginePlayer.(world: World) -> Unit) {
+    private fun updatePlayerWithContext(
+        id: PlayerId,
+        update: context(World) EnginePlayer.(world: World) -> Unit
+    ) {
         val player = server.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
         with(player.world) { player.update(player.world) }
     }
@@ -108,7 +111,8 @@ class ServerHandler(
     fun execute(r: () -> Unit) = taskQueue.add(r)
 
     fun onServerSettingsUpdate() {
-        squaredSynchronizationRadius = (playerSynchronizationRadius * playerSynchronizationRadius).toFloat()
+        squaredSynchronizationRadius =
+            (playerSynchronizationRadius * playerSynchronizationRadius).toFloat()
         squaredDesynchronizationRadius =
             (playerSynchronizationRadius + playerDesynchronizationThreshold).toFloat().pow(2)
         CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT.broadcast {
@@ -122,8 +126,19 @@ class ServerHandler(
         running = true
         GlobalAcknowledgeListener.start()
 
-        SERVERBOUND_SPEED_INTENTION_PACKET.registerReceiver { ctx -> onPlayerSpeedIntentionSet(ctx.sender, value) }
-        SERVERBOUND_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessage(ctx.sender, text, channel) }
+        SERVERBOUND_SPEED_INTENTION_PACKET.registerReceiver { ctx ->
+            onPlayerSpeedIntentionSet(
+                ctx.sender,
+                value
+            )
+        }
+        SERVERBOUND_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx ->
+            onChatMessage(
+                ctx.sender,
+                text,
+                channel
+            )
+        }
         SERVERBOUND_DEVELOPER_MODE_PACKET.registerReceiver { ctx ->
             onDeveloperModeEnabled(
                 ctx.sender,
@@ -132,11 +147,31 @@ class ServerHandler(
             )
         }
         SERVERBOUND_VOLUME_PACKET.registerReceiver { ctx -> onPlayerVolume(ctx.sender, volume) }
-        SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx -> onChatMessageDelete(ctx.sender, message) }
-        SERVERBOUND_CURSOR_ITEM_ENDPOINT.registerReceiver { ctx -> onPlayerCursorItem(ctx.sender, item) }
-        SERVERBOUND_CHAT_TYPING_START_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingStart(ctx.sender, channel) }
+        SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.registerReceiver { ctx ->
+            onChatMessageDelete(
+                ctx.sender,
+                message
+            )
+        }
+        SERVERBOUND_CURSOR_ITEM_ENDPOINT.registerReceiver { ctx ->
+            onPlayerCursorItem(
+                ctx.sender,
+                item
+            )
+        }
+        SERVERBOUND_CHAT_TYPING_START_ENDPOINT.registerReceiver { ctx ->
+            onPlayerChatTypingStart(
+                ctx.sender,
+                channel
+            )
+        }
         SERVERBOUND_CHAT_TYPING_END_ENDPOINT.registerReceiver { ctx -> onPlayerChatTypingEnd(ctx.sender) }
-        SERVERBOUND_ARM_STATUS_ENDPOINT.registerReceiver { ctx -> onPlayerArmStatus(ctx.sender, extend) }
+        SERVERBOUND_ARM_STATUS_ENDPOINT.registerReceiver { ctx ->
+            onPlayerArmStatus(
+                ctx.sender,
+                extend
+            )
+        }
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.registerReceiver { ctx ->
             onWriteableContentsUpdate(
                 ctx.sender,
@@ -144,10 +179,31 @@ class ServerHandler(
                 contents
             )
         }
-        SERVERBOUND_INPUT_PACKET.registerReceiver { ctx -> onPlayerInput(ctx.sender, tick, actions) }
-        SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx -> onVoxelBlockHint(ctx.sender, pos, action) }
-        SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx -> onScriptBindings(ctx.sender, bindings) }
-        SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx -> onPlayerInstantiationConfirm(ctx.sender) }
+        SERVERBOUND_INPUT_PACKET.registerReceiver { ctx ->
+            onPlayerInput(
+                ctx.sender,
+                tick,
+                actions
+            )
+        }
+        SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx ->
+            onVoxelBlockHint(
+                ctx.sender,
+                pos,
+                action
+            )
+        }
+        SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx ->
+            onScriptBindings(
+                ctx.sender,
+                bindings
+            )
+        }
+        SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx ->
+            onPlayerInstantiationConfirm(
+                ctx.sender
+            )
+        }
         SERVERBOUND_ENTITY_COMPONENT_RPC_ENDPOINT.registerReceiver { ctx ->
             onEntityComponentRpcPacket(
                 ctx.sender,
@@ -155,8 +211,17 @@ class ServerHandler(
                 delta
             )
         }
-        SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.registerReceiver { ctx -> onEntityDebugView(ctx.sender, persistentId) }
-        SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.registerReceiver { ctx -> onEntityDebugViewStop(ctx.sender) }
+        SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.registerReceiver { ctx ->
+            onEntityDebugView(
+                ctx.sender,
+                persistentId
+            )
+        }
+        SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.registerReceiver { ctx ->
+            onEntityDebugViewStop(
+                ctx.sender
+            )
+        }
         SERVERBOUND_CHARACTER_APPLY_ENDPOINT.registerReceiver { ctx ->
             onCharacterApply(
                 ctx.sender,
@@ -166,7 +231,13 @@ class ServerHandler(
                 requestId
             )
         }
-        SERVERBOUND_LOOK_APPLY_ENDPOINT.registerReceiver { ctx -> onLookApply(ctx.sender, lookId, requestId) }
+        SERVERBOUND_LOOK_APPLY_ENDPOINT.registerReceiver { ctx ->
+            onLookApply(
+                ctx.sender,
+                lookId,
+                requestId
+            )
+        }
     }
 
     fun invalidate() {
@@ -176,12 +247,14 @@ class ServerHandler(
         running = false
     }
 
-    private fun onLookApply(playerId: PlayerId, lookId: String, requestId: Long?) = updatePlayer(playerId) {
-        val character = require<AppliedCharacter>().character
-        val look = character.looks.find { it.id == lookId } ?: desync("Образ $lookId не существует")
-        set(SelectedLook(look))
-        onCharacterApplyConfirmation(this@updatePlayer, requestId)
-    }
+    private fun onLookApply(playerId: PlayerId, lookId: String, requestId: Long?) =
+        updatePlayer(playerId) {
+            val character = require<AppliedCharacter>().character
+            val look =
+                character.looks.find { it.id == lookId } ?: desync("Образ $lookId не существует")
+            set(SelectedLook(look))
+            onCharacterApplyConfirmation(this@updatePlayer, requestId)
+        }
 
     private fun onCharacterApply(
         playerId: PlayerId,
@@ -192,15 +265,24 @@ class ServerHandler(
     ) = updatePlayer(playerId) {
         val appliedCharacters = require<AppliedCharacters>()
         val persistent = appliedCharacters.characters[characterId]
-        with(world) { removeCharacter(server.platform, appliedCharacters) }
+        val player = this
+        with(world) {
+            removeCharacter(server.platform, appliedCharacters)
+        }
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val eventListener = server.platform
                 val validatedCharacter =
-                    eventListener.validateCharacter(this@updatePlayer, characterId, character, sessionTicket)
+                    eventListener.validateCharacter(
+                        this@updatePlayer,
+                        characterId,
+                        character,
+                        sessionTicket
+                    )
                 withContext(server.dispatcher) {
                     with(EntityCommandBuffer(world)) {
                         persistent?.let { prepareCharacter(world.componentLoadSettings, it) }
+                        server.platform.clearInventory(player)
                         applyCharacter(validatedCharacter, persistent, eventListener)
                         apply(world)
                     }
@@ -224,38 +306,46 @@ class ServerHandler(
         delta: List<ScriptValue>
     ) = updatePlayerWithContext(sender) {
         val entity =
-            world.persistentIdToEntity[entityPersistentId] ?: desync("Сущности $entityPersistentId не существует")
+            world.persistentIdToEntity[entityPersistentId]
+                ?: desync("Сущности $entityPersistentId не существует")
         entity.requireComponent<EntityRpcReceiver>().values.addAll(
             delta.map { EntityRpcReceiver.Message(this, it) }
         )
     }
 
-    private fun onScriptBindings(player: PlayerId, bindings: ScriptBindings) = updatePlayer(player) {
-        fun <C : ScriptContext> ScriptId.ensureExists() =
-            require(server.namespacedStorage.getVoidScript<C>(this) != null)
-        bindings.base?.ensureExists<ScriptContext.Player>()
-        bindings.attack?.ensureExists<ScriptContext.Player>()
-        set(bindings)
-    }
-
-    private fun onEntityDebugView(player: PlayerId, persistentId: PersistentId) = updatePlayer(player) {
-        if (!hasPermission("entity_debug")) return@updatePlayer
-        val entity = world.persistentIdToEntity[persistentId] ?: desync("Сущность $persistentId не существует")
-        with(world) {
-            this@updatePlayer.entity.setComponent(
-                EntityDebugViewComponent(
-                    entity,
-                    entity.snapshotDebugData()
-                )
-            )
+    private fun onScriptBindings(player: PlayerId, bindings: ScriptBindings) =
+        updatePlayer(player) {
+            fun <C : ScriptContext> ScriptId.ensureExists() =
+                require(server.namespacedStorage.getVoidScript<C>(this) != null)
+            bindings.base?.ensureExists<ScriptContext.Player>()
+            bindings.attack?.ensureExists<ScriptContext.Player>()
+            set(bindings)
         }
-    }
+
+    private fun onEntityDebugView(player: PlayerId, persistentId: PersistentId) =
+        updatePlayer(player) {
+            if (!hasPermission("entity_debug")) return@updatePlayer
+            val entity = world.persistentIdToEntity[persistentId]
+                ?: desync("Сущность $persistentId не существует")
+            with(world) {
+                this@updatePlayer.entity.setComponent(
+                    EntityDebugViewComponent(
+                        entity,
+                        entity.snapshotDebugData()
+                    )
+                )
+            }
+        }
 
     private fun onEntityDebugViewStop(player: PlayerId) = updatePlayer(player) {
         remove<EntityDebugViewComponent>()
     }
 
-    private fun onVoxelBlockHint(player: PlayerId, pos: VoxelPos, action: VoxelBlockHintPacket.Action) =
+    private fun onVoxelBlockHint(
+        player: PlayerId,
+        pos: VoxelPos,
+        action: VoxelBlockHintPacket.Action
+    ) =
         updatePlayer(player) {
             when (action) {
                 is VoxelBlockHintPacket.Action.Add -> {
@@ -266,7 +356,8 @@ class ServerHandler(
 
                 is VoxelBlockHintPacket.Action.Remove -> {
                     if (hasPermission("blockhint.remove")) {
-                        val hint = world.chunkStorage.getBlockHint(pos) ?: desync("Описание блока не существует")
+                        val hint = world.chunkStorage.getBlockHint(pos)
+                            ?: desync("Описание блока не существует")
                         if (hint.texts.size - 1 < action.index || action.index < 0) {
                             desync("Невалидный индекс")
                         }
@@ -284,11 +375,17 @@ class ServerHandler(
             playerInput.tick = tick
         }
 
-    private fun onWriteableContentsUpdate(playerId: PlayerId, persistentId: PersistentId, contents: List<String>) =
+    private fun onWriteableContentsUpdate(
+        playerId: PlayerId,
+        persistentId: PersistentId,
+        contents: List<String>
+    ) =
         updatePlayerWithContext(playerId) {
             val item = this.handItem
             val writable = item?.getComponent<Writable>()
-            if (item?.requireComponent<PersistentIdComponent>()?.id != persistentId || writable == null) desync("Предмет для сохранения написанного контента не найден или им не является")
+            if (item?.requireComponent<PersistentIdComponent>()?.id != persistentId || writable == null) desync(
+                "Предмет для сохранения написанного контента не найден или им не является"
+            )
             if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
 
             if (writable.contents != contents) {
@@ -303,29 +400,30 @@ class ServerHandler(
         markDirty<ArmStatus>()
     }
 
-    private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) = updatePlayer(player) {
-        val player = this
-        val channel = server.chat.getChannel(channelId)
-        val acoustic = channel.acoustic
+    private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) =
+        updatePlayer(player) {
+            val player = this
+            val channel = server.chat.getChannel(channelId)
+            val acoustic = channel.acoustic
 
-        if (!channel.typeIndicator || acoustic == null) {
-            return@updatePlayer
-        }
-
-        val range = channel.typeIndicatorRange
-        val nearestPlayers = range?.let { player.filterNearestPlayers(it) }
-        val players = nearestPlayers ?: when (acoustic) {
-            is Acoustic.Global -> playerStorage.getAll()
-            is Acoustic.Distance -> player.filterNearestPlayers(acoustic.radius)
-            is Acoustic.Realistic -> {
-                val radius = server.chat.settings.defaultChannel.typeIndicatorRange ?: 16
-                CHAT_LOGGER.warn("Акустическая симуляция не работает, чтобы подсчитать, каким игрокам отображать индикатор ввода сообщения. Используется стандартный радиус $radius блоков.")
-                player.filterNearestPlayers(radius)
+            if (!channel.typeIndicator || acoustic == null) {
+                return@updatePlayer
             }
-        }.filter { it.isChannelAvailableToRead(channel) }
-        val packet = ChatTypingPlayerPacket(player.id)
-        players.forEach { CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.sendS2C(packet, it.id) }
-    }
+
+            val range = channel.typeIndicatorRange
+            val nearestPlayers = range?.let { player.filterNearestPlayers(it) }
+            val players = nearestPlayers ?: when (acoustic) {
+                is Acoustic.Global -> playerStorage.getAll()
+                is Acoustic.Distance -> player.filterNearestPlayers(acoustic.radius)
+                is Acoustic.Realistic -> {
+                    val radius = server.chat.settings.defaultChannel.typeIndicatorRange ?: 16
+                    CHAT_LOGGER.warn("Акустическая симуляция не работает, чтобы подсчитать, каким игрокам отображать индикатор ввода сообщения. Используется стандартный радиус $radius блоков.")
+                    player.filterNearestPlayers(radius)
+                }
+            }.filter { it.isChannelAvailableToRead(channel) }
+            val packet = ChatTypingPlayerPacket(player.id)
+            players.forEach { CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.sendS2C(packet, it.id) }
+        }
 
     private fun onPlayerChatTypingEnd(player: PlayerId) {
         CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.broadcast(ChatTypingPlayerPacket(player))
@@ -343,11 +441,12 @@ class ServerHandler(
         intentSpeed(value.coerceIn(0f, 1f))
     }
 
-    private fun onChatMessage(player: PlayerId, content: String, channelId: ChannelId) = updatePlayer(player) {
-        val content = content.trim()
-        if (content.isEmpty()) return@updatePlayer
-        speak(content, channelId)
-    }
+    private fun onChatMessage(player: PlayerId, content: String, channelId: ChannelId) =
+        updatePlayer(player) {
+            val content = content.trim()
+            if (content.isEmpty()) return@updatePlayer
+            speak(content, channelId)
+        }
 
     private fun onDeveloperModeEnabled(playerId: PlayerId, enabled: Boolean, acoustic: Boolean) =
         updatePlayer(playerId) {
@@ -356,18 +455,20 @@ class ServerHandler(
         }
 
     // FIXME: Искать предметы по инвентарю игрока, а не глобально
-    private fun onPlayerCursorItem(playerId: PlayerId, itemId: PersistentId?) = updatePlayerWithContext(playerId) {
-        val itemStorage = it.itemStorage
-        val item = itemId?.let {
-            val result = itemStorage.get(it) ?: desync("Установленный курсором предмет $itemId не найден")
-            val owner = result.getOwner()
-            if (!hasPermission("invsee") && owner != null && owner.id != playerId) {
-                desync("Захвачен чужой предмет")
+    private fun onPlayerCursorItem(playerId: PlayerId, itemId: PersistentId?) =
+        updatePlayerWithContext(playerId) {
+            val itemStorage = it.itemStorage
+            val item = itemId?.let {
+                val result = itemStorage.get(it)
+                    ?: desync("Установленный курсором предмет $itemId не найден")
+                val owner = result.getOwner()
+                if (!hasPermission("invsee") && owner != null && owner.id != playerId) {
+                    desync("Захвачен чужой предмет")
+                }
+                result
             }
-            result
+            require<PlayerInventory>().cursorItem = item
         }
-        require<PlayerInventory>().cursorItem = item
-    }
 
     private fun onChatMessageDelete(by: PlayerId, messageId: MessageId) {
         val player = playerStorage.get(by) ?: return
@@ -388,7 +489,8 @@ class ServerHandler(
 
     //TODO: синхронизировать предметы по блок-сущностям (чтобы учитывать и сундуки)
     fun tick() {
-        val players = playerStorage.filter { (server.isReplay && !it.has<ReplayViewer>()) || it.network.authorized }
+        val players =
+            playerStorage.filter { (server.isReplay && !it.has<ReplayViewer>()) || it.network.authorized }
 
         players.forEachWithContext({ it.world }) { player ->
             val world = player.world
@@ -412,7 +514,12 @@ class ServerHandler(
             state.worldSynced = true
 
             val nearbyPlayers =
-                filterNearestPlayers(world, playerPosition, playerSynchronizationRadius, players).toMutableList()
+                filterNearestPlayers(
+                    world,
+                    playerPosition,
+                    playerSynchronizationRadius,
+                    players
+                ).toMutableList()
             val playersToDesynchronize =
                 state.players.filter { it.location.position.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
             state.players.removeAll(playersToDesynchronize)
@@ -501,7 +608,11 @@ class ServerHandler(
         }
     }
 
-    fun onCharacterApplyConfirmation(player: EnginePlayer, requestId: Long? = null, errorMessage: String? = null) {
+    fun onCharacterApplyConfirmation(
+        player: EnginePlayer,
+        requestId: Long? = null,
+        errorMessage: String? = null
+    ) {
         CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.sendS2C(
             CharacterApplyConfirmationPacket(requestId, errorMessage),
             player.id
@@ -580,26 +691,27 @@ class ServerHandler(
         server.playerStorage.get(player)?.let { onServerNotification(it, notification, once) }
     }
 
-    fun onPlayerInstantiation(player: EnginePlayer, notifications: List<Notification> = listOf()) = with(player.world) {
-        val playerId = player.id
-        val packet = PlayerJoinServerPacket(GeneralPlayerData.of(player))
+    fun onPlayerInstantiation(player: EnginePlayer, notifications: List<Notification> = listOf()) =
+        with(player.world) {
+            val playerId = player.id
+            val packet = PlayerJoinServerPacket(GeneralPlayerData.of(player))
 
-        playerStorage.forEach {
-            if (it == player) return@forEach
-            CLIENTBOUND_PLAYER_JOIN_ENDPOINT.sendS2C(
-                packet,
-                it.id
+            playerStorage.forEach {
+                if (it == player) return@forEach
+                CLIENTBOUND_PLAYER_JOIN_ENDPOINT.sendS2C(
+                    packet,
+                    it.id
+                )
+            }
+
+            val joinGamePacket = JoinGamePacket(
+                ServerPlayerData.of(player),
+                ClientboundWorldData.of(this),
+                ClientboundSetupData.create(server, player),
+                notifications
             )
+            CLIENTBOUND_JOIN_GAME_ENDPOINT.sendS2C(joinGamePacket, player.id)
         }
-
-        val joinGamePacket = JoinGamePacket(
-            ServerPlayerData.of(player),
-            ClientboundWorldData.of(this),
-            ClientboundSetupData.create(server, player),
-            notifications
-        )
-        CLIENTBOUND_JOIN_GAME_ENDPOINT.sendS2C(joinGamePacket, player.id)
-    }
 
     fun onPlayerInstantiationConfirm(playerId: PlayerId) = updatePlayer(playerId) {
         network.authorized = true
@@ -616,7 +728,10 @@ class ServerHandler(
         playerStorage.forEach { it.network.chunks.remove(chunk) }
     }
 
-    fun onPersonalVolumeAcousticDebug(player: EnginePlayer, volumes: List<Pair<ImmutableVoxelPos, Float>>) {
+    fun onPersonalVolumeAcousticDebug(
+        player: EnginePlayer,
+        volumes: List<Pair<ImmutableVoxelPos, Float>>
+    ) {
         CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET.sendS2C(
             AcousticDebugVolumesPacket(volumes),
             player.id
@@ -655,7 +770,6 @@ class ServerHandler(
             }
         }
     }
-
 
     fun <P : Packet> Endpoint<P>.broadcastInRadius(
         world: World,

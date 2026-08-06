@@ -66,14 +66,16 @@ fun World.tickGunActionSystem() {
         entity.removeComponent<GunModeToggleAction>()
     }
 
-    iterate<GunLoadAction, Player> { entity, (gunItem, loadItem), (player) ->
-        val loadItemId = loadItem.requireComponent<Item>().id
-        if (loadItem.hasComponent<Magazine>() && loadItemId == gunItem.getComponent<GunMagazines>()?.supports) {
-            gunItem.setComponent(GunMagazineLoad(player, loadItem))
-        } else if (loadItemId == gunItem.getComponent<Barrel>()?.ammunition) {
-            gunItem.setComponent(GunBarrelLoad(player, loadItem))
+    if (!isClient) {
+        iterate<GunLoadAction, Player> { entity, (gunItem, loadItem), (player) ->
+            val loadItemId = loadItem.requireComponent<Item>().id
+            if (loadItem.hasComponent<Magazine>() && loadItemId == gunItem.getComponent<GunMagazines>()?.supports) {
+                gunItem.setComponent(GunMagazineLoad(player, loadItem))
+            } else if (loadItemId == gunItem.getComponent<Barrel>()?.ammunition) {
+                gunItem.setComponent(GunBarrelLoad(player, loadItem))
+            }
+            entity.removeComponent<GunLoadAction>()
         }
-        entity.removeComponent<GunLoadAction>()
     }
 }
 

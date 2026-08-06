@@ -63,7 +63,12 @@ context(ctx: YamlCompilationContext)
 internal fun <T> NamespaceConfig?.computeInheritable(getter: (NamespaceConfig) -> T): T? {
     if (this == null) return null
     val configs = ctx.namespaces
-    return getter(this) ?: inherit?.let { (configs[it] ?: configs[_root_ide_package_.org.lain.engine.script.DEFAULT_NAMESPACE])?.config?.computeInheritable(getter) }
+    return getter(this) ?: inherit?.let {
+        (configs[it]
+            ?: configs[_root_ide_package_.org.lain.engine.script.DEFAULT_NAMESPACE])?.config?.computeInheritable(
+            getter
+        )
+    }
 }
 
 context(ctx: YamlCompilationContext)
@@ -93,7 +98,10 @@ internal fun String.replaceToRelative(namespace: YamlNamespace): String {
     return replaceFirst("~", namespace.id.value)
 }
 
-private fun loadNamespaces(directory: File, errors: MutableList<CompilationException>): Map<NamespaceId, YamlNamespace> {
+private fun loadNamespaces(
+    directory: File,
+    errors: MutableList<CompilationException>
+): Map<NamespaceId, YamlNamespace> {
     val namespaces = mutableSetOf<NamespaceId>()
     val contents = mutableMapOf<NamespaceId, NamespaceContents>()
     val configs = mutableMapOf<NamespaceId, NamespaceConfig>()
@@ -102,13 +110,19 @@ private fun loadNamespaces(directory: File, errors: MutableList<CompilationExcep
         try {
             if (!dir.isFile || dir.extension != "yml") return@forEach
             if (dir.name == NAMESPACES_FILENAME) {
-                val config = Yaml.default.decodeFromStream<Map<NamespaceId, NamespaceConfig>>(dir.inputStream())
+                val config =
+                    Yaml.default.decodeFromStream<Map<NamespaceId, NamespaceConfig>>(dir.inputStream())
                 configs.putAll(config)
             } else {
                 val namespace = Yaml.default.decodeFromStream<NamespaceContents>(dir.inputStream())
                 val id = namespace.id
+                //TOOD: не забывать дополнять
                 val upserted = contents[id]?.let {
-                    it.copy(items = it.items + namespace.items)
+                    it.copy(
+                        items = it.items + namespace.items,
+                        sounds = it.sounds + namespace.sounds,
+                        progressionAnimations = it.progressionAnimations + namespace.progressionAnimations
+                    )
                 }
                 contents[id] = upserted ?: namespace
                 namespaces.add(id)
@@ -131,44 +145,52 @@ internal fun createYamlCompilationContext(directory: File): YamlCompilationConte
     return YamlCompilationContext(loadNamespaces(directory, errors), errors)
 }
 
-internal fun compileContentsYaml(directory: File): CompilationResult = with(createYamlCompilationContext(directory)) {
-    val namespaces = namespaces.mapValues { (_, namespace) ->
-        try {
-            val contents = namespace.contents
-            CompiledNamespace(
-                compileItemsYaml(contents.items, namespace)
-                    .associateBy { it.id },
-                compileSoundEvents(contents.sounds, namespace)
-                    .associateBy { it.id },
-                contents.progressionAnimations.map { (id, animation) ->
-                    val framesList = runCatching {
-                        Yaml.default.decodeFromYamlNode<List<String>>(
-                            animation.frames ?: return@runCatching emptyList()
+internal fun compileContentsYaml(directory: File): CompilationResult =
+    with(createYamlCompilationContext(directory)) {
+        val namespaces = namespaces.mapValues { (_, namespace) ->
+            try {
+                val contents = namespace.contents
+                CompiledNamespace(
+                    compileItemsYaml(contents.items, namespace)
+                        .associateBy { it.id },
+                    compileSoundEvents(contents.sounds, namespace)
+                        .associateBy { it.id },
+                    contents.progressionAnimations.map { (id, animation) ->
+                        val framesList = runCatching {
+                            Yaml.default.decodeFromYamlNode<List<String>>(
+                                animation.frames ?: return@runCatching emptyList()
+                            )
+                        }
+                        val frames = framesList.getOrNull() ?: run {
+                            val (baseName, count) = Yaml.default.decodeFromYamlNode<FrameIdGeneratorConfig>(
+                                animation.frames!!
+                            )
+                            List(count) { id -> "$baseName${id + 1}" }
+                        }
+                        ProgressionAnimationId(
+                            namespacedId(
+                                namespace.id,
+                                id
+                            )
+                        ) to ProgressionAnimation(
+                            frames,
+                            animation.text,
+                            animation.success
                         )
                     }
-                    val frames = framesList.getOrNull() ?: run {
-                        val (baseName, count) = Yaml.default.decodeFromYamlNode<FrameIdGeneratorConfig>(animation.frames!!)
-                        List(count) { id -> "$baseName${id + 1}" }
-                    }
-                    ProgressionAnimationId(namespacedId(namespace.id, id)) to ProgressionAnimation(
-                        frames,
-                        animation.text,
-                        animation.success
-                    )
-                }
-                    .toMap()
-            )
-        } catch (e: Exception) {
-            errors += CompilationException(namespace.id, e)
-            null
-        }
-    }.filterValues { it != null }
+                        .toMap()
+                )
+            } catch (e: Exception) {
+                errors += CompilationException(namespace.id, e)
+                null
+            }
+        }.filterValues { it != null }
 
-    return CompilationResult(
-        namespaces as Map<NamespaceId, CompiledNamespace>,
-        errors,
-        null,
-        listOf(),
-        0L
-    )
-}
+        return CompilationResult(
+            namespaces as Map<NamespaceId, CompiledNamespace>,
+            errors,
+            null,
+            listOf(),
+            0L
+        )
+    }

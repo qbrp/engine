@@ -48,7 +48,7 @@ class World(
     val scriptEngine: ScriptEngine,
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     private val scriptContext = ScriptContext.World(this)
-    val componentLoadSettings = ComponentLoadSettings(itemStorage, namespacedStorage, persistentIdToEntity, scriptEngine, true)
+    val componentLoadSettings = ComponentLoadSettings(itemStorage, namespacedStorage, persistentIdToEntity, scriptEngine, isClient)
     val chunkStorage: ChunkStorage = ChunkStorage(this, componentLoadSettings)
     var ticks = 0L
 
@@ -58,7 +58,6 @@ class World(
         if (ticks % 20 == 0L) {
             callbacks.of(CallbackType.WORLD_TICK_20)?.execute(scriptContext)
         }
-        ticks++
     }
 
     /**

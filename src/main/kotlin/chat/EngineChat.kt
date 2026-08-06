@@ -14,6 +14,7 @@ import org.lain.engine.player.require
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Color
+import org.lain.engine.util.LRUCache
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.roundToInt
@@ -34,8 +35,7 @@ class EngineChat(
     }
     private val coroutineScope = CoroutineScope(executor.asCoroutineDispatcher() + SupervisorJob() + handler)
 
-    private val incomingMessageHistory = mutableListOf<IncomingMessage>()
-    val outcomingMessageHistory = mutableMapOf<MessageId, OutcomingMessage>()
+    val outcomingMessageHistory = LRUCache<MessageId, OutcomingMessage>(200)
 
     private var channelsMap = mapOf<ChannelId, ChatChannel>()
     private val settingsAtomicRef = AtomicReference(server.globals.chatSettings)
@@ -52,7 +52,6 @@ class EngineChat(
     }
 
     fun processMessage(message: IncomingMessage) {
-        incomingMessageHistory += message
         val acousticDebug = message.source.player?.let { server.playerStorage.get(it.id) }?.acousticDebug ?: false
         val channel = getChannel(message.channel)
         coroutineScope.launch {
@@ -147,7 +146,7 @@ class EngineChat(
             }
 
         source.world.players.values
-            .filter { it !in recipients && it.chatOperator && it != source.player }
+            .filter { it !in recipients && it.chatOperator && it != source.player && (!mustBeSpectator || it.isSpectating) }
             .forEach { sendSpyMessage(content, source, this, it, id = id) }
     }
 

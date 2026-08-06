@@ -30,9 +30,8 @@ class ScriptSystem(
     val side: SystemSide
 ) {
     fun tick(world: World) {
-        if (side == SystemSide.CLIENT && !world.isClient) {
-            return
-        }
+        if (side == SystemSide.CLIENT && !world.isClient) return
+        if (side == SystemSide.SERVER && world.isClient) return
         var handle: MutableEntityHandle? = null
         world.componentManager.iterate(query) { mutableComponentsCollection, entity ->
             if (handle == null) {

@@ -5,7 +5,6 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
 import org.lain.engine.listKotlinComponentTypeEntries
-import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.Storage
@@ -89,15 +88,15 @@ class ComponentWorld(
                 } else {
                     ComponentArray(idx, meta, type as ComponentType<Component>)
                 }
-                arr.onAdded = null
+                arr.onSet = null
                 arr.onRemoved = null
 
                 arrays += arr
                 if (type == componentTypeOf(PersistentIdComponent::class)) {
-                    arr.onAdded = { component, entity -> persistentIdToEntity[(component as PersistentIdComponent).id] = entity }
+                    arr.onSet = { component, entity -> persistentIdToEntity[(component as PersistentIdComponent).id] = entity }
                     arr.onRemoved = { component, entity -> persistentIdToEntity.remove((component as PersistentIdComponent).id) }
                 } else if (type == componentTypeOf(Item::class)) {
-                    arr.onAdded = { component, entity ->
+                    arr.onSet = { component, entity ->
                         val persistentId = (component as Item).uuid
                         if (itemStorage.get(persistentId) != entity) {
                             itemStorage.remove(persistentId)
@@ -476,7 +475,7 @@ class ComponentArray<T : Component>(
     val idx: Int,
     val meta: ComponentMeta,
     val type: ComponentType<T>,
-    var onAdded: ((T, EntityId) -> Unit)? = null,
+    var onSet: ((T, EntityId) -> Unit)? = null,
     var onRemoved: ((T, EntityId) -> Unit)? = null
 ) {
     internal val sparseArray = mutableListOf<Int?>()
@@ -506,14 +505,20 @@ class ComponentArray<T : Component>(
 
     fun setComponent(entityId: EntityId, component: T) {
         while(sparseArray.size <= entityId) sparseArray.add(null)
-        val denseIndex = sparseArray[entityId] ?: run {
+        val existingDenseArrayIdx = sparseArray[entityId]
+        if (onRemoved != null && existingDenseArrayIdx != null) {
+            denseArray.getOrNull(existingDenseArrayIdx)?.let {
+                onRemoved!!(it, entityId)
+            }
+        }
+        val denseIndex = existingDenseArrayIdx ?: run {
             denseArray.add(component)
             denseEntities.add(entityId)
             denseArray.lastIndex
         }
         denseArray[denseIndex] = component
         sparseArray[entityId] = denseIndex
-        onAdded?.invoke(component, entityId)
+        onSet?.invoke(component, entityId)
     }
 
     fun removeComponent(entityId: EntityId): T? {

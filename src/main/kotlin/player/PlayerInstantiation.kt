@@ -177,7 +177,7 @@ class PlayerLoader(
                 )
             }
             withContext(server.dispatcher) {
-                server.itemLoader.apply(world)
+                //server.itemLoader.apply(world)
                 apply(world)
                 server.instantiatePlayer(player, settings.notifications, character, persistentCharacterData)
                 server.handler.onCharacterApplyConfirmation(player)
@@ -245,7 +245,7 @@ class PlayerLoader(
                     }
                 }
                 .awaitAll()
-                .toMap() as Map<EquipmentSlot, EngineItem>
+                .toMap()
         }
 
         InventoryItemsLoadResult(inventoryItems.await(), equipment.await())

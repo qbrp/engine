@@ -5,6 +5,8 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerInventory
+import org.lain.engine.player.PlayerMode
+import org.lain.engine.player.PlayerModeComponent
 import org.lain.engine.player.PlayerPhysics
 import org.lain.engine.player.require
 import org.lain.engine.script.CoreScriptComponents
@@ -13,7 +15,10 @@ import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.castLua
 import org.lain.engine.script.lua.castedLuaValue
 import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.luaBool
+import org.lain.engine.script.lua.luaStr
 import org.lain.engine.script.lua.luaTable
+import org.lain.engine.script.lua.luaUserdataTable
 import org.lain.engine.script.lua.luaValue
 import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.script.lua.toLuaList
@@ -23,6 +28,24 @@ import org.lain.engine.world.location
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
+
+context(lua: LuaScriptEngine)
+private fun LuaPlayerModeComponent(player: EnginePlayer) =
+    LuaUserdata(player.require<PlayerModeComponent>()).apply {
+        setmetatable(lua.playerModeMetaTable)
+    }
+
+context(lua: LuaScriptEngine)
+fun PlayerModeMetaTable() = luaUserdataTable<PlayerModeComponent> {
+    indexSelf { self, key ->
+        when(key.tojstring()) {
+            "mode" -> self.mode.name.lowercase().luaStr()
+            "is_spectator" -> self.isSpectator.luaBool()
+            "is_game_master" -> self.isGameMaster.luaBool()
+            else -> NIL
+        }
+    }
+}
 
 private fun LuaPlayerPhysicsComponent(player: EnginePlayer) = luaTable {
     val physics = player.require<PlayerPhysics>()
@@ -45,7 +68,7 @@ context(lua: LuaScriptEngine)
 fun PlayerInventoryMetaTable() = luaTable {
     index { self, key ->
         val (player, inventory) = self.asLuaPlayerInventory()
-        context(player.world, lua) {
+        context(player.world) {
             when (key.tojstring()) {
                 "main_hand_item" -> inventory.mainHandItem?.coerceToLua() ?: NIL
                 "off_hand_item" -> inventory.offHandItem?.coerceToLua() ?: NIL
@@ -82,6 +105,10 @@ fun EnginePlayer.prepareLuaScriptComponents() {
     entity.setLuaScriptComponent(
         LuaPlayerPhysicsComponent(this),
         CoreScriptComponents.PLAYER_PHYSICS
+    )
+    entity.setLuaScriptComponent(
+        LuaPlayerModeComponent(this),
+        CoreScriptComponents.PLAYER_MODE
     )
 }
 

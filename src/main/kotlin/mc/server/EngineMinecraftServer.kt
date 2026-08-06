@@ -18,6 +18,7 @@ import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.TagValueInput
 import net.minecraft.world.level.storage.TagValueOutput
 import org.lain.cyberia.ecs.copyState
+import org.lain.cyberia.ecs.destroy
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemStorage
@@ -276,7 +277,11 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             engineChunk.hints.toMap(),
             engineChunk.dynamicVoxels.mapValues { (_, entity) ->
                 savableComponentArrays.mapNotNull {
-                    with(engineWorld) { it.componentOf(entity)?.toSnapshotDto() }
+                    with(engineWorld) {
+                        val component = it.componentOf(entity)?.toSnapshotDto()
+                        entity.destroy() // сделать в будущем проверку владения
+                        component
+                    }
                 }
             }
         )

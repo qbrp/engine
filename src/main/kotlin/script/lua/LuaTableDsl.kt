@@ -161,6 +161,10 @@ class UserdataLuaTableBuilder<T> : LuaTableBuilder() {
     @Suppress("UNCHECKED_CAST")
     fun LuaValue.cast() = checkuserdata() as T
 
+    fun indexSelf(fn: (self: T, key: LuaValue) -> LuaValue) {
+        index { self, key -> fn(self.cast(), key) }
+    }
+
     fun functionSelf(name: String, body: (T) -> LuaValue) = function1(name) { self ->
         body(self.cast())
     }

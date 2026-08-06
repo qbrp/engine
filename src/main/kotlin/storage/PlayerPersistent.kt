@@ -20,6 +20,8 @@ import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
 import java.io.File
 
+//TODO: Persistence jobs неупорядочены и не дожидаются shutdown. Player/chunk/world saves пишут напрямую в конечный файл без temp+atomic move; более старый job способен завершиться последним. Shutdown ждёт только отдельный blocking item save. Возможны torn JSON/CBOR и потеря последних изменений. PlayerPersistent.kt:81, ChunksPersistent.kt:52, EngineMinecraftServer.kt:183
+
 val STORAGE_DIR = ENGINE_DIR.resolve("storage")
     .also { it.mkdirs() }
 
@@ -93,9 +95,11 @@ fun File.savePersistentPlayerData(
     val voiceApparatus = player.require<VoiceApparatus>().copy()
     val voiceLoose = player.get<VoiceLoose>()?.copy()
     val chatHeadsEnabled = player.chatHeadsEnabled
-    val equipment = equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentIdComponent>().id }
+    val equipment =
+        equipmentSlots.mapValues { (_, item) -> item.requireComponent<PersistentIdComponent>().id }
     val skinEyeY = player.require<EnginePlayerModel>().skinEyeY
-    val savableComponents = componentManager.getSavableComponents(player.entity).map { it.toSnapshotDto() }
+    val savableComponents =
+        componentManager.getSavableComponents(player.entity).map { it.toSnapshotDto() }
     val appliedCharacter = player.get<AppliedCharacter>()?.character?.profile?.id
     val characters = player.get<AppliedCharacters>()?.characters ?: emptyMap()
 
