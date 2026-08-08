@@ -176,7 +176,7 @@ data class FullPlayerPacket(
 data class FullPlayerData(
     val movementStatus: MovementStatus,
     val attributes: PlayerAttributes,
-    val armStatus: ArmStatus,
+    //val armStatus: ArmStatus,
     val skinEyeY: Float,
     val referencedItems: PlayerReferencedItems,
 ) {
@@ -185,7 +185,7 @@ data class FullPlayerData(
         fun of(player: EnginePlayer) = FullPlayerData(
             player.require<MovementStatus>().copy(),
             player.require<PlayerAttributes>().copy(),
-            player.require<ArmStatus>().copy(),
+      //      player.require<ArmStatus>().copy(),
             player.skinEyeY,
             PlayerReferencedItems.of(player)
         )

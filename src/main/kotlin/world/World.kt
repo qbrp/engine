@@ -5,11 +5,9 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.MovementSettings
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.NamespacedStorageAccess
-import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.storage.ComponentLoadSettings
@@ -19,7 +17,7 @@ import org.lain.engine.storage.persistentId
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.ComponentWorld
 import org.lain.engine.util.component.EntityId
-import org.lain.engine.util.component.Networked
+import org.lain.engine.server.Networked
 import java.util.concurrent.ConcurrentHashMap
 
 @Serializable

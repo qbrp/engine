@@ -1,14 +1,13 @@
 package org.lain.engine.util.component
 
-import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
 import org.lain.engine.listKotlinComponentTypeEntries
+import org.lain.engine.server.NetworkState
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.Storage
-import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -27,6 +26,8 @@ class ComponentWorld(
     private val savableArrays = ArrayList<ComponentArray<*>>()
     private val networkingArrays = ArrayList<ComponentArray<*>>()
     private val dirtyComponentIndexesByEntity = HashMap<EntityId, MutableSet<Int>>()
+    lateinit var networkStateArray: ComponentArray<NetworkState>
+        private set
 
     // Создание сущностей потокобезопасно. Добавление компонентов - нет
     private var destroyed = Collections.synchronizedList<Boolean>(mutableListOf())
@@ -46,7 +47,11 @@ class ComponentWorld(
 
     @Suppress("UNCHECKED_CAST")
     fun <T : Component> getComponentArray(type: ComponentType<T>): ComponentArray<T> {
-        return arrays[type.castIndexed().idx] as? ComponentArray<T> ?: error("No component array for $type")
+        return getComponentArray(type.castIndexed().idx) as? ComponentArray<T> ?: error("No component array for $type")
+    }
+
+    fun getComponentArray(idx: Int): ComponentArray<*> {
+        return arrays[idx]
     }
 
     fun listArrays(): List<ComponentArray<*>> {
@@ -106,6 +111,8 @@ class ComponentWorld(
                     arr.onRemoved = { component, entity ->
                         itemStorage.remove((component as Item).uuid)
                     }
+                } else if (type == componentTypeOf(NetworkState::class)) {
+                    networkStateArray = arr as ComponentArray<NetworkState>
                 }
 
                 if (meta.savable) savableArrays.add(arr)
@@ -179,16 +186,14 @@ class ComponentWorld(
         return output
     }
 
-    fun getDirtyNetworkedComponents(entityId: EntityId): List<Component> {
+    fun getDirtyNetworkedComponentsLegacy(output: MutableList<Component>, entityId: EntityId) {
         checkOnThread()
-        val dirtyIndexes = dirtyComponentIndexesByEntity[entityId] ?: return emptyList()
-        val output = mutableListOf<Component>()
+        val dirtyIndexes = dirtyComponentIndexesByEntity[entityId] ?: return
         for (idx in dirtyIndexes) {
             val array = arrays.getOrNull(idx) ?: continue
             if (!array.meta.networking) continue
             array.componentOf(entityId)?.let { output += it }
         }
-        return output
     }
 
     fun collect(
@@ -468,90 +473,3 @@ class ComponentWorld(
     }
 }
 
-@Serializable
-object Networked : Component
-
-class ComponentArray<T : Component>(
-    val idx: Int,
-    val meta: ComponentMeta,
-    val type: ComponentType<T>,
-    var onSet: ((T, EntityId) -> Unit)? = null,
-    var onRemoved: ((T, EntityId) -> Unit)? = null
-) {
-    internal val sparseArray = mutableListOf<Int?>()
-    internal val denseEntities = mutableListOf<EntityId>()
-    internal val denseArray = mutableListOf<T>()
-    val components
-        get() = denseArray
-
-    fun entityOf(componentIdx: Int) = denseEntities[componentIdx]
-
-    fun getOrSet(entityId: EntityId, factory: () -> T): T {
-        val component = componentOf(entityId)
-        if (component != null) {
-            return component
-        } else {
-            val newComponent = factory()
-            setComponent(entityId, newComponent)
-            return newComponent
-        }
-    }
-
-    fun componentOf(entityId: EntityId): T? {
-        // А есть ли такая сущность вообще? Не удален ли у нее компонент?
-        val sparseArrayIndex = sparseArray.getOrNull(entityId) ?: return null
-        return denseArray[sparseArrayIndex]
-    }
-
-    fun setComponent(entityId: EntityId, component: T) {
-        while(sparseArray.size <= entityId) sparseArray.add(null)
-        val existingDenseArrayIdx = sparseArray[entityId]
-        if (onRemoved != null && existingDenseArrayIdx != null) {
-            denseArray.getOrNull(existingDenseArrayIdx)?.let {
-                onRemoved!!(it, entityId)
-            }
-        }
-        val denseIndex = existingDenseArrayIdx ?: run {
-            denseArray.add(component)
-            denseEntities.add(entityId)
-            denseArray.lastIndex
-        }
-        denseArray[denseIndex] = component
-        sparseArray[entityId] = denseIndex
-        onSet?.invoke(component, entityId)
-    }
-
-    fun removeComponent(entityId: EntityId): T? {
-        val denseIndex = sparseArray.getOrNull(entityId) ?: return null
-        val lastIndex = denseArray.lastIndex
-
-        val removedComponent = denseArray[denseIndex]
-
-        if (denseIndex != lastIndex) {
-            denseArray[denseIndex] = denseArray[lastIndex]
-            denseEntities[denseIndex] = denseEntities[lastIndex]
-
-            val movedEntity = denseEntities[denseIndex]
-            sparseArray[movedEntity] = denseIndex
-        }
-
-        denseArray.removeAt(lastIndex)
-        denseEntities.removeAt(lastIndex)
-        sparseArray[entityId] = null
-
-        onRemoved?.invoke(removedComponent, entityId)
-        return removedComponent
-    }
-}
-
-fun World.clearComponents(type: ComponentType<*>) {
-    val array = componentManager.getComponentArray(type)
-    iterate1(type) { entity, component ->
-        require(entity.exists())
-        array.removeComponent(entity)
-    }
-}
-
-inline fun <reified T : Component> World.clearComponents() {
-    clearComponents(componentTypeOf(T::class))
-}

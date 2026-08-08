@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
@@ -46,7 +47,6 @@ import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
 import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.util.component.EntityId
-import org.lain.engine.util.component.Networked
 import org.lain.engine.util.flush
 import org.lain.engine.util.forEachWithContext
 import org.lain.engine.util.getEntityDebugNameId
@@ -395,9 +395,9 @@ class ServerHandler(
             }
         }
 
-    private fun onPlayerArmStatus(playerId: PlayerId, extend: Boolean) = updatePlayer(playerId) {
+    private fun onPlayerArmStatus(playerId: PlayerId, extend: Boolean) = updatePlayerWithContext(playerId) {
         extendArm = extend
-        markDirty<ArmStatus>()
+        entity.markUpdated<ArmStatus>()
     }
 
     private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) =
@@ -487,6 +487,34 @@ class ServerHandler(
         taskQueue.flush { it() }
     }
 
+    // потенциально это намного лучше, чем каждый раз выделять пустой список, который может не заполниться
+    private var updatedList = mutableListOf<Component>()
+    private var removedList = mutableListOf<ComponentType<*>>()
+
+    context(world: World)
+    private fun networkSnapshotOf(entityId: EntityId): EntityNetworkSnapshot? {
+        updatedList.clear()
+        removedList.clear()
+        world.componentManager.fillNetworkSnapshot(updatedList, removedList, entityId)
+        return if (updatedList.isNotEmpty() || removedList.isNotEmpty()) {
+            EntityNetworkSnapshot(
+                updatedList.map { it.toSnapshotDto() },
+                removedList.map { it.id }
+            )
+        } else {
+            null
+        }
+    }
+
+    context(world: World)
+    private fun fullNetworkSnapshotOf(entityId: EntityId): EntityNetworkSnapshot {
+        return EntityNetworkSnapshot(
+            world.componentManager.getNetworkedComponents(entityId)
+                .map { it.toSnapshotDto() },
+            emptyList()
+        )
+    }
+
     //TODO: синхронизировать предметы по блок-сущностям (чтобы учитывать и сундуки)
     fun tick() {
         val players =
@@ -494,20 +522,18 @@ class ServerHandler(
 
         players.forEachWithContext({ it.world }) { player ->
             val world = player.world
-            val input = player.entity.requireComponent<PlayerInput>()
             val state = player.network
             val playerLocation = player.location
             val playerPosition = playerLocation.position
-            val worldComponents = world.componentManager
 
             val worldState = world.state
-            val worldEntityComponentsToSync = when (state.worldSynced) {
-                true -> worldComponents.getDirtyNetworkedComponents(worldState)
-                false -> worldComponents.getNetworkedComponents(worldState)
+            val worldEntityNetworkSnapshot = when (state.worldSynced) {
+                true -> networkSnapshotOf(worldState)
+                false -> fullNetworkSnapshotOf(worldState)
             }
-            if (worldEntityComponentsToSync.isNotEmpty()) {
+            if (worldEntityNetworkSnapshot != null) {
                 CLIENTBOUND_WORLD_STATE_DELTA_PACKET.sendS2C(
-                    WorldStateDeltaPacket(worldEntityComponentsToSync.map { it.toSnapshotDto() }),
+                    WorldStateDeltaPacket(worldEntityNetworkSnapshot),
                     player.id
                 )
             }
@@ -529,18 +555,16 @@ class ServerHandler(
             world.iterate<Networked, Location, PersistentIdComponent>() { entity, _, entityLocation, (persistentId) ->
                 if (entityLocation.position.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
                     if (entity.hasComponent<DynamicVoxelInterest>()) return@iterate
-                    val componentsToSynchronize = if (state.entities.contains(persistentId)) {
-                        worldComponents.getDirtyNetworkedComponents(entity)
+                    val networkSnapshot = if (state.entities.contains(persistentId)) {
+                        networkSnapshotOf(entity)
                     } else {
-                        worldComponents.getNetworkedComponents(entity)
+                        fullNetworkSnapshotOf(entity)
                     }
-                    if (componentsToSynchronize.isNotEmpty()) {
+                    if (networkSnapshot != null) {
                         CLIENTBOUND_ENTITY_DELTA_ENDPOINT.sendS2C(
                             EntityDeltaPacket(
-                                EntityDto(
-                                    persistentId,
-                                    componentsToSynchronize.map { it.toSnapshotDto() }
-                                )
+                                persistentId,
+                                networkSnapshot
                             ),
                             player.id
                         )
@@ -567,17 +591,14 @@ class ServerHandler(
             val voxelsInRadius = mutableSetOf<ImmutableVoxelPos>()
             world.iterate<Networked, DynamicVoxelInterest, ChunkedPos> { voxel, _, _, (chunkPos, voxelPos, centerPos) ->
                 if (centerPos.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
-                    val componentsToSynchronize = if (state.voxels.contains(voxelPos)) {
-                        worldComponents.getDirtyNetworkedComponents(voxel)
+                    val networkSnapshot = if (state.voxels.contains(voxelPos)) {
+                        networkSnapshotOf(voxel)
                     } else {
-                        worldComponents.getNetworkedComponents(voxel)
+                        fullNetworkSnapshotOf(voxel)
                     }
-                    if (componentsToSynchronize.isNotEmpty()) {
+                    if (networkSnapshot != null) {
                         CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT.sendS2C(
-                            DynamicVoxelDeltaPacket(
-                                voxelPos,
-                                componentsToSynchronize.map { it.toSnapshotDto() }
-                            ),
+                            DynamicVoxelDeltaPacket(voxelPos, networkSnapshot),
                             player.id
                         )
                     }
@@ -605,6 +626,7 @@ class ServerHandler(
 
         server.listWorlds().forEach {
             it.componentManager.invalidateNetworkingState() // TODO: это оптимизация, надо проверить, не создает ли она баги
+            it.iterate<NetworkState> { _, state -> state.clear() }
         }
     }
 

@@ -2,8 +2,6 @@ package org.lain.engine.item
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
-import org.lain.engine.util.component.clearComponents
-import org.lain.engine.world.World
 
 @Serializable
 /**

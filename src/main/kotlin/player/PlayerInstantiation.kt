@@ -20,7 +20,7 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Storage
 import org.lain.engine.util.component.EntityCommandBuffer
-import org.lain.engine.util.component.Networked
+import org.lain.engine.server.Networked
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -114,7 +114,6 @@ fun serverPlayerInstance(
 }
 
 private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
-    submit(PLAYER_ARM_STATUS_SYNCHRONIZER)
     submit(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     submit(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     submit(PLAYER_NARRATION_SYNCHRONIZER)

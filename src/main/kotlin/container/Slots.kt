@@ -9,6 +9,7 @@ import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.component.ComponentState
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
+import org.lain.engine.world.world
 
 // Назначать на сущность контейнера
 @Serializable data class Slots(val available: Set<SlotId>) : Component
@@ -18,7 +19,7 @@ import org.lain.engine.world.World
 @Serializable data class AssignedSlot(val slot: SlotId) : Component
 
 // Операция
-data class AssignSlot(val item: EngineItem, val slot: SlotId) : Component
+data class AssignSlot(val item: EngineItem, val slot: SlotId, val container: EntityId) : Component
 
 @JvmInline
 @Serializable
@@ -63,20 +64,18 @@ fun World.isSlotContainerFull(container: EntityId): Boolean {
     return occupiedSlots.slots.containsAll(slots.available)
 }
 
-fun updateSlotContainers(world: World) {
-    world.iterate<Container, Slots, OccupiedSlots, AssignSlot>() { container, _, (slots), (occupiedSlots), (itemToAttach, slotToAttach) ->
-        if (slotToAttach !in slots) error("Слот $slotToAttach не существует в контейнере $container")
-        container.removeComponent<AssignSlot>()
-        if (slotToAttach !in occupiedSlots) {
-            container.setComponent(AssignItem(itemToAttach.requireComponent<PersistentIdComponent>().id))
+fun World.tickSlotContainerOperations() = iterate<AssignSlot>() { _, (itemToAttach, slotToAttach, container) ->
+    val (slots) = container.requireComponent<Slots>()
+    val (occupiedSlots) = container.requireComponent<OccupiedSlots>()
 
-            occupiedSlots += slotToAttach
-            itemToAttach.setComponent(AssignedSlot(slotToAttach))
-            itemToAttach.markDirty<AssignedSlot>()
-            container.markDirty<OccupiedSlots>()
-        } else {
-            world.emitEvent(ContainerError("Слот $slotToAttach занят"))
-        }
+    if (slotToAttach !in slots) error("Слот $slotToAttach не существует в контейнере $container")
+    if (slotToAttach !in occupiedSlots) {
+        container.emitItemAssignEvent(itemToAttach)
+
+        occupiedSlots += slotToAttach
+        itemToAttach.setComponent(AssignedSlot(slotToAttach))
+    } else {
+        error("Слот $slotToAttach занят")
     }
 }
 

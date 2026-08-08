@@ -3,14 +3,16 @@ package org.lain.engine.mc.commands
 import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.EntityArgument
+import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.messageSource
 import org.lain.engine.mc.displayNameMiniMessage
-import org.lain.engine.mc.displayNameText
 import org.lain.engine.mc.hasPermission
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.username
+import org.lain.engine.util.file.ChannelConfig
+import org.lain.engine.util.file.ChatConfig
 import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.injectEntityTable
 
@@ -26,6 +28,7 @@ fun ServerCommandDispatcher.registerServerChatCommand(
     channel: ChatChannel,
     argument: String = "text",
     permission: Boolean = false,
+    propagate: ChannelConfig.Propagate?,
     aliases: List<String> = listOf(),
 ) {
     val engine by injectEngineServer()
@@ -36,7 +39,16 @@ fun ServerCommandDispatcher.registerServerChatCommand(
                 .executeCatching { ctx ->
                     val text = ctx.command.getString(argument)
                     val player = ctx.requirePlayer()
-                    engine.chat.processMessage(channel, MessageSource.getPlayer(player, channel), text)
+                    val source = MessageSource.getPlayer(player, channel)
+                    propagate?.let {
+                        val propagateChannel = engine.chat.getChannel(ChannelId(it.channel))
+                        engine.chat.processMessage(
+                            propagateChannel,
+                            source,
+                            it.text.replace("{text}", text),
+                        )
+                    }
+                    engine.chat.processMessage(channel, source, text)
                 }
         )
         .build()
@@ -44,7 +56,7 @@ fun ServerCommandDispatcher.registerServerChatCommand(
     aliases.forEach { alias -> register(Commands.literal(alias).redirect(node)) }
 }
 
-fun ServerCommandDispatcher.registerServerPmCommand() {
+fun ServerCommandDispatcher.registerServerCustomChatCommands() {
     val engine by injectEngineServer()
     val table by injectEntityTable()
 
@@ -74,7 +86,7 @@ fun ServerCommandDispatcher.registerServerPmCommand() {
                                     boomerang = true,
                                     placeholders = mapOf(
                                         "pm_receiver_username" to recipientPlayer.username,
-                                        "pm_receiver_name" to recipientPlayer.displayNameMiniMessage
+                                        "pm_receiver_name" to recipientPlayer.displayNameMiniMessage,
                                     )
                                 )
                             }

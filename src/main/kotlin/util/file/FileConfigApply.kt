@@ -30,46 +30,47 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
     val chat = config.chat
     val commandChannels = chat.commands
 
-    val channels: Map<String, ChatChannel> = (commandChannels + chat.channels).mapValues { (id, it) ->
-        val format = it.format
-        val acoustic = it.distance
-            ?.let { value ->
-                Acoustic.Distance(value)
-            }
-            ?: it.acoustic?.let { acoustic ->
-                Acoustic.Realistic(acoustic.distort)
-            }
-            ?: it.global.let { isGlobal ->
-                if (!isGlobal) {
-                    CONFIG_LOGGER.warn("Не указана акустика канала $id. Требуется указать один из вариантов: global, distance или acoustic")
+    val channels: Map<String, ChatChannel> =
+        (commandChannels + chat.channels).mapValues { (id, it) ->
+            val format = it.format
+            val acoustic = it.distance
+                ?.let { value ->
+                    Acoustic.Distance(value)
                 }
-                Acoustic.Global
-            }
+                ?: it.acoustic?.let { acoustic ->
+                    Acoustic.Realistic(acoustic.distort)
+                }
+                ?: it.global.let { isGlobal ->
+                    if (!isGlobal) {
+                        CONFIG_LOGGER.warn("Не указана акустика канала $id. Требуется указать один из вариантов: global, distance или acoustic")
+                    }
+                    Acoustic.Global
+                }
 
-        val modifiers = mutableListOf<Modifier>()
-        if (it.spectator) modifiers += Modifier.Spectator
+            val modifiers = mutableListOf<Modifier>()
+            if (it.spectator) modifiers += Modifier.Spectator
 
-        val selectors = mutableListOf<Selector>()
-        it.prefix?.let { value -> selectors += Selector.Prefix(value) }
-        it.regex?.let { regex -> selectors += Selector.Regex(regex.exp, regex.remove) }
-        val speech = it.speech
+            val selectors = mutableListOf<Selector>()
+            it.prefix?.let { value -> selectors += Selector.Prefix(value) }
+            it.regex?.let { regex -> selectors += Selector.Regex(regex.exp, regex.remove) }
+            val speech = it.speech
 
-        ChatChannel(
-            ChannelId(id),
-            it.name ?: id,
-            format,
-            acoustic,
-            modifiers,
-            selectors,
-            speech,
-            it.notify,
-            it.permission,
-            it.heads,
-            typeIndicatorRange = it.chatTypeRadius,
-            typeIndicator = it.chatTypeIndicator,
-            background = it.background?.let { Color.parseString(it) }
-        )
-    }
+            ChatChannel(
+                ChannelId(id),
+                it.name ?: id,
+                format,
+                acoustic,
+                modifiers,
+                selectors,
+                speech,
+                it.notify,
+                it.permission,
+                it.heads,
+                typeIndicatorRange = it.chatTypeRadius,
+                typeIndicator = it.chatTypeIndicator,
+                background = it.background?.let { Color.parseString(it) }
+            )
+        }
 
     val chatSettings = EngineChatSettings(
         chat.placeholders,
@@ -89,7 +90,8 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         chat.acoustic.volume.hearingThreshold,
         chat.acoustic.volume.max,
         chat.acoustic.volume.attenuation,
-        channels[chat.defaultChannel] ?: error("Указанный стандартный канал ${chat.defaultChannel} не существует"),
+        channels[chat.defaultChannel]
+            ?: error("Указанный стандартный канал ${chat.defaultChannel} не существует"),
         chat.join.message,
         chat.join.enabled,
         chat.leave.message,
@@ -103,7 +105,13 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         val name = it.key
         val command = commandChannels[name]
         if (command != null) {
-            dispatcher.registerServerChatCommand(name, channel, permission = command.invokePermission, aliases = command.aliases)
+            dispatcher.registerServerChatCommand(
+                name,
+                channel,
+                permission = command.invokePermission,
+                aliases = command.aliases,
+                propagate = command.propagate
+            )
         }
     }
 
@@ -138,7 +146,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
 
     val statuses = mutableMapOf<PlayerStatus, Map<PrimaryAttribute, Float>>()
     config.player.attributes.forEach { (status, value) ->
-        val playerStatus = when(status) {
+        val playerStatus = when (status) {
             "default" -> PlayerStatus.DEFAULT
             "spectator" -> PlayerStatus.SPECTATING
             "gm" -> PlayerStatus.GM

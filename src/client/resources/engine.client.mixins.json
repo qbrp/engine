@@ -52,6 +52,7 @@
     "resource.SpriteSourceListAccessor",
     "resource.SpriteSourceListMixin",
     "resource.TransformationDeserializerMixin",
+    "screen.AbstractRecipeBookScreenMixin",
     "screen.BookEditScreenMixin",
     "screen.CreativeInventoryScreenMixin",
     "screen.LevelLoadingScreenMixin",

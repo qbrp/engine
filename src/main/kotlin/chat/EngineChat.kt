@@ -302,6 +302,7 @@ class EngineChat(
         val placeholders = mutableMapOf(
             "author_username" to (player?.userName ?: ""),
             "author_name" to author.name,
+            "author_pos" to (source.position?.let { "${it.x} ${it.y} ${it.z}" } ?: ""),
             "recipient_username" to recipient.userName,
             "recipient_name" to recipient.displayNameMiniMessage,
             "random-100" to roundToInt(Random(source.time.timeMillis).nextFloat() * 100f).toString()

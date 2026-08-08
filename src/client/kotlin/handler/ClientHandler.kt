@@ -33,19 +33,24 @@ import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.Look
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
+import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.EntityDebugData
 import org.lain.engine.script.NamespaceHashMap
+import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
+import org.lain.engine.server.EntityNetworkSnapshot
 import org.lain.engine.server.Notification
 import org.lain.engine.server.desync
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
+import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.concurrent.ConcurrentHashMap
 
 class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure) {
     private val gameSession get() = client.gameSession
@@ -54,6 +59,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     val taskExecutor = TaskExecutor()
 
     private val showedNotifications = mutableSetOf<Notification>()
+
     //TODO: нужно очищать периодически во время сессии
     val processedInteraction = mutableSetOf<InteractionIdentity>()
 
@@ -63,9 +69,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     private val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
     private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
 
-    private val awaitingEntities: MutableMap<PersistentId, CompletableDeferred<PendingEntity?>> = mutableMapOf()
+    private val awaitingEntities =
+        ConcurrentHashMap<PersistentId, CompletableDeferred<PendingEntity?>>()
     private val awaitingChunks = mutableMapOf<EngineChunkPos, CompletableDeferred<EngineChunk>>()
     private val pendingEntityProvider = PendingEntityProvider(awaitingEntities)
+    private val entitySnapshotQueues = mutableMapOf<PersistentId, ArrayDeque<PendingEntitySnapshot>>()
+    private val entitySnapshotJobs = mutableMapOf<PersistentId, Job>()
 
     private val characterApplyConfirmationDeferreds: MutableMap<Long?, MutableList<CompletableDeferred<Unit>>> =
         mutableMapOf()
@@ -137,7 +146,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
                 )
             } ?: run {
                 val requestId = nextIdFast()
-                CharacterSelectionScreen.awaitCharacterSelection(client, character?.data, characters, requestId)
+                CharacterSelectionScreen.awaitCharacterSelection(
+                    client,
+                    character?.data,
+                    characters,
+                    requestId
+                )
                     ?.let { LookSelectionScreen.Result.SelectedCharacter(it, requestId) }
             }
             ?: return@launch
@@ -145,7 +159,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
                 when (selectionResult) {
                     is LookSelectionScreen.Result.SelectedCharacter -> {
                         if (isSingleplayer) {
-                            onCharacterSelectedSingleplayer(selectionResult.character, selectionResult.requestId)
+                            onCharacterSelectedSingleplayer(
+                                selectionResult.character,
+                                selectionResult.requestId
+                            )
                         } else {
                             accountManager.sessionTicketOperation(
                                 accountManager.getAuthorized() ?: throw NotAuthorizedException()
@@ -174,6 +191,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     fun disable() {
         injectValue<ClientTransportContext>().unregisterAll()
         showedNotifications.clear()
+        entitySnapshotJobs.values.forEach { it.cancel() }
+        entitySnapshotJobs.clear()
+        entitySnapshotQueues.clear()
+        awaitingEntities.values.forEach { it.cancel() }
         awaitingEntities.clear()
         processedInteraction.clear()
         awaitingChunks.clear()
@@ -203,13 +224,18 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     fun postTick() {
         val gameSession = gameSession
         if (gameSession != null) {
-            val input = with(gameSession.world) { gameSession.mainPlayer.entity.requireComponent<PlayerInput>() }
+            val input =
+                with(gameSession.world) { gameSession.mainPlayer.entity.requireComponent<PlayerInput>() }
             input.actions.clear()
         }
     }
 
     context(world: World)
-    private fun handlePlayerInput(input: PlayerInput, actions: Set<InputAction>, gameSession: GameSession) {
+    private fun handlePlayerInput(
+        input: PlayerInput,
+        actions: Set<InputAction>,
+        gameSession: GameSession
+    ) {
         input.tick = gameSession.ticks
         if (input.actions != input.lastActions) {
             SERVERBOUND_INPUT_PACKET.sendC2SPacket(
@@ -281,7 +307,9 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     }
 
     fun onInteractionSelectionSelect(variantId: String?) {
-        SERVERBOUND_INTERACTION_SELECTION_SELECT_ENDPOINT.sendC2SPacket(InteractionSelectionSelectPacket(variantId))
+        SERVERBOUND_INTERACTION_SELECTION_SELECT_ENDPOINT.sendC2SPacket(
+            InteractionSelectionSelectPacket(variantId)
+        )
     }
 
     fun onArmStatusUpdate(extend: Boolean) {
@@ -289,7 +317,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     }
 
     fun onChatMessageSend(content: String, channelId: ChannelId) {
-        SERVERBOUND_CHAT_MESSAGE_ENDPOINT.sendC2SPacket(IncomingChatMessagePacket(content, channelId))
+        SERVERBOUND_CHAT_MESSAGE_ENDPOINT.sendC2SPacket(
+            IncomingChatMessagePacket(
+                content,
+                channelId
+            )
+        )
     }
 
     fun onChatMessageDelete(message: AcceptedMessage) {
@@ -339,13 +372,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
 
         player.set(data.movementStatus)
         player.set(data.attributes)
-        player.set(data.armStatus)
         player.require<EnginePlayerModel>().skinEyeY = data.skinEyeY
         player.isLowDetailed = false
         client.infrastructure.onFullPlayerData(client, player.id, data)
     }
 
-    private fun PlayerReferencedItems.isPresent() = all.none { gameSession?.itemStorage?.get(it) == null }
+    private fun PlayerReferencedItems.isPresent() =
+        all.none { gameSession?.itemStorage?.get(it) == null }
 
     fun applyPlayerJoined(data: GeneralPlayerData) {
         gameSession!!.instantiateLowDetailedPlayer(data)
@@ -427,7 +460,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
         awaitingChunks.remove(pos)?.complete(chunk)
     }
 
-    fun applyDynamicVoxelDelta(gameSession: GameSession, voxelPos: VoxelPos, components: List<ComponentDto>) =
+    fun applyDynamicVoxelDelta(
+        gameSession: GameSession,
+        voxelPos: VoxelPos,
+        snapshot: EntityNetworkSnapshot
+    ) =
         context(gameSession.luaContext) {
             with(gameSession.world) {
                 val entity = chunkStorage.getDynamicVoxel(voxelPos) ?: run {
@@ -438,13 +475,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
 
                 coroutineScope.launch {
                     entity.copyState(
-                        components.toDomainSuspend {
-                            toDomain(
+                        snapshot.updated.toDomainSuspend {
+                            toDomainSuspend(
                                 componentLoadSettings,
                                 entityGetter = { null },
                             )
                         }
                     )
+                    removeSnapshotComponents(entity, snapshot.removed)
                     val chunk = awaitChunk(gameSession, EngineChunkPos(voxelPos))
                     chunk.dynamicVoxels[voxelPos] = entity
                 }
@@ -455,37 +493,83 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
         world.emitEvent(event)
     }
 
-    fun applyEntity(gameSession: GameSession, persistentId: PersistentId, components: List<ComponentDto>) =
-        with(gameSession.world) {
-            if (persistentId is VoxelPosId) {
-                LOGGER.warn("Синхронизация блока $persistentId как обычной сущность проигнорирована")
-                return@with
-            }
-            val pendingEntity = PendingEntity(components)
-            //TODO: могут быть проблемы с порядком?
-            awaitingEntities[persistentId] = CompletableDeferred(pendingEntity)
-            coroutineScope.launch {
-                val entity = newEntityResolver().loadEntity(
-                    componentLoadSettings,
-                    components,
-                    persistentId
-                )
-                awaitingEntities.remove(persistentId)
-                gameSession.logInMainThread {
-                    Log(
-                        LogMessages.ENTITY_SYNC_ADD,
-                        LogLevel.INFO,
-                        data = mapOf(
-                            "entity" to entity.getEntityDebugNameId().name,
-                            "persistent_id" to persistentId.toString(),
-                            "components" to components.joinToString(),
-                        ),
-                        world = gameSession.world.id,
-                        tick = it
-                    )
+    fun applyEntity(
+        gameSession: GameSession,
+        persistentId: PersistentId,
+        snapshot: EntityNetworkSnapshot
+    ) {
+        if (persistentId is VoxelPosId) {
+            LOGGER.warn("Синхронизация блока $persistentId как обычной сущность проигнорирована")
+            return
+        }
+
+        val snapshots = entitySnapshotQueues.getOrPut(persistentId) { ArrayDeque() }
+        snapshots.addLast(PendingEntitySnapshot(gameSession, snapshot))
+
+        val pendingEntity = awaitingEntities.computeIfAbsent(persistentId) { CompletableDeferred() }
+        pendingEntity.complete(PendingEntity(snapshot.updated))
+
+        if (entitySnapshotJobs[persistentId]?.isActive == true) return
+
+        entitySnapshotJobs[persistentId] = coroutineScope.launch {
+            try {
+                while (snapshots.isNotEmpty()) {
+                    val pendingSnapshot = snapshots.removeFirst()
+                    try {
+                        applyEntitySnapshot(persistentId, pendingSnapshot)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        LOGGER.error("Не удалось применить сетевой снапшот сущности $persistentId", e)
+                    }
                 }
+            } finally {
+                entitySnapshotQueues.remove(persistentId)
+                entitySnapshotJobs.remove(persistentId)
+                awaitingEntities.remove(persistentId, pendingEntity)
             }
         }
+    }
+
+    private suspend fun applyEntitySnapshot(
+        persistentId: PersistentId,
+        pendingSnapshot: PendingEntitySnapshot
+    ) = with(pendingSnapshot.gameSession.world) {
+        val snapshot = pendingSnapshot.snapshot
+        val entity = newEntityResolver().loadEntity(
+            componentLoadSettings,
+            snapshot.updated,
+            persistentId
+        )
+        removeSnapshotComponents(entity, snapshot.removed)
+
+        pendingSnapshot.gameSession.logInMainThread {
+            Log(
+                LogMessages.ENTITY_SYNC_ADD,
+                LogLevel.INFO,
+                data = mapOf(
+                    "entity" to entity.getEntityDebugNameId().name,
+                    "persistent_id" to persistentId.toString(),
+                    "components" to snapshot.updated.joinToString(),
+                ),
+                world = pendingSnapshot.gameSession.world.id,
+                tick = it
+            )
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun World.removeSnapshotComponents(entity: EntityId, removedTypeIds: List<String>) {
+        removedTypeIds.forEach { typeId ->
+            val type = ComponentTypeRegistry.get(typeId)?.type
+                ?: ScriptComponentId(typeId).let { scriptComponentId ->
+                    componentLoadSettings.namespacedStorage.components[scriptComponentId]
+                        ?: CoreScriptComponents.get(scriptComponentId)
+                        ?: error("Тип компонента $typeId не существует")
+                }
+            removeComponent(entity, type as ComponentType<Component>)
+        }
+    }
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {
         client.infrastructure.onEntityDebugViewData(data)
@@ -494,7 +578,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {
         val intent = namespacedStorage.intents[intentId] ?: desync("Интент $intentId не существует")
         val actor = dto.actor.let { actor ->
-            val enginePlayer = getPlayer(actor.player) ?: error("Can't find intent actor ${actor.player}")
+            val enginePlayer =
+                getPlayer(actor.player) ?: error("Can't find intent actor ${actor.player}")
             IntentActor(
                 actor.type,
                 enginePlayer,
@@ -513,30 +598,43 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
         }
         executeIntent(
             intent,
-            ScriptContext.IntentExecution(actor, target, dto.inputValues.map { it.toDomain() }, behaviour),
+            ScriptContext.IntentExecution(
+                actor,
+                target,
+                dto.inputValues.map { it.toDomain() },
+                behaviour
+            ),
             namespacedStorage
         )
     }
 
-    fun applyWorldState(gameSession: GameSession, components: List<ComponentDto>) = with(gameSession.world) {
-        runBlocking {
-            state.copyComponentDtoState(components) {
-                toDomainWithoutRelationships(
-                    itemStorage,
-                    namespacedStorage,
-                    gameSession.luaContext
-                )
+    fun applyWorldState(gameSession: GameSession, snapshot: EntityNetworkSnapshot) =
+        with(gameSession.world) {
+            runBlocking {
+                state.copyComponentDtoState(snapshot.updated) {
+                    toDomainWithoutRelationships(
+                        itemStorage,
+                        namespacedStorage,
+                        gameSession.luaContext
+                    )
+                }
             }
+            removeSnapshotComponents(state, snapshot.removed)
         }
-    }
 
-    fun applyItemUnload(gameSession: GameSession, items: List<PersistentId>) = with(gameSession.world) {
-        items.forEach { item -> gameSession.itemStorage.remove(item)?.destroy() }
-    }
+    fun applyItemUnload(gameSession: GameSession, items: List<PersistentId>) =
+        with(gameSession.world) {
+            items.forEach { item -> gameSession.itemStorage.remove(item)?.destroy() }
+        }
 
     companion object {
         val LOGGER: Logger = LoggerFactory.getLogger("Engine Client Handler")
     }
 
     data class CurrentPlayerCharacter(val data: EngineCharacter, val look: Look)
+
+    private data class PendingEntitySnapshot(
+        val gameSession: GameSession,
+        val snapshot: EntityNetworkSnapshot
+    )
 }

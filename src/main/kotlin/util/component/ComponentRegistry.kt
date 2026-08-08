@@ -6,6 +6,7 @@ import org.lain.cyberia.ecs.ComponentTypeProvider
 import org.lain.cyberia.ecs.KClassComponentTypeProvider
 import org.lain.engine.container.*
 import org.lain.engine.item.*
+import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.Outfit
 import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerContainerTag
@@ -24,6 +25,7 @@ import org.lain.engine.player.interaction.StopShootAction
 import org.lain.engine.player.interaction.WritableOpenAction
 import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.script.ScriptComponent
+import org.lain.engine.server.Networked
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.Savable
 import org.lain.engine.storage.SaveTag
@@ -47,6 +49,8 @@ object CommonComponentTypeProvider : ComponentTypeProvider {
 object ComponentTypeRegistry : KClassComponentTypeProvider {
     private val types: MutableMap<String, Entry<out Component>> = HashMap()
     private val ids: MutableMap<KClass<out Component>, String> = HashMap() // кеш ID
+    val count
+        get() = types.count()
 
     data class Entry<T : Component>(val type: IndexedComponentType<T>, val meta: ComponentMeta)
 
@@ -87,62 +91,63 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
 
     fun listEntries() = types.entries.toList()
 
-    override fun <T : Component> componentTypeOf(kClass: KClass<T>): ComponentType<T> {
-        return (types[kClass.cachedId()] ?: error("Component type ${kClass.qualifiedName} not registered")).type as ComponentType<T>
+    override fun <T : Component> componentTypeOf(kClass: KClass<T>): IndexedComponentType<T> {
+        return (types[kClass.cachedId()] ?: error("Component type ${kClass.qualifiedName} not registered")).type as IndexedComponentType<T>
     }
 }
 
 fun getKotlinComponentTypeEntries() = ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }
 
 fun ComponentTypeRegistry.registerComponents() {
+    // Events
     registerComponent<VoxelEvent>()
     registerComponent<BulletFireEvent>()
     registerComponent<WorldSoundPlayRequest>()
+    registerComponent<WorldSoundPlayRequest.Item>(id = "sound_play_item")
+    registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_positioned")
+
     registerComponent<Event>(isNetworking = true)
-    registerComponent<OccupiedSlots>(isNetworking = true)
-    registerComponent<Slots>(isNetworking = true)
-    registerComponent<Entries>()
-    registerComponent<PlayerEquipment>()
-    registerComponent<Container>()
-    registerComponent<ContainerAnchor>()
-    registerComponent<AssignItem>(isNetworking = true)
-    registerComponent<AssignSlot>()
-    registerComponent<DetachItem>()
-    registerComponent<ContainerError>()
-    registerComponent<PlayerContainerTag>()
+    registerComponent<ActionSyncEvent>(isNetworking = true)
+
+    // Entity lifecycle
     registerComponent<SaveTag>()
-    registerComponent<Networked>(isNetworking = true)
-    registerComponent<PlayerContainer>()
     registerComponent<UnloadTag>()
     registerComponent<Location>()
     registerComponent<Savable>()
 
+    registerComponent<Networked>(isNetworking = true)
+    registerComponent<PersistentIdComponent>(isSavable = true, isNetworking = true)
+    registerComponent<EntityRpcReceiver>(isNetworking = true, isSavable = true, serializationClass = null)
+    registerComponent<DebugName>(isNetworking = true, isSavable = true)
+
+    // Containers
+    registerComponent<Entries>(isNetworking = true)
+    registerComponent<Container>(isNetworking = true)
+    registerComponent<HasContainer>()
+    registerComponent<AssignSlot>()
+    registerComponent<DetachItem>()
+
+    registerComponent<AssignItem>()
+    registerComponent<OccupiedSlots>(isNetworking = true)
+    registerComponent<Slots>(isNetworking = true)
+
+    // World and voxels
     registerComponent<DynamicVoxel>()
     registerComponent<ChunkedPos>()
 
     registerComponent<LightSource>(isSavable = true, isNetworking = true)
     registerComponent<Luminance>(isSavable = true, isNetworking = true)
+    registerComponent<VoxelDoor>(isSavable = true, isNetworking = true)
 
-    registerComponent<WorldSoundPlayRequest.Item>(id = "sound_play_item")
-    registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_positioned")
-
+    // Items
     registerComponent<HeldBy>()
+
     registerComponent<Item>(isSavable = true, isNetworking = true)
-    registerComponent<PersistentIdComponent>(isSavable = true, isNetworking = true)
     registerComponent<ContainedIn>(isSavable = true, isNetworking = true, serializationClass = null)
     registerComponent<AssignedSlot>(isSavable = true, isNetworking = true)
     registerComponent<ItemName>(isSavable = true, isNetworking = true)
     registerComponent<ItemTooltip>(isSavable = true, isNetworking = true)
     registerComponent<ItemSounds>(isSavable = true, isNetworking = true)
-
-    registerComponent<Gun>(isSavable = true, isNetworking = true)
-    registerComponent<GunDisplay>(isSavable = true, isNetworking = true)
-    registerComponent<GunFireState>(isSavable = true, isNetworking = true)
-    registerComponent<GunMagazines>(isSavable = true, isNetworking = true)
-    registerComponent<Barrel>(isSavable = true, isNetworking = true)
-
-    registerComponent<Magazine>(isSavable = true, isNetworking = true)
-
     registerComponent<Count>(isSavable = true, isNetworking = true)
     registerComponent<Mass>(isSavable = true, isNetworking = true)
     registerComponent<Outfit>(isSavable = true, isNetworking = true)
@@ -151,18 +156,27 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<ItemAssets>(isSavable = true, isNetworking = true)
     registerComponent<ItemProgressionAnimations>(isSavable = true, isNetworking = true)
 
-    registerComponent<EntityRpcReceiver>(isNetworking = true, isSavable = true, serializationClass = null)
+    // Weapons
+    registerComponent<Gun>(isSavable = true, isNetworking = true)
+    registerComponent<GunDisplay>(isSavable = true, isNetworking = true)
+    registerComponent<GunFireState>(isSavable = true, isNetworking = true)
+    registerComponent<GunMagazines>(isSavable = true, isNetworking = true)
+    registerComponent<Barrel>(isSavable = true, isNetworking = true)
 
-    registerComponent<DebugName>(isNetworking = true, isSavable = true)
-    registerComponent<ActionSyncEvent>(isNetworking = true)
+    registerComponent<Magazine>(isSavable = true, isNetworking = true)
+
+    // Players
+    registerComponent<PlayerEquipment>()
+    registerComponent<PlayerContainerTag>()
+    registerComponent<PlayerContainer>()
+
+    registerComponent<ArmStatus>(isNetworking = true)
 
     registerComponent<CharacterDisplay>(isNetworking = true)
     registerComponent<CharacterPhysical>(isNetworking = true)
     registerComponent<AppliedCharacter>(isNetworking = true)
     registerComponent<SelectedLook>(isNetworking = true)
     registerComponent<CharacterApplyEvent>(isNetworking = true)
-
-    registerComponent<VoxelDoor>(isNetworking = true, isSavable = true)
 
     registerComponent<GiveAction>(isNetworking = true)
     registerComponent<HailAction>(isNetworking = true)

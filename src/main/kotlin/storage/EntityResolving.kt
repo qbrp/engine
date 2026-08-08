@@ -4,12 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.Item
-import org.lain.engine.util.DebugName
-import org.lain.engine.util.EntityDebugId
-import org.lain.engine.util.EntityDebugNameId
-import org.lain.engine.util.component.Networked
-import org.lain.engine.util.getDebugId
-import org.lain.engine.util.getEntityDebugNameId
+import org.lain.engine.server.Networked
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 

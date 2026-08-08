@@ -6,15 +6,11 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.SInt
 import org.lain.engine.script.SList
-import org.lain.engine.script.SNumber
-import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptEngine
-import org.lain.engine.script.lua.setLuaScriptComponent
-import org.lain.engine.script.lua.library.toLuaValue
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.VoxelPosId
 import org.lain.engine.util.component.EntityId
-import org.lain.engine.util.component.Networked
+import org.lain.engine.server.Networked
 import org.lain.engine.util.math.EVec3
 
 object DynamicVoxelInterest : Component

@@ -55,11 +55,15 @@ data class ChannelConfig(
     val permission: Boolean = false,
     @SerialName("invoke_permission") val invokePermission: Boolean = false, // Только для команд
     val aliases: List<String> = listOf(), // Только для команд
+    val propagate: Propagate? = null, // только для команд
     val heads: Boolean = false,
     val background: String? = null,
     @SerialName("type_radius") val chatTypeRadius: Int? = null,
     @SerialName("type_indicator") val chatTypeIndicator: Boolean = true,
-)
+) {
+    @Serializable
+    data class Propagate(val channel: String, val text: String)
+}
 
 @Serializable
 data class RegexConfig(

@@ -52,7 +52,8 @@ fun World.updateCommandInvokeSystem(table: EntityTable) {
     iterate<PlayerCommandAccess, CommandInvoke>() { componentAccess, (player, root), (command) ->
         val mcPlayer = table.server.getEntity(player) ?: error("Player $player not found")
         var commandSourceStack = mcPlayer.createCommandSourceStack()
-        if (root) commandSourceStack = commandSourceStack.withPermission(LevelBasedPermissionSet.OWNER)
+        if (root) commandSourceStack =
+            commandSourceStack.withPermission(LevelBasedPermissionSet.OWNER)
         commandDispatcher.performPrefixedCommand(
             commandSourceStack,
             command
@@ -64,7 +65,8 @@ fun playerPositionsMessage(playerStorage: PlayerStorage, world: Level): List<Str
     val enginePlayers = playerStorage.getAll()
     val minecraftPlayers = world.players().toList()
     return minecraftPlayers.mapNotNull { mcPlayer ->
-        val enginePlayer = enginePlayers.find { it.id == mcPlayer.engineId } ?: return@mapNotNull null
+        val enginePlayer =
+            enginePlayers.find { it.id == mcPlayer.engineId } ?: return@mapNotNull null
         val enginePosFormatted = "%.2f, %.2f, %.2f".format(
             enginePlayer.pos.x,
             enginePlayer.pos.y,
@@ -99,7 +101,8 @@ fun ServerCommandContext.getPlayerEntity(id: String): ServerPlayer {
 
 fun ServerCommandContext.getPlayer(id: String): EnginePlayer {
     val entityTable by injectEntityTable()
-    return entityTable.server.getPlayer(getPlayerEntity(id)) ?: throw FriendlyException("Игрок $id не найден")
+    return entityTable.server.getPlayer(getPlayerEntity(id))
+        ?: throw FriendlyException("Игрок $id не найден")
 }
 
 fun ServerCommandContext.getFloat(id: String): Float {
@@ -118,7 +121,9 @@ fun ServerCommandContext.getVec3(id: String): Vec3 {
     return Vec3Argument.getVec3(this, id)
 }
 
-fun <T : ArgumentBuilder<CommandSourceStack, T>> ArgumentBuilder<CommandSourceStack, T>.executeCatching(todo: (Context) -> Unit): T {
+fun <T : ArgumentBuilder<CommandSourceStack, T>> ArgumentBuilder<CommandSourceStack, T>.executeCatching(
+    todo: (Context) -> Unit
+): T {
     val playerTable = injectValue<EntityTable>().server
     return executes {
         val source = it.source
@@ -161,7 +166,8 @@ data class Context(
     }
 
     fun requireEntity(): Entity {
-        return source.entity ?: throw FriendlyException("Команда предназначена для сущностей или игроков")
+        return source.entity
+            ?: throw FriendlyException("Команда предназначена для сущностей или игроков")
     }
 
     fun sendFeedback(text: String, broadcastToOps: Boolean) {
@@ -173,13 +179,21 @@ data class Context(
     }
 
     fun sendError(exception: Throwable) {
-        source.sendFailure(literalText(exception.message ?: "При выполнении команды возникла ошибка. Свяжитесь с администратором"))
+        source.sendFailure(
+            literalText(
+                exception.message
+                    ?: "При выполнении команды возникла ошибка. Свяжитесь с администратором"
+            )
+        )
     }
 }
 
 fun literal(name: String) = Commands.literal(name)
 
-fun <T : Any> argument(name: String, argumentType: ArgumentType<T>): RequiredArgumentBuilder<CommandSourceStack, T> = Commands.argument<T>(name, argumentType)
+fun <T : Any> argument(
+    name: String,
+    argumentType: ArgumentType<T>
+): RequiredArgumentBuilder<CommandSourceStack, T> = Commands.argument<T>(name, argumentType)
 
 fun stringArgument(name: String) = argument(name, StringArgumentType.string())
 
@@ -187,12 +201,14 @@ fun wordArgument(name: String) = argument(name, StringArgumentType.word())
 
 fun floatArgument(name: String) = argument(name, FloatArgumentType.floatArg())
 
-fun floatArgument(name: String, min: Float, max: Float) = argument(name, FloatArgumentType.floatArg(min, max))
+fun floatArgument(name: String, min: Float, max: Float) =
+    argument(name, FloatArgumentType.floatArg(min, max))
 
 fun selection(name: String, variants: List<String>) = argument(name, StringArgumentType.word())
     .suggests(StringListSuggestionProvider(variants))
 
-class StringListSuggestionProvider(val variants: List<String>) : SuggestionProvider<CommandSourceStack> {
+class StringListSuggestionProvider(val variants: List<String>) :
+    SuggestionProvider<CommandSourceStack> {
     override fun getSuggestions(
         context: CommandContext<CommandSourceStack>,
         builder: SuggestionsBuilder
@@ -225,7 +241,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                     val enginePlayer = playerTable.requirePlayer(player)
                                     enginePlayer.resetCustomSpeed()
                                 }
-                                ctx.sendFeedback("Сброшена скорость для игроков $playerNameList", true)
+                                ctx.sendFeedback(
+                                    "Сброшена скорость для игроков $playerNameList",
+                                    true
+                                )
                             }
                     )
                     .then(
@@ -240,7 +259,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                             val enginePlayer = playerTable.requirePlayer(player)
                                             enginePlayer.setCustomSpeed(speed)
                                         }
-                                        ctx.sendFeedback("Установлена скорость $speed для игроков $playerNameList", true)
+                                        ctx.sendFeedback(
+                                            "Установлена скорость $speed для игроков $playerNameList",
+                                            true
+                                        )
                                     }
                             )
                     )
@@ -264,7 +286,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                             val enginePlayer = playerTable.requirePlayer(player)
                                             enginePlayer.setCustomJumpStrength(speed)
                                         }
-                                        ctx.sendFeedback("Установлена сила прыжка $speed для игроков $playerNameList", true)
+                                        ctx.sendFeedback(
+                                            "Установлена сила прыжка $speed для игроков $playerNameList",
+                                            true
+                                        )
                                     }
                             )
                     )
@@ -277,7 +302,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                     val enginePlayer = playerTable.requirePlayer(player)
                                     enginePlayer.resetCustomJumpStrength()
                                 }
-                                ctx.sendFeedback("Сброшена сила прыжка для игроков $playerNameList", true)
+                                ctx.sendFeedback(
+                                    "Сброшена сила прыжка для игроков $playerNameList",
+                                    true
+                                )
                             }
                     )
             )
@@ -323,43 +351,69 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             }
     )
 
+    fun channelArgument() = argument("channel", StringArgumentType.word())
+        .suggests { context, builder ->
+            server.engine.chat.settings.channels
+                .map { it.id.value }
+                .filter { it.startsWith(builder.remainingLowerCase) }
+                .forEach { builder.suggest(it) }
+            builder.buildFuture()
+        }
+
     register(
         literal("sourcemessage")
             .requires { it.hasPermission("sourcemessage") }
             .then(
                 argument("pos", Vec3Argument.vec3())
                     .then(
-                        Commands.argument("author", StringArgumentType.string()
+                        Commands.argument(
+                            "author", StringArgumentType.string()
                         )
                             .then(
                                 Commands.argument("volume", FloatArgumentType.floatArg())
                                     .then(
-                                        Commands.argument("text", StringArgumentType.greedyString())
-                                            .executeCatching { ctx ->
-                                                val source = ctx.source
-                                                val engine = server.engine
-                                                val world = engine.getWorld(source.level.engine)
-                                                val text = ctx.command.getString("text")
-                                                val author = ctx.command.getString("author")
-                                                val volume = ctx.command.getFloat("volume")
-                                                val pos = Vec3Argument.getVec3(ctx.command, "pos")
-                                                val chat = engine.chat
-
-                                                val channel = chat.settings.defaultChannel
-                                                val message = IncomingMessage(
-                                                    text,
-                                                    volume,
-                                                    channel.id,
-                                                    MessageSource.getWorld(
-                                                        world,
-                                                        author,
-                                                        channel,
-                                                        ImmutableEVec3(pos.engine())
-                                                    )
+                                        channelArgument()
+                                            .then(
+                                                Commands.argument(
+                                                    "text",
+                                                    StringArgumentType.greedyString()
                                                 )
+                                                    .executeCatching { ctx ->
+                                                        val source = ctx.source
+                                                        val engine = server.engine
+                                                        val world =
+                                                            engine.getWorld(source.level.engine)
+                                                        val text = ctx.command.getString("text")
+                                                        val author = ctx.command.getString("author")
+                                                        val volume = ctx.command.getFloat("volume")
+                                                        val pos =
+                                                            Vec3Argument.getVec3(ctx.command, "pos")
+                                                        val chat = engine.chat
 
-                                                chat.processMessage(message)
-                                            }
+                                                        val channel = chat.getChannel(
+                                                            ChannelId(
+                                                                ctx.command.getString("channel")
+                                                            )
+                                                        )
+                                                        val message = IncomingMessage(
+                                                            text,
+                                                            volume,
+                                                            channel.id,
+                                                            MessageSource.getWorld(
+                                                                world,
+                                                                if (author == "self") {
+                                                                    ctx.requirePlayer().displayNameMiniMessage
+                                                                } else {
+                                                                    author
+                                                                },
+                                                                channel,
+                                                                ImmutableEVec3(pos.engine())
+                                                            )
+                                                        )
+
+                                                        chat.processMessage(message)
+                                                    }
+                                            )
                                     )
                             )
                     )
@@ -370,17 +424,11 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         literal("speak")
             .requires { it.hasPermission("speak") }
             .then(
-                argument("player", EntityArgument.player(),
+                argument(
+                    "player", EntityArgument.player(),
                 )
                     .then(
-                        argument("channel", StringArgumentType.word())
-                            .suggests { context, builder ->
-                                server.engine.chat.settings.channels
-                                    .map { it.id.value }
-                                    .filter { it.startsWith(builder.remainingLowerCase) }
-                                    .forEach { builder.suggest(it) }
-                                builder.buildFuture()
-                            }
+                        channelArgument()
                             .then(
                                 argument("text", StringArgumentType.greedyString())
                                     .executeCatching { ctx ->
@@ -421,12 +469,13 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                 if (voiceLoose == null) {
                                     ctx.sendFeedback("Голос игрока не сорван.", false)
                                 } else {
-                                    val regenerationTimeSeconds = voiceLoose.ticksToRegeneration / 20
+                                    val regenerationTimeSeconds =
+                                        voiceLoose.ticksToRegeneration / 20
                                     val regenerationTimeMinutes = regenerationTimeSeconds / 60
                                     val timeElapsedSeconds = voiceLoose.ticks / 20
                                     ctx.sendFeedback(
                                         "Голос сорван на $regenerationTimeSeconds секунд (~$regenerationTimeMinutes минут).<newline>"
-                                        + "Прошло $timeElapsedSeconds секунд.",
+                                                + "Прошло $timeElapsedSeconds секунд.",
                                         false
                                     )
                                 }
@@ -438,10 +487,15 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                 val player = ctx.command.getPlayer("player")
 
                                 player.apply<VoiceApparatus> { tiredness = 0f }
-                                player.remove<VoiceLoose>()?.let { ctx.sendFeedback("Голос игрока ${player.username} восстановлен", true) }
+                                player.remove<VoiceLoose>()?.let {
+                                    ctx.sendFeedback(
+                                        "Голос игрока ${player.username} восстановлен",
+                                        true
+                                    )
+                                }
                             }
                     )
-        )
+            )
     )
 
     register(
@@ -455,7 +509,8 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                     .executeCatching { ctx ->
                         val argument = ctx.command.getString("id")
                         val id = ItemId(argument)
-                        val player = ctx.source.player ?: friendlyError("Команда доступна только игроку")
+                        val player =
+                            ctx.source.player ?: friendlyError("Команда доступна только игроку")
 
                         val storage = server.engine.namespacedStorage.get()
                         val items = mutableListOf<ItemId>()
@@ -472,7 +527,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                         }
 
                         prefabs.forEach { prefab ->
-                            server.createItemStack(ctx.requirePlayer(), prefab.id) { itemStack, item ->
+                            server.createItemStack(
+                                ctx.requirePlayer(),
+                                prefab.id
+                            ) { itemStack, item ->
                                 val copy = itemStack.copy()
                                 player.addItem(copy)
                                 copy
@@ -491,20 +549,32 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             )
     )
 
-    fun executeEngineSoundCommand(ctx: Context, id: String, pos: Vec3? = null, volume: Float = 1f, ignorePhysics: Boolean = false) {
+    fun executeEngineSoundCommand(
+        ctx: Context,
+        id: String,
+        pos: Vec3? = null,
+        volume: Float = 1f,
+        ignorePhysics: Boolean = false
+    ) {
         val storage = server.engine.namespacedStorage
         val id = SoundEventId(id)
         val player = ctx.requirePlayer()
-        val event = storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
+        val event =
+            storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
         val pos = pos?.engine() ?: ImmutableEVec3(player.location.position)
         val distance = event.sources.maxOf { it.distance }
-        val players = ctx.requirePlayer().world.players.filter { playerP -> playerP.location.position.squaredDistanceTo(pos) <= distance * distance }
+        val players = ctx.requirePlayer().world.players.filter { playerP ->
+            playerP.location.position.squaredDistanceTo(pos) <= distance * distance
+        }
         server.engine.handler.playSoundLocal(
             SoundPlay(event, pos, EngineSoundCategory.AMBIENT, volume),
             ignorePhysics,
             players,
         )
-        ctx.sendFeedback("Воспроизведено звуковое событие ${event.id} на координатах ${pos.x}, ${pos.y}, ${pos.z} громкостью $volume", true)
+        ctx.sendFeedback(
+            "Воспроизведено звуковое событие ${event.id} на координатах ${pos.x}, ${pos.y}, ${pos.z} громкостью $volume",
+            true
+        )
     }
 
     register(
@@ -539,7 +609,12 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                                 val argument = ctx.command.getString("id")
                                                 val pos = ctx.command.getVec3("pos")
                                                 val volume = ctx.command.getFloat("volume")
-                                                executeEngineSoundCommand(ctx, argument, pos, volume)
+                                                executeEngineSoundCommand(
+                                                    ctx,
+                                                    argument,
+                                                    pos,
+                                                    volume
+                                                )
                                             }
 
                                     )
@@ -554,7 +629,10 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             .executeCatching {
                 val player = it.requirePlayer()
                 val enabled = player.toggleChatHeads()
-                it.sendFeedback("Отображение иконки персонажа ${if (enabled) "включено" else "отключено"}", false)
+                it.sendFeedback(
+                    "Отображение иконки персонажа ${if (enabled) "включено" else "отключено"}",
+                    false
+                )
             }
     )
 
@@ -626,7 +704,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         base = it
     }
 
-    registerServerPmCommand()
+    registerServerCustomChatCommands()
 }
 
 class NamespacedIdProvider(

@@ -10,7 +10,7 @@ import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.Uuid
 import org.lain.engine.util.DebugName
-import org.lain.engine.util.component.Networked
+import org.lain.engine.server.Networked
 import org.lain.engine.world.World
 
 data class ItemPrefab(

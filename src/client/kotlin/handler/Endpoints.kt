@@ -76,11 +76,11 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     registerGameSessionReceiver(CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT) {
-        applyDynamicVoxelDelta(it, voxelPos, components)
+        applyDynamicVoxelDelta(it, voxelPos, snapshot)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_WORLD_STATE_DELTA_PACKET) { gameSession ->
-        applyWorldState(gameSession, components)
+        applyWorldState(gameSession, snapshot)
     }
 
     CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { _ ->
@@ -88,7 +88,7 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     registerGameSessionReceiver(CLIENTBOUND_ENTITY_DELTA_ENDPOINT) {
-        applyEntity(it, dto.persistentId, dto.components)
+        applyEntity(it, persistentId, snapshot)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { _ -> applyIntent(dto, intent) }
@@ -105,7 +105,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         taskExecutor.add("character_apply_confirmation") { applyCharacterApplyConfirmation(requestId, errorMessage) }
     }
 
-    registerPlayerSynchronizerEndpoint(PLAYER_ARM_STATUS_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
     registerPlayerSynchronizerEndpoint(PLAYER_NARRATION_SYNCHRONIZER)

@@ -2,9 +2,11 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import org.lain.engine.server.EntityNetworkSnapshot
 import org.lain.engine.storage.COMPONENT_CBOR
 import org.lain.engine.storage.ComponentDto
 import org.lain.engine.storage.EntityDto
+import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketCodec
@@ -51,7 +53,10 @@ data class VoxelBlockHintPacket(val pos: VoxelPos, val action: Action) : Packet 
 val SERVERBOUND_VOXEL_BLOCK_HINT_PACKET = Endpoint<VoxelBlockHintPacket>()
 
 @Serializable
-data class EntityDeltaPacket(val dto: EntityDto) : Packet
+data class EntityDeltaPacket(
+    val persistentId: PersistentId,
+    val snapshot: EntityNetworkSnapshot
+) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)
 val CLIENTBOUND_ENTITY_DELTA_ENDPOINT = Endpoint<EntityDeltaPacket>(
@@ -61,13 +66,15 @@ val CLIENTBOUND_ENTITY_DELTA_ENDPOINT = Endpoint<EntityDeltaPacket>(
 @Serializable
 data class DynamicVoxelDeltaPacket(
     val voxelPos: ImmutableVoxelPos,
-    val components: List<ComponentDto>
+    val snapshot: EntityNetworkSnapshot
 ) : Packet
 
 val CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT = Endpoint<DynamicVoxelDeltaPacket>()
 
 @Serializable
-data class WorldStateDeltaPacket(val components: List<ComponentDto>) : Packet
+data class WorldStateDeltaPacket(
+    val snapshot: EntityNetworkSnapshot
+) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)
 val CLIENTBOUND_WORLD_STATE_DELTA_PACKET = Endpoint<WorldStateDeltaPacket>(

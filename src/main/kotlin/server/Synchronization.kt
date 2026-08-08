@@ -1,20 +1,23 @@
 package org.lain.engine.server
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.protobuf.ProtoBuf
-import kotlinx.serialization.serializer
-import org.lain.cyberia.ecs.*
-import org.lain.engine.player.*
+import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.requireComponent
+import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.require
+import org.lain.engine.storage.ComponentDto
 import org.lain.engine.storage.PersistentId
-import org.lain.engine.transport.Endpoint
-import org.lain.engine.transport.Packet
-import org.lain.engine.transport.PacketCodec
-import org.lain.engine.util.component.Entity
-import org.lain.engine.util.math.filterNearestPlayers
-import org.lain.engine.world.*
-import kotlin.reflect.KClass
+import org.lain.engine.util.component.ComponentTypeRegistry
+import org.lain.engine.util.component.ComponentWorld
+import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.component.IndexedComponentType
+import org.lain.engine.world.EngineChunkPos
+import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.world.World
+import java.util.BitSet
 
 data class PlayerNetworkState(
     var authorized: Boolean,
@@ -29,138 +32,82 @@ data class PlayerNetworkState(
 val EnginePlayer.network
     get() = this.require<PlayerNetworkState>()
 
-// Common synchronizers
+@Serializable
+object Networked : Component
 
-data class Synchronizations<T : Entity>(val state: MutableMap<KClass<out Component>, State<T>> = mutableMapOf()) : Component {
-    data class State<T : Entity>(var dirty: Boolean, val synchronizer: ComponentSynchronizer<T, *>)
-}
-
-inline fun <T : Entity, reified C : Component> Synchronizations<T>.submit(synchronizer: ComponentSynchronizer<T, C>) {
-    state[C::class] = Synchronizations.State(false, synchronizer)
-}
-
-fun Entity.markDirty(componentClass: KClass<out Component>) {
-    val synchronizations = when (this) {
-        is EnginePlayer -> require<Synchronizations<*>>()
-        else -> error("Synchronizations are not available for $this")
+data class NetworkState(
+    val updated: BitSet = BitSet(ComponentTypeRegistry.count),
+    val removed: BitSet = BitSet(ComponentTypeRegistry.count)
+    //TODO: скорее всего сразу после создания BitSet-ов те будут увеличиваться, т.к.
+    //после компиляции скриптов общее количество типов компонентов измениться, а здесь
+    //же учитываюся только встроенные. Сделать учёт Lua-компонентов
+) : Component {
+    inline fun <reified T : Component> markUpdated(
+        type: IndexedComponentType<T> = ComponentTypeRegistry.componentTypeOf(T::class)
+    ): NetworkState {
+        removed.clear(type.idx)
+        updated.set(type.idx)
+        return this
     }
-    val state = synchronizations.state[componentClass] ?: error("Component synchronizer for $componentClass not found")
-    state.dirty = true
+
+    inline fun <reified T : Component> markRemoved(
+        type: IndexedComponentType<T> = ComponentTypeRegistry.componentTypeOf(T::class)
+    ): NetworkState {
+        removed.set(type.idx)
+        updated.clear(type.idx)
+        return this
+    }
+
+    fun clear() {
+        updated.clear()
+        removed.clear()
+    }
 }
 
-inline fun <reified C : Component> Entity.markDirty() {
-    markDirty(C::class)
+context(world: World)
+inline fun <reified T : Component> EntityId.markUpdated() {
+    networkState().markUpdated<T>()
 }
 
-enum class PlayerPredicate {
-    ALL, SELF, OTHERS
+context(world: World)
+inline fun <reified T : Component> EntityId.markRemoved() {
+    networkState().markRemoved<T>()
 }
 
-enum class Propagation {
-    DISTANCE, GLOBAL
+context(world: World)
+fun EntityId.networkState() = getComponent<NetworkState>() ?: run {
+    val state = NetworkState()
+    setComponent(state)
+    state
 }
 
-class ComponentSynchronizer<T : Entity, C : Component> @OptIn(ExperimentalSerializationApi::class) constructor(
-    val componentType: ComponentType<C>,
-    val serializer: KSerializer<C>,
-    val propagation: Propagation,
-    val resolver: (T, C) -> Unit,
-    val predicate: PlayerPredicate,
-    val endpoint: Endpoint<ComponentSynchronizationPacket<C>> = Endpoint(
-        componentType.id,
-        PacketCodec.Binary(
-            {
-                val id = readUtf()
-                ComponentSynchronizationPacket<C>(
-                    id,
-                    ProtoBuf.decodeFromByteArray(serializer, readByteArray()),
-                )
-            },
-            {
-                writeUtf(it.id)
-                writeByteArray(ProtoBuf.encodeToByteArray(serializer, it.component))
-            }
-        )
-    ),
+@Serializable
+data class EntityNetworkSnapshot(
+    val updated: List<ComponentDto>,
+    val removed: List<String> // type ids
 )
 
-@OptIn(InternalSerializationApi::class)
-inline fun <T : Entity, reified C : Component> ComponentSynchronizer(
-    propagation: Propagation,
-    predicate: PlayerPredicate,
-    noinline resolver: (T, C) -> Unit,
-) = ComponentSynchronizer<T, C>(
-    componentTypeOf(C::class),
-    C::class.serializer(),
-    propagation,
-    resolver,
-    predicate
-)
-
-inline fun <reified C : Component> PlayerComponentSynchronizer(
-    predicate: PlayerPredicate,
-    propagation: Propagation = Propagation.DISTANCE,
-    noinline resolver: (EnginePlayer, C) -> Unit,
-) = ComponentSynchronizer(
-    propagation,
-    predicate,
-    resolver,
-)
-
-
-fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStorage, entity: T, component: Synchronizations<T> = (entity as EnginePlayer).require()) {
-    component.state.forEach { (id, state) ->
-        if (state.dirty) {
-            val synchronizer = state.synchronizer as ComponentSynchronizer<T, Component>
-            val endpoint = synchronizer.endpoint
-            val component = (entity as EnginePlayer).getComponent(synchronizer.componentType) ?: error("Dirty component ${synchronizer.componentType} not found")
-            val packet = ComponentSynchronizationPacket(entity.stringId, component)
-
-            fun broadcast(world: World, location: Location, player: EnginePlayer?) {
-                var players = when (synchronizer.predicate) {
-                    PlayerPredicate.ALL -> players
-                    PlayerPredicate.SELF -> listOf(player)
-                    PlayerPredicate.OTHERS -> players - player
-                }.toList().filterNotNull()
-
-                players = when(synchronizer.propagation) {
-                    Propagation.DISTANCE -> filterNearestPlayers(world, location.position, playerSynchronizationRadius, players)
-                    Propagation.GLOBAL -> players
-                }
-
-                players.forEach { endpoint.sendS2C(packet, it.id) }
-            }
-
-            val player = entity as EnginePlayer
-            broadcast(player.world, player.location, entity as? EnginePlayer)
-            state.dirty = false
+fun ComponentWorld.fillNetworkSnapshot(
+    updated: MutableList<Component>,
+    removed: MutableList<ComponentType<*>>,
+    entityId: EntityId
+) {
+    getDirtyNetworkedComponentsLegacy(updated, entityId)
+    networkStateArray.componentOf(entityId)?.let {
+        it.updated.forEachIndex { arrayId ->
+            getComponentArray(arrayId).componentOf(entityId)
+                ?.let { component -> updated += component }
+        }
+        it.removed.forEachIndex { arrayId ->
+            removed += getComponentArray(arrayId).type
         }
     }
 }
 
-class ComponentSynchronizationPacket<C : Component>(
-    val id: String,
-    val component: C,
-) : Packet
-
-// Player
-
-val PLAYER_ARM_STATUS_SYNCHRONIZER = PlayerComponentSynchronizer<ArmStatus>(PlayerPredicate.OTHERS) { player, component ->
-    with(player.world) { player.entity.setComponent(component.copy()) }
-}
-val PLAYER_CUSTOM_NAME_SYNCHRONIZER = PlayerComponentSynchronizer<DisplayName>(PlayerPredicate.ALL, Propagation.GLOBAL) { player, name -> player.customName = name.custom }
-val PLAYER_SPEED_INTENTION_SYNCHRONIZER = PlayerComponentSynchronizer<MovementStatus>(PlayerPredicate.OTHERS) { player, status ->
-    player.require<MovementStatus>().intention = status.intention
-}
-val PLAYER_NARRATION_SYNCHRONIZER = PlayerComponentSynchronizer<Narration>(PlayerPredicate.SELF) { player, narration ->
-    val clientNarration = player.require<Narration>().messages
-    if (clientNarration != narration.messages) {
-        clientNarration.clear()
-        clientNarration.addAll(narration.messages)
+private inline fun BitSet.forEachIndex(action: (Int) -> Unit) {
+    var index = nextSetBit(0)
+    while (index >= 0) {
+        action(index)
+        index = nextSetBit(index + 1)
     }
 }
-val PLAYER_ATTRIBUTES_SYNCHRONIZER = PlayerComponentSynchronizer<PlayerAttributes>(PlayerPredicate.ALL) { player, component ->
-    with(player.world) { player.entity.setComponent(component.copy()) }
-}
-val PLAYER_MODEL_SYNCHRONIZER = PlayerComponentSynchronizer<EnginePlayerModel>(PlayerPredicate.ALL) { player, component -> player.require<EnginePlayerModel>().skinEyeY = component.skinEyeY }
-val PLAYER_HEARING_SYNCHRONIZER = PlayerComponentSynchronizer<Hearing>(PlayerPredicate.SELF) { player, component -> player.require<Hearing>().tinnitus = component.tinnitus }
