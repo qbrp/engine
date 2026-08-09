@@ -50,7 +50,6 @@ class World(
     val chunkStorage: ChunkStorage = ChunkStorage(this, componentLoadSettings)
     var ticks = 0L
 
-
     fun tickCallbacks(callbacks: Callbacks) {
         callbacks.of(CallbackType.WORLD_TICK)?.execute(scriptContext)
         if (ticks % 20 == 0L) {

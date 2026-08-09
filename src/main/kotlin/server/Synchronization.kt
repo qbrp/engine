@@ -1,58 +1,47 @@
 package org.lain.engine.server
 
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.requireComponent
-import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.require
-import org.lain.engine.storage.ComponentDto
+import org.lain.cyberia.ecs.*
+import org.lain.engine.player.Player
 import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.toSnapshotDto
 import org.lain.engine.util.component.ComponentTypeRegistry
-import org.lain.engine.util.component.ComponentWorld
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.IndexedComponentType
-import org.lain.engine.world.EngineChunkPos
-import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.World
-import java.util.BitSet
+import java.util.*
 
-data class PlayerNetworkState(
-    var authorized: Boolean,
-    val players: MutableList<EnginePlayer> = mutableListOf(),
-    val chunks: MutableList<EngineChunkPos> = mutableListOf(),
-    var tickTimeout: Int = 8_000,
-    val entities: MutableSet<PersistentId> = mutableSetOf(),
-    val voxels: MutableSet<ImmutableVoxelPos> = mutableSetOf(),
-    var worldSynced: Boolean = false,
+data class PlayerInstantiationConfirmation(
+    var timeout: Int = 8_000
 ) : Component
-
-val EnginePlayer.network
-    get() = this.require<PlayerNetworkState>()
 
 @Serializable
 object Networked : Component
 
-data class NetworkState(
+data class Changes(
+    var revision: Long = 0,
+    var changed: Boolean = false,
     val updated: BitSet = BitSet(ComponentTypeRegistry.count),
     val removed: BitSet = BitSet(ComponentTypeRegistry.count)
     //TODO: скорее всего сразу после создания BitSet-ов те будут увеличиваться, т.к.
     //после компиляции скриптов общее количество типов компонентов измениться, а здесь
     //же учитываюся только встроенные. Сделать учёт Lua-компонентов
 ) : Component {
-    inline fun <reified T : Component> markUpdated(
-        type: IndexedComponentType<T> = ComponentTypeRegistry.componentTypeOf(T::class)
-    ): NetworkState {
+    fun <T : Component> markUpdated(type: IndexedComponentType<T>): Changes {
+        changed = true
         removed.clear(type.idx)
         updated.set(type.idx)
         return this
     }
 
+    inline fun <reified T : Component> markUpdated(): Changes =
+        markUpdated(ComponentTypeRegistry.componentTypeOf(T::class))
+
     inline fun <reified T : Component> markRemoved(
         type: IndexedComponentType<T> = ComponentTypeRegistry.componentTypeOf(T::class)
-    ): NetworkState {
+    ): Changes {
+        changed = true
         removed.set(type.idx)
         updated.clear(type.idx)
         return this
@@ -61,6 +50,7 @@ data class NetworkState(
     fun clear() {
         updated.clear()
         removed.clear()
+        changed = false
     }
 }
 
@@ -74,40 +64,83 @@ inline fun <reified T : Component> EntityId.markRemoved() {
     networkState().markRemoved<T>()
 }
 
-context(world: World)
-fun EntityId.networkState() = getComponent<NetworkState>() ?: run {
-    val state = NetworkState()
+context(world: MutableComponentAccess)
+fun EntityId.networkState() = getComponent<Changes>() ?: run {
+    val state = Changes()
     setComponent(state)
     state
 }
 
-@Serializable
-data class EntityNetworkSnapshot(
-    val updated: List<ComponentDto>,
-    val removed: List<String> // type ids
-)
-
-fun ComponentWorld.fillNetworkSnapshot(
-    updated: MutableList<Component>,
-    removed: MutableList<ComponentType<*>>,
-    entityId: EntityId
-) {
-    getDirtyNetworkedComponentsLegacy(updated, entityId)
-    networkStateArray.componentOf(entityId)?.let {
-        it.updated.forEachIndex { arrayId ->
-            getComponentArray(arrayId).componentOf(entityId)
-                ?.let { component -> updated += component }
-        }
-        it.removed.forEachIndex { arrayId ->
-            removed += getComponentArray(arrayId).type
-        }
-    }
-}
-
-private inline fun BitSet.forEachIndex(action: (Int) -> Unit) {
+inline fun BitSet.forEachIndex(action: (Int) -> Unit) {
     var index = nextSetBit(0)
     while (index >= 0) {
         action(index)
         index = nextSetBit(index + 1)
     }
+}
+
+context(world: World)
+fun EntityId.collectNetworkedComponents() = world.componentManager.getNetworkedComponents(this)
+    .map { component -> component.toSnapshotDto() }
+
+private fun EntityStateFrame.deltaSnapshot() = EntityNetworkSnapshot.Delta(baseRevision, revision, delta)
+
+context(world: World)
+private fun EntityId.fullNetworkSnapshot() = EntityNetworkSnapshot.Full(
+    networkState().revision,
+    collectNetworkedComponents()
+)
+
+fun World.sendSnapshots(
+    server: EngineServer,
+    worldStateFrame: WorldStateFrame,
+    handler: ServerHandler
+) {
+    val world = this
+    val entitiesFrame = worldStateFrame.entities
+    val fullSnapshotCache = mutableMapOf<PersistentId, EntityNetworkSnapshot.Full>()
+
+    iterate<Player, PlayerSyncState>() { _, (player), state ->
+        if (!state.confirmed) return@iterate
+
+        state.freshPlayers.forEach { (playerToSync) ->
+            handler.sendFullPlayerState(player, playerToSync)
+        }
+        state.entities.let { trackState ->
+            trackState.fresh.forEach {
+                val entity = persistentIdToEntity[it] ?: return@forEach
+                val state = fullSnapshotCache.getOrPut(it) { entity.fullNetworkSnapshot() }
+                handler.sendEntityState(player, it, entity, state)
+            }
+            (trackState.synced - trackState.fresh).forEach {
+                val snapshot = entitiesFrame[it] ?: return@forEach
+                handler.sendEntityState(player, it, snapshot.entity, snapshot.deltaSnapshot())
+            }
+        }
+
+        if (!state.isWorldSynced) {
+            handler.sendWorldState(player, world.state.fullNetworkSnapshot())
+            state.isWorldSynced = true
+        } else {
+            if (worldStateFrame.worldState != null) {
+                handler.sendWorldState(player, worldStateFrame.worldState.deltaSnapshot())
+            }
+        }
+    }
+}
+
+fun World.tickSynchronizationSystem(server: EngineServer) = runBlocking {
+    val globals = server.globals
+    val synchronizationRadius = globals.playerSynchronizationRadius
+    val desynchronizationRadius = synchronizationRadius + globals.playerDesynchronizationThreshold
+    val (job, frame) = componentManager.withoutThreadRestriction {
+        withContext(Dispatchers.Default) {
+            val job = launch { tickPlayerInterestsSystem(synchronizationRadius) }
+            val frame = async { composeStateFrame() }
+            job to frame
+        }
+    }
+    job.join()
+    tickPlayerTrackingSystem(server, desynchronizationRadius)
+    sendSnapshots(server, frame.await(), server.handler)
 }

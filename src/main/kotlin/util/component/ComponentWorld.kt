@@ -4,7 +4,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
 import org.lain.engine.listKotlinComponentTypeEntries
-import org.lain.engine.server.NetworkState
+import org.lain.engine.server.networkState
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.Storage
@@ -22,12 +22,11 @@ class ComponentWorld(
     val itemStorage: Storage<PersistentId, EngineItem>,
     registerEngineKotlinComponents: Boolean = true
 ) : MutableComponentAccess, IterationComponentAccess {
+    @Volatile
+    var threadRestrictionMode = false
     private val arrays = ArrayList<ComponentArray<*>>()
     private val savableArrays = ArrayList<ComponentArray<*>>()
     private val networkingArrays = ArrayList<ComponentArray<*>>()
-    private val dirtyComponentIndexesByEntity = HashMap<EntityId, MutableSet<Int>>()
-    lateinit var networkStateArray: ComponentArray<NetworkState>
-        private set
 
     // Создание сущностей потокобезопасно. Добавление компонентов - нет
     private var destroyed = Collections.synchronizedList<Boolean>(mutableListOf())
@@ -47,7 +46,8 @@ class ComponentWorld(
 
     @Suppress("UNCHECKED_CAST")
     fun <T : Component> getComponentArray(type: ComponentType<T>): ComponentArray<T> {
-        return getComponentArray(type.castIndexed().idx) as? ComponentArray<T> ?: error("No component array for $type")
+        return getComponentArray(type.castIndexed().idx) as? ComponentArray<T>
+            ?: error("No component array for $type")
     }
 
     fun getComponentArray(idx: Int): ComponentArray<*> {
@@ -98,8 +98,11 @@ class ComponentWorld(
 
                 arrays += arr
                 if (type == componentTypeOf(PersistentIdComponent::class)) {
-                    arr.onSet = { component, entity -> persistentIdToEntity[(component as PersistentIdComponent).id] = entity }
-                    arr.onRemoved = { component, entity -> persistentIdToEntity.remove((component as PersistentIdComponent).id) }
+                    arr.onSet = { component, entity ->
+                        persistentIdToEntity[(component as PersistentIdComponent).id] = entity
+                    }
+                    arr.onRemoved =
+                        { component, entity -> persistentIdToEntity.remove((component as PersistentIdComponent).id) }
                 } else if (type == componentTypeOf(Item::class)) {
                     arr.onSet = { component, entity ->
                         val persistentId = (component as Item).uuid
@@ -111,8 +114,6 @@ class ComponentWorld(
                     arr.onRemoved = { component, entity ->
                         itemStorage.remove((component as Item).uuid)
                     }
-                } else if (type == componentTypeOf(NetworkState::class)) {
-                    networkStateArray = arr as ComponentArray<NetworkState>
                 }
 
                 if (meta.savable) savableArrays.add(arr)
@@ -120,34 +121,29 @@ class ComponentWorld(
             }
     }
 
+    suspend fun <R> withoutThreadRestriction(statement: suspend ComponentWorld.() -> R): R {
+        threadRestrictionMode = false
+        val result = statement(this)
+        threadRestrictionMode = true
+        return result
+    }
+
     private fun checkOnThread() {
-        val currentThread = Thread.currentThread()
-        check(currentThread == thread) { "Invalid thread: ${currentThread.name}. Operations allowed only on ${thread.name} thread" }
+        if (threadRestrictionMode) {
+            val currentThread = Thread.currentThread()
+            check(currentThread == thread) {
+                "Invalid thread: ${currentThread.name}. Operations allowed only on ${thread.name} thread"
+            }
+        }
     }
 
+    @Deprecated("use markChanged")
     override fun markDirty(entity: EntityId, type: ComponentType<out Component>) {
-        checkOnThread()
-        require(exists(entity)) { "Entity $entity does not exist" }
-        val array = getComponentArray(type)
-        if (!array.meta.networking) return
-
-        dirtyComponentIndexesByEntity
-            .getOrPut(entity) { LinkedHashSet() }
-            .add(array.idx)
-    }
-
-    fun invalidateNetworkingState() {
-        checkOnThread()
-        dirtyComponentIndexesByEntity.clear()
+        throw NotImplementedError("deprecated operation")
     }
 
     override fun invalidateStates(entity: EntityId) {
-        clearDirtyComponents(entity)
-    }
-
-    fun clearDirtyComponents(entity: EntityId) {
-        checkOnThread()
-        dirtyComponentIndexesByEntity.remove(entity)
+        throw NotImplementedError("deprecated operation")
     }
 
     fun getNetworkedArrays(entityId: EntityId): List<ComponentArray<*>> {
@@ -186,22 +182,14 @@ class ComponentWorld(
         return output
     }
 
-    fun getDirtyNetworkedComponentsLegacy(output: MutableList<Component>, entityId: EntityId) {
-        checkOnThread()
-        val dirtyIndexes = dirtyComponentIndexesByEntity[entityId] ?: return
-        for (idx in dirtyIndexes) {
-            val array = arrays.getOrNull(idx) ?: continue
-            if (!array.meta.networking) continue
-            array.componentOf(entityId)?.let { output += it }
-        }
-    }
-
     fun collect(
         filters: List<ComponentType<out Component>>,
         statement: (ComponentArray<*>) -> Boolean
     ): List<Pair<EntityId, ComponentState>> {
         checkOnThread()
-        val filterArrays = filters.map { filter -> arrays[filter.castIndexed().idx] ?: error("No component filter found for $filter") }
+        val filterArrays = filters.map { filter ->
+            arrays[filter.castIndexed().idx] ?: error("No component filter found for $filter")
+        }
         val list = mutableListOf<Pair<EntityId, ComponentState>>()
         loop@ for (entityId in filterArrays.flatMap { it.denseEntities }.toSet()) {
             filterArrays.forEach { if (entityId !in it.denseEntities) continue@loop }
@@ -217,11 +205,12 @@ class ComponentWorld(
     }
 
     // потокобезопасно?
-    override fun addEntity(builder: context(WriteComponentAccess) EntityId.() -> Unit): EntityId = with(this) {
-        val entity = addEntity()
-        entity.builder()
-        entity
-    }
+    override fun addEntity(builder: context(WriteComponentAccess) EntityId.() -> Unit): EntityId =
+        with(this) {
+            val entity = addEntity()
+            entity.builder()
+            entity
+        }
 
     // потокобезопасно
     override fun addEntity(): EntityId = synchronized(entityInstantiationLock) {
@@ -240,7 +229,6 @@ class ComponentWorld(
         synchronized(entityInstantiationLock) {
             freeIndexes.add(entity)
             destroyed[entity] = true
-            dirtyComponentIndexesByEntity.remove(entity)
         }
     }
 
@@ -311,13 +299,17 @@ class ComponentWorld(
         return result
     }
 
-    override fun <T : Component> setComponentWithType(entity: EntityId, component: T, type: ComponentType<T>) {
+    override fun <T : Component> setComponentWithType(
+        entity: EntityId,
+        component: T,
+        type: ComponentType<T>
+    ) {
         checkOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         val array = getComponentArray(type)
         array.setComponent(entity, component)
         if (array.meta.networking) {
-            markDirty(entity, type)
+            entity.networkState().markUpdated(type.castIndexed())
         }
     }
 
@@ -368,7 +360,10 @@ class ComponentWorld(
         }
     }
 
-    override fun <A : Component> iterate1(kclass1: ComponentType<A>, action: MutableComponentAccess.(EntityId, A) -> Unit) {
+    override fun <A : Component> iterate1(
+        kclass1: ComponentType<A>,
+        action: MutableComponentAccess.(EntityId, A) -> Unit
+    ) {
         checkOnThread()
         val arr1 = getComponentArray(kclass1)
         for (i in arr1.denseEntities.indices.reversed()) {

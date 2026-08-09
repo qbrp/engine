@@ -264,7 +264,6 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     fun onChunkUnload(world: Level, chunk: ChunkAccess) {
         val pos = chunk.pos.engineChunkPos()
         acousticSimulator.unloadChunkAsync(world.engine, chunk)
-        engine.handler.onChunkUnload(pos)
         val engineWorld = engine.getWorld(world)
         val engineChunk = engineWorld.chunkStorage.getChunk(pos) ?: return
         val componentManager = engineWorld.componentManager

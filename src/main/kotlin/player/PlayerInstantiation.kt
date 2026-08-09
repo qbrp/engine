@@ -104,7 +104,9 @@ fun serverPlayerInstance(
         persistent?.voiceLoose?.let { setComponent(it) }
         setComponent(defaults)
         setComponent(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
-        setComponent(PlayerNetworkState(false))
+        setComponent(PlayerInstantiationConfirmation())
+        setComponent(PlayerSyncState())
+        setComponent(Interests())
         //require<PlayerAttributes>().gravity.default = defaults.gravity
         setComponent(AcousticMessageQueue(LinkedList()))
         setComponent(AppliedCharacters(mutableMapOf()))

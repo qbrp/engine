@@ -19,10 +19,8 @@ import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.assertThrows
 import org.lain.cyberia.ecs.componentTypeOf
-import org.lain.engine.bootstrap
 import org.lain.engine.listKotlinComponentTypeEntries
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptEngine
@@ -126,11 +124,11 @@ class ComponentWorldTest : EngineTest() {
         componentWorld.setComponentWithType(entity, TestVelocity(4), velocityType)
 
         assertEquals(listOf(TestVelocity(4)), componentWorld.getNetworkedComponents(entity))
-        assertEquals(listOf(TestVelocity(4)), componentWorld.getDirtyNetworkedComponents(entity))
+        assertEquals(listOf(TestVelocity(4)), componentWorld.getDirtyNetworkedComponentsLegacy(entity))
 
         componentWorld.clearDirtyComponents(entity)
 
-        assertTrue(componentWorld.getDirtyNetworkedComponents(entity).isEmpty())
+        assertTrue(componentWorld.getDirtyNetworkedComponentsLegacy(entity).isEmpty())
     }
 
     @Test
@@ -140,7 +138,7 @@ class ComponentWorldTest : EngineTest() {
         componentWorld.setComponentWithType(entity, TestPosition(9), positionType)
         componentWorld.markDirty(entity, positionType)
 
-        assertTrue(componentWorld.getDirtyNetworkedComponents(entity).isEmpty())
+        assertTrue(componentWorld.getDirtyNetworkedComponentsLegacy(entity).isEmpty())
     }
 
     @Test

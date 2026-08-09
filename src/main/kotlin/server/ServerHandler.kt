@@ -6,10 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.hasComponent
-import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.markDirty
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
@@ -48,7 +45,6 @@ import org.lain.engine.util.LogMessages
 import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.flush
-import org.lain.engine.util.forEachWithContext
 import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.filterNearestPlayers
@@ -395,10 +391,11 @@ class ServerHandler(
             }
         }
 
-    private fun onPlayerArmStatus(playerId: PlayerId, extend: Boolean) = updatePlayerWithContext(playerId) {
-        extendArm = extend
-        entity.markUpdated<ArmStatus>()
-    }
+    private fun onPlayerArmStatus(playerId: PlayerId, extend: Boolean) =
+        updatePlayerWithContext(playerId) {
+            extendArm = extend
+            entity.markUpdated<ArmStatus>()
+        }
 
     private fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) =
         updatePlayer(player) {
@@ -487,147 +484,67 @@ class ServerHandler(
         taskQueue.flush { it() }
     }
 
-    // потенциально это намного лучше, чем каждый раз выделять пустой список, который может не заполниться
-    private var updatedList = mutableListOf<Component>()
-    private var removedList = mutableListOf<ComponentType<*>>()
-
     context(world: World)
-    private fun networkSnapshotOf(entityId: EntityId): EntityNetworkSnapshot? {
-        updatedList.clear()
-        removedList.clear()
-        world.componentManager.fillNetworkSnapshot(updatedList, removedList, entityId)
-        return if (updatedList.isNotEmpty() || removedList.isNotEmpty()) {
-            EntityNetworkSnapshot(
-                updatedList.map { it.toSnapshotDto() },
-                removedList.map { it.id }
+    private fun sendEntityDeltaPacket(
+        player: EnginePlayer,
+        entity: EntityId,
+        packet: EntityDeltaPacket
+    ) {
+        CLIENTBOUND_ENTITY_DELTA_ENDPOINT.sendS2C(packet, player.id)
+        EngineLogger.log(
+            Log(
+                LogMessages.ENTITY_SYNC,
+                LogLevel.INFO,
+                data = mapOf(
+                    "entity" to entity.getEntityDebugNameId().name,
+                    "player_id" to player.id.toString(),
+                    "player_name" to player.username
+                ),
+                tick = server.tick,
+                world = world.id
             )
-        } else {
-            null
-        }
-    }
-
-    context(world: World)
-    private fun fullNetworkSnapshotOf(entityId: EntityId): EntityNetworkSnapshot {
-        return EntityNetworkSnapshot(
-            world.componentManager.getNetworkedComponents(entityId)
-                .map { it.toSnapshotDto() },
-            emptyList()
         )
     }
 
-    //TODO: синхронизировать предметы по блок-сущностям (чтобы учитывать и сундуки)
-    fun tick() {
-        val players =
-            playerStorage.filter { (server.isReplay && !it.has<ReplayViewer>()) || it.network.authorized }
+    context(world: World)
+    fun sendEntityState(
+        player: EnginePlayer,
+        persistentId: PersistentId,
+        entity: EntityId,
+        state: EntityNetworkSnapshot
+    ) {
+        sendEntityDeltaPacket(
+            player,
+            entity,
+            EntityDeltaPacket(
+                persistentId,
+                state
+            )
+        )
+    }
 
-        players.forEachWithContext({ it.world }) { player ->
-            val world = player.world
-            val state = player.network
-            val playerLocation = player.location
-            val playerPosition = playerLocation.position
+    context(world: World)
+    fun sendFullPlayerState(player: EnginePlayer, playerToSync: EnginePlayer) {
+        CLIENTBOUND_FULL_PLAYER_ENDPOINT
+            .sendS2C(
+                FullPlayerPacket(
+                    playerToSync.id,
+                    FullPlayerData.of(playerToSync)
+                ),
+                player.id
+            )
+    }
 
-            val worldState = world.state
-            val worldEntityNetworkSnapshot = when (state.worldSynced) {
-                true -> networkSnapshotOf(worldState)
-                false -> fullNetworkSnapshotOf(worldState)
-            }
-            if (worldEntityNetworkSnapshot != null) {
-                CLIENTBOUND_WORLD_STATE_DELTA_PACKET.sendS2C(
-                    WorldStateDeltaPacket(worldEntityNetworkSnapshot),
-                    player.id
-                )
-            }
-            state.worldSynced = true
-
-            val nearbyPlayers =
-                filterNearestPlayers(
-                    world,
-                    playerPosition,
-                    playerSynchronizationRadius,
-                    players
-                ).toMutableList()
-            val playersToDesynchronize =
-                state.players.filter { it.location.position.squaredDistanceTo(playerPosition) > squaredDesynchronizationRadius }
-            state.players.removeAll(playersToDesynchronize)
-
-            val entitiesInRadius: HashSet<PersistentId> = hashSetOf()
-            val playerUsername = player.username
-            world.iterate<Networked, Location, PersistentIdComponent>() { entity, _, entityLocation, (persistentId) ->
-                if (entityLocation.position.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
-                    if (entity.hasComponent<DynamicVoxelInterest>()) return@iterate
-                    val networkSnapshot = if (state.entities.contains(persistentId)) {
-                        networkSnapshotOf(entity)
-                    } else {
-                        fullNetworkSnapshotOf(entity)
-                    }
-                    if (networkSnapshot != null) {
-                        CLIENTBOUND_ENTITY_DELTA_ENDPOINT.sendS2C(
-                            EntityDeltaPacket(
-                                persistentId,
-                                networkSnapshot
-                            ),
-                            player.id
-                        )
-                        EngineLogger.log(
-                            Log(
-                                LogMessages.ENTITY_SYNC,
-                                LogLevel.INFO,
-                                data = mapOf(
-                                    "entity" to entity.getEntityDebugNameId().name,
-                                    "player_id" to player.id.toString(),
-                                    "player_name" to playerUsername
-                                ),
-                                tick = server.tick,
-                                world = world.id
-                            )
-                        )
-                    }
-                    entitiesInRadius.add(persistentId)
-                    state.entities.add(persistentId)
-                }
-            }
-            state.entities.retainAll(entitiesInRadius)
-
-            val voxelsInRadius = mutableSetOf<ImmutableVoxelPos>()
-            world.iterate<Networked, DynamicVoxelInterest, ChunkedPos> { voxel, _, _, (chunkPos, voxelPos, centerPos) ->
-                if (centerPos.squaredDistanceTo(playerPosition) < squaredSynchronizationRadius) {
-                    val networkSnapshot = if (state.voxels.contains(voxelPos)) {
-                        networkSnapshotOf(voxel)
-                    } else {
-                        fullNetworkSnapshotOf(voxel)
-                    }
-                    if (networkSnapshot != null) {
-                        CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT.sendS2C(
-                            DynamicVoxelDeltaPacket(voxelPos, networkSnapshot),
-                            player.id
-                        )
-                    }
-                    voxelsInRadius += voxelPos
-                    state.voxels += voxelPos
-                }
-            }
-            state.voxels.retainAll(voxelsInRadius)
-
-            tickSynchronizationComponent(playerStorage, player)
-            for (playerToSynchronize in nearbyPlayers) {
-                if (playerToSynchronize !in state.players && playerToSynchronize.id != player.id) {
-                    state.players += playerToSynchronize
-                    CLIENTBOUND_FULL_PLAYER_ENDPOINT
-                        .sendS2C(
-                            FullPlayerPacket(
-                                playerToSynchronize.id,
-                                FullPlayerData.of(playerToSynchronize)
-                            ),
-                            player.id
-                        )
-                }
-            }
-        }
-
-        server.listWorlds().forEach {
-            it.componentManager.invalidateNetworkingState() // TODO: это оптимизация, надо проверить, не создает ли она баги
-            it.iterate<NetworkState> { _, state -> state.clear() }
-        }
+    fun sendWorldState(
+        player: EnginePlayer,
+        state: EntityNetworkSnapshot
+    ) {
+        CLIENTBOUND_WORLD_STATE_DELTA_PACKET.sendS2C(
+            WorldStateDeltaPacket(
+                state
+            ),
+            player.id
+        )
     }
 
     fun onCharacterApplyConfirmation(
@@ -660,7 +577,6 @@ class ServerHandler(
             ),
             player.id
         )
-        player.network.chunks += pos
     }
 
     fun onItemsUnload(items: List<PersistentId>) {
@@ -736,18 +652,13 @@ class ServerHandler(
         }
 
     fun onPlayerInstantiationConfirm(playerId: PlayerId) = updatePlayer(playerId) {
-        network.authorized = true
+        remove<PlayerInstantiationConfirmation>() ?: desync("Invalid player state")
     }
 
     fun onPlayerDestroy(player: EnginePlayer) {
         CLIENTBOUND_PLAYER_DESTROY_ENDPOINT.broadcast(
             PlayerDestroyPacket(player.id)
         )
-        playerStorage.forEach { it.network.players.remove(player) }
-    }
-
-    fun onChunkUnload(chunk: EngineChunkPos) {
-        playerStorage.forEach { it.network.chunks.remove(chunk) }
     }
 
     fun onPersonalVolumeAcousticDebug(

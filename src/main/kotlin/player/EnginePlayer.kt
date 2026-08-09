@@ -23,7 +23,8 @@ import java.util.*
 class EnginePlayer(
     val id: PlayerId,
     val entity: EntityId,
-    val world: World
+    val world: World,
+    var destroyed: Boolean = false
 ) : Entity {
     override val stringId: String get() = id.toString()
 
@@ -44,7 +45,6 @@ inline fun <reified T : Component> EnginePlayer.require(): T = with(world) {
     entity.requireComponent<T>()
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component> EnginePlayer.has(): Boolean = with(world) {
     entity.hasComponent<T>()
 }
@@ -58,7 +58,6 @@ inline fun <reified T : Component> EnginePlayer.getOrSet(noinline factory: () ->
     entity.getComponent<T>() ?: factory().also { entity.setComponent(it) }
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component> EnginePlayer.remove(): T? = with(world) {
     entity.removeComponent<T>()
 }

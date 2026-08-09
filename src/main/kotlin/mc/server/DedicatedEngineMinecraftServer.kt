@@ -21,12 +21,13 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.Username
 import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.get
 import org.lain.engine.script.NamespaceHashMapValidationResult
 import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.Notification
+import org.lain.engine.server.PlayerInstantiationConfirmation
 import org.lain.engine.server.account.DedicatedEngineAccountService
 import org.lain.engine.server.account.SessionTicket
-import org.lain.engine.server.network
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.ServerTransportContext
@@ -65,10 +66,10 @@ class DedicatedEngineMinecraftServer(
 
     override fun tick() {
         for (player in engine.playerStorage.getAll()) {
-            val network = player.network
-            if (!network.authorized) {
-                network.tickTimeout -= 1
-                if (network.tickTimeout <= 0) {
+            val instantiationConfirmation = player.get<PlayerInstantiationConfirmation>()
+            if (instantiationConfirmation != null) {
+                instantiationConfirmation.timeout -= 1
+                if (instantiationConfirmation.timeout <= 0) {
                     val entity = entityTable.getEntity(player.id) ?: continue
                     connectionManager.disconnect(
                         connectionManager.getSession(player.id),

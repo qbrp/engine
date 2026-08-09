@@ -96,6 +96,7 @@ inline fun <reified C : Component> PlayerComponentSynchronizer(
 
 
 fun <T : Entity> ServerHandler.tickSynchronizationComponent(players: PlayerStorage, entity: T, component: Synchronizations<T> = (entity as EnginePlayer).require()) {
+    TODO()
     component.state.forEach { (id, state) ->
         if (state.dirty) {
             val synchronizer = state.synchronizer as ComponentSynchronizer<T, Component>

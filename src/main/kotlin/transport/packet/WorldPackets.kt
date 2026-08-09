@@ -64,14 +64,6 @@ val CLIENTBOUND_ENTITY_DELTA_ENDPOINT = Endpoint<EntityDeltaPacket>(
 )
 
 @Serializable
-data class DynamicVoxelDeltaPacket(
-    val voxelPos: ImmutableVoxelPos,
-    val snapshot: EntityNetworkSnapshot
-) : Packet
-
-val CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT = Endpoint<DynamicVoxelDeltaPacket>()
-
-@Serializable
 data class WorldStateDeltaPacket(
     val snapshot: EntityNetworkSnapshot
 ) : Packet

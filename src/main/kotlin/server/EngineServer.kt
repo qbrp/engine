@@ -176,6 +176,8 @@ class EngineServer(
             // Подгон данных контейнеров
             postUpdateContainerSystems()
 
+            world.tickSynchronizationSystem(this@EngineServer)
+
             updateSaveSystem()
             updateUnloadSystem(handler, world, saveTimers)
         }
@@ -183,7 +185,6 @@ class EngineServer(
         saveTimers.items.tick()
         saveTimers.containers.tick()
 
-        handler.tick()
         tickTimes.add(start.timeElapsed().toInt())
 
         worlds.forEach { world -> world.clearEvents() }
@@ -217,6 +218,7 @@ class EngineServer(
 
     fun destroyPlayer(player: EnginePlayer) = with(player.world) {
         playerStorage.remove(player.id)
+        player.destroyed = true
         players -= player
 
         (player.collectOwnedItems(this) + player.items).forEach { item -> item.removeComponent<HeldBy>() }

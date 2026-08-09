@@ -4,6 +4,7 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.engine.server.EngineServer
+import org.lain.engine.server.networkState
 import org.lain.engine.world.World
 
 class EntityCommandBuffer(
@@ -42,7 +43,7 @@ class EntityCommandBuffer(
         entity: EntityId,
         type: ComponentType<out Component>
     ) {
-        commands += { world -> world.markDirty(entity, type) }
+        throw NotImplementedError("deprecated")
     }
 
     override fun invalidateStates(entity: EntityId) {

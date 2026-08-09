@@ -18,6 +18,8 @@ import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.script.lua.toList
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toVoxelPos
+import org.lain.engine.server.markUpdated
+import org.lain.engine.server.networkState
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.World
 import org.lain.engine.world.invokeCommand
@@ -291,7 +293,7 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
         val world = entity.world.asEngineWorld()
         val type = component.componentType
         debugScript("entity", "($entity) ${type.id} marked for sync")
-        world.markDirty(entityId, type)
+        with(world) { entityId.networkState().markUpdated(type) }
         NIL
     }
     functionSelf("get_all_components") { entity ->

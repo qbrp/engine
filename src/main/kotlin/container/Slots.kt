@@ -88,7 +88,7 @@ fun detachSlotContainers(world: World) {
 
 context(world: World)
 fun updateContainerSystems() {
-    updateSlotContainers(world)
+    world.tickSlotContainerOperations()
     updateContainerOperationSystem()
     detachSlotContainers(world)
 }
