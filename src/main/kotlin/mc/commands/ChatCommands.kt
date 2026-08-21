@@ -12,9 +12,8 @@ import org.lain.engine.mc.hasPermission
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.username
 import org.lain.engine.util.file.ChannelConfig
-import org.lain.engine.util.file.ChatConfig
-import org.lain.engine.util.injectEngineServer
-import org.lain.engine.util.injectEntityTable
+import org.lain.engine.util.requireEngineMinecraftServer
+import org.lain.engine.util.requireEngineMinecraftServerLazy
 
 /**
  * Регистрация команды типа `/<название> <содержание>`, отправляющий содержание в чат-каналs
@@ -31,7 +30,7 @@ fun ServerCommandDispatcher.registerServerChatCommand(
     propagate: ChannelConfig.Propagate?,
     aliases: List<String> = listOf(),
 ) {
-    val engine by injectEngineServer()
+    val engine by lazy { requireEngineMinecraftServer().engine }
     val node = Commands.literal(name)
         .requires { !permission || it.player?.hasPermission("chat.$name") == true }
         .then(
@@ -57,8 +56,9 @@ fun ServerCommandDispatcher.registerServerChatCommand(
 }
 
 fun ServerCommandDispatcher.registerServerCustomChatCommands() {
-    val engine by injectEngineServer()
-    val table by injectEntityTable()
+    val server by requireEngineMinecraftServerLazy()
+    val engine by lazy { server.engine }
+    val table by lazy { server.dependencies.worldTable }
 
     register(
         Commands.literal("pm")
@@ -68,11 +68,10 @@ fun ServerCommandDispatcher.registerServerCustomChatCommands() {
                         Commands.argument("text", StringArgumentType.greedyString())
                             .executeCatching { ctx ->
                                 val text = ctx.command.getString("text")
-                                val recipient = ctx.command.getPlayerEntity("player")
+                                val recipient = ctx.command.getPlayer("player")
                                 val authorPlayer = ctx.requirePlayer()
-                                val recipientPlayer = table.server.requirePlayer(recipient)
 
-                                if (recipientPlayer == authorPlayer && !authorPlayer.developerMode) {
+                                if (recipient == authorPlayer && !authorPlayer.developerMode) {
                                     ctx.sendError("Вы не можете написать самому себе")
                                     return@executeCatching
                                 }
@@ -82,11 +81,11 @@ fun ServerCommandDispatcher.registerServerCustomChatCommands() {
                                     text,
                                     MessageSource.getPlayer(authorPlayer, channel),
                                     channel,
-                                    recipientPlayer.messageSource(channel),
+                                    recipient.messageSource(channel),
                                     boomerang = true,
                                     placeholders = mapOf(
-                                        "pm_receiver_username" to recipientPlayer.username,
-                                        "pm_receiver_name" to recipientPlayer.displayNameMiniMessage,
+                                        "pm_receiver_username" to recipient.username,
+                                        "pm_receiver_name" to recipient.displayNameMiniMessage,
                                     )
                                 )
                             }

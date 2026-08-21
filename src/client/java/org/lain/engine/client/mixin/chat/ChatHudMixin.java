@@ -123,7 +123,7 @@ public abstract class ChatHudMixin implements EngineChatHudAccess {
             return;
         }
 
-        chatFocused = chatFocused || ClientMixinAccess.INSTANCE.shouldFocusChat();
+        chatFocused = chatFocused || ClientMixin.INSTANCE.shouldFocusChatIfNot();
 
         int totalLines = this.visibleMessages.size();
         if (totalLines <= 0) {
@@ -287,7 +287,7 @@ public abstract class ChatHudMixin implements EngineChatHudAccess {
      */
     @Overwrite
     public static int getWidth(double widthOption) {
-        int i = ClientMixinAccess.INSTANCE.getChatWidth();
+        int i = ClientMixin.INSTANCE.getChatWidth();
         int j = 40;
         return Mth.floor(widthOption * i + j);
     }
@@ -311,7 +311,7 @@ public abstract class ChatHudMixin implements EngineChatHudAccess {
             this.visibleMessages.addFirst(line);
         }
 
-        while (this.visibleMessages.size() > ClientMixinAccess.INSTANCE.getChatSize()) {
+        while (this.visibleMessages.size() > ClientMixin.INSTANCE.getChatSize()) {
             this.visibleMessages.removeLast();
         }
     }

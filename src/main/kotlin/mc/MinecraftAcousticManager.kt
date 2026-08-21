@@ -26,7 +26,6 @@ import org.lain.engine.util.then
 import org.lain.engine.world.location
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.WorldId
-import org.lain.engine.world.pos
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -355,7 +354,7 @@ class ConcurrentAcousticSceneBank {
             )
         }
 
-        val worldId = world.engine
+        val worldId = world.engineId
         val key = WorldChunkKey(worldId, chunk.pos)
         val compound = AcousticSceneSegmentCompound(scenes.toMutableList())
         synchronized(chunkCreationLock) {
@@ -380,7 +379,7 @@ class ConcurrentAcousticSceneBank {
     }
 
     fun setPassability(world: Level, chunkPos: ChunkPos, pos: BlockPos, value: Float, logger: org.slf4j.Logger?): MinecraftChunkAcousticScene? {
-        val chunkCompound = getChunk(world.engine, chunkPos) ?: return null
+        val chunkCompound = getChunk(world.engineId, chunkPos) ?: return null
         return chunkCompound.setPassability(world, chunkPos, pos, value, logger)
     }
 
@@ -409,7 +408,7 @@ class ConcurrentAcousticSceneBank {
             for (x in chunkX0..chunkX1) {
                 for (z in chunkZ0..chunkZ1) {
                     val chunkPos = ChunkPos(x, z)
-                    val compound = getChunk(world.engine, chunkPos) ?: addChunk(
+                    val compound = getChunk(world.engineId, chunkPos) ?: addChunk(
                         world,
                         world.getChunk(x, z),
                         acousticBlockData
@@ -431,14 +430,14 @@ class ConcurrentAcousticSceneBank {
         }
     }
 
-    fun getChunkSegment(world: Level, pos: ChunkPos, y: Int) = getChunk(world.engine, pos)?.getScene(world.segmentOf(y))
+    fun getChunkSegment(world: Level, pos: ChunkPos, y: Int) = getChunk(world.engineId, pos)?.getScene(world.segmentOf(y))
 
     private fun getChunk(world: WorldId, pos: ChunkPos) = chunkMap[WorldChunkKey(world, pos)]
 }
 
 class MinecraftAcousticManager(
     private val server: EngineMinecraftServer,
-    private val entityTable: EntityTable,
+    private val entityTable: ServerWorldTable,
     private val acousticSceneBank: ConcurrentAcousticSceneBank,
     acousticBlockData: AcousticBlockData,
 ) : AcousticSimulator {

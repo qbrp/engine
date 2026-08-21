@@ -12,13 +12,12 @@ import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.luaWorld
 import org.lain.engine.storage.saveItemsBlocking
 import org.lain.engine.util.getServerStats
-import org.lain.engine.util.injectMinecraftEngineServer
+import org.lain.engine.util.requireEngineMinecraftServer
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaValue
 
 fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
-    val server by injectMinecraftEngineServer()
-    val playerTable by lazy { server.entityTable }
+    val server by lazy { requireEngineMinecraftServer() }
     val engine by lazy { server.engine }
     register(
         literal("scriptexec")

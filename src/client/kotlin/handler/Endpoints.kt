@@ -15,8 +15,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     // Players
 
-    registerGameSessionReceiver(CLIENTBOUND_FULL_PLAYER_ENDPOINT) {
-        updatePlayer(id) { applyFullPlayerData(it, data) }
+    registerGameSessionReceiver(CLIENTBOUND_FULL_PLAYER_ENDPOINT) { gameSession ->
+        updatePlayer(id) { applyFullPlayerData(gameSession, it, data) }
     }
 
     // Join / Destroy
@@ -25,8 +25,8 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyPlayerJoined(player)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_DESTROY_ENDPOINT) {
-        updatePlayer(playerId) { applyPlayerDestroyed(it) }
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_DESTROY_ENDPOINT) { gameSession ->
+        updatePlayer(playerId) { applyPlayerDestroyed(gameSession, it) }
     }
 
     // Other
@@ -75,10 +75,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyVoxelEvent(event)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_DYNAMIC_VOXEL_DELTA_ENDPOINT) {
-        applyDynamicVoxelDelta(it, voxelPos, snapshot)
-    }
-
     registerGameSessionReceiver(CLIENTBOUND_WORLD_STATE_DELTA_PACKET) { gameSession ->
         applyWorldState(gameSession, snapshot)
     }
@@ -89,6 +85,10 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
 
     registerGameSessionReceiver(CLIENTBOUND_ENTITY_DELTA_ENDPOINT) {
         applyEntity(it, persistentId, snapshot)
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INPUT_PROCESSED_ENDPOINT) {
+        applyProcessedInput(it, processedInputTick)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { _ -> applyIntent(dto, intent) }
@@ -104,11 +104,4 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.registerClientReceiver {
         taskExecutor.add("character_apply_confirmation") { applyCharacterApplyConfirmation(requestId, errorMessage) }
     }
-
-    registerPlayerSynchronizerEndpoint(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
-    registerPlayerSynchronizerEndpoint(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
-    registerPlayerSynchronizerEndpoint(PLAYER_NARRATION_SYNCHRONIZER)
-    registerPlayerSynchronizerEndpoint(PLAYER_ATTRIBUTES_SYNCHRONIZER)
-    registerPlayerSynchronizerEndpoint(PLAYER_MODEL_SYNCHRONIZER)
-    registerPlayerSynchronizerEndpoint(PLAYER_HEARING_SYNCHRONIZER)
 }

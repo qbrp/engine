@@ -6,7 +6,7 @@ import org.lain.engine.client.chat.ChatBubble
 import org.lain.engine.client.chat.updateChatBubble
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.mc.engine
-import org.lain.engine.util.injectEntityTable
+import org.lain.engine.mc.minecraftEntityNullable
 import org.lain.engine.util.then
 
 context(ctx: ImmediateWorldRenderContext)
@@ -21,7 +21,6 @@ fun renderChatBubbles(
     dt: Float,
 ) {
     val client = MinecraftClient
-    val entityTable by injectEntityTable()
     if (client.player == null || client.level == null) {
         return
     }
@@ -30,7 +29,7 @@ fun renderChatBubbles(
         updateChatBubble(bubble, dt, height)
         bubble.squaredDistanceToCamera = bubble.pos.squaredDistanceTo(camera.position().engine())
         val easing = { bubble.canSee }.then { LabelEasing(bubble.squaredDistanceToCamera, easingDistance*easingDistance) }
-        val player = entityTable.client.getEntity(bubble.player)
+        val player = bubble.player.minecraftEntityNullable
         val bubblePos = bubble.pos
         val alpha = bubble.opacity
 

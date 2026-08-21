@@ -8,7 +8,7 @@ import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.world.BulletFireEvent
 import org.lain.engine.world.BulletParameters
-import org.lain.engine.world.RecoilImpulseEvent
+import org.lain.engine.world.RecoilEvent
 import org.lain.engine.world.ShootGeometry
 import org.lain.engine.world.SmokeGeometry
 import org.lain.engine.world.World
@@ -121,7 +121,7 @@ fun World.tickGunSystem() {
             val shoot = ShootGeometry(start, rotationVector)
             val parameters = BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)
             emitEvent(
-                RecoilImpulseEvent(shooter, shoot, parameters)
+                RecoilEvent(shooter, shoot, parameters)
             )
             emitEvent(
                 BulletFireEvent(

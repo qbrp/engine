@@ -1,10 +1,10 @@
 package org.lain.engine.player
 
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.chat.*
 import org.lain.engine.util.flush
+import org.lain.engine.world.World
 import java.util.concurrent.ConcurrentLinkedQueue
 
 data class Speak(
@@ -25,38 +25,39 @@ fun EnginePlayer.flushMessages(todo: (Speak) -> Unit) {
     get<MessageQueue>()?.messages?.flush(todo)
 }
 
-fun updatePlayerSpeaking(
-    player: EnginePlayer,
+fun World.tickPlayerSpeakSystem(
     chat: EngineChat,
     vocalSettings: VocalSettings,
 ) {
-    player.flushMessages { message ->
-        val channel = chat.getChannel(message.channel)
-        val volume = message.volume ?: player.volume
-        var content = message.content
+    iterate<PlayerComponent, MessageQueue>() { _, (player), (messages) ->
+        messages.flush { message ->
+            val channel = chat.getChannel(message.channel)
+            val volume = message.volume ?: player.volume
+            var content = message.content
 
-        if (channel.speech) {
-            val voiceLoosed = !player.canSpeakUnlimited
+            if (channel.speech) {
+                val voiceLoosed = !player.canSpeakUnlimited
 
-            if (voiceLoosed) {
-                content = voiceLoosenContent()
-            }
+                if (voiceLoosed) {
+                    content = voiceLoosenContent()
+                }
 
-            if (channel.acoustic is Acoustic.Realistic) {
-                val breakVoice = player.updateVoiceApparatus(chat, volume, vocalSettings)
-                if (breakVoice) {
-                    content = voiceBrokenContent(content, 0.5f)
+                if (channel.acoustic is Acoustic.Realistic) {
+                    val breakVoice = player.updateVoiceApparatus(chat, volume, vocalSettings)
+                    if (breakVoice) {
+                        content = voiceBrokenContent(content, 0.5f)
+                    }
                 }
             }
-        }
 
-        chat.processMessage(
-            IncomingMessage(
-                content,
-                volume,
-                message.channel,
-                MessageSource.getPlayer(player, channel)
+            chat.processMessage(
+                IncomingMessage(
+                    content,
+                    volume,
+                    message.channel,
+                    MessageSource.getPlayer(player, channel)
+                )
             )
-        )
+        }
     }
 }

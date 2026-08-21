@@ -4,8 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.handle
+import org.lain.engine.player.PlayerComponent
 import org.lain.engine.script.DebugEntry.*
 import org.lain.engine.script.DebugPrimitive.*
 import org.lain.engine.script.lua.library.LuaEntityComponent
@@ -124,11 +125,12 @@ data class EntityDebugViewComponent(
     var lastSnapshotTime: Int = 20
 ) : Component
 
-context(world: World)
-fun handleEntityDebugView(handler: ServerHandler, player: EnginePlayer) = player.handle<EntityDebugViewComponent> {
-    if (lastSnapshotTime-- <= 0) {
-        lastSnapshotTime = 20 * 2 // 2 секунды
-        handler.onEntityDebugSnapshot(player, entity.snapshotDebugData().toDto())
+fun World.tickEntityDebugViewSnapshotSystem(handler: ServerHandler) {
+    iterate<PlayerComponent, EntityDebugViewComponent>() { _, (player), view ->
+        if (view.lastSnapshotTime-- <= 0) {
+            view.lastSnapshotTime = 20 * 2 // 2 секунды
+            handler.onEntityDebugSnapshot(player, view.entity.snapshotDebugData().toDto())
+        }
     }
 }
 

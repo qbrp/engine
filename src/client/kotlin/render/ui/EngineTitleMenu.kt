@@ -18,22 +18,16 @@ import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
-import net.minecraft.util.ARGB
 import net.minecraft.util.Mth
 import net.minecraft.util.RandomSource
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.account.ConnectionState
-import org.lain.engine.client.mc.ClientMixinAccess
+import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.mc.engineId
 import org.lwjgl.glfw.GLFW
-import org.slf4j.LoggerFactory
 import kotlin.math.PI
-import kotlin.math.ceil
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -155,7 +149,7 @@ class EngineTitleMenu(
         if (click.button() == GLFW.GLFW_MOUSE_BUTTON_1) {
             val status = authorizationStatus(client)
             if (isAuthorizationStatusHovered(click.x(), click.y(), status.text)) {
-                ClientMixinAccess.setDiscordAuthorizationScreen()
+                ClientMixin.setDiscordAuthorizationScreen()
                 return true
             }
         }

@@ -60,7 +60,8 @@ class Workspace(
                 }
             }
         }
-        gameSession.callbacks.of(ClientCallbacks.WORKSPACE_OPEN)?.execute(ClientScriptContext.WorkspaceOpen(this))
+        gameSession.simulation.callbacks.of(ClientCallbacks.WORKSPACE_OPEN)
+            ?.execute(ClientScriptContext.WorkspaceOpen(this))
     }
 
     override fun mouseDragged(mouseButtonEvent: MouseButtonEvent, d: Double, e: Double): Boolean {

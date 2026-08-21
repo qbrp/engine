@@ -4,7 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.model.ItemTransform;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.render.item.RenderStateKt;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -33,7 +33,7 @@ public class ItemRenderStateMixin {
             }
         }
 
-        if (ClientMixinAccess.INSTANCE.getEngineClient().getDeveloperMode()) {
+        if (ClientMixin.INSTANCE.getEngineClient().getDeveloperMode()) {
             for (int l = 0; l < this.activeLayerCount; ++l) {
                 ItemStackRenderState.LayerRenderState renderState = this.layers[l];
                 ItemTransform transformations = RenderStateKt.getAdditionalTransformations(renderState);

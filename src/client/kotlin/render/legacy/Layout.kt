@@ -43,7 +43,6 @@ fun updateCompositionUiState(
         )
     }
 
-    features.head = fragment.playerHead
     listeners.apply {
         click = fragment.onClick
         render = fragment.onRender

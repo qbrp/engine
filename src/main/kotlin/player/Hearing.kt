@@ -1,16 +1,16 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.chat.EngineChatSettings
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.chat.distort
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.server.markDirty
-import org.lain.cyberia.ecs.Component
 import org.lain.engine.util.flush
+import org.lain.engine.world.World
 import java.util.*
-import kotlin.math.max
 
 @Serializable
 data class Tinnitus(
@@ -53,14 +53,18 @@ fun updateHearing(player: EnginePlayer) = player.handle<Hearing>() {
 
 const val TINNITUS_HEAR_THRESHOLD = 0.2f
 
-fun updateAcousticHearing(player: EnginePlayer, handler: ServerHandler, settings: EngineChatSettings) = player.flushAcousticMessages { (message, recipient) ->
-    var message = message
-    val hearingLoss = player.require<Hearing>().loss
-    val distortion = ((hearingLoss - TINNITUS_HEAR_THRESHOLD) / (1f - TINNITUS_HEAR_THRESHOLD)).coerceIn(0f, 1f)
-    if (distortion > 0f) {
-        message = message.copy(text = message.text.distort(distortion, settings.distortionArtifacts))
+fun World.tickAcousticHearingSystem(handler: ServerHandler, settings: EngineChatSettings) {
+    iterate<PlayerComponent, Hearing, AcousticMessageQueue>() { _, (player), hearing, (queue) ->
+        queue.flush { (message, recipient) ->
+            var message = message
+            val hearingLoss = player.require<Hearing>().loss
+            val distortion = ((hearingLoss - TINNITUS_HEAR_THRESHOLD) / (1f - TINNITUS_HEAR_THRESHOLD)).coerceIn(0f, 1f)
+            if (distortion > 0f) {
+                message = message.copy(text = message.text.distort(distortion, settings.distortionArtifacts))
+            }
+            handler.onOutcomingMessage(recipient, message)
+        }
     }
-    handler.onOutcomingMessage(recipient, message)
 }
 
 

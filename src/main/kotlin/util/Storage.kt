@@ -9,6 +9,9 @@ class IdCollisionException(id: Any) : RuntimeException("Object with id $id alrea
 open class Storage<K : Any, T : Any> : Iterable<T> {
     protected open val map = mutableMapOf<K, T>()
 
+    val values
+        get() = map.values
+
     fun get(key: K): T? {
         return map[key]
     }

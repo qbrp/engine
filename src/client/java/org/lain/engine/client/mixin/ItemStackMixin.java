@@ -14,10 +14,11 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.component.TooltipProvider;
 import org.jetbrains.annotations.Nullable;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mc.UtilKt;
+import org.lain.engine.mc.InventoryActionsKt;
 import org.lain.engine.mc.ItemStacksKt;
-import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.mc.ServerMixin;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -33,12 +34,17 @@ import java.util.function.Consumer;
 
 @Mixin(ItemStack.class)
 public abstract class ItemStackMixin {
-    @Shadow @Final
+    @Shadow
+    @Final
     PatchedDataComponentMap components;
 
-    @Shadow public abstract Item getItem();
+    @Shadow
+    public abstract Item getItem();
 
-    @Shadow @Final @Deprecated private @Nullable Item item;
+    @Shadow
+    @Final
+    @Deprecated
+    private @Nullable Item item;
 
     @Shadow
     public abstract <T extends TooltipProvider> void addToTooltip(DataComponentType<T> dataComponentType, Item.TooltipContext tooltipContext, TooltipDisplay tooltipDisplay, Consumer<Component> consumer, TooltipFlag tooltipFlag);
@@ -79,10 +85,10 @@ public abstract class ItemStackMixin {
             Consumer<Component> textConsumer,
             CallbackInfo ci
     ) {
-        Integer engineItem = getEngineItem((ItemStack)((Object)this));
+        Integer engineItem = getEngineItem((ItemStack) ((Object) this));
         if (engineItem != null) {
             addToTooltip(DataComponents.LORE, context, displayComponent, textConsumer, type);
-            for (String line : ClientMixinAccess.INSTANCE.getTooltip(engineItem, type.isAdvanced())) {
+            for (String line : ClientMixin.INSTANCE.getTooltip(engineItem, type.isAdvanced())) {
                 textConsumer.accept(UtilKt.parseMiniMessageClient(line));
             }
         }
@@ -101,14 +107,14 @@ public abstract class ItemStackMixin {
         if (!player.level().isClientSide()) return;
         ItemStack slotStack = slot.getItem();
         Integer slotItem = getEngineItem(slotStack);
-        Integer item = getEngineItem((ItemStack) (Object)this);
+        Integer item = getEngineItem((ItemStack) (Object) this);
         if (slotItem != null && item != null) {
-            cir.setReturnValue(ServerMixinAccess.INSTANCE.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object)this, player, clickAction));
+            cir.setReturnValue(InventoryActionsKt.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object) this, player, clickAction));
         }
     }
 
     @Unique
     private static Integer getEngineItem(ItemStack itemStack) {
-        return ClientMixinAccess.INSTANCE.getEngineItem(itemStack);
+        return ClientMixin.INSTANCE.getEngineItem(itemStack);
     }
 }

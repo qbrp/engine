@@ -18,7 +18,6 @@ import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.server.*
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
-import org.lain.engine.util.Storage
 import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.server.Networked
 import org.lain.engine.util.math.Pos
@@ -27,7 +26,7 @@ import org.lain.engine.world.World
 import java.util.*
 import kotlin.apply
 
-data class Player(val obj: EnginePlayer) : Component
+data class PlayerComponent(val obj: EnginePlayer) : Component
 
 data class PlayerInstantiateSettings(
     val world: World,
@@ -43,7 +42,7 @@ data class PlayerInstantiateSettings(
 )
 
 data class DefaultPlayerAttributes(
-    val movement: MovementDefaultAttributes = MovementDefaultAttributes(),
+    val movement: MovementDefaultAttributes = MovementDefaultAttributes.BUILTIN,
     val minVolume: Float = 0.2f,
     val maxVolume: Float = 1.3f,
     val baseVolume: Float = 5f,
@@ -76,16 +75,12 @@ fun commonPlayerInstance(
             setComponent(settings.movementStatus)
             setComponent(settings.mode)
             setComponent(settings.attributes)
-            setComponent(
-                Synchronizations<EnginePlayer>(mutableMapOf())
-                    .also { it.initializeSynchronizers() }
-            )
             if (settings.replayViewer) {
                 setComponent(ReplayViewer)
             }
         }
     val player = EnginePlayer(id, entity, world = settings.world)
-    entity.setComponent(Player(player))
+    entity.setComponent(PlayerComponent(player))
     return player
 }
 
@@ -115,17 +110,6 @@ fun serverPlayerInstance(
     return player
 }
 
-private fun Synchronizations<EnginePlayer>.initializeSynchronizers() {
-    submit(PLAYER_CUSTOM_NAME_SYNCHRONIZER)
-    submit(PLAYER_SPEED_INTENTION_SYNCHRONIZER)
-    submit(PLAYER_NARRATION_SYNCHRONIZER)
-    submit(PLAYER_ATTRIBUTES_SYNCHRONIZER)
-    submit(PLAYER_MODEL_SYNCHRONIZER)
-    submit(PLAYER_HEARING_SYNCHRONIZER)
-}
-
-typealias PlayerStorage = Storage<PlayerId, EnginePlayer>
-
 data class PlayerLoadSettings(
     val playerId: PlayerId,
     val inventoryItems: List<PersistentId>,
@@ -136,7 +120,7 @@ data class PlayerLoadSettings(
     val world: World,
     val isReplayViewer: Boolean = false,
     val persistentPlayerData: PersistentPlayerData?,
-    val playerMode: PlayerMode
+    val playerMode: PlayerMode,
 ) {
     data class Account(val character: EngineCharacter?)
 }
@@ -148,7 +132,7 @@ class PlayerLoader(
     suspend fun loadPreparing(
         settings: PlayerLoadSettings,
         account: PlayerLoadSettings.Account
-    ) {
+    ): EnginePlayer {
         if (server.playerStorage.get(settings.playerId) != null) {
             friendlyError("Игрок уже находится на сервере")
         }
@@ -162,7 +146,7 @@ class PlayerLoader(
             ItemLoadContext.PreparingPlayer(settings.playerId, settings.username)
         )
         val location = Location(settings.initialPosition)
-        with(EntityCommandBuffer(world)) {
+        return with(EntityCommandBuffer(world)) {
             val player = serverPlayerInstance(world, settings, inventoryLoadResult, persistent)
             val character = account.character
             val persistentCharacterData = persistent?.characters[character?.profile?.id]
@@ -180,8 +164,13 @@ class PlayerLoader(
             withContext(server.dispatcher) {
                 //server.itemLoader.apply(world)
                 apply(world)
-                server.instantiatePlayer(player, settings.notifications, character, persistentCharacterData)
-                server.handler.onCharacterApplyConfirmation(player)
+                server.instantiatePlayer(
+                    player,
+                    settings.notifications,
+                    character,
+                    persistentCharacterData,
+                )
+                player
             }
         }
     }
@@ -266,8 +255,8 @@ fun EnginePlayer.prepareContainers(
         networked = true,
         persistentId = persistentId("inventory-$playerUuid"),
     )
-    void.setComponent(PlayerContainerTag)
-    entity.setComponent(PlayerContainer(void))
+    void.entity.setComponent(PlayerContainerTag)
+    entity.setComponent(PlayerContainer(void.entity))
 
     val container = componentAccess.createSlotContainer(
         location,
@@ -276,6 +265,6 @@ fun EnginePlayer.prepareContainers(
         items = equipmentItems.mapKeys { (slot, _) -> slot.slotId },
         persistentId = persistentId
     )
-    container.setComponent(PlayerEquipment(this@prepareContainers))
+    container.entity.setComponent(PlayerEquipment(this@prepareContainers))
     entity.setComponent(Equipment(container))
 }

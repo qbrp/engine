@@ -64,6 +64,18 @@ val CLIENTBOUND_ENTITY_DELTA_ENDPOINT = Endpoint<EntityDeltaPacket>(
 )
 
 @Serializable
+data class PlayerInputProcessedPacket(
+    val processedInputTick: Long,
+) : Packet
+
+val CLIENTBOUND_PLAYER_INPUT_PROCESSED_ENDPOINT = Endpoint<PlayerInputProcessedPacket>()
+
+@Serializable
+data class EntityResyncRequestPacket(val persistentId: PersistentId) : Packet
+
+val SERVERBOUND_ENTITY_RESYNC_REQUEST_ENDPOINT = Endpoint<EntityResyncRequestPacket>()
+
+@Serializable
 data class WorldStateDeltaPacket(
     val snapshot: EntityNetworkSnapshot
 ) : Packet

@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import net.minecraft.client.gui.GuiGraphics
+import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.easeInOutCubic
@@ -19,15 +20,15 @@ import java.util.concurrent.atomic.AtomicReference
 // пытаясь обуздать его логику. В конце концов оказалось, что он не может рендерить одновременно себя с уже открытым экраном.
 // Спасибо блять!!!
 class CharacterApplyConfirmationWaitOverlay(
-    private val characterResponseDeferred: CompletableDeferred<Unit>,
-    private val onClose: () -> Unit,
+    private val characterSelection: CharacterSelection,
     private val onFaded: () -> Unit,
+    private val onClose: () -> Unit,
 ) {
     private val client = MinecraftClient
-    sealed class State(var tick: Float) {
-        class FadeIn(val deferred: CompletableDeferred<Unit> = CompletableDeferred()) : State(0f)
-        class Wait : State(0f)
-        class FadeOut(val deferred: CompletableDeferred<Unit> = CompletableDeferred()) : State(0f)
+    sealed class State(var tick: Float = 0f) {
+        class FadeIn(val deferred: CompletableDeferred<Unit> = CompletableDeferred()) : State()
+        class Wait : State()
+        class FadeOut(val deferred: CompletableDeferred<Unit> = CompletableDeferred()) : State()
     }
     private val fadeIn = State.FadeIn()
     var state = AtomicReference<State>(fadeIn)
@@ -39,7 +40,7 @@ class CharacterApplyConfirmationWaitOverlay(
         try {
             withTimeout(5000L) {
                 state.set(State.Wait())
-                characterResponseDeferred.await()
+                characterSelection.awaitConfirmation()
             }
         } catch (e: TimeoutCancellationException) {
             close()
@@ -58,9 +59,7 @@ class CharacterApplyConfirmationWaitOverlay(
     }
 
     private fun close() {
-        client.execute {
-            onClose.invoke()
-        }
+        client.execute { onClose.invoke() }
     }
 
     fun render(

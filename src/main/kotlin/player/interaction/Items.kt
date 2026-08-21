@@ -21,7 +21,7 @@ import org.lain.engine.item.WRITEABLE_OPEN_SOUND
 import org.lain.engine.item.Writable
 import org.lain.engine.item.WritableOpen
 import org.lain.engine.item.emitPlaySoundEvent
-import org.lain.engine.player.Player
+import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.handItem
 import org.lain.engine.world.World
@@ -40,7 +40,7 @@ object StopShootAction : Component
 data class Shooting(val mainHand: Boolean, val offHand: Boolean) : Component
 
 fun World.tickGunActionSystem() {
-    iterate<StartShootAction, Player> { entity, intent, (player) ->
+    iterate<StartShootAction, PlayerComponent> { entity, intent, (player) ->
         entity.setComponent(Shooting(mainHand = true, offHand = false))
         entity.removeComponent<StartShootAction>()
         entity.syncAction(intent)
@@ -59,15 +59,15 @@ fun World.tickGunActionSystem() {
         if (byOffHand) inventory.offHandItem?.setComponent(GunTriggerPressed)
     }
 
-    iterate<GunModeToggleAction, Player> { entity, intent, (player) ->
+    iterate<GunModeToggleAction, PlayerComponent> { entity, intent, (player) ->
         val gunItem = player.handItem ?: return@iterate
         gunItem.setComponent(GunModeToggle)
         entity.syncAction(intent)
         entity.removeComponent<GunModeToggleAction>()
     }
 
-    if (!isClient) {
-        iterate<GunLoadAction, Player> { entity, (gunItem, loadItem), (player) ->
+    if (!simulation.isClient) {
+        iterate<GunLoadAction, PlayerComponent> { entity, (gunItem, loadItem), (player) ->
             val loadItemId = loadItem.requireComponent<Item>().id
             if (loadItem.hasComponent<Magazine>() && loadItemId == gunItem.getComponent<GunMagazines>()?.supports) {
                 gunItem.setComponent(GunMagazineLoad(player, loadItem))
@@ -83,7 +83,7 @@ fun World.tickGunActionSystem() {
 object WritableOpenAction : Component
 
 fun World.tickWritableActionSystem() {
-    iterate<WritableOpenAction, Player>() { entity, action, (player) ->
+    iterate<WritableOpenAction, PlayerComponent>() { entity, action, (player) ->
         val handItem = player.handItem ?: return@iterate
         entity.emitPlaySoundEvent(WRITEABLE_OPEN_SOUND)
         entity.setComponent(WritableOpen(handItem.getComponent<Writable>() ?: return@iterate))

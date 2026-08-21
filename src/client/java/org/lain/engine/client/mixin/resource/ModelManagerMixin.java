@@ -6,11 +6,10 @@ import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.client.resources.model.UnbakedModel;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.resources.ItemAssetLoaderKt;
 import org.lain.engine.client.resources.ModelLoaderKt;
 import org.lain.engine.client.resources.ResourceList;
-import org.luaj.vm2.ast.Str;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -28,7 +27,7 @@ import java.util.concurrent.Executor;
 public class ModelManagerMixin {
     @Unique
     private static ResourceList resources() {
-        return ClientMixinAccess.INSTANCE.getResourceList();
+        return ClientMixin.INSTANCE.getResourceList();
     }
 
     @Redirect(

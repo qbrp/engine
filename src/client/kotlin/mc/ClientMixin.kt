@@ -2,10 +2,8 @@ package org.lain.engine.client.mc
 
 import net.minecraft.client.model.player.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
-import net.minecraft.client.player.AbstractClientPlayer
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.client.renderer.entity.state.AvatarRenderState
-import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.resources.Identifier
 import net.minecraft.sounds.SoundSource
@@ -15,7 +13,6 @@ import net.minecraft.world.entity.player.PlayerSkin
 import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.client.account.ConnectionState
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
 import org.lain.engine.client.render.getSkin
@@ -36,6 +33,8 @@ import org.lain.engine.item.getTooltip
 import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.engineId
+import org.lain.engine.mc.getEngineState
+import org.lain.engine.mc.replacePlayerMinecraftState
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
 import org.lain.engine.player.PlayerId
@@ -43,10 +42,9 @@ import org.lain.engine.player.get
 import org.lain.engine.player.require
 import org.lain.engine.player.interaction.processLeftClickInteraction
 import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.util.injectEntityTable
 import org.lain.engine.util.injectValue
 
-object ClientMixinAccess {
+object ClientMixin {
     private val client by injectClient()
     private val minecraftClient by injectMinecraftClient()
     private val mainPlayer get() = client.gameSession?.mainPlayer
@@ -55,7 +53,7 @@ object ClientMixinAccess {
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
-    fun shouldFocusChat() = MinecraftClient.screen is Workspace
+    fun shouldFocusChatIfNot() = MinecraftClient.screen is Workspace
 
     fun canCloseLevelLoadingScreen() = client.joinFlow?.canCloseLevelLoadingScreen ?: false
 
@@ -125,8 +123,7 @@ object ClientMixinAccess {
 
     fun updatePlayerRenderState(playerLikeEntity: Avatar, playerEntityRenderState: AvatarRenderState, model: PlayerModel) {
         if (playerLikeEntity !is Player) return
-        val entityTable by injectEntityTable()
-        val enginePlayer = entityTable.client.getPlayer(playerLikeEntity) ?: return
+        val enginePlayer = playerLikeEntity.getEngineState() ?: return
         val renderState = enginePlayer.get<RenderStateComponent>()?.renderState ?: return
         renderState.detachedEquipment.forEach { it.playerModelPart = modelPartOf(it.playerPart, model) }
         playerEntityRenderState.update(enginePlayer)
@@ -146,7 +143,7 @@ object ClientMixinAccess {
 
     fun getEngineItemModel(itemStack: ItemStack): Identifier? {
         val gameSession = client.gameSession ?: return null
-        val engineItem = itemStack.engine()?.getClientItem(client) ?: return null
+        val engineItem = itemStack.engine()?.getClientItem(gameSession) ?: return null
 
         return with(gameSession.world) {
             val path = resolveItemAsset(engineItem)
@@ -156,7 +153,7 @@ object ClientMixinAccess {
 
     fun getEngineItem(itemStack: ItemStack): EngineItem? {
         return client.gameSession?.let {
-            itemStack.engine()?.getClientItem(client)
+            itemStack.engine()?.getClientItem(it)
         }
     }
 
@@ -170,8 +167,12 @@ object ClientMixinAccess {
         return with(gameSession.world) { !processLeftClickInteraction(gameSession.mainPlayer) }
     }
 
-    fun onCursorStackSet(itemStack: ItemStack?) {
-        val engineItem = if (itemStack?.isEmpty == true) null else itemStack?.engine()?.getClientItem(client)
+    fun onCursorStackSet(itemStack: ItemStack?) = client.gameSession?.let {
+        val engineItem = if (itemStack?.isEmpty == true) {
+            null
+        } else {
+            itemStack?.engine()?.getClientItem(it)
+        }
         client.handler.onCursorItem(engineItem)
     }
 
@@ -196,13 +197,7 @@ object ClientMixinAccess {
     fun isHotbarIndicatorsVisible() = client.options.crosshairIndicatorVisible
 
     fun onClientPlayerEntityInitialized(entity: LocalPlayer) {
-        val entityTable by injectEntityTable()
-        val table = entityTable.client
-        val player = table.getPlayer(entity)
-        if (player != null) {
-            table.removePlayer(entity)
-            table.setPlayer(entity, player)
-        }
+        replacePlayerMinecraftState(entity)
     }
 
     fun sendChatMessage(content: String) {

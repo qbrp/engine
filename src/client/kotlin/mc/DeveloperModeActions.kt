@@ -6,7 +6,6 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
-import org.lain.engine.client.render.ui.TestGrapheneScreen
 import org.lain.engine.client.render.ui.TransformationsEditorScreen
 import org.lain.engine.client.render.ui.WebDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
@@ -49,13 +48,13 @@ fun registerDeveloperModeDecalsDebug(decalsStorage: DecalSystem, engineClient: E
     }
 }
 
-fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClient()) {
+fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) {
     if (isControlDown() && developerMode) {
         if (ticks - developerModeKeyPressedTick > 20) {
             developerModeKeyPressedTick = ticks
             if (key == GLFW.GLFW_KEY_1) {
                 audioManager.playPigScreamSound()
-                applyLittleNotification(
+                showNotification(
                     LittleNotification(
                         "Проигран звук",
                         "funny/pig-scream.ogg",
@@ -80,7 +79,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                 }
 
                 val end = start.timeElapsed()
-                applyLittleNotification(
+                showNotification(
                     LittleNotification(
                         "Добавлено 100 случайных сообщений",
                         "Время: ${end} мл.",
@@ -98,7 +97,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixinAccess.getEngineClie
                 val gameSession = gameSession ?: return@with true
                 MinecraftClient.setScreen(WebDebugScreen(gameSession.client.resources))
             } else if (key == GLFW.GLFW_KEY_7){
-                ClientMixinAccess.setGrapheneTestScreen()
+                ClientMixin.setGrapheneTestScreen()
             } else {
                 return@with false
             }

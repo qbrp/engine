@@ -1,13 +1,19 @@
 package org.lain.engine.client.util
 
+import org.lain.engine.client.EngineClient
 import org.lain.engine.client.render.EXCLAMATION_RED
 import org.lain.engine.client.render.EngineSprite
+import org.lain.engine.client.render.MAP
 import org.lain.engine.client.render.QUESTION
+import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.server.Notification
 import org.lain.engine.util.Color
 import org.lain.engine.util.DEFAULT_TEXT_COLOR
+import org.lain.engine.util.DEV_MODE_COLOR
 import org.lain.engine.util.FREECAM_WARNING_COLOR
+import org.lain.engine.util.INSPECTION_MODE_COLOR
+import org.lain.engine.util.SPECTATOR_MODE_COLOR
 import org.lain.engine.util.WARNING_COLOR
 
 data class LittleNotification(
@@ -102,3 +108,56 @@ data class LittleNotification(
 }
 
 const val SPECTATOR_NOTIFICATION = "spectator"
+
+fun EngineClient.showInpectionModeToggleNotification(value: Boolean) {
+    val description = if (value) {
+        "Подсказки будут автоматически отображаться при взгляде на блок"
+    } else {
+        "Выключен"
+    }
+    showNotification(
+        LittleNotification(
+            title = "Режим исследования",
+            description = description,
+            color = INSPECTION_MODE_COLOR,
+            sprite = MAP
+        )
+    )
+}
+
+fun EngineClient.showCompilationErrorNotification(e: Exception) {
+    showNotification(
+        LittleNotification(
+            "Ошибка компиляции клиента",
+            "${e.message ?: "Неизвестная ошибка"}<newline>Проверьте консоль для более подробной информации.",
+            WARNING_COLOR,
+            WARNING,
+            lifeTime = 240
+        )
+    )
+}
+
+fun EngineClient.showSpectatingNotification() {
+    showNotification(
+        LittleNotification(
+            "Наблюдение",
+            "Введите команду /spawn для появления",
+            SPECTATOR_MODE_COLOR,
+            sprite = QUESTION,
+            lifeTime = 200
+        ),
+        SPECTATOR_NOTIFICATION
+    )
+}
+
+fun EngineClient.showAcousticDebugNotification(enabled: Boolean) {
+    val text = if (enabled) "Включена" else "Выключена"
+    showNotification(
+        LittleNotification(
+            "Отладка акустики",
+            text,
+            DEV_MODE_COLOR,
+            VOICE_WARNING
+        )
+    )
+}

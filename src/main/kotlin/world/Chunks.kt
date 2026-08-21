@@ -5,10 +5,9 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.storage.ComponentLoadSettings
 import org.lain.engine.storage.Uuid
-import org.lain.engine.util.injectEngineServer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt
 import org.slf4j.LoggerFactory
@@ -84,7 +83,7 @@ fun getBlockCoord(sectionCoord: Int): Int {
 
 class ChunkStorage(
     private val world: World,
-    private val componentLoadSettings: ComponentLoadSettings,
+    private val server: EngineServer? = null
 ) {
     private val chunks = mutableMapOf<Long, EngineChunk>()
 
@@ -142,9 +141,8 @@ class ChunkStorage(
     }
 
     private fun loadChunk(pos: EngineChunkPos): EngineChunk? {
-        val server by injectEngineServer()
         return try {
-            server.chunkLoader.loadChunk(world, pos)
+            server?.chunkLoader?.loadChunk(world, pos)
         } catch (e: Throwable) {
             LOGGER.error("Ошибка загрузки чанка $pos", e)
             null
@@ -167,7 +165,7 @@ data class VoxelDestroyEvent(
     val hint: Hint?
 ) : Component
 
-fun interface EnginePlayersWatchingChunkProvider  {
+fun interface EnginePlayersWatchingChunkProvider {
     fun getPlayersWatchingChunk(pos: EngineChunkPos): Collection<EnginePlayer>
 }
 

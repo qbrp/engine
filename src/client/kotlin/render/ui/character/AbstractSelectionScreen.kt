@@ -4,22 +4,29 @@ import kotlinx.coroutines.CompletableDeferred
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.KeyEvent
-import org.lain.engine.client.account.SkinTextureManager
+import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.mc.literalText
-import org.lain.engine.player.character.EngineCharacter
 
-abstract class AbstractSelectionScreen<T> : Screen(literalText("Character selection")) {
+abstract class AbstractSelectionScreen<T>(
+    protected val characterSelection: CharacterSelection,
+) :
+    Screen(literalText("Character selection"))
+{
     abstract val looksWheel: LooksWheel<T>
+    val selection = CompletableDeferred<T?>()
     var overlay: CharacterApplyConfirmationWaitOverlay? = null
 
-    abstract fun onEntrySelected(selected: LooksWheel.Entry<T>)
-
     protected fun selectEntry(selected: LooksWheel.Entry<T>?) {
+        if (overlay != null) return
         if (selected == null) {
             onClose()
             return
         }
-        onEntrySelected(selected)
+        overlay = CharacterApplyConfirmationWaitOverlay(
+            characterSelection,
+            onClose = { onClose() },
+            onFaded = { selection.complete(selected.result) }
+        )
     }
 
     override fun init() {
@@ -28,6 +35,7 @@ abstract class AbstractSelectionScreen<T> : Screen(literalText("Character select
     }
 
     override fun keyPressed(keyEvent: KeyEvent): Boolean {
+        if (overlay != null) return true
         return if (keyEvent.isEscape) {
             onClose()
             true
@@ -38,7 +46,16 @@ abstract class AbstractSelectionScreen<T> : Screen(literalText("Character select
         }
     }
 
-    private fun isFadingOut() = overlay?.state?.get() is CharacterApplyConfirmationWaitOverlay.State.FadeOut
+    override fun onClose() {
+        if (!selection.isCompleted) {
+            selection.complete(null)
+        }
+        overlay?.job?.cancel()
+        super.onClose()
+    }
+
+    private fun isFadingOut() =
+        overlay?.state?.get() is CharacterApplyConfirmationWaitOverlay.State.FadeOut
 
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {
         super.render(guiGraphics, mouseX, mouseY, deltaTicks)

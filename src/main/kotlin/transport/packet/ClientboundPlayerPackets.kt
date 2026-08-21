@@ -35,7 +35,7 @@ val CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT = Endpoint<ScriptsRecompileEndpoint>()
 
 @Serializable
 data class CharacterApplyConfirmationPacket(
-    val requestId: Long? = null,
+    val requestId: Long,
     val errorMessage: String? = null
 ) : Packet {
     override val requireAuthorized: Boolean = false

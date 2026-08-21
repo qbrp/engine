@@ -3,8 +3,8 @@ package org.lain.engine.mc.commands
 import com.sk89q.worldedit.WorldEdit
 import com.sk89q.worldedit.fabric.FabricAdapter
 import org.lain.engine.mc.getWorld
-import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.isClassAvailable
+import org.lain.engine.util.requireEngineMinecraftServer
 import org.lain.engine.world.BULLET_DAMAGE_DECALS_LAYER
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.removeDecals
@@ -12,7 +12,7 @@ import org.lain.engine.world.removeDecals
 val WORLD_EDIT_AVAILABLE = isClassAvailable("com.sk89q.worldedit.WorldEdit")
 
 fun ServerCommandDispatcher.registerWorldEditCommands() {
-    val server by injectMinecraftEngineServer()
+    val server by lazy { requireEngineMinecraftServer() }
     val sessionManager = WorldEdit.getInstance().sessionManager
 
     val decalLayers = listOf(

@@ -2,13 +2,12 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.require
+import org.lain.cyberia.ecs.ReadComponentAccess
+import org.lain.engine.container.ContainerEntity
 import org.lain.engine.container.SlotId
-import org.lain.engine.container.collectContainedRecursive
+import org.lain.engine.container.collectEntriesRecursive
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.interaction.VerbType
-import org.lain.engine.world.World
 
 @Serializable
 enum class EquipmentSlot(name: String, val slotId: SlotId = SlotId(name)) {
@@ -25,22 +24,18 @@ enum class EquipmentSlot(name: String, val slotId: SlotId = SlotId(name)) {
     }
 }
 
-/**
- * # Снаряжение
- * Игрок может цеплять на себя предметы с компонентом одежды. Они складываются в линейный список
- * и накладывают `layer` на части `parts`
- */
-@Serializable
-data class Equipment(val containerId: EntityId) : Component
+
+data class Equipment(val container: ContainerEntity) : Component
 
 // Вешать на сущность контейнера
 data class PlayerEquipment(val player: EnginePlayer) : Component
 
-val EnginePlayer.equipmentContainer: EntityId
-    get() = this.require<Equipment>().containerId
+val EnginePlayer.equipmentContainer: ContainerEntity
+    get() = this.require<Equipment>().container
 
-fun EnginePlayer.collectOwnedItems(world: World = this.world): List<EngineItem> {
-    return world.collectContainedRecursive(equipmentContainer)
+context(access: ReadComponentAccess)
+fun EnginePlayer.collectOwnedItems(): List<EngineItem> {
+    return equipmentContainer.collectEntriesRecursive()
 }
 
 private val EQUIP_VERB = VerbType("equip", "Одеть")

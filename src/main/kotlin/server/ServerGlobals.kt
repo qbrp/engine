@@ -1,5 +1,6 @@
 package org.lain.engine.server
 
+import org.lain.engine.EngineSimulation
 import org.lain.engine.chat.EngineChatSettings
 import org.lain.engine.player.DefaultPlayerAttributes
 import org.lain.engine.player.MovementSettings

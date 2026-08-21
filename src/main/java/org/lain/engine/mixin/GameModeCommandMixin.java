@@ -1,12 +1,10 @@
 package org.lain.engine.mixin;
 
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.commands.GameModeCommand;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.gamerules.GameRules;
-import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.mc.ServerMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +19,7 @@ public class GameModeCommandMixin {
     )
     private static void engine$notifyGameModeChange(CommandSourceStack commandSourceStack, ServerPlayer serverPlayer, GameType gameType, CallbackInfo ci) {
         if (commandSourceStack.getEntity() == serverPlayer) {
-            ServerMixinAccess.INSTANCE.notifyPlayerGameModeChange(serverPlayer, gameType);
+            ServerMixin.INSTANCE.notifyPlayerGameModeChange(serverPlayer, gameType);
             ci.cancel();
         }
     }

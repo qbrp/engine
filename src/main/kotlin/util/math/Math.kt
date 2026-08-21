@@ -80,7 +80,7 @@ fun filterNearestPlayers(
     world: World,
     pos: Pos,
     radius: Int,
-    players: List<EnginePlayer> = world.players
+    players: Collection<EnginePlayer> = world.players
 ): List<EnginePlayer> {
     return players.filter {
         val l = it.get<Location>() ?: return@filter false

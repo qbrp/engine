@@ -12,11 +12,10 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.WritableBookContent;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mixin.render.ScreenAccessor;
 import org.lain.engine.item.Writable;
 import org.lain.engine.mc.CommonUtilKt;
-import org.lain.engine.util.IdKt;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -49,7 +48,7 @@ public abstract class BookEditScreenMixin {
             at = @At("TAIL")
     )
     public void engine$initialize(Player player, ItemStack stack, InteractionHand hand, WritableBookContent writableBookContent, CallbackInfo ci) {
-        writable = ClientMixinAccess.INSTANCE.getWriteable(stack);
+        writable = ClientMixin.INSTANCE.getWriteable(stack);
     }
 
     @Redirect(
@@ -131,7 +130,7 @@ public abstract class BookEditScreenMixin {
     )
     public void engine$finalize(CallbackInfo ci) {
         if (writable != null) {
-            ClientMixinAccess.INSTANCE.onBookClose(book, writable, pages);
+            ClientMixin.INSTANCE.onBookClose(book, writable, pages);
             ci.cancel();
         }
     }

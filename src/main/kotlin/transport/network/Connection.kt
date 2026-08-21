@@ -1,12 +1,15 @@
 package org.lain.engine.transport.network
 
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.network.ServerGamePacketListenerImpl
 import org.lain.engine.mc.DisconnectText
-import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.commands.FriendlyException
 import org.lain.engine.mc.getPlayer
+import org.lain.engine.mc.minecraftEntity
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.player.PlayerStorage
+import org.lain.engine.player.PlayerNotFoundException
 import org.lain.engine.player.Username
 import org.lain.engine.server.DesynchronizationException
 import java.util.*
@@ -20,15 +23,17 @@ data class ConnectionSession(
     val username: Username,
     val playerId: PlayerId,
     val isOp: Boolean,
-    var mods: Set<String> = emptySet()
+    val connection: ServerGamePacketListenerImpl,
+    var mods: Set<String> = emptySet(),
+    var player: EnginePlayer? = null
 )
 
 class ServerConnectionManager(
-    private val serverPlayerStorage: PlayerStorage,
     private val minecraftServer: MinecraftServer,
-    private val entityTable: EntityTable
 ) {
     private val sessions: ConcurrentHashMap<PlayerId, ConnectionSession> = ConcurrentHashMap()
+
+    fun iterateSessions(): Iterable<ConnectionSession> = sessions.values
 
     fun addConnectionSession(session: ConnectionSession) {
         sessions[session.playerId] = session
@@ -46,7 +51,9 @@ class ServerConnectionManager(
 
     fun disconnect(connectionSession: ConnectionSession, reason: String)  {
         val playerId = connectionSession.playerId
-        val entity = entityTable.server.getEntity(playerId) ?: minecraftServer.getPlayer(playerId) ?: error("$playerId player not found")
+        val entity = connectionSession.player?.minecraftEntity as? ServerPlayer
+            ?: minecraftServer.getPlayer(playerId)
+            ?: throw PlayerNotFoundException(playerId)
         val networkHandler = entity.connection
         networkHandler.disconnect(DisconnectText(reason))
     }

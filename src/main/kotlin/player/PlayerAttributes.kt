@@ -2,8 +2,6 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.require
-import org.lain.engine.server.markDirty
 
 @Serializable
 data class AttributeValue(var default: Float, var custom: Float? = null) {
@@ -80,12 +78,12 @@ val EnginePlayer.speed: Float
 
 fun EnginePlayer.setCustomSpeed(speed: Float) {
     attributes.speed.custom = speed
-    markDirty<PlayerAttributes>()
+    markUpdated<PlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomSpeed() {
     attributes.speed.resetCustom()
-    markDirty<PlayerAttributes>()
+    markUpdated<PlayerAttributes>()
 }
 
 val EnginePlayer.jumpStrength: Float
@@ -93,21 +91,21 @@ val EnginePlayer.jumpStrength: Float
 
 fun EnginePlayer.setCustomJumpStrength(value: Float) {
     attributes.jumpStrength.custom = value
-    markDirty<PlayerAttributes>()
+    markUpdated<PlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomJumpStrength() {
     attributes.jumpStrength.resetCustom()
-    markDirty<PlayerAttributes>()
+    markUpdated<PlayerAttributes>()
 }
 fun EnginePlayer.setCustomMaxSpeed(speed: Float) {
     attributes.maxSpeed.custom = speed
-    markDirty<PlayerAttributes>()
+    markUpdated<PlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomMaxSpeed() {
     attributes.maxSpeed.resetCustom()
-    markDirty<PlayerAttributes>()
+    markUpdated<PlayerAttributes>()
 }
 
 val EnginePlayer.flyingSpeed
@@ -118,6 +116,6 @@ fun EnginePlayer.setFlyingSpeed(speed: Float) {
     val oldCustom = attr.default
     if (oldCustom != speed) {
         attr.default = speed
-        markDirty<PlayerAttributes>()
+        markUpdated<PlayerAttributes>()
     }
 }

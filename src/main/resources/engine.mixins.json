@@ -7,7 +7,7 @@
     "BlockItemMixin",
     "BlockStateBaseMixin",
     "GameModeCommandMixin",
-    "GameModeMixin",
+    "ServerGameModeMixin",
     "ItemFrameMixin",
     "ItemStackMixin",
     "LevelMixin",
@@ -20,7 +20,6 @@
     "PlayerMixin",
     "ServerGamePacketListenerImpl",
     "ServerPlayerGameModeAccessor",
-    "ServerPlayerMixin",
     "WhisperCommandMixin"
   ],
   "accessWidener": "engine.classtweaker",

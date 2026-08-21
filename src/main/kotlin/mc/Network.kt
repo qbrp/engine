@@ -6,15 +6,12 @@ import net.minecraft.network.RegistryFriendlyByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.resources.Identifier
-import net.minecraft.server.level.ServerPlayer
-import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.deserializePacket
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.serializePacket
-import org.lain.engine.util.injectEntityTable
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 
@@ -36,18 +33,6 @@ fun <P : Packet> registerServerReceiverInternal(
 
 fun unregisterServerReceiverInternal(channel: Endpoint<*>) {
     ServerPlayNetworking.unregisterGlobalReceiver(channel.minecraftIdentifier)
-}
-
-private val ENTITY_TABLE by injectEntityTable()
-
-fun <P : Packet> sendClientboundPacketInternal(endpoint: Endpoint<P>, player: PlayerId, packet: P, id: Long) {
-    val payload = EnginePayload(
-        id,
-        packet,
-        PayloadRegistry.payloadOf(endpoint),
-    )
-    val player = ENTITY_TABLE.server.getEntity(player) as? ServerPlayer ?: return
-    ServerPlayNetworking.send(player, payload)
 }
 
 typealias PayloadId<T> = CustomPacketPayload.Type<T>

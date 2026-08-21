@@ -113,7 +113,7 @@ data class ContainedInDto(val container: PersistentId) : ComponentData
 data class ActionSyncEventDto(
     val entity: PersistentIdComponent,
     val action: ComponentDto,
-    val tick: Long
+    val interactionId: InteractionId,
 ) : ComponentData
 
 // на клиенте превращается в EntityRpcQueue
@@ -138,13 +138,13 @@ fun Component.toSnapshotDto(): ComponentDto {
         //TODO: проработать Lua-bridge через абстракцию
         is ScriptComponent -> ScriptComponentDto(value)
         is Count -> CopyComponentDto(this.copy())
-        is Entries -> CopyComponentDto(Entries(items.toMutableList()))
+        is Entries -> CopyComponentDto(Entries(items.toMutableSet()))
         is Flashlight -> CopyComponentDto(this.copy())
         is GunFireState -> CopyComponentDto(this.copy())
         is GunMagazines -> CopyComponentDto(this.copy())
         is Barrel -> CopyComponentDto(this.copy())
         is Luminance -> CopyComponentDto(this.copy())
-        is OccupiedSlots -> CopyComponentDto(OccupiedSlots(slots.toMutableSet()))
+        is OccupiedSlots -> CopyComponentDto(OccupiedSlots(slots.toMutableMap()))
         is Writable -> CopyComponentDto(this.copy())
         is Parent -> ParentComponentDto(false, entity.requireComponent())
         is Children -> ChildrenComponentDto(
@@ -156,7 +156,7 @@ fun Component.toSnapshotDto(): ComponentDto {
         is ActionSyncEvent -> ActionSyncEventDto(
             entity.requireComponent<PersistentIdComponent>(),
             action.toSnapshotDto(),
-            tick
+            interactionId
         )
 
         else -> CopyComponentDto(this)
@@ -247,7 +247,7 @@ suspend fun ComponentDto.toDomainSuspend(
                 entityGetter,
                 scriptComponentTypeNotFound
             )!!,
-            data.tick
+            data.interactionId
         )
 
         is ContainedInDto -> null

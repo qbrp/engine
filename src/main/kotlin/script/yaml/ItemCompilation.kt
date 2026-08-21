@@ -114,7 +114,6 @@ internal fun compileItemsYaml(itemConfigs: Map<String, ItemConfig>, namespace: Y
 
         val gunDisplayComponent = config.gun?.display
         val gunComponent = config.gun?.gunComponent()
-        val gunFireStateComponent = config.gun?.let { GunFireState() }
 
         CompiledItem(
             namespace.id,
@@ -131,7 +130,7 @@ internal fun compileItemsYaml(itemConfigs: Map<String, ItemConfig>, namespace: Y
         ) {
             listOfNotNull(
                 gunComponent,
-                gunFireStateComponent,
+                config.gun?.let { GunFireState() },
                 config.magazine?.let { Magazine(it.capacity, it.initial, it.ammunition) },
                 gunDisplayComponent,
                 config.barrel?.let { Barrel(it.initial, it.bullets, it.ammunition) },

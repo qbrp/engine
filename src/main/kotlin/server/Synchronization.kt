@@ -3,9 +3,10 @@ package org.lain.engine.server
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
-import org.lain.engine.player.Player
+import org.lain.engine.player.PlayerComponent
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.toSnapshotDto
+import org.lain.engine.transport.packet.PlayerInputProcessedPacket
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.IndexedComponentType
@@ -28,7 +29,7 @@ data class Changes(
     //после компиляции скриптов общее количество типов компонентов измениться, а здесь
     //же учитываюся только встроенные. Сделать учёт Lua-компонентов
 ) : Component {
-    fun <T : Component> markUpdated(type: IndexedComponentType<T>): Changes {
+    fun markUpdated(type: IndexedComponentType<out Component>): Changes {
         changed = true
         removed.clear(type.idx)
         updated.set(type.idx)
@@ -38,14 +39,15 @@ data class Changes(
     inline fun <reified T : Component> markUpdated(): Changes =
         markUpdated(ComponentTypeRegistry.componentTypeOf(T::class))
 
-    inline fun <reified T : Component> markRemoved(
-        type: IndexedComponentType<T> = ComponentTypeRegistry.componentTypeOf(T::class)
-    ): Changes {
+    fun markRemoved(type: IndexedComponentType<out Component>): Changes {
         changed = true
         removed.set(type.idx)
         updated.clear(type.idx)
         return this
     }
+
+    inline fun <reified T : Component> markRemoved(): Changes =
+        markRemoved(ComponentTypeRegistry.componentTypeOf(T::class))
 
     fun clear() {
         updated.clear()
@@ -56,12 +58,14 @@ data class Changes(
 
 context(world: World)
 inline fun <reified T : Component> EntityId.markUpdated() {
-    networkState().markUpdated<T>()
+    world.componentManager.markDirty(this, ComponentTypeRegistry.componentTypeOf(T::class))
 }
 
 context(world: World)
 inline fun <reified T : Component> EntityId.markRemoved() {
-    networkState().markRemoved<T>()
+    val type = ComponentTypeRegistry.componentTypeOf(T::class)
+    networkState().markRemoved(type)
+    world.componentManager.networkedComponentChangeListener?.invoke(this, type)
 }
 
 context(world: MutableComponentAccess)
@@ -86,7 +90,7 @@ fun EntityId.collectNetworkedComponents() = world.componentManager.getNetworkedC
 private fun EntityStateFrame.deltaSnapshot() = EntityNetworkSnapshot.Delta(baseRevision, revision, delta)
 
 context(world: World)
-private fun EntityId.fullNetworkSnapshot() = EntityNetworkSnapshot.Full(
+fun EntityId.fullNetworkSnapshot() = EntityNetworkSnapshot.Full(
     networkState().revision,
     collectNetworkedComponents()
 )
@@ -100,7 +104,7 @@ fun World.sendSnapshots(
     val entitiesFrame = worldStateFrame.entities
     val fullSnapshotCache = mutableMapOf<PersistentId, EntityNetworkSnapshot.Full>()
 
-    iterate<Player, PlayerSyncState>() { _, (player), state ->
+    iterate<PlayerComponent, PlayerSyncState>() { _, (player), state ->
         if (!state.confirmed) return@iterate
 
         state.freshPlayers.forEach { (playerToSync) ->
@@ -125,6 +129,14 @@ fun World.sendSnapshots(
             if (worldStateFrame.worldState != null) {
                 handler.sendWorldState(player, worldStateFrame.worldState.deltaSnapshot())
             }
+        }
+
+        if (state.processedInputTick > state.lastSentProcessedInputTick) {
+            handler.sendProcessedInput(
+                player,
+                PlayerInputProcessedPacket(state.processedInputTick),
+            )
+            state.lastSentProcessedInputTick = state.processedInputTick
         }
     }
 }

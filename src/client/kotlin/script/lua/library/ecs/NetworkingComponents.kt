@@ -11,7 +11,7 @@ import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.world.World
 
 context(lua: LuaScriptEngine)
-fun World.applyLuaEntityRpcQueues(handler: ClientHandler) {
+fun World.applyLuaEntityRpcQueues() {
     val queueComponents = componentManager.getComponentArray(CoreScriptComponents.ENTITY_RPC_QUEUE)
 
     iterate<EntityRpcQueue>() { entity, queue ->
@@ -19,7 +19,9 @@ fun World.applyLuaEntityRpcQueues(handler: ClientHandler) {
             LuaScriptComponent(queue.coerceToLua(), CoreScriptComponents.ENTITY_RPC_QUEUE)
         }
     }
+}
 
+fun World.tickEntityRpcQueueSystem(handler: ClientHandler) {
     iterate<PersistentIdComponent, EntityRpcQueue>() { _, (persistentId), queue ->
         if (queue.values.isNotEmpty()) {
             handler.sendServerboundChannelData(persistentId, queue.values.toList())

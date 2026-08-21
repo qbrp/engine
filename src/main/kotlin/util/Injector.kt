@@ -1,15 +1,16 @@
 package org.lain.engine.util
 
 import org.lain.engine.mc.server.EngineMinecraftServer
-import org.lain.engine.mc.EntityTable
-import org.lain.engine.player.MovementSettings
+import org.lain.engine.mc.ServerWorldTable
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.ServerTransportContext
 import java.util.Collections
+import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
 object Injector {
+    var server: EngineMinecraftServer? = null
     private val map = Collections.synchronizedMap<KClass<*>, Any>(mutableMapOf())
 
     fun <T: Any> register(clazz: KClass<T>, instance: T) {
@@ -46,6 +47,16 @@ class InjectCaching<T>(private val provider: () -> T?) {
     }
 }
 
+fun <T : Any> lazyUntilNotNull(initializer: () -> T?) =
+    object : ReadOnlyProperty<Any?, T?> {
+        private var value: T? = null
+
+        override fun getValue(
+            thisRef: Any?,
+            property: KProperty<*>,
+        ): T? = value ?: initializer()?.also { value = it }
+    }
+
 inline fun <reified T : Any> injectValue() = Injector.resolve(T::class)
 
 inline fun <reified T: Any> inject() = Inject { Injector.resolve(T::class) }
@@ -58,19 +69,12 @@ enum class Environment {
 
 fun injectServerTransportContext() = inject<ServerTransportContext>()
 
-fun injectEngineServer() = inject<EngineServer>()
+fun requireEngineMinecraftServer() = Injector.server ?: error("No server configured")
 
-fun injectMinecraftEngineServer() = inject<EngineMinecraftServer>()
+fun requireEngineMinecraftServerLazy() = lazy { requireEngineMinecraftServer() }
 
-fun injectEntityTable() = inject<EntityTable>()
-
-fun injectMovementSettings() = inject<MovementSettings>()
-
-fun registerMinecraftServer(
-    server: EngineMinecraftServer
-) {
-    Injector.register<EngineServer>(server.engine)
-    Injector.register<EngineMinecraftServer>(server)
+fun registerMinecraftServer(server: EngineMinecraftServer) {
+    Injector.server = server
 }
 
 fun isClassAvailable(className: String): Boolean {

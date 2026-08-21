@@ -98,7 +98,6 @@ data class UiFeatures(
     var sprite: UiSprite? = null,
     var tint: Tint? = null,
     var text: TextState? = null,
-    var head: PlayerId? = null
 )
 
 data class UiListeners(

@@ -4,15 +4,13 @@ import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Camera
 import net.minecraft.client.gui.Font
 import net.minecraft.util.FormattedCharSequence
-import org.apache.logging.log4j.core.pattern.TextRenderer
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.render.ScreenRenderer
-import org.lain.engine.mc.EntityTable
+import org.lain.engine.mc.ServerWorldTable
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.EVec3
 
 data class ImmediateWorldRenderContext(
-    val entityTable: EntityTable,
     val vertexConsumers: ImmediateVertexConsumers,
     val textRenderer: Font,
     val matrices: PoseStack,

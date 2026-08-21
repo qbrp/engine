@@ -1,5 +1,6 @@
 package org.lain.engine.script.lua.library
 
+import org.lain.engine.chat.hasPermission
 import org.lain.engine.player.*
 import org.lain.engine.player.interaction.syncAction
 import org.lain.engine.script.ScriptComponent

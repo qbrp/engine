@@ -12,7 +12,6 @@ import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.render.ui.drawEngineSprite
 import org.lain.engine.client.render.ui.fill
 import org.lain.engine.util.Color
-import org.lain.engine.util.injectEntityTable
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -24,7 +23,6 @@ class EngineUiRenderPipeline(
     private val rootSize = MutableSize(0f, 0f)
     private val context by lazy { UiContext(client.font, rootSize) }
     private val engine by injectClient()
-    private val entityTable by injectEntityTable()
     private val alphaStack = ArrayDeque<Int>()
     var focus: Composition? = null
         private set
@@ -207,26 +205,6 @@ class EngineUiRenderPipeline(
                 )
                 textY += client.font.lineHeight
             }
-        }
-
-        features.head?.let { head ->
-            val player = entityTable.client.getEntity(head) as? LocalPlayer ?: return@let
-            PlayerFaceRenderer.draw(
-                context,
-                player.skin,
-                1,
-                1,
-                width.toInt(),
-                Color.of(80, 80, 80).integer
-            )
-            PlayerFaceRenderer.draw(
-                context,
-                player.skin,
-                0,
-                0,
-                width.toInt(),
-                Color.WHITE.integer
-            )
         }
 
         context.pose().popMatrix()

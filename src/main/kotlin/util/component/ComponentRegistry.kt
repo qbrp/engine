@@ -124,10 +124,7 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<Entries>(isNetworking = true)
     registerComponent<Container>(isNetworking = true)
     registerComponent<HasContainer>()
-    registerComponent<AssignSlot>()
-    registerComponent<DetachItem>()
-
-    registerComponent<AssignItem>()
+    registerComponent<TransferOperation>()
     registerComponent<OccupiedSlots>(isNetworking = true)
     registerComponent<Slots>(isNetworking = true)
 
@@ -178,10 +175,10 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<SelectedLook>(isNetworking = true)
     registerComponent<CharacterApplyEvent>(isNetworking = true)
 
-    registerComponent<GiveAction>(isNetworking = true)
-    registerComponent<HailAction>(isNetworking = true)
-    registerComponent<GunModeToggleAction>(isNetworking = true)
-    registerComponent<StartShootAction>(isNetworking = true)
-    registerComponent<StopShootAction>(isNetworking = true)
-    registerComponent<WritableOpenAction>(isNetworking = true)
+    registerComponent<GiveAction>()
+    registerComponent<HailAction>()
+    registerComponent<GunModeToggleAction>()
+    registerComponent<StartShootAction>()
+    registerComponent<StopShootAction>()
+    registerComponent<WritableOpenAction>()
 }

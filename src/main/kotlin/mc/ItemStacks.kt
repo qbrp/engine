@@ -94,6 +94,9 @@ fun wrapEngineItemStack(
 
 fun ItemStack.engine() = get(ENGINE_ITEM_REFERENCE_COMPONENT)
 
+context(world: World)
+fun ItemStack.engineItem() = with(world) { engineItem(world) }
+
 fun ItemStack.engineItem(world: World) = get(ENGINE_ITEM_REFERENCE_COMPONENT)?.getItem(world)
 
 fun ItemStack.decrement(i: Int) = shrink(i)

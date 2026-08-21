@@ -3,10 +3,6 @@ package org.lain.engine.util.component
 import org.lain.cyberia.ecs.*
 import java.util.concurrent.ConcurrentHashMap
 
-interface Entity {
-    val stringId: String
-}
-
 fun ComponentState(builder: ComponentState.() -> Unit): ComponentState {
     return ComponentState().apply(builder)
 }

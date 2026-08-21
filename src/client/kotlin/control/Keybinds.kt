@@ -137,15 +137,15 @@ val TAKE_OFF_EQUIP = KeybindSettings(
     name = "Снять экипировку",
     id = KeybindId("unequip"),
     key = InputConstants.KEY_U,
-    onPress = { client -> ClientMixinAccess.takeOffEquipPressed = true },
-    onRelease = { client -> ClientMixinAccess.takeOffEquipPressed = false }
+    onPress = { client -> ClientMixin.takeOffEquipPressed = true },
+    onRelease = { client -> ClientMixin.takeOffEquipPressed = false }
 )
 
 val SELECT_CHARACTER = KeybindSettings(
     name = "Выбрать персонажа",
     id = KeybindId("select_character"),
     key = InputConstants.KEY_O,
-    onPress = { client -> client.gameSession?.let { client.infrastructure.onCharacterSelectionMenuOpen(it) } }
+    onPress = { client -> client.gameSession?.openCharacterSelectionMenu() }
 )
 
 val OPEN_WORKSPACE = KeybindSettings(

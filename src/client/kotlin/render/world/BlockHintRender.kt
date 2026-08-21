@@ -9,6 +9,7 @@ import org.lain.engine.client.chat.ChatBubble
 import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.render.legacy.TextCache
 import org.lain.engine.mc.engine
+import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText
 import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.Hint

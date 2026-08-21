@@ -60,7 +60,7 @@ data class PlayerReferencedItems(
         context(world: World)
         fun of(player: EnginePlayer) = PlayerReferencedItems(
             player.items.map { it.requireComponent<PersistentIdComponent>().id },
-            player.world.getContainerItems(player.equipmentContainer)
+            player.equipmentContainer.getContainerItems()
                 .map { it.requireComponent<PersistentIdComponent>().id }
         )
     }
@@ -76,7 +76,7 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
     companion object {
         fun of(server: EngineServer, player: EnginePlayer): ClientboundPlayerList {
             return ClientboundPlayerList(
-                server.playerStorage
+                server.playerStorage.all
                     .filter { it != player }
                     .map { GeneralPlayerData.of(it) }
             )
@@ -136,8 +136,8 @@ data class ServerPlayerData(
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
                 player.items.map { ClientboundItemData.of(it) },
-                world
-                    .getEquipmentContainerSlots(player.equipmentContainer)
+                player.equipmentContainer
+                    .getEquipmentContainerSlots()
                     .mapValues { (_, item) -> ClientboundItemData.of(item) },
                 player.skinEyeY,
                 player.get<AppliedCharacter>()?.character
@@ -151,7 +151,7 @@ data class JoinGamePacket(
     val playerData: ServerPlayerData,
     val worldData: ClientboundWorldData,
     val setupData: ClientboundSetupData,
-    val notifications: List<Notification>
+    val notifications: List<Notification>,
 ) : Packet {
     override val requireAuthorized: Boolean = false
 }
@@ -207,7 +207,7 @@ data class GeneralPlayerData(
             return GeneralPlayerData(
                 player.id,
                 player.require<DisplayName>().copy(),
-                player.equipmentContainer.requireComponent<PersistentIdComponent>().id
+                player.equipmentContainer.entity.requireComponent<PersistentIdComponent>().id
             )
         }
     }
@@ -236,7 +236,7 @@ data class VerificationResponsePacket(
     val developerModeStatus: DeveloperModeStatus,
     val namespaces: NamespaceHashMap,
     val characterId: String?,
-    val sessionTicket: SessionTicketDto
+    val sessionTicket: SessionTicketDto,
 ) : Packet {
     override val requireAuthorized: Boolean = false
 }

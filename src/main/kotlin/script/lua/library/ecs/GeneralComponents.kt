@@ -13,7 +13,7 @@ import org.lain.engine.world.World
 fun LuaLocationComponent(location: Location) = location.position.coerceToLua()
 
 context(luaScriptEngine: LuaScriptEngine)
-fun World.refreshLuaComponentsView() {
+fun World.refreshGeneralLuaComponentsView() {
     iterate<Location> { entity, location ->
         entity.getComponent(CoreScriptComponents.LOCATION)?.castLua() ?: return@iterate
         entity.setLuaScriptComponent(LuaLocationComponent(location), CoreScriptComponents.LOCATION)

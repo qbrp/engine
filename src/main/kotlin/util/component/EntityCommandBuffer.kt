@@ -43,7 +43,7 @@ class EntityCommandBuffer(
         entity: EntityId,
         type: ComponentType<out Component>
     ) {
-        throw NotImplementedError("deprecated")
+        commands += { world -> world.markDirty(entity, type) }
     }
 
     override fun invalidateStates(entity: EntityId) {

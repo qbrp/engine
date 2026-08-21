@@ -6,11 +6,8 @@ import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.server.ComponentSynchronizer
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.util.Storage
-import org.lain.engine.util.component.Entity
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executor
 
@@ -82,25 +79,3 @@ fun ClientHandler.updatePlayerDetailed(id: PlayerId, update: (EnginePlayer) -> U
         update(it)
     }
 }
-
-// Common synchronizers
-
-fun <T : Entity, I : Any, C : Component> ClientHandler.registerSynchronizerEndpoint(
-    synchronizer: ComponentSynchronizer<T, C>,
-    storageGetter: (GameSession) -> Storage<I, T>,
-    idGetter: (String) -> I,
-) {
-    registerGameSessionReceiver(synchronizer.endpoint) { gameSession ->
-        val id = idGetter(id)
-        val entity = storageGetter(gameSession).get(id) ?: return@registerGameSessionReceiver
-        synchronizer.resolver(entity, component)
-    }
-}
-
-fun <C : Component> ClientHandler.registerPlayerSynchronizerEndpoint(
-    synchronizer: ComponentSynchronizer<EnginePlayer, C>,
-) = registerSynchronizerEndpoint(
-    synchronizer,
-    { it.playerStorage },
-    { PlayerId.fromString(it) }
-)

@@ -3,7 +3,8 @@ package org.lain.engine.mixin;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.mc.CommonMixin;
+import org.lain.engine.mc.ServerMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,7 +18,7 @@ public class LevelMixin {
     )
     public void engine$setBlockState(BlockPos blockPos, BlockState blockState, int i, int j, CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValue() == true && blockState.isAir()) {
-            ServerMixinAccess.INSTANCE.onBlockRemoved((Level) (Object)this, blockPos);
+            CommonMixin.INSTANCE.onAirBlockPlaced((Level) (Object)this, blockPos);
         }
     }
 }

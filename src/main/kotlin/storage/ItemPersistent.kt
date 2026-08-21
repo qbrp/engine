@@ -28,21 +28,50 @@ data class PersistentItemData(val components: List<ItemData>)
 
 @Serializable
 sealed class ItemData {
-    @Serializable data class Display(val name: ItemName?, val tooltip: ItemTooltip?, val assets: ItemAssets? = null) : ItemData()
-    @Serializable data class Guns(val data: Gun, val display: GunDisplay?) : ItemData()
-    @Serializable data class Sounds(val data: ItemSounds) : ItemData()
+    @Serializable
+    data class Display(
+        val name: ItemName?,
+        val tooltip: ItemTooltip?,
+        val assets: ItemAssets? = null
+    ) : ItemData()
 
-    @Serializable data class PhysicalParameters(val count: org.lain.engine.item.Count, val mass: org.lain.engine.item.Mass?) : ItemData()
-    @Serializable data class Book(@SerialName("writeable") val writableLegacy: Writable? = null, val writable: Writable? = null) : ItemData()
-    @Serializable data class Equipment(val hat: Boolean, val outfit: Outfit? = null) : ItemData()
+    @Serializable
+    data class Guns(val data: Gun, val display: GunDisplay?) : ItemData()
+    @Serializable
+    data class Sounds(val data: ItemSounds) : ItemData()
 
-    @Serializable data class Lights(val flashlight: Flashlight) : ItemData()
-    @Serializable data class EntityComponents(val components: List<ItemData>) : ItemData()
-    @Serializable data class Contained(val containedIn: String, val assignedSLot: AssignedSlot? = null) : ItemData()
-    @Serializable data class Container(val persistentId: PersistentId) : ItemData()
+    @Serializable
+    data class PhysicalParameters(
+        val count: org.lain.engine.item.Count,
+        val mass: org.lain.engine.item.Mass?
+    ) : ItemData()
 
-    @Serializable @Deprecated("Использовать PhysicalParameters") data class Mass(val value: Float) : ItemData()
-    @Serializable @Deprecated("Использовать PhysicalParameters") data class Count(val value: Int) : ItemData()
+    @Serializable
+    data class Book(
+        @SerialName("writeable") val writableLegacy: Writable? = null,
+        val writable: Writable? = null
+    ) : ItemData()
+
+    @Serializable
+    data class Equipment(val hat: Boolean, val outfit: Outfit? = null) : ItemData()
+
+    @Serializable
+    data class Lights(val flashlight: Flashlight) : ItemData()
+    @Serializable
+    data class EntityComponents(val components: List<ItemData>) : ItemData()
+    @Serializable
+    data class Contained(val containedIn: String, val assignedSLot: AssignedSlot? = null) :
+        ItemData()
+
+    @Serializable
+    data class Container(val persistentId: PersistentId) : ItemData()
+
+    @Serializable
+    @Deprecated("Использовать PhysicalParameters")
+    data class Mass(val value: Float) : ItemData()
+    @Serializable
+    @Deprecated("Использовать PhysicalParameters")
+    data class Count(val value: Int) : ItemData()
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -57,7 +86,11 @@ fun deserializeItemPersistentComponents(array: ByteArray): List<ItemData> {
 /**
  * @deprecated C 22.04.2026 предметы загружаются как обычные сущности и не нуждаются в отдельном пайплайне
  */
-fun WriteComponentAccess.loadItemLegacy(data: PersistentItemData, id: ItemId, uuid: PersistentId): EngineItem {
+fun WriteComponentAccess.loadItemLegacy(
+    data: PersistentItemData,
+    id: ItemId,
+    uuid: PersistentId
+): EngineItem {
     val components = mutableSetOf<Component>()
     val entityComponents = mutableSetOf<Component>()
     var count: Count? = null
@@ -66,20 +99,23 @@ fun WriteComponentAccess.loadItemLegacy(data: PersistentItemData, id: ItemId, uu
     var name: ItemName? = null
 
     fun processComponent(component: ItemData) {
-        when(component) {
+        when (component) {
             is ItemData.Display -> {
                 name = component.name
                 tooltip = component.tooltip
                 assets = component.assets
             }
+
             is ItemData.Guns -> {
                 components.addIfNotNull(component.data)
                 components.addIfNotNull(component.display)
             }
+
             is ItemData.PhysicalParameters -> {
                 components.addIfNotNull(component.count)
                 components.addIfNotNull(component.mass)
             }
+
             is ItemData.Equipment -> {
                 components.addIfNotNull(
                     component.outfit
@@ -94,15 +130,23 @@ fun WriteComponentAccess.loadItemLegacy(data: PersistentItemData, id: ItemId, uu
                         }
                 )
             }
+
             is ItemData.Sounds ->
                 components.addIfNotNull(component.data)
+
             is ItemData.Book ->
-                components.add(component.writable ?: component.writableLegacy ?: error("Writeable component doesn't exist"))
+                components.add(
+                    component.writable ?: component.writableLegacy
+                    ?: error("Writeable component doesn't exist")
+                )
+
             is ItemData.Lights ->
                 components.add(component.flashlight)
+
             is ItemData.Count -> {
                 count = Count(component.value, 16)
             }
+
             is ItemData.Mass ->
                 components.add(Mass(component.value))
             // Контейнеры в легаси-системе не поддерживаются
@@ -166,6 +210,7 @@ sealed class ItemLoadContext {
             data["player_name"] = name
         }
     }
+
     data class FromInventory(val player: PlayerId?, val voxelPos: Pos?) : ItemLoadContext() {
         override fun append(data: MutableMap<String, String>) {
             data["context"] = "from_inventory"
@@ -212,42 +257,43 @@ class ItemLoader(
                         null
                     }
             }
-                 .onFailure { err ->
-                     EngineLogger.log(
-                         Log(
-                             LogMessages.ITEM_LOAD_ERROR,
-                             LogLevel.ERROR,
-                             error = err.toLogError(),
-                             data = mutableMapOf(
-                                 "uuid" to uuid.toString(),
-                             ).also { context.append(it) },
-                             tick = server.tick,
-                             world = world.id
-                         )
-                     )
-                 }
+                .onFailure { err ->
+                    EngineLogger.log(
+                        Log(
+                            LogMessages.ITEM_LOAD_ERROR,
+                            LogLevel.ERROR,
+                            error = err.toLogError(),
+                            data = mutableMapOf(
+                                "uuid" to uuid.toString(),
+                            ).also { context.append(it) },
+                            tick = server.simulation.ticks,
+                            world = world.id
+                        )
+                    )
+                }
                 .getOrNull()
                 ?: server.createInvalidItem()
+            commandBuffer.schedule(server) {
+                server.logInMainThread(world) { tick ->
+                    // для удобства выполняем другие операции здесь, т.к. функция работает также, как и EntityResolver.schedule
+                    server.simulation.callbacks.of(CallbackType.ITEM_LOAD)
+                        ?.execute(ScriptContext.ItemLoad(world, entity))
 
-            server.logInMainThread(world) { tick ->
-                // для удобства выполняем другие операции здесь, т.к. функция работает также, как и EntityResolver.schedule
-                server.callbacks.of(CallbackType.ITEM_LOAD)?.execute(ScriptContext.ItemLoad(world, entity))
+                    Log(
+                        LogMessages.ITEM_LOAD,
+                        LogLevel.INFO,
+                        mutableMapOf(
+                            "uuid" to uuid.toString(),
+                            "id" to entity.requireComponent<Item>().id.toString(),
+                            "components" to world.componentManager.getComponentsMap(entity).keys.joinToString { it.id },
+                            "linked_entities" to entityResolver.resolved.joinToString { it.getEntityDebugNameId().name }
+                        ).also { context.append(it) },
+                        world = world.id,
+                        tick = tick
+                    )
+                }
 
-                Log(
-                    LogMessages.ITEM_LOAD,
-                    LogLevel.INFO,
-                    mutableMapOf(
-                        "uuid" to uuid.toString(),
-                        "id" to entity.requireComponent<Item>().id.toString(),
-                        "components" to world.componentManager.getComponentsMap(entity).keys.joinToString { it.id },
-                        "linked_entities" to entityResolver.resolved.joinToString { it.getEntityDebugNameId().name }
-                    ).also { context.append(it) },
-                    world = world.id,
-                    tick = tick
-                )
             }
-
-            commandBuffer.schedule(server)
             entity
         }
     }

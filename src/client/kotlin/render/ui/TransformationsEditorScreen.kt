@@ -15,7 +15,7 @@ import net.minecraft.client.renderer.item.BlockModelWrapper
 import net.minecraft.client.renderer.item.ItemModel
 import net.minecraft.core.component.DataComponents
 import net.minecraft.world.item.ItemStack
-import org.lain.engine.client.mc.ClientMixinAccess
+import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mixin.render.BlockModelWrapperAccessor
 import org.lain.engine.client.mixin.render.GameRendererAccessor
@@ -31,7 +31,7 @@ import kotlin.math.max
 private val guiRenderer get() = (MinecraftClient.gameRenderer as GameRendererAccessor).`engine$getGuiRenderer`() as GuiRendererAccessor
 
 class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(literalText("Transformation editor")) {
-    private val modelId = ClientMixinAccess.getEngineItemModel(itemStack) ?: itemStack.get(DataComponents.ITEM_MODEL)!!
+    private val modelId = ClientMixin.getEngineItemModel(itemStack) ?: itemStack.get(DataComponents.ITEM_MODEL)!!
     private val model = MinecraftClient.modelManager.getItemModel(modelId)
     private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)
     private val sliders

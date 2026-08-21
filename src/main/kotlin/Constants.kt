@@ -4,6 +4,7 @@ import net.fabricmc.loader.api.FabricLoader
 import org.lain.engine.Constants.DEBUG_PACKETS
 import org.lain.engine.mc.CommonEngineMod
 import org.slf4j.LoggerFactory
+import kotlin.math.log10
 
 object Constants {
     const val DEBUG_PACKETS = true

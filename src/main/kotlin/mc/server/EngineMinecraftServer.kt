@@ -1,6 +1,7 @@
 package org.lain.engine.mc.server
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.runBlocking
+import net.kyori.adventure.platform.modcommon.MinecraftServerAudiences
 import net.minecraft.core.BlockPos
 import net.minecraft.nbt.TagParser
 import net.minecraft.server.MinecraftServer
@@ -8,30 +9,34 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.util.ProblemReporter
 import net.minecraft.world.ItemStackWithSlot
+import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.TagValueInput
 import net.minecraft.world.level.storage.TagValueOutput
-import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.destroy
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
-import org.lain.engine.item.ItemStorage
 import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.ScriptPathSuggestionProvider
 import org.lain.engine.mc.commands.registerIntentCommands
 import org.lain.engine.mc.commands.updateCommandInvokeSystem
+import org.lain.engine.mc.compat.GENDER_MOD_AVAILABLE
+import org.lain.engine.mc.compat.isReplayServer
+import org.lain.engine.mc.compat.isReplayViewer
+import org.lain.engine.mc.compat.syncPlayerGenderConfig
 import org.lain.engine.player.*
-import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.script.*
-import org.lain.engine.script.lua.*
+import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.NamespacedStorageAccess
+import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.recompileContents
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerPlatform
@@ -39,43 +44,31 @@ import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
-import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.Injector
 import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ServerConfig
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.world.*
+import org.lain.engine.world.ImmutableVoxelPos
+import org.lain.engine.world.World
 
-data class EngineMinecraftServerDependencies(
-    val minecraftServer: MinecraftServer,
-    val luaScriptEngine: LuaScriptEngine,
-    val compilationResult: CompilationResult,
-    val config: ServerConfig = loadOrCreateServerConfig(),
-    val namespacedStorage: NamespacedStorageAccess,
-    val playerStorage: PlayerStorage = ConcurrentStorage(),
-    val entityTable: EntityTable = Injector.resolve(EntityTable::class),
-    val acousticSceneBank: ConcurrentAcousticSceneBank = ConcurrentAcousticSceneBank(),
-    val acousticBlockData: AcousticBlockData = AcousticBlockData.BUILTIN,
-    val isReplay: Boolean = minecraftServer.isReplayServer,
-)
-
-abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraftServerDependencies) :
-    ServerPlatform {
+abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPlatform {
     val minecraftServer = dependencies.minecraftServer
     val database = connectDatabase(minecraftServer)
+    val access = ServerMinecraftAccess(this)
     protected val playerStorage = dependencies.playerStorage
     protected val acousticSceneBank = dependencies.acousticSceneBank
     protected val acousticBlockData = dependencies.acousticBlockData
     protected val config = dependencies.config
-    val entityTable = dependencies.entityTable.server
+    val worldTable = dependencies.worldTable
     val acousticSimulator =
-        MinecraftAcousticManager(this, dependencies.entityTable, acousticSceneBank, acousticBlockData)
+        MinecraftAcousticManager(this, dependencies.worldTable, acousticSceneBank, acousticBlockData)
     val luaScriptEngine: LuaScriptEngine = dependencies.luaScriptEngine
     val timers = SaveTimers(
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
         SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
     )
+    val miniMessageAudiences = MinecraftServerAudiences.of(minecraftServer)
     val engine = EngineServer(
         config.server,
         playerStorage,
@@ -89,10 +82,7 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
         luaScriptEngine,
         timers,
     )
-    private val minecraftSystem = MinecraftSystem(
-        dependencies.entityTable,
-        this,
-    )
+    private val minecraftSystem = MinecraftSystem(this)
 
     protected abstract val transportContext: ServerTransportContext
     open val connectionManager: ServerConnectionManager? = null
@@ -115,26 +105,29 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             .also { itemStackHandler(itemStack, it) }
     }
 
+    override fun World.prepareData() {
+        val level = minecraftServer.allLevels.find { it.engineId == id }!!
+        minecraftSystem.tick(this)
+        tickVoxelAdapterSystem(level)
+        updateCommandInvokeSystem(dependencies.worldTable)
+    }
+
+    override fun World.updateBulletHitSystem() {
+        val level = dependencies.worldTable.getMcWorld(id) as? ServerLevel
+        updateBulletsMinecraft(this, level!!)
+    }
+
+    override fun World.updateSaveSystem() {
+        updateSaveSystem(this@EngineMinecraftServer)
+    }
+
+    override fun World.applyData() {
+        val level = minecraftServer.allLevels.find { it.engineId == id }!!
+        tickVoxelDoorSystem(level)
+    }
+
     open fun tick() {
-        val entityTableAll = dependencies.entityTable
-
-        val overworld = minecraftServer.overworld()
-        engine.defaultWorld.tickVoxelAdapterSystem(overworld)
-        engine.defaultWorld.tickVoxelDoorSystem(overworld)
-
-        engine.update(
-            prepareData = {
-                minecraftSystem.tick(this)
-                updateCommandInvokeSystem(entityTableAll)
-            },
-            updateBulletHitSystem = {
-                val level = entityTableAll.getMcWorld(id) as? ServerLevel
-                updateBulletsMinecraft(this, level!!)
-            },
-            updateSaveSystem = {
-                updateSaveSystem(this@EngineMinecraftServer)
-            }
-        )
+        engine.update()
     }
 
     open fun run() {
@@ -144,28 +137,31 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
             throw SetupException(compilationResult.exceptions)
         }
 
-        Injector.register<PlayerPermissionsProvider>(MinecraftPermissionProvider(entityTable))
         Injector.register<ServerTransportContext>(transportContext)
-        Injector.register(engine.globals.movementSettings)
         applyConfigCatching(config)
         luaScriptEngine.setupGame(
-            LuaScriptEngine.RuntimeDependencies(playerStorage, engine.worlds)
+            LuaScriptEngine.RuntimeDependencies(engine.simulation)
         )
         engine.recompileContents(luaScriptEngine, compilationResult)
         if (compilationResult.exceptions.isNotEmpty()) {
             error("Не удалось скомпилировать ресурсы Engine!")
         }
-        minecraftServer.allLevels.forEach {
-            val id = it.engine
-            val world = world(id, engine.thread, ItemStorage(), engine.namespacedStorage, engine.luaScriptEngine) { chunkPos ->
-                it.chunkSource.chunkMap.getPlayers(ChunkPos(chunkPos.x, chunkPos.z), false)
-                    .mapNotNull { entity -> entityTable.getPlayer(entity) }
-            }
-            world.registerComponentTypes(engine.namespacedStorage)
-            with(world) { world.state.copyState(engine.loadWorldComponents(world)) }
-            engine.addWorld(world)
-            dependencies.entityTable.setWorld(id, it)
-            luaScriptEngine.loadWorld(world)
+        minecraftServer.allLevels.forEach { level ->
+            val id = level.engineId
+            val world = World(
+                id,
+                engine.simulation,
+                playersWatchingChunkProvider = { chunkPos ->
+                    level.chunkSource.chunkMap
+                        .getPlayers(ChunkPos(chunkPos.x, chunkPos.z), false)
+                        .mapNotNull { it.getEngineState() }
+                },
+                server = engine,
+            )
+            worldTable.setWorld(id, level)
+            world.loadPersistentState(engine)
+            engine.simulation.loadWorld(world)
+            MinecraftAccessRegistry.register(level, access)
         }
         engine.run()
     }
@@ -184,33 +180,34 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     open fun disable() = runBlocking {
         engine.allWorlds().forEach { database.saveItemsBlocking(it) }
         engine.stop()
+        MinecraftAccessRegistry.invalidate()
     }
 
-    open fun onJoinPlayer(entity: ServerPlayer) {}
+    open fun onJoinPlayer(entity: ServerPlayer) {
+        engine.handler.openConnection(entity.engineId)
+    }
 
     open fun onLeavePlayer(entity: ServerPlayer) {
-        val player = entityTable.getPlayer(entity) ?: return
+        engine.handler.closeConnection(entity.engineId)
+        val player = entity.getEngineState() ?: return
         engine.destroyPlayer(player)
-        entityTable.removePlayer(entity)
         timers.items.activate()
     }
 
     context(world: World)
     override fun onPlayerInstantiated(player: EnginePlayer) {
-        val entity = minecraftServer.playerList.getPlayer(player.id.value) ?: return
-        entityTable.setPlayer(entity, player)
-        // onCharacterApplied не срабатывает при первой загрузке игрока, т.к. меню выбора персонажей появляется
-        // до его появления мира, из-за чего не срабатывает условие entityTable.getEntity(player) ?: return@execute
-        // Повторно вызываем метод принятия персонажа после инстанцирования игрока в мире
-        player.get<AppliedCharacter>()?.let { (character) ->
-            onCharacterApplied(player, character)
-        }
+        val entity = minecraftServer.getPlayer(player.id) ?: return
+        player.set(MinecraftPlayer(entity))
+    }
+
+    override fun hasPermission(player: EnginePlayer, permission: String): Boolean {
+        return player.minecraftEntity.hasPermission(permission)
     }
 
     override fun serializeInventory(player: EnginePlayer): String {
-        val entity = entityTable.getEntity(player.id)!!
+        val entity = player.minecraftEntity
         val output = TagValueOutput.createWithContext(
-            ProblemReporter.ScopedCollector(org.lain.engine.storage.LOGGER),
+            ProblemReporter.ScopedCollector(LOGGER),
             minecraftServer.registries().compositeAccess()
         )
         entity.inventory.save(output.list("Inventory", ItemStackWithSlot.CODEC))
@@ -219,14 +216,13 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     override fun clearInventory(player: EnginePlayer) {
-        val entity = entityTable.getEntity(player.id)!!
-        entity.inventory.clearContent()
+        player.minecraftEntity.inventory.clearContent()
     }
 
     override fun openInventory(player: EnginePlayer, inventory: SerializedInventory) {
-        val entity = entityTable.getEntity(player.id) ?: minecraftServer.getPlayer(player.id)!!
+        val entity = player.minecraftEntityNullable ?: minecraftServer.getPlayer(player.id)!!
         val output = TagValueInput.create(
-            ProblemReporter.ScopedCollector(org.lain.engine.storage.LOGGER),
+            ProblemReporter.ScopedCollector(LOGGER),
             minecraftServer.registries().compositeAccess(),
             TagParser.parseCompoundFully(inventory)
         )
@@ -242,28 +238,31 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
 
     override fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter) {
         engine.execute {
-            val entity = entityTable.getEntity(player) ?: return@execute
             if (GENDER_MOD_AVAILABLE) {
-                syncPlayerGenderConfig(entity, character.profile.biologicalSex, character.profile.genderParams)
+                syncPlayerGenderConfig(
+                    player.minecraftEntity as ServerPlayer,
+                    character.profile.biologicalSex,
+                    character.profile.genderParams
+                )
             }
         }
     }
 
     fun onBlockBreak(pos: BlockPos, world: Level) {
         acousticSimulator.removeBlock(pos, world)
-        val engineWorld = engine.getWorld(world.engine)
+        val engineWorld = engine.getWorld(world.engineId)
         val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
         engineWorld.chunkStorage.removeVoxel(voxelPos)
     }
 
     fun onBlockAdd(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: Level) {
         acousticSimulator.updateBlock(state, pos, world)
-        engine.callbacks.executePlaceVoxelCallback(player, engine.getWorld(world), pos.voxelPos(), state)
+        engine.simulation.callbacks.executePlaceVoxelCallback(player, engine.getWorld(world), pos.voxelPos(), state)
     }
 
     fun onChunkUnload(world: Level, chunk: ChunkAccess) {
         val pos = chunk.pos.engineChunkPos()
-        acousticSimulator.unloadChunkAsync(world.engine, chunk)
+        acousticSimulator.unloadChunkAsync(world.engineId, chunk)
         val engineWorld = engine.getWorld(world)
         val engineChunk = engineWorld.chunkStorage.getChunk(pos) ?: return
         val componentManager = engineWorld.componentManager
@@ -287,37 +286,53 @@ abstract class EngineMinecraftServer(protected val dependencies: EngineMinecraft
     }
 
     fun onWorldUnload(world: Level) {
-        val engineWorld = engine.worlds[world.engine] ?: return
+        val engineWorld = engine.simulation.worlds[world.engineId] ?: return
         engine.saveWorld(engineWorld)
     }
-}
 
-fun EngineServer.serverMinecraftPlayerLoadSettings(
-    entity: Player,
-    playerId: PlayerId,
-    developerModeStatus: DeveloperModeStatus = DeveloperModeStatus(),
-    notifications: List<Notification> = mutableListOf(),
-): PlayerLoadSettings {
-    assertOnThread()
-    val stacks = entity.ownedItems
-
-    return PlayerLoadSettings(
-        playerId,
-        stacks.mapNotNull {
-            val reference = it.engine()
-            if (reference?.version != CURRENT_ITEM_VERSION) {
-                null
-            } else {
-                reference.uuid
-            }
-        },
-        notifications,
-        entity.position().engine(),
-        entity.name.string,
-        developerModeStatus,
-        getWorld(entity.level().engine),
-        entity.isReplayViewer,
-        globals.savePath.playerData.parsePersistentPlayerData(playerId),
-        entity.enginePlayerMode
+    data class Dependencies(
+        val minecraftServer: MinecraftServer,
+        val luaScriptEngine: LuaScriptEngine,
+        val compilationResult: CompilationResult,
+        val config: ServerConfig = loadOrCreateServerConfig(),
+        val namespacedStorage: NamespacedStorageAccess,
+        val playerStorage: PlayerStorage = PlayerStorage(),
+        val worldTable: ServerWorldTable = ServerWorldTable(),
+        val acousticSceneBank: ConcurrentAcousticSceneBank = ConcurrentAcousticSceneBank(),
+        val acousticBlockData: AcousticBlockData = AcousticBlockData.BUILTIN,
+        val isReplay: Boolean = minecraftServer.isReplayServer,
     )
+
+    companion object {
+        fun serverMinecraftPlayerLoadSettings(
+            server: EngineServer,
+            entity: Player,
+            playerId: PlayerId,
+            developerModeStatus: DeveloperModeStatus = DeveloperModeStatus(),
+            notifications: List<Notification> = mutableListOf(),
+        ): PlayerLoadSettings {
+            server.simulation.assertOnThread()
+            val stacks = entity.ownedItems
+
+            return PlayerLoadSettings(
+                playerId,
+                stacks.mapNotNull {
+                    val reference = it.engine()
+                    if (reference?.version != CURRENT_ITEM_VERSION) {
+                        null
+                    } else {
+                        reference.uuid
+                    }
+                },
+                notifications,
+                entity.position().engine(),
+                entity.name.string,
+                developerModeStatus,
+                server.getWorld(entity.level().engineId),
+                entity.isReplayViewer,
+                server.globals.savePath.playerData.parsePersistentPlayerData(playerId),
+                entity.enginePlayerMode,
+            )
+        }
+    }
 }

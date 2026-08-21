@@ -1,0 +1,13 @@
+package org.lain.engine.server
+
+enum class Notification {
+    INVALID_SOURCE_POS,
+    ACOUSTIC_ERROR,
+    COMPILATION_ERROR,
+    FREECAM,
+    SURVIVAL_GAMEMODE,
+    CREATIVE_GAMEMODE,
+    SPECTATOR_GAMEMODE,
+    ADVENTURE_GAMEMODE,
+    CHANGE_GAMEMODE_FORBIDDEN
+}

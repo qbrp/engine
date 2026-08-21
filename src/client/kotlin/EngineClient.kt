@@ -14,12 +14,11 @@ import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.server.account.EngineHttpClient
+import org.lain.engine.client.util.showAcousticDebugNotification
 import org.lain.engine.player.developerMode
 import org.lain.engine.script.lua.LuaDataStorage
+import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.util.DEV_MODE_COLOR
-import org.lain.engine.util.SPECTATOR_MODE_COLOR
 
 class EngineClient(
     val window: Window,
@@ -27,7 +26,7 @@ class EngineClient(
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
     val ui: EngineUi,
-    val infrastructure: ClientInfrastructure,
+    val infrastructure: ClientPlatform,
     httpClient: EngineHttpClient,
 ) {
     lateinit var options: EngineOptions
@@ -36,7 +35,8 @@ class EngineClient(
     val renderer = ScreenRenderer(this)
     val resourceManager = ResourceManager(this)
     val skinTextureManager = SkinTextureManager(httpClient.rest)
-    val accountManager: AccountManager = AccountManager(skinTextureManager, ClientEngineAccountService(httpClient))
+    val accountManager: AccountManager =
+        AccountManager(skinTextureManager, ClientEngineAccountService(httpClient))
 
     val resources
         get() = resourceManager.context
@@ -51,18 +51,9 @@ class EngineClient(
         }
     var acousticDebug: Boolean = false
         set(value) {
-            val text = if (value) "Включена" else "Выключена"
-
-            applyLittleNotification(
-                LittleNotification(
-                    "Отладка акустики",
-                    text,
-                    DEV_MODE_COLOR,
-                    VOICE_WARNING
-                )
-            )
+            if (gameSession == null) return
+            showAcousticDebugNotification(value)
             handler.onDeveloperModeUpdate(developerMode, value)
-
             field = value
         }
 
@@ -109,10 +100,7 @@ class EngineClient(
         handler.tick()
         gameSession?.tick()
         handler.postTick()
-        infrastructure.tick()
     }
-
-    fun isOnThread() = Thread.currentThread() == thread
 
     fun execute(r: () -> Unit) {
         handler.taskExecutor.add("Unnamed task", r)
@@ -124,7 +112,7 @@ class EngineClient(
 
     fun toggleDeveloperMode() {
         developerMode = !developerMode
-        applyLittleNotification(
+        showNotification(
             LittleNotification(
                 "Режим разработчика",
                 if (developerMode) {
@@ -151,20 +139,7 @@ class EngineClient(
         }
     }
 
-    fun sendSpectatingNotification() {
-        applyLittleNotification(
-            LittleNotification(
-                "Наблюдение",
-                "Введите команду /spawn для появления",
-                SPECTATOR_MODE_COLOR,
-                sprite = QUESTION,
-                lifeTime = 200
-            ),
-            SPECTATOR_NOTIFICATION
-        )
-    }
-
-    fun applyLittleNotification(notification: LittleNotification, slot: String? = null) {
+    fun showNotification(notification: LittleNotification, slot: String? = null) {
         renderer.littleNotificationsRenderer.create(notification, slot)
         audioManager.playUiNotificationSound()
     }

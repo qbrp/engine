@@ -46,7 +46,7 @@ class ClientEngineChatManager(
             }
             eventBus.invalidateChatEntries()
 
-            client.applyLittleNotification(
+            client.showNotification(
                 LittleNotification(
                     "Прослушка $status",
                     description,
@@ -69,7 +69,7 @@ class ClientEngineChatManager(
             }
             eventBus.invalidateChatEntries()
 
-            client.applyLittleNotification(
+            client.showNotification(
                 LittleNotification(
                     "Полная громкость $status",
                     description,
@@ -91,7 +91,7 @@ class ClientEngineChatManager(
                 endTyping()
                 status = "выключен"
             }
-            client.applyLittleNotification(
+            client.showNotification(
                 LittleNotification(
                     "Индикатор набора сообщения $status",
                     description,

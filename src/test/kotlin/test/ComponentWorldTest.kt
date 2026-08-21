@@ -24,6 +24,7 @@ import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.engine.listKotlinComponentTypeEntries
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptEngine
+import org.lain.engine.server.Changes
 import org.lain.engine.util.component.castIndexed
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.BeforeTest
@@ -124,11 +125,13 @@ class ComponentWorldTest : EngineTest() {
         componentWorld.setComponentWithType(entity, TestVelocity(4), velocityType)
 
         assertEquals(listOf(TestVelocity(4)), componentWorld.getNetworkedComponents(entity))
-        assertEquals(listOf(TestVelocity(4)), componentWorld.getDirtyNetworkedComponentsLegacy(entity))
+        val changes = componentWorld.getComponent(entity, componentTypeOf(Changes::class))!!
+        assertTrue(changes.updated[velocityType.idx])
 
-        componentWorld.clearDirtyComponents(entity)
+        changes.clear()
 
-        assertTrue(componentWorld.getDirtyNetworkedComponentsLegacy(entity).isEmpty())
+        assertFalse(changes.changed)
+        assertTrue(changes.updated.isEmpty)
     }
 
     @Test
@@ -138,7 +141,49 @@ class ComponentWorldTest : EngineTest() {
         componentWorld.setComponentWithType(entity, TestPosition(9), positionType)
         componentWorld.markDirty(entity, positionType)
 
-        assertTrue(componentWorld.getDirtyNetworkedComponentsLegacy(entity).isEmpty())
+        assertNull(componentWorld.getComponent(entity, componentTypeOf(Changes::class)))
+    }
+
+    @Test
+    fun removingNetworkedComponentIsTracked() {
+        val entity = componentWorld.addEntity()
+        componentWorld.setComponentWithType(entity, TestVelocity(4), velocityType)
+        val changes = componentWorld.getComponent(entity, componentTypeOf(Changes::class))!!
+        changes.clear()
+
+        componentWorld.removeComponent(entity, velocityType)
+
+        assertTrue(changes.changed)
+        assertTrue(changes.removed[velocityType.idx])
+        assertFalse(changes.updated[velocityType.idx])
+    }
+
+    @Test
+    fun networkedComponentChangesNotifyListener() {
+        val entity = componentWorld.addEntity()
+        val notifications = mutableListOf<Pair<EntityId, String>>()
+        componentWorld.networkedComponentChangeListener = { changedEntity, type ->
+            notifications += changedEntity to type.id
+        }
+
+        componentWorld.setComponentWithType(entity, TestVelocity(4), velocityType)
+        componentWorld.markDirty(entity, velocityType)
+        componentWorld.removeComponent(entity, velocityType)
+
+        assertEquals(
+            listOf(
+                entity to velocityType.id,
+                entity to velocityType.id,
+                entity to velocityType.id,
+            ),
+            notifications,
+        )
+
+        componentWorld.setComponentWithType(entity, TestVelocity(5), velocityType)
+        notifications.clear()
+        componentWorld.destroy(entity)
+
+        assertEquals(listOf(entity to velocityType.id), notifications)
     }
 
     @Test

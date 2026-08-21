@@ -10,10 +10,10 @@ import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.VoxelPos
 
-interface ClientInfrastructure {
+interface ClientPlatform {
+    val tickExtension: TickExtension
     val modIds: List<String>
-    fun tick()
-    fun onFullPlayerData(client: EngineClient, id: PlayerId, data: FullPlayerData)
+    suspend fun onFullPlayerData(gameSession: GameSession, player: EnginePlayer, data: FullPlayerData)
     fun onPlayerDestroy(client: EngineClient, playerId: PlayerId)
     fun onMainPlayerInstantiated(client: EngineClient, gameSession: GameSession, player: EnginePlayer)
     fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession)
@@ -21,9 +21,18 @@ interface ClientInfrastructure {
     fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk)
     fun onEntityDebugView(gameSession: GameSession)
     fun onEntityDebugViewData(data: EntityDebugData.Dto)
-    fun onCharacterSelectionMenuOpen(gameSession: GameSession)
     fun onWorkspaceMenuOpen(gameSession: GameSession)
     fun getHitResultVoxelPos(): VoxelPos?
     fun disconnect(reason: String)
-    fun createIntegratedServerPlayerLoadSettings(client: EngineClient, server: EngineServer): PlayerLoadSettings
+    fun createIntegratedServerPlayerLoadSettings(
+        client: EngineClient,
+        server: EngineServer,
+    ): PlayerLoadSettings
+
+
+    interface TickExtension {
+        fun GameSession.tickDataPrepareSystem()
+        fun GameSession.tickDataApplySystem()
+        fun GameSession.tickBulletFireSystem()
+    }
 }

@@ -31,7 +31,7 @@ class LooksWheel<T>(
         val look: Look,
         val text: Text,
         val profile: CharacterProfile,
-        val data: T,
+        val result: T,
         val key: String = look.id
     )
 

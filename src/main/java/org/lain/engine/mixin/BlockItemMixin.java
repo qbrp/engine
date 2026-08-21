@@ -5,7 +5,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
-import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.mc.CommonMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +21,7 @@ public class BlockItemMixin {
         if (cir.getReturnValue() == InteractionResult.SUCCESS) {
             Level world = blockPlaceContext.getLevel();
             BlockPos pos = blockPlaceContext.getClickedPos();
-            ServerMixinAccess.INSTANCE.onBlockAdded(blockPlaceContext, world, pos, world.getBlockState(pos));
+            CommonMixin.INSTANCE.onBlockItemPlaced(blockPlaceContext, world, pos, world.getBlockState(pos));
         }
     }
 }

@@ -5,7 +5,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.phys.BlockHitResult;
-import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.mc.CommonMixin;
+import org.lain.engine.mc.ServerMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +22,7 @@ public class BlockStateBaseMixin {
             cancellable = true
     )
     public void engine$handleBlockUse(Level world, Player player, BlockHitResult hit, CallbackInfoReturnable<InteractionResult> cir) {
-        if (ServerMixinAccess.INSTANCE.onBlockInteraction(player, player.level(), hit.getBlockPos())) {
+        if (CommonMixin.INSTANCE.onBlockInteraction(player, player.level(), hit.getBlockPos())) {
             cir.setReturnValue(InteractionResult.FAIL);
             cir.cancel();
         }

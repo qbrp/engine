@@ -36,7 +36,7 @@ object CoreScriptComponents {
     val PLAYER_MODE = register("core/player/game_mode")
     val LOCATION = register("core/location")
     val DYNAMIC_VOXEL = register("core/voxel/dynamic_voxel")
-    val USE_RESTRICTION = register("core/voxel/use_restriction", savable = true, networking = true)
+    val USE_RESTRICTION = register("core/voxel/use_restriction", savable = true, networking = true) // TODO: переместить в движок
     val LIGHT_SOURCE = register("core/light/source", savable = true, networking = true)
     val LUMINANCE = register("core/light/luminance", savable = true, networking = true)
     val PARENT = register("core/ownership/parent", savable = true, networking = true)

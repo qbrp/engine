@@ -1,7 +1,7 @@
 package org.lain.engine.client.mixin.wildfire;
 
 import com.wildfire.main.WildfireEventHandler;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,7 +15,7 @@ public class WildfireEventHandlerMixin {
             cancellable = true
     )
     private static void onClientTick(CallbackInfo ci) {
-        if (!ClientMixinAccess.INSTANCE.isEngineLoaded()) {
+        if (!ClientMixin.INSTANCE.isEngineLoaded()) {
             ci.cancel();
         }
     }

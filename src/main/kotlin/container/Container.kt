@@ -1,76 +1,43 @@
 package org.lain.engine.container
 
+import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.copyState
-import org.lain.engine.item.EngineItem
+import org.lain.engine.server.Networked
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.util.component.ComponentState
-import org.lain.engine.server.Networked
 import org.lain.engine.world.Location
+import org.lain.engine.world.World
 import kotlin.let
 
-/**
- * # Контейнеры
- * Отдельный вид сущностей, закрепляемый у предметов и игроков через якоря (например ContainerAnchor, Equipment).
- * Связь хранимых предметов является двухсторонней. Контейнер хранит в себе список предметов в Entries, хранимые предметы
- * имеют компонент ContainedIn
- *
- * - **Войд**. Базовый контейнер с компонентом Entries. Является бесконечным, можно назначать сколько угодно предметов. `Операция: AssignItem`
- * - **Слотовый**. Имеет компоненты Slots и OccupiedSlots. Количество предметов ограничено числом слотов, каждый слот может хранить только один предмет. `Операция: AssignSlot`
- * - **Фиксированный**. Принимает только определенные предметы.
- *
- * @see org.lain.engine.storage.loadWorldItem
- * @see org.lain.engine.prepareContainers
- * @since 3.5.1
- */
+@Serializable
 object Container : Component
 
-/**
- * Хранимые предметы.
- */
-data class Entries(val items: MutableList<EngineItem>) : Component
+@JvmInline
+value class ContainerEntity(val entity: EntityId) {
+    context(world: World)
+    fun destroy() = entity.destroy()
+}
+
+internal fun EntityId.castContainer() = ContainerEntity(this)
 
 /**
  * ## Компоненты предметов
  */
-data class ContainedIn(val container: EntityId) : Component
 data class HasContainer(val container: EntityId) : Component
-
-fun ReadComponentAccess.getContainerItems(container: EntityId): List<EngineItem> {
-    return container.requireComponent<Entries>().items
-}
 
 fun WriteComponentAccess.createContainer(
     location: Location,
     componentState: ComponentState? = null,
     persistentId: PersistentId? = null,
-    networked: Boolean = false,
-    entries: MutableList<EngineItem> = mutableListOf(),
-): EntityId {
+    networked: Boolean = false
+): ContainerEntity {
     return addEntity {
         if (networked) setComponent(Networked)
         componentState?.let { copyState(it) }
         persistentId?.let { setComponent(PersistentIdComponent(it)) }
         setComponent(location)
-        setComponent(Entries(entries))
+        setComponent(Entries(mutableSetOf()))
         setComponent(Container)
-    }
-}
-
-fun ReadComponentAccess.collectContainedRecursive(container: EntityId): List<EngineItem> {
-    val visited = mutableSetOf<EntityId>()
-    val result = mutableListOf<EngineItem>()
-    fun visit(container: EntityId) {
-        if (!visited.add(container)) return
-        val (entries) = container.getComponent<Entries>() ?: return
-
-        for (child in entries) {
-            result += child
-            val anchor = child.getComponent<HasContainer>() ?: continue
-            visit(anchor.container)
-        }
-    }
-    visit(container)
-    return result
+    }.castContainer()
 }

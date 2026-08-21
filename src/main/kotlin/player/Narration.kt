@@ -2,10 +2,9 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.apply
-import org.lain.cyberia.ecs.require
-import org.lain.engine.server.markDirty
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.util.nextIdFast
+import org.lain.engine.world.World
 import kotlin.math.max
 
 /**
@@ -39,15 +38,18 @@ fun EnginePlayer.narration(message: String, time: Int, kick: Boolean = false) = 
     } else {
         messages += NarrationMessage(NarrationContent(message, time), 0, kick)
     }
+    markUpdated<Narration>()
 }
 
 fun EnginePlayer.serverNarration(message: String, time: Int, kick: Boolean = false) {
     narration(message, time, kick)
-    markDirty<Narration>()
+    markUpdated<Narration>()
 }
 
-fun tickNarrations(player: EnginePlayer) {
-    player.require<Narration>().messages.removeIf {
-        it.time++ >= it.content.duration
+fun World.tickNarrationSystem() {
+    iterate<Narration>() { _, (messages) ->
+        messages.removeIf {
+            it.time++ >= it.content.duration
+        }
     }
 }

@@ -6,16 +6,13 @@ import org.lain.engine.Constants.ENGINE_MOD_VERSION
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
-import org.lain.engine.client.ClientInfrastructure
+import org.lain.engine.client.ClientPlatform
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.account.NotAuthorizedException
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.chat.acceptOutcomingMessage
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.ui.character.CharacterSelectionScreen
-import org.lain.engine.client.render.ui.character.LookSelectionScreen
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.registerClientReceiver
@@ -30,13 +27,12 @@ import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.*
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.player.character.Look
 import org.lain.engine.player.interaction.InputAction
+import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.player.interaction.PredictionSink
 import org.lain.engine.script.EntityDebugData
 import org.lain.engine.script.NamespaceHashMap
-import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.EntityNetworkSnapshot
@@ -45,14 +41,11 @@ import org.lain.engine.server.desync
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
-import org.lain.engine.util.component.ComponentTypeRegistry
-import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.util.concurrent.ConcurrentHashMap
 
-class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure) {
+class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : PredictionSink {
     private val gameSession get() = client.gameSession
     private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
 
@@ -60,42 +53,46 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
 
     private val showedNotifications = mutableSetOf<Notification>()
 
-    //TODO: нужно очищать периодически во время сессии
-    val processedInteraction = mutableSetOf<InteractionIdentity>()
-
-    //TODO: сделать стабильный ID, т.к. действия, произведённые сущностью за один тик, могут некорректно сихнронизироваться
-    data class InteractionIdentity(val tick: Long, val entity: EntityId)
+    val processedInteraction = linkedSetOf<InteractionId>()
 
     private val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
     private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
 
-    private val awaitingEntities =
-        ConcurrentHashMap<PersistentId, CompletableDeferred<PendingEntity?>>()
     private val awaitingChunks = mutableMapOf<EngineChunkPos, CompletableDeferred<EngineChunk>>()
-    private val pendingEntityProvider = PendingEntityProvider(awaitingEntities)
-    private val entitySnapshotQueues = mutableMapOf<PersistentId, ArrayDeque<PendingEntitySnapshot>>()
-    private val entitySnapshotJobs = mutableMapOf<PersistentId, Job>()
+    private val replication = ClientReplicationController(
+        coroutineScope = coroutineScope,
+        awaitChunk = ::awaitChunk,
+        requestEntityResync = { persistentId ->
+            SERVERBOUND_ENTITY_RESYNC_REQUEST_ENDPOINT.sendC2SPacket(
+                EntityResyncRequestPacket(persistentId)
+            )
+        },
+    )
 
-    private val characterApplyConfirmationDeferreds: MutableMap<Long?, MutableList<CompletableDeferred<Unit>>> =
-        mutableMapOf()
-
-    private fun newEntityResolver() = EntityResolver(pendingEntityProvider)
-
-    fun deferCharacterApplyConfirmation(requestId: Long? = null): CompletableDeferred<Unit> {
-        val completableDeferred = CompletableDeferred<Unit>()
-        characterApplyConfirmationDeferreds.getOrPut(requestId) { mutableListOf() } += completableDeferred
-        return completableDeferred
+    override fun begin(
+        world: World,
+        entity: EntityId,
+        interactionId: InteractionId
+    ) {
+        rememberProcessedInteraction(interactionId)
+        replication.beginPrediction(world, entity, interactionId)
     }
 
-    fun applyCharacterApplyConfirmation(requestId: Long?, errorMessage: String?) {
-        val deferreds = characterApplyConfirmationDeferreds.remove(requestId).orEmpty()
-        deferreds.forEach {
-            if (errorMessage == null) {
-                it.complete(Unit)
-            } else {
-                it.completeExceptionally(RuntimeException(errorMessage))
-            }
+    fun initializeEntitySynchronization(gameSession: GameSession) = replication.initialize(gameSession)
+
+    fun endInteractionPrediction() {
+        replication.endPrediction()
+    }
+
+    fun rememberProcessedInteraction(interactionId: InteractionId) {
+        processedInteraction += interactionId
+        while (processedInteraction.size > MAX_PROCESSED_INTERACTIONS) {
+            processedInteraction.remove(processedInteraction.first())
         }
+    }
+
+    fun applyCharacterApplyConfirmation(requestId: Long, errorMessage: String?) {
+        gameSession?.characterChange?.confirm(requestId, errorMessage)
     }
 
     fun run() {
@@ -118,91 +115,28 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     suspend fun sendVerificationPacket(
         namespaceHashMap: NamespaceHashMap,
         selectedCharacter: EngineCharacter?,
-        sessionTicket: SessionTicket
+        sessionTicket: SessionTicket,
     ) = withClientContext {
         SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
             VerificationResponsePacket(
-                DeveloperModeStatus(client.developerMode, client.acousticDebug),
-                namespaceHashMap,
-                selectedCharacter?.profile?.id,
-                sessionTicket.toDto()
+                developerModeStatus = DeveloperModeStatus(client.developerMode, client.acousticDebug),
+                namespaces = namespaceHashMap,
+                characterId = selectedCharacter?.profile?.id,
+                sessionTicket = sessionTicket.toDto(),
             )
         )
     }
 
-    fun selectCharacter(isSingleplayer: Boolean, character: CurrentPlayerCharacter?) {
-        CoroutineScope(Dispatchers.Default).launch {
-            val accountManager = client.accountManager
-            // метод не может быть вызван, если lastAccountResponse == null, т.к. в таком случае игра недоступна
-            // см. EngineClient.canPlaySingleplayer
-            val account = accountManager.getAccountResponseUpdateLaunching()
-            val characters = account.characters.map { it.map() }
-            val selectionResult = character?.let {
-                LookSelectionScreen.awaitGeneralSelection(
-                    client,
-                    character.data,
-                    characters,
-                    character.look
-                )
-            } ?: run {
-                val requestId = nextIdFast()
-                CharacterSelectionScreen.awaitCharacterSelection(
-                    client,
-                    character?.data,
-                    characters,
-                    requestId
-                )
-                    ?.let { LookSelectionScreen.Result.SelectedCharacter(it, requestId) }
-            }
-            ?: return@launch
-            withClientContext {
-                when (selectionResult) {
-                    is LookSelectionScreen.Result.SelectedCharacter -> {
-                        if (isSingleplayer) {
-                            onCharacterSelectedSingleplayer(
-                                selectionResult.character,
-                                selectionResult.requestId
-                            )
-                        } else {
-                            accountManager.sessionTicketOperation(
-                                accountManager.getAuthorized() ?: throw NotAuthorizedException()
-                            ) { sessionTicket ->
-                                val requestId = selectionResult.requestId
-                                withClientContext {
-                                    onCharacterSelectedMultiplayer(
-                                        selectionResult.character,
-                                        sessionTicket,
-                                        requestId
-                                    )
-                                }
-                                deferCharacterApplyConfirmation(requestId).await()
-                            }
-                        }
-                    }
-
-                    is LookSelectionScreen.Result.SelectedLook -> {
-                        onLookSelected(selectionResult.look.id, selectionResult.requestId)
-                    }
-                }
-            }
-        }
-    }
-
-    fun disable() {
+    fun disable(gameSession: GameSession) {
+        replication.disable(gameSession.world)
         injectValue<ClientTransportContext>().unregisterAll()
         showedNotifications.clear()
-        entitySnapshotJobs.values.forEach { it.cancel() }
-        entitySnapshotJobs.clear()
-        entitySnapshotQueues.clear()
-        awaitingEntities.values.forEach { it.cancel() }
-        awaitingEntities.clear()
         processedInteraction.clear()
         awaitingChunks.clear()
-        characterApplyConfirmationDeferreds.clear()
-        pendingEntityProvider.clear()
     }
 
     fun tick() {
+        endInteractionPrediction()
         val gameSession = client.gameSession
         if (gameSession != null) {
             with(gameSession.world) {
@@ -278,7 +212,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
         )
     }
 
-    fun onCharacterSelectedSingleplayer(character: EngineCharacter, requestId: Long? = null) {
+    fun onCharacterSelectedSingleplayer(character: EngineCharacter, requestId: Long) {
         SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
             CharacterApplyPacket(character.profile.id, character, requestId = requestId)
         )
@@ -287,14 +221,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     fun onCharacterSelectedMultiplayer(
         character: EngineCharacter,
         sessionTicket: SessionTicket,
-        requestId: Long? = null
+        requestId: Long,
     ) {
         SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
             CharacterApplyPacket(character.profile.id, null, sessionTicket.toDto(), requestId)
         )
     }
 
-    fun onLookSelected(lookId: String, requestId: Long? = null) {
+    fun onLookSelected(lookId: String, requestId: Long) {
         SERVERBOUND_LOOK_APPLY_ENDPOINT.sendC2SPacket(LookApplyPacket(lookId, requestId))
     }
 
@@ -365,36 +299,41 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.sendC2SPacket(WriteableUpdatePacket(item, contents))
     }
 
-    fun applyFullPlayerData(player: EnginePlayer, data: FullPlayerData) = coroutineScope.launch {
+    fun applyFullPlayerData(gameSession: GameSession, player: EnginePlayer, data: FullPlayerData) = coroutineScope.launch {
         while (!data.referencedItems.isPresent()) {
             waitNextTick()
         }
-
         player.set(data.movementStatus)
         player.set(data.attributes)
         player.require<EnginePlayerModel>().skinEyeY = data.skinEyeY
         player.isLowDetailed = false
-        client.infrastructure.onFullPlayerData(client, player.id, data)
+        client.infrastructure.onFullPlayerData(gameSession, player, data)
     }
 
     private fun PlayerReferencedItems.isPresent() =
         all.none { gameSession?.itemStorage?.get(it) == null }
 
     fun applyPlayerJoined(data: GeneralPlayerData) {
+        processedInteraction.removeIf { it.source == data.playerId }
+        val persistentId = CustomPersistentId(data.playerId.toString())
+        replication.removeEntity(persistentId)
         gameSession!!.instantiateLowDetailedPlayer(data)
     }
 
-    fun applyPlayerDestroyed(player: EnginePlayer) {
-        gameSession!!.playerStorage.remove(player.id)
+    fun applyPlayerDestroyed(gameSession: GameSession, player: EnginePlayer) {
+        processedInteraction.removeIf { it.source == player.id }
+        val persistentId = CustomPersistentId(player.id.toString())
+        replication.removeEntity(persistentId)
+        gameSession.simulation.preparePlayerDestroy(player)
+        gameSession.simulation.destroyPlayer(player)
         eventBus.onPlayerDestroy(client, player.id)
     }
 
-    fun applyJoinGame(joinGamePacket: JoinGamePacket) = runBlocking {
+    fun applyJoinGame(joinGamePacket: JoinGamePacket) {
+        if (client.joinFlow?.confirmJoinGamePacket(joinGamePacket) != true) return
         if (client.gameSession != null) {
             error("Игровая сессия уже запущена!")
         }
-
-        client.joinFlow?.joinGamePacketCompletableDeferred?.complete(joinGamePacket)
     }
 
     fun applyServerSettingsUpdate(settings: ClientboundServerSettings) = with(gameSession!!) {
@@ -411,7 +350,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
     }
 
     fun applyChatMessage(gameSession: GameSession, message: OutcomingMessage) {
-        val chatManager = gameSession.chatManager ?: return
+        val chatManager = gameSession.chatManager
         chatManager.addMessage(
             acceptOutcomingMessage(
                 message,
@@ -419,7 +358,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
                 SYSTEM_CHANNEL,
                 chatManager.settings.placeholders,
                 client.resources.formatConfiguration,
-                gameSession.playerStorage.map { it.username }
+                gameSession.playerStorage.all.map { it.username }
             )
         )
     }
@@ -430,7 +369,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
 
     fun applyNotification(type: Notification, once: Boolean) {
         if (!showedNotifications.add(type) && once) return
-        client.applyLittleNotification(LittleNotification.ofServer(type))
+        client.showNotification(LittleNotification.ofServer(type))
     }
 
     fun applyPlaySoundPacket(play: SoundPlay, ignorePhysics: Boolean): Unit = with(gameSession!!) {
@@ -460,35 +399,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
         awaitingChunks.remove(pos)?.complete(chunk)
     }
 
-    fun applyDynamicVoxelDelta(
-        gameSession: GameSession,
-        voxelPos: VoxelPos,
-        snapshot: EntityNetworkSnapshot
-    ) =
-        context(gameSession.luaContext) {
-            with(gameSession.world) {
-                val entity = chunkStorage.getDynamicVoxel(voxelPos) ?: run {
-                    val entity = addEntity()
-                    entity.setDynamicVoxel(voxelPos, false)
-                    entity
-                }
-
-                coroutineScope.launch {
-                    entity.copyState(
-                        snapshot.updated.toDomainSuspend {
-                            toDomainSuspend(
-                                componentLoadSettings,
-                                entityGetter = { null },
-                            )
-                        }
-                    )
-                    removeSnapshotComponents(entity, snapshot.removed)
-                    val chunk = awaitChunk(gameSession, EngineChunkPos(voxelPos))
-                    chunk.dynamicVoxels[voxelPos] = entity
-                }
-            }
-        }
-
     fun applyVoxelEvent(event: VoxelEvent) = with(gameSession!!) {
         world.emitEvent(event)
     }
@@ -497,79 +407,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
         gameSession: GameSession,
         persistentId: PersistentId,
         snapshot: EntityNetworkSnapshot
-    ) {
-        if (persistentId is VoxelPosId) {
-            LOGGER.warn("Синхронизация блока $persistentId как обычной сущность проигнорирована")
-            return
-        }
-
-        val snapshots = entitySnapshotQueues.getOrPut(persistentId) { ArrayDeque() }
-        snapshots.addLast(PendingEntitySnapshot(gameSession, snapshot))
-
-        val pendingEntity = awaitingEntities.computeIfAbsent(persistentId) { CompletableDeferred() }
-        pendingEntity.complete(PendingEntity(snapshot.updated))
-
-        if (entitySnapshotJobs[persistentId]?.isActive == true) return
-
-        entitySnapshotJobs[persistentId] = coroutineScope.launch {
-            try {
-                while (snapshots.isNotEmpty()) {
-                    val pendingSnapshot = snapshots.removeFirst()
-                    try {
-                        applyEntitySnapshot(persistentId, pendingSnapshot)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        LOGGER.error("Не удалось применить сетевой снапшот сущности $persistentId", e)
-                    }
-                }
-            } finally {
-                entitySnapshotQueues.remove(persistentId)
-                entitySnapshotJobs.remove(persistentId)
-                awaitingEntities.remove(persistentId, pendingEntity)
-            }
-        }
-    }
-
-    private suspend fun applyEntitySnapshot(
-        persistentId: PersistentId,
-        pendingSnapshot: PendingEntitySnapshot
-    ) = with(pendingSnapshot.gameSession.world) {
-        val snapshot = pendingSnapshot.snapshot
-        val entity = newEntityResolver().loadEntity(
-            componentLoadSettings,
-            snapshot.updated,
-            persistentId
-        )
-        removeSnapshotComponents(entity, snapshot.removed)
-
-        pendingSnapshot.gameSession.logInMainThread {
-            Log(
-                LogMessages.ENTITY_SYNC_ADD,
-                LogLevel.INFO,
-                data = mapOf(
-                    "entity" to entity.getEntityDebugNameId().name,
-                    "persistent_id" to persistentId.toString(),
-                    "components" to snapshot.updated.joinToString(),
-                ),
-                world = pendingSnapshot.gameSession.world.id,
-                tick = it
-            )
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun World.removeSnapshotComponents(entity: EntityId, removedTypeIds: List<String>) {
-        removedTypeIds.forEach { typeId ->
-            val type = ComponentTypeRegistry.get(typeId)?.type
-                ?: ScriptComponentId(typeId).let { scriptComponentId ->
-                    componentLoadSettings.namespacedStorage.components[scriptComponentId]
-                        ?: CoreScriptComponents.get(scriptComponentId)
-                        ?: error("Тип компонента $typeId не существует")
-                }
-            removeComponent(entity, type as ComponentType<Component>)
-        }
-    }
+    ) = replication.applyEntity(gameSession, persistentId, snapshot)
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {
         client.infrastructure.onEntityDebugViewData(data)
@@ -608,33 +446,17 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientInfrastructure
         )
     }
 
+    fun applyProcessedInput(gameSession: GameSession, processedInputTick: Long) =
+        replication.applyProcessedInput(gameSession, processedInputTick)
+
     fun applyWorldState(gameSession: GameSession, snapshot: EntityNetworkSnapshot) =
-        with(gameSession.world) {
-            runBlocking {
-                state.copyComponentDtoState(snapshot.updated) {
-                    toDomainWithoutRelationships(
-                        itemStorage,
-                        namespacedStorage,
-                        gameSession.luaContext
-                    )
-                }
-            }
-            removeSnapshotComponents(state, snapshot.removed)
-        }
+        replication.applyWorldState(gameSession, snapshot)
 
     fun applyItemUnload(gameSession: GameSession, items: List<PersistentId>) =
-        with(gameSession.world) {
-            items.forEach { item -> gameSession.itemStorage.remove(item)?.destroy() }
-        }
+        replication.applyItemUnload(gameSession, items)
 
     companion object {
+        private const val MAX_PROCESSED_INTERACTIONS = 4096
         val LOGGER: Logger = LoggerFactory.getLogger("Engine Client Handler")
     }
-
-    data class CurrentPlayerCharacter(val data: EngineCharacter, val look: Look)
-
-    private data class PendingEntitySnapshot(
-        val gameSession: GameSession,
-        val snapshot: EntityNetworkSnapshot
-    )
 }

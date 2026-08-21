@@ -3,11 +3,7 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.engine.chat.EngineChat
 import org.lain.cyberia.ecs.*
-import org.lain.cyberia.ecs.get
-import org.lain.cyberia.ecs.has
-import org.lain.cyberia.ecs.remove
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.set
+import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
 import kotlin.random.Random
 
@@ -161,43 +157,43 @@ fun EnginePlayer.updateVoiceApparatus(
     return@with breakVoice
 }
 
-fun updatePlayerVoice(
-    player: EnginePlayer,
-    chat: EngineChat,
+fun World.tickPlayerVoiceSystem(
     settings: VocalSettings,
     tickRate: Int = 1,
 ) = with(settings) {
-    val voiceLoose = player.get<VoiceLoose>()
-    val voiceApparatus = player.require<VoiceApparatus>()
-    var canReduceTiredness = voiceLoose == null
-    if (voiceLoose != null) {
-        voiceLoose.ticks += tickRate
-        val ticks = voiceLoose.ticks
-        val ticksToRegen = voiceLoose.ticksToRegeneration
+    iterate<PlayerComponent, VoiceApparatus>() { _, (player), voiceApparatus ->
+        val voiceLoose = player.get<VoiceLoose>()
+        val voiceApparatus = player.require<VoiceApparatus>()
+        var canReduceTiredness = voiceLoose == null
+        if (voiceLoose != null) {
+            voiceLoose.ticks += tickRate
+            val ticks = voiceLoose.ticks
+            val ticksToRegen = voiceLoose.ticksToRegeneration
 
-        if (voiceLoose.secondPhase) {
-            canReduceTiredness = true
+            if (voiceLoose.secondPhase) {
+                canReduceTiredness = true
+            }
+            if (ticks > ticksToRegen) {
+                player.remove<VoiceLoose>()
+            }
         }
-        if (ticks > ticksToRegen) {
-            player.remove<VoiceLoose>()
+        val tiredness = voiceApparatus.tiredness
+        if (canReduceTiredness && tiredness > 0f) {
+            voiceApparatus.tiredness = (tiredness - tirednessDecreaseRate).coerceAtLeast(0f)
         }
-    }
-    val tiredness = voiceApparatus.tiredness
-    if (canReduceTiredness && tiredness > 0f) {
-        voiceApparatus.tiredness = (tiredness - tirednessDecreaseRate).coerceAtLeast(0f)
-    }
 
-    // 5 минут
-    if (tiredness > breakWarningThreshold && voiceApparatus.lastNotificationTick > 6000) {
-        voiceApparatus.lastNotificationTick = 0
-        if (voiceLoose == null) {
-            player.serverNarration(
-                "<yellow>Аккуратнее! Кажется, вы вот-вот сорвёте голос.</yellow>",
-                150
-            )
+        // 5 минут
+        if (tiredness > breakWarningThreshold && voiceApparatus.lastNotificationTick > 6000) {
+            voiceApparatus.lastNotificationTick = 0
+            if (voiceLoose == null) {
+                player.serverNarration(
+                    "<yellow>Аккуратнее! Кажется, вы вот-вот сорвёте голос.</yellow>",
+                    150
+                )
+            }
         }
-    }
-    if (tiredness < breakWarningThreshold) {
-        voiceApparatus.lastNotificationTick += tickRate
+        if (tiredness < breakWarningThreshold) {
+            voiceApparatus.lastNotificationTick += tickRate
+        }
     }
 }

@@ -2,21 +2,12 @@ package org.lain.engine.script.lua.library.ecs
 
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.castLua
 import org.lain.engine.script.lua.castedLuaValue
-import org.lain.engine.script.lua.library.LuaEntity
-import org.lain.engine.script.lua.library.coerceToLua
-import org.lain.engine.script.lua.luaTable
-import org.lain.engine.script.lua.luaValue
-import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.world.LightBehaviour
 import org.lain.engine.world.LightSource
 import org.lain.engine.world.Luminance
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaTable
-import org.luaj.vm2.LuaValue
-import org.luaj.vm2.LuaValue.NIL
 
 private fun LuaTable.toLightBehaviour(): LightBehaviour {
     val parameters = get("params").checktable()
@@ -26,7 +17,7 @@ private fun LuaTable.toLightBehaviour(): LightBehaviour {
     }
 }
 
-fun World.applyLugLightComponents() {
+fun World.applyLuaLightComponents() {
     val luminanceArray = componentManager.getComponentArray<Luminance>()
     val lightSourceArray = componentManager.getComponentArray<LightSource>()
     iterate(CoreScriptComponents.LIGHT_SOURCE) { entity, lightSource ->

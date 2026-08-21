@@ -27,6 +27,7 @@ import org.lain.engine.util.Injector
 import org.lain.engine.util.file.loadStdLuaLibrary
 import org.lain.engine.util.file.updateOldFileNaming
 import org.lain.engine.util.injectValue
+import org.lain.engine.util.requireEngineMinecraftServer
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -36,10 +37,8 @@ import org.lain.engine.util.injectValue
  */
 
 class CommonEngineMod : ModInitializer {
-    private val entityTable = EntityTable()
-        .also { Injector.register(it) }
     private val engineServer: EngineMinecraftServer
-        get() = Injector.resolve(EngineMinecraftServer::class)
+        get() = requireEngineMinecraftServer()
 
     override fun onInitialize() {
         bootstrap()
@@ -52,7 +51,7 @@ class CommonEngineMod : ModInitializer {
         initializeEngineItemComponents()
 
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
-            Injector.register<RaycastProvider>(MinecraftRaycastProvider(injectValue()))
+            Injector.register<RaycastProvider>(MinecraftRaycastProvider())
             engineServer.run()
             if (Constants.DEVELOPER_TEST_ENVIRONMENT) {
                 val gameRules = server.worldData.gameRules
@@ -98,7 +97,7 @@ class CommonEngineMod : ModInitializer {
             if (world.isClientSide) return@register InteractionResult.PASS
             val hitPlayer = hitResult?.entity ?: return@register InteractionResult.PASS
             if (hitPlayer !is ServerPlayer) return@register InteractionResult.PASS
-            val enginePlayer = entityTable.getGeneralPlayer(hitPlayer) ?: return@register InteractionResult.PASS
+            val enginePlayer = hitPlayer.getEngineState() ?: return@register InteractionResult.PASS
             with(enginePlayer.world) { showPlayerHint(hitPlayer, enginePlayer.entity) }
             InteractionResult.PASS
         }

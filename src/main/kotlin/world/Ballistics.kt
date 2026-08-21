@@ -22,12 +22,12 @@ data class BulletFireEvent(val shoot: ShootGeometry, val bullet: BulletParameter
 
 val BulletParameters.recoilSpeed get() = bulletMass * bulletSpeed / DEFAULT_WEAPON_MASS
 
-data class RecoilImpulseEvent(
+data class RecoilEvent(
     val player: EnginePlayer,
     val shoot: ShootGeometry,
     val bullet: BulletParameters
 ) : Component
 
-fun World.tickRecoilSystem() = iterate<RecoilImpulseEvent> { item, (owner, shoot, bullet) ->
+fun World.tickRecoilSystem() = iterate<RecoilEvent> { item, (owner, shoot, bullet) ->
     owner.translateRotation(pitch = -(bullet.recoilSpeed * 3f))
 }

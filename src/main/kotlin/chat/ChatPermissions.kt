@@ -1,14 +1,18 @@
 package org.lain.engine.chat
 
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.hasPermission
 
 const val CHAT_OPERATOR_PERMISSION = "chat.operator"
 
 const val CHAT_HEADS_PERMISSION = "chat.heads"
 
+fun EnginePlayer.hasPermission(permission: String): Boolean {
+    if (world.isClient) error("Невозможно узнать наличие права на клиенте")
+    return world.server?.hasPermission(this, permission) == true
+}
+
 val EnginePlayer.isChatOperator
-    get() = this.hasPermission(CHAT_OPERATOR_PERMISSION)
+    get() = hasPermission(CHAT_OPERATOR_PERMISSION)
 
 fun EnginePlayer.isChannelAvailableToRead(channel: ChatChannel) = !channel.permission || hasPermission("chat.${channel.id.value}.read")
 

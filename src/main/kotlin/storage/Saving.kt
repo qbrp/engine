@@ -31,14 +31,14 @@ object Savable : Component
 object SaveTag : Component
 object UnloadTag : Component
 
-fun updateUnloadSystem(handler: ServerHandler, world: World, timers: SaveTimers) {
+fun World.updateUnloadSystem(handler: ServerHandler, timers: SaveTimers) {
     val itemsTimerElapsed = timers.items.isElapsed()
     val containersTimerElapsed = timers.containers.isElapsed()
     val usedContainers = mutableSetOf<EntityId>()
 
     if (itemsTimerElapsed) {
         val unloaded = mutableListOf<PersistentId>()
-        world.iterate<Item> { item, _ ->
+        iterate<Item> { item, _ ->
             item.setComponent(SaveTag)
             val containedIn = item.getComponent<ContainedIn>()
             val containerUnloaded = containedIn != null && !containedIn.container.exists()

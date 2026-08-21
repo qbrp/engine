@@ -14,7 +14,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.FormattedCharSequence;
 import org.jetbrains.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mc.chat.MinecraftChat;
 import org.lain.engine.client.mc.MinecraftKeybindKt;
 import org.lain.engine.client.render.ui.hud.ChatChannelsBar;
@@ -61,7 +61,7 @@ public abstract class ChatScreenMixin {
         Screen screen = (Screen)((Object)this);
         ((ScreenAccessor) screen).engine$addDrawableChild(
                 new HandStatusButtonWidget(
-                        ClientMixinAccess.INSTANCE.getEngineClient(),
+                        ClientMixin.INSTANCE.getEngineClient(),
                         screen.width - 32 - 2,
                         screen.height - 32 - 14 - 2,
                         32,
@@ -101,9 +101,9 @@ public abstract class ChatScreenMixin {
             ),
             cancellable = true)
     public void engine$sendChatMessage(String chatText, boolean addToHistory, CallbackInfo ci) {
-        if (ClientMixinAccess.INSTANCE.isEngineLoaded()) {
+        if (ClientMixin.INSTANCE.isEngineLoaded()) {
             ci.cancel();
-            ClientMixinAccess.INSTANCE.sendChatMessage(chatText);
+            ClientMixin.INSTANCE.sendChatMessage(chatText);
         }
     }
 
@@ -195,7 +195,7 @@ public abstract class ChatScreenMixin {
             )
     )
     public void engine$setScreen(Minecraft instance, Screen screen) {
-        if (ClientMixinAccess.INSTANCE.sendingMessageClosesChat() || MinecraftKeybindKt.isControlDown()) {
+        if (ClientMixin.INSTANCE.sendingMessageClosesChat() || MinecraftKeybindKt.isControlDown()) {
             instance.setScreen(screen);
         } else {
             if (!normalizeChatMessage(input.getValue()).isEmpty()) {

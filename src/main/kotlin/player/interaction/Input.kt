@@ -7,6 +7,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.ScriptContext
+import org.lain.engine.server.tickQueuedPlayerInputsSystem
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
@@ -39,89 +40,116 @@ fun processLeftClickInteraction(player: EnginePlayer, handItem: EngineItem? = pl
     return handItem?.isGun() == true
 }
 
-fun World.tickPlayerInput(callbacks: Callbacks, playerId: PlayerId? = null, clientSide: Boolean = false) {
-    iterate<PlayerInput, Player> { entity, input, (player) ->
-        val (actions, lastActions) = input
-        if (playerId != null && player.id != playerId) {
-            return@iterate
+sealed interface PlayerInputMode {
+    data object Authoritative : PlayerInputMode
+
+    data class Predictive(
+        val controlledPlayerIds: Set<PlayerId>,
+        val predictionSink: PredictionSink,
+    ) : PlayerInputMode
+}
+
+fun interface PredictionSink {
+    fun begin(world: World, entity: EntityId, interactionId: InteractionId)
+}
+
+class PlayerInputSystem(
+    private val mode: PlayerInputMode,
+) {
+    fun tick(world: World, callbacks: Callbacks) {
+        if (mode is PlayerInputMode.Authoritative) {
+            world.tickQueuedPlayerInputsSystem()
         }
+        world.iterate<PlayerInput, PlayerComponent> { entity, input, (player) ->
+            val (actions, lastActions) = input
+            if (mode is PlayerInputMode.Predictive && !mode.controlledPlayerIds.contains(player.id)) {
+                return@iterate
+            }
 
-        callbacks.of(CallbackType.PLAYER_INPUT_TICK)?.execute(ScriptContext.PlayerInputTick(player, input))
+            callbacks.of(CallbackType.PLAYER_INPUT_TICK)?.execute(ScriptContext.PlayerInputTick(player, input))
 
-        run {
-            if (actions != lastActions && !player.isSpectating) {
-                input.lastActions.clear()
-                input.lastActions.addAll(actions)
-                val sightPlayer = player.whoSee(SOCIAL_INTERACTION_DISTANCE)
-                val playerInventory = player.require<PlayerInventory>()
-                val mainHandItem = playerInventory.mainHandItem
-                val offHandItem = playerInventory.offHandItem
-                val extendArm = player.extendArm
-                val gun = mainHandItem?.getComponent<Gun>()
-                val gunFireState = mainHandItem?.getComponent<GunFireState>()
-                val barrel = mainHandItem?.getComponent<Barrel>()
+            run {
+                if (actions != lastActions && !player.isSpectating) {
+                    input.lastActions.clear()
+                    input.lastActions.addAll(actions)
+                    val sightPlayer = player.whoSee(SOCIAL_INTERACTION_DISTANCE)
+                    val playerInventory = player.require<PlayerInventory>()
+                    val mainHandItem = playerInventory.mainHandItem
+                    val offHandItem = playerInventory.offHandItem
+                    val extendArm = player.extendArm
+                    val gun = mainHandItem?.getComponent<Gun>()
+                    val gunFireState = mainHandItem?.getComponent<GunFireState>()
+                    val barrel = mainHandItem?.getComponent<Barrel>()
 
-                if (entity.hasComponent<Shooting>() && (gun == null || InputAction.Attack !in actions)) {
-                    entity.setComponent(StopShootAction)
-                    return@run
-                }
-
-                actions.forAction<InputAction.Attack> { action ->
-                    val gunSafety = gunFireState?.mode == FireMode.SELECTOR
-
-                    // Первым делом - боевые взаимодействия
-                    if (gun != null && gunSafety == false) {
-                        input.action = StartShootAction
-                        return@forAction
+                    if (entity.hasComponent<Shooting>() && (gun == null || InputAction.Attack !in actions)) {
+                        entity.setComponent(StopShootAction)
+                        return@run
                     }
 
-                    if (sightPlayer != null) {
-                        if (!clientSide) {
-                            // Последним делом - социальные взаимодействия
-                            input.action = HailAction(sightPlayer.id)
-                            if (mainHandItem != null && extendArm) {
-                                input.action = GiveAction(sightPlayer.id)
+                    actions.forAction<InputAction.Attack> { action ->
+                        val gunSafety = gunFireState?.mode == FireMode.SELECTOR
+
+                        // Первым делом - боевые взаимодействия
+                        if (gun != null && gunSafety == false) {
+                            input.action = StartShootAction
+                            return@forAction
+                        }
+
+                        if (sightPlayer != null) {
+                            if (mode is PlayerInputMode.Authoritative) {
+                                // Последним делом - социальные взаимодействия
+                                input.action = HailAction(sightPlayer)
+                                if (mainHandItem != null && extendArm) {
+                                    input.action = GiveAction(sightPlayer)
+                                }
                             }
                         }
                     }
-                }
 
-                actions.forAction<InputAction.Base>() { action ->
-                    val writable = mainHandItem?.getComponent<Writable>()
-                    val magazine = mainHandItem?.getComponent<Magazine>()
-                    val gunBarrelSupportsDirectAmmoLoad = barrel?.ammunition == (offHandItem?.getComponent<Item>()?.id ?: false)
-                            && !mainHandItem.hasComponent<GunMagazines>()
+                    actions.forAction<InputAction.Base>() { action ->
+                        val writable = mainHandItem?.getComponent<Writable>()
+                        val magazine = mainHandItem?.getComponent<Magazine>()
+                        val gunBarrelSupportsDirectAmmoLoad = barrel?.ammunition == (offHandItem?.getComponent<Item>()?.id ?: false)
+                                && !mainHandItem.hasComponent<GunMagazines>()
 
-                    // Идём списочком по доступным действиям
-                    if (gun != null) {
-                        if (offHandItem != null && (gunBarrelSupportsDirectAmmoLoad || offHandItem.hasComponent<Magazine>())) {
-                            input.action = GunLoadAction(mainHandItem, offHandItem)
-                        } else {
-                            input.action = GunModeToggleAction
+                        // Идём списочком по доступным действиям
+                        if (gun != null) {
+                            if (offHandItem != null && (gunBarrelSupportsDirectAmmoLoad || offHandItem.hasComponent<Magazine>())) {
+                                input.action = GunLoadAction(mainHandItem, offHandItem)
+                            } else {
+                                input.action = GunModeToggleAction
+                            }
+                        } else if (magazine != null && magazine.ammunition == offHandItem?.getComponent<Item>()?.id) {
+                            input.action = MagazineLoadAction(offHandItem)
+                        } else if (writable != null) {
+                            input.action = WritableOpenAction
                         }
-                    } else if (magazine != null && magazine.ammunition == offHandItem?.getComponent<Item>()?.id) {
-                        input.action = MagazineLoadAction(offHandItem)
-                    } else if (writable != null) {
-                        input.action = WritableOpenAction
                     }
                 }
             }
-        }
 
-        val intent = input.action ?: return@iterate
-        EngineLogger.log(
-            Log(
-                LogMessages.PLAYER_INTERACTION,
-                LogLevel.INFO,
-                mapOf(
-                    "action" to intent.toString(),
-                    "input" to actions.joinToString()
-                ),
-                world = this@tickPlayerInput.id,
-                tick = ticks.toULong()
+            val intent = input.action ?: return@iterate
+            EngineLogger.log(
+                Log(
+                    LogMessages.PLAYER_INTERACTION,
+                    LogLevel.INFO,
+                    mapOf(
+                        "action" to intent.toString(),
+                        "input" to actions.joinToString()
+                    ),
+                    world = world.id,
+                    tick = world.simulation.ticks
+                )
             )
-        )
-        entity.setComponent(intent, componentTypeOfGeneral(intent) as ComponentType<Component>)
-        input.action = null
+            val execution = ActionExecution(
+                InteractionId(player.id, input.tick),
+            )
+            entity.setComponent(execution)
+            if (mode is PlayerInputMode.Predictive) {
+                mode.predictionSink.begin(world, entity, execution.interactionId)
+            }
+            entity.setComponent(intent, componentTypeOfGeneral(intent) as ComponentType<Component>)
+            input.action = null
+        }
     }
 }

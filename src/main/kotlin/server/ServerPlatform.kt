@@ -21,4 +21,10 @@ interface ServerPlatform {
     fun serializeInventory(player: EnginePlayer): SerializedInventory
     fun clearInventory(player: EnginePlayer)
     fun openInventory(player: EnginePlayer, inventory: SerializedInventory)
+    fun hasPermission(player: EnginePlayer, permission: String): Boolean
+
+    fun World.prepareData()
+    fun World.updateBulletHitSystem()
+    fun World.updateSaveSystem()
+    fun World.applyData()
 }

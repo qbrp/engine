@@ -2,16 +2,9 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.apply
 import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.remove
 import org.lain.cyberia.ecs.removeComponent
-import org.lain.cyberia.ecs.require
-import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.player.isInGameMasterMode
-import org.lain.engine.player.isSpectating
-import org.lain.engine.server.markDirty
+import org.lain.engine.player.stamina
 import org.lain.engine.util.math.lerp
 import org.lain.engine.util.math.smootherstep
 import org.lain.engine.util.math.smoothstep
@@ -65,13 +58,13 @@ data class MovementSettings(
     val jumpStaminaConsume: Float = 0.3f,
 )
 
-fun canPlayerJump(player: EnginePlayer, settings: MovementSettings): Boolean {
-    return player.stamina > settings.jumpStaminaConsume
+fun EnginePlayer.canJump(settings: MovementSettings): Boolean {
+    return stamina > settings.jumpStaminaConsume
 }
 
 fun EnginePlayer.intentSpeed(value: Float) {
     require<MovementStatus>().intention = value
-    markDirty<MovementStatus>()
+    markUpdated<MovementStatus>()
 }
 
 val EnginePlayer.stamina

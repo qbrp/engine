@@ -17,6 +17,9 @@ import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.HitResult
 import org.lain.engine.mc.engine
+import org.lain.engine.mc.engineId
+import org.lain.engine.mc.minecraftEntity
+import org.lain.engine.mc.requireEngineState
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.SOCIAL_INTERACTION_DISTANCE
@@ -108,12 +111,12 @@ private val Input.Type<*>.kclass
     }
 
 fun ClientCommandIntentBehaviour(player: EnginePlayer): CommandIntentBehaviour {
-    val table by injectEntityTable()
-    return CommandIntentBehaviour(null, table.client.getEntity(player.id)!!)
+    return CommandIntentBehaviour(null, player.minecraftEntity)
 }
 
 //TODO: сделать ClientCommandIntentBehaviour
-class CommandIntentBehaviour(private val _context: Context?, private val entity: Entity) : IntentBehaviour {
+class CommandIntentBehaviour(private val _context: Context?, private val entity: Entity) :
+    IntentBehaviour {
     private val logger = LoggerFactory.getLogger(CommandIntentBehaviour::class.java)
     private val context
         get() = _context ?: run {
@@ -122,19 +125,24 @@ class CommandIntentBehaviour(private val _context: Context?, private val entity:
         }
 
     override fun generateTarget(): IntentTarget {
-        val playerTable by injectEntityTable()
-
-        return when(val result = raycastPlayerOrBlock(
+        return when (val result = raycastPlayerOrBlock(
             entity,
             SOCIAL_INTERACTION_DISTANCE.toDouble(),
-            0f)
+            0f
+        )
         ) {
-            is BlockHitResult -> IntentTarget(null, result.blockPos.voxelPos(), result.location.engine())
+            is BlockHitResult -> IntentTarget(
+                null,
+                result.blockPos.voxelPos(),
+                result.location.engine()
+            )
+
             is EntityHitResult -> IntentTarget(
-                playerTable.getGeneralPlayer(result.entity as Player),
+                (result.entity as Player).requireEngineState(),
                 result.entity.blockPosition().voxelPos(),
                 result.location.engine()
             )
+
             else -> error("Unexpected raycast hit result type $result")
         }
     }

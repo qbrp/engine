@@ -1,13 +1,12 @@
 package org.lain.engine.client.mixin.screen;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.LevelLoadTracker;
 import net.minecraft.network.chat.Component;
 import org.lain.engine.client.handler.GameSessionJoinFlow;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -34,7 +33,7 @@ public class LevelLoadingScreenMixin {
             )
     )
     private boolean engine$isLevelReady(LevelLoadTracker instance) {
-        return instance.isLevelReady() && ClientMixinAccess.INSTANCE.canCloseLevelLoadingScreen();
+        return instance.isLevelReady() && ClientMixin.INSTANCE.canCloseLevelLoadingScreen();
     }
 
     @Redirect(
@@ -45,7 +44,7 @@ public class LevelLoadingScreenMixin {
             )
     )
     private void engine$drawStateString(GuiGraphics instance, Font font, Component component, int i, int j, int k) {
-        GameSessionJoinFlow.State state = ClientMixinAccess.INSTANCE.multiplayerConnectionState();
+        GameSessionJoinFlow.State state = ClientMixin.INSTANCE.multiplayerConnectionState();
         if (!loadTracker.isLevelReady() || state == null) {
             instance.drawCenteredString(font, component, i, j, k);
         } else {

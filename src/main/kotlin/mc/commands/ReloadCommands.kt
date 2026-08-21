@@ -12,15 +12,14 @@ import kotlinx.coroutines.withContext
 import net.minecraft.commands.CommandSourceStack
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.util.injectMinecraftEngineServer
+import org.lain.engine.util.requireEngineMinecraftServer
 import java.io.File
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 fun ServerCommandDispatcher.registerEngineReloadCommands(dedicated: Boolean) {
-    val server by injectMinecraftEngineServer()
-    val playerTable by lazy { server.entityTable }
+    val server by lazy { requireEngineMinecraftServer() }
     val engine by lazy { server.engine }
     register(
         literal("re")
@@ -71,7 +70,7 @@ class ScriptPathSuggestionProvider : SuggestionProvider<CommandSourceStack> {
         ctx: CommandContext<CommandSourceStack>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
-        val server by injectMinecraftEngineServer() // потокобезопасно?
+        val server = requireEngineMinecraftServer() // потокобезопасно?
 
         val state = paths.get()
         if (state is PathsState.Outdated) {

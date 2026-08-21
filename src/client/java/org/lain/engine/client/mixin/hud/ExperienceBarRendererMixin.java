@@ -3,7 +3,7 @@ package org.lain.engine.client.mixin.hud;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.contextualbar.ExperienceBarRenderer;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,7 +17,7 @@ public class ExperienceBarRendererMixin {
             cancellable = true
     )
     public void engine$hideExperienceBar(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (!ClientMixinAccess.INSTANCE.isHotbarIndicatorsVisible()) {
+        if (!ClientMixin.INSTANCE.isHotbarIndicatorsVisible()) {
             ci.cancel();
         }
     }

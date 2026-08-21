@@ -4,7 +4,6 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.mc.InvalidIdException
 import org.lain.engine.mc.isIdPathValid
-import org.lain.engine.mc.server.SetupException
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.lua.LuaScriptEngine
@@ -131,7 +130,7 @@ fun assertIdentifierValid(namespaceId: NamespaceId, id: String) {
 fun NamespacedStorageAccess.loadCompilationResult(result: CompilationResult) {
     val compiledNamespaces = result.namespaces
 
-    val namespaces = compiledNamespaces.map { (id, namespace) ->
+    val namespaces = (compiledNamespaces.map { (id, namespace) ->
         Namespace(
             id,
             ContentHolder(namespace.items.mapValues { it.value.prefab }),
@@ -141,7 +140,7 @@ fun NamespacedStorageAccess.loadCompilationResult(result: CompilationResult) {
             ContentHolder(namespace.components),
             ContentHolder(namespace.intents)
         )
-    }
+    } + CoreNamespaces.ERROR)
         .associateBy { it.id }
 
     val components = namespaces.collect { it.components }
@@ -181,19 +180,12 @@ fun World.registerComponentTypes(namespacesStorage: NamespacedStorageAccess) {
     componentManager.registerComponentArrays(kotlinTypeEntries + luaTypeEntries)
 }
 
-fun EngineServer.applyContentsCompileResult(result: CompilationResult) {
-    result.callbacks?.let { callbacks = it }
-    namespacedStorage.loadCompilationResult(result)
-    listWorlds().forEach { it.registerComponentTypes(namespacedStorage) }
-    scriptSystemDispatcher.load(result.phases, namespacedStorage)
-    handler.onScriptsCompiled()
-}
-
 fun EngineServer.recompileContents(
     luaScriptEngine: LuaScriptEngine,
     result: CompilationResult = compileContents(ENGINE_DIR.contents, luaScriptEngine)
 ) {
-    applyContentsCompileResult(result)
+    simulation.applyCompilationResult(result)
+    handler.onScriptsCompiled()
     platform.onCompiled(namespacedStorage.get())
     result.log()
 }

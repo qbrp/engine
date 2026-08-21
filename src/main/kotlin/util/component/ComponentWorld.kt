@@ -23,7 +23,8 @@ class ComponentWorld(
     registerEngineKotlinComponents: Boolean = true
 ) : MutableComponentAccess, IterationComponentAccess {
     @Volatile
-    var threadRestrictionMode = false
+    var threadRestrictionMode = true
+    var networkedComponentChangeListener: ((EntityId, ComponentType<out Component>) -> Unit)? = null
     private val arrays = ArrayList<ComponentArray<*>>()
     private val savableArrays = ArrayList<ComponentArray<*>>()
     private val networkingArrays = ArrayList<ComponentArray<*>>()
@@ -122,10 +123,13 @@ class ComponentWorld(
     }
 
     suspend fun <R> withoutThreadRestriction(statement: suspend ComponentWorld.() -> R): R {
+        val previousMode = threadRestrictionMode
         threadRestrictionMode = false
-        val result = statement(this)
-        threadRestrictionMode = true
-        return result
+        return try {
+            statement(this)
+        } finally {
+            threadRestrictionMode = previousMode
+        }
     }
 
     private fun checkOnThread() {
@@ -137,9 +141,14 @@ class ComponentWorld(
         }
     }
 
-    @Deprecated("use markChanged")
     override fun markDirty(entity: EntityId, type: ComponentType<out Component>) {
-        throw NotImplementedError("deprecated operation")
+        checkOnThread()
+        require(exists(entity)) { "Entity $entity does not exist" }
+        val array = getComponentArray(type)
+        if (array.meta.networking) {
+            entity.networkState().markUpdated(type.castIndexed())
+            networkedComponentChangeListener?.invoke(entity, type)
+        }
     }
 
     override fun invalidateStates(entity: EntityId) {
@@ -225,7 +234,7 @@ class ComponentWorld(
     // главный поток
     override fun destroy(entity: EntityId) {
         require(exists(entity)) { "Entity $entity does not exist" }
-        arrays.forEach { array -> array.removeComponent(entity) }
+        arrays.forEach { array -> removeComponent(entity, array.type) }
         synchronized(entityInstantiationLock) {
             freeIndexes.add(entity)
             destroyed[entity] = true
@@ -310,6 +319,7 @@ class ComponentWorld(
         array.setComponent(entity, component)
         if (array.meta.networking) {
             entity.networkState().markUpdated(type.castIndexed())
+            networkedComponentChangeListener?.invoke(entity, type)
         }
     }
 
@@ -326,7 +336,12 @@ class ComponentWorld(
         checkOnThread()
         require(exists(entity)) { "Entity $entity does not exist" }
         val array = getComponentArray(type)
-        return array.removeComponent(entity)
+        val removed = array.removeComponent(entity) ?: return null
+        if (array.meta.networking) {
+            entity.networkState().markRemoved(type.castIndexed())
+            networkedComponentChangeListener?.invoke(entity, type)
+        }
+        return removed
     }
 
     override fun <T : Component> getComponent(entity: EntityId, type: ComponentType<T>): T? {

@@ -15,10 +15,7 @@ import org.lain.engine.world.BulletFireEvent
 import org.lain.engine.world.BulletParameters
 import org.lain.engine.world.World
 
-fun updateBulletsVisual(
-    world: World,
-    mcWorld: ClientLevel,
-) = world.iterate<BulletFireEvent> { _, event ->
+fun World.tickBulletFireSystem(mcWorld: ClientLevel) = iterate<BulletFireEvent> { _, event ->
     val shoot = event.shoot
     mcWorld.spawnGunSmokeParticle(shoot.start, event.smoke.velocity, shoot.vector, event.smoke.offset)
     val hitResult = raycastBulletEvent(mcWorld, shoot) ?: return@iterate
@@ -26,7 +23,7 @@ fun updateBulletsVisual(
     repeat(5) { mcWorld.addBreakingBlockEffect(blockPos, hitResult.direction) }
 
     val pos = hitResult.location.engine()
-    world.emitEvent(
+    emitEvent(
         BulletHit(
             pos,
             BulletParameters(DEFAULT_BULLET_MASS, DEFAULT_BULLET_SPEED)

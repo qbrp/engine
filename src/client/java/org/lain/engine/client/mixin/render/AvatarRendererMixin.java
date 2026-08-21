@@ -5,7 +5,7 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.entity.Avatar;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,7 +18,7 @@ public class AvatarRendererMixin {
             at = @At("TAIL")
     )
     public void engine$updateRenderState(Avatar avatar, AvatarRenderState avatarRenderState, float f, CallbackInfo ci) {
-        ClientMixinAccess.INSTANCE.updatePlayerRenderState(
+        ClientMixin.INSTANCE.updatePlayerRenderState(
                 avatar,
                 avatarRenderState,
                 ((LivingEntityRenderer<Avatar, AvatarRenderState, PlayerModel>)(Object)this).getModel()

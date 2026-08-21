@@ -5,7 +5,7 @@ import net.minecraft.world.entity.player.PlayerSkin
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
-import org.lain.engine.client.mc.ClientMixinAccess
+import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
@@ -76,7 +76,7 @@ object MinecraftChat : ChatEventBus {
                 typingPlayers.add(
                     TypingPlayer(
                         player,
-                        ClientMixinAccess.getPlayerSkin(enginePlayer),
+                        ClientMixin.getPlayerSkin(enginePlayer),
                         enginePlayer.displayNameText
                     )
                 )

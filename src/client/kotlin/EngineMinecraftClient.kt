@@ -7,17 +7,10 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.client.gui.screens.inventory.BookEditScreen
 import net.minecraft.client.renderer.entity.player.AvatarRenderer
-import net.minecraft.server.network.Filterable
 import net.minecraft.util.profiling.Profiler
-import net.minecraft.world.InteractionHand
-import net.minecraft.world.entity.player.Player
-import net.minecraft.world.item.component.WritableBookContent
 import net.minecraft.world.level.Level
 import org.lain.cyberia.ecs.hasComponent
-import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
@@ -37,7 +30,6 @@ import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.world.registerWorldRenderEvents
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.registerComponentsClient
-import org.lain.engine.item.WritableOpen
 import org.lain.engine.mc.*
 import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.player.*
@@ -45,32 +37,26 @@ import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.util.component.registerAllClient
-import org.lain.engine.util.injectEntityTable
-import org.lain.engine.util.injectValue
 import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.item.resetItemOwnershipState
-import org.lain.engine.item.tickItemOwnershipSystem
+import org.lain.engine.mc.compat.isReplayViewer
 import org.slf4j.LoggerFactory
 import java.util.*
-import kotlin.math.sqrt
 
-class EngineMinecraftClient : ClientModInitializer {
+class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension {
     private val client = MinecraftClient
-    val fabricLoader = FabricLoader.getInstance()
-    private val entityTable by injectEntityTable()
     private val dynamicLights by injectDynamicLightsContext()
-    private val clientPlayerTable by lazy { entityTable.client }
+    val fabricLoader = FabricLoader.getInstance()
 
     private val window = Window(this)
     private val audioManager = MinecraftAudioManager(client)
-    private val camera = MinecraftCamera(client)
+    internal val camera = MinecraftCamera(client)
     val uiRenderPipeline = EngineUiRenderPipeline(client)
 
-    private lateinit var lightSystem: LightSystem
-    private val decalsStorage: DecalSystem = DecalSystem()
-    private val eventBus = MinecraftEngineClientInfrastructure(this, client, entityTable, decalsStorage)
+    val decalSystem: DecalSystem = DecalSystem()
+    internal lateinit var lightSystem: LightSystem
+    private val eventBus = MinecraftEngineClientPlatform(this, client, decalSystem)
     private var config: EngineYamlConfig = EngineYamlConfig()
-    private val engineClient = EngineClient(
+    val engine = EngineClient(
         window,
         camera,
         MinecraftChat,
@@ -83,71 +69,41 @@ class EngineMinecraftClient : ClientModInitializer {
 
     private lateinit var keybindManager: KeybindManager
     private val renderer
-        get() = engineClient.renderer
+        get() = engine.renderer
 
     private val connectionLogger = LoggerFactory.getLogger("Engine Connection")
     private var inAuthorization = false
     var readyToAuthorize = false
     var server: IntegratedEngineMinecraftServer? = null
-
-    private fun isInWorld(world: Level): Boolean = client.level?.engine?.value == world.engine.value
+    val currentLevel
+        get() = client.level
 
     override fun onInitializeClient() {
         ComponentTypeRegistry.registerComponentsClient()
         ComponentTypeRegistry.registerAllClient()
-        engineClient.options = config
-        engineClient.onOptionsUpdate()
+        engine.options = config
+        engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
-        registerEngineItemGroupEvent(engineClient)
-        registerDeveloperModeDecalsDebug(decalsStorage, engineClient)
-        registerClientEngineCommands(engineClient)
+        registerEngineItemGroupEvent(engine)
+        registerDeveloperModeDecalsDebug(decalSystem, engine)
+        registerClientEngineCommands(engine)
         initializeGraphene()
 
         Injector.register(keybindManager)
         Injector.register(this)
 
-        ServerMixinAccess.blockPlacedCallback = callback@{ player, blockPos, blockState, world ->
-            val gameSession = engineClient.gameSession
-            if (!world.isClientSide || !isInWorld(world) || gameSession == null) return@callback
-            client.execute {
-                val enginePlayer = player?.let { clientPlayerTable.getPlayer(it) }
-                gameSession.callbacks.executePlaceVoxelCallback(
-                    enginePlayer,
-                    gameSession.world,
-                    blockPos.voxelPos(),
-                    blockState
-                )
-            }
-        }
-
-        ServerMixinAccess.blockInteractionCallback = callback@{ _, world, blockPos ->
-            val gameSession = engineClient.gameSession
-            if (!world.isClientSide || !isInWorld(world) || gameSession == null) return@callback false
-            val voxel = gameSession.world.chunkStorage.getDynamicVoxel(blockPos.voxelPos()) ?: return@callback false
-            with(gameSession.world) { voxel.hasComponent(CoreScriptComponents.USE_RESTRICTION) }
-        }
-
-        ServerMixinAccess.blockRemovedCallback = callback@{ chunk, blockPos ->
-            if (!chunk.level.isClientSide || !isInWorld(chunk.level)) return@callback
-            client.execute {
-                val pos = ImmutableVoxelPos(blockPos.voxelPos())
-                engineClient.gameSession?.world?.chunkStorage?.removeVoxel(pos)
-                decalsStorage.unloadTexture(pos)
-            }
-        }
-
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
-            if (engineClient.gameSessionActive) {
+            if (engine.gameSessionActive) {
                 connectionLogger.warn("Сброс активной игровой сессии. Это баг, который не должен возникать в обычных условиях")
                 onDisconnect()
             }
 
             if (!client.isSingleplayer) {
                 Injector.register<ClientTransportContext>(ClientMinecraftNetwork())
-                Injector.register<RaycastProvider>(MinecraftRaycastProvider(injectValue()))
+                Injector.register<RaycastProvider>(MinecraftRaycastProvider())
             }
 
-            engineClient.handler.run()
+            engine.handler.run()
             MinecraftChat.registerEndpoints()
 
             inAuthorization = false
@@ -156,15 +112,15 @@ class EngineMinecraftClient : ClientModInitializer {
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
 
-        ClientTickEvents.START_CLIENT_TICK.register { keybindManager.tick(engineClient) }
+        ClientTickEvents.START_CLIENT_TICK.register { keybindManager.tick(engine) }
 
         ClientTickEvents.END_CLIENT_TICK.register { _ -> tickClient() }
 
         ClientChunkEvents.CHUNK_UNLOAD.register { _, chunk ->
-            decalsStorage.unloadTextures(chunk.pos.engineChunkPos())
+            decalSystem.unloadTextures(chunk.pos.engineChunkPos())
         }
 
-        registerEngineIntegratedServerEvent(engineClient)
+        IntegratedEngineMinecraftServer.registerEvent(this)
 
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register { _, renderer, helper, _ ->
             if (renderer is AvatarRenderer) {
@@ -175,67 +131,35 @@ class EngineMinecraftClient : ClientModInitializer {
     }
 
     private fun tickClient() {
+        val mainPlayerEntity = client.player
         val profiler = Profiler.get()
         profiler.push("engineClientTick")
 
-        val levelPlayers = client.level?.players() ?: emptyList()
-        val mainPlayerEntity = client.player
-
-        ClientMixinAccess.tick()
+        ClientMixin.tick()
         window.handleResize()
 
         try {
             if (readyToAuthorize && mainPlayerEntity != null && !inAuthorization) {
                 if (client.isSingleplayer) {
-                    val engine = server?.engine ?: throw RuntimeException("Server not started")
-                    engineClient.startJoinFlow(
-                        GameSessionJoinFlow.JoinType.Singleplayer(engine, mainPlayerEntity.isReplayViewer)
+                    val server = server?.engine ?: throw RuntimeException("Server not started")
+                    engine.startJoinFlow(
+                        GameSessionJoinFlow.JoinType.Singleplayer(
+                            server,
+                            mainPlayerEntity.isReplayViewer
+                        )
                     )
                 } else {
-                    engineClient.startJoinFlow(GameSessionJoinFlow.JoinType.Multiplayer)
+                    engine.startJoinFlow(GameSessionJoinFlow.JoinType.Multiplayer)
                 }
                 inAuthorization = true
             }
 
-            val gameSession = engineClient.gameSession
-            val syncedLevelPlayerEntities = mutableMapOf<Player, EnginePlayer>()
-            val skippedPlayers = mutableListOf<Pair<Player, Double>>()
-            if (gameSession != null && mainPlayerEntity != null) {
-                val synchronizationRadiusSqr = gameSession.synchronizationRadius * gameSession.synchronizationRadius
-                val mainPlayerPos = mainPlayerEntity.position()
-                syncedLevelPlayerEntities.putAll(
-                    levelPlayers
-                        .mapNotNull { entity ->
-                            clientPlayerTable.getPlayer(entity)?.let { player -> entity to player }
-                        }
-                        .toMap()
-                )
-                skippedPlayers.addAll(
-                    levelPlayers
-                        .filter { it !in syncedLevelPlayerEntities }
-                        .mapNotNull { player ->
-                            val distance = player.position().distanceToSqr(mainPlayerPos)
-                            player.takeIf { distance < synchronizationRadiusSqr }?.let { it to sqrt(distance) }
-                        }
-                )
+            if (engine.ticks % 20L == 0L) {
+                updateRandomEngineItemGroupIcon()
             }
 
-            preEngineTick(syncedLevelPlayerEntities)
-            engineClient.tick()
-            postEngineTick()
-
-            if (skippedPlayers.isNotEmpty()) {
-                connectionLogger.warn(
-                    "Состояние Minecraft не было обновлено для игроков: {}",
-                    skippedPlayers.joinToString { (player, distance) ->
-                        "${player.plainTextName} (до игрока: ${
-                            "%d".format(
-                                distance.toInt()
-                            )
-                        })"
-                    }
-                )
-            }
+            engine.tick()
+            renderer.tick()
 
         } catch (e: Throwable) {
             when (e) {
@@ -249,103 +173,28 @@ class EngineMinecraftClient : ClientModInitializer {
         profiler.pop()
     }
 
-    private fun preEngineTick(players: Map<Player, EnginePlayer>) {
-        val mainPlayerEntity = client.player
-        val gameSession = engineClient.gameSession ?: return
-        val world = gameSession.world
-        val level = MinecraftClient.level ?: return
-
-        gameSession.mainPlayer.apply<Orientation> {
-            if (translationYaw != 0f || translationPitch != 0f) {
-                camera.impulse(-translationYaw, -translationPitch)
-            }
-        }
-
-        world.tickVoxelAdapterSystem(level)
-        world.tickVoxelDoorSystem(level)
-        world.resetMinecraftItemState()
-        world.resetItemOwnershipState()
-        players.forEach { (entity, player) ->
-            try {
-                val items = (entity.visibleInventoryItems.asSequence() + sequenceOf(entity.carriedItem))
-                    .distinct()
-                    .mapNotNull { itemStack ->
-                        val item = itemStack.get(ENGINE_ITEM_REFERENCE_COMPONENT)
-                            ?.getClientItem(engineClient)
-                            ?: return@mapNotNull null
-                        EngineItemStack(item, itemStack)
-                    }
-
-                with(world) {
-                    synchronizeMinecraftPlayerState(player.entity, entity)
-                    synchronizeMinecraftPlayerInventory(player.entity, items, entity)
-                }
-            } catch (e: Exception) {
-                throw PlayerTickException(player, e)
-            }
-        }
-        world.tickItemOwnershipSystem()
-        world.synchronizeMinecraftItemStackVisuals()
-
-        if (engineClient.ticks % 20L == 0L) {
-            updateRandomEngineItemGroupIcon()
-        }
-    }
-
-    private fun postEngineTick() {
-        val gameSession = engineClient.gameSession ?: return
-        val minecraftWorld = client.level ?: return
-        val world = gameSession.world
-        renderer.tick()
-
-        world.iterate<WritableOpen, org.lain.engine.player.Player>() { e, (writable), (player) ->
-            if (player == gameSession.mainPlayer) {
-                client.setScreen(
-                    BookEditScreen(
-                        client.player ?: return@iterate,
-                        client.player?.mainHandItem ?: return@iterate,
-                        InteractionHand.MAIN_HAND,
-                        WritableBookContent(
-                            writable.contents.map { Filterable(it, Optional.empty()) },
-                        )
-                    )
-                )
-            }
-            e.removeComponent<WritableOpen>()
-        }
-
-        updateBulletsVisual(gameSession.world, minecraftWorld)
-        lightSystem.update(gameSession)
-        decalsStorage.update(gameSession.world)
-        gameSession.tickGenderSystem()
-        gameSession.world.clearEvents()
-        audioManager.tick(gameSession)
-    }
-
     private fun onClientStarted() {
         lightSystem = LightSystem(dynamicLights)
 
         if (listOf("remii", "denterest").contains(client.gameProfile.name)) {
             audioManager.playPigScreamSound()
         }
-        decalsStorage.textureManager = client.textureManager
-        engineClient.thread = (client as MinecraftClientAccessor).`engine$getThread`()
-        registerWorldRenderEvents(client, engineClient, eventBus, decalsStorage, entityTable)
-        registerHudRenderEvent(client, engineClient, renderer, uiRenderPipeline)
+        decalSystem.textureManager = client.textureManager
+        engine.thread = (client as MinecraftClientAccessor).`engine$getThread`()
+        registerWorldRenderEvents(client, engine, eventBus, decalSystem)
+        registerHudRenderEvent(client, engine, renderer, uiRenderPipeline)
     }
 
     fun onDisconnect() {
-        engineClient.stopJoinFlow()
-        (MinecraftClient.screen as? AbstractSelectionScreen<*>)?.overlay?.job?.cancel()
-        if (engineClient.gameSession == null) return
-        engineClient.skinTextureManager.clearCoroutines()
+        engine.stopJoinFlow()
+        if (engine.gameSession == null) return
+        engine.skinTextureManager.clearCoroutines()
         uiRenderPipeline.invalidate()
-        entityTable.client.invalidate()
-        decalsStorage.unload()
+        decalSystem.unload()
         lightSystem.invalidate()
 
-        if (engineClient.gameSessionActive) {
-            engineClient.leaveGameSession()
+        if (engine.gameSessionActive) {
+            engine.leaveGameSession()
         }
         MinecraftChat.clearChatData()
         readyToAuthorize = false
@@ -356,6 +205,38 @@ class EngineMinecraftClient : ClientModInitializer {
     fun disconnectWithReason(text: Text) {
         client.connection?.connection?.disconnect(text) ?: run {
             connectionLogger.warn("Игрок отключен от несуществующего сервера")
+        }
+    }
+
+    override fun GameSession.tickDataPrepareSystem() {
+        val level = currentLevel ?: return
+        world.tickVoxelAdapterSystem(level)
+        MinecraftSystem.tickCommon(
+            world,
+            tickInventorySyncSystem = { tickClientInventorySyncSystem(this@tickDataPrepareSystem) }
+        )
+    }
+
+    override fun GameSession.tickDataApplySystem() {
+        val level = currentLevel ?: return
+        world.tickVoxelDoorSystem(level)
+        tickOrientationTranslationSystem()
+        tickWritableUiSystem()
+        lightSystem.update(this)
+        decalSystem.update(world)
+        tickGenderSystem()
+        audioManager.tick(this)
+    }
+
+    override fun GameSession.tickBulletFireSystem() {
+        world.tickBulletFireSystem(currentLevel ?: return)
+    }
+
+    fun GameSession.tickOrientationTranslationSystem() {
+        mainPlayer.apply<Orientation> {
+            if (translationYaw != 0f || translationPitch != 0f) {
+                camera.impulse(-translationYaw, -translationPitch)
+            }
         }
     }
 }

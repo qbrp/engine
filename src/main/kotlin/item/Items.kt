@@ -26,14 +26,6 @@ value class ItemId(val value: String) {
     }
 }
 
-class ItemStorage : Storage<PersistentId, EngineItem>(), ItemAccess {
+class ItemStorage : Storage<PersistentId, EngineItem>() {
     override val map: MutableMap<PersistentId, EngineItem> = ConcurrentHashMap()
-
-    override fun getItem(uuid: PersistentId): EngineItem? {
-        return this.get(uuid)
-    }
-}
-
-interface ItemAccess {
-    fun getItem(uuid: PersistentId): EngineItem?
 }

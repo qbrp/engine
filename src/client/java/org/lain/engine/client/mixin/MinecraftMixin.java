@@ -8,10 +8,9 @@ import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import org.jetbrains.annotations.Nullable;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mixin.screen.TitleScreenAccessor;
 import org.lain.engine.client.render.ui.EngineTitleMenu;
-import org.lain.engine.client.render.ui.TestGrapheneScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -47,7 +46,7 @@ public abstract class MinecraftMixin {
     )
     public void engine$showGrapheneTestScreen(Overlay overlay, CallbackInfo ci) {
         if (this.overlay instanceof GrapheneNativeDownloadOverlay && overlay == null && GrapheneCore.isInitialized()) {
-            ClientMixinAccess.INSTANCE.setGrapheneTestScreen();
+            ClientMixin.INSTANCE.setGrapheneTestScreen();
         }
     }
 
@@ -58,12 +57,12 @@ public abstract class MinecraftMixin {
     )
     public void engine$invokeOptionsChangedListener(Screen screen, CallbackInfo ci) {
         if (this.screen instanceof ConfigScreen && screen == null) {
-            ClientMixinAccess.INSTANCE.onYamlConfigScreenClosed();
+            ClientMixin.INSTANCE.onYamlConfigScreenClosed();
         } else if (screen instanceof TitleScreen titleScreen && !(this.screen instanceof EngineTitleMenu)) {
-            ClientMixinAccess.INSTANCE.openEngineTitleMenu(((TitleScreenAccessor)titleScreen).engine$isFading());
+            ClientMixin.INSTANCE.openEngineTitleMenu(((TitleScreenAccessor)titleScreen).engine$isFading());
             ci.cancel();
         } else if (screen == null && level == null) {
-            ClientMixinAccess.INSTANCE.openEngineTitleMenu(false);
+            ClientMixin.INSTANCE.openEngineTitleMenu(false);
             ci.cancel();
         }
     }
@@ -74,7 +73,7 @@ public abstract class MinecraftMixin {
             cancellable = true
     )
     public void engine$handleBlockBreaking(boolean breaking, CallbackInfo ci) {
-        ClientMixinAccess mixinAccess = ClientMixinAccess.INSTANCE;
+        ClientMixin mixinAccess = ClientMixin.INSTANCE;
         if (!mixinAccess.canBreakBlocks()) {
             ci.cancel();
         }
@@ -86,7 +85,7 @@ public abstract class MinecraftMixin {
             cancellable = true
     )
     public void engine$doAttack(CallbackInfoReturnable<Boolean> cir) {
-        ClientMixinAccess mixinAccess = ClientMixinAccess.INSTANCE;
+        ClientMixin mixinAccess = ClientMixin.INSTANCE;
         if (mixinAccess.predictItemLeftClickInteraction()) {
             cir.cancel();
             cir.setReturnValue(true);
@@ -98,6 +97,6 @@ public abstract class MinecraftMixin {
             at = @At("HEAD")
     )
     public void engine$disconnect(Screen screen, boolean bl, boolean bl2, CallbackInfo ci) {
-        ClientMixinAccess.INSTANCE.onDisconnect();
+        ClientMixin.INSTANCE.onDisconnect();
     }
 }

@@ -1,6 +1,5 @@
 package org.lain.engine.mixin;
 
-import kotlinx.datetime.Ser;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -8,8 +7,10 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.player.Player;
-import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.mc.CommonMixin;
+import org.lain.engine.mc.PlayerEntityAccessHolder;
+import org.lain.engine.mc.ServerMixin;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,6 +22,14 @@ import java.util.Optional;
 
 @Mixin(LivingEntity.class)
 public class LivingEntityMixin {
+    @Unique
+    @Nullable
+    private CommonMixin.PlayerEntityAccess engine$getPlayerEntityAccess() {
+        if ((Object) this instanceof PlayerEntityAccessHolder holder) {
+            return holder.engine$getPlayerEntityAccess();
+        }
+        return null;
+    }
 
     @Inject(
             method = "getAttributeValue",
@@ -28,13 +37,12 @@ public class LivingEntityMixin {
             cancellable = true
     )
     public void engine$getAttributeValue(Holder<Attribute> holder, CallbackInfoReturnable<Double> cir) {
-        if ((Object) this instanceof Player player) {
-            ServerMixinAccess engine = ServerMixinAccess.INSTANCE;
-
+        CommonMixin.PlayerEntityAccess access = engine$getPlayerEntityAccess();
+        if (access != null) {
             if (is(holder, Attributes.MOVEMENT_SPEED)) {
-                cir.setReturnValue(engine.getSpeed(player));
+                cir.setReturnValue(access.getSpeed());
             } else if (is(holder, Attributes.JUMP_STRENGTH)) {
-                cir.setReturnValue(engine.getJumpStrength(player));
+                cir.setReturnValue(access.getJumpStrength());
             }
         }
     }
@@ -45,8 +53,9 @@ public class LivingEntityMixin {
             cancellable = true
     )
     public void engine$getScale(CallbackInfoReturnable<Float> cir) {
-        if ((Object) this instanceof Player player) {
-            cir.setReturnValue(ServerMixinAccess.INSTANCE.getScale(player));
+        CommonMixin.PlayerEntityAccess access = engine$getPlayerEntityAccess();
+        if (access != null) {
+            cir.setReturnValue(access.getScale());
         }
     }
 
@@ -66,7 +75,7 @@ public class LivingEntityMixin {
             cancellable = true
     )
     public void onDamage(ServerLevel serverLevel, DamageSource damageSource, float f, CallbackInfoReturnable<Boolean> cir) {
-        if (ServerMixinAccess.INSTANCE.shouldCancelDamage()) {
+        if (ServerMixin.INSTANCE.shouldCancelDamage()) {
             cir.setReturnValue(false);
             cir.cancel();
         }
@@ -78,9 +87,10 @@ public class LivingEntityMixin {
             cancellable = true
     )
     public void engine$jump(CallbackInfo ci) {
-        if ((Object) this instanceof Player player) {
-            if (ServerMixinAccess.INSTANCE.canJump(player)) {
-                ServerMixinAccess.INSTANCE.onPlayerJump(player);
+        CommonMixin.PlayerEntityAccess access = engine$getPlayerEntityAccess();
+        if (access != null) {
+            if (access.canJump()) {
+                access.onPlayerJump();
             } else {
                 ci.cancel();
             }

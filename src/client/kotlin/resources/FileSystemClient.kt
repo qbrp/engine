@@ -2,16 +2,11 @@ package org.lain.engine.client.resources
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.ChatBarConfiguration
 import org.lain.engine.client.chat.ChatFormatSettings
 import org.lain.engine.client.render.WARNING
@@ -19,7 +14,6 @@ import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.server.ServerId
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.file.ENGINE_DIR
-import org.lain.engine.util.file.ensureExists
 import org.lain.engine.util.file.getBuiltinResource
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -170,7 +164,7 @@ class ResourceManager(
             _context.set(bakeResourceContext(serverId))
         } catch (e: Throwable) {
             client.execute {
-                client.applyLittleNotification(
+                client.showNotification(
                     LittleNotification(
                         "Ошибка загрузки ресурсов",
                         "Проверьте консоль для подробного отчёта. Сообщение: ${e.message ?: "Неизвестная ошибка"}",

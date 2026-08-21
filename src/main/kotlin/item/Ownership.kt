@@ -5,7 +5,7 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.Player
+import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.collectOwnedItems
 import org.lain.engine.util.addIfNotNull
@@ -19,7 +19,7 @@ context(world: World)
 fun EngineItem.getOwner() = this.getComponent<HeldBy>()?.owner
 
 fun World.tickItemOwnershipSystem() {
-    iterate<Player, PlayerInventory, Location> { entity, (player), inventory, location ->
+    iterate<PlayerComponent, PlayerInventory, Location> { entity, (player), inventory, location ->
         val equipmentItems = player.collectOwnedItems().toMutableList()
         equipmentItems.addIfNotNull(inventory.cursorItem)
         val allItems = inventory.items + equipmentItems

@@ -1,7 +1,6 @@
 package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.server.markDirty
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.character.CharacterDisplay
@@ -27,12 +26,8 @@ val EnginePlayer.eyePos: EVec3
         return Vec3(location.x, location.y + standingEyeHeight, location.z)
     }
 
-var EnginePlayer.skinEyeY: Float
+val EnginePlayer.skinEyeY: Float
     get() = this.require<EnginePlayerModel>().skinEyeY
-    set(value) {
-        this.require<EnginePlayerModel>().skinEyeY = value
-        markDirty<EnginePlayerModel>()
-    }
 
 val EnginePlayer.height
     get() = require<EnginePlayerModel>().height

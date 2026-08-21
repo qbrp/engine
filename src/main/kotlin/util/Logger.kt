@@ -41,7 +41,7 @@ data class Log(
     val message: String,
     val level: LogLevel,
     val data: Map<String, String>,
-    val tick: ULong? = null,
+    val tick: Long? = null,
     val world: WorldId? = null,
     val error: Error? = null,
     val timestamp: Timestamp = Timestamp(),

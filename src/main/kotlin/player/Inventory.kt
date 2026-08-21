@@ -3,6 +3,7 @@ package org.lain.engine.player
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.item.EngineItem
+
 /**
  * # Инвентарь игрока
  * Содержит список предметов, зарегистрированных в Engine, которые находятся в инвентаре игрока
@@ -24,7 +25,8 @@ object PlayerContainerTag : Component
 // Назначать на предмет
 data class DecrementItem(val count: Int = 1) : Component
 
-data class GiveItemSignal(val item: EngineItem, val slot: Int?) : Component
+// Событие
+data class GiveItemEvent(val player: EnginePlayer, val item: EngineItem, val slot: Int?) : Component
 
 val EnginePlayer.items: Set<EngineItem>
     get() = this.require<PlayerInventory>().let { it.items + listOfNotNull(it.cursorItem) }

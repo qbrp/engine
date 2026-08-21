@@ -35,14 +35,13 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.mc.*
 import org.lain.engine.player.*
 import org.lain.engine.script.*
-import org.lain.engine.server.markDirty
 import org.lain.engine.util.*
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 
-fun World.updateCommandInvokeSystem(table: EntityTable) {
+fun World.updateCommandInvokeSystem(table: ServerWorldTable) {
     val mcWorld = table.getMcWorld(id) as? ServerLevel ?: error("World $id not found")
     val server = mcWorld.server ?: error("Minecraft server is not available")
     val commandDispatcher = server.commands
@@ -50,7 +49,7 @@ fun World.updateCommandInvokeSystem(table: EntityTable) {
         commandDispatcher.performPrefixedCommand(server.createCommandSourceStack(), command)
     }
     iterate<PlayerCommandAccess, CommandInvoke>() { componentAccess, (player, root), (command) ->
-        val mcPlayer = table.server.getEntity(player) ?: error("Player $player not found")
+        val mcPlayer = player.minecraftEntity as ServerPlayer
         var commandSourceStack = mcPlayer.createCommandSourceStack()
         if (root) commandSourceStack =
             commandSourceStack.withPermission(LevelBasedPermissionSet.OWNER)
@@ -62,8 +61,8 @@ fun World.updateCommandInvokeSystem(table: EntityTable) {
 }
 
 fun playerPositionsMessage(playerStorage: PlayerStorage, world: Level): List<String> {
-    val enginePlayers = playerStorage.getAll()
-    val minecraftPlayers = world.players().toList()
+    val enginePlayers = playerStorage.all
+    val minecraftPlayers = world.players()
     return minecraftPlayers.mapNotNull { mcPlayer ->
         val enginePlayer =
             enginePlayers.find { it.id == mcPlayer.engineId } ?: return@mapNotNull null
@@ -91,8 +90,9 @@ typealias ServerCommandContext = CommandContext<CommandSourceStack>
 
 private val LOGGER = LoggerFactory.getLogger("Engine Fabric Commands")
 
-fun ServerCommandContext.getPlayers(id: String): List<ServerPlayer> {
+fun ServerCommandContext.getPlayers(id: String): List<EnginePlayer> {
     return EntityArgument.getPlayers(this, id).toList()
+        .mapNotNull { it.getEngineState() }
 }
 
 fun ServerCommandContext.getPlayerEntity(id: String): ServerPlayer {
@@ -100,8 +100,8 @@ fun ServerCommandContext.getPlayerEntity(id: String): ServerPlayer {
 }
 
 fun ServerCommandContext.getPlayer(id: String): EnginePlayer {
-    val entityTable by injectEntityTable()
-    return entityTable.server.getPlayer(getPlayerEntity(id))
+    val entity = getPlayerEntity(id)
+    return MinecraftAccessRegistry.getEnginePlayer(entity)
         ?: throw FriendlyException("Игрок $id не найден")
 }
 
@@ -124,12 +124,11 @@ fun ServerCommandContext.getVec3(id: String): Vec3 {
 fun <T : ArgumentBuilder<CommandSourceStack, T>> ArgumentBuilder<CommandSourceStack, T>.executeCatching(
     todo: (Context) -> Unit
 ): T {
-    val playerTable = injectValue<EntityTable>().server
     return executes {
         val source = it.source
         try {
             val ctx = Context(
-                it.source.player?.let { playerTable.getPlayer(it) },
+                it.source.player?.let { MinecraftAccessRegistry.getEnginePlayer(it) },
                 it.source,
                 it
             )
@@ -154,7 +153,7 @@ open class FriendlyException(message: String) : Exception(message)
 
 fun friendlyError(message: String): Nothing = throw FriendlyException(message)
 
-fun List<ServerPlayer>.formatPlayerList() = joinToString(separator = ", ") { it.name.string }
+fun List<EnginePlayer>.formatPlayerList() = joinToString(separator = ", ") { it.username }
 
 data class Context(
     val player: EnginePlayer?,
@@ -221,8 +220,7 @@ class StringListSuggestionProvider(val variants: List<String>) :
 }
 
 fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
-    val playerTable = injectValue<EntityTable>().server
-    val server by injectMinecraftEngineServer()
+    val server by lazy { requireEngineMinecraftServer() }
 
     registerEngineReloadCommands(isDedicated)
     registerEngineDeveloperCommands()
@@ -237,10 +235,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                             .executeCatching { ctx ->
                                 val players = ctx.command.getPlayers("players")
                                 val playerNameList = players.formatPlayerList()
-                                players.forEach { player ->
-                                    val enginePlayer = playerTable.requirePlayer(player)
-                                    enginePlayer.resetCustomSpeed()
-                                }
+                                players.forEach { player -> player.resetCustomSpeed() }
                                 ctx.sendFeedback(
                                     "Сброшена скорость для игроков $playerNameList",
                                     true
@@ -255,10 +250,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                         val players = ctx.command.getPlayers("players")
                                         val speed = ctx.command.getFloat("value")
                                         val playerNameList = players.formatPlayerList()
-                                        players.forEach { player ->
-                                            val enginePlayer = playerTable.requirePlayer(player)
-                                            enginePlayer.setCustomSpeed(speed)
-                                        }
+                                        players.forEach { player -> player.setCustomSpeed(speed) }
                                         ctx.sendFeedback(
                                             "Установлена скорость $speed для игроков $playerNameList",
                                             true
@@ -282,10 +274,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                         val players = ctx.command.getPlayers("players")
                                         val speed = ctx.command.getFloat("value")
                                         val playerNameList = players.formatPlayerList()
-                                        players.forEach { player ->
-                                            val enginePlayer = playerTable.requirePlayer(player)
-                                            enginePlayer.setCustomJumpStrength(speed)
-                                        }
+                                        players.forEach { player -> player.setCustomJumpStrength(speed) }
                                         ctx.sendFeedback(
                                             "Установлена сила прыжка $speed для игроков $playerNameList",
                                             true
@@ -298,10 +287,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                             .executeCatching { ctx ->
                                 val players = ctx.command.getPlayers("players")
                                 val playerNameList = players.formatPlayerList()
-                                players.forEach { player ->
-                                    val enginePlayer = playerTable.requirePlayer(player)
-                                    enginePlayer.resetCustomJumpStrength()
-                                }
+                                players.forEach { player -> player.resetCustomJumpStrength() }
                                 ctx.sendFeedback(
                                     "Сброшена сила прыжка для игроков $playerNameList",
                                     true
@@ -332,7 +318,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                 color1?.let { Color.parseString(it) } ?: Color.WHITE,
                                 color2?.let { Color.parseString(it) }
                             )
-                            player.markDirty<DisplayName>()
+                            player.markUpdated<DisplayName>()
                         } catch (e: InvalidCustomNameException) {
                             ctx.sendError(e)
                         }
@@ -382,7 +368,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                                         val source = ctx.source
                                                         val engine = server.engine
                                                         val world =
-                                                            engine.getWorld(source.level.engine)
+                                                            engine.getWorld(source.level.engineId)
                                                         val text = ctx.command.getString("text")
                                                         val author = ctx.command.getString("author")
                                                         val volume = ctx.command.getFloat("volume")
@@ -434,8 +420,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
                                     .executeCatching { ctx ->
                                         val channelId = ctx.command.getString("channel")
                                         val text = ctx.command.getString("text")
-                                        val entity = ctx.command.getPlayerEntity("player")
-                                        val player = playerTable.requirePlayer(entity)
+                                        val player = ctx.command.getPlayer("player")
 
                                         val chat = server.engine.chat
                                         val channel = chat.getChannel(ChannelId(channelId))
@@ -644,19 +629,6 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         return blockPos to chunk
     }
 
-    register(
-        literal("eye")
-            .then(
-                floatArgument("y", -16f, 16f)
-                    .executeCatching { ctx ->
-                        val player = ctx.requirePlayer()
-                        val value = ctx.command.getFloat("y") * 0.01f
-                        player.skinEyeY = value
-                        ctx.sendFeedback("Установлена высота глаз на $value пикселей", false)
-                    }
-            )
-    )
-
     fun registerPlayerScriptCommand(
         name: String,
         successMessage: (scriptId: ScriptId) -> String,
@@ -711,15 +683,13 @@ class NamespacedIdProvider(
     val additional: List<String> = listOf(),
     val provider: (NamespacedStorageAccess) -> List<String>,
 ) : SuggestionProvider<CommandSourceStack> {
-    private val server by injectEngineServer()
-    private val storage get() = server.namespacedStorage
-
     override fun getSuggestions(
         context: CommandContext<CommandSourceStack>,
         builder: SuggestionsBuilder
     ): CompletableFuture<Suggestions> {
+        val namespacedStorage = requireEngineMinecraftServer().engine.namespacedStorage
         val input = builder.remainingLowerCase.replace(""""""", "")
-        val identifiers = provider(storage)
+        val identifiers = provider(namespacedStorage)
         (identifiers
             .filter {
                 it.startsWith(input) || it.split("/").any { it.startsWith(input) }

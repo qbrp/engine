@@ -3,15 +3,13 @@ package org.lain.engine.client.render.world
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
 import net.minecraft.client.Minecraft
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.MinecraftEngineClientInfrastructure
+import org.lain.engine.client.MinecraftEngineClientPlatform
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.legacy.TextCache
 import org.lain.engine.client.render.player.updatePlayerEntityRenderStates
-import org.lain.engine.mc.EntityTable
 import org.lain.engine.mc.square
 import org.lain.engine.mc.voxelPos
-import org.lain.engine.util.injectEntityTable
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.pos
 
@@ -20,9 +18,8 @@ private val TextCache = TextCache()
 fun registerWorldRenderEvents(
     client: Minecraft,
     engineClient: EngineClient,
-    eventBus: MinecraftEngineClientInfrastructure,
-    decalsStorage: DecalSystem,
-    playerTable: EntityTable,
+    eventBus: MinecraftEngineClientPlatform,
+    decalsStorage: DecalSystem
 ) {
     WorldRenderEvents.END_MAIN.register { context ->
         val gameRenderer = context.gameRenderer()
@@ -49,9 +46,7 @@ fun registerWorldRenderEvents(
         val vertexConsumers = context.consumers()
         if (vertexConsumers !is ImmediateVertexConsumers) return@register
 
-        val entityTable by injectEntityTable()
         val context = ImmediateWorldRenderContext(
-            entityTable,
             vertexConsumers,
             client.font,
             matrices,
@@ -99,7 +94,7 @@ fun registerWorldRenderEvents(
 
         val gameSession = engineClient.gameSession
         if (gameSession != null) {
-            gameSession.updatePlayerEntityRenderStates(playerTable)
+            gameSession.updatePlayerEntityRenderStates()
             val images = decalsStorage.getBlockImages(
                 engineClient.gameSession?.mainPlayer?.pos ?: return@register,
                 MinecraftClient.options.renderDistance().get()

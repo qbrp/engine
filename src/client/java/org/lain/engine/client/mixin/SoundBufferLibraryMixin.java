@@ -4,7 +4,7 @@ import com.mojang.blaze3d.audio.SoundBuffer;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.resources.Identifier;
 import org.lain.engine.mc.CommonEngineMod;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -31,7 +31,7 @@ public class SoundBufferLibraryMixin {
         if (Objects.equals(id.getNamespace(), CommonEngineMod.MOD_ID) && !id.getPath().startsWith("sounds/builtin")) {
             cir.setReturnValue(
                 loadEngineStaticSound(
-                    ClientMixinAccess.INSTANCE.getAssets(),
+                    ClientMixin.INSTANCE.getAssets(),
                     this.cache,
                     Identifier.fromNamespaceAndPath(id.getNamespace(), id.getPath().replaceFirst("sounds/", ""))
                 )

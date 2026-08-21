@@ -31,14 +31,13 @@ import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.CollisionContext
 import org.joml.Vector3f
 import org.joml.Vector3fc
-import org.lain.engine.mc.CommonEngineMod
 import org.lain.engine.player.*
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.injectMinecraftEngineServer
 import org.lain.engine.util.math.*
+import org.lain.engine.util.requireEngineMinecraftServer
 import org.lain.engine.world.*
 import kotlin.math.abs
 
@@ -72,10 +71,9 @@ fun minecraftChunkSectionCoord(value: Int): Int {
     return value shr 4
 }
 
-class MinecraftRaycastProvider(private val playerTable: EntityTable) : RaycastProvider {
+class MinecraftRaycastProvider() : RaycastProvider {
     override fun whoSee(player: EnginePlayer, distance: Int, isClient: Boolean): EnginePlayer? {
-        val table = if (isClient) playerTable.client else playerTable.server
-        val entity1 = table.getEntity(player) ?: return null
+        val entity1 = player.minecraftEntity
         val results = ProjectileUtil.getEntityHitResult(
             entity1,
             entity1.eyePosition,
@@ -86,14 +84,11 @@ class MinecraftRaycastProvider(private val playerTable: EntityTable) : RaycastPr
             EntitySelector.CAN_BE_PICKED,
             distance.toDouble(),
         );
-        return (results?.entity as? Player?)?.let {
-            (table as EntityTable.Entity2PlayerTable<Player>).getPlayer(it)
-        }
+        return (results?.entity as? Player?)?.getEngineState()
     }
 
     override fun canSee(player: EnginePlayer, voxelPos: VoxelPos, isClient: Boolean): Boolean {
-        val table = if (isClient) playerTable.client else playerTable.server
-        val entity = table.getEntity(player) ?: return false
+        val entity = player.minecraftEntity
         val blockPos = BlockPos(voxelPos.x, voxelPos.y, voxelPos.z)
         val context = ClipContext(
             entity.eyePosition,
@@ -189,7 +184,7 @@ val EnginePlayer.displayNameMiniMessage: String
     }
 
 fun EngineServer.getWorld(world: Level): World {
-    return getWorld(world.engine)
+    return getWorld(world.engineId)
 }
 
 // ID
@@ -205,7 +200,7 @@ fun InvalidIdException(id: String) = IdentifierException("Non [a-z0-9/._-] chara
 fun parseId(str: String) = Identifier.parse(str)
 
 fun <T : Any> registryOf(key: ResourceKey<Registry<T>>): Registry<T> {
-    val server by injectMinecraftEngineServer()
+    val server = requireEngineMinecraftServer()
     return server.minecraftServer.registryAccess().get(key).get().value()
 }
 
@@ -229,7 +224,7 @@ fun <T : Any> registerDataComponentType(
         .build()
 )
 
-val Level.engine
+val Level.engineId
     get() = WorldId(this.dimensionTypeRegistration().registeredName)
 
 // MATH
@@ -239,6 +234,8 @@ typealias MathMc = Mth
 fun ChunkPos.engineChunkPos() = EngineChunkPos(x, z)
 
 fun BlockPos.voxelPos() = VoxelPos(this.x, this.y, this.z)
+
+fun BlockPos.immutableVoxelPos() = ImmutableVoxelPos(x, y, z)
 
 fun MutableEVec3.set(vec3: Vec3) {
     this.x = vec3.x.toFloat()

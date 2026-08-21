@@ -43,7 +43,7 @@ fun VoxelMeta.coerceToLua(): LuaUserdata {
     return userdata
 }
 
-fun World.tickScriptVoxelAdapter() {
+fun World.applyLuaVoxelDoorComponents() {
     iterate(CoreScriptComponents.VOXEL_DOOR) { entity, door ->
         val lOpen = door.castLua().luaValue["open"].toboolean()
         val kDoor = entity.getComponent<VoxelDoor>() ?: run {

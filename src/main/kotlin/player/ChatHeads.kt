@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.chat.CHAT_HEADS_PERMISSION
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.require
+import org.lain.engine.chat.hasPermission
 
 @Serializable
 data class PlayerChatHeadsComponent(var enabled: Boolean) : Component

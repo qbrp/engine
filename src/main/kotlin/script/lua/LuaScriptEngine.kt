@@ -1,5 +1,6 @@
 package org.lain.engine.script.lua
 
+import org.lain.engine.EngineSimulation
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.script.*
@@ -9,6 +10,11 @@ import org.lain.engine.script.lua.library.ecs.EntityRpcQueueMetaTable
 import org.lain.engine.script.lua.library.ecs.EntityRpcReceiverMetaTable
 import org.lain.engine.script.lua.library.ecs.PlayerInventoryMetaTable
 import org.lain.engine.script.lua.library.ecs.PlayerModeMetaTable
+import org.lain.engine.script.lua.library.ecs.applyLuaNetworkingComponents
+import org.lain.engine.script.lua.library.ecs.applyLuaPlayerComponents
+import org.lain.engine.script.lua.library.ecs.applyLuaLightComponents
+import org.lain.engine.script.lua.library.ecs.prepareLuaScriptComponents
+import org.lain.engine.script.lua.library.ecs.refreshGeneralLuaComponentsView
 import org.lain.engine.util.*
 import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
 import org.lain.engine.world.World
@@ -16,7 +22,6 @@ import org.lain.engine.world.WorldId
 import org.luaj.vm2.Globals
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
-import org.luaj.vm2.lib.ZeroArgFunction
 import org.luaj.vm2.lib.jse.JsePlatform
 import java.io.File
 
@@ -45,7 +50,7 @@ open class LuaScriptEngine(
     val componentTable: LuaTable = ComponentTable()
     val worldsList = LuaTable()
 
-    fun loadWorld(world: World) {
+    override fun loadWorld(world: World) {
         val worldTable = world.coerceToLua()
         worldsList[world.id.value.luaStr()] = worldTable
         setupWorldTableState(world, worldTable)
@@ -98,6 +103,22 @@ open class LuaScriptEngine(
         setupGlobalsRuntime()
     }
 
+    override fun tickBeforeCallbacks(world: World) {
+        world.applyLuaNetworkingComponents()
+        world.refreshGeneralLuaComponentsView()
+    }
+
+    override fun tick(world: World) = with(world) {
+        flushEntityRpcMessageReceiver()
+        applyLuaLightComponents()
+        applyLuaVoxelDoorComponents()
+        applyLuaPlayerComponents()
+    }
+
+    override fun setupPlayer(player: EnginePlayer) = with(player.world) {
+        player.prepareLuaScriptComponents()
+    }
+
     override fun reloadScript(filename: String) {
         val script = File(dependencies.scriptsPath).resolve(filename)
         if (!script.exists()) error("Скрипт $filename не существует")
@@ -125,10 +146,7 @@ open class LuaScriptEngine(
         val dataStorage: LuaDataStorage,
     )
 
-    data class RuntimeDependencies(
-        val playerStorage: Storage<PlayerId, EnginePlayer>,
-        val worlds: MutableMap<WorldId, World>
-    )
+    data class RuntimeDependencies(val simulation: EngineSimulation)
 
     companion object {
         fun globals(): Globals = JsePlatform.debugGlobals()

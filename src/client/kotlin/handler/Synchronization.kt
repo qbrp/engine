@@ -4,9 +4,9 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.componentTypeOfGeneral
 import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.ActionExecution
 import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
@@ -16,7 +16,9 @@ import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
 import org.lain.engine.util.math.Vec3
+import org.lain.engine.world.Location
 import org.lain.engine.world.World
+import org.lain.engine.world.location
 
 /**
  * Объект находится за пределами видимости игрока и не синхронизируется точно.
@@ -46,7 +48,7 @@ fun lowDetailedClientPlayerInstance(
             ),
             id
         ).also {
-            it.isLowDetailed = true
+            it.set(LowDetail(true))
         }
     }
 }
@@ -79,8 +81,10 @@ fun mainClientPlayerInstance(
 
 fun World.tickActionSyncSystem(handler: ClientHandler) {
     iterate<ActionSyncEvent> { _, event ->
-        val identity = ClientHandler.InteractionIdentity(event.tick, event.entity)
-        if (identity !in handler.processedInteraction) {
+        if (event.interactionId !in handler.processedInteraction) {
+            event.entity.setComponent(
+                ActionExecution(event.interactionId)
+            )
             event.entity.setComponent(event.action, componentTypeOfGeneral(event.action) as ComponentType<Component>)
         } else {
             EngineLogger.log(
@@ -88,7 +92,7 @@ fun World.tickActionSyncSystem(handler: ClientHandler) {
                     LogMessages.INTERACTION_SKIP,
                     LogLevel.INFO,
                     world = id,
-                    tick = ticks.toULong(),
+                    tick = simulation.ticks,
                     data = mapOf(
                         "interaction_tick" to event.tick.toString()
                     )
@@ -99,5 +103,20 @@ fun World.tickActionSyncSystem(handler: ClientHandler) {
 }
 
 fun World.tickProcessedActions(handler: ClientHandler) = iterate<ActionSyncEvent> { _, event ->
-    handler.processedInteraction += ClientHandler.InteractionIdentity(event.tick, event.entity)
+    handler.rememberProcessedInteraction(event.interactionId)
+}
+
+fun World.tickPlayerLowDetailedSystem(
+    mainPlayer: EnginePlayer,
+    syncRadius: Int
+) {
+    val syncRadiusSqr = syncRadius * syncRadius
+    iterate<PlayerComponent, Location, LowDetail>() { _, _, location, lowDetailed ->
+        if (location.position.squaredDistanceTo(mainPlayer.location.position) > syncRadiusSqr) {
+            lowDetailed.enabled = true
+            return@iterate
+        } else {
+            lowDetailed.enabled = false
+        }
+    }
 }

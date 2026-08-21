@@ -4,10 +4,9 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.Player
+import org.lain.engine.player.PlayerComponent
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.DynamicVoxelInterest
 import org.lain.engine.world.Location
@@ -31,7 +30,7 @@ fun World.tickPlayerInterestsSystem(
 ) {
     val world = this
     val squaredSynchronizationRadius = synchronizationRadius * synchronizationRadius
-    iterate<Player, Interests, Location>() { _, (player), interests, location ->
+    iterate<PlayerComponent, Interests, Location>() { _, (player), interests, location ->
         val position = location.position
         val playersInRadius = filterNearestPlayers(world, position, synchronizationRadius, players)
             .filter { it != player }

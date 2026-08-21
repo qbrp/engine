@@ -3,7 +3,7 @@ package org.lain.engine.mixin;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
-import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.mc.ServerMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,7 +22,7 @@ public class ServerGamePacketListenerImpl {
             )
     )
     private void engine$sendDisconnectedMessage(PlayerList instance, Component message, boolean overlay) {
-        if (!ServerMixinAccess.INSTANCE.shouldCancelSendJoinMessage()) {
+        if (!ServerMixin.INSTANCE.shouldCancelSendJoinMessage()) {
             instance.broadcastSystemMessage(message, overlay);
         }
     }

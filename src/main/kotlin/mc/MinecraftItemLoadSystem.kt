@@ -61,7 +61,7 @@ fun updateMinecraftItemLoadSystem(
                                                     LogLevel.ERROR,
                                                     error = e.toLogError(),
                                                     data = data.context.data(),
-                                                    tick = engine.tick,
+                                                    tick = engine.simulation.ticks,
                                                     world = world.id
                                                 )
                                             )

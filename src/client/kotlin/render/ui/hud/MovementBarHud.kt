@@ -34,7 +34,7 @@ fun renderMovementStatus(
     gameSession: GameSession,
     dt: Float
 ) {
-    val renderer = gameSession.renderer
+    val renderer = gameSession.client.renderer
     val shouldRenderHud = !renderer.hudHidden && renderer.isFirstPerson && !gameSession.mainPlayer.isSpectating && !renderer.chatOpen
 
     val intention = gameSession.movementManager.intention.coerceIn(0f, 1f)

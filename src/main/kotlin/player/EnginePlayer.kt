@@ -15,7 +15,7 @@ import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.util.component.Entity
+import org.lain.engine.server.markUpdated
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.World
 import java.util.*
@@ -25,8 +25,9 @@ class EnginePlayer(
     val entity: EntityId,
     val world: World,
     var destroyed: Boolean = false
-) : Entity {
-    override val stringId: String get() = id.toString()
+) {
+    val simulation get() = world.simulation
+    val simulationSettings get() = simulation.settings
 
     override fun toString(): String {
         return with(world) { "EnginePlayer(${entity.username()} (${entity.displayNameString()}), $id)" }
@@ -62,25 +63,23 @@ inline fun <reified T : Component> EnginePlayer.remove(): T? = with(world) {
     entity.removeComponent<T>()
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component> EnginePlayer.apply(noinline todo: T.() -> Unit): T = with(world) {
     entity.requireComponent<T>().apply(todo)
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component> EnginePlayer.handle(noinline todo: T.() -> Unit) {
     get<T>()?.todo()
 }
 
-@Deprecated("Use cyberia methods")
 inline fun <reified T : Component, R> EnginePlayer.let(noinline todo: T.() -> R): R {
     return require<T>().todo()
 }
 
-@Deprecated("Use cyberia methods")
 fun EnginePlayer.getComponents(): List<Component> = with(world) {
     componentManager.getComponents(entity, null)
 }
+
+inline fun <reified T : Component> EnginePlayer.markUpdated() = with(world) { entity.markUpdated<T>() }
 
 @JvmInline
 @Serializable(with = PlayerIdSerializer::class)

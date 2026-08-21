@@ -3,11 +3,16 @@ package org.lain.engine.client.script
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.webPageUrl
+import org.lain.engine.client.script.lua.library.ecs.applyLuaEntityRpcQueues
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptSource
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.library.ecs.applyLuaLightComponents
+import org.lain.engine.script.lua.library.ecs.applyLuaPlayerComponents
+import org.lain.engine.script.lua.library.ecs.refreshGeneralLuaComponentsView
 import org.lain.engine.script.lua.luaTable
+import org.lain.engine.world.World
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
@@ -20,6 +25,11 @@ class ClientLuaScriptEngine(
     val audioSourceTable = LuaTable()
     val webTable = WebTable()
     lateinit var gameSessionTable: LuaTable
+
+    override fun tickBeforeCallbacks(world: World) = with(world) {
+        super.tickBeforeCallbacks(world)
+        applyLuaEntityRpcQueues()
+    }
 
     override fun listCallbackTypes(): List<CallbackType<out ScriptContext>> {
         return super.listCallbackTypes() + ClientCallbacks.list()
@@ -63,9 +73,7 @@ class ClientLuaScriptEngine(
 
     fun setupClientGameSession(gameSession: GameSession) {
         val world = gameSession.world
-        setupGame(
-            RuntimeDependencies(gameSession.playerStorage, mutableMapOf(world.id to world))
-        )
+        setupGame(RuntimeDependencies(gameSession.simulation))
         gameSessionTable = GameSessionTable(gameSession)
         globals.setupAudio()
         globals.setupKeyMappings()

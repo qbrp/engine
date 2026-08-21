@@ -66,6 +66,7 @@ class ChatBubbleList(private val options: EngineOptions) {
     }
 
     fun tick(mainPlayer: EnginePlayer) {
+        _bubbles.removeIf { it.remove }
         val players = mutableMapOf<PlayerId, Boolean>()
         bubbles.forEach { bubble ->
             if (!bubble.canSee && (bubble.tick == 0 || bubble.tick++ % 20 == 0)) {
@@ -75,10 +76,6 @@ class ChatBubbleList(private val options: EngineOptions) {
                 }
             }
         }
-    }
-
-    fun cleanup() {
-        _bubbles.removeIf { it.remove }
     }
 }
 

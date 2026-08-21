@@ -8,7 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.input.KeyEvent;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mc.DeveloperModeActionsKt;
 import org.lain.engine.client.mc.KeybindManager;
 import org.lain.engine.client.render.ui.InteractionSelectionScreen;
@@ -44,7 +44,7 @@ public class KeyboardMixin {
     )
     public InputConstants.Key engine$invokeChatScreenKeybindings(net.minecraft.client.input.KeyEvent keyEvent) {
         InputConstants.Key key = InputConstants.getKey(keyEvent);
-        KeybindManager keybindManager = ClientMixinAccess.INSTANCE.getKeybindManager();
+        KeybindManager keybindManager = ClientMixin.INSTANCE.getKeybindManager();
         KeyMapping[] keybindings = new KeyMapping[] {};
         if (minecraft.screen instanceof ChatScreen) {
             keybindings = new KeyMapping[]{

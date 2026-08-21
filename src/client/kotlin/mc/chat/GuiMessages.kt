@@ -4,17 +4,21 @@ import net.minecraft.client.gui.components.ComponentRenderUtils
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.util.FormattedCharSequence
 import net.minecraft.util.Mth
+import org.lain.engine.EngineSimulation
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
-import org.lain.engine.item.ItemStorage
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.literalText
+import org.lain.engine.player.MovementDefaultAttributes
+import org.lain.engine.player.MovementSettings
+import org.lain.engine.player.PlayerStorage
+import org.lain.engine.player.interaction.PlayerInputMode
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
+import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
-import org.lain.engine.world.world
 
 const val MAXIMUM_REPEATS_TEXT = "x999"
 
@@ -80,12 +84,19 @@ fun interface EngineLineConsumer {
     fun accept(line: EngineChatHudLine, lineIndex: Int, alpha: Float)
 }
 
-fun DummyWorld() = world(
+fun DummyWorld() = World(
     WorldId("dummy"),
-    Thread.currentThread(),
-    ItemStorage(),
-    ThreadSafeNamespaceStorageAccessImpl(
-        NamespacedStorage()
-    ),
-    ScriptEngine.Dummy,
+    EngineSimulation(
+        false,
+        EngineSimulation.SimulationTickExtension.DUMMY,
+        object : EngineSimulation.Settings {
+            override val movementDefaultAttributes: MovementDefaultAttributes = MovementDefaultAttributes()
+            override val movementSettings: MovementSettings = MovementSettings()
+        },
+        PlayerStorage(),
+        ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage()),
+        ScriptEngine.Dummy,
+        Thread.currentThread(),
+        PlayerInputMode.Authoritative,
+    )
 )

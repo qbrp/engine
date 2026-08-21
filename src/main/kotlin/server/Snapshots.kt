@@ -21,6 +21,7 @@ sealed class EntityNetworkSnapshot {
         val revision: Long,
         val delta: EntityDelta
     ) : EntityNetworkSnapshot()
+    @Serializable
     data class Full(
         val revision: Long,
         val components: List<ComponentDto>
@@ -42,7 +43,6 @@ data class EntityStateFrame(
 )
 
 data class WorldStateFrame(
-    val serverTick: Long,
     val worldState: EntityStateFrame?, //null if is empty
     val entities: Map<PersistentId, EntityStateFrame>
 )
@@ -118,5 +118,5 @@ fun World.composeStateFrame(): WorldStateFrame {
     val worldNetworkState = state.networkState()
     val worldEntityFrame = worldNetworkState.freezeSnapshot(null, state)
     worldNetworkState.clear()
-    return WorldStateFrame(ticks, worldEntityFrame, entities)
+    return WorldStateFrame(worldEntityFrame, entities)
 }

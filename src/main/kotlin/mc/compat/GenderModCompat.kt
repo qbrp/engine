@@ -1,17 +1,13 @@
-package org.lain.engine.mc
+package org.lain.engine.mc.compat
 
 import com.wildfire.main.WildfireGender
 import com.wildfire.main.config.enums.Gender
-import com.wildfire.main.entitydata.EntityConfig
 import com.wildfire.main.entitydata.PlayerConfig
 import com.wildfire.main.networking.WildfireSync
 import net.minecraft.server.level.ServerPlayer
-import org.jetbrains.exposed.v1.core.transactions.withThreadLocalTransaction
-import org.lain.engine.player.EnginePlayer
+import org.lain.engine.mc.engineId
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.BiologicalSex
-import org.lain.engine.player.character.CharacterPhysical
-import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.GenderParams
 import org.lain.engine.util.isClassAvailable
 

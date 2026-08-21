@@ -14,8 +14,8 @@ import net.minecraft.world.item.ItemStack
 import org.lain.engine.client.mixin.render.wildfire.BreastPhysicsAccessor
 import org.lain.engine.client.mixin.render.wildfire.EntityConfigAccessor
 import org.lain.engine.client.mixin.render.wildfire.GenderRenderStateAccessor
-import org.lain.engine.mc.GENDER_MOD_AVAILABLE
-import org.lain.engine.mc.wildfireGender
+import org.lain.engine.mc.compat.GENDER_MOD_AVAILABLE
+import org.lain.engine.mc.compat.wildfireGender
 import org.lain.engine.player.character.BiologicalSex
 import org.lain.engine.player.character.CharacterProfile
 import java.util.UUID

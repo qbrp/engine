@@ -2,7 +2,6 @@ package org.lain.engine.client.render.legacy
 
 import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.mc.Text
-import org.lain.engine.player.PlayerId
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.Vec2
 
@@ -107,7 +106,6 @@ data class Fragment(
     val onRecompose: RecomposeListener? = null,
     val onHover: HoverListener? = null,
     val textInput: TextInput? = null,
-    val playerHead: PlayerId? = null
 ) {
 
     override fun hashCode(): Int {

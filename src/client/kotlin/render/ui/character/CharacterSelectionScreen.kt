@@ -1,10 +1,7 @@
 package org.lain.engine.client.render.ui.character
 
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withContext
-import org.lain.engine.client.EngineClient
-import org.lain.engine.client.account.SkinTextureManager
-import org.lain.engine.client.handler.ClientHandler
+import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
@@ -13,37 +10,25 @@ import org.lain.engine.player.character.EngineCharacter
 class CharacterSelectionScreen(
     character: EngineCharacter?,
     characters: List<EngineCharacter>,
-    skinTextureManager: SkinTextureManager,
-    private val handler: ClientHandler,
-    private val requestId: Long? = null,
-) : AbstractSelectionScreen<EngineCharacter>() {
-    private val characterCompletableDeferred: CompletableDeferred<EngineCharacter?> = CompletableDeferred()
-    override val looksWheel: LooksWheel<EngineCharacter> = run {
+    characterSelection: CharacterSelection,
+) : AbstractSelectionScreen<CharacterSelection.Selection.Character>(characterSelection) {
+    override val looksWheel: LooksWheel<CharacterSelection.Selection.Character> = run {
         val entries = characters.map {
-            LooksWheel.Entry(it.baseLook, it.profile.name.gradientChars.getText(), it.profile, it, it.profile.id)
+            LooksWheel.Entry(
+                it.baseLook,
+                it.profile.name.gradientChars.getText(),
+                it.profile,
+                CharacterSelection.Selection.Character(it),
+                it.profile.id
+            )
         }
         val initial = entries.find { it.profile.id == character?.profile?.id }
         LooksWheel(
-            skinTextureManager,
+            characterSelection.client.skinTextureManager,
             initial,
             entries,
             onSelectLook = ::selectEntry
         )
-    }
-
-    override fun onClose() {
-        super.onClose()
-        if (!characterCompletableDeferred.isCompleted) {
-            characterCompletableDeferred.complete(null)
-        }
-    }
-
-    suspend fun awaitSelection() = characterCompletableDeferred.await()
-
-    override fun onEntrySelected(selected: LooksWheel.Entry<EngineCharacter>) {
-        if (overlay == null) {
-            overlay = CharacterApplyConfirmationWaitOverlay(selected.data, characterCompletableDeferred, handler, requestId)
-        }
     }
 
     companion object {
@@ -51,18 +36,17 @@ class CharacterSelectionScreen(
          * @return null если экран выбора персонажей был закрыт
          */
         suspend fun awaitCharacterSelection(
-            client: EngineClient,
+            characterSelection: CharacterSelection,
             character: EngineCharacter?,
             characters: List<EngineCharacter>,
-            requestId: Long? = null
-        ): EngineCharacter? {
+        ): CharacterSelection.Selection.Character? {
             val screen = withContext(MinecraftClientDispatcher) {
                 val screen =
-                    CharacterSelectionScreen(character, characters, client.skinTextureManager, client.handler, requestId)
+                    CharacterSelectionScreen(character, characters, characterSelection)
                 MinecraftClient.setScreen(screen)
                 screen
             }
-            return screen.awaitSelection()
+            return screen.selection.await()
         }
     }
 }

@@ -3,6 +3,9 @@ package org.lain.engine.client
 import kotlinx.coroutines.runBlocking
 import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.requireComponent
+import org.lain.engine.EngineSimulation
+import org.lain.engine.client.account.CharacterChange
+import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
@@ -11,48 +14,38 @@ import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
-import org.lain.engine.client.render.MAP
+import org.lain.engine.client.mc.tickWritableUiSystem
 import org.lain.engine.client.render.WARNING
+import org.lain.engine.client.render.tickBulletHitSystem
 import org.lain.engine.client.render.tickSkinSystem
 import org.lain.engine.client.render.ui.Workspace
-import org.lain.engine.client.render.updateShootShakeSystem
+import org.lain.engine.client.render.tickRecoilShakeSystem
 import org.lain.engine.client.script.ClientCompilation
-import org.lain.engine.client.script.lua.library.ecs.applyLuaEntityRpcQueues
-import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.client.util.SPECTATOR_NOTIFICATION
-import org.lain.engine.client.util.processWorldSounds
-import org.lain.engine.container.clearAssignItemsOperations
-import org.lain.engine.container.updateContainerOperationSystem
-import org.lain.engine.container.updatePlayerContainerSystem
-import org.lain.engine.container.updateSlotContainers
+import org.lain.engine.client.script.lua.library.ecs.tickEntityRpcQueueSystem
+import org.lain.engine.client.util.*
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.tickGunSystem
-import org.lain.engine.item.tickMagazineSystem
+import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.*
+import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterApplyEvent
-import org.lain.engine.player.interaction.tickGunActionSystem
-import org.lain.engine.player.interaction.tickPlayerInput
-import org.lain.engine.player.interaction.tickSocialActionSystem
-import org.lain.engine.player.interaction.tickWritableActionSystem
-import org.lain.engine.script.*
-import org.lain.engine.script.lua.library.ecs.applyLuaPlayerComponents
-import org.lain.engine.script.lua.library.ecs.applyLugLightComponents
-import org.lain.engine.script.lua.library.ecs.prepareLuaScriptComponents
-import org.lain.engine.script.lua.library.ecs.refreshLuaComponentsView
-import org.lain.engine.script.lua.library.tickScriptVoxelAdapter
+import org.lain.engine.player.character.SelectedLook
+import org.lain.engine.player.interaction.PlayerInputMode
+import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.NamespacedStorage
+import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.server.ServerId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
 import org.lain.engine.storage.toDomainSuspend
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.EngineLogger
-import org.lain.engine.util.INSPECTION_MODE_COLOR
 import org.lain.engine.util.Log
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.world.*
 
 class GameSession(
+    val isMultiPlayer: Boolean,
     val server: ServerId,
     setup: ClientboundSetupData,
     world: ClientboundWorldData,
@@ -62,34 +55,39 @@ class GameSession(
     val compilation: ClientCompilation,
     compilationResult: CompilationResult,
     val hintState: ClientHintState = ClientHintState(),
-) {
+) : EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
+    private val systems: ClientPlatform.TickExtension = client.infrastructure.tickExtension
     val luaContext = compilation.luaContext
     val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
-    val scriptSystemDispatcher = ScriptSystemDispatcher()
-    val itemStorage = ClientItemStorage()
+    val playerStorage = PlayerStorage()
+    val simulation = EngineSimulation(
+        isClient = true,
+        this,
+        this,
+        playerStorage,
+        namespacedStorage,
+        luaContext,
+        client.thread,
+        PlayerInputMode.Predictive(setOf(player.id), handler)
+    )
     val world = World(
         world.id,
-        thread = client.thread,
-        isClient = true,
-        namespacedStorage = namespacedStorage,
-        scriptEngine = luaContext,
-        itemStorage = itemStorage
+        simulation,
     )
+    val itemStorage: ItemStorage = this.world.itemStorage
 
-    val renderer = client.renderer
     val chatEventBus = client.chatEventBus
     var synchronizationRadius: Int = setup.settings.synchronizationRadius
     var playerDesynchronizationThreshold: Int = setup.settings.playerDesynchronizationThreshold
 
     var extendArm = false
-    set(value) {
-        handler.onArmStatusUpdate(value)
-        mainPlayer.extendArm = value
-        field = value
-    }
+        set(value) {
+            handler.onArmStatusUpdate(value)
+            mainPlayer.extendArm = value
+            field = value
+        }
 
     var acousticDebugVolumes = listOf<Pair<VoxelPos, Float>>()
-    val playerStorage = ClientPlayerStorage()
     val movementManager = MovementManager(this)
     val chatBubbleList = ChatBubbleList(client.options)
     val chatManager = ClientEngineChatManager(
@@ -99,41 +97,37 @@ class GameSession(
         setup.settings.chat,
     )
 
-    var movementDefaultAttributes = setup.settings.defaultAttributes.movement
-    var movementSettings = setup.settings.movement
+    override var movementDefaultAttributes = setup.settings.defaultAttributes.movement
+    override var movementSettings = setup.settings.movement
+
     val vocalRegulator = PlayerVocalRegulator(
         PlayerVolume(player.volume, player.maxVolume, player.baseVolume),
         this
     )
-    val mainPlayer = mainClientPlayerInstance(player.id, this.world, player, DeveloperModeStatus(client.developerMode, client.acousticDebug))
-    @Volatile var ticks = 0L
-        private set
+    val mainPlayer = mainClientPlayerInstance(
+        player.id,
+        this.world,
+        player,
+        DeveloperModeStatus(client.developerMode, client.acousticDebug)
+    )
+    val ticks
+        get() = simulation.ticks
 
-    var callbacks: Callbacks = Callbacks()
     val endTickTaskExecutor = TaskExecutor()
     var workspaceSavedState: Workspace.SavedState? = null
 
     var inspectionMode: Boolean = false
         set(value) {
+            client.showInpectionModeToggleNotification(value)
             field = value
-            val description = if (value) {
-                "Подсказки будут автоматически отображаться при взгляде на блок"
-            } else {
-                "Выключен"
-            }
-            client.applyLittleNotification(
-                LittleNotification(
-                    title = "Режим исследования",
-                    description = description,
-                    color = INSPECTION_MODE_COLOR,
-                    sprite = MAP
-                )
-            )
         }
     val inspection = InspectionMode()
+    var characterChange: CharacterChange? = null
+        private set
 
     init {
         applyCompilation(compilationResult)
+        simulation.loadWorld(this.world)
 
         val items = (player.items + player.equipment.values).associateBy { it.persistentId }
         preloadPlayerItems(items)
@@ -144,18 +138,19 @@ class GameSession(
         chatManager.updateSettings(setup.settings.chat)
 
         if (setup.settings.spectateOnJoin) {
-            client.sendSpectatingNotification()
+            client.showSpectatingNotification()
         }
 
         player.character?.let { this.world.emitEvent(CharacterApplyEvent(it, mainPlayer.id)) }
+        handler.initializeEntitySynchronization(this)
     }
 
-    fun logInMainThread(loggerGetter: context(World) GameSession.(tick: ULong) -> Log) {
+    fun logInMainThread(loggerGetter: context(World) GameSession.(tick: Long) -> Log) {
         val tick = ticks
         client.execute {
             with(world) {
                 with(this@GameSession) {
-                    EngineLogger.log(loggerGetter(tick.toULong()))
+                    EngineLogger.log(loggerGetter(tick))
                 }
             }
         }
@@ -175,7 +170,8 @@ class GameSession(
                         toDomainSuspend(
                             componentLoadSettings,
                             { persistentId ->
-                                itemEntities[persistentId]?.second ?: playerJoinException("Предмет $persistentId требует несуществующую связь $persistentId")
+                                itemEntities[persistentId]?.second
+                                    ?: playerJoinException("Предмет $persistentId требует несуществующую связь $persistentId")
                             },
                         )
                     }
@@ -185,16 +181,14 @@ class GameSession(
     }
 
     fun applyCompilation(result: CompilationResult) {
-        namespacedStorage.loadCompilationResult(result)
-        world.registerComponentTypes(namespacedStorage)
-        scriptSystemDispatcher.load(result.phases, namespacedStorage)
-        result.callbacks?.let { callbacks = it }
+        simulation.applyCompilationResult(result)
         luaContext.setupClientGameSession(this)
 
         val exceptions = result.exceptions
         if (exceptions.isNotEmpty()) {
-            val line1 = if (exceptions.size == 1) "Возникла 1 ошибка" else "Возникло ${exceptions.size} ошибок"
-            client.applyLittleNotification(
+            val line1 =
+                if (exceptions.size == 1) "Возникла 1 ошибка" else "Возникло ${exceptions.size} ошибок"
+            client.showNotification(
                 LittleNotification(
                     "Сбой компиляции контента",
                     "$line1. Проверьте консоль для более подробной информации.",
@@ -214,15 +208,7 @@ class GameSession(
         try {
             applyCompilation(luaContext.compileContents())
         } catch (e: Exception) {
-            client.applyLittleNotification(
-                LittleNotification(
-                    "Ошибка компиляции клиента",
-                    "${e.message ?: "Неизвестная ошибка"}<newline>Проверьте консоль для более подробной информации.",
-                    WARNING_COLOR,
-                    WARNING,
-                    lifeTime = 240
-                )
-            )
+            client.showCompilationErrorNotification(e)
         }
     }
 
@@ -231,83 +217,49 @@ class GameSession(
         client.infrastructure.onContentsUpdate()
     }
 
-    fun tick() {
-        ticks++
-        with(world) {
-            ticks++
-            chatManager.tick()
+    override fun World.beforeInput() = with(systems) {
+        tickDataPrepareSystem()
+        tickPlayerLowDetailedSystem(mainPlayer, synchronizationRadius)
+    }
 
-            val players = playerStorage.getAll()
-            world.players.clear()
-            world.players.addAll(players)
+    override fun World.afterInput() {
+        tickActionSyncSystem(handler)
+    }
 
-            movementManager.stamina = mainPlayer.stamina
-            if (mainPlayer.has<SpawnMark>()) {
-                client.removeLittleNotification(SPECTATOR_NOTIFICATION)
-            }
+    override fun World.afterInteractions() {
+        tickProcessedActions(handler)
+        handler.endInteractionPrediction()
+    }
 
-            tickPlayerModelSystem()
+    override fun World.afterOperations() = with(systems) {
+        tickEntityRpcQueueSystem(handler)
+        tickBulletFireSystem()
+        tickBulletHitSystem(client.camera)
+        tickRecoilShakeSystem(mainPlayer, client.camera)
+        processWorldSounds(namespacedStorage, client.audioManager)
+        chatBubbleList.tick(mainPlayer)
 
-            tickPlayerInput(callbacks, mainPlayer.id, true)
-            tickActionSyncSystem(handler)
-
-            tickGunActionSystem()
-            tickSocialActionSystem(playerStorage)
-            tickWritableActionSystem()
-
-            tickProcessedActions(handler)
-
-            for (player in players) {
-                player.remove<DecrementItem>()
-                player.remove<GiveItemSignal>()
-                if (player.location.position.squaredDistanceTo(mainPlayer.location.position) > synchronizationRadius * synchronizationRadius) {
-                    player.isLowDetailed = true
-                    continue
-                } else {
-                    player.isLowDetailed = false
-                }
-
-                updateHearing(player)
-            }
-            tickMovementSystem(movementDefaultAttributes, movementSettings)
-
-            tickMagazineSystem()
-            tickGunSystem()
-            tickRecoilSystem()
-            updateShootShakeSystem(mainPlayer, client.camera)
-
-            tickNarrations(mainPlayer)
-
-            chatBubbleList.cleanup()
-            chatBubbleList.tick(mainPlayer)
-            processWorldSounds(namespacedStorage, client.audioManager)
-            updateSlotContainers(world)
-            updateContainerOperationSystem()
-            updatePlayerContainerSystem()
-            clearAssignItemsOperations(world)
-
-            // Scripts
-            with(luaContext) { refreshLuaComponentsView() }
-            tickCallbacks(callbacks)
-            scriptSystemDispatcher.tick(world)
-            applyLugLightComponents()
-            with(luaContext) {
-                applyLuaEntityRpcQueues(handler)
-                applyLuaPlayerComponents()
-            }
-            updateVoxelEvents(null)
-            handleHintEvents()
-            client.infrastructure.getHitResultVoxelPos()?.let {
-                updateInspectionMode(inspection, inspectionMode, it)
-            }
-            world.tickScriptVoxelAdapter()
-
-            flushEntityRpcMessageReceiver()
-
-            world.tickSkinSystem(client.skinTextureManager)
-
-            endTickTaskExecutor.flush()
+        updateVoxelEvents(null)
+        handleHintEvents()
+        client.infrastructure.getHitResultVoxelPos()?.let {
+            updateInspectionMode(inspection, inspectionMode, it)
         }
+
+        tickSkinSystem(client.skinTextureManager)
+        tickDataApplySystem()
+    }
+
+    fun tick() {
+        chatManager.tick()
+
+        movementManager.stamina = mainPlayer.stamina
+        if (mainPlayer.has<SpawnMark>()) {
+            client.removeLittleNotification(SPECTATOR_NOTIFICATION)
+        }
+
+        simulation.tick()
+
+        endTickTaskExecutor.flush()
     }
 
     fun viewEntityDebug(entity: EntityId) = with(world) {
@@ -331,19 +283,34 @@ class GameSession(
         player: EnginePlayer,
         data: GeneralPlayerData,
         equipment: Map<EquipmentSlot, EngineItem> = emptyMap(),
-    ) {
-        playerStorage.add(player.id, player)
-        context(world, luaContext) {
-            player.prepareContainers(data.equipmentContainer, player.location, equipment)
-            player.prepareLuaScriptComponents()
-            callbacks.of(CallbackType.PLAYER_INSTANTIATE)?.execute(player.scriptContext)
+    ) = with(player.world) {
+        player.prepareContainers(data.equipmentContainer, player.location, equipment)
+        simulation.instantiatePlayer(player)
+    }
+
+    fun openCharacterSelectionMenu() {
+        simulation.assertOnThread()
+        if (characterChange != null) return
+
+        val appliedCharacter = mainPlayer.get<AppliedCharacter>()?.character
+        val selectedLook = mainPlayer.get<SelectedLook>()?.look
+        val currentPlayerCharacter = if (appliedCharacter != null && selectedLook != null) {
+            CharacterSelection.CurrentCharacter(appliedCharacter, selectedLook)
+        } else {
+            null
+        }
+        val change = CharacterChange(this, currentPlayerCharacter)
+        characterChange = change
+        change.start().invokeOnCompletion {
+            client.execute { characterChange = null }
         }
     }
 
     fun destroy() {
-        playerStorage.clear()
+        characterChange?.cancel()
+        characterChange = null
         client.renderer.invalidate()
-        handler.disable()
+        handler.disable(this)
         client.skinTextureManager.close()
     }
 

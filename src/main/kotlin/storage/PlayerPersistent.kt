@@ -6,13 +6,12 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.container.getContainerSlots
+import org.lain.engine.container.ContainerEntity
+import org.lain.engine.container.OccupiedSlots
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.AppliedCharacters
-import org.lain.engine.server.ServerPlatform
 import org.lain.engine.util.Color
 import org.lain.engine.util.file.ENGINE_DIR
 import org.lain.engine.util.file.ensureExists
@@ -77,7 +76,8 @@ data class PersistentPlayerData(
     val appliedCharacter: String? = null,
 )
 
-fun World.getEquipmentContainerSlots(container: EntityId) = getContainerSlots(container)
+context(world: World)
+fun ContainerEntity.getEquipmentContainerSlots() = entity.requireComponent<OccupiedSlots>().slots
     .mapKeys { (slotId, _) -> EquipmentSlot.ofSlot(slotId) }
 
 fun File.savePersistentPlayerData(
@@ -91,7 +91,7 @@ fun File.savePersistentPlayerData(
     val speedIntention = movementStatus.intention
     val stamina = movementStatus.stamina
 
-    val equipmentSlots = getEquipmentContainerSlots(player.equipmentContainer)
+    val equipmentSlots = player.equipmentContainer.getEquipmentContainerSlots()
     val voiceApparatus = player.require<VoiceApparatus>().copy()
     val voiceLoose = player.get<VoiceLoose>()?.copy()
     val chatHeadsEnabled = player.chatHeadsEnabled

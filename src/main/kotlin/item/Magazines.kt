@@ -14,7 +14,7 @@ data class Magazine(
 
 data class MagazineLoadAction(val ammoItem: EngineItem) : Component
 
-fun World.tickMagazineSystem() {
+fun World.tickMagazineActionSystem() {
     iterate<Magazine, MagazineLoadAction>() { item, magazine, (ammoItem) ->
         val ammoCount = ammoItem.getComponent<Count>()?.value ?: 1
         val loadAmmoCount = ammoCount.coerceAtMost(magazine.capacity - magazine.bullets)

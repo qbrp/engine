@@ -206,7 +206,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
         )
     }
 
-    ServerMixinAccess.isDamageEnabled = config.player.damage
+    ServerMixin.vanillaDamageEnabled = config.player.damage
 }
 
 fun EngineMinecraftServer.applyConfigCatching(config: ServerConfig) {

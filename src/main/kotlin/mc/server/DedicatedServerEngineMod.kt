@@ -40,7 +40,13 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
         val compilationResult = setupContents(entrypointScript)
 
         ServerLifecycleEvents.SERVER_STARTING.register { server ->
-            val dependencies = EngineMinecraftServerDependencies(server, luaScriptEngine, compilationResult, config, namespacedStorage)
+            val dependencies = EngineMinecraftServer.Dependencies(
+                server,
+                luaScriptEngine,
+                compilationResult,
+                config,
+                namespacedStorage
+            )
             registerMinecraftServer(
                 DedicatedEngineMinecraftServer(dependencies)
             )
@@ -74,6 +80,7 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
                             luaScriptEngine = createLuaContext(entrypointScript)
                             continue@error
                         }
+
                         "n" -> throw ReportedException(CrashReport("Engine compilation", e))
                         else -> SCRIPT_LOGGERRR.warn("y - да, n - выключить сервер")
                     }

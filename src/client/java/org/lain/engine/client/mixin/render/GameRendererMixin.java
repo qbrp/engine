@@ -1,7 +1,7 @@
 package org.lain.engine.client.mixin.render;
 
 import net.minecraft.client.renderer.GameRenderer;
-import org.lain.engine.client.mc.ClientMixinAccess;
+import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,6 +17,6 @@ public class GameRendererMixin {
             )
     )
     public void engine$onSetProjectionMatrix(CallbackInfo ci) {
-        ClientMixinAccess.INSTANCE.onSetWorldProjectionMatrix();
+        ClientMixin.INSTANCE.onSetWorldProjectionMatrix();
     }
 }

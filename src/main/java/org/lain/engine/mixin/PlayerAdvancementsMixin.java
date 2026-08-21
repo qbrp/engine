@@ -2,7 +2,7 @@ package org.lain.engine.mixin;
 
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.server.PlayerAdvancements;
-import org.lain.engine.mc.ServerMixinAccess;
+import org.lain.engine.mc.ServerMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,8 +19,6 @@ public class PlayerAdvancementsMixin {
             cancellable = true
     )
     public void engine$disableAdvancementsMessages(AdvancementHolder advancementHolder, String string, CallbackInfoReturnable<Boolean> cir) {
-        if (ServerMixinAccess.INSTANCE.isAchievementMessagesDisabled()) {
-            cir.cancel();
-        }
+        cir.cancel();
     }
 }

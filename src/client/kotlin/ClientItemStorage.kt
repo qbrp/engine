@@ -2,19 +2,13 @@ package org.lain.engine.client
 
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemAccess
 import org.lain.engine.mc.EngineItemReferenceComponent
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.util.Storage
 import org.lain.engine.util.inject
 
-class ClientItemStorage : Storage<PersistentId, EngineItem>(), ItemAccess {
-    override fun getItem(uuid: PersistentId): EngineItem? {
-        return this.get(uuid)
-    }
-}
+class ClientItemStorage : Storage<PersistentId, EngineItem>()
 
-fun EngineItemReferenceComponent.getClientItem(client: EngineClient): EngineItem? {
-    val itemStorage = client.gameSession?.itemStorage
-    return itemStorage?.get(uuid)
+fun EngineItemReferenceComponent.getClientItem(gameSession: GameSession): EngineItem? {
+    return gameSession.itemStorage.get(uuid)
 }
