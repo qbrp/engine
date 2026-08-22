@@ -21,7 +21,7 @@ end
 function Component.of(id)
     assert(id ~= nil, "id must be not null")
     local component_type = Component.type_of(id)
-    local class = table or {}
+    local class = {}
     class.__index = class
     class.type = component_type
     return class

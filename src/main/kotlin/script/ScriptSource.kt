@@ -19,6 +19,10 @@ class FileScriptSource(val file: File): ScriptSource {
     override fun exists(): Boolean {
         return file.exists()
     }
+
+    override fun toString(): String {
+        return file.toString()
+    }
 }
 
 class ResourceScriptSource(val path: String) : ScriptSource {

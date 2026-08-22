@@ -131,7 +131,7 @@ private fun World.tickMinecraftPlayerMotionSyncSystem() {
         val entity = minecraftPlayer.entity
         val position = entity.position()
 
-        velocity.prev.set(location.position)
+        velocity.prev.set(position)
         location.position.set(position)
         velocity.motion.set(
             location.position.x - velocity.prev.x,

@@ -8,6 +8,7 @@ import org.lain.engine.container.*
 import org.lain.engine.item.*
 import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.Outfit
+import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerContainerTag
 import org.lain.engine.player.PlayerEquipment

@@ -8,11 +8,16 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerComponent
+import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.character.computeCharacterModel
 import org.lain.engine.player.getOrSet
+import org.lain.engine.player.require
 import org.lain.engine.world.World
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 data class EnginePlayerSkin(
     var skin: PlayerSkin = DefaultPlayerSkin.getDefaultSkin(),
@@ -26,18 +31,44 @@ fun CharacterSkin(texture: ClientAsset.Texture, model: PlayerModelType) = Player
     true
 )
 
-fun EnginePlayer.getSkin() = getOrSet { EnginePlayerSkin() }.skin
+fun EnginePlayer.getSkin() = require<EnginePlayerSkin>().skin
 
-fun World.tickSkinSystem(
-    skinTextureManager: SkinTextureManager
-) = iterate<EnginePlayerSkin, SelectedLook, AppliedCharacter>() { entity, enginePlayerSkin, (look), (character) ->
-    val characterProfile = character.profile
-    enginePlayerSkin.skin = CharacterSkin(
-        skinTextureManager.getOrDownloadTextureNullable(look) ?: enginePlayerSkin.skin.body,
-        computeCharacterModel(
-            characterProfile.bodyType,
-            characterProfile.biologicalCategory,
-            characterProfile.biologicalSex
-        )
-    )
+class SkinSystem(
+    private val skinTextureManager: SkinTextureManager
+) {
+    private val cache = ConcurrentHashMap<UUID, PlayerSkin>()
+
+    fun get(playerId: UUID) = cache[playerId]
+
+    fun removePlayerFromCache(playerId: PlayerId) = cache.remove(playerId.value)
+
+    fun tick(world: World) {
+        world.iterate<PlayerComponent, EnginePlayerSkin, SelectedLook, AppliedCharacter> {
+                _, (player), component, (look), (character) ->
+            val texture = skinTextureManager.getOrDownloadTextureNullable(look) ?: component.skin.body
+
+            val profile = character.profile
+            val model = computeCharacterModel(
+                profile.bodyType,
+                profile.biologicalCategory,
+                profile.biologicalSex,
+            )
+
+            val current = component.skin
+            val changed = current.body != texture || current.model != model
+
+            if (changed) {
+                component.skin = CharacterSkin(texture, model)
+            }
+
+            val skin = component.skin
+            val playerId = player.id.value
+
+            if (changed) {
+                cache[playerId] = skin
+            } else {
+                cache.putIfAbsent(playerId, skin)
+            }
+        }
+    }
 }

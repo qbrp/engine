@@ -3,7 +3,7 @@ require("core.bridge")
 
 ---@class NamespaceOptions
 ---@field id string
----@field items? Item[]
+---@field items? ItemConfig[]
 ---@field scripts? Script[]
 ---@field components? ComponentTypeSettings[]
 ---@field intents? Intent[]
@@ -49,7 +49,7 @@ end
 
 ---@param id string
 ---@param display_name string
----@param parameters Item without id and display_name values
+---@param parameters? ItemConfig without id and display_name values
 function Namespace:item(id, display_name, parameters)
     assert(id ~= nil, "item id must be not null")
     if (parameters == nil) then parameters = { } end

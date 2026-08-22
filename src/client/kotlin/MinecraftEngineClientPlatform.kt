@@ -9,6 +9,7 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.blockHitResult
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
+import org.lain.engine.client.render.EnginePlayerSkin
 import org.lain.engine.client.render.ui.EntityDebugScreen
 import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.world.DecalSystem
@@ -41,6 +42,7 @@ class MinecraftEngineClientPlatform(
 
     private fun EnginePlayer.setMinecraftPlayerComponent(entity: Player) {
         set(MinecraftPlayer(entity))
+        set(EnginePlayerSkin())
     }
 
     override fun disconnect(reason: String) {
@@ -72,6 +74,7 @@ class MinecraftEngineClientPlatform(
                 it.waitNextTick()
             } else {
                 player.setMinecraftPlayerComponent(entity)
+                return@withClientContext
             }
         }
     }

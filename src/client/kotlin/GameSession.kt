@@ -14,14 +14,13 @@ import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
-import org.lain.engine.client.mc.tickWritableUiSystem
+import org.lain.engine.client.render.SkinSystem
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.tickBulletHitSystem
-import org.lain.engine.client.render.tickSkinSystem
 import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.tickRecoilShakeSystem
 import org.lain.engine.client.script.ClientCompilation
-import org.lain.engine.client.script.lua.library.ecs.tickEntityRpcQueueSystem
+import org.lain.engine.client.script.tickEntityRpcQueueSystem
 import org.lain.engine.client.util.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
@@ -99,6 +98,7 @@ class GameSession(
 
     override var movementDefaultAttributes = setup.settings.defaultAttributes.movement
     override var movementSettings = setup.settings.movement
+    val skinSystem = SkinSystem(client.skinTextureManager)
 
     val vocalRegulator = PlayerVocalRegulator(
         PlayerVolume(player.volume, player.maxVolume, player.baseVolume),
@@ -245,8 +245,15 @@ class GameSession(
             updateInspectionMode(inspection, inspectionMode, it)
         }
 
-        tickSkinSystem(client.skinTextureManager)
+        skinSystem.tick(this@afterOperations)
         tickDataApplySystem()
+    }
+
+    fun removePlayer(player: EnginePlayer) {
+        simulation.preparePlayerDestroy(player)
+        simulation.destroyPlayer(player)
+        client.infrastructure.onPlayerDestroy(client, player.id)
+        skinSystem.removePlayerFromCache(player.id)
     }
 
     fun tick() {

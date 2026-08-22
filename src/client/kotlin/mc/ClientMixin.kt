@@ -134,9 +134,8 @@ object ClientMixin {
         return enginePlayer.getSkin()
     }
 
-    fun getPlayerSkin(player: PlayerInfo): PlayerSkin? {
-        val enginePlayer = client.gameSession?.getPlayer(PlayerId(player.profile.id))
-        return enginePlayer?.getSkin()
+    fun getPlayerSkinThreadSafe(player: PlayerInfo): PlayerSkin? {
+        return client.gameSession?.skinSystem?.get(player.profile.id)
     }
 
     private val identifierCache = mutableMapOf<String, Identifier>()

@@ -14,7 +14,7 @@ require("core.component")
 ---@field set_flying_speed fun(self: Player, speed: number): boolean
 ---@field set_custom_max_speed fun(self: Player, speed: number)
 ---@field reset_custom_speed fun(self: Player)
----@field narration_internal fun(narration: Narration)
+---@field narration_internal fun(self: Player, narration: Narration)
 ---@field set_action_component fun(self: Player, component: Component)
 Player = Player
 
@@ -55,9 +55,10 @@ function Narration.new(message, time, kick)
     return narration
 end
 
----@param narration Narration|string
----@param time number?
----@param kick boolean?
+---@overload fun(narration: string, time?: number, kick: boolean?)
+---@param narration Narration
+---@param time? number
+---@param kick? boolean
 function Player:narration(narration, time, kick)
     local narration_table
     if getmetatable(narration) == Narration then
@@ -72,7 +73,6 @@ end
 ---- Компонентные утилиты
 --------------------------------------------------------------------------------
 
-
 ---@class PlayerInventoryComponent : Component
 ---@field main_hand_item Entity
 ---@field off_hand_item Entity
@@ -80,6 +80,24 @@ end
 ---@field selected_slot number int
 ---readonly
 PlayerInventoryComponent = Component.of("core/player/inventory")
+
+---@enum PlayerMode
+PlayerMode = {
+    DEFAULT = "default",
+    GAME_MASTER = "game_master",
+    SPECTATOR = "spectator"
+}
+
+---@class PlayerModeComponent : Component
+---@field mode PlayerMode
+---@field is_game_master boolean
+---@field is_spectator boolean
+---readonly
+PlayerModeComponent = Component.of("core/player/game_mode")
+
+---@class PlayerPhysicsComponent : Component
+---@field no_clip boolean writable
+PlayerPhysicsComponent = Component.of("core/player/physics")
 
 ---@class PlayerComponent : Component
 ---@field object Player
@@ -98,7 +116,7 @@ local FreezeComponent = Component.of("core/player/freeze")
 ---@param duration number
 function FreezeComponent.new(duration) return FreezeComponent:construct { duration=duration, time=0 } end
 
-local FreezeSystem = System("freeze", { PlayerComponent, FreezeComponent })
+local FreezeSystem = System("core/player/freeze", { PlayerComponent, FreezeComponent })
 
 ---@param player_component PlayerComponent
 ---@param freeze FreezeComponent
@@ -120,14 +138,54 @@ function Player:freeze(ticks)
 end
 
 --------------------------------------------------------------------------------
----- Инициализация
+--- NoClip
+--------------------------------------------------------------------------------
+
+local SpectatingNoClipSystem = System(
+    "core/player/spectating_no_clip",
+    { PlayerModeComponent, PlayerPhysicsComponent },
+    SystemSide.BOTH
+)
+
+---@param mode PlayerModeComponent
+---@param physics PlayerPhysicsComponent
+function SpectatingNoClipSystem.update(world, entity, mode, physics)
+    if mode.is_spectator then
+        physics.no_clip = true
+    else
+        physics.no_clip = false
+    end
+end
+
+---@param context IntentScriptContext
+function NoClipScript(context)
+    local player = context.actor.player
+    if player ~= nil then
+        local physics = player:get_component(PlayerPhysicsComponent)
+        physics.no_clip = not physics.no_clip
+    end
+end
+
+local no_clip = Script.new("noclip", NoClipScript)
+
+--------------------------------------------------------------------------------
+--- Инициализация
 --------------------------------------------------------------------------------
 
 function CompilationResult:setup_player()
     self:namespace {
         id = "core/player",
         components = ComponentList { "freeze" },
-        systems = { FreezeSystem }
+        scripts = { no_clip },
+        intents = {
+            Intent.of(
+                "noclip",
+                "core/player/noclip",
+                true,
+                "Переключить режим NoClip"
+            )
+        },
+        systems = { FreezeSystem, SpectatingNoClipSystem }
     }
-    self:phase("player", { FreezeSystem })
+    self:phase("player", { SpectatingNoClipSystem, FreezeSystem })
 end

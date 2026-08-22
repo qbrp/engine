@@ -71,8 +71,10 @@ class LittleNotificationState(
 
 private const val WIDTH = 175f
 private const val ICON_SIZE = 16f
+private const val CONTENT_GAP = 4f
+private const val TEXT_WIDTH = WIDTH - ICON_SIZE - CONTENT_GAP
 private fun LittleNotification(notification: LittleNotification) = Fragment(
-    layout = HorizontalLayout(4f),
+    layout = HorizontalLayout(CONTENT_GAP),
     sizing = Sizing(
         ConstraintsSize.Fixed(WIDTH),
         ConstraintsSize.Wrap
@@ -87,6 +89,10 @@ private fun LittleNotification(notification: LittleNotification) = Fragment(
         ),
         Fragment(
             layout = VerticalLayout(2f),
+            sizing = Sizing(
+                ConstraintsSize.Fixed(TEXT_WIDTH),
+                ConstraintsSize.Wrap
+            ),
             children = listOfNotNull(
                 Fragment(text = TextArea(notification.titleText)),
                 notification.description?.let {

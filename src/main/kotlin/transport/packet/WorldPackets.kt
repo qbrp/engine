@@ -30,7 +30,9 @@ data class EngineChunkDto(
     val pos: EngineChunkPos,
     val decals: Map<ImmutableVoxelPos, BlockDecals>,
     val hints: Map<ImmutableVoxelPos, Hint>
-)
+) {
+    fun isEmpty() = decals.isEmpty() && hints.isEmpty()
+}
 
 val CLIENTBOUND_CHUNK_ENDPOINT = Endpoint<EngineChunkPacket>()
 

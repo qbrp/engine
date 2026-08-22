@@ -76,7 +76,7 @@ class SkinTextureManager(
         cacheKeys.clear()
     }
 
-    fun clearCoroutines() {
+    fun cancelDownloadTasks() {
         scope.cancel()
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     }
@@ -151,7 +151,6 @@ class SkinTextureManager(
 
             val texture = DynamicTexture({ "Engine character skin $lookId" }, image)
             MinecraftClient.textureManager.register(textureId, texture)
-            texture.upload()
             loaded.put(lookId, LoadedSkin(key, url, asset, texture))?.takeIf { it.key != key }?.close()
         }
     }

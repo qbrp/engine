@@ -1,4 +1,4 @@
-package org.lain.engine.client.script.lua.library.ecs
+package org.lain.engine.client.script
 
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.client.handler.ClientHandler

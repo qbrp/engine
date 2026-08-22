@@ -27,7 +27,7 @@ data class MovementStatus(
 ) : Component {
     companion object {
         const val DEFAULT_INTENTION = 0.5f
-        const val DEFAULT_STAMINA = 0.5f
+        const val DEFAULT_STAMINA = 1f
     }
 }
 

@@ -89,7 +89,7 @@ end
 
 ticks = 0
 
-local FlashSystem = System("flashing", { FlashingComponent, LuminanceComponent }, SystemSide.CLIENT)
+local FlashSystem = System("core/light/flashing", { FlashingComponent, LuminanceComponent }, SystemSide.CLIENT)
 
 ---@param flash FlashingComponent
 ---@param luminance LuminanceComponent

@@ -1,5 +1,6 @@
 {
   "options.language": "Язык",
   "options.accessibility": "Специальные возможности",
-  "menu.options": "Настройки"
+  "menu.options": "Настройки",
+  "container.crafting": ""
 }

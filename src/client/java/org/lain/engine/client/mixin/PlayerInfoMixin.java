@@ -16,7 +16,7 @@ public class PlayerInfoMixin {
             cancellable = true
     )
     private void engine$getSkin(CallbackInfoReturnable<PlayerSkin> cir) {
-        PlayerSkin enginePlayerSkin = ClientMixin.INSTANCE.getPlayerSkin((PlayerInfo)(Object)this);
+        PlayerSkin enginePlayerSkin = ClientMixin.INSTANCE.getPlayerSkinThreadSafe((PlayerInfo)(Object)this);
         if (enginePlayerSkin != null) {
             cir.setReturnValue(enginePlayerSkin);
         }

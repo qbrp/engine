@@ -3,14 +3,10 @@ package org.lain.engine.client.script
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.webPageUrl
-import org.lain.engine.client.script.lua.library.ecs.applyLuaEntityRpcQueues
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptSource
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.library.ecs.applyLuaLightComponents
-import org.lain.engine.script.lua.library.ecs.applyLuaPlayerComponents
-import org.lain.engine.script.lua.library.ecs.refreshGeneralLuaComponentsView
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaTable

@@ -92,7 +92,7 @@ TweenTargetComponent = Component.of("core/tween/target")
 ---@field tweens Tween[]
 TweenContainerComponent = Component.of("core/tween/container")
 
-local TweenSystem = System("tween", { TweenContainerComponent, TweenTargetComponent })
+local TweenSystem = System("core/tween/tween", { TweenContainerComponent, TweenTargetComponent })
 
 ---@param container TweenContainerComponent
 ---@param target TweenTargetComponent

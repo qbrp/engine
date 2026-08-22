@@ -29,8 +29,8 @@ object CommonMixin {
 
         private fun playerOrNull() = player?.takeIf { !it.destroyed }
 
-        fun getDisplayName(): Component? {
-            return playerOrNull()?.displayNameText
+        fun getDisplayName(original: Component): Component {
+            return playerOrNull()?.displayNameText ?: original
         }
 
         fun getSpeed(): Double {

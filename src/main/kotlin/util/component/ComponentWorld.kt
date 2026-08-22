@@ -136,7 +136,7 @@ class ComponentWorld(
         if (threadRestrictionMode) {
             val currentThread = Thread.currentThread()
             check(currentThread == thread) {
-                "Invalid thread: ${currentThread.name}. Operations allowed only on ${thread.name} thread"
+                "Invalid thread: ${currentThread.name}. Operations allowed only on ${thread.name}"
             }
         }
     }

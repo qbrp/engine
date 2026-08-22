@@ -84,7 +84,11 @@ function RepeatableComponent.new(repeats, eternal)
     return RepeatableComponent:construct({ repeats_left = repeats, eternal = eternal })
 end
 
-local RepeatSystem = System("repeats", { SoundComponent, RepeatableComponent }, SystemSide.CLIENT)
+local RepeatSystem = System(
+    "core/sound/repeats",
+    { SoundComponent, RepeatableComponent },
+    SystemSide.CLIENT
+)
 
 ---@param sound SoundComponent
 ---@param repeatable RepeatableComponent
@@ -141,7 +145,7 @@ function VoxelSoundComponent.of(voxel_pos)
     return VoxelSoundComponent:construct({ voxel_pos = voxel_pos })
 end
 
-local VoxelSoundTrackSystem = System("voxel_sound_tracking", { SoundComponent, VoxelSoundComponent }, SystemSide.CLIENT)
+local VoxelSoundTrackSystem = System("core/sound/voxel_sound_tracking", { SoundComponent, VoxelSoundComponent }, SystemSide.CLIENT)
 
 ---@param voxel_sound VoxelSoundComponent
 ---@param sound SoundComponent
@@ -154,7 +158,7 @@ end
 
 ------------------
 
-local PlaybackSystem = System("playback", { SoundComponent }, SystemSide.CLIENT)
+local PlaybackSystem = System("core/sound/playback", { SoundComponent }, SystemSide.CLIENT)
 
 ---@param sound SoundComponent
 function PlaybackSystem.update(world, entity, sound)

@@ -324,9 +324,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         processedInteraction.removeIf { it.source == player.id }
         val persistentId = CustomPersistentId(player.id.toString())
         replication.removeEntity(persistentId)
-        gameSession.simulation.preparePlayerDestroy(player)
-        gameSession.simulation.destroyPlayer(player)
-        eventBus.onPlayerDestroy(client, player.id)
+        gameSession.removePlayer(player)
     }
 
     fun applyJoinGame(joinGamePacket: JoinGamePacket) {

@@ -112,7 +112,6 @@ dependencies {
 
     // Game tests
     testImplementation("net.fabricmc:fabric-loader-junit:${project.property("fabric_loader")}")
-    testImplementation(kotlin("test"))
 
     // Тяжелые зависимости
     val cyberiaDependencyVersion = project.property("cyberia_version")!!

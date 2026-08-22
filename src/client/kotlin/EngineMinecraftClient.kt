@@ -9,8 +9,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRe
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.renderer.entity.player.AvatarRenderer
 import net.minecraft.util.profiling.Profiler
-import net.minecraft.world.level.Level
-import org.lain.cyberia.ecs.hasComponent
 import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
@@ -21,7 +19,6 @@ import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
-import org.lain.engine.client.render.ui.character.AbstractSelectionScreen
 import org.lain.engine.client.render.ui.initializeGraphene
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
@@ -33,14 +30,11 @@ import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.mc.*
 import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.player.*
-import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.util.component.registerAllClient
-import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.mc.compat.isReplayViewer
 import org.slf4j.LoggerFactory
-import java.util.*
 
 class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension {
     private val client = MinecraftClient
@@ -188,7 +182,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     fun onDisconnect() {
         engine.stopJoinFlow()
         if (engine.gameSession == null) return
-        engine.skinTextureManager.clearCoroutines()
+        engine.skinTextureManager.cancelDownloadTasks()
         uiRenderPipeline.invalidate()
         decalSystem.unload()
         lightSystem.invalidate()

@@ -30,7 +30,7 @@ public abstract class PlayerMixin implements PlayerEntityAccessHolder {
             cancellable = true
     )
     private void replaceName(CallbackInfoReturnable<Component> cir) {
-        cir.setReturnValue(engine$getPlayerEntityAccess().getDisplayName());
+        cir.setReturnValue(engine$getPlayerEntityAccess().getDisplayName(cir.getReturnValue()));
     }
 
     @Inject(
