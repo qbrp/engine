@@ -15,12 +15,18 @@ val StorageCoroutineScope = CoroutineScope(Dispatchers.IO.limitedParallelism(4) 
 
 internal val LOGGER = LoggerFactory.getLogger("Engine Storage")
 
-data class SaveTimers(var items: Counter, var containers: Counter) {
+data class SaveTimers(
+    var items: Counter, var containers: Counter
+) {
     class Counter(val period: Int, var tick: Int = 0) {
-        fun tick() { if (tick++ >= period) tick = 0 }
+        fun tick() {
+            if (tick++ >= period) tick = 0
+        }
+
         fun isElapsed(): Boolean {
             return this.tick >= period
         }
+
         fun activate() {
             tick = period
         }

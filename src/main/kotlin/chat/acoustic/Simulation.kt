@@ -16,12 +16,37 @@ interface AcousticSimulator {
         attenuation: Float,
         exceptionHandler: (Throwable) -> Unit
     ): AcousticSimulationResult
+
+    companion object {
+        val DUMMY = object : AcousticSimulator {
+            override suspend fun simulateSingleSource(
+                world: WorldId,
+                pos: Pos,
+                volume: Float,
+                maxVolume: Float,
+                attenuation: Float,
+                exceptionHandler: (Throwable) -> Unit
+            ): AcousticSimulationResult = AcousticSimulationResult.DUMMY
+        }
+    }
 }
 
 interface AcousticSimulationResult {
     fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float)
     fun getVolume(pos: Pos): Float?
     fun finish()
+
+    companion object {
+        val DUMMY = object : AcousticSimulationResult {
+            override fun debug(
+                player: EnginePlayer,
+                handler: ServerHandler,
+                radius: Float
+            ) {}
+            override fun getVolume(pos: Pos): Float? = null
+            override fun finish() {}
+        }
+    }
 }
 
 class AcousticGeneration(

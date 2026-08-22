@@ -22,7 +22,9 @@ val ENGINE_PREFERENCES = Preferences.userRoot().node("engine")
 
 fun File.ensureExists() {
     if (!exists()) {
-        parentFile.mkdirs()
+        if (parentFile != null) {
+            parentFile.mkdirs()
+        }
         createNewFile()
     }
 }

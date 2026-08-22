@@ -20,11 +20,11 @@ class ComponentWorld(
     val thread: Thread,
     val persistentIdToEntity: ConcurrentHashMap<PersistentId, EntityId>,
     val itemStorage: Storage<PersistentId, EngineItem>,
-    registerEngineKotlinComponents: Boolean = true
+    registerEngineKotlinComponents: Boolean = true,
+    var networkedComponentChangeListener: ((EntityId, ComponentType<out Component>) -> Unit)? = null
 ) : MutableComponentAccess, IterationComponentAccess {
     @Volatile
     var threadRestrictionMode = true
-    var networkedComponentChangeListener: ((EntityId, ComponentType<out Component>) -> Unit)? = null
     private val arrays = ArrayList<ComponentArray<*>>()
     private val savableArrays = ArrayList<ComponentArray<*>>()
     private val networkingArrays = ArrayList<ComponentArray<*>>()

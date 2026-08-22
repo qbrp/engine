@@ -1,5 +1,6 @@
 package org.lain.engine.storage
 
+import kotlinx.io.files.Path
 import kotlinx.serialization.Serializable
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.storage.LevelResource
@@ -9,6 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.lain.engine.item.ItemId
+import kotlin.io.path.pathString
 
 fun connectDatabase(server: MinecraftServer): Database {
     val path = server.getWorldPath(LevelResource.ROOT)
@@ -16,6 +18,10 @@ fun connectDatabase(server: MinecraftServer): Database {
     if (oldEngineDbFile.exists()) {
         oldEngineDbFile.renameTo(path.toFile().resolve("engine-players.db"))
     }
+    return connectDatabase(path.pathString)
+}
+
+fun connectDatabase(path: String): Database {
     val database = Database.connect("jdbc:sqlite:$path/engine-players.db")
     transaction { SchemaUtils.create(EcsEntityTable) }
     return database

@@ -53,7 +53,7 @@ class EngineTitleMenu(
             menuX,
             y,
             86,
-            20,
+            15,
             Component.translatable("menu.options"),
             { minecraft.setScreen(OptionsScreen(this, minecraft.options)) },
             font
@@ -66,7 +66,7 @@ class EngineTitleMenu(
             menuX,
             y,
             86,
-            20,
+            15,
             Component.translatable("options.accessibility"),
             { minecraft.setScreen(AccessibilityOptionsScreen(this, minecraft.options)) },
             font
@@ -79,7 +79,7 @@ class EngineTitleMenu(
             menuX,
             y,
             86,
-            20,
+            15,
             Component.translatable("options.language"),
             { minecraft.setScreen(LanguageSelectScreen(this, minecraft.options, minecraft.languageManager)) },
             font
@@ -165,7 +165,7 @@ class EngineTitleMenu(
     private fun createNormalMenuOptions(x: Int, y: Int): Int {
         multiplayerButton = addRenderableWidget(
             PlainTextButton(
-                x, y + BUTTON_STEP, BUTTON_WIDTH, 20, Component.translatable("menu.multiplayer"), {
+                x, y, BUTTON_WIDTH, 15, Component.translatable("menu.multiplayer"), {
                     val screen = if (minecraft!!.options.skipMultiplayerWarning) {
                         JoinMultiplayerScreen(this)
                     } else {
@@ -182,7 +182,7 @@ class EngineTitleMenu(
         singleplayerButton = addRenderableWidget(
             PlainTextButton(
                 x,
-                y,
+                y + BUTTON_STEP,
                 BUTTON_WIDTH,
                 20,
                 Component.translatable("menu.singleplayer"),

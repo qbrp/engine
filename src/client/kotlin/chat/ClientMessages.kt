@@ -105,7 +105,8 @@ fun acceptOutcomingMessage(
 ): AcceptedMessage {
     val channelId = message.channel
     val channel = channels[channelId] ?: defaultChannel
-    val text = formatRegex(message.text, format.regex, playerNames)
+    var text = formatRegex(message.text, format.regex, playerNames)
+    message.placeholders.forEach { (old, new) -> text = text.replace("{$old}", new) }
 
     val placeholders = (placeholders + message.placeholders).toMutableMap()
     placeholders["text"] = text

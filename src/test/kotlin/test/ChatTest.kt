@@ -5,13 +5,15 @@ import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.chat.*
 import org.lain.engine.client.mc.chat.DummyWorld
-import kotlin.test.BeforeTest
-import kotlin.test.Test
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 class ChatTest : EngineTest() {
     private lateinit var chatBar: ChatBar
 
-    @BeforeTest
+    @BeforeEach
     fun setup() {
         chatBar = ChatBar(
             listOf(
@@ -34,7 +36,7 @@ class ChatTest : EngineTest() {
 
         chatBar.toggleHide(SYSTEM_CHANNEL.id, null)
 
-        assert(!isMessageVisible(message, true, chatBar)) { "Не должно быть видно" }
+        assertFalse(isMessageVisible(message, true, chatBar), "Не должно быть видно")
         val message2 = LiteralSystemEngineChatMessage(
             DummyWorld(),
             "Dummy message",
@@ -43,7 +45,7 @@ class ChatTest : EngineTest() {
         // Кейс #2: Обычное сообщение во включенном системном канале
         chatBar.toggleHide(SYSTEM_CHANNEL.id, null)
 
-        assert(isMessageVisible(message2, false, chatBar)) { "Должно быть видно" }
+        assertTrue(isMessageVisible(message2, false, chatBar), "Должно быть видно")
     }
 
     @Test
@@ -66,7 +68,7 @@ class ChatTest : EngineTest() {
             listOf(nickname)
         )
 
-        assert(acceptedMessage.isMentioned)
-        assert(acceptedMessage.text.contains("<bold><yellow>@$nickname</yellow></bold>"))
+        assertTrue(acceptedMessage.isMentioned)
+        assertTrue(acceptedMessage.text.contains("<bold><yellow>@$nickname</yellow></bold>"))
     }
 }

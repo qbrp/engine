@@ -508,15 +508,7 @@ class MinecraftAcousticManager(
         } catch (e: Throwable) {
             logger.error("Во время получения акустической сцены возникла ошибка", e)
             server.minecraftServer.execute { exceptionHandler(e) }
-            return object : AcousticSimulationResult {
-                override fun debug(
-                    player: EnginePlayer,
-                    handler: ServerHandler,
-                    radius: Float
-                ) {}
-                override fun getVolume(pos: Pos): Float? = null
-                override fun finish() {}
-            }
+            return AcousticSimulationResult.DUMMY
         }
         val size = scene.totalSize
         val generation = AcousticGeneration(

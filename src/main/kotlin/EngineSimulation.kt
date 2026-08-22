@@ -33,8 +33,7 @@ class EngineSimulation(
     val namespacedStorage: NamespacedStorageAccess,
     val scriptEngine: ScriptEngine,
     val thread: Thread,
-    val playerInputMode: PlayerInputMode,
-    worlds: Map<WorldId, World> = emptyMap(),
+    val playerInputMode: PlayerInputMode
 ) {
     @Volatile
     var ticks = 0L
@@ -42,7 +41,7 @@ class EngineSimulation(
     var callbacks = Callbacks()
     val scriptSystemDispatcher = ScriptSystemDispatcher()
 
-    private val _worlds: MutableMap<WorldId, World> = worlds.toMutableMap()
+    private val _worlds: MutableMap<WorldId, World> = mutableMapOf()
     val worlds: Map<WorldId, World>
         get() = _worlds
     val defaultWorld
@@ -174,5 +173,13 @@ class EngineSimulation(
     interface Settings {
         val movementSettings: MovementSettings
         val movementDefaultAttributes: MovementDefaultAttributes
+
+        companion object {
+            val DUMMY = object : Settings {
+                override val movementSettings: MovementSettings = MovementSettings()
+                override val movementDefaultAttributes: MovementDefaultAttributes =
+                    MovementDefaultAttributes()
+            }
+        }
     }
 }

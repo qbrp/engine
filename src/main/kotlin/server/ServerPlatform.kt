@@ -9,22 +9,26 @@ import org.lain.engine.world.World
 
 interface ServerPlatform {
     context(world: World)
-    fun onPlayerInstantiated(player: EnginePlayer)
-    fun onCompiled(contents: NamespacedStorage)
-    fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter)
+    fun onPlayerInstantiated(player: EnginePlayer) {}
+    fun onCompiled(contents: NamespacedStorage) {}
+    fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter) {}
     suspend fun validateCharacter(
         player: EnginePlayer,
         characterId: String,
         character: EngineCharacter?,
         sessionTicket: SessionTicket?
-    ): EngineCharacter
-    fun serializeInventory(player: EnginePlayer): SerializedInventory
-    fun clearInventory(player: EnginePlayer)
-    fun openInventory(player: EnginePlayer, inventory: SerializedInventory)
-    fun hasPermission(player: EnginePlayer, permission: String): Boolean
+    ): EngineCharacter = character!!
+    fun serializeInventory(player: EnginePlayer): SerializedInventory = SerializedInventory()
+    fun clearInventory(player: EnginePlayer) {}
+    fun openInventory(player: EnginePlayer, inventory: SerializedInventory) {}
+    fun hasPermission(player: EnginePlayer, permission: String): Boolean = true
 
-    fun World.prepareData()
-    fun World.updateBulletHitSystem()
-    fun World.updateSaveSystem()
-    fun World.applyData()
+    fun World.prepareData() {}
+    fun World.updateBulletHitSystem() {}
+    fun World.updateSaveSystem() {}
+    fun World.applyData() {}
+
+    companion object {
+        val DUMMY = object : ServerPlatform {}
+    }
 }

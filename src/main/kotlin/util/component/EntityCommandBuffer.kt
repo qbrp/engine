@@ -2,13 +2,12 @@ package org.lain.engine.util.component
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.MutableComponentAccess
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.engine.server.EngineServer
-import org.lain.engine.server.networkState
-import org.lain.engine.world.World
 
 class EntityCommandBuffer(
-    private val world: World,
+    private val world: MutableComponentAccess,
     private val commands: MutableList<(WriteComponentAccess) -> Unit> = mutableListOf(),
 ) : WriteComponentAccess {
 

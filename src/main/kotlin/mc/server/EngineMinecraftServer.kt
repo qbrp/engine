@@ -18,6 +18,7 @@ import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.TagValueInput
 import net.minecraft.world.level.storage.TagValueOutput
+import net.minecraft.world.phys.Vec3
 import org.lain.cyberia.ecs.destroy
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
@@ -51,6 +52,7 @@ import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.World
+import org.lain.engine.world.WorldId
 
 abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPlatform {
     val minecraftServer = dependencies.minecraftServer
@@ -312,11 +314,37 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             notifications: List<Notification> = mutableListOf(),
         ): PlayerLoadSettings {
             server.simulation.assertOnThread()
-            val stacks = entity.ownedItems
+            return serverPlayerLoadSettings(
+                server,
+                playerId,
+                entity.name,
+                entity.level().engineId,
+                entity.isReplayViewer,
+                entity.enginePlayerMode,
+                developerModeStatus,
+                notifications,
+                entity.ownedItems,
+                entity.position()
+            )
+        }
+
+        fun serverPlayerLoadSettings(
+            server: EngineServer,
+            playerId: PlayerId,
+            username: Text,
+            worldId: WorldId,
+            isReplayViewer: Boolean = false,
+            playerMode: PlayerMode = PlayerMode.DEFAULT,
+            developerModeStatus: DeveloperModeStatus = DeveloperModeStatus(),
+            notifications: List<Notification> = mutableListOf(),
+            ownedItems: List<ItemStack> = listOf(),
+            position: Vec3 = Vec3(0.0, 0.0, 0.0),
+        ): PlayerLoadSettings {
+            server.simulation.assertOnThread()
 
             return PlayerLoadSettings(
                 playerId,
-                stacks.mapNotNull {
+                ownedItems.mapNotNull {
                     val reference = it.engine()
                     if (reference?.version != CURRENT_ITEM_VERSION) {
                         null
@@ -325,13 +353,13 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
                     }
                 },
                 notifications,
-                entity.position().engine(),
-                entity.name.string,
+                position.engine(),
+                username.string,
                 developerModeStatus,
-                server.getWorld(entity.level().engineId),
-                entity.isReplayViewer,
+                server.getWorld(worldId),
+                isReplayViewer,
                 server.globals.savePath.playerData.parsePersistentPlayerData(playerId),
-                entity.enginePlayerMode,
+                playerMode,
             )
         }
     }

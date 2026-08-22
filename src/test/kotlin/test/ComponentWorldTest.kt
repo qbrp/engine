@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.engine.listKotlinComponentTypeEntries
@@ -27,20 +29,13 @@ import org.lain.engine.script.ScriptEngine
 import org.lain.engine.server.Changes
 import org.lain.engine.util.component.castIndexed
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.test.BeforeTest
-import kotlin.test.Test
 
 class ComponentWorldTest : EngineTest() {
     private lateinit var componentWorld: ComponentWorld
 
-    @BeforeTest
+    @BeforeEach
     fun setup() {
-        componentWorld = ComponentWorld(
-            Thread.currentThread(),
-            ConcurrentHashMap(),
-            Storage(),
-            registerEngineKotlinComponents = false
-        )
+        componentWorld = TestComponentWorld()
         componentWorld.registerComponentArrays(testEntries + listKotlinComponentTypeEntries())
     }
 
@@ -265,32 +260,18 @@ class ComponentWorldTest : EngineTest() {
 
     @Test
     fun entityCommandBufferDefersMutationsUntilApplied() {
-        val world = testWorld()
-        val buffer = EntityCommandBuffer(world)
+        val buffer = EntityCommandBuffer(componentWorld)
 
         val entity = buffer.addEntity()
         buffer.setComponentWithType(entity, TestPosition(42), positionType)
 
-        assertTrue(world.exists(entity))
-        assertFalse(world.hasComponent(entity, positionType))
+        assertTrue(componentWorld.exists(entity))
+        assertFalse(componentWorld.hasComponent(entity, positionType))
 
-        buffer.apply(world)
+        buffer.apply(componentWorld)
 
-        assertEquals(TestPosition(42), world.getComponent(entity, positionType))
+        assertEquals(TestPosition(42), componentWorld.getComponent(entity, positionType))
         assertTrue(buffer.isEmpty())
-    }
-
-    private fun testWorld(): World {
-        val world = World(
-            WorldId("component-test"),
-            namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage()),
-            itemStorage = ItemStorage(),
-            thread = Thread.currentThread(),
-            scriptEngine = ScriptEngine.Dummy,
-            registerEngineKotlinComponents = true,
-        )
-        world.componentManager.registerComponentArrays(testEntries + listKotlinComponentTypeEntries())
-        return world
     }
 
     private data class TestPosition(val x: Int) : Component
