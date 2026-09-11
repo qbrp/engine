@@ -13,20 +13,16 @@ import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.AppliedCharacters
 import org.lain.engine.util.Color
-import org.lain.engine.util.file.ENGINE_DIR
-import org.lain.engine.util.file.ensureExists
+import org.lain.engine.util.file.FileSystem
 import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
 import java.io.File
 
 //TODO: Persistence jobs неупорядочены и не дожидаются shutdown. Player/chunk/world saves пишут напрямую в конечный файл без temp+atomic move; более старый job способен завершиться последним. Shutdown ждёт только отдельный blocking item save. Возможны torn JSON/CBOR и потеря последних изменений. PlayerPersistent.kt:81, ChunksPersistent.kt:52, EngineMinecraftServer.kt:183
 
-val STORAGE_DIR = ENGINE_DIR.resolve("storage")
-    .also { it.mkdirs() }
-
 val File.playerData
     get() = this.resolve("engine-players")
-        .also { ensureExists() }
+        .let(FileSystem::ensureDirectory)
 
 private val PLAYERS_JSON = Json {
     prettyPrint = true
@@ -105,7 +101,7 @@ fun File.savePersistentPlayerData(
 
     //TODO: логировать ошибки
     CoroutineScope(Dispatchers.IO).launch {
-        file.ensureExists()
+        FileSystem.ensureFile(file)
         file.writeText(
             PLAYERS_JSON.encodeToString(
                 PersistentPlayerData(

@@ -72,7 +72,8 @@ class AudioSourceSoundInstance(
     var _volume: Float = 1f,
     var _pitch: Float = 1f,
     var spatial: Boolean = false,
-    var radius: Int = 16
+    var radius: Int = 16,
+    var repeating: Boolean = false,
 ) : TickableSoundInstance {
     private var k = 1f
     private var pos = MutableEVec3(_x, _y, _z)
@@ -94,7 +95,7 @@ class AudioSourceSoundInstance(
 
     override fun getSource(): SoundSource = engineCategory
 
-    override fun isLooping(): Boolean = false
+    override fun isLooping(): Boolean = repeating
 
     override fun isRelative(): Boolean = false
 

@@ -22,7 +22,6 @@ import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
 import org.lain.engine.util.component.EntityCommandBuffer
-import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -234,7 +233,7 @@ class ServerHandler(
             }
             val networkedEntity = world.persistentIdToEntity[persistentId]
                 ?: return@updatePlayerWithContext
-            sendEntityState(
+            sendReplicationFrame(
                 this,
                 persistentId,
                 networkedEntity,
@@ -355,43 +354,8 @@ class ServerHandler(
         taskQueue.flush { it() }
     }
 
-    context(world: World)
-    internal fun sendEntityDeltaPacket(
-        player: EnginePlayer,
-        entity: EntityId,
-        packet: EntityDeltaPacket
-    ) {
-        CLIENTBOUND_ENTITY_DELTA_ENDPOINT.sendS2C(packet, player.id)
-        EngineLogger.log(
-            Log(
-                LogMessages.ENTITY_SYNC,
-                LogLevel.INFO,
-                data = mapOf(
-                    "entity" to entity.getEntityDebugNameId().name,
-                    "player_id" to player.id.toString(),
-                    "player_name" to player.username
-                ),
-                tick = engineServer.simulation.ticks,
-                world = world.id
-            )
-        )
-    }
-
-    context(world: World)
-    fun sendEntityState(
-        player: EnginePlayer,
-        persistentId: PersistentId,
-        entity: EntityId,
-        state: EntityNetworkSnapshot
-    ) {
-        sendEntityDeltaPacket(
-            player,
-            entity,
-            EntityDeltaPacket(
-                persistentId,
-                state
-            )
-        )
+    fun sendReplicationFrame(player: EnginePlayer, frame: ReplicationFrameSnapshot) {
+        CLIENTBOUND_REPLICATION_ENDPOINT.sendS2C(ReplicationPacket(frame), player.id)
     }
 
     context(world: World)
@@ -404,18 +368,6 @@ class ServerHandler(
                 ),
                 player.id
             )
-    }
-
-    fun sendWorldState(
-        player: EnginePlayer,
-        state: EntityNetworkSnapshot
-    ) {
-        CLIENTBOUND_WORLD_STATE_DELTA_PACKET.sendS2C(
-            WorldStateDeltaPacket(
-                state
-            ),
-            player.id
-        )
     }
 
     fun sendProcessedInput(player: EnginePlayer, packet: PlayerInputProcessedPacket) {
@@ -433,11 +385,11 @@ class ServerHandler(
         )
     }
 
-    fun onPlayerIntent(context: ScriptContext.IntentExecution, intent: Intent) {
-        CLIENTBOUND_INTENT_ENDPOINT.broadcastInRadius(
+    fun onPlayerOperation(context: ScriptContext.OperationExecution, operation: Operation) {
+        CLIENTBOUND_OPERATION_ENDPOINT.broadcastInRadius(
             context.actor.player,
             playerSynchronizationRadius,
-            IntentPacket(intent.id, context.toDto())
+            OperationPacket(operation.id, context.toDto())
         )
     }
 

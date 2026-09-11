@@ -1,17 +1,12 @@
 package org.lain.engine.script.lua.library
 
 import org.lain.engine.chat.hasPermission
-import org.lain.engine.player.*
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.syncAction
-import org.lain.engine.script.ScriptComponent
-import org.lain.engine.script.lua.LuaScriptComponent
-import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.luaBool
-import org.lain.engine.script.lua.luaNum
-import org.lain.engine.script.lua.luaStr
-import org.lain.engine.script.lua.luaTable
-import org.lain.engine.script.lua.nullable
-import org.lain.engine.script.lua.varargsFunction
+import org.lain.engine.player.isInGameMasterMode
+import org.lain.engine.player.isSpectating
+import org.lain.engine.player.serverNarration
+import org.lain.engine.script.lua.*
 import org.lain.engine.world.invokeCommand
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
@@ -24,12 +19,10 @@ fun PlayerMetaTable() = luaTable {
         when (key.tojstring()) {
             "uuid" -> player.id.value.toString().luaStr()
             "id" -> player.entity.luaNum()
-            "entity" -> with(player.world) { player.entity.coerceToLua() }
+            "entity" -> with(player.world) { player.entity.luaEntity() }
             "world" -> player.world.luaWorld()
-            "is_spectating" -> player.isSpectating.luaBool()
-            "is_game_master" -> player.isInGameMasterMode.luaBool()
             else -> with(player.world) {
-                val entity = player.entity.coerceToLua()
+                val entity = player.entity.luaEntity()
                 val method = entity.get(key)
 
                 if (!method.isfunction()) {
@@ -49,22 +42,7 @@ fun PlayerMetaTable() = luaTable {
         val player = self.asEnginePlayer()
         player.hasPermission(permission.tojstring()).luaBool()
     }
-    function2("set_flying_speed") { self, speed ->
-        val player = self.asEnginePlayer()
-        player.setFlyingSpeed(speed.tofloat())
-        NIL
-    }
-    function2("set_custom_max_speed") { self, speed ->
-        val player = self.asEnginePlayer()
-        player.setCustomMaxSpeed(speed.tofloat())
-        NIL
-    }
-    function1("reset_custom_max_speed") { self ->
-        val player = self.asEnginePlayer()
-        player.resetCustomMaxSpeed()
-        NIL
-    }
-    function2("narration_internal") { self, narration ->
+    function2("narration") { self, narration ->
         val player = self.asEnginePlayer()
         player.serverNarration(
             narration.get("message").tojstring(),
@@ -80,13 +58,13 @@ fun PlayerMetaTable() = luaTable {
         player.invokeCommand(commandStr, rootBl)
         NIL
     }
-    function2("sync_action") { self, action ->
+    function3("sync_action") { self, type, action ->
         val player = self.asEnginePlayer()
         with(player.world) {
             player.entity.syncAction(
                 LuaScriptComponent(
                     action,
-                    action.componentType
+                    type.asEngineScriptComponentType()
                 )
             )
         }

@@ -10,16 +10,13 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.LowDetail
-import org.lain.engine.client.handler.isLowDetailed
-import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.getSkin
+import org.lain.engine.client.render.EnginePlayerSkin
 import org.lain.engine.container.Entries
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.FireMode
 import org.lain.engine.item.GunFireState
 import org.lain.engine.item.isGun
-import org.lain.engine.mc.MinecraftPlayer
-import org.lain.engine.mc.ServerWorldTable
+import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.player.ArmPose
 import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.EnginePlayer
@@ -29,9 +26,8 @@ import org.lain.engine.player.OutfitDisplay
 import org.lain.engine.player.PlayerEquipment
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.armPoseOf
-import org.lain.engine.player.set
+import org.lain.engine.player.get
 import org.lain.engine.world.World
-import kotlin.to
 
 data class EnginePlayerRenderState(
     val entity: Player,
@@ -52,8 +48,14 @@ fun AvatarRenderState.setEngineState(state: EnginePlayerRenderState) {
 
 fun AvatarRenderState.getEngineState() = getData(ENGINE_PLAYER_RENDER_STATE_KEY)
 
-fun AvatarRenderState.update(player: EnginePlayer) {
-    skin = player.getSkin()
+fun AvatarRenderState.update(gameSession: GameSession?, player: EnginePlayer?) {
+    if (player != null) {
+        skin = player.get<EnginePlayerSkin>()?.skin ?: skin
+    } else {
+        isInvisible = gameSession == null
+        isInvisibleToPlayer = gameSession == null
+        nameTag = nameTag.takeIf { gameSession != null }
+    }
 }
 
 fun GameSession.updatePlayerEntityRenderStates() = with(world) {

@@ -8,6 +8,7 @@ import org.lain.engine.server.ServerId
 data class ServerConfig(
     val server: ServerId,
     @SerialName("require_identical_namespaces") val requireIdenticalNamespaces: Boolean = true,
+    @SerialName("write_compilation_manifest") val writeCompilationManifest: Boolean = true,
     val chat: ChatConfig,
     val player: PlayerConfig,
     val vocal: VoiceApparatusConfig,
@@ -153,7 +154,6 @@ data class MovementConfig(
 
 @Serializable
 data class PlayerConfig(
-    val attributes: Map<String, Map<String, Float>>,
     val volume: VocalVolumeConfig,
     val damage: Boolean,
     @SerialName("spectate_on_join") val spectateOnJoin: Boolean = true,

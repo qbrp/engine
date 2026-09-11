@@ -34,8 +34,9 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
-import kotlin.math.abs
 import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.max
 import kotlin.math.min
 
 class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Message source is too high or low")
@@ -58,10 +59,17 @@ data class AcousticBlockData(
 ) {
     fun getPassability(pos: BlockPos, world: Level, blockstate: BlockState): Float {
         val blockRegistryKey = blockstate.registryKey.identifier()
+        blocks[blockRegistryKey]?.let { return it }
 
-        val tag = tags
-            .filter { (tag, _) -> blockstate.`is`(tag) }
-            .maxOfOrNull { (_, volume) -> volume }
+        var hasTagOverride = false
+        var tagOverride = Float.NEGATIVE_INFINITY
+        for ((tag, volume) in tags) {
+            if (blockstate.`is`(tag) && (!hasTagOverride || volume > tagOverride)) {
+                hasTagOverride = true
+                tagOverride = volume
+            }
+        }
+        if (hasTagOverride) return tagOverride
 
         val isFullCube = blockstate.isCollisionShapeFullBlock(world, pos)
         val isSolid = blockstate.isSolid
@@ -76,7 +84,7 @@ data class AcousticBlockData(
             air
         }
 
-        return blocks[blockRegistryKey] ?: tag ?: default
+        return default
     }
 
     companion object {
@@ -110,10 +118,19 @@ class MinecraftChunkAcousticScene private constructor(
 
     fun setPassability(x: Int, y: Int, z: Int, value: Float) = lock.write {
         assertVacant()
-        passability[x - this.x, y - this.y, z - this.z] = value
+        passability.array[localIndex(x, y, z)] = value
     }
 
-    fun getPassability(x: Int, y: Int, z: Int) = lock.read { passability[x - this.x, y - this.y, z - this.z] }
+    fun trySetPassabilityIfVacant(x: Int, y: Int, z: Int, value: Float): Boolean = lock.write {
+        if (actors != 0 || shouldDestroy || destroyed) {
+            false
+        } else {
+            passability.array[localIndex(x, y, z)] = value
+            true
+        }
+    }
+
+    fun getPassability(x: Int, y: Int, z: Int) = lock.read { passability.array[localIndex(x, y, z)] }
 
     fun occupy() = lock.write {
         actors += 1
@@ -140,6 +157,10 @@ class MinecraftChunkAcousticScene private constructor(
 
     private fun assertVacant() {
         if (actors > 0) throw IllegalStateException("Сцена не может быть изменена во время использования")
+    }
+
+    private fun localIndex(worldX: Int, worldY: Int, worldZ: Int): Int {
+        return passability.indexOf(worldX - x, worldY - y, worldZ - z)
     }
 
     companion object {
@@ -169,11 +190,17 @@ class MinecraftChunkAcousticScene private constructor(
 
             val passabilityGrid = PrimitiveArrayPool.getGrid3f(sceneWidth, sceneHeight, sceneDepth)
 
-            passabilityGrid.map { idx, lx, ly, lz ->
-                pos.x = startX + x0 + lx
-                pos.y = startY + ly
+            var index = 0
+            for (lz in 0 until sceneDepth) {
                 pos.z = startZ + z0 + lz
-                acousticBlockData.getPassability(pos, world, chunk.getBlockState(pos))
+                for (ly in 0 until sceneHeight) {
+                    pos.y = startY + ly
+                    for (lx in 0 until sceneWidth) {
+                        pos.x = startX + x0 + lx
+                        passabilityGrid.array[index++] =
+                            acousticBlockData.getPassability(pos, world, chunk.getBlockState(pos))
+                    }
+                }
             }
 
             val offsetX = startX + x0
@@ -188,13 +215,13 @@ class MinecraftChunkAcousticScene private constructor(
 /**
  * Абстрактное пространство из игровых сцен одинакового размера.
  * Предоставляет доступ к ним через единую локальную систему координат от самой первой сцены.
- * Для получения локальных координат из мировых использовать `worldToLocal`
+ * Локальные координаты отсчитываются от `minX`, `minY` и `minZ`.
  */
 data class ChunkedAcousticView(
     val chunkSize: ChunkSize,
     val scenes: List<MinecraftChunkAcousticScene>,
     private val scenesOccupied: Boolean = false
-) {
+) : AcousticSceneView {
     data class ChunkSize(val w: Int, val h: Int, val d: Int) {
         init {
             require(isPowerOfTwo(w))
@@ -204,13 +231,14 @@ data class ChunkedAcousticView(
         val widthTrailingZeros = Integer.numberOfTrailingZeros(w)
         val heightTrailingZeros = Integer.numberOfTrailingZeros(h)
         val depthTrailingZeros = Integer.numberOfTrailingZeros(d)
+        val widthMask = w - 1
+        val heightMask = h - 1
+        val depthMask = d - 1
 
         fun chunkX(x: Int) = x shr widthTrailingZeros
         fun chunkY(y: Int) = y shr heightTrailingZeros
         fun chunkZ(z: Int) = z shr depthTrailingZeros
     }
-
-    data class ChunkPos(val x: Int, val y: Int, val z: Int)
 
     val minX = scenes.minOf { it.x }
     val minY = scenes.minOf { it.y }
@@ -225,45 +253,50 @@ data class ChunkedAcousticView(
     val viewD = maxZ - minZ
     val totalSize = SceneSize(viewW, viewH, viewD)
 
-    val chunkMap = ConcurrentHashMap<ChunkPos, MinecraftChunkAcousticScene>()
+    private val chunksWide = chunkCount(viewW, chunkSize.w)
+    private val chunksHigh = chunkCount(viewH, chunkSize.h)
+    private val chunksDeep = chunkCount(viewD, chunkSize.d)
+    private val chunkMap = arrayOfNulls<MinecraftChunkAcousticScene>(chunksWide * chunksHigh * chunksDeep)
 
     init {
         scenes.forEach {
             if (!scenesOccupied) {
                 it.occupy()
             }
-            chunkMap[
-                ChunkPos(
-                    chunkSize.chunkX(it.x - minX),
-                    chunkSize.chunkY(it.y - minY),
-                    chunkSize.chunkZ(it.z - minZ)
-                )
-            ] = it
+            val chunkX = chunkSize.chunkX(it.x - minX)
+            val chunkY = chunkSize.chunkY(it.y - minY)
+            val chunkZ = chunkSize.chunkZ(it.z - minZ)
+            val index = chunkIndex(chunkX, chunkY, chunkZ)
+            check(chunkMap[index] == null) { "Duplicate acoustic scene at $chunkX, $chunkY, $chunkZ" }
+            chunkMap[index] = it
         }
     }
-
-    fun worldToLocal(x: Int, y: Int, z: Int): Triple<Int, Int, Int> =
-        Triple(x - minX, y - minY, z - minZ)
 
     fun free() {
         scenes.forEach { it.vacant() }
     }
 
-    fun getPassability(x: Int, y: Int, z: Int): Float {
+    override fun getPassability(x: Int, y: Int, z: Int): Float {
         val chunkPosX = chunkSize.chunkX(x)
         val chunkPosY = chunkSize.chunkY(y)
         val chunkPosZ = chunkSize.chunkZ(z)
-        val chunk = chunkMap[ChunkPos(chunkPosX, chunkPosY, chunkPosZ)] ?: error("Координаты выходят за пределы чанка")
-        val baseX = chunk.x - minX
-        val baseY = chunk.y - minY
-        val baseZ = chunk.z - minZ
-
-        return chunk.passability[
-            x - baseX,
-            y - baseY,
-            z - baseZ
+        val chunk = chunkMap[chunkIndex(chunkPosX, chunkPosY, chunkPosZ)]
+            ?: error("Coordinates are outside of the acoustic scene")
+        val passability = chunk.passability
+        return passability.array[
+            passability.indexOf(
+                x and chunkSize.widthMask,
+                y and chunkSize.heightMask,
+                z and chunkSize.depthMask,
+            )
         ]
     }
+
+    private fun chunkIndex(x: Int, y: Int, z: Int): Int {
+        return (z * chunksHigh + y) * chunksWide + x
+    }
+
+    private fun chunkCount(size: Int, chunkSize: Int): Int = (size + chunkSize - 1) / chunkSize
 }
 
 class ConcurrentAcousticSceneBank {
@@ -312,6 +345,8 @@ class ConcurrentAcousticSceneBank {
 
                 if (oldSegment.getPassability(pos.x, pos.y, pos.z) == value) {
                     null
+                } else if (oldSegment.trySetPassabilityIfVacant(pos.x, pos.y, pos.z, value)) {
+                    oldSegment
                 } else {
                     logger?.info("Rebuilding acoustic scene $chunkPos")
 
@@ -519,12 +554,7 @@ class MinecraftAcousticManager(
             )
         )
 
-        val freed = AtomicBoolean(false)
-        val inDebug = AtomicBoolean(false)
-
-        fun _finish() {
-            if (!freed.compareAndSet(false, true)) return
-            if (inDebug.get()) return
+        val lifetime = AcousticResultLifetime {
             PrimitiveArrayPool.freeGrid3f(generation.volume)
             scene.free()
         }
@@ -539,9 +569,11 @@ class MinecraftAcousticManager(
                     mcWorld,
                     mcWorld.getBlockState(blockPosRelative)
                 )
-                val (lX, lY, lZ) = scene.worldToLocal(blockPosRelative.x, blockPosRelative.y, blockPosRelative.z)
+                val lX = blockPosRelative.x - scene.minX
+                val lY = blockPosRelative.y - scene.minY
+                val lZ = blockPosRelative.z - scene.minZ
                 if (generation.volume.inBounds(lX, lY, lZ)) {
-                    generation.volume[lX, lY, lZ] = volume * passability
+                    generation.seed(lX, lY, lZ, volume * passability)
                 }
             }
             simulateDijkstra(
@@ -551,7 +583,7 @@ class MinecraftAcousticManager(
                 attenuation
             )
             if (performanceDebug) logger.info(
-                "[DEUBG] Просимулирована акустика в мире {} позиции {}, множитель {}, максимальная громкость {}, время обработки {} мс.",
+                "Просимулирована акустика в мире {} позиции {}, множитель {}, максимальная громкость {}, время обработки {} мс.",
                 world,
                 pos,
                 attenuation,
@@ -561,50 +593,74 @@ class MinecraftAcousticManager(
         } catch (e: Throwable) {
             logger.error("Во время обработки акустики возникла ошибка", e)
             server.minecraftServer.execute { exceptionHandler(e) }
-            _finish()
+            lifetime.finish()
+            return AcousticSimulationResult.DUMMY
         }
 
         return object : AcousticSimulationResult {
-            // Максимально не оптимизировано, но кому какое дело?
             override fun debug(player: EnginePlayer, handler: ServerHandler, radius: Float) {
-                inDebug.set(true)
-                server.engine.execute {
-                    val minX = scene.minX.toFloat()
-                    val minY = scene.minY.toFloat()
-                    val minZ = scene.minZ.toFloat()
-                    val playerPos = player.location.position
-                        .sub(minX, minY, minZ)
-                    coroutineScope.launch {
-                        val volumes = generation.volume.array
-                            .mapIndexed { i, _ -> generation.volume.posOf(i) }
-                            .filter { (x, y, z) -> abs(x - playerPos.x) <= radius && abs(y - playerPos.y) <= radius && abs(z - playerPos.z) <= radius }
-                            .map { (x, y, z) ->
-                                ImmutableVoxelPos(x + scene.minX, y + scene.minY, z + scene.minZ) to generation.volume[x, y, z]
+                if (!lifetime.retain()) return
+
+                try {
+                    server.engine.execute {
+                        try {
+                            val playerPos = player.location.position.sub(
+                                scene.minX.toFloat(),
+                                scene.minY.toFloat(),
+                                scene.minZ.toFloat(),
+                            )
+                            val job = coroutineScope.launch {
+                                val grid = generation.volume
+                                val x0 = max(0, ceil(playerPos.x - radius).toInt())
+                                val y0 = max(0, ceil(playerPos.y - radius).toInt())
+                                val z0 = max(0, ceil(playerPos.z - radius).toInt())
+                                val x1 = min(grid.w, floor(playerPos.x + radius).toInt() + 1)
+                                val y1 = min(grid.h, floor(playerPos.y + radius).toInt() + 1)
+                                val z1 = min(grid.d, floor(playerPos.z + radius).toInt() + 1)
+                                val volumes = ArrayList<Pair<ImmutableVoxelPos, Float>>(
+                                    max(0, x1 - x0) * max(0, y1 - y0) * max(0, z1 - z0)
+                                )
+
+                                for (z in z0 until z1) {
+                                    for (y in y0 until y1) {
+                                        for (x in x0 until x1) {
+                                            volumes += ImmutableVoxelPos(
+                                                x + scene.minX,
+                                                y + scene.minY,
+                                                z + scene.minZ,
+                                            ) to grid[x, y, z]
+                                        }
+                                    }
+                                }
+
+                                server.engine.execute {
+                                    handler.onPersonalVolumeAcousticDebug(player, volumes)
+                                }
                             }
-                        server.engine.execute {
-                            handler.onPersonalVolumeAcousticDebug(player, volumes)
+                            job.invokeOnCompletion { lifetime.release() }
+                        } catch (e: Throwable) {
+                            lifetime.release()
+                            logger.error("Failed to prepare acoustic debug data", e)
                         }
-                        inDebug.set(false)
-                        finish()
                     }
+                } catch (e: Throwable) {
+                    lifetime.release()
+                    throw e
                 }
             }
 
-            override fun getVolume(pos: Pos): Float? = runCatching {
+            override fun getVolume(pos: Pos): Float? {
                 val x = pos.x.toInt()
                 val y = pos.y.toInt()
                 val z = pos.z.toInt()
                 if (x < scene.minX || x >= scene.maxX || y < scene.minY || y >= scene.maxY || z < scene.minZ || z >= scene.maxZ) {
                     return null
                 }
-                val (lx, ly, lz) = scene.worldToLocal(x, y, z)
-                generation.volume[lx, ly, lz]
+                return generation.volume[x - scene.minX, y - scene.minY, z - scene.minZ]
             }
-                .onFailure { logger.error("Вознила ошибка при получении уровня громкости на координатах $x, $y, $z ($scene)", it) }
-                .getOrDefault(0.0f)
 
             override fun finish() {
-                _finish()
+                lifetime.finish()
             }
         }
     }

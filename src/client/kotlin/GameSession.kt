@@ -14,8 +14,12 @@ import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
+import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.render.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.render.SkinSystem
 import org.lain.engine.client.render.WARNING
+import org.lain.engine.client.render.showInpectionModeToggleNotification
+import org.lain.engine.client.render.showSpectatingNotification
 import org.lain.engine.client.render.tickBulletHitSystem
 import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.tickRecoilShakeSystem
@@ -29,9 +33,10 @@ import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.interaction.PlayerInputMode
-import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
+import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.server.ServerId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
@@ -52,7 +57,7 @@ class GameSession(
     val handler: ClientHandler,
     val client: EngineClient,
     val compilation: ClientCompilation,
-    compilationResult: CompilationResult,
+    build: Build,
     val hintState: ClientHintState = ClientHintState(),
 ) : EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
     private val systems: ClientPlatform.TickExtension = client.infrastructure.tickExtension
@@ -96,8 +101,6 @@ class GameSession(
         setup.settings.chat,
     )
 
-    override var movementDefaultAttributes = setup.settings.defaultAttributes.movement
-    override var movementSettings = setup.settings.movement
     val skinSystem = SkinSystem(client.skinTextureManager)
 
     val vocalRegulator = PlayerVocalRegulator(
@@ -126,7 +129,7 @@ class GameSession(
         private set
 
     init {
-        applyCompilation(compilationResult)
+        applyCompilation(build)
         simulation.loadWorld(this.world)
 
         val items = (player.items + player.equipment.values).associateBy { it.persistentId }
@@ -180,41 +183,37 @@ class GameSession(
         }
     }
 
-    fun applyCompilation(result: CompilationResult) {
+    fun applyCompilation(result: Build) {
         simulation.applyCompilationResult(result)
         luaContext.setupClientGameSession(this)
-
-        val exceptions = result.exceptions
-        if (exceptions.isNotEmpty()) {
-            val line1 =
-                if (exceptions.size == 1) "Возникла 1 ошибка" else "Возникло ${exceptions.size} ошибок"
-            client.showNotification(
-                LittleNotification(
-                    "Сбой компиляции контента",
-                    "$line1. Проверьте консоль для более подробной информации.",
-                    WARNING_COLOR,
-                    WARNING,
-                    lifeTime = 240
-                )
-            )
-            for (exception in exceptions) {
-                exception.log()
-            }
-        }
         onContentsUpdated()
     }
 
     fun recompile() {
         try {
-            applyCompilation(luaContext.compileContents())
-        } catch (e: Exception) {
-            client.showCompilationErrorNotification(e)
+            applyCompilation(compilation.compileScriptsOrThrow())
+        } catch (e: CompilationFailedException) {
+            val errors = e.report.errors
+            if (errors.isNotEmpty()) {
+                val line1 =
+                    if (errors.size == 1) "Возникла 1 ошибка" else "Возникло ${errors.size} ошибок"
+                client.showNotification(
+                    LittleNotification(
+                        "Сбой компиляции контента",
+                        "$line1. Проверьте консоль для более подробной информации.",
+                        WARNING_COLOR,
+                        WARNING,
+                        lifeTime = 240
+                    )
+                )
+                e.log()
+            }
         }
     }
 
     fun onContentsUpdated() {
         client.audioManager.invalidateCache()
-        client.infrastructure.onContentsUpdate()
+        client.infrastructure.onCompiled(this)
     }
 
     override fun World.beforeInput() = with(systems) {

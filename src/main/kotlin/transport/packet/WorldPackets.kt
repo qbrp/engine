@@ -3,9 +3,8 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import org.lain.engine.server.EntityNetworkSnapshot
+import org.lain.engine.server.ReplicationFrameSnapshot
 import org.lain.engine.storage.COMPONENT_CBOR
-import org.lain.engine.storage.ComponentDto
-import org.lain.engine.storage.EntityDto
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -55,14 +54,11 @@ data class VoxelBlockHintPacket(val pos: VoxelPos, val action: Action) : Packet 
 val SERVERBOUND_VOXEL_BLOCK_HINT_PACKET = Endpoint<VoxelBlockHintPacket>()
 
 @Serializable
-data class EntityDeltaPacket(
-    val persistentId: PersistentId,
-    val snapshot: EntityNetworkSnapshot
-) : Packet
+data class ReplicationPacket(val frame: ReplicationFrameSnapshot) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)
-val CLIENTBOUND_ENTITY_DELTA_ENDPOINT = Endpoint<EntityDeltaPacket>(
-    codec = PacketCodec.Kotlinx(EntityDeltaPacket.serializer(), COMPONENT_CBOR),
+val CLIENTBOUND_REPLICATION_ENDPOINT = Endpoint<ReplicationPacket>(
+    codec = PacketCodec.Kotlinx(ReplicationPacket.serializer(), COMPONENT_CBOR),
 )
 
 @Serializable

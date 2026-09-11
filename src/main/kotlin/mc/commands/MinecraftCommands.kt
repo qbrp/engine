@@ -33,6 +33,7 @@ import org.lain.engine.chat.IncomingMessage
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.item.ItemId
 import org.lain.engine.mc.*
+import org.lain.engine.mc.ecs.minecraftEntity
 import org.lain.engine.player.*
 import org.lain.engine.script.*
 import org.lain.engine.util.*
@@ -489,11 +490,11 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             .then(
                 argument("id", StringArgumentType.string())
                     .suggests(
-                        NamespacedIdProvider { it.items.ids }
+                        NamespacedIdProvider { it.items.stringIds }
                     )
                     .executeCatching { ctx ->
                         val argument = ctx.command.getString("id")
-                        val id = ItemId(argument)
+                        val id = ItemId(EngineId(argument))
                         val player =
                             ctx.source.player ?: friendlyError("Команда доступна только игроку")
 
@@ -508,7 +509,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
 
                         val prefabs = items.mapNotNull { storage.items[it] }
                         if (prefabs.isEmpty()) {
-                            friendlyError("Предметы по идентификатору $id не найдены")
+                            friendlyError("Предметы по идентификатору $argument не найдены")
                         }
 
                         prefabs.forEach { prefab ->
@@ -542,7 +543,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         ignorePhysics: Boolean = false
     ) {
         val storage = server.engine.namespacedStorage
-        val id = SoundEventId(id)
+        val id = SoundEventId(EngineId(id))
         val player = ctx.requirePlayer()
         val event =
             storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
@@ -568,7 +569,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             .then(
                 argument("id", StringArgumentType.string())
                     .suggests(
-                        NamespacedIdProvider { it.sounds.ids }
+                        NamespacedIdProvider { it.sounds.stringIds }
                     )
                     .executeCatching { ctx ->
                         val argument = ctx.command.getString("id")
@@ -638,14 +639,14 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             literal(name)
                 .then(
                     stringArgument("script")
-                        .suggests(NamespacedIdProvider(listOf("none")) { it.scripts.ids })
+                        .suggests(NamespacedIdProvider(listOf("none")) { it.scripts.stringIds })
                         .executeCatching { ctx ->
                             val player = ctx.requirePlayer()
 
                             val scriptArg = ctx.command.getString("script")
                             if (scriptArg != "none") {
-                                val scriptId = scriptArg
-                                    .replace("\"", "")
+                                val scriptId = EngineId(scriptArg
+                                    .replace("\"", ""))
                                     .toScriptId()
 
                                 server.engine.namespacedStorage

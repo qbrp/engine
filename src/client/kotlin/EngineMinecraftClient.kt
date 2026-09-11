@@ -10,10 +10,13 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.renderer.entity.player.AvatarRenderer
 import net.minecraft.util.profiling.Profiler
 import org.lain.engine.client.handler.GameSessionJoinFlow
+import org.lain.engine.client.handler.disconnectText
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
+import org.lain.engine.client.mc.compat.registerEngineLightComponents
 import org.lain.engine.client.mc.compat.injectDynamicLightsContext
+import org.lain.engine.client.mc.compat.registerLamdDynLightEvents
 import org.lain.engine.client.mc.compat.tickGenderSystem
 import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
@@ -34,6 +37,9 @@ import org.lain.engine.util.Injector
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.util.component.registerAllClient
 import org.lain.engine.mc.compat.isReplayViewer
+import org.lain.engine.mc.ecs.MinecraftSystem
+import org.lain.engine.mc.server.EngineMinecraftServer
+import org.lain.engine.script.compilation.CompilationFailedException
 import org.slf4j.LoggerFactory
 
 class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension {
@@ -47,8 +53,8 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     val uiRenderPipeline = EngineUiRenderPipeline(client)
 
     val decalSystem: DecalSystem = DecalSystem()
+    val platform = MinecraftEngineClientPlatform(this, client, decalSystem)
     internal lateinit var lightSystem: LightSystem
-    private val eventBus = MinecraftEngineClientPlatform(this, client, decalSystem)
     private var config: EngineYamlConfig = EngineYamlConfig()
     val engine = EngineClient(
         window,
@@ -56,7 +62,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         MinecraftChat,
         audioManager,
         uiRenderPipeline,
-        eventBus,
+        platform,
         EngineHttpClient()
     )
         .also { Injector.register(it) }
@@ -79,6 +85,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engine)
+        registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)
         registerClientEngineCommands(engine)
         initializeGraphene()
@@ -97,11 +104,23 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
                 Injector.register<RaycastProvider>(MinecraftRaycastProvider())
             }
 
-            engine.handler.run()
-            MinecraftChat.registerEndpoints()
+            val serverStartFail = IntegratedEngineMinecraftServer.serverStartFail
+            if (serverStartFail == null) {
+                engine.handler.run()
+                MinecraftChat.registerEndpoints(engine.handler)
 
-            inAuthorization = false
-            readyToAuthorize = true
+                inAuthorization = false
+                readyToAuthorize = true
+            } else {
+                platform.disconnect(
+                    if (serverStartFail is CompilationFailedException) {
+                        serverStartFail.log()
+                        "${serverStartFail.message}.<newline>Проверьте консоль для подробной информации"
+                    } else {
+                        serverStartFail.message ?: "Не удалось запустить сервер"
+                    }
+                )
+            }
         }
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
@@ -169,17 +188,19 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
 
     private fun onClientStarted() {
         lightSystem = LightSystem(dynamicLights)
+        registerLamdDynLightEvents(dynamicLights)
 
         if (listOf("remii", "denterest").contains(client.gameProfile.name)) {
             audioManager.playPigScreamSound()
         }
         decalSystem.textureManager = client.textureManager
         engine.thread = (client as MinecraftClientAccessor).`engine$getThread`()
-        registerWorldRenderEvents(client, engine, eventBus, decalSystem)
+        registerWorldRenderEvents(client, engine, platform, decalSystem)
         registerHudRenderEvent(client, engine, renderer, uiRenderPipeline)
     }
 
     fun onDisconnect() {
+        IntegratedEngineMinecraftServer.serverStartFail = null
         engine.stopJoinFlow()
         if (engine.gameSession == null) return
         engine.skinTextureManager.cancelDownloadTasks()
@@ -205,7 +226,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     override fun GameSession.tickDataPrepareSystem() {
         val level = currentLevel ?: return
         world.tickVoxelAdapterSystem(level)
-        MinecraftSystem.tickCommon(
+        MinecraftSystem.tickDataPrepareCommon(
             world,
             tickInventorySyncSystem = { tickClientInventorySyncSystem(this@tickDataPrepareSystem) }
         )

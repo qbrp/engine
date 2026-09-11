@@ -4,20 +4,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
-import net.minecraft.world.entity.player.Player
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.createContainer
 import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
-import org.lain.engine.mc.CURRENT_ITEM_VERSION
 import org.lain.engine.mc.commands.friendlyError
-import org.lain.engine.mc.compat.isReplayViewer
-import org.lain.engine.mc.engine
-import org.lain.engine.mc.engineId
-import org.lain.engine.mc.enginePlayerMode
-import org.lain.engine.mc.ownedItems
 import org.lain.engine.player.character.AppliedCharacters
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.prepareCharacter
@@ -49,12 +42,10 @@ data class PlayerInstantiateSettings(
 )
 
 data class DefaultPlayerAttributes(
-    val movement: MovementDefaultAttributes = MovementDefaultAttributes.BUILTIN,
     val minVolume: Float = 0.2f,
     val maxVolume: Float = 1.3f,
     val baseVolume: Float = 5f,
     val gravity: Float = 0.087f,
-    val flyingSpeed: Float = 1f,
     val tirednessMultiplier: Float = 1f,
 ) : Component
 
@@ -82,6 +73,7 @@ fun commonPlayerInstance(
             setComponent(settings.movementStatus)
             setComponent(settings.mode)
             setComponent(settings.attributes)
+            setComponent(CustomPlayerAttributes())
             if (settings.replayViewer) {
                 setComponent(ReplayViewer)
             }
@@ -138,7 +130,8 @@ class PlayerLoader(
 ) {
     suspend fun loadPreparing(
         settings: PlayerLoadSettings,
-        account: PlayerLoadSettings.Account
+        account: PlayerLoadSettings.Account,
+        onCreated: (EnginePlayer) -> Unit = {}
     ): EnginePlayer {
         if (server.playerStorage.get(settings.playerId) != null) {
             friendlyError("Игрок уже находится на сервере")
@@ -177,6 +170,7 @@ class PlayerLoader(
                     character,
                     persistentCharacterData,
                 )
+                onCreated(player)
                 player
             }
         }

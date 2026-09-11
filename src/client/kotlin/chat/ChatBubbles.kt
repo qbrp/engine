@@ -3,7 +3,7 @@ package org.lain.engine.client.chat
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.render.world.LabelRenderState
-import org.lain.engine.client.util.EngineOptions
+import org.lain.engine.client.EngineOptions
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.eyePos
@@ -72,7 +72,7 @@ class ChatBubbleList(private val options: EngineOptions) {
             if (!bubble.canSee && (bubble.tick == 0 || bubble.tick++ % 20 == 0)) {
                 val author = bubble.player
                 bubble.canSee = players.computeIfAbsent(author.id) {
-                    mainPlayer.location.position.squaredDistanceTo(author.location.position) < 6*6 || mainPlayer.whoSee(64, true) == author
+                    mainPlayer.location.position.squaredDistanceTo(author.location.position) < 6*6 || mainPlayer.whoSee(8) == author
                 }
             }
         }

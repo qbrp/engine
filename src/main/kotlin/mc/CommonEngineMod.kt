@@ -3,6 +3,7 @@ package org.lain.engine.mc
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
@@ -20,13 +21,12 @@ import org.lain.engine.bootstrap
 import org.lain.engine.mc.commands.WORLD_EDIT_AVAILABLE
 import org.lain.engine.mc.commands.registerEngineCommands
 import org.lain.engine.mc.commands.registerWorldEditCommands
+import org.lain.engine.mc.ecs.initializeEngineItemComponents
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.player.RaycastProvider
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
-import org.lain.engine.util.file.loadStdLuaLibrary
-import org.lain.engine.util.file.updateOldFileNaming
-import org.lain.engine.util.injectValue
+import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.requireEngineMinecraftServer
 
 /**
@@ -37,8 +37,8 @@ import org.lain.engine.util.requireEngineMinecraftServer
  */
 
 class CommonEngineMod : ModInitializer {
-    private val engineServer: EngineMinecraftServer
-        get() = requireEngineMinecraftServer()
+    private val engineServer: EngineMinecraftServer?
+        get() = Injector.server
 
     override fun onInitialize() {
         bootstrap()
@@ -46,22 +46,22 @@ class CommonEngineMod : ModInitializer {
             EnvType.CLIENT -> Environment.CLIENT
             EnvType.SERVER -> Environment.SERVER
         }
-        updateOldFileNaming()
-        loadStdLuaLibrary()
+        FileSystem.migrateLegacyStructure()
+        FileSystem.loadStandardLuaLibrary()
         initializeEngineItemComponents()
 
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
-            Injector.register<RaycastProvider>(MinecraftRaycastProvider())
-            engineServer.run()
             if (Constants.DEVELOPER_TEST_ENVIRONMENT) {
                 val gameRules = server.worldData.gameRules
                 gameRules.set(GameRules.ADVANCE_TIME, false, server)
                 server.setDifficulty(Difficulty.PEACEFUL, true)
             }
+            Injector.register<RaycastProvider>(MinecraftRaycastProvider())
+            engineServer?.run()
         }
 
         ServerTickEvents.START_SERVER_TICK.register {
-            engineServer.tick()
+            engineServer?.tick()
         }
 
         ServerWorldEvents.LOAD.register { server, world ->
@@ -71,34 +71,38 @@ class CommonEngineMod : ModInitializer {
         }
 
         ServerLifecycleEvents.SERVER_STOPPED.register { server ->
-            engineServer.disable()
+            engineServer?.disable()
         }
 
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
             if (Constants.DEVELOPER_TEST_ENVIRONMENT) {
                 server.playerList.op(NameAndId(handler.player.gameProfile))
             }
-            engineServer.onJoinPlayer(handler.player)
+            engineServer?.onJoinPlayer(handler.player)
         }
 
         ServerPlayConnectionEvents.DISCONNECT.register { handler, server ->
-            server.execute { engineServer.onLeavePlayer(handler.player) }
+            server.execute { engineServer?.onLeavePlayer(handler.player) }
+        }
+
+        ServerPlayerEvents.AFTER_RESPAWN.register { _, newPlayer, _ ->
+            replacePlayerMinecraftState(newPlayer)
         }
 
         ServerChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
-            engineServer.onChunkUnload(world, chunk)
+            engineServer?.onChunkUnload(world, chunk)
         }
 
         ServerWorldEvents.UNLOAD.register { server, world ->
-            engineServer.onWorldUnload(world)
+            engineServer?.onWorldUnload(world)
         }
 
         UseEntityCallback.EVENT.register { player, world, hand, entity, hitResult ->
             if (world.isClientSide) return@register InteractionResult.PASS
             val hitPlayer = hitResult?.entity ?: return@register InteractionResult.PASS
-            if (hitPlayer !is ServerPlayer) return@register InteractionResult.PASS
+            if (hitPlayer !is ServerPlayer || player !is ServerPlayer) return@register InteractionResult.PASS
             val enginePlayer = hitPlayer.getEngineState() ?: return@register InteractionResult.PASS
-            with(enginePlayer.world) { showPlayerHint(hitPlayer, enginePlayer.entity) }
+            with(enginePlayer.world) { showPlayerHint(player, enginePlayer) }
             InteractionResult.PASS
         }
 

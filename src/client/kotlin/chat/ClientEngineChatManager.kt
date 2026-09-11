@@ -7,7 +7,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.EXCLAMATION
 import org.lain.engine.client.render.VOICE_WARNING
-import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.SPY_COLOR

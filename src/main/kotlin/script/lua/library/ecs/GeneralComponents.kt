@@ -10,6 +10,7 @@ import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 
+context(luaScriptEngine: LuaScriptEngine)
 fun LuaLocationComponent(location: Location) = location.position.coerceToLua()
 
 context(luaScriptEngine: LuaScriptEngine)

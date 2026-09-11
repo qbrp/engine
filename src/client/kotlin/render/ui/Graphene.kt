@@ -14,7 +14,7 @@ import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.resources.ResourceContext
 import org.lain.engine.mc.literalText
-import org.lain.engine.util.file.ENGINE_DIR
+import org.lain.engine.util.file.FileSystem
 import tytoo.grapheneui.api.GrapheneCore
 import tytoo.grapheneui.api.config.GrapheneConfig
 import tytoo.grapheneui.api.config.GrapheneContainerConfig
@@ -22,7 +22,6 @@ import tytoo.grapheneui.api.config.GrapheneGlobalConfig
 import tytoo.grapheneui.api.config.GrapheneHttpConfig
 import tytoo.grapheneui.api.config.GrapheneRemoteDebugConfig
 import tytoo.grapheneui.api.widget.GrapheneWebViewWidget
-import java.nio.file.Path
 
 val UI by lazy { GrapheneCore.handle(EngineMinecraftClient::class.java) }
 
@@ -41,15 +40,15 @@ fun initializeGraphene() {
                             .bindHost("127.0.0.1")
                             .randomPortInRange(20_000, 21_000)
                             .spaFallback("/not_found.html")
-                            .fileRoot("engine/web")
+                            .fileRoot(FileSystem.web.path)
                             .build()
                     )
                     .build()
             )
             .global(
                 GrapheneGlobalConfig.builder()
-                    .jcefDownloadPath(Path.of("./graphene-jcef"))
-                    .extensionFolder(Path.of("./engine/extensions"))
+                    .jcefDownloadPath(FileSystem.grapheneJcef.toPath())
+                    .extensionFolder(FileSystem.extensions.toPath())
                     .remoteDebugging(
                         GrapheneRemoteDebugConfig.builder()
                             .randomPort()

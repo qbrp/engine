@@ -144,7 +144,7 @@ fun EntityId.snapshotDebugData(): EntityDebugData {
             with(context) {
                 runCatching { component.toDebugData(type) }
                     .onFailure {
-                        SCRIPT_LOGGERRR.error("Невозможно получить данные для отладки компонента: $type", it)
+                        ScriptEngine.LOGGER.error("Невозможно получить данные для отладки компонента: $type", it)
                     }
                     .getOrNull()
             }

@@ -5,6 +5,8 @@ import net.minecraft.world.entity.player.PlayerSkin
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
+import org.lain.engine.client.handler.ClientHandler
+import org.lain.engine.client.handler.registerGameSessionReceiver
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
@@ -67,11 +69,9 @@ object MinecraftChat : ChatEventBus {
         }
     }
 
-    fun registerEndpoints() {
-        CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.registerClientReceiver {
-            val gameSession = client.gameSession ?: return@registerClientReceiver
-            val enginePlayer = gameSession.playerStorage.get(player) ?: return@registerClientReceiver
-
+    fun registerEndpoints(handler: ClientHandler) = with(handler) {
+        registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT) { gameSession ->
+            val enginePlayer = gameSession.playerStorage.get(player) ?: return@registerGameSessionReceiver
             if (enginePlayer != gameSession.mainPlayer || client.developerMode) {
                 typingPlayers.add(
                     TypingPlayer(
@@ -83,10 +83,10 @@ object MinecraftChat : ChatEventBus {
             }
         }
 
-        CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.registerClientReceiver {
+        registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT) {
             if (client.gameSession?.playerStorage?.get(player) == null) {
                 typingPlayers.clear() // Если что-то сломалось
-                return@registerClientReceiver
+                return@registerGameSessionReceiver
             }
             typingPlayers.removeIf { player == it.id }
         }

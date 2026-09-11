@@ -11,6 +11,7 @@ import org.lain.engine.player.*
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.removeCharacter
 import org.lain.engine.player.interaction.PlayerInputMode
+import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.tickEntityDebugViewSnapshotSystem
@@ -29,6 +30,7 @@ class EngineServer(
     val acousticSimulator: AcousticSimulator,
     val platform: ServerPlatform,
     val namespacedStorage: NamespacedStorageAccess,
+    val moduleManager: ModuleManager,
     val thread: Thread,
     val isReplay: Boolean,
     savePath: File,
@@ -38,10 +40,6 @@ class EngineServer(
 ): Executor, EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
     val handler = ServerHandler(this)
     val dispatcher = asCoroutineDispatcher()
-    override val movementDefaultAttributes: MovementDefaultAttributes
-        get() = globals.defaultPlayerAttributes.movement
-    override val movementSettings: MovementSettings
-        get() = globals.movementSettings
 
     @Volatile
     var globals: ServerGlobals = ServerGlobals(id, savePath=savePath)

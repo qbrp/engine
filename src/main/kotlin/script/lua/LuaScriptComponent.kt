@@ -64,7 +64,7 @@ fun EntityId.getLuaScriptComponent(componentType: ScriptComponentType): LuaValue
     return component.luaValue
 }
 
-context(world: World)
+context(world: WriteComponentAccess)
 fun EntityId.removeLuaScriptComponent(componentType: ScriptComponentType): LuaValue? {
     val component = removeComponent(componentType) ?: return null
     component as? LuaScriptComponent ?: error("Компонент $component не принадлежит Lua")

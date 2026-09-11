@@ -12,10 +12,11 @@ import org.lain.engine.client.render.*
 import org.lain.engine.client.render.legacy.EngineUi
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.EngineAudioManager
-import org.lain.engine.client.util.EngineOptions
-import org.lain.engine.client.util.LittleNotification
-import org.lain.engine.client.util.showAcousticDebugNotification
+import org.lain.engine.client.EngineOptions
+import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.render.showAcousticDebugNotification
 import org.lain.engine.player.developerMode
+import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.util.DEV_MODE_COLOR
@@ -33,6 +34,7 @@ class EngineClient(
     lateinit var thread: Thread
     val handler = ClientHandler(this, infrastructure)
     val renderer = ScreenRenderer(this)
+    val moduleManager = ModuleManager()
     val resourceManager = ResourceManager(this)
     val skinTextureManager = SkinTextureManager(httpClient.rest)
     val accountManager: AccountManager =

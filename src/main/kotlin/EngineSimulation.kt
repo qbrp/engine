@@ -10,12 +10,11 @@ import org.lain.engine.player.character.applyCharacter
 import org.lain.engine.player.interaction.*
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
-import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ScriptSystemDispatcher
-import org.lain.engine.script.loadCompilationResult
-import org.lain.engine.script.registerComponentTypes
+import org.lain.engine.script.compilation.loadResult
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.ServerPlatform
 import org.lain.engine.server.confirmProcessedPlayerInputsSystem
@@ -61,11 +60,11 @@ class EngineSimulation(
         return Thread.currentThread() === thread
     }
 
-    fun applyCompilationResult(result: CompilationResult) {
+    fun applyCompilationResult(result: Build) {
         result.callbacks?.let { callbacks = it }
-        namespacedStorage.loadCompilationResult(result)
+        namespacedStorage.loadResult(result)
         worldsList.forEach { it.registerComponentTypes(namespacedStorage) }
-        scriptSystemDispatcher.load(result.phases, namespacedStorage)
+        scriptSystemDispatcher.load(result.phases)
     }
 
     fun World.tick(): Unit = with(extension) {
@@ -74,9 +73,6 @@ class EngineSimulation(
         resetItemOwnershipState()
         tickItemOwnershipSystem()
         tickPlayerModelSystem()
-
-        // Геймплейная фаза
-        tickMovementSystem(settings.movementDefaultAttributes, settings.movementSettings)
 
         // Взаимодействия
         playerInputSystem.tick(this@tick, callbacks) // здесь клиент начинает предсказывать поведение симуляции
@@ -171,15 +167,8 @@ class EngineSimulation(
     }
 
     interface Settings {
-        val movementSettings: MovementSettings
-        val movementDefaultAttributes: MovementDefaultAttributes
-
         companion object {
-            val DUMMY = object : Settings {
-                override val movementSettings: MovementSettings = MovementSettings()
-                override val movementDefaultAttributes: MovementDefaultAttributes =
-                    MovementDefaultAttributes()
-            }
+            val DUMMY = object : Settings {}
         }
     }
 }

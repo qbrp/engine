@@ -7,7 +7,6 @@ import org.lain.engine.client.render.ui.WebWidgetSizeParameters
 import org.lain.engine.script.lua.LuaTableBuilder
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.nullable
-import org.lain.engine.script.lua.library.toLuaValue
 import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaStr
 import org.luaj.vm2.LuaValue

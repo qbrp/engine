@@ -2,61 +2,25 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
+import org.lain.engine.script.ScriptValue
 
 @Serializable
-data class AttributeValue(var default: Float, var custom: Float? = null) {
-    fun get() = custom ?: default
-
-    fun resetCustom() {
-        custom = null
-    }
+data class CustomPlayerAttributes(
+    var speed: Float? = null,
+    var jumpStrength: Float? = null,
+    var gravity: Float? = null,
+    val script: MutableMap<String, ScriptValue> = mutableMapOf()
+) : Component {
+    fun copy() = copy(script = script.toMutableMap())
 }
 
 @Serializable
 data class PlayerAttributes(
-    val speed: AttributeValue = AttributeValue(0.055f),
-    var jumpStrength: AttributeValue = AttributeValue(0.37f),
-    var gravity: AttributeValue = AttributeValue(0.98f),
-    val maxSpeed: AttributeValue = AttributeValue(1.5f),
-    val flySpeed: AttributeValue = AttributeValue(1f),
-) : Component {
-    fun copy() = PlayerAttributes(speed.copy(), jumpStrength.copy(), gravity.copy(), maxSpeed.copy(), flySpeed.copy())
-}
-
-@Serializable
-data class MovementDefaultAttributes(
-    val attributes: Map<PlayerStatus, Map<PrimaryAttribute, Float>> = mapOf()
-) {
-    fun getPrimarySeed(status: PlayerStatus): Float? {
-        return attributes[status]?.get(PrimaryAttribute.SPEED)
-    }
-
-    fun getPrimaryJumpStrength(status: PlayerStatus): Float? {
-        return attributes[status]?.get(PrimaryAttribute.JUMP_STRENGTH)
-    }
-
-    companion object {
-        val BUILTIN = MovementDefaultAttributes(
-            attributes = mapOf(
-                PlayerStatus.DEFAULT to mapOf(
-                    PrimaryAttribute.SPEED to 0.055f,
-                    PrimaryAttribute.JUMP_STRENGTH to 0.4f
-                ),
-                PlayerStatus.GM to mapOf(
-                    PrimaryAttribute.SPEED to 0.12f,
-                    PrimaryAttribute.JUMP_STRENGTH to 0.45f
-                ),
-                PlayerStatus.SPECTATING to mapOf(
-                    PrimaryAttribute.SPEED to 0.15f,
-                )
-            )
-        )
-    }
-}
-
-enum class PrimaryAttribute {
-    SPEED, JUMP_STRENGTH
-}
+    var speed: Float = 0.055f,
+    var jumpStrength: Float = 0.37f,
+    var gravity: Float = 0.98f,
+    var flySpeed: Float = 1f,
+) : Component
 
 enum class PlayerStatus {
     DEFAULT, GM, SPECTATING;
@@ -73,49 +37,22 @@ enum class PlayerStatus {
 val EnginePlayer.attributes
     get() = this.require<PlayerAttributes>()
 
-val EnginePlayer.speed: Float
-    get() = attributes.speed.get()
-
 fun EnginePlayer.setCustomSpeed(speed: Float) {
-    attributes.speed.custom = speed
-    markUpdated<PlayerAttributes>()
+    require<CustomPlayerAttributes>().speed = speed
+    markUpdated<CustomPlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomSpeed() {
-    attributes.speed.resetCustom()
-    markUpdated<PlayerAttributes>()
+    require<CustomPlayerAttributes>().speed = null
+    markUpdated<CustomPlayerAttributes>()
 }
 
-val EnginePlayer.jumpStrength: Float
-    get() = attributes.jumpStrength.get()
-
 fun EnginePlayer.setCustomJumpStrength(value: Float) {
-    attributes.jumpStrength.custom = value
-    markUpdated<PlayerAttributes>()
+    require<CustomPlayerAttributes>().jumpStrength = value
+    markUpdated<CustomPlayerAttributes>()
 }
 
 fun EnginePlayer.resetCustomJumpStrength() {
-    attributes.jumpStrength.resetCustom()
-    markUpdated<PlayerAttributes>()
-}
-fun EnginePlayer.setCustomMaxSpeed(speed: Float) {
-    attributes.maxSpeed.custom = speed
-    markUpdated<PlayerAttributes>()
-}
-
-fun EnginePlayer.resetCustomMaxSpeed() {
-    attributes.maxSpeed.resetCustom()
-    markUpdated<PlayerAttributes>()
-}
-
-val EnginePlayer.flyingSpeed
-    get() = attributes.flySpeed.get()
-
-fun EnginePlayer.setFlyingSpeed(speed: Float) {
-    val attr = attributes.flySpeed
-    val oldCustom = attr.default
-    if (oldCustom != speed) {
-        attr.default = speed
-        markUpdated<PlayerAttributes>()
-    }
+    require<CustomPlayerAttributes>().jumpStrength = null
+    markUpdated<CustomPlayerAttributes>()
 }

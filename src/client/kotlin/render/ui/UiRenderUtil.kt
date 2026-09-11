@@ -14,7 +14,7 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.item.EngineItemDisplayContext
 import org.lain.engine.client.render.item.updateItemRenderState
-import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText

@@ -3,10 +3,10 @@ package org.lain.engine.mc.commands
 import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.world.entity.player.Player
 import org.lain.engine.item.createInvalidItem
-import org.lain.engine.mc.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.getWorld
-import org.lain.engine.mc.wrapEngineItemStack
-import org.lain.engine.script.SCRIPT_LOGGERRR
+import org.lain.engine.mc.ecs.wrapEngineItemStack
+import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.lua.LuaFunctionChunk
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.luaWorld
@@ -43,8 +43,10 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
                                 )
                             } catch (e: LuaError) {
                                 it.sendError(e)
-                                e.cause?.let { cause -> it.sendError("caused by: ${cause.message}") }
-                                SCRIPT_LOGGERRR.error("Ошибка выполнения scriptexec", e)
+                                e.cause?.let { cause ->
+                                    it.sendError("caused by: ${cause.message}")
+                                }
+                                ScriptEngine.LOGGER.error("Ошибка выполнения scriptexec", e)
                             }
                         }
                     }

@@ -6,6 +6,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import org.lain.engine.mc.CommonMixin;
 import org.lain.engine.mc.PlayerEntityAccessHolder;
@@ -15,6 +17,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -40,12 +43,21 @@ public class LivingEntityMixin {
         CommonMixin.PlayerEntityAccess access = engine$getPlayerEntityAccess();
         if (access != null) {
             if (is(holder, Attributes.MOVEMENT_SPEED)) {
-                cir.setReturnValue(access.getSpeed());
+                cir.setReturnValue((double)access.getSpeed());
             } else if (is(holder, Attributes.JUMP_STRENGTH)) {
-                cir.setReturnValue(access.getJumpStrength());
+                cir.setReturnValue((double)access.getJumpStrength());
             }
         }
     }
+
+    @Redirect(
+            method = "setSprinting",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/ai/attributes/AttributeInstance;addTransientModifier(Lnet/minecraft/world/entity/ai/attributes/AttributeModifier;)V"
+            )
+    )
+    private void engine$cancelTransientModifierAdd(AttributeInstance instance, AttributeModifier attributeModifier) {}
 
     @Inject(
             method = "getScale",

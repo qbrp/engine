@@ -6,8 +6,8 @@ import org.lain.engine.client.mc.compat.CAMERA_OVERHAUL_AVAILABLE
 import org.lain.engine.client.mc.compat.createCameraOverhaulShakeSlot
 import org.lain.engine.client.render.Camera
 import org.lain.engine.client.render.ShakeEffect
+import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engine
-import org.lain.engine.mc.engineId
 import org.lain.engine.util.math.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow

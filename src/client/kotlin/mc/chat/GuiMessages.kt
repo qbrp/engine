@@ -10,8 +10,6 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.literalText
-import org.lain.engine.player.MovementDefaultAttributes
-import org.lain.engine.player.MovementSettings
 import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.interaction.PlayerInputMode
 import org.lain.engine.script.NamespacedStorage
@@ -89,10 +87,7 @@ fun DummyWorld() = World(
     EngineSimulation(
         false,
         EngineSimulation.SimulationTickExtension.DUMMY,
-        object : EngineSimulation.Settings {
-            override val movementDefaultAttributes: MovementDefaultAttributes = MovementDefaultAttributes()
-            override val movementSettings: MovementSettings = MovementSettings()
-        },
+        EngineSimulation.Settings.DUMMY,
         PlayerStorage(),
         ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage()),
         ScriptEngine.Dummy,

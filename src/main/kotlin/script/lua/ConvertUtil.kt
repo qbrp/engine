@@ -1,5 +1,7 @@
 package org.lain.engine.script.lua
 
+import org.luaj.vm2.Lua
+import org.luaj.vm2.LuaInteger
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
@@ -19,7 +21,7 @@ fun Boolean.luaBool(): LuaValue = luaValue(this)
 
 fun Double.luaNum(): LuaValue = luaValue(this)
 
-fun Int.luaNum(): LuaValue = luaValue(this)
+fun Int.luaNum(): LuaInteger = luaValue(this)
 
 //// Коллекции
 
@@ -37,12 +39,22 @@ fun <K, V> LuaTable.toMap(
 }
 
 fun <V> LuaTable.toMap(valueTransform: (LuaValue) -> V): Map<String, V> {
-   return toMap(
-       keyTransform = { it.tojstring() },
-       valueTransform = valueTransform
-   )
+    return toMap(
+        keyTransform = { it.tojstring() },
+        valueTransform = valueTransform
+    )
 }
 
+fun <K, V> Map<K, V>.toLuaTable(
+    keyTransform: (K) -> LuaValue,
+    valueTransform: (V) -> LuaValue
+): LuaTable {
+    val table = LuaTable()
+    entries.forEach { (key, value) ->
+        table[keyTransform(key)] = valueTransform(value)
+    }
+    return table
+}
 fun LuaTable.toStringMap(): Map<String, String> {
     return toMap { it.tojstring() }
 }

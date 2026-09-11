@@ -9,7 +9,6 @@ data class ClientboundServerSettings(
     val synchronizationRadius: Int,
     val playerDesynchronizationThreshold: Int,
     val chat: ClientChatSettings,
-    val movement: MovementSettings,
     val defaultAttributes: ClientDefaultAttributes,
     val spectateOnJoin: Boolean
 ) {
@@ -19,7 +18,6 @@ data class ClientboundServerSettings(
                 server.globals.playerSynchronizationRadius,
                 server.globals.playerDesynchronizationThreshold,
                 ClientChatSettings.of(server.globals.chatSettings, player),
-                server.globals.movementSettings,
                 ClientDefaultAttributes.of(server.globals.defaultPlayerAttributes),
                 server.globals.spectateOnJoin,
             )
@@ -29,14 +27,12 @@ data class ClientboundServerSettings(
 
 @Serializable
 data class ClientDefaultAttributes(
-    val movement: MovementDefaultAttributes,
     val maxVolume: Float,
     val baseVolume: Float
 ) {
     companion object {
         fun of(defaults: DefaultPlayerAttributes): ClientDefaultAttributes {
             return ClientDefaultAttributes(
-                defaults.movement,
                 defaults.maxVolume,
                 defaults.playerBaseInputVolume
             )

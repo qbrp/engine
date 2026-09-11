@@ -13,7 +13,7 @@ import org.lain.engine.client.render.item.engineOutfit
 import org.lain.engine.client.render.item.updateForLivingEntity
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemAssets
-import org.lain.engine.mc.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Outfit
@@ -49,7 +49,7 @@ fun createModelPartEquipmentRenderStates(
                 val stack = ITEM_STACK_MATERIAL.copy()
                 stack.set(
                     DataComponents.ITEM_MODEL,
-                    engineId(model.assets["default"] ?: "missingno")
+                    engineId(model.assets["default"]?.full ?: "missingno")
                 )
                 stack
             }

@@ -29,6 +29,15 @@ sealed class EntityNetworkSnapshot {
 }
 
 @Serializable
+data class ReplicationFrameSnapshot(
+    val world: EntityNetworkSnapshot?, //null if is empty
+    val entities: List<Entity>
+) {
+    @Serializable
+    data class Entity(val persistentId: PersistentId, val snapshot: EntityNetworkSnapshot)
+}
+
+@Serializable
 data class EntityDelta(
     val updated: List<ComponentDto>,
     val removed: List<String>

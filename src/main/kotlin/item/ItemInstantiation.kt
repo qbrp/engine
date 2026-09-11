@@ -4,7 +4,7 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.script.INVALID_ITEM_ID
+import org.lain.engine.script.BuiltinNamespaces
 import org.lain.engine.server.EngineServer
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.PersistentIdComponent
@@ -19,16 +19,16 @@ data class ItemPrefab(
     val name: String,
     val assets: ItemAssets?,
     val progressionAnimations: ItemProgressionAnimations?,
-    val tooltipFactory: () -> ItemTooltip?,
-    val componentsFactory: () -> List<Component> = { emptyList() },
+    val onLoad: context(WriteComponentAccess) (EngineItem) -> Unit,
 )
 
-
-fun EngineServer.createInvalidItem(world: World): EngineItem = with(world) { createInvalidItem() }
+fun EngineServer.createInvalidItem(world: World): EngineItem = with(world) {
+    createInvalidItem()
+}
 
 context(write: WriteComponentAccess)
 fun EngineServer.createInvalidItem(): EngineItem {
-    val prefab = namespacedStorage.items[ItemId(INVALID_ITEM_ID)]!!
+    val prefab = namespacedStorage.items[BuiltinNamespaces.Items.INVALID_ID]!!
     return write.createItem(prefab)
 }
 
@@ -45,13 +45,11 @@ fun WriteComponentAccess.createItem(
     item.createDebugName(prefab.id)
     prefab.progressionAnimations?.let { item.setComponent(it) }
     prefab.assets?.let { item.setComponent(it) }
-    prefab.tooltipFactory.invoke()?.let { item.setComponent(it) }
-    val components = prefab.componentsFactory()
-    item.copyState(components)
+    prefab.onLoad(item)
     return item
 }
 
 context(world: WriteComponentAccess)
 fun EngineItem.createDebugName(id: ItemId) {
-    setComponent(DebugName(id.value))
+    setComponent(DebugName(id.toString()))
 }

@@ -2,26 +2,15 @@ package org.lain.engine.player
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.removeComponent
-import org.lain.engine.player.stamina
-import org.lain.engine.util.math.lerp
-import org.lain.engine.util.math.smootherstep
-import org.lain.engine.util.math.smoothstep
-import org.lain.engine.world.World
-import kotlin.math.abs
-import kotlin.math.min
 
 /**
  * # Движение
- * @param isSprinting Бежит ли игрок. Если да, скорость удваивается
  * @param intention Регулируемый игроком модификатор скорости (от 0 до 1, изначально стоит 0.5)
  * @param stamina Запас энергии на скорость (от 0 до 1). Тратится в зависимости от скорости.
  * Если доходит до 0, игрок не может бежать, скорость минимальная.
  */
 @Serializable
 data class MovementStatus(
-    var isSprinting: Boolean = false,
     var intention: Float = DEFAULT_INTENTION,
     var stamina: Float = DEFAULT_STAMINA,
 ) : Component {
@@ -31,37 +20,6 @@ data class MovementStatus(
     }
 }
 
-/**
- * Обрабатывается системами Minecraft
- */
-object Jump : Component
-
-/**
- * @param sprintMultiplier Множитель скорости в режиме бега
- * @param minSpeedFactor Множитель к показателю аттрибута скорости, определяющий самую низкую возможную скорость (от 0 до 1)
- * @param slowdownStaminaThreshold Порог стамины, при котором персонаж начинает замедляться
- * @param staminaConsumption Уменьшение стамины за 1 тик при максимальной скорости
- * @param staminaRegen **Постоянное** восстановление стамины за 1 тик. Стамина тратиться, когда `staminaConsumption` становится больше `staminaRegen`
- * @param intentionEffect Как сильно `intention` игрока влияет на скорость. Ограничивает множитель скорости.
- * @param sprintMinIntentionEffect Минимальное значение `intentionEffect`, когда игрок бежит (прибавляется к нему)
- * @param jumpStaminaConsume Потребление стамины при прыжке
- */
-@Serializable
-data class MovementSettings(
-    val sprintMultiplier: Float = 1.5f,
-    val minSpeedFactor: Float = 0.05f,
-    val slowdownStaminaThreshold: Float = 0.3f,
-    val staminaConsumption: Float = 0.0033f,
-    val staminaRegen: Float = 0.003f,
-    val sprintMinIntentionEffect: Float = 0.5f,
-    val intentionEffect: Float = 0.7f,
-    val jumpStaminaConsume: Float = 0.3f,
-)
-
-fun EnginePlayer.canJump(settings: MovementSettings): Boolean {
-    return stamina > settings.jumpStaminaConsume
-}
-
 fun EnginePlayer.intentSpeed(value: Float) {
     require<MovementStatus>().intention = value
     markUpdated<MovementStatus>()
@@ -69,66 +27,3 @@ fun EnginePlayer.intentSpeed(value: Float) {
 
 val EnginePlayer.stamina
     get() = this.require<MovementStatus>().stamina
-
-fun speedMul(
-    intention: Float,
-    stamina: Float,
-    isSprint: Boolean,
-    settings: MovementSettings,
-): Float = with(settings) {
-    val (sprintMul, minSpeedAddition) = if (isSprint) {
-        sprintMultiplier to sprintMinIntentionEffect
-    } else {
-        1f to 0f
-    }
-    val staminaMul = if (stamina < slowdownStaminaThreshold) smoothstep(stamina / slowdownStaminaThreshold) else 1f
-
-    val minSpeedIntentionMul = (1f - intentionEffect + minSpeedAddition)
-    val maxSpeedIntentionMul = (intentionEffect * 2 - 1f)
-
-    val intentionMul = minSpeedIntentionMul + maxSpeedIntentionMul * smootherstep(intention)
-    intentionMul * staminaMul * sprintMul
-}
-
-fun maxSpeedMul(settings: MovementSettings) = speedMul(1f, 1f, true, settings)
-
-fun World.tickMovementSystem(
-    primaryAttributes: MovementDefaultAttributes,
-    settings: MovementSettings,
-) {
-    iterate<MovementStatus, PlayerModeComponent, PlayerAttributes, Velocity>() { entity, movement, playerMode, attributes, velocity ->
-        val isSpectating = playerMode.isSpectator
-        val isGameMaster = playerMode.isGameMaster
-
-        val status = PlayerStatus.of(isGameMaster, isSpectating)
-        val defaultSpeed = primaryAttributes.getPrimarySeed(status) ?: 0.055f
-        val speedAttribute = attributes.speed.default
-        val velocityHorizontal = velocity.motion.horizontal().length()
-
-        val minSpeedFactor = settings.minSpeedFactor
-        val staminaRegen = settings.staminaRegen
-        val staminaConsume = settings.staminaConsumption
-
-        attributes.jumpStrength.default = primaryAttributes.getPrimaryJumpStrength(status) ?: 0.55f
-
-        val minSpeed = defaultSpeed * minSpeedFactor
-        val maxSpeed = defaultSpeed * maxSpeedMul(settings)
-
-        attributes.speed.default = if (isSpectating) {
-            defaultSpeed
-        } else {
-            movement.stamina = if (!isGameMaster) {
-                val jumpConsume = if (entity.removeComponent<Jump>() != null) settings.jumpStaminaConsume else 0f
-                val movementConsume = abs(velocityHorizontal) / maxSpeed * staminaConsume
-                (movement.stamina + staminaRegen - movementConsume - jumpConsume).coerceIn(0f, 1f)
-            } else {
-                1f
-            }
-
-            val maxSpeed = attributes.maxSpeed.get()
-            val minSpeed = min(minSpeed, maxSpeed)
-            val target = (defaultSpeed * speedMul(movement.intention, movement.stamina, movement.isSprinting, settings)).coerceIn(minSpeed, maxSpeed)
-            lerp(speedAttribute, target, 0.2f)
-        }
-    }
-}

@@ -10,8 +10,13 @@ import net.minecraft.world.item.CreativeModeTab
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.GameSession
 import org.lain.engine.client.mixin.CreativeModeTabAccessor
 import org.lain.engine.mc.*
+import org.lain.engine.mc.ecs.ENGINE_ITEM_INSTANTIATE_COMPONENT
+import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.ecs.wrapEngineItemStackBase
+import org.lain.engine.mc.ecs.wrapEngineItemStackVisual
 
 private val KEY: ResourceKey<CreativeModeTab> = ResourceKey.create(
     BuiltInRegistries.CREATIVE_MODE_TAB.key(),
@@ -31,7 +36,10 @@ fun updateRandomEngineItemGroupIcon() {
     }
 }
 
-fun updateEngineItemGroupEntries() {
+private var currentGameSession: GameSession? = null
+
+fun updateEngineItemGroupEntries(gameSession: GameSession) {
+    currentGameSession = gameSession
     val client = MinecraftClient
     val featureSet = client.connection?.enabledFeatures() ?: return
     val lookup = client.level?.registryAccess() ?: return
@@ -43,18 +51,22 @@ fun updateEngineItemGroupEntries() {
 fun registerEngineItemGroupEvent(client: EngineClient) {
     Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, KEY, ITEM_GROUP);
     ItemGroupEvents.modifyEntriesEvent(KEY).register { entries ->
-        client.gameSession?.namespacedStorage?.items?.toList()?.sortedBy { it.first.value }?.forEach { (id, prefab) ->
-            val stack = ITEM_STACK_MATERIAL.copy()
-            val assets = prefab.assets?.assets ?: return@forEach
+        currentGameSession?.namespacedStorage?.items?.toList()?.sortedBy { it.first.toString() }
+            ?.forEach { (id, prefab) ->
+                val stack = ITEM_STACK_MATERIAL.copy()
+                val assets = prefab.assets?.assets ?: return@forEach
 
-            wrapEngineItemStackVisual(stack, prefab.name)
-            wrapEngineItemStackBase(stack, prefab.maxCount)
-            stack.set(
-                DataComponents.ITEM_MODEL,
-                engineId(assets["default"] ?: assets.toList().firstOrNull()?.second ?: "missingno")
-            )
-            stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, id.value)
-            entries.prepend(stack)
-        }
+                wrapEngineItemStackVisual(stack, prefab.name)
+                wrapEngineItemStackBase(stack, prefab.maxCount)
+                stack.set(
+                    DataComponents.ITEM_MODEL,
+                    engineId(
+                        assets["default"]?.full ?: assets.toList().firstOrNull()?.second?.full
+                        ?: "missingno"
+                    )
+                )
+                stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, id.toString())
+                entries.prepend(stack)
+            }
     }
 }

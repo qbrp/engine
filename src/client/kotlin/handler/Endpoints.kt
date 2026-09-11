@@ -3,7 +3,6 @@ package org.lain.engine.client.handler
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
-import org.lain.engine.server.*
 import org.lain.engine.transport.packet.*
 
 fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler) {
@@ -83,15 +82,15 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         taskExecutor.add("chunk-load") { applyChunkPacket(chunk) }
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ENTITY_DELTA_ENDPOINT) {
-        applyEntity(it, persistentId, snapshot)
+    registerGameSessionReceiver(CLIENTBOUND_REPLICATION_ENDPOINT) {
+        applyReplicationFrame(it, persistentId, snapshot)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_INPUT_PROCESSED_ENDPOINT) {
         applyProcessedInput(it, processedInputTick)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_INTENT_ENDPOINT) { _ -> applyIntent(dto, intent) }
+    registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { _ -> applyOperation(dto, operation) }
 
     registerGameSessionReceiver(CLIENTBOUND_ITEM_UNLOAD_ENDPOINT, { it.endTickTaskExecutor }) {
         applyItemUnload(it, items)

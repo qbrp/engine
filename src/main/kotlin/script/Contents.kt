@@ -4,13 +4,17 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
-import org.lain.engine.util.Intent
-import org.lain.engine.util.IntentId
-import org.lain.engine.util.NamespaceId
+import org.lain.engine.script.compilation.NamespaceDraft
+import org.lain.engine.util.Operation
+import org.lain.engine.util.OperationId
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 import kotlin.collections.component1
 import kotlin.collections.component2
+
+interface Identifiable {
+    val engineId: EngineId
+}
 
 interface Contents {
     val sounds: ContentHolder<SoundEventId, SoundEvent>
@@ -23,17 +27,18 @@ interface Contents {
         get() = ContentHolder.empty()
     val components: ContentHolder<ScriptComponentId, ScriptComponentType>
         get() = ContentHolder.empty()
-    val intents: ContentHolder<IntentId, Intent>
+    val operations: ContentHolder<OperationId, Operation>
         get() = ContentHolder.empty()
-    val systems: ContentHolder<ScriptSystemId, ScriptSystemDefinition>
+    val systems: ContentHolder<ScriptSystemId, ScriptSystem>
         get() = ContentHolder.empty()
 }
 
-class ContentHolder<K, V>(
+class ContentHolder<K : Identifiable, V>(
     private val map: Map<K, V> = mapOf()
 ) : Map<K, V> by map {
 
-    val ids: List<String> get() = map.keys.map { it.toString() }
+    val ids: Collection<K> get() = map.keys
+    val stringIds get() = ids.map { it.engineId.toString() }
     val idHash get() = ids.hashCode()
 
     override fun hashCode(): Int = idHash
@@ -47,11 +52,11 @@ class ContentHolder<K, V>(
     }
 
     companion object {
-        fun <K, V> empty() = ContentHolder<K, V>(mutableMapOf())
+        fun <K : Identifiable, V> empty() = ContentHolder<K, V>(mutableMapOf())
     }
 }
 
-fun <K, V> Map<NamespaceId, CompiledNamespace>.collect(property: (CompiledNamespace) -> Map<K, V>): Map<K, V> {
+fun <K  : Identifiable, V> Map<NamespaceId, NamespaceDraft>.collect(property: (NamespaceDraft) -> Map<K, V>): Map<K, V> {
     val entries = mutableMapOf<K, V>()
     forEach { (_, namespace) ->
         entries.putAll(property(namespace))
@@ -59,7 +64,7 @@ fun <K, V> Map<NamespaceId, CompiledNamespace>.collect(property: (CompiledNamesp
     return entries
 }
 
-fun <K, V> Map<NamespaceId, Namespace>.collect(property: (Namespace) -> Map<K, V>): ContentHolder<K, V> {
+fun <K : Identifiable, V> Map<NamespaceId, Namespace>.collect(property: (Namespace) -> Map<K, V>): ContentHolder<K, V> {
     val entries = mutableMapOf<K, V>()
     forEach { (_, namespace) ->
         entries.putAll(property(namespace))

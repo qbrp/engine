@@ -2,29 +2,27 @@ package org.lain.engine.script
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.require
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.util.AnyInputValue
-import org.lain.engine.util.IntentActor
-import org.lain.engine.util.IntentSelection
-import org.lain.engine.util.IntentTarget
-import org.lain.engine.util.component.ComponentArray
+import org.lain.engine.util.OperationActor
+import org.lain.engine.util.OperationSelection
+import org.lain.engine.util.OperationTarget
 import org.lain.engine.world.VoxelMeta
 import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.World as EngineWorld
 
-interface IntentBehaviour {
-    fun generateTarget(): IntentTarget
-    fun generateSelection(): IntentSelection?
+interface OperationBehaviour {
+    fun generateTarget(): OperationTarget
+    fun generateSelection(): OperationSelection?
     fun feedback(string: String)
 }
 
 interface ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext
     data class World(val world: EngineWorld) : ScriptContext
-    data class ItemLoad(val world: EngineWorld, val item: EngineItem) : ScriptContext
+    data class Item(val world: EngineWorld, val item: EngineItem) : ScriptContext
     data class PlayerInputTick(val player: EnginePlayer, val input: PlayerInput) : ScriptContext
     data class VoxelAction(
         val player: EnginePlayer?,
@@ -32,11 +30,11 @@ interface ScriptContext {
         val pos: VoxelPos,
         val meta: VoxelMeta
     ) : ScriptContext
-    data class IntentExecution(
-        val actor: IntentActor,
-        val target: IntentTarget? = null,
+    data class OperationExecution(
+        val actor: OperationActor,
+        val target: OperationTarget? = null,
         val inputValues: List<AnyInputValue>,
-        val behaviour: IntentBehaviour
+        val behaviour: OperationBehaviour
     ) : ScriptContext
     interface SystemEntityHandle : ScriptContext {
         val components: Collection<ScriptComponent>
@@ -61,11 +59,12 @@ typealias VoidScript<C> = Script<C, Unit>
 
 @JvmInline
 @Serializable
-value class ScriptId(val string: String) {
-    override fun toString(): String = string
+value class ScriptId(val value: EngineId) : Identifiable {
+    override val engineId: EngineId get() = value
+    override fun toString(): String = value.toString()
 }
 
-fun String.toScriptId(): ScriptId = ScriptId(this)
+fun EngineId.toScriptId(): ScriptId = ScriptId(this)
 
 @Suppress("UNCHECKED_CAST")
 fun <C : ScriptContext, R : Any> NamespacedStorageAccess.getScript(id: ScriptId): Script<C, R>? {

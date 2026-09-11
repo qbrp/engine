@@ -13,7 +13,7 @@ import kotlinx.serialization.modules.subclass
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.component.EntityCommandBuffer
-import org.lain.engine.util.file.ensureExists
+import org.lain.engine.util.file.FileSystem
 import org.lain.engine.world.*
 import java.io.File
 import java.util.Collections
@@ -60,7 +60,7 @@ fun saveChunkAsync(
 ) {
     ChunkIoCoroutineScope.launch {
         val file = server.chunkRegionPath(pos)
-        file.ensureExists()
+        FileSystem.ensureFile(file)
         file.writeBytes(
             CborSerializer.encodeToByteArray(
                 ChunkPersistent(decals, hints, voxels)

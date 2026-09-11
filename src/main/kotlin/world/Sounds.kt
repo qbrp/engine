@@ -2,13 +2,11 @@ package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.iterate
 import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemSounds
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.script.EngineId
+import org.lain.engine.script.Identifiable
 import org.lain.engine.script.NamespacedStorageAccess
-import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.math.EVec3
 import org.lain.engine.util.math.ImmutableEVec3
 
@@ -33,11 +31,12 @@ enum class EngineSoundCategory {
 
 @JvmInline
 @Serializable
-value class SoundEventId(val value: String) {
-    override fun toString(): String = value
+value class SoundEventId(val value: EngineId) : Identifiable {
+    override val engineId: EngineId get() = value
+    override fun toString(): String = value.toString()
 
     companion object {
-        val MISSING = SoundEventId("missing")
+        val MISSING = SoundEventId(EngineId("missing"))
     }
 }
 
@@ -61,7 +60,7 @@ fun NamespacedStorageAccess.getOrSingleSound(id: SoundEventId) = this.sounds[id]
     id,
     listOf(
         ESoundSource(
-            SoundId(id.value)
+            SoundId(id.value.namespace)
         )
     )
 )

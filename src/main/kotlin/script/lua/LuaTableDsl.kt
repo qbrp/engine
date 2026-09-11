@@ -162,7 +162,14 @@ class UserdataLuaTableBuilder<T> : LuaTableBuilder() {
     fun LuaValue.cast() = checkuserdata() as T
 
     fun indexSelf(fn: (self: T, key: LuaValue) -> LuaValue) {
-        index { self, key -> fn(self.cast(), key) }
+        index { self, key ->
+            table.rawget(key).takeUnless(LuaValue::isnil)
+                ?: fn(self.cast(), key)
+        }
+    }
+
+    fun newIndexSelf(fn: (self: T, key: LuaValue, value: LuaValue) -> Unit) {
+        newIndex { self, key, value -> fn(self.cast(), key, value) }
     }
 
     fun functionSelf(name: String, body: (T) -> LuaValue) = function1(name) { self ->
@@ -182,6 +189,12 @@ class UserdataLuaTableBuilder<T> : LuaTableBuilder() {
         function4(name) { self, arg1, arg2, arg3 ->
             body(self.cast(), arg1, arg2, arg3)
         }
+
+    fun functionSelfV(name: String, body: (T, Varargs) -> Varargs) {
+        functionV(name) { varargs ->
+            body(varargs.arg1().cast(), varargs.subargs(2))
+        }
+    }
 }
 
 fun <T> luaUserdataTable(builder: UserdataLuaTableBuilder<T>.() -> Unit) =

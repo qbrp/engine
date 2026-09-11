@@ -1,6 +1,5 @@
 package org.lain.engine.mc
 
-import net.minecraft.IdentifierException
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.core.Registry
@@ -31,6 +30,7 @@ import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.CollisionContext
 import org.joml.Vector3f
 import org.joml.Vector3fc
+import org.lain.engine.mc.ecs.minecraftEntity
 import org.lain.engine.player.*
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
@@ -72,7 +72,7 @@ fun minecraftChunkSectionCoord(value: Int): Int {
 }
 
 class MinecraftRaycastProvider() : RaycastProvider {
-    override fun whoSee(player: EnginePlayer, distance: Int, isClient: Boolean): EnginePlayer? {
+    override fun whoSee(player: EnginePlayer, distance: Int): EnginePlayer? {
         val entity1 = player.minecraftEntity
         val results = ProjectileUtil.getEntityHitResult(
             entity1,
@@ -82,12 +82,12 @@ class MinecraftRaycastProvider() : RaycastProvider {
                 .expandTowards(entity1.lookAngle.scale(distance.toDouble()))
                 .inflate(1.0),
             EntitySelector.CAN_BE_PICKED,
-            distance.toDouble(),
+            distance*distance.toDouble(),
         );
         return (results?.entity as? Player?)?.getEngineState()
     }
 
-    override fun canSee(player: EnginePlayer, voxelPos: VoxelPos, isClient: Boolean): Boolean {
+    override fun canSee(player: EnginePlayer, voxelPos: VoxelPos): Boolean {
         val entity = player.minecraftEntity
         val blockPos = BlockPos(voxelPos.x, voxelPos.y, voxelPos.z)
         val context = ClipContext(
@@ -192,10 +192,6 @@ fun EngineServer.getWorld(world: Level): World {
 fun vanillaId(id: String) = Identifier.withDefaultNamespace(id)
 
 fun engineId(path: String) = Identifier.fromNamespaceAndPath(CommonEngineMod.MOD_ID, path)!!
-
-fun isIdPathValid(id: String) = Identifier.isValidPath(id)
-
-fun InvalidIdException(id: String) = IdentifierException("Non [a-z0-9/._-] character in path of location: $id")
 
 fun parseId(str: String) = Identifier.parse(str)
 

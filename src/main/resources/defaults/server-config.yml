@@ -1,5 +1,7 @@
 server: "default"
 require_identical_namespaces: false
+# Write debug/compilation-manifest.json after each compilation
+write_compilation_manifest: true
 
 chat:
   channels:

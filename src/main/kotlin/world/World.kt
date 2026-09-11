@@ -10,6 +10,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
+import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptEngine
@@ -24,6 +25,7 @@ import org.lain.engine.util.component.EntityId
 import org.lain.engine.server.Networked
 import org.lain.engine.storage.loadWorldComponents
 import org.lain.engine.util.ConcurrentStorage
+import org.lain.engine.util.component.getKotlinComponentTypeEntries
 import java.util.concurrent.ConcurrentHashMap
 
 @Serializable
@@ -104,6 +106,14 @@ class World(
                 )
             }
         }
+    }
+
+    fun registerComponentTypes(namespacesStorage: NamespacedStorageAccess) {
+        val kotlinTypeEntries = getKotlinComponentTypeEntries()
+        val builtinLuaTypes = CoreScriptComponents.getAll()
+        val namespaceLuaTypes = namespacesStorage.components.values.toList()
+        val luaTypeEntries = (namespaceLuaTypes + builtinLuaTypes).map { it to it.meta }.toList()
+        componentManager.registerComponentArrays(kotlinTypeEntries + luaTypeEntries)
     }
 
     inline fun <reified T : Component> emitEvent(event: T, networked: Boolean = false): EntityId {

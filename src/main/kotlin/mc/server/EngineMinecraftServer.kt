@@ -9,9 +9,9 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.util.ProblemReporter
 import net.minecraft.world.ItemStackWithSlot
-import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
@@ -25,19 +25,22 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.ScriptPathSuggestionProvider
-import org.lain.engine.mc.commands.registerIntentCommands
+import org.lain.engine.mc.commands.registerOperationCommands
 import org.lain.engine.mc.commands.updateCommandInvokeSystem
 import org.lain.engine.mc.compat.GENDER_MOD_AVAILABLE
 import org.lain.engine.mc.compat.isReplayServer
 import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.compat.syncPlayerGenderConfig
+import org.lain.engine.mc.ecs.*
 import org.lain.engine.player.*
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
+import org.lain.engine.script.compilation.Build
+import org.lain.engine.script.compilation.CompilationFailedException
+import org.lain.engine.script.compilation.loadBuild
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.recompileContents
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerPlatform
@@ -46,7 +49,6 @@ import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
-import org.lain.engine.util.file.CONFIG_LOGGER
 import org.lain.engine.util.file.ServerConfig
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
@@ -64,11 +66,19 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
     protected val config = dependencies.config
     val worldTable = dependencies.worldTable
     val acousticSimulator =
-        MinecraftAcousticManager(this, dependencies.worldTable, acousticSceneBank, acousticBlockData)
+        MinecraftAcousticManager(
+            this,
+            dependencies.worldTable,
+            acousticSceneBank,
+            acousticBlockData
+        )
     val luaScriptEngine: LuaScriptEngine = dependencies.luaScriptEngine
     val timers = SaveTimers(
         SaveTimers.Counter(config.itemAutosavePeriod * 20),
-        SaveTimers.Counter(config.itemAutosavePeriod * 20, (config.itemAutosavePeriod * 0.5).toInt())
+        SaveTimers.Counter(
+            config.itemAutosavePeriod * 20,
+            (config.itemAutosavePeriod * 0.5).toInt()
+        )
     )
     val miniMessageAudiences = MinecraftServerAudiences.of(minecraftServer)
     val engine = EngineServer(
@@ -77,6 +87,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         acousticSimulator,
         this,
         dependencies.namespacedStorage,
+        dependencies.moduleManager,
         minecraftServer.runningThread,
         dependencies.isReplay,
         minecraftServer.getWorldPath(LevelResource.ROOT).toFile(),
@@ -91,7 +102,8 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     context(world: World)
     open fun wrapItemStack(itemId: ItemId, itemStack: ItemStack): EngineItem {
-        val prefab = engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден")
+        val prefab =
+            engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден")
         val item = world.createItem(prefab)
         wrapEngineItemStack(item, itemStack)
         return item
@@ -116,7 +128,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     override fun World.updateBulletHitSystem() {
         val level = dependencies.worldTable.getMcWorld(id) as? ServerLevel
-        updateBulletsMinecraft(this, level!!)
+        tickBulletFireDecalSystem(this, level!!)
     }
 
     override fun World.updateSaveSystem() {
@@ -133,21 +145,12 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
     }
 
     open fun run() {
-        val compilationResult = dependencies.compilationResult
-        if (compilationResult.exceptions.isNotEmpty()) {
-            compilationResult.logExceptions()
-            throw SetupException(compilationResult.exceptions)
-        }
-
         Injector.register<ServerTransportContext>(transportContext)
         applyConfigCatching(config)
         luaScriptEngine.setupGame(
             LuaScriptEngine.RuntimeDependencies(engine.simulation)
         )
-        engine.recompileContents(luaScriptEngine, compilationResult)
-        if (compilationResult.exceptions.isNotEmpty()) {
-            error("Не удалось скомпилировать ресурсы Engine!")
-        }
+        engine.loadBuild(dependencies.build)
         minecraftServer.allLevels.forEach { level ->
             val id = level.engineId
             val world = World(
@@ -169,14 +172,18 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
     }
 
     fun recompileEngineContents(player: EnginePlayer?) {
-        try {
-            engine.recompileContents(luaScriptEngine)
-        } catch (e: Throwable) {
-            CONFIG_LOGGER.error("При компиляции ресурсов возникла ошибка", e)
+        val build = try {
+            luaScriptEngine.compileContents().successOrThrow()
+        } catch (e: CompilationFailedException) {
             if (player != null) {
-                engine.handler.onServerNotification(player, Notification.COMPILATION_ERROR, false)
+                e.log()
+                engine.handler.onServerNotification(
+                    player, Notification.COMPILATION_ERROR, false
+                )
             }
+            return
         }
+        engine.loadBuild(build)
     }
 
     open fun disable() = runBlocking {
@@ -233,7 +240,10 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     override fun onCompiled(contents: NamespacedStorage) {
         val commandManager = minecraftServer.commands
-        commandManager.dispatcher.registerIntentCommands(engine.namespacedStorage, handler = engine.handler)
+        commandManager.dispatcher.registerOperationCommands(
+            engine.namespacedStorage.operations.values,
+            handler = engine.handler
+        )
         ScriptPathSuggestionProvider.onScriptsCompiled()
         minecraftServer.players.forEach { commandManager.sendCommands(it) }
     }
@@ -259,7 +269,12 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     fun onBlockAdd(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: Level) {
         acousticSimulator.updateBlock(state, pos, world)
-        engine.simulation.callbacks.executePlaceVoxelCallback(player, engine.getWorld(world), pos.voxelPos(), state)
+        engine.simulation.callbacks.executePlaceVoxelCallback(
+            player,
+            engine.getWorld(world),
+            pos.voxelPos(),
+            state
+        )
     }
 
     fun onChunkUnload(world: Level, chunk: ChunkAccess) {
@@ -295,7 +310,8 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
     data class Dependencies(
         val minecraftServer: MinecraftServer,
         val luaScriptEngine: LuaScriptEngine,
-        val compilationResult: CompilationResult,
+        val moduleManager: ModuleManager,
+        val build: Build,
         val config: ServerConfig = loadOrCreateServerConfig(),
         val namespacedStorage: NamespacedStorageAccess,
         val playerStorage: PlayerStorage = PlayerStorage(),

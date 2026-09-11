@@ -7,6 +7,8 @@ import org.lain.cyberia.ecs.KClassComponentTypeProvider
 import org.lain.engine.container.*
 import org.lain.engine.item.*
 import org.lain.engine.player.ArmStatus
+import org.lain.engine.player.CustomPlayerAttributes
+import org.lain.engine.player.Narration
 import org.lain.engine.player.Outfit
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerContainer
@@ -169,6 +171,9 @@ fun ComponentTypeRegistry.registerComponents() {
     registerComponent<PlayerContainer>()
 
     registerComponent<ArmStatus>(isNetworking = true)
+    registerComponent<Narration>(isNetworking = true)
+
+    registerComponent<CustomPlayerAttributes>(isNetworking = true)
 
     registerComponent<CharacterDisplay>(isNetworking = true)
     registerComponent<CharacterPhysical>(isNetworking = true)
@@ -178,8 +183,8 @@ fun ComponentTypeRegistry.registerComponents() {
 
     registerComponent<GiveAction>()
     registerComponent<HailAction>()
-    registerComponent<GunModeToggleAction>()
-    registerComponent<StartShootAction>()
-    registerComponent<StopShootAction>()
-    registerComponent<WritableOpenAction>()
+    registerComponent<GunModeToggleAction>(serializationClass = GunModeToggleAction::class)
+    registerComponent<StartShootAction>(serializationClass = StartShootAction::class)
+    registerComponent<StopShootAction>(serializationClass = StopShootAction::class)
+    registerComponent<WritableOpenAction>(serializationClass = WritableOpenAction::class)
 }

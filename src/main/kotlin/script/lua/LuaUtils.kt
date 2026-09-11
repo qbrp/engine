@@ -1,25 +1,45 @@
 package org.lain.engine.script.lua
 
-import org.lain.engine.player.interaction.InputAction
-import org.lain.engine.script.lua.library.coerceToLua
-import org.lain.engine.util.AnyInputValue
+import org.lain.engine.script.EngineId
+import org.lain.engine.script.ScriptSource
 import org.lain.engine.util.Input
-import org.lain.engine.util.IntentSelection
-import org.lain.engine.util.IntentTarget
-import org.lain.engine.util.file.getBuiltinResource
-import org.lain.engine.util.math.EVec3
-import org.lain.engine.util.math.Vec3
-import org.lain.engine.util.math.asVec3
+import org.lain.engine.util.file.FileSystem
 import org.lain.engine.world.VoxelPos
 import org.luaj.vm2.Globals
+import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaTable
+import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import java.io.File
 import kotlin.math.floor
 
 fun File.writeDefaultLuaEntrypointScript() {
-    writeText(getBuiltinResource("entrypoint.lua")?.readText() ?: "")
+    writeText(FileSystem.builtinResource(FileSystem.COMPILATION_ENTRYPOINT_NAME)?.readText() ?: "")
+}
+
+fun LuaValue.toEngineId() = EngineId(tojstring())
+
+class LuaType<T, M : LuaValue> internal constructor(
+    val metaTable: LuaTable,
+    private val constructor: (T) -> M
+) {
+    fun newInstance(component: T): M = constructor(component)
+        .apply { setmetatable(metaTable) }
+}
+
+fun <T> LuaUserdataType(builder: UserdataLuaTableBuilder<T>.() -> Unit): LuaType<T, LuaUserdata> {
+    return LuaType(
+        UserdataLuaTableBuilder<T>().apply(builder).build(),
+        { LuaUserdata(it) }
+    )
+}
+
+fun LuaTableType(builder: LuaTableBuilder.() -> Unit): LuaType<LuaTable, LuaTable> {
+    return LuaType(
+        LuaTableBuilder().apply(builder).build(),
+        { LuaTable() }
+    )
 }
 
 class LuaFunctionChunk(function: String, vararg args: String) {
@@ -58,7 +78,7 @@ fun LuaValue.toVoxelPos(): VoxelPos {
     )
 }
 
-fun LuaTable.toIntentInput(): Input<out Any> {
+fun LuaTable.toOperationInput(): Input<out Any> {
     val id = get("id").tojstring()
     val type = when(val type = get("type").tojstring()) {
         "text" -> Input.Type.Text(false)
@@ -69,4 +89,8 @@ fun LuaTable.toIntentInput(): Input<out Any> {
         else -> error("Unsupported table type $type")
     }
     return Input(id, type)
+}
+
+fun Globals.loadScript(source: ScriptSource): LuaValue = source.open().use {
+    load(it.reader(), source.chunkName)
 }

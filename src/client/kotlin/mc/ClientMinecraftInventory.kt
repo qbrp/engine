@@ -3,9 +3,9 @@ package org.lain.engine.client.mc
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.getClientItem
-import org.lain.engine.mc.ENGINE_ITEM_REFERENCE_COMPONENT
-import org.lain.engine.mc.EngineItemStack
-import org.lain.engine.mc.MinecraftPlayer
+import org.lain.engine.mc.ecs.ENGINE_ITEM_REFERENCE_COMPONENT
+import org.lain.engine.mc.ecs.EngineItemStack
+import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.mc.visibleInventoryItems
 import org.lain.engine.world.World
 import kotlin.sequences.distinct

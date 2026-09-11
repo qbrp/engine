@@ -6,14 +6,13 @@ import org.lain.engine.player.interaction.SOCIAL_INTERACTION_DISTANCE
 import org.lain.engine.player.isSpectating
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.script.lua.library.luaWorld
-import org.lain.engine.script.lua.toLuaTable
 import org.lain.engine.util.AnyInputValue
 import org.lain.engine.util.Input
-import org.lain.engine.util.IntentSelection
-import org.lain.engine.util.IntentTarget
+import org.lain.engine.util.OperationSelection
+import org.lain.engine.util.OperationTarget
 import org.lain.engine.util.math.asMutableVec3
-import org.lain.engine.util.math.asVec3
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 import kotlin.collections.forEach
@@ -40,7 +39,7 @@ internal fun ScriptContext.toLuaValue(): LuaValue = when(this) {
             luaValue("voxel_meta"), meta.coerceToLua(),
         )
     }
-    is ScriptContext.IntentExecution -> {
+    is ScriptContext.OperationExecution -> {
         val (actor, target, inputs, behaviour) = this
         luaTableOf(
             luaValue("world"), actor.player.world.luaWorld(),
@@ -60,9 +59,9 @@ internal fun ScriptContext.toLuaValue(): LuaValue = when(this) {
         )
     }
 
-    is ScriptContext.ItemLoad -> luaTableOf(
+    is ScriptContext.Item -> luaTableOf(
         luaValue("world"), world.luaWorld(),
-        luaValue("item"), with(world) { item.coerceToLua() },
+        luaValue("item"), with(world) { item.luaEntity() },
     )
 
     is ScriptContext.PlayerInputTick -> luaTable {
@@ -85,13 +84,13 @@ fun InputAction.toLuaTable() = when (this) {
 }
 
 context(ctx: LuaScriptEngine)
-fun IntentTarget.toLuaValue(): LuaTable = luaTableOf(
+fun OperationTarget.toLuaValue(): LuaTable = luaTableOf(
     luaValue("player"), player?.coerceToLua() ?: LuaValue.NIL,
     luaValue("voxel_pos"), voxelPos.toLuaValue(),
     luaValue("pos"), pos.asMutableVec3().coerceToLua(),
 )
 
-fun IntentSelection.toLuaValue() = luaTableOf(
+fun OperationSelection.toLuaValue() = luaTableOf(
     luaValue("pos1"), pos1.toLuaValue(),
     luaValue("pos2"), pos2.toLuaValue(),
 )

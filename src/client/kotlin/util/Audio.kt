@@ -19,6 +19,7 @@ class AudioSource(
     var pitch: Float,
     var spatial: Boolean,
     var radius: Int,
+    var looping: Boolean = false,
     var slot: String? = null,
     var isEnded: Boolean = false,
 )

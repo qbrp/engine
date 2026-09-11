@@ -9,7 +9,9 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
+import org.lain.engine.script.EngineId
 import kotlin.io.path.pathString
 
 fun connectDatabase(server: MinecraftServer): Database {
@@ -75,7 +77,7 @@ suspend fun Database.loadPersistentItemDataLegacy(uuid: PersistentId): Pair<Item
             .map { it[ItemsTable.id] to it[ItemsTable.components] }
             .firstOrNull()
     }?.let { (id, components) ->
-        ItemId(id) to PersistentItemData(deserializeItemPersistentComponents(components))
+        ItemId(EngineId(id)) to PersistentItemData(deserializeItemPersistentComponents(components))
     }
 }
 

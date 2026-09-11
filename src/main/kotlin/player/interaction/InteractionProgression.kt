@@ -2,6 +2,8 @@ package org.lain.engine.player.interaction
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
+import org.lain.engine.script.EngineId
+import org.lain.engine.script.Identifiable
 
 data class ProgressionType(
     val duration: Int,
@@ -10,8 +12,9 @@ data class ProgressionType(
 
 @JvmInline
 @Serializable
-value class ProgressionAnimationId(val value: String) {
-    override fun toString() = value
+value class ProgressionAnimationId(val value: EngineId) : Identifiable {
+    override val engineId: EngineId get() = value
+    override fun toString() = value.toString()
 }
 
 data class ProgressionAnimation(

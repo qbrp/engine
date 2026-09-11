@@ -17,11 +17,11 @@ import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
-import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.item.EngineItem
-import org.lain.engine.mc.commands.ClientCommandIntentBehaviour
+import org.lain.engine.mc.commands.ClientCommandOperationBehaviour
 import org.lain.engine.mc.server.AuthPacket
 import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.server.account.SessionTicket
@@ -340,8 +340,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
             max = defaultAttributes.maxVolume
             base = defaultAttributes.baseVolume
         }
-        movementDefaultAttributes = defaultAttributes.movement
-        movementSettings = settings.movement
         synchronizationRadius = settings.synchronizationRadius
         playerDesynchronizationThreshold = settings.playerDesynchronizationThreshold
         chatManager.updateSettings(settings.chat)
@@ -401,7 +399,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         world.emitEvent(event)
     }
 
-    fun applyEntity(
+    fun applyReplicationFrame(
         gameSession: GameSession,
         persistentId: PersistentId,
         snapshot: EntityNetworkSnapshot
@@ -411,36 +409,35 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         client.infrastructure.onEntityDebugViewData(data)
     }
 
-    fun applyIntent(dto: IntentExecuteDto, intentId: IntentId) = with(gameSession!!) {
-        val intent = namespacedStorage.intents[intentId] ?: desync("Интент $intentId не существует")
+    fun applyOperation(dto: OperationExecuteDto, operationId: OperationId) = with(gameSession!!) {
+        val operation = namespacedStorage.operations[operationId]
+            ?: desync("Операция $operationId не существует")
         val actor = dto.actor.let { actor ->
             val enginePlayer =
-                getPlayer(actor.player) ?: error("Can't find intent actor ${actor.player}")
-            IntentActor(
+                getPlayer(actor.player) ?: error("Can't find operation actor ${actor.player}")
+            OperationActor(
                 actor.type,
                 enginePlayer,
                 enginePlayer.entity
             )
         }
         val target = dto.target?.let {
-            IntentTarget(
+            OperationTarget(
                 it.player?.let { id -> getPlayer(id) },
                 it.voxelPos,
                 it.pos
             )
         }
         val behaviour = when (val behaviour = dto.behaviour) {
-            is IntentBehaviourDto.Command -> ClientCommandIntentBehaviour(actor.player)
+            is OperationBehaviourDto.Command -> ClientCommandOperationBehaviour(actor.player)
         }
-        executeIntent(
-            intent,
-            ScriptContext.IntentExecution(
+        operation.execute(
+            ScriptContext.OperationExecution(
                 actor,
                 target,
                 dto.inputValues.map { it.toDomain() },
                 behaviour
-            ),
-            namespacedStorage
+            )
         )
     }
 

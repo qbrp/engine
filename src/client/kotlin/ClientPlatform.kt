@@ -17,7 +17,7 @@ interface ClientPlatform {
     fun onPlayerDestroy(client: EngineClient, playerId: PlayerId)
     fun onMainPlayerInstantiated(client: EngineClient, gameSession: GameSession, player: EnginePlayer)
     fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession)
-    fun onContentsUpdate()
+    fun onCompiled(gameSession: GameSession)
     fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk)
     fun onEntityDebugView(gameSession: GameSession)
     fun onEntityDebugViewData(data: EntityDebugData.Dto)

@@ -5,6 +5,8 @@ import net.minecraft.world.inventory.ClickAction
 import net.minecraft.world.item.ItemStack
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.merge
+import org.lain.engine.mc.ecs.decrement
+import org.lain.engine.mc.ecs.increment
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.get
 

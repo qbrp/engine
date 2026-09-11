@@ -2,20 +2,22 @@ package org.lain.engine.script.yaml
 
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlNode
-import com.charleskorn.kaml.decodeFromStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
-import org.lain.engine.script.CompilationException
-import org.lain.engine.script.CompilationResult
-import org.lain.engine.script.CompiledNamespace
-import org.lain.engine.util.NamespaceId
-import org.lain.engine.util.file.ensureExists
-import org.lain.engine.world.SoundEventId
+import org.lain.engine.script.compilation.CompilationDiagnosticLocation
+import org.lain.engine.script.compilation.CompilationDiagnosticSeverity
+import org.lain.engine.script.compilation.CompilationPhase
+import org.lain.engine.script.compilation.CompilationReportBuilder
+import org.lain.engine.script.compilation.DiagnosticContext
+import org.lain.engine.script.compilation.DiagnosticException
+import org.lain.engine.script.NamespaceId
+import org.lain.engine.script.compilation.toDiagnostic
+import org.lain.engine.util.file.FileSystem
 import java.io.File
 
 private const val NAMESPACES_FILENAME = "namespaces.yml"
+val DEFAULT_NAMESPACE = NamespaceId("default")
 
 @Serializable
 data class ProgressionAnimationConfig(
@@ -42,7 +44,7 @@ internal data class NamespaceConfig(
     @SerialName("stack_size") val maxStackSize: Int? = null,
     val hat: Boolean? = null,
     val model: String = "~/{id}",
-    val sounds: Map<String, SoundEventId> = mapOf(),
+    val sounds: Map<String, String> = mapOf(),
     val assets: Map<String, String> = mapOf(),
     val mass: Float? = null,
     @SerialName("progression_animations") val progressionAnimations: Map<String, ProgressionAnimationId> = mapOf(),
@@ -52,11 +54,12 @@ internal data class YamlNamespace(
     val id: NamespaceId,
     val contents: NamespaceContents,
     val config: NamespaceConfig,
+    val sources: Set<File>,
 )
 
 internal data class YamlCompilationContext(
     val namespaces: Map<NamespaceId, YamlNamespace>,
-    val errors: MutableList<CompilationException>
+    val exceptions: CompilationReportBuilder
 )
 
 context(ctx: YamlCompilationContext)
@@ -65,7 +68,7 @@ internal fun <T> NamespaceConfig?.computeInheritable(getter: (NamespaceConfig) -
     val configs = ctx.namespaces
     return getter(this) ?: inherit?.let {
         (configs[it]
-            ?: configs[_root_ide_package_.org.lain.engine.script.DEFAULT_NAMESPACE])?.config?.computeInheritable(
+            ?: configs[DEFAULT_NAMESPACE])?.config?.computeInheritable(
             getter
         )
     }
@@ -92,29 +95,30 @@ internal fun <K, V> NamespaceConfig.accumulateInheritable(getter: (NamespaceConf
     return output
 }
 
-fun namespacedId(namespace: NamespaceId, id: String) = "$namespace/$id"
-
 internal fun String.replaceToRelative(namespace: YamlNamespace): String {
     return replaceFirst("~", namespace.id.value)
 }
 
 private fun loadNamespaces(
     directory: File,
-    errors: MutableList<CompilationException>
+    report: CompilationReportBuilder
 ): Map<NamespaceId, YamlNamespace> {
     val namespaces = mutableSetOf<NamespaceId>()
     val contents = mutableMapOf<NamespaceId, NamespaceContents>()
     val configs = mutableMapOf<NamespaceId, NamespaceConfig>()
-    directory.ensureExists()
+    val sources = mutableMapOf<NamespaceId, MutableSet<File>>()
+    FileSystem.ensureDirectory(directory)
     directory.walk().forEach { dir ->
         try {
             if (!dir.isFile || dir.extension != "yml") return@forEach
             if (dir.name == NAMESPACES_FILENAME) {
                 val config =
-                    Yaml.default.decodeFromStream<Map<NamespaceId, NamespaceConfig>>(dir.inputStream())
+                    Yaml.default.readAsConfig<Map<NamespaceId, NamespaceConfig>>(report, dir)
+                        ?: return@forEach
                 configs.putAll(config)
             } else {
-                val namespace = Yaml.default.decodeFromStream<NamespaceContents>(dir.inputStream())
+                val namespace = Yaml.default.readAsConfig<NamespaceContents>(report, dir)
+                    ?: return@forEach
                 val id = namespace.id
                 //TOOD: не забывать дополнять
                 val upserted = contents[id]?.let {
@@ -126,9 +130,27 @@ private fun loadNamespaces(
                 }
                 contents[id] = upserted ?: namespace
                 namespaces.add(id)
+                sources.getOrPut(id, ::mutableSetOf).add(dir)
             }
         } catch (e: Exception) {
-            errors += CompilationException(NamespaceId(dir.name), e)
+            val phase = CompilationPhase.COMPILATION
+            val location = CompilationDiagnosticLocation(dir.toString())
+
+            when (e) {
+                is DiagnosticException -> report.report(
+                    e.toDiagnostic(
+                        DiagnosticContext(phase, location = location)
+                    )
+                )
+
+                else -> report.abort(
+                    e.toDiagnostic(
+                        phase,
+                        location = location,
+                        severity = CompilationDiagnosticSeverity.FATAL
+                    )
+                )
+            }
         }
     }
     return namespaces.associateWith {
@@ -136,21 +158,22 @@ private fun loadNamespaces(
             it,
             contents[it]!!,
             configs[it] ?: configs[NamespaceId("default")] ?: NamespaceConfig(),
+            sources[it]?.toSet() ?: emptySet(),
         )
     }
 }
 
 internal fun createYamlCompilationContext(directory: File): YamlCompilationContext {
-    val errors = mutableListOf<CompilationException>()
-    return YamlCompilationContext(loadNamespaces(directory, errors), errors)
+    val report = CompilationReportBuilder()
+    return YamlCompilationContext(loadNamespaces(directory, report), report)
 }
-
-internal fun compileContentsYaml(directory: File): CompilationResult =
+/*
+internal fun compileContentsYaml(directory: File): Build =
     with(createYamlCompilationContext(directory)) {
-        val namespaces = namespaces.mapValues { (_, namespace) ->
+        val compiledNamespaces = namespaces.mapNotNull { (id, namespace) ->
             try {
                 val contents = namespace.contents
-                CompiledNamespace(
+                id to NamespaceDraft(
                     compileItemsYaml(contents.items, namespace)
                         .associateBy { it.id },
                     compileSoundEvents(contents.sounds, namespace)
@@ -168,10 +191,7 @@ internal fun compileContentsYaml(directory: File): CompilationResult =
                             List(count) { id -> "$baseName${id + 1}" }
                         }
                         ProgressionAnimationId(
-                            namespacedId(
-                                namespace.id,
-                                id
-                            )
+                            EngineId(id)
                         ) to ProgressionAnimation(
                             frames,
                             animation.text,
@@ -181,16 +201,29 @@ internal fun compileContentsYaml(directory: File): CompilationResult =
                         .toMap()
                 )
             } catch (e: Exception) {
-                errors += CompilationException(namespace.id, e)
-                null
-            }
-        }.filterValues { it != null }
+                val phase = CompilationPhase.COMPILATION
 
-        return CompilationResult(
-            namespaces as Map<NamespaceId, CompiledNamespace>,
-            errors,
+                when (e) {
+                    is DiagnosticException -> {
+                        exceptions.report(
+                            e.toDiagnostic(DiagnosticContext(phase, id))
+                        )
+                        null
+                    }
+
+                    else -> exceptions.fatal(
+                        e.toDiagnostic(phase, id, CompilationDiagnosticSeverity.FATAL)
+                    )
+                }
+            }
+        }.toMap()
+
+        return Build(
+            compiledNamespaces,
+            exceptions.build(),
             null,
             listOf(),
             0L
         )
     }
+*/

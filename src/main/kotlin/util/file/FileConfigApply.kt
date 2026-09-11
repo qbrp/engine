@@ -14,19 +14,21 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.jvm.optionals.getOrNull
 
-private val CONFIG_FILE = ENGINE_DIR.resolve(CONFIG_FILENAME)
-private const val CONFIG_FILENAME = "server-config.yml"
 internal val CONFIG_LOGGER = LoggerFactory.getLogger("Engine Config")
 
-fun loadOrCreateServerConfig(file: File = CONFIG_FILE): ServerConfig {
+inline fun <reified T> Yaml.readFile(file: File): T =
+    file.inputStream().use { decodeFromStream<T>(it) }
+
+fun loadOrCreateServerConfig(file: File = FileSystem.serverConfig): ServerConfig {
     if (!file.exists()) {
-        file.writeText(getBuiltinResource(CONFIG_FILENAME)!!.readText())
+        file.writeText(requireNotNull(FileSystem.builtinResource(FileSystem.SERVER_CONFIG_NAME)).readText())
     }
-    return Yaml.default.decodeFromStream(file.inputStream())
+    return Yaml.default.readFile(file)
 }
 
 fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
     val engine = this.engine
+    engine.luaScriptEngine.writeCompilationManifest = config.writeCompilationManifest
     val chat = config.chat
     val commandChannels = chat.commands
 
@@ -144,38 +146,15 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
     acousticSimulator.performanceDebug.set(simulationConfig.performanceDebug)
     acousticSimulator.rebuildDebug = simulationConfig.rebuildDebug
 
-    val statuses = mutableMapOf<PlayerStatus, Map<PrimaryAttribute, Float>>()
-    config.player.attributes.forEach { (status, value) ->
-        val playerStatus = when (status) {
-            "default" -> PlayerStatus.DEFAULT
-            "spectator" -> PlayerStatus.SPECTATING
-            "gm" -> PlayerStatus.GM
-            else -> throw IllegalArgumentException("Статус $status не существует. Доступны: default, spectator, gm")
-        }
-
-        val attributes = value.mapKeys {
-            val attribute = when (it.key) {
-                "speed" -> PrimaryAttribute.SPEED
-                "jump-strength" -> PrimaryAttribute.JUMP_STRENGTH
-                else -> throw IllegalArgumentException("Атрибут ${it.key} не существует. Доступны: speed, jump-strength")
-            }
-            attribute
-        }
-
-        statuses[playerStatus] = attributes
-    }
-
     engine.updateGlobals {
         val volume = config.player.volume
         val vocal = config.vocal
-        val movement = config.movement
         ServerGlobals(
             it.serverId,
             it.savePath,
             it.playerSynchronizationRadius,
             it.playerDesynchronizationThreshold,
             DefaultPlayerAttributes(
-                movement = MovementDefaultAttributes(statuses),
                 minVolume = volume.min,
                 maxVolume = volume.max,
                 baseVolume = volume.base,
@@ -190,16 +169,6 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
                 vocal.tirednessGain,
                 vocal.tirednessDecreaseRateSeconds / 20
             ),
-            MovementSettings(
-                movement.sprintMultiplier,
-                movement.minSpeedFactor,
-                movement.slowdownStaminaThreshold,
-                if (movement.enableStamina) movement.staminaConsumeMinutes / 60 / 20 else 0f,
-                movement.staminaRegenMinutes / 60 / 20,
-                movement.minSpeedSprintFactor,
-                movement.intentionEffect,
-                if (movement.enableStamina) movement.jumpStaminaConsume else 0f
-            ),
             chatSettings,
             config.requireIdenticalNamespaces,
             config.player.spectateOnJoin
@@ -213,6 +182,6 @@ fun EngineMinecraftServer.applyConfigCatching(config: ServerConfig) {
     try {
         applyConfig(config)
     } catch (e: Throwable) {
-        CONFIG_LOGGER.error("Возникла ошибка применения конфигурации ${CONFIG_FILE.path}", e)
+        CONFIG_LOGGER.error("Возникла ошибка применения конфигурации ${FileSystem.serverConfig.path}", e)
     }
 }

@@ -16,7 +16,7 @@ import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.MinecraftAccessRegistry
-import org.lain.engine.mc.MinecraftPlayer
+import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.mc.voxelPos
@@ -25,7 +25,6 @@ import org.lain.engine.script.EntityDebugData
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.FullPlayerData
-import org.lain.engine.util.Injector
 import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.VoxelPos
@@ -105,8 +104,8 @@ class MinecraftEngineClientPlatform(
             volumes.map { (pos, volume) -> BlockPos(pos.x, pos.y, pos.z) to volume }
     }
 
-    override fun onContentsUpdate() {
-        updateEngineItemGroupEntries()
+    override fun onCompiled(gameSession: GameSession) {
+        updateEngineItemGroupEntries(gameSession)
     }
 
     override fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk) {

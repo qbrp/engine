@@ -13,12 +13,12 @@ import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.core.ClientAsset
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.resources.SKINS_DIR
-import org.lain.engine.client.util.EngineOptions
+import org.lain.engine.client.EngineOptions
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.engineId
 import org.lain.engine.server.account.HttpStatusException
 import org.lain.engine.player.character.Look
+import org.lain.engine.util.file.FileSystem
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.net.http.HttpClient
@@ -182,7 +182,7 @@ class SkinTextureManager(
     }
 
     private fun cachePath(cacheKey: String): Path {
-        return SKINS_DIR
+        return FileSystem.skins
             .resolve(cacheKey.substring(0, 2))
             .resolve(cacheKey.substring(2, 4))
             .resolve("$cacheKey.png")

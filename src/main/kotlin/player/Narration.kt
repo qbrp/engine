@@ -43,7 +43,6 @@ fun EnginePlayer.narration(message: String, time: Int, kick: Boolean = false) = 
 
 fun EnginePlayer.serverNarration(message: String, time: Int, kick: Boolean = false) {
     narration(message, time, kick)
-    markUpdated<Narration>()
 }
 
 fun World.tickNarrationSystem() {

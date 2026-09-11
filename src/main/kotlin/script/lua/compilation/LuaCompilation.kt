@@ -1,162 +1,245 @@
 package org.lain.engine.script.lua.compilation
 
-import org.lain.cyberia.ecs.ComponentType
-import org.lain.engine.script.CallbackType
-import org.lain.engine.script.Callbacks
-import org.lain.engine.script.CompilationException
-import org.lain.engine.script.CompilationResult
-import org.lain.engine.script.CompiledNamespace
-import org.lain.engine.script.ScriptCallback
-import org.lain.engine.script.ScriptComponentType
-import org.lain.engine.script.ScriptContext
-import org.lain.engine.script.ScriptId
-import org.lain.engine.script.ScriptSystem
-import org.lain.engine.script.ScriptSystemDefinition
-import org.lain.engine.script.ScriptSystemId
-import org.lain.engine.script.SystemPhase
-import org.lain.engine.script.SystemSide
-import org.lain.engine.script.lua.LuaScript
-import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.LuaScriptEngine.CompilationContext
-import org.lain.engine.script.lua.library.asEngineScriptComponentType
-import org.lain.engine.script.lua.library.componentType
-import org.lain.engine.script.lua.library.lazyComponentType
-import org.lain.engine.script.lua.nullable
-import org.lain.engine.script.lua.toIntentInput
-import org.lain.engine.script.lua.toList
-import org.lain.engine.script.toScriptComponentId
-import org.lain.engine.script.toScriptId
-import org.lain.engine.script.yaml.namespacedId
-import org.lain.engine.util.Intent
-import org.lain.engine.util.IntentId
-import org.lain.engine.util.NamespaceId
-import org.lain.engine.util.Timestamp
+import org.lain.engine.script.*
+import org.lain.engine.script.compilation.*
+import org.lain.engine.script.lua.*
+import org.lain.engine.script.lua.library.resolveIdReference
 import org.lain.engine.util.component.ComponentMeta
-import org.luaj.vm2.LuaFunction
+import org.lain.engine.util.toOperationId
+import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaTable
-import kotlin.collections.plus
-import kotlin.collections.set
 
-typealias CallbackRetrieveMap = MutableMap<CallbackType<*>, ScriptCallback<ScriptContext>>
+typealias CallbackRetrieveMap = Map<CallbackType<*, *>, Script<*, *>>
 
-context(ctx: LuaScriptEngine)
-fun runCompilationFunctionsLua(
-    functions: List<LuaFunction>,
-    callbackTypes: List<CallbackType<*>>
-): CompilationResult {
-    val compilation = CompilationContext()
-    val start = Timestamp()
-    val callbacks: CallbackRetrieveMap = mutableMapOf()
-    val phases = mutableListOf<SystemPhase>()
-    functions.forEach { function ->
-        val table = function.call().checktable()
-        table.get("namespaces").nullable()?.checktable()
-            ?.toList { it.checktable() }
-            ?.forEach { namespace ->
-                val namespaceId =
-                    runCatching { NamespaceId(namespace.get("id").tojstring()) }.getOrNull() ?: return@forEach
+data class LuaCompilationContext(
+    val callbackTypes: List<CallbackType<*, *>>,
+    override val exceptions: CompilationReportBuilder = CompilationReportBuilder(),
+) : CompilationContext
 
-                try {
-                    val itemsArray = namespace.get("items").nullable()?.checktable()
-                    val scriptsArray = namespace.get("scripts").nullable()?.checktable()
-                    val componentsArray = namespace.get("components").nullable()?.checktable()
-                    val intentsArray = namespace.get("intents").nullable()?.checktable()
-                    val systemsArray = namespace.get("systems").nullable()?.checktable()
+context(context: LuaCompilationContext)
+private inline fun <T> compileEntry(
+    namespaceId: NamespaceId,
+    kind: SymbolKind,
+    table: LuaTable,
+    compile: () -> T
+): T? {
+    val idValue = table["id"]
+    val localId = idValue.tojstring()
 
-                    val items = compileItemsLua(namespaceId, itemsArray?.toList { it.checktable() } ?: emptyList())
-                    val scripts = scriptsArray?.toList { it.checktable() }
-                        ?.associate { script ->
-                            val id = script.get("id").tojstring()
-                            val function = script.get("fun").checkfunction()
-                            namespacedId(namespaceId, id).toScriptId() to LuaScript<ScriptContext, Unit>(ctx, function)
-                        } ?: emptyMap()
+    return try {
+        compile()
+    } catch (e: LuaError) {
+        context.exceptions.report(
+            CompilationDiagnostic(
+                severity = CompilationDiagnosticSeverity.ERROR,
+                message = e.message ?: "Ошибка компиляции $kind",
+                phase = CompilationPhase.COMPILATION,
+                namespace = namespaceId,
+                target = CompilationDiagnosticTarget(kind, localId),
+                cause = e.cause
+            )
+        )
+        null
+    }
+}
 
-                    val components = componentsArray?.toList { it.checktable() }
-                        ?.associate { componentType ->
-                            val componentId = namespacedId(namespaceId, componentType.get("id").tojstring()).toScriptComponentId()
-                            val isSavable = componentType.get("savable").nullable()?.toboolean() ?: false
-                            val isNetworking = componentType.get("networking").nullable()?.toboolean() ?: false
-                            componentId to ScriptComponentType(
-                                ComponentType(componentId.id),
-                                ComponentMeta(isSavable, null, isNetworking)
-                            )
-                        } ?: emptyMap()
+context(
+    context: LuaCompilationContext,
+    luaScriptEngine: LuaScriptEngine
+)
+private fun compiledNamespacesList(
+    namespace: LuaTable
+): Pair<NamespaceId, NamespaceDraft>? {
+    val namespaceId = try {
+        NamespaceId(
+            namespace.get("id").nullable()?.tojstring()
+                ?: error("Значение id не указано или равно nil")
+        )
+    } catch (e: RuntimeException) {
+        context.exceptions.report(
+            CompilationDiagnostic(
+                CompilationDiagnosticSeverity.ERROR,
+                "Не удалось получить идентификатор таблицы пространства имён: ${e.message}",
+                CompilationPhase.COMPILATION
+            )
+        )
+        return null
+    }
 
-                    val intents = intentsArray?.toList { it.checktable() }
-                        ?.associate { intent ->
-                            val id = IntentId(namespacedId(namespaceId, intent.get("id").tojstring()))
-                            val script = ScriptId(intent.get("script").tojstring())
-                            val name = intent.get("name")?.nullable()?.tojstring() ?: id.value
-                            val inputs = intent.get("inputs")?.nullable()?.checktable()
-                                ?.toList { it.checktable() }
-                                ?.map { it.toIntentInput() } ?: emptyList()
-                            val permission = if(intent.get("permission")?.nullable()?.toboolean() == true) {
-                                "intent.${id.value.replace("/", ".")}"
-                            } else {
-                                null
-                            }
-                            id to Intent(id, name, script, inputs, permission = permission)
-                        } ?: emptyMap()
+    return try {
+        val itemsArray = namespace.get("items").nullable()?.checktable()
+        val scriptsArray = namespace.get("scripts").nullable()?.checktable()
+        val componentsArray = namespace.get("components").nullable()?.checktable()
+        val operationsArray = namespace.get("operations").nullable()?.checktable()
+        val systemsArray = namespace.get("systems").nullable()?.checktable()
 
-                    val systems = systemsArray?.toList { it.checktable() }
-                        ?.associate { systemL ->
-                            val id = ScriptSystemId(systemL["id"].tojstring())
-                            val script = LuaScript<ScriptContext.SystemEntityHandle, Unit>(
-                                ctx,
-                                systemL["update"].checkfunction()
-                            )
-                            val side = SystemSide.valueOf(systemL["side"].checkjstring().uppercase())
-                            val query = systemL["query"].checktable().toList {
-                                it.lazyComponentType.id
-                            }
-                             id to CompiledNamespace.ScriptSystem(query, side, script)
-                        } ?: emptyMap()
-
-                    compilation.namespaces[namespaceId] = CompiledNamespace(
-                        items.associateBy { it.id },
-                        mapOf(),
-                        mapOf(),
-                        scripts,
-                        components,
-                        intents,
-                        systems
+        val items =
+            compileItemPrefabsLua(
+                namespaceId,
+                itemsArray?.toList { it.checktable() } ?: emptyList())
+        val scripts = scriptsArray?.toList { it.checktable() }
+            ?.mapNotNull { script ->
+                compileEntry(
+                    namespaceId,
+                    SymbolKind.SCRIPT,
+                    script
+                ) {
+                    val id = script.get("id")
+                    val function = script.get("execute").checkfunction()
+                    id.resolveIdReference().toScriptId() to LuaScript<ScriptContext, ScriptValue>(
+                        luaScriptEngine,
+                        function
                     )
-                } catch (e: Exception) {
-                    compilation.errors += CompilationException(namespaceId, e)
                 }
             }
-        table.get("callbacks").nullable()?.checktable()?.retrieveCallbacks(callbackTypes, callbacks)
-        table.get("phases").nullable()?.checktable()
-            ?.toList { phaseL ->
-                    SystemPhase(
-                    phaseL.get("id").tojstring(),
-                    phaseL.get("systems").checktable().toList { systemIdL ->
-                        ScriptSystemId(systemIdL.tojstring())
-                    }
-                )
+            ?.toMap()
+            ?: emptyMap()
+
+        val components = componentsArray?.toList { it.checktable() }
+            ?.mapNotNull { componentType ->
+                compileEntry(
+                    namespaceId,
+                    SymbolKind.COMPONENT,
+                    componentType
+                ) {
+                    val componentId =
+                        componentType.get("id").resolveIdReference().toScriptComponentId()
+                    val isSavable = componentType.get("savable").nullable()?.toboolean() ?: false
+                    val isNetworking =
+                        componentType.get("networking").nullable()?.toboolean() ?: false
+                    componentId to ScriptComponentType(
+                        ComponentType(componentId.id),
+                        ComponentMeta(isSavable, null, isNetworking)
+                    )
+                }
             }
-            ?.let { phases.addAll(it) }
+            ?.toMap()
+            ?: emptyMap()
+
+        val operations = operationsArray
+            ?.toList { it.checktable() }
+            ?.mapNotNull { operation ->
+                compileEntry(
+                    namespaceId,
+                    SymbolKind.OPERATION,
+                    operation
+                ) {
+                    val id = operation.get("id").resolveIdReference().toOperationId()
+                    val script = operation.get("script").resolveIdReference().toScriptId()
+                    val name = operation.get("name")?.nullable()?.tojstring() ?: id.toString()
+                    val inputs = operation.get("inputs")?.nullable()?.checktable()
+                        ?.toList { it.checktable() }
+                        ?.map { it.toOperationInput() } ?: emptyList()
+                    val permission =
+                        if (operation.get("permission")?.nullable()?.toboolean() == true) {
+                            "operation.${id.toString().replace("/", ".")}"
+                        } else {
+                            null
+                        }
+                    id to NamespaceDraft.Operation(name, script, inputs, permission = permission)
+                }
+            }
+            ?.toMap()
+            ?: emptyMap()
+
+        val systems = systemsArray?.toList { it.checktable() }
+            ?.mapNotNull { systemL ->
+                compileEntry(
+                    namespaceId,
+                    SymbolKind.SYSTEM,
+                    systemL
+                ) {
+                    val id = systemL["id"].resolveIdReference().toScriptSystemId()
+                    val script = LuaScript<ScriptContext.SystemEntityHandle, ScriptValue>(
+                        luaScriptEngine,
+                        systemL["update"].checkfunction()
+                    )
+                    val side = SystemSide.valueOf(systemL["side"].checkjstring().uppercase())
+                    val query = systemL["query"].checktable()
+                        .toList { it.resolveIdReference().toScriptComponentId() }
+                    id to NamespaceDraft.ScriptSystem(query, side, script)
+                }
+            }
+            ?.toMap()
+            ?: emptyMap()
+
+        namespaceId to NamespaceDraft(
+            items = items.associateBy { it.id },
+            sounds = emptyMap(),
+            progressionAnimations = emptyMap(),
+            scripts = scripts,
+            components = components,
+            operations = operations,
+            systems = systems
+        )
+    } catch (e: DiagnosticException) {
+        context.exceptions.report(
+            e.toDiagnostic(
+                DiagnosticContext(CompilationPhase.COMPILATION, namespaceId)
+            )
+        )
+        null
+    } catch (e: Exception) {
+        context.exceptions.report(
+            CompilationDiagnostic(
+                severity = CompilationDiagnosticSeverity.ERROR,
+                message = e.message
+                    ?: "Не удалось скомпилировать пространство имён $namespaceId",
+                phase = CompilationPhase.COMPILATION,
+                namespace = namespaceId,
+                cause = e
+            )
+        )
+        null
     }
-    return CompilationResult(
-        compilation.namespaces,
-        compilation.errors,
-        Callbacks(callbacks.toMap()),
-        phases,
-        start.timeElapsed()
+}
+
+context(lua: LuaScriptEngine)
+fun LuaCompilationContext.compiledBuildDraft(table: LuaTable): BuildDraft {
+    val namespaces = table.get("namespaces").nullable()?.checktable()
+        ?.toList { it.checktable() }
+        ?.mapNotNull { namespace ->
+            compiledNamespacesList(namespace)
+        }
+        ?.toMap()
+        ?: emptyMap()
+    val callbacks = table.get("listeners").nullable()?.checktable()
+        ?.retrieveCallbacks(callbackTypes)
+        ?: emptyMap()
+
+    fun LuaTable.toPhaseDraft(): SystemPhaseDraft {
+        return SystemPhaseDraft(
+            get("name").tojstring(),
+            get("systems").checktable().toList { systemIdL ->
+                systemIdL.resolveIdReference().toScriptSystemId()
+            },
+            get("phases").checktable().toList { innerPhaseL ->
+                innerPhaseL.checktable().toPhaseDraft()
+            }
+        )
+    }
+
+    val phases = table.get("phases").nullable()?.checktable()
+        ?.toList { phaseL -> phaseL.checktable().toPhaseDraft() }
+        ?: emptyList()
+
+    return BuildDraft(
+        phases = phases,
+        callbacks = callbacks,
+        namespaces = namespaces,
     )
 }
 
 context(ctx: LuaScriptEngine)
 fun LuaTable.retrieveCallbacks(
-    callbackTypes: List<CallbackType<*>>,
-    callbacksOutput: CallbackRetrieveMap,
-) {
-    callbackTypes.forEach { type ->
-        val script = get(type.id).nullable()?.checkfunction()
-            ?.let { function -> LuaScript<ScriptContext, Unit>(ctx, function) }
-            ?: return@forEach
-        val existing = callbacksOutput[type]
-        callbacksOutput[type] = existing?.let { it.copy(scripts = it.scripts + script) }
-            ?: ScriptCallback(listOf(script))
+    callbackTypes: List<CallbackType<*, *>>,
+): CallbackRetrieveMap {
+    val table = this
+    return callbackTypes.mapNotNull { type ->
+        val script = table.get(type.id).nullable()?.checkfunction()
+            ?.let { function -> LuaScript<ScriptContext, ScriptValue>(ctx, function) }
+            ?: return@mapNotNull null
+        type to script
     }
+        .toMap()
 }

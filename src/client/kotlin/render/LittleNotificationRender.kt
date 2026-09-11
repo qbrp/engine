@@ -3,7 +3,6 @@ package org.lain.engine.client.render
 import org.lain.engine.client.render.legacy.*
 import org.lain.engine.client.render.ui.descriptionText
 import org.lain.engine.client.render.ui.titleText
-import org.lain.engine.client.util.LittleNotification
 import org.lain.engine.mc.Text
 import org.lain.engine.util.BLACK_TRANSPARENT_BG_COLOR
 import org.lain.engine.util.math.clampDelta

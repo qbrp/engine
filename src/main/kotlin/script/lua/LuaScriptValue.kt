@@ -18,14 +18,47 @@ fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
     LuaValue.TNUMBER -> SNumber(todouble())
     LuaValue.TSTRING -> SString(tojstring())
     LuaValue.TTABLE -> {
-        val t = checktable()
-        val map = mutableMapOf<ScriptValue, ScriptValue>()
-        for (k in t.keys()) {
-            val key = k.toScriptValue()
-            val value = t.get(k)
-            map[key] = value.toScriptValue()
+        val table = checktable()
+        val keys = table.keys()
+
+        var isArray = true
+        var maxIndex = 0
+
+        for (key in keys) {
+            if (!key.isint()) {
+                isArray = false
+                break
+            }
+
+            val index = key.toint()
+            if (index <= 0) {
+                isArray = false
+                break
+            }
+
+            maxIndex = maxOf(maxIndex, index)
         }
-        STable(map)
+
+        isArray = isArray && maxIndex == keys.size
+
+        if (isArray) {
+            SList(
+                List(maxIndex) { index ->
+                    table.get(index + 1).toScriptValue()
+                }
+            )
+        } else {
+            STable(
+                buildMap(keys.size) {
+                    for (key in keys) {
+                        put(
+                            key.toScriptValue(),
+                            table.get(key).toScriptValue()
+                        )
+                    }
+                }
+            )
+        }
     }
     else -> error("Unsupported Lua type: ${typename()}")
 }

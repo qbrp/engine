@@ -45,13 +45,13 @@ object ScriptExceptionHandler {
                         .format(Instant.ofEpochMilli(errorLogState.summaryTime.timeMillis))
                 val count = errorLogState.count
                 errorLogState.summaryTime = Timestamp()
-                SCRIPT_LOGGERRR.error("$errorString повторилась $count раз с момента $dateTime")
+                ScriptEngine.LOGGER.error("$errorString повторилась $count раз с момента $dateTime")
             }
         }
 
         if (doFullLog) {
             loggedErrors[signature] = LogState(Timestamp(), 1)
-            SCRIPT_LOGGERRR.error("Ошибка выполнения скрипта ${error.script}", e)
+            ScriptEngine.LOGGER.error("Ошибка выполнения скрипта ${error.script}", e)
         }
     }
 }

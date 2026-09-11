@@ -4,8 +4,8 @@ import net.minecraft.client.renderer.block.model.ItemTransform
 import net.minecraft.client.renderer.block.model.ItemTransforms
 import net.minecraft.resources.Identifier
 import net.minecraft.world.item.ItemDisplayContext
+import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engine
-import org.lain.engine.mc.engineId
 import org.lain.engine.mc.minecraft
 import org.lain.engine.util.math.MutableEVec3
 

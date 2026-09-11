@@ -11,19 +11,18 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.server.account.HttpStatusException
-import org.lain.engine.mc.server.SetupException
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.script.CompilationResult
+import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.FileScriptSource
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.NamespaceHashMapValidationResult
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
-import org.lain.engine.script.loadCompilationResult
+import org.lain.engine.script.compilation.CompilationFailedException
+import org.lain.engine.script.compilation.loadResult
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.luaEntrypointDir
 import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
@@ -31,6 +30,7 @@ import org.lain.engine.transport.packet.ConfirmationPacket
 import org.lain.engine.transport.packet.GeneralServerData
 import org.lain.engine.transport.packet.JoinGamePacket
 import org.lain.engine.transport.packet.SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT
+import org.lain.engine.util.file.FileSystem
 
 class GameSessionJoinFlow(
     val joinType: JoinType,
@@ -126,16 +126,12 @@ class GameSessionJoinFlow(
             val (namespaceHashMap, compilationResult, compilation) = coroutineScope {
                 val deferred = async {
                     val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
-                    val luaContext = createLuaContext(namespacedStorage, server.id)
+                    val luaContext = createLuaContext(namespacedStorage)
                     val compilation = ClientCompilation(luaContext, client)
                     val compilationResult = withClientContext {
-                        val result = compilation.compileScripts()
-                        if (result.exceptions.isNotEmpty()) {
-                            result.logExceptions()
-                            throw SetupException(result.exceptions)
-                        }
-                        namespacedStorage.loadCompilationResult(result)
-                        result
+                        val build = compilation.compileScriptsOrThrow()
+                        namespacedStorage.loadResult(build)
+                        build
                     }
 
                     // потокобезопасный доступ к namespacedStorage
@@ -201,7 +197,7 @@ class GameSessionJoinFlow(
         } catch (e: CancellationException) {
             characterSelection.cancel()
             joinGamePacketConfirmation.cancel()
-            LOGGER.info("Отменена корутина входа на сервер")
+            LOGGER.info("Отменен вход на сервер")
             throw e
         } catch (exception: Exception) {
             characterSelection.cancel()
@@ -210,6 +206,9 @@ class GameSessionJoinFlow(
                 client.infrastructure.disconnect(
                     if (exception is HttpStatusException) {
                         "${exception.statusCode}: ${exception.serializeApiError().message}"
+                    } else if (exception is CompilationFailedException) {
+                        exception.log()
+                        exception.disconnectText
                     } else {
                         exception.message ?: "Неизвестная ошибка"
                     }
@@ -219,16 +218,16 @@ class GameSessionJoinFlow(
         }
     }
 
-    fun createLuaContext(namespacedStorage: NamespacedStorageAccess, serverId: ServerId): ClientLuaScriptEngine {
-        val scriptsPath = client.resources.scripts.file
+    fun createLuaContext(namespacedStorage: NamespacedStorageAccess): ClientLuaScriptEngine {
         return ClientLuaScriptEngine(
             client,
-            FileScriptSource(scriptsPath.luaEntrypointDir(serverId)),
+            FileScriptSource(FileSystem.compilationEntrypoint),
             LuaScriptEngine.Dependencies(
                 LuaScriptEngine.globals(),
                 namespacedStorage,
-                scriptsPath.path,
-                client.luaDataStorage
+                client.luaDataStorage,
+                client.moduleManager,
+                FileSystem.scripts.path,
             )
         ).also { it.setup() }
     }
@@ -263,7 +262,7 @@ class GameSessionJoinFlow(
 
     data class ResourceCompilationResult(
         val namespaceHashMap: NamespaceHashMap,
-        val compilationResult: CompilationResult,
+        val build: Build,
         val compilation: ClientCompilation
     )
 }

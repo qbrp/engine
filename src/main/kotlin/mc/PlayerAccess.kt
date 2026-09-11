@@ -1,9 +1,11 @@
 package org.lain.engine.mc
 
 import net.minecraft.world.entity.player.Player
+import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerStorage
 import org.lain.engine.player.get
+import org.lain.engine.player.set
 
 fun PlayerStorage.require(entity: Player) = require(entity.engineId)
 
@@ -17,9 +19,19 @@ fun Player.getEngineState(): EnginePlayer? {
     return MinecraftAccessRegistry.getEnginePlayer(this)
 }
 
+internal fun EnginePlayer.bindMinecraftEntity(entity: Player): Boolean {
+    val minecraftPlayer = get<MinecraftPlayer>()
+    if (minecraftPlayer == null) {
+        set(MinecraftPlayer(entity))
+        return true
+    }
+    if (minecraftPlayer.entity === entity) return false
+
+    minecraftPlayer.entity = entity
+    return true
+}
+
 fun replacePlayerMinecraftState(entity: Player) {
     val enginePlayer = entity.getEngineState() ?: return
-    val oldEntity = enginePlayer.get<MinecraftPlayer>()
-    oldEntity?.entity = entity
-    //TODO: проверить, можно ли переместить в тик игрока
+    enginePlayer.bindMinecraftEntity(entity)
 }

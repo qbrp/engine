@@ -1,51 +1,43 @@
 package org.lain.engine.script.lua.compilation
 
-import org.lain.engine.player.interaction.ProgressionAnimationId
+import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.item.ItemAssets
+import org.lain.engine.item.ItemId
+import org.lain.engine.item.ItemPrefab
+import org.lain.engine.item.ItemSounds
 import org.lain.engine.script.*
+import org.lain.engine.script.compilation.NamespaceDraft
+import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.library.luaWritableEntity
+import org.lain.engine.script.lua.library.resolveIdReference
 import org.lain.engine.script.lua.nullable
 import org.lain.engine.script.lua.toMap
 import org.lain.engine.script.lua.toStringMap
-import org.lain.engine.util.NamespaceId
 import org.lain.engine.world.SoundEventId
 import org.luaj.vm2.LuaTable
 
-fun compileItemsLua(namespaceId: NamespaceId, items: List<LuaTable>): List<CompiledNamespace.Item> = items.map { item ->
-    val itemId = item.get("id").tojstring()
-    val displayName = item.get("display_name").tojstring()
-    val stackSize = item.get("stack_size").nullable()?.toint()
-    val mass = item.get("mass").nullable()?.tofloat()
-    val tooltip = item.get("tooltip").nullable()?.tojstring()
-    val writable = item.get("writable").nullable()?.checktable()?.let {
-        WritableConfig(
-            it.get("pages").toint(),
-            it.get("texture")?.nullable()?.tojstring(),
+context(lua: LuaScriptEngine)
+fun compileItemPrefabsLua(namespaceId: NamespaceId, items: List<LuaTable>): List<ItemPrefab> =
+    items.map { item ->
+        val itemId = item.get("id").resolveIdReference()
+        val displayName = item.get("display_name").tojstring()
+        val maxCount = item.get("max_count").toint()
+        val assets = item.get("assets").nullable()?.checktable()?.toMap { it } ?: mapOf()
+        val soundEvents = item.get("sound_events").nullable()?.checktable()
+            ?.toMap { SoundEventId(EngineId(it.tojstring())) }
+        val onLoad = item.get("on_load").checkfunction()
+
+        ItemPrefab(
+            ItemId(itemId),
+            maxCount,
+            displayName,
+            ItemAssets(
+                assets.mapValues { (key, value) -> value.resolveIdReference() }
+            ),
+            null,
+            { entity ->
+                soundEvents?.let { entity.setComponent(ItemSounds(it)) }
+                onLoad.call(entity.luaWritableEntity())
+            }
         )
     }
-    val flashlight = item.get("flashlight").nullable()?.checktable()?.let {
-        FlashlightConfig(
-            it.get("radius").nullable()?.tofloat() ?: 8f,
-            it.get("distance").nullable()?.tofloat() ?: 16f,
-            it.get("light").nullable()?.tofloat() ?: 15f,
-        )
-    }
-
-    val assets = item.get("assets").nullable()?.checktable()?.toStringMap()
-    val progressionAnimations = item.get("progression_animations").nullable()?.checktable()
-        ?.toMap { ProgressionAnimationId(it.tojstring()) }
-    val soundEvents = item.get("sound_events").nullable()?.checktable()
-        ?.toMap { SoundEventId(it.tojstring()) }
-
-    CompiledItem(
-        namespaceId,
-        itemId,
-        displayName,
-        assets,
-        progressionAnimations,
-        soundEvents,
-        stackSize,
-        mass,
-        tooltip,
-        writable,
-        flashlight,
-    ).also { SCRIPT_LOGGERRR.debug("Загружен предмет {}", itemId) }
-}

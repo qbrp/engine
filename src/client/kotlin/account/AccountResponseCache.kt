@@ -2,16 +2,14 @@ package org.lain.engine.client.account
 
 import kotlinx.serialization.json.Json
 import org.lain.engine.player.account.AccountResponse
-import org.lain.engine.util.file.ENGINE_DIR
-import org.lain.engine.util.file.ensureExists
+import org.lain.engine.util.file.FileSystem
 
 object AccountResponseCache {
     private val json = Json {
         ignoreUnknownKeys = true
         prettyPrint = true
     }
-    private val file = ENGINE_DIR
-        .resolve("account.json")
+    private val file = FileSystem.accountCache
 
     fun load(): AccountResponse? {
         if (!file.exists()) return null
@@ -22,7 +20,7 @@ object AccountResponseCache {
 
     fun save(response: AccountResponse) {
         runCatching {
-            file.ensureExists()
+            FileSystem.ensureFile(file)
             file.writeText(json.encodeToString(response))
         }
     }

@@ -1,8 +1,8 @@
 package org.lain.engine.util
 
-import org.lain.engine.util.file.ENGINE_PREFERENCES
+import org.lain.engine.util.file.FileSystem
 
-private val ID_PREFERENCES = ENGINE_PREFERENCES.node("id")
+private val ID_PREFERENCES = FileSystem.preferences.node("id")
 
 fun nextId(): Long {
     val id = ID_PREFERENCES.getLong("lastId", 0L) + 1

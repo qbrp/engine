@@ -50,12 +50,10 @@ fun ServerCommandDispatcher.registerEngineReloadCommands(dedicated: Boolean) {
                         stringArgument("path")
                             .suggests(ScriptPathSuggestionProvider())
                             .executeCatching { ctx ->
-                                val path = ctx.command.getString("path")
-                                    .replace(".", "/")
-                                val scriptPath = "$path.lua"
-                                server.luaScriptEngine.reloadScript(scriptPath)
-                                engine.handler.onScriptReloaded(scriptPath)
-                                ctx.sendFeedback("Скрипт по пути $scriptPath перезагружен", true)
+                                val moduleName = ctx.command.getString("path")
+                                server.luaScriptEngine.reloadScript(moduleName)
+                                engine.handler.onScriptReloaded(moduleName)
+                                ctx.sendFeedback("Модуль $moduleName перезагружен", true)
                                 ctx.sendFeedback("Используйте /re compile для применения изменений", false)
                             }
                     )
@@ -126,13 +124,22 @@ class ScriptPathSuggestionProvider : SuggestionProvider<CommandSourceStack> {
 private suspend fun scriptFilesList(scriptsDirectory: File): List<String> = withContext(Dispatchers.IO) {
     scriptsDirectory
         .walkTopDown()
-        .filter { it.isFile && it.extension == "lua" }
+        .filter {
+            it.isFile && when (it.extension) {
+                "lua" -> true
+                "tl" -> !it.name.endsWith(".d.tl")
+                else -> false
+            }
+        }
         .map {
             it
                 .relativeTo(scriptsDirectory).path
                 .replace("\\", "/")
-                .replace(".lua", "")
+                .removeSuffix(".lua")
+                .removeSuffix(".tl")
                 .replace("/", ".")
         }
+        .distinct()
+        .sorted()
         .toList()
 }

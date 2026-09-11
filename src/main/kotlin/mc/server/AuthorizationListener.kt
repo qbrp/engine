@@ -188,6 +188,7 @@ class AuthorizationListener(
         engine.playerLoader.loadPreparing(
             settings = settings,
             account = PlayerLoadSettings.Account(character),
+            onCreated = { connection.player = it }
         )
     }
 

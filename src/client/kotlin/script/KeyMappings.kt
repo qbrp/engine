@@ -5,7 +5,6 @@ import net.minecraft.client.KeyMapping
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.script.lua.oneArgFunction
 import org.lain.engine.script.lua.threeArgFunction
-import org.lain.engine.script.lua.library.toLuaValue
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.script.lua.twoArgFunction

@@ -205,7 +205,7 @@ suspend fun ComponentDto.toDomainSuspend(
     val data = when (data) {
         is CopyComponentDto -> data.component
         is ScriptComponentDto -> {
-            val componentId = ScriptComponentId(id)
+            val componentId = ScriptComponentId(EngineId(id))
             val scriptComponent = settings.namespacedStorage.components[componentId]
                 ?: CoreScriptComponents.get(componentId)
                 ?: scriptComponentTypeNotFound(componentId, data)

@@ -5,7 +5,7 @@ import com.daqem.yamlconfig.api.config.ConfigType
 import com.daqem.yamlconfig.api.config.IConfig
 import com.daqem.yamlconfig.impl.config.ConfigBuilder
 import org.lain.engine.mc.CommonEngineMod
-import org.lain.engine.client.util.EngineOptions
+import org.lain.engine.client.EngineOptions
 
 class EngineYamlConfig(
     builder: ConfigBuilder = ConfigBuilder(

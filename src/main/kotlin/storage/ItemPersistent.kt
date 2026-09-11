@@ -18,8 +18,6 @@ import org.lain.engine.util.*
 import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
-import java.util.concurrent.ConcurrentLinkedQueue
 
 /////////////// LEGACY SAVING
 
@@ -164,8 +162,7 @@ fun WriteComponentAccess.loadItemLegacy(
             name?.text ?: "Предмет",
             assets ?: ItemAssets(mutableMapOf()),
             ItemProgressionAnimations(mutableMapOf()),
-            { tooltip },
-            { components.toList() + entityComponents.toList() }
+            { it.copyState(components.toList() + entityComponents.toList()) }
         ),
         uuid
     )
@@ -277,7 +274,7 @@ class ItemLoader(
                 server.logInMainThread(world) { tick ->
                     // для удобства выполняем другие операции здесь, т.к. функция работает также, как и EntityResolver.schedule
                     server.simulation.callbacks.of(CallbackType.ITEM_LOAD)
-                        ?.execute(ScriptContext.ItemLoad(world, entity))
+                        ?.execute(ScriptContext.Item(world, entity))
 
                     Log(
                         LogMessages.ITEM_LOAD,

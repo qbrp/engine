@@ -5,17 +5,24 @@ import net.minecraft.server.level.ServerPlayer
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.DisplayName
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.character.CharacterDisplay
+import org.lain.engine.player.displayName
+import org.lain.engine.player.get
+import org.lain.engine.player.require
+import org.lain.engine.player.username
 import org.lain.engine.world.World
 
 context(world: World)
-fun showPlayerHint(player: ServerPlayer, of: EntityId) {
-    val name = of.requireComponent<DisplayName>()
+fun showPlayerHint(player: ServerPlayer, of: EnginePlayer) {
+    val characterName = of.get<CharacterDisplay>()?.name?.gradientChars
+    val name = of.get<DisplayName>() ?: return
     val username = name.username.value
-    val customName = name.custom
+    val customName = characterName ?: name.custom?.gradientText
 
     val message = Component.empty()
 
-    message.append(customName?.gradientText?.getText() ?: Component.literal(username))
+    message.append(customName?.getText() ?: Component.literal(username))
     if (customName != null) {
         message.append(" <gray>($username)</gray>".parseMiniMessage())
     }

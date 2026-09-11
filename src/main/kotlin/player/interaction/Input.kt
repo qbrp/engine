@@ -28,10 +28,11 @@ data class PlayerInput(
     val actions: MutableSet<InputAction> = mutableSetOf(),
     val lastActions: MutableSet<InputAction> = mutableSetOf(),
     var action: Component? = null,
-    var tick: Long = 0
+    var tick: Long = 0,
+    var isSprinting: Boolean = false
 ) : Component
 
-const val SOCIAL_INTERACTION_DISTANCE = 15
+const val SOCIAL_INTERACTION_DISTANCE = 4
 
 /** @return Отменить стандартное взаимодействие */
 context(world: World)
@@ -96,13 +97,8 @@ class PlayerInputSystem(
                         }
 
                         if (sightPlayer != null) {
-                            if (mode is PlayerInputMode.Authoritative) {
-                                // Последним делом - социальные взаимодействия
-                                input.action = HailAction(sightPlayer)
-                                if (mainHandItem != null && extendArm) {
-                                    input.action = GiveAction(sightPlayer)
-                                }
-                            }
+                            // Последним делом - социальные взаимодействия
+                            input.action = HailAction
                         }
                     }
 
@@ -113,7 +109,10 @@ class PlayerInputSystem(
                                 && !mainHandItem.hasComponent<GunMagazines>()
 
                         // Идём списочком по доступным действиям
-                        if (gun != null) {
+                        val give = mainHandItem != null && sightPlayer != null && extendArm
+                        if (give) {
+                            input.action = GiveAction
+                        } else if (gun != null) {
                             if (offHandItem != null && (gunBarrelSupportsDirectAmmoLoad || offHandItem.hasComponent<Magazine>())) {
                                 input.action = GunLoadAction(mainHandItem, offHandItem)
                             } else {

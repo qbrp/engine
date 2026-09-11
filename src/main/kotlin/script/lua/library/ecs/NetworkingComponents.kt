@@ -7,10 +7,8 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.EntityRpcQueue
 import org.lain.engine.script.EntityRpcReceiver
-import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.castLua
 import org.lain.engine.script.lua.castedLuaValue
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.luaTable

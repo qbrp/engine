@@ -7,7 +7,7 @@ const val CHAT_OPERATOR_PERMISSION = "chat.operator"
 const val CHAT_HEADS_PERMISSION = "chat.heads"
 
 fun EnginePlayer.hasPermission(permission: String): Boolean {
-    if (world.isClient) error("Невозможно узнать наличие права на клиенте")
+    if (world.isClient) return true
     return world.server?.hasPermission(this, permission) == true
 }
 

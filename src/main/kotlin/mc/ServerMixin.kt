@@ -7,22 +7,22 @@ import net.minecraft.world.level.chunk.LevelChunk
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.canChangeGameMode
 import org.lain.engine.server.Notification
-import org.lain.engine.util.requireEngineMinecraftServer
+import org.lain.engine.util.Injector
 
 object ServerMixin {
-    private val server get() = requireEngineMinecraftServer()
-    private val serverHandler get() = server.engine.handler
-    private val chat get() = server.engine.chat
-    private val chatSettings get() = chat.settings
+    private val server get() = Injector.server
+    private val serverHandler get() = server?.engine?.handler
+    private val chat get() = server?.engine?.chat
+    private val chatSettings get() = chat?.settings
     var vanillaDamageEnabled = false
 
     fun onProcessPackets() {
-        server.engine.handler.processHandlerTasks()
+        serverHandler?.processHandlerTasks()
     }
 
     fun notifyPlayerGameModeChange(player: ServerPlayer, gameMode: GameType) {
         val enginePlayer = player.getEngineState() ?: return
-        server.engine.handler.onServerNotification(
+        serverHandler?.onServerNotification(
             enginePlayer,
             when (gameMode) {
                 GameType.SURVIVAL -> Notification.SURVIVAL_GAMEMODE
@@ -38,12 +38,12 @@ object ServerMixin {
         val enginePlayer = player.getEngineState() ?: return false
         val result = enginePlayer.canChangeGameMode()
         if (!result) {
-            serverHandler.onServerNotification(enginePlayer, Notification.CHANGE_GAMEMODE_FORBIDDEN, false)
+            serverHandler?.onServerNotification(enginePlayer, Notification.CHANGE_GAMEMODE_FORBIDDEN, false)
         }
         return result
     }
 
-    fun onChunkDataSent(chunk: LevelChunk, player: ServerPlayer) {
+    fun onChunkDataSent(chunk: LevelChunk, player: ServerPlayer) = server?.let { server ->
         //TODO: потенциальный проёб с чанками
         val access = chunk.level.requireEngineAccess()
         val world = access.requireEngineWorld(chunk.level)
@@ -53,9 +53,9 @@ object ServerMixin {
         server.engine.handler.sendChunkSnapshot(player.engineId, engineChunk, chunkPos)
     }
 
-    fun shouldCancelSendJoinMessage() = chatSettings.joinMessage != "" || !chatSettings.joinMessageEnabled
+    fun shouldCancelSendJoinMessage() = chatSettings?.let { it.joinMessage != "" || !it.joinMessageEnabled } ?: true
 
-    fun shouldCancelSendLeaveMessage() = chat.settings.leaveMessage != "" || !chatSettings.leaveMessageEnabled
+    fun shouldCancelSendLeaveMessage() = chatSettings?.let { it.leaveMessage != "" || !it.leaveMessageEnabled } ?: true
 
     fun shouldCancelDamage() = !vanillaDamageEnabled
 

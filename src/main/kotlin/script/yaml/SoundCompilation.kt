@@ -4,6 +4,7 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlNode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.lain.engine.script.EngineId
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 import org.lain.engine.world.SoundId
@@ -58,7 +59,7 @@ fun deserializeSoundEntries(entries: YamlNode): List<SoundEntry> {
 internal fun compileSoundEvents(soundEvents: Map<String, SoundEventConfig>, namespace: YamlNamespace): List<SoundEvent> {
     return soundEvents.map { (id, event) ->
         event.getSoundEvent(
-            SoundEventId(namespacedId(namespace.id, id)),
+            SoundEventId(EngineId(id)),
             namespace
         )
     }

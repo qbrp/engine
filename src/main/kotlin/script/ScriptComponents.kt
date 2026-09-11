@@ -7,8 +7,9 @@ import org.lain.engine.util.component.IndexedComponentType
 import kotlin.reflect.KClass
 
 @JvmInline
-value class ScriptComponentId(val id: String) {
-    override fun toString(): String = id
+value class ScriptComponentId(val id: EngineId) : Identifiable {
+    override val engineId: EngineId get() = id
+    override fun toString(): String = id.toString()
 }
 
 interface ScriptComponent : Component {
@@ -25,7 +26,7 @@ class ScriptComponentType(
     override fun toString(): String = "ScriptComponentType($idx, $id, $meta)"
 }
 
-fun String.toScriptComponentId(): ScriptComponentId = ScriptComponentId(this)
+fun EngineId.toScriptComponentId(): ScriptComponentId = ScriptComponentId(this)
 
 object CoreScriptComponents {
     private val all = mutableMapOf<ScriptComponentId, ScriptComponentType>()
@@ -34,6 +35,12 @@ object CoreScriptComponents {
     val PLAYER_INVENTORY = register("core/player/inventory")
     val PLAYER_PHYSICS = register("core/player/physics")
     val PLAYER_MODE = register("core/player/game_mode")
+    val PLAYER_INPUT = register("core/player/input")
+    val PLAYER_ATTRIBUTES = register("core/player/attributes")
+    val PLAYER_CUSTOM_ATTRIBUTES = register("core/player/custom_attributes")
+    val PLAYER_MOVEMENT_STATUS = register("core/player/movement_status")
+    val PLAYER_VELOCITY = register("core/player/velocity")
+    val PLAYER_JUMP = register("core/player/jump")
     val LOCATION = register("core/location")
     val DYNAMIC_VOXEL = register("core/voxel/dynamic_voxel")
     val USE_RESTRICTION = register("core/voxel/use_restriction", savable = true, networking = true) // TODO: переместить в движок
@@ -63,7 +70,7 @@ object CoreScriptComponents {
     ): ScriptComponentType {
         val ecsType = ComponentType<ScriptComponent>(id)
         val type = ScriptComponentType(ecsType, meta)
-        all[ScriptComponentId(id)] = type
+        all[ScriptComponentId(EngineId(id))] = type
         return type
     }
 }

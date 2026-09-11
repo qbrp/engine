@@ -42,15 +42,6 @@ class ConcurrentStorage<K : Any, T : Any> : Storage<K, T>() {
     override val map = ConcurrentHashMap<K, T>()
 }
 
-@JvmInline
-@Serializable
-value class NamespaceId(val value: String) {
-    init { require(!value.contains(" ")) { "Идентификатор содержит пробелы" } }
-
-    override fun toString(): String {
-        return value
-    }
-}
 
 class LRUCache<K, V>(private val capacity: Int) : LinkedHashMap<K, V>(capacity, 0.75f, true) {
 

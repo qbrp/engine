@@ -16,6 +16,7 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
 import org.lain.engine.client.render.getSkin
+import org.lain.engine.client.render.item.resolveTooltip
 import org.lain.engine.client.render.player.RenderStateComponent
 import org.lain.engine.client.render.player.modelPartOf
 import org.lain.engine.client.render.player.setEngineState
@@ -29,15 +30,13 @@ import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Writable
-import org.lain.engine.item.getTooltip
 import org.lain.engine.item.resolveItemAsset
-import org.lain.engine.mc.engine
+import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.getEngineState
 import org.lain.engine.mc.replacePlayerMinecraftState
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
-import org.lain.engine.player.PlayerId
 import org.lain.engine.player.get
 import org.lain.engine.player.require
 import org.lain.engine.player.interaction.processLeftClickInteraction
@@ -89,7 +88,7 @@ object ClientMixin {
 
     fun getTooltip(engineItem: EngineItem, advanced: Boolean): List<String> {
         with(client.gameSession?.world ?: return emptyList()) {
-            return engineItem.getTooltip(advanced)
+            return engineItem.resolveTooltip(advanced)
         }
     }
 
@@ -123,11 +122,15 @@ object ClientMixin {
 
     fun updatePlayerRenderState(playerLikeEntity: Avatar, playerEntityRenderState: AvatarRenderState, model: PlayerModel) {
         if (playerLikeEntity !is Player) return
-        val enginePlayer = playerLikeEntity.getEngineState() ?: return
-        val renderState = enginePlayer.get<RenderStateComponent>()?.renderState ?: return
-        renderState.detachedEquipment.forEach { it.playerModelPart = modelPartOf(it.playerPart, model) }
-        playerEntityRenderState.update(enginePlayer)
-        playerEntityRenderState.setEngineState(renderState)
+        val enginePlayer = playerLikeEntity.getEngineState()
+        playerEntityRenderState.update(client.gameSession, enginePlayer)
+        val renderState = enginePlayer?.get<RenderStateComponent>()?.renderState
+        if (enginePlayer != null && renderState != null) {
+            renderState.detachedEquipment.forEach {
+                it.playerModelPart = modelPartOf(it.playerPart, model)
+            }
+            playerEntityRenderState.setEngineState(renderState)
+        }
     }
 
     fun getPlayerSkin(enginePlayer: EnginePlayer): PlayerSkin {

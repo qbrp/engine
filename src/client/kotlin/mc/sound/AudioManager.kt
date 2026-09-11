@@ -11,7 +11,7 @@ import net.minecraft.sounds.SoundEvents
 import net.minecraft.util.valueproviders.ConstantFloat
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.injectClient
-import org.lain.engine.client.mixin.SoundManagerAccessor
+import org.lain.engine.client.mixin.sound.SoundManagerAccessor
 import org.lain.engine.client.util.AudioSource
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.SoundParameters
@@ -43,6 +43,7 @@ class MinecraftAudioManager(
             instance._pitch = source.pitch
             instance._volume = source.volume
             instance.radius = source.radius
+            instance.repeating = source.looping
         }
     }
 
@@ -70,7 +71,7 @@ class MinecraftAudioManager(
         val soundSet = soundSetCache.get(event)
         soundManager.play(
             ServerSoundInstance(
-                engineId(event.id.value),
+                engineId(event.id.toString()),
                 player.volume,
                 player.pitch,
                 soundSet,
@@ -168,7 +169,7 @@ class MinecraftAudioManager(
 
         fun get(event: SoundEvent): WeighedSoundEvents {
             return sets.computeIfAbsent(event.id) {
-                val set = WeighedSoundEvents(engineId(event.id.value), null)
+                val set = WeighedSoundEvents(engineId(event.id.toString()), null)
                 event.sources
                     .map {
                         Sound(

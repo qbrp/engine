@@ -16,19 +16,24 @@ import org.lain.engine.player.handFree
 import org.lain.engine.player.handItem
 import org.lain.engine.player.selectedSlot
 import org.lain.engine.player.serverNarration
+import org.lain.engine.player.whoSee
 import org.lain.engine.world.World
 
-data class HailAction(val toPlayer: EnginePlayer) : Component
+object HailAction : Component
 
-data class GiveAction(val toPlayer: EnginePlayer) : Component
+object GiveAction : Component
 
 fun World.tickSocialActionSystem() {
-    iterate<PlayerComponent, HailAction> { e, (player), (toPlayer) ->
-        toPlayer.serverNarration("${player.displayNameMiniMessage} окликнул вас!", 40, true)
+    iterate<PlayerComponent, HailAction> { e, (player), action ->
         e.removeComponent<HailAction>()
+        val toPlayer = player.whoSee() ?: return@iterate
+        toPlayer.serverNarration("${player.displayNameMiniMessage} окликнул вас!", 40, true)
+        e.syncAction(action)
     }
 
-    iterate<PlayerComponent, GiveAction>() { e, (player), (toPlayer) ->
+    iterate<PlayerComponent, GiveAction>() { e, (player), action ->
+        e.removeComponent<GiveAction>()
+        val toPlayer = player.whoSee() ?: return@iterate
         val handItem = player.handItem ?: return@iterate
         val playerName = player.displayNameMiniMessage
         val raycastPlayerName = toPlayer.displayNameMiniMessage
@@ -54,6 +59,6 @@ fun World.tickSocialActionSystem() {
             toPlayer.serverNarration("$playerName хочет передать предмет...", 120)
             toPlayer.serverNarration(failure, 120)
         }
-        e.removeComponent<GiveAction>()
+        e.syncAction(action)
     }
 }

@@ -106,6 +106,7 @@ fun World.sendSnapshots(
 
     iterate<PlayerComponent, PlayerSyncState>() { _, (player), state ->
         if (!state.confirmed) return@iterate
+        val entities = mutableListOf<ReplicationFrameSnapshot.Entity>()
 
         state.freshPlayers.forEach { (playerToSync) ->
             handler.sendFullPlayerState(player, playerToSync)
@@ -114,21 +115,19 @@ fun World.sendSnapshots(
             trackState.fresh.forEach {
                 val entity = persistentIdToEntity[it] ?: return@forEach
                 val state = fullSnapshotCache.getOrPut(it) { entity.fullNetworkSnapshot() }
-                handler.sendEntityState(player, it, entity, state)
+                entities += ReplicationFrameSnapshot.Entity(it, state)
             }
             (trackState.synced - trackState.fresh).forEach {
                 val snapshot = entitiesFrame[it] ?: return@forEach
-                handler.sendEntityState(player, it, snapshot.entity, snapshot.deltaSnapshot())
+                entities += ReplicationFrameSnapshot.Entity(it, snapshot.deltaSnapshot())
             }
         }
 
-        if (!state.isWorldSynced) {
-            handler.sendWorldState(player, world.state.fullNetworkSnapshot())
+        val worldSnapshot = if (!state.isWorldSynced) {
             state.isWorldSynced = true
+            world.state.fullNetworkSnapshot()
         } else {
-            if (worldStateFrame.worldState != null) {
-                handler.sendWorldState(player, worldStateFrame.worldState.deltaSnapshot())
-            }
+            worldStateFrame.worldState?.deltaSnapshot()
         }
 
         if (state.processedInputTick > state.lastSentProcessedInputTick) {
@@ -138,6 +137,8 @@ fun World.sendSnapshots(
             )
             state.lastSentProcessedInputTick = state.processedInputTick
         }
+
+        handler.sendReplicationFrame(player, ReplicationFrameSnapshot(worldSnapshot, entities))
     }
 }
 

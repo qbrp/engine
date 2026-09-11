@@ -3,10 +3,14 @@ package org.lain.engine.client.script
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.webPageUrl
+import org.lain.engine.client.transport.ClientContext
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptSource
+import org.lain.engine.script.ScriptValue
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.library.luaEntity
+import org.lain.engine.script.lua.library.luaWorld
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaTable
@@ -17,8 +21,7 @@ class ClientLuaScriptEngine(
     entrypoint: ScriptSource,
     dependencies: Dependencies,
 ) : LuaScriptEngine(dependencies, entrypoint) {
-    var lastAudioSlotId = 0
-    val audioSourceTable = LuaTable()
+    val audioLibrary = AudioLibrary(client.audioManager)
     val webTable = WebTable()
     lateinit var gameSessionTable: LuaTable
 
@@ -27,7 +30,7 @@ class ClientLuaScriptEngine(
         applyLuaEntityRpcQueues()
     }
 
-    override fun listCallbackTypes(): List<CallbackType<out ScriptContext>> {
+    override fun listCallbackTypes(): List<CallbackType<out ScriptContext, out ScriptValue>> {
         return super.listCallbackTypes() + ClientCallbacks.list()
     }
 
@@ -57,23 +60,22 @@ class ClientLuaScriptEngine(
                     }
                 }
             }
+            is ClientScriptContext.ItemTooltip -> with(context.world) {
+                luaTable {
+                    "world"(context.world.luaWorld())
+                    "item"(context.item.luaEntity())
+                }
+            }
             else -> super.mapScriptContext(context)
         }
-    }
-
-    override fun setupTables() {
-        super.setupTables()
-        globals.set("AudioSource", audioSourceTable)
-        globals.set("Web", webTable)
     }
 
     fun setupClientGameSession(gameSession: GameSession) {
         val world = gameSession.world
         setupGame(RuntimeDependencies(gameSession.simulation))
         gameSessionTable = GameSessionTable(gameSession)
-        globals.setupAudio()
-        globals.setupKeyMappings()
-        globals.set("GameSession", gameSessionTable)
+        engineTable["game_session"] = gameSessionTable
+        engineTable["web"] = webTable
         loadWorld(world)
     }
 }

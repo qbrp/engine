@@ -13,6 +13,7 @@ import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.server.EntityNetworkSnapshot
 import org.lain.engine.server.Networked
@@ -360,7 +361,7 @@ internal class ClientReplicationController(
     private fun World.removeSnapshotComponents(entity: EntityId, removedTypeIds: Collection<String>) {
         removedTypeIds.forEach { typeId ->
             val type = ComponentTypeRegistry.get(typeId)?.type
-                ?: ScriptComponentId(typeId).let { scriptComponentId ->
+                ?: ScriptComponentId(EngineId(typeId)).let { scriptComponentId ->
                     componentLoadSettings.namespacedStorage.components[scriptComponentId]
                         ?: CoreScriptComponents.get(scriptComponentId)
                         ?: error("Тип компонента $typeId не существует")

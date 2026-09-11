@@ -9,7 +9,7 @@ import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.render.ui.TransformationsEditorScreen
 import org.lain.engine.client.render.ui.WebDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
-import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.mc.commands.playerPositionsMessage
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.util.Timestamp

@@ -1,6 +1,5 @@
 package org.lain.engine.chat.acoustic
 
-import org.lain.engine.mc.ChunkedAcousticView
 import org.lain.engine.util.math.Vec3
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
@@ -125,7 +124,7 @@ fun collectVolume(vol: Grid3f, x: Int, y: Int, z: Int): Float {
 
 fun spreadVolume(
     vol: Grid3f,
-    view: ChunkedAcousticView,
+    view: AcousticSceneView,
     delta: Grid3f,
     forward: Grid3b,
     attenuation: Float,

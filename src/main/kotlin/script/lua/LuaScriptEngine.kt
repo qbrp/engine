@@ -2,25 +2,34 @@ package org.lain.engine.script.lua
 
 import org.lain.engine.EngineSimulation
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerId
 import org.lain.engine.script.*
+import org.lain.engine.script.compilation.Build
+import org.lain.engine.script.compilation.BuildDraft
+import org.lain.engine.script.compilation.CompilationAbortException
+import org.lain.engine.script.compilation.CompilationContext
+import org.lain.engine.script.compilation.CompilationDiagnostic
+import org.lain.engine.script.compilation.CompilationDiagnosticSeverity
+import org.lain.engine.script.compilation.CompilationOutcome
+import org.lain.engine.script.compilation.CompilationPhase
+import org.lain.engine.script.compilation.compilationManifestOf
+import org.lain.engine.script.compilation.linkedNamespaces
+import org.lain.engine.script.compilation.linkedSystemPhases
+import org.lain.engine.script.compilation.validateNamespaces
+import org.lain.engine.script.compilation.writeTo
+import org.lain.engine.script.lua.compilation.LuaCompilationContext
+import org.lain.engine.script.lua.compilation.CompilationContextTable
+import org.lain.engine.script.lua.compilation.ReportsCollectorUserdataType
+import org.lain.engine.script.lua.compilation.compiledBuildDraft
 import org.lain.engine.script.lua.library.*
-import org.lain.engine.script.lua.library.ecs.EntityRpcMessageMetaTable
-import org.lain.engine.script.lua.library.ecs.EntityRpcQueueMetaTable
-import org.lain.engine.script.lua.library.ecs.EntityRpcReceiverMetaTable
-import org.lain.engine.script.lua.library.ecs.PlayerInventoryMetaTable
-import org.lain.engine.script.lua.library.ecs.PlayerModeMetaTable
-import org.lain.engine.script.lua.library.ecs.applyLuaNetworkingComponents
-import org.lain.engine.script.lua.library.ecs.applyLuaPlayerComponents
-import org.lain.engine.script.lua.library.ecs.applyLuaLightComponents
-import org.lain.engine.script.lua.library.ecs.prepareLuaScriptComponents
-import org.lain.engine.script.lua.library.ecs.refreshGeneralLuaComponentsView
-import org.lain.engine.util.*
-import org.lain.engine.util.file.BUILTIN_SCRIPTS_DIR
+import org.lain.engine.script.lua.library.ecs.*
+import org.lain.engine.util.Timestamp
+import org.lain.engine.util.file.FileSystem
 import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
 import org.luaj.vm2.Globals
+import org.luaj.vm2.LuaError
+import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaTable
+import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.lib.jse.JsePlatform
 import java.io.File
@@ -29,73 +38,98 @@ open class LuaScriptEngine(
     val dependencies: Dependencies,
     val entrypoint: ScriptSource
 ) : ScriptEngine {
-    init { require(entrypoint.exists()) { "Входной скрипт сервера по директроии $entrypoint не найден" } }
+    init {
+        require(entrypoint.exists()) { "Входной скрипт сервера по директроии $entrypoint не найден" }
+    }
 
     private var initialized = false
+    private var reloadFunction: LuaFunction? = null
     var runtimeDependencies: RuntimeDependencies? = null
         private set
     val globals get() = dependencies.globals
     val scriptsPath get() = dependencies.scriptsPath
+    var writeCompilationManifest = dependencies.writeCompilationManifest
 
-    val registrationLibrary = RegistrationLibrary()
+    val logger = LoggerTable()
+    val worldsList = LuaTable()
+    val idLibrary = IdLibrary()
+    val vec3Library = Vec3Library()
+    val componentLibrary = ComponentLibrary(dependencies.namespacesStorage)
+
     val playerMetaTable: LuaTable = PlayerMetaTable()
     val worldMetaTable: LuaTable = WorldMetaTable()
     val entityMetaTable: LuaTable = EntityMetaTable()
     val playerInventoryMetaTable: LuaTable = PlayerInventoryMetaTable()
-    val playerModeMetaTable: LuaTable = PlayerModeMetaTable()
+    val playerModeMetaTable = PlayerModeMetaTable()
+    val playerPhysicsMetaTable = PlayerPhysicsMetaTable()
+    val playerInputMetaTable = PlayerInputMetaTable()
+    val playerAttributesMetaTable = PlayerAttributesMetaTable()
+    val playerCustomAttributesMetaTable = PlayerCustomAttributesMetaTable()
+    val playerMovementStatusMetaTable = MovementStatusMetaTable()
+    val playerVelocityMetaTable = PlayerVelocityMetaTable()
     val entityRpcReceiverMetaTable: LuaTable = EntityRpcReceiverMetaTable()
     val entityRpcMessageMetaTable: LuaTable = EntityRpcMessageMetaTable()
     val entityRpcQueueMetaTable: LuaTable = EntityRpcQueueMetaTable()
-    val logTable: LuaTable = LogTable()
-    val componentTable: LuaTable = ComponentTable()
-    val worldsList = LuaTable()
+    val moduleFileMetaTable = ModuleFileUserdataType()
+    val moduleFolderMetaTable = ModuleFolderUserdataType()
+    val moduleUserdataType = ModuleUserdataType()
+    val reportsCollectorUserdataType = ReportsCollectorUserdataType()
+
+    val engineTable = luaTable {
+        "SCRIPTS_PATH"(scriptsPath)
+        "MODULES_PATH"(FileSystem.modules.path)
+        "player"(playerMetaTable)
+        "world"(worldMetaTable)
+        "entity"(entityMetaTable)
+        "logger"(logger)
+        "vec_3"(vec3Library.library)
+        "id"(idLibrary.library)
+        "component"(componentLibrary.library)
+        "modules"(ModulesTable(dependencies.moduleManager))
+        "reports_collector"(reportsCollectorUserdataType.metaTable)
+    }
 
     override fun loadWorld(world: World) {
-        val worldTable = world.coerceToLua()
+        val worldTable = LuaUserdata(world).setmetatable(worldMetaTable)
         worldsList[world.id.value.luaStr()] = worldTable
-        setupWorldTableState(world, worldTable)
     }
 
     open fun setupTables() {
-        globals.set("Player", playerMetaTable)
-        globals.set("World", worldMetaTable)
-        globals.set("Entity", entityMetaTable)
-        globals.set("Log", logTable)
-        globals.set("Component", componentTable)
-        globals.set("Vec3", Vec3Table())
+        globals[ENGINE_TABLE] = engineTable
     }
 
     open fun setupGlobalsRuntime() {
-        globals.set("worlds", worldsList)
+        engineTable["worlds"] = worldsList
+        componentLibrary.setupSimulation()
     }
 
-    open fun mapScriptContext(context: ScriptContext): LuaValue = context.toLuaValue()
+    open fun mapScriptContext(context: ScriptContext): LuaValue =
+        context.toLuaValue()
 
-    open fun setupGlobals() {}
-
-    open fun setup(
-        standardLibrary: ScriptSource = FileScriptSource(BUILTIN_SCRIPTS_DIR.resolve("core/boot.lua"))
-    ) {
+    open fun setup() {
         if (initialized) error("Контекст Lua уже инициализирован")
-        globals.set("SCRIPTS_PATH", scriptsPath)
-        globals.set("LIBRARY_PATH", BUILTIN_SCRIPTS_DIR.path)
         globals.setupScriptPackageSearcher()
-        registrationLibrary.setup(globals)
         setupTables()
-        require(standardLibrary.exists()) { "Скрипт загрузки стандартной библиотеки не найден" }
-        // Загрузка стандартной библиотеки
-        standardLibrary.open().use {
-            globals.load(it.reader(), standardLibrary.chunkName).call()
-        }
-        setupGlobals()
-
         initialized = true
     }
 
-    open fun runEntrypoint() {
-        val inputStream = entrypoint.open()
-        globals.load(inputStream.reader(), entrypoint.chunkName).call()
-        inputStream.close()
+    context(context: CompilationContext)
+    protected fun runEntrypoint(): LuaValue {
+        return try {
+            val result = globals.loadScript(entrypoint).call(
+                CompilationContextTable(context)
+            )
+            reloadFunction = engineTable["reload_script"].nullable()?.checkfunction()
+            result
+        } catch (e: LuaError) {
+            context.exceptions.abort(
+                CompilationDiagnostic(
+                    severity = CompilationDiagnosticSeverity.FATAL,
+                    message = e.message ?: "Неизвестная ошибка Lua",
+                    phase = CompilationPhase.INSTALL
+                )
+            )
+        }
     }
 
     open fun setupGame(dependencies: RuntimeDependencies) {
@@ -112,43 +146,112 @@ open class LuaScriptEngine(
         flushEntityRpcMessageReceiver()
         applyLuaLightComponents()
         applyLuaVoxelDoorComponents()
-        applyLuaPlayerComponents()
     }
 
     override fun setupPlayer(player: EnginePlayer) = with(player.world) {
         player.prepareLuaScriptComponents()
     }
 
-    override fun reloadScript(filename: String) {
-        val script = File(dependencies.scriptsPath).resolve(filename)
-        if (!script.exists()) error("Скрипт $filename не существует")
-        if (script.extension != "lua") error("Файл $filename не является скриптом")
-        globals.loadfile(script.path).call()
+    override fun reloadScript(moduleName: String) {
+        reloadFunction?.call(moduleName.luaStr()) ?: globals.loadfile(moduleName)
     }
 
-    open fun listCallbackTypes() = CallbackType.list()
+    override fun updateModules(modules: Modules) {
+        engineTable["modules"] = ModulesTable(dependencies.moduleManager)
+    }
 
-    fun compileContents(): CompilationResult = registrationLibrary.runFunctions(listCallbackTypes())
+    open fun listCallbackTypes() = CallbackType.typeList
+
+    fun compileContents(): CompilationOutcome = with(
+        LuaCompilationContext(
+            callbackTypes = listCallbackTypes().toList()
+        )
+    ) {
+        val start = Timestamp()
+        var manifestBuildDraft: BuildDraft? = null
+        var manifestLinkedNamespaces: Map<NamespaceId, Namespace> = emptyMap()
+
+        val outcome = try {
+            val buildDraft = compiledBuildDraft(runEntrypoint().checktable())
+            manifestBuildDraft = buildDraft
+            buildDraft.validateNamespaces()
+            val linkedNamespaces = buildDraft.linkedNamespaces()
+            manifestLinkedNamespaces = linkedNamespaces
+            val linkedPhases = buildDraft.linkedSystemPhases(linkedNamespaces)
+
+            val report = exceptions.build()
+            if (report.hasErrors) {
+                CompilationOutcome.Failure(report)
+            } else {
+                CompilationOutcome.Success(
+                    Build(
+                        namespaces = linkedNamespaces,
+                        callbacks = Callbacks(buildDraft.callbacks),
+                        phases = linkedPhases,
+                        time = start.timeElapsed(),
+                    ),
+                    report
+                )
+            }
+        } catch (_: CompilationAbortException) {
+            CompilationOutcome.Failure(exceptions.build())
+        }
+
+        writeCompilationManifest(
+            outcome,
+            manifestBuildDraft,
+            manifestLinkedNamespaces,
+        )
+
+        outcome
+    }
+
+    private fun writeCompilationManifest(
+        outcome: CompilationOutcome,
+        buildDraft: BuildDraft?,
+        linkedNamespaces: Map<NamespaceId, Namespace>,
+    ) {
+        if (!writeCompilationManifest) return
+
+        val file = dependencies.compilationManifestFile
+        runCatching {
+            compilationManifestOf(
+                outcome,
+                buildDraft,
+                dependencies.moduleManager.modules,
+                linkedNamespaces,
+            ).writeTo(file)
+        }.onSuccess {
+            ScriptEngine.LOGGER.info("Манифест компиляции сохранен в {}", file.path)
+        }.onFailure { exception ->
+            ScriptEngine.LOGGER.warn(
+                "Не удалось сохранить манифест компиляции в ${file.path}",
+                exception,
+            )
+        }
+    }
 
     override fun createScriptComponent(value: ScriptValue, type: ScriptComponentType): ScriptComponent {
         return LuaScriptComponent(value.toLuaValue(), type)
     }
 
-    data class CompilationContext(
-        val namespaces: MutableMap<NamespaceId, CompiledNamespace> = mutableMapOf(),
-        val errors: MutableList<CompilationException> = mutableListOf(),
-    )
-
     data class Dependencies(
         val globals: Globals,
         val namespacesStorage: NamespacedStorageAccess,
-        val scriptsPath: String,
         val dataStorage: LuaDataStorage,
+        val moduleManager: ModuleManager,
+        val scriptsPath: String = FileSystem.scripts.path,
+        val writeCompilationManifest: Boolean = true,
+        val compilationManifestFile: File =
+            FileSystem.compilationManifestFile(File(scriptsPath)),
     )
 
-    data class RuntimeDependencies(val simulation: EngineSimulation)
+    data class RuntimeDependencies(
+        val simulation: EngineSimulation
+    )
 
     companion object {
+        val ENGINE_TABLE = "engine"
         fun globals(): Globals = JsePlatform.debugGlobals()
     }
 }

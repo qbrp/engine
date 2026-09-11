@@ -16,7 +16,7 @@ import org.lain.engine.client.render.item.EngineItemDisplayContext
 import org.lain.engine.client.render.item.culling
 import org.lain.engine.client.render.item.engineOutfit
 import org.lain.engine.client.render.item.engineTransformation
-import org.lain.engine.mc.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
 
 class EngineItemModel(
     val asset: Asset,

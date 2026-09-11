@@ -6,7 +6,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.commands.FriendlyException
 import org.lain.engine.mc.getPlayer
-import org.lain.engine.mc.minecraftEntity
+import org.lain.engine.mc.ecs.minecraftEntity
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerNotFoundException

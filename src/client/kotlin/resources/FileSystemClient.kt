@@ -10,21 +10,13 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.ChatBarConfiguration
 import org.lain.engine.client.chat.ChatFormatSettings
 import org.lain.engine.client.render.WARNING
-import org.lain.engine.client.util.LittleNotification
+import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.server.ServerId
 import org.lain.engine.util.WARNING_COLOR
-import org.lain.engine.util.file.ENGINE_DIR
-import org.lain.engine.util.file.getBuiltinResource
+import org.lain.engine.util.file.FileSystem
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
-
-fun getServerFile(serverId: ServerId) = ENGINE_DIR
-    .resolve(serverId.value)
-
-val SKINS_DIR = ENGINE_DIR
-    .resolve("skins")
-    .also { it.mkdirs() }
 
 @JvmInline
 value class SourceFile(val file: File) {
@@ -56,11 +48,11 @@ data class OverridableResource(
     val isFile: Boolean = false
 ) {
     fun fetch(server: ServerId? = null): SourceFile? {
-        val defaultPath = ENGINE_DIR.resolve(path)
+        val defaultPath = FileSystem.defaultResource(path)
         val default = SourceFile.nullable(defaultPath)
 
         val server = server?.let {
-            val file = getServerFile(it).resolve(path)
+            val file = FileSystem.serverResource(it, path)
             SourceFile.nullable(file)
         }
 
@@ -68,7 +60,7 @@ data class OverridableResource(
             if (isFile) {
                 defaultPath.mkdirs()
             } else {
-                val builtin = getBuiltinResource(path) ?: return null
+                val builtin = FileSystem.builtinResource(path) ?: return null
                 defaultPath.writeText(builtin.readText())
             }
             defaultPath.toSourceFile()
@@ -113,7 +105,6 @@ data class Asset(
 data class ResourceContext(
     val assets: Assets,
     val contents: SourceFile,
-    val scripts: SourceFile,
     val web: SourceFile,
     val chatBarConfiguration: ChatBarConfiguration?,
     val formatConfiguration: ChatFormatSettings,
@@ -137,19 +128,17 @@ private fun bakeResourceContext(serverId: ServerId?): ResourceContext {
     return ResourceContext(
         Assets(assetsSource),
         CONTENTS.fetch(serverId).getOrThrow(),
-        SCRIPTS.fetch(serverId).getOrThrow(),
         WEB.fetch(serverId).getOrThrow(),
         CHAT_BAR_CONFIG.fetch(serverId)?.yaml(),
         FORMAT_CONFIG.fetch(serverId).getOrThrow().yaml(),
     )
 }
 
-private val CHAT_BAR_CONFIG = OverridableResource("chat-bar.yml")
-private val FORMAT_CONFIG = OverridableResource("format.yml")
-private val ASSETS = OverridableResource("assets", true)
-private val CONTENTS = OverridableResource("contents", true)
-private val SCRIPTS = OverridableResource("scripts", true)
-private val WEB = OverridableResource("web", true)
+private val CHAT_BAR_CONFIG = OverridableResource(FileSystem.CHAT_BAR_CONFIG_NAME)
+private val FORMAT_CONFIG = OverridableResource(FileSystem.FORMAT_CONFIG_NAME)
+private val ASSETS = OverridableResource(FileSystem.ASSETS_PATH, true)
+private val CONTENTS = OverridableResource(FileSystem.CONTENTS_PATH, true)
+private val WEB = OverridableResource(FileSystem.WEB_PATH, true)
 
 class ResourceManager(
     private val client: EngineClient

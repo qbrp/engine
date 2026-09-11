@@ -1,10 +1,9 @@
 package org.lain.engine.mc.server
 
-import kotlinx.serialization.Serializable
 import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.isOp
-import org.lain.engine.mc.minecraftEntityNullable
+import org.lain.engine.mc.ecs.minecraftEntityNullable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Username
 import org.lain.engine.player.character.EngineCharacter
@@ -12,8 +11,6 @@ import org.lain.engine.player.get
 import org.lain.engine.server.PlayerInstantiationConfirmation
 import org.lain.engine.server.account.DedicatedEngineAccountService
 import org.lain.engine.server.account.SessionTicket
-import org.lain.engine.transport.Endpoint
-import org.lain.engine.transport.Packet
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager

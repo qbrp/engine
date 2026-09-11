@@ -1,14 +1,13 @@
 package org.lain.engine.script.lua
 
 import org.lain.engine.script.*
-import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.script.lua.library.luaWorld
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaValue
-import org.luaj.vm2.Varargs
 
-class LuaScript<C : ScriptContext, R : Any>(private val luaScriptEngine: LuaScriptEngine, private val luaFunction: LuaFunction) : Script<C, R> {
+class LuaScript<C : ScriptContext, R : ScriptValue>(private val luaScriptEngine: LuaScriptEngine, private val luaFunction: LuaFunction) : Script<C, R> {
     override fun toString(): String {
         return luaFunction.toString()
     }
@@ -18,7 +17,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaScriptEngine: LuaScri
             is ScriptContext.SystemEntityHandle -> with(context.world) {
                 val array = Array<LuaValue?>(context.components.size + 2) { null }
                 array[0] = context.world.luaWorld()
-                array[1] = context.entity.coerceToLua()
+                array[1] = context.entity.luaEntity()
                 context.components.forEachIndexed { index, component ->
                     array[2 + index] = component.castLua().luaValue
                 }
@@ -27,7 +26,7 @@ class LuaScript<C : ScriptContext, R : Any>(private val luaScriptEngine: LuaScri
             else -> arrayOf(luaScriptEngine.mapScriptContext(context))
         }
         return try {
-            val result = luaFunction.invoke(arguments).arg1().toKotlin()
+            val result = luaFunction.invoke(arguments).arg1().toScriptValue()
             ExecutionResult.Success(
                 (result ?: Unit) as R
             )

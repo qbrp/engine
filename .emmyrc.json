@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/refs/heads/main/crates/emmylua_code_analysis/resources/schema.json",
+  "workspace": {
+    "workspaceRoots": ["run/engine/scripts"],
+    "ignoreDir": [
+      ".gradle",
+      ".idea",
+      "build",
+      "src/main/resources",
+      "logs"
+    ]
+  },
+  "diagnostics": {
+    "disable": [
+      "unnecessary-assert"
+    ]
+  }
+}

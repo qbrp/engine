@@ -19,8 +19,8 @@ fun resolveItemAsset(item: EngineItem): String {
             WRITEABLE_WRITTEN_ASSET
         }
 
-        assets[variant]?.let { return it }
+        assets[variant]?.let { return it.full }
     }
 
-    return assets["default"] ?: "missingno"
+    return assets["default"]?.full ?: "missingno"
 }

@@ -6,12 +6,13 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.ProgressionAnimationId
+import org.lain.engine.script.EngineId
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.world.*
 
 @Serializable
-data class ItemSounds(val sounds: Map<String, SoundEventId>) : ItemComponent
+data class ItemSounds(val sounds: Map<String, SoundEventId>) : Component
 
 context(world: World)
 fun EngineItem.emitPlaySoundEvent(
@@ -27,19 +28,19 @@ fun EngineItem.emitPlaySoundEvent(
 }
 
 @Serializable
-data class ItemAssets(val assets: Map<String, String>) : ItemComponent {
-    val default = assets["default"] ?: "missingno"
+data class ItemAssets(val assets: Map<String, EngineId>) : Component {
+    val default = assets["default"] ?: EngineId("missingno")
     fun copy() = ItemAssets(assets.toMap())
 
     companion object {
-        fun withDefaultAsset(asset: String): ItemAssets {
+        fun withDefaultAsset(asset: EngineId): ItemAssets {
             return ItemAssets(mapOf("default" to asset))
         }
     }
 }
 
 @Serializable
-data class ItemProgressionAnimations(val animations: Map<String, ProgressionAnimationId>) : ItemComponent
+data class ItemProgressionAnimations(val animations: Map<String, ProgressionAnimationId>) : Component
 
 context(world: World)
 fun EngineItem.getDefaultModel() = this.requireComponent<ItemAssets>().default
