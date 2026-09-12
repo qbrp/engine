@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.lain.engine.script.InventoryTab
 import org.lain.engine.script.Modules
 import org.lain.engine.script.NamespaceId
 import org.lain.engine.script.compilation.BuildDraft
@@ -32,6 +33,7 @@ class CompilationManifestTest {
             ),
             callbacks = emptyMap(),
             phases = emptyList(),
+            inventoryTab = InventoryTab(emptyList())
         )
         val outcome = CompilationOutcome.Failure(
             CompilationReport(

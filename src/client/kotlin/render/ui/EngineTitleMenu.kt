@@ -25,6 +25,9 @@ import net.minecraft.util.RandomSource
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.account.ConnectionState
 import org.lain.engine.client.mc.ClientMixin
+import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.render.MAP
 import org.lain.engine.mc.engineId
 import org.lwjgl.glfw.GLFW
 import kotlin.math.PI
@@ -41,7 +44,9 @@ class EngineTitleMenu(
     private var multiplayerButton: Button? = null
 
     override fun init() {
-        val menuX = MENU_PADDING.coerceAtMost((width - BUTTON_WIDTH - MENU_PADDING).coerceAtLeast(MENU_PADDING))
+        val menuX = MENU_PADDING.coerceAtMost(
+            (width - BUTTON_WIDTH - MENU_PADDING).coerceAtLeast(MENU_PADDING)
+        )
         val logoY = (height / 4 - 50).coerceAtLeast(18)
         var y = (logoY + LOGO_HEIGHT + 40).coerceAtMost(height - 118)
 
@@ -81,7 +86,15 @@ class EngineTitleMenu(
             86,
             15,
             Component.translatable("options.language"),
-            { minecraft.setScreen(LanguageSelectScreen(this, minecraft.options, minecraft.languageManager)) },
+            {
+                minecraft.setScreen(
+                    LanguageSelectScreen(
+                        this,
+                        minecraft.options,
+                        minecraft.languageManager
+                    )
+                )
+            },
             font
         )
         addRenderableWidget(languageButton)
@@ -101,7 +114,13 @@ class EngineTitleMenu(
 
         addRenderableWidget(
             PlainTextButton(
-                menuX, height - BUTTON_STEP - 2, 86, 20, Component.translatable("menu.quit"), { minecraft.stop() }, font
+                menuX,
+                height - BUTTON_STEP - 2,
+                86,
+                20,
+                Component.translatable("menu.quit"),
+                { minecraft.stop() },
+                font
             )
         )
     }
@@ -132,13 +151,27 @@ class EngineTitleMenu(
         renderAuthorizationStatus(guiGraphics, mouseX, mouseY)
     }
 
-    override fun renderBackground(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun renderBackground(
+        guiGraphics: GuiGraphics,
+        mouseX: Int,
+        mouseY: Int,
+        delta: Float
+    ) {
         MovingWallpapers.render(guiGraphics, delta)
     }
 
     override fun keyPressed(keyEvent: KeyEvent): Boolean {
-        return if (keyEvent.key == InputConstants.KEY_F10) {
+        return if (keyEvent.hasControlDown() && keyEvent.key == InputConstants.KEY_F10) {
             minecraft.setScreen(TitleScreen())
+            true
+        } else if (keyEvent.hasControlDown() && keyEvent.key == InputConstants.KEY_R) {
+            MovingWallpapers.loadWallpapers(MinecraftClient)
+            client.showNotification(
+                LittleNotification(
+                    "Обои перезагружены",
+                    sprite = MAP,
+                ),
+            )
             true
         } else {
             super.keyPressed(keyEvent)
@@ -211,8 +244,17 @@ class EngineTitleMenu(
         guiGraphics.pose().pushMatrix()
         guiGraphics.pose().translate(x.toFloat(), y.toFloat())
         renderAnimatedLogoLine(guiGraphics, "qbrp", 0.0f, 0.0f, LOGO_TOP_SCALE, alpha, 0, RED_HUE)
-        val engineX = font.width(logoText("qb")) * LOGO_TOP_SCALE + LOGO_ENGINE_X_OFFSET
-        renderAnimatedLogoLine(guiGraphics, "engine", engineX, LOGO_ENGINE_Y, LOGO_ENGINE_SCALE, alpha, 4, GREEN_HUE)
+//        val engineX = font.width(logoText("qb")) * LOGO_TOP_SCALE + LOGO_ENGINE_X_OFFSET
+//        renderAnimatedLogoLine(
+//            guiGraphics,
+//            "engine",
+//            engineX,
+//            LOGO_ENGINE_Y,
+//            LOGO_ENGINE_SCALE,
+//            alpha,
+//            4,
+//            GREEN_HUE
+//        )
         guiGraphics.pose().popMatrix()
     }
 
@@ -252,7 +294,8 @@ class EngineTitleMenu(
     }
 
     private fun animatedLogoColor(index: Int, alpha: Float, baseHue: Float): Int {
-        val wave = sin((animationTicks * LOGO_COLOR_SPEED + index * LOGO_LETTER_PHASE) * PI * 2.0).toFloat()
+        val wave =
+            sin((animationTicks * LOGO_COLOR_SPEED + index * LOGO_LETTER_PHASE) * PI * 2.0).toFloat()
         val hue = normalizeHue(baseHue + wave * LOGO_HUE_RANGE)
 
         val rgb = Mth.hsvToRgb(hue, 0.85f, 0.85f)
@@ -283,7 +326,11 @@ class EngineTitleMenu(
         }
     }
 
-    private fun isAuthorizationStatusHovered(mouseX: Double, mouseY: Double, text: String): Boolean {
+    private fun isAuthorizationStatusHovered(
+        mouseX: Double,
+        mouseY: Double,
+        text: String
+    ): Boolean {
         val x = authorizationStatusX(width, font, text)
         val y = AUTHORIZATION_STATUS_PADDING
         return mouseX >= x && mouseX <= x + font.width(text) && mouseY >= y && mouseY <= y + font.lineHeight
@@ -297,7 +344,7 @@ class EngineTitleMenu(
         private const val LOGO_ENGINE_SCALE = 0.85f
         private const val LOGO_ENGINE_X_OFFSET = 4.0f
         private const val LOGO_ENGINE_Y = 42.0f
-        private const val LOGO_HEIGHT = 70
+        private const val LOGO_HEIGHT = 50
         private const val LOGO_COLOR_SPEED = 0.015f
         private const val LOGO_LETTER_PHASE = 0.09f
         private const val MENU_PADDING = 8
@@ -313,8 +360,16 @@ class EngineTitleMenu(
 
         private fun authorizationStatus(client: EngineClient): AuthorizationStatus {
             return when (client.connectionState) {
-                is ConnectionState.Authorizing -> AuthorizationStatus("Авторизация", 0xFFFFFF55.toInt())
-                is ConnectionState.Authorized -> AuthorizationStatus("Авторизован", 0xFF55FF55.toInt())
+                is ConnectionState.Authorizing -> AuthorizationStatus(
+                    "Авторизация",
+                    0xFFFFFF55.toInt()
+                )
+
+                is ConnectionState.Authorized -> AuthorizationStatus(
+                    "Авторизован",
+                    0xFF55FF55.toInt()
+                )
+
                 else -> AuthorizationStatus(
                     "Не авторизован. Игра на серверах Engine недоступна",
                     0xFFFF5555.toInt()

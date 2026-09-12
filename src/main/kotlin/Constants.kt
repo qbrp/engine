@@ -10,7 +10,7 @@ object Constants {
     const val DEBUG_PACKETS = true
     const val SIMULATE_LATENCY = false
     const val DEBUG_ALL = false
-    const val LOAD_LUA_LIBRARIES = true
+    const val LOAD_LUA_LIBRARIES = false
     val DEVELOPER_TEST_ENVIRONMENT = System.getenv("ENGINE_DEV").toBoolean()
     val ALLOWED_VERSIONS = listOf(ENGINE_MOD_VERSION)
     val ENGINE_MOD_VERSION: String

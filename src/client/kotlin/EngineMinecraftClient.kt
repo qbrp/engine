@@ -22,6 +22,7 @@ import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
+import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.client.render.ui.initializeGraphene
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
@@ -124,6 +125,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         }
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
+        ClientLifecycleEvents.CLIENT_STOPPING.register { MovingWallpapers.close() }
 
         ClientTickEvents.START_CLIENT_TICK.register { keybindManager.tick(engine) }
 
@@ -197,6 +199,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.thread = (client as MinecraftClientAccessor).`engine$getThread`()
         registerWorldRenderEvents(client, engine, platform, decalSystem)
         registerHudRenderEvent(client, engine, renderer, uiRenderPipeline)
+        MovingWallpapers.loadWallpapers(client)
     }
 
     fun onDisconnect() {

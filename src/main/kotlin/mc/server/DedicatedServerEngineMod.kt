@@ -25,16 +25,19 @@ class DedicatedServerEngineMod : DedicatedServerModInitializer {
     private fun createLuaContext(
         entrypointScript: File,
         writeCompilationManifest: Boolean,
-    ) = LuaScriptEngine(
-        LuaScriptEngine.Dependencies(
-            LuaScriptEngine.globals(),
-            namespacedStorage,
-            LuaDataStorage(),
-            moduleManager,
-            writeCompilationManifest = writeCompilationManifest,
-        ),
-        FileScriptSource(entrypointScript),
-    )
+    ): LuaScriptEngine {
+        moduleManager.composeModules()
+        return LuaScriptEngine(
+            LuaScriptEngine.Dependencies(
+                LuaScriptEngine.globals(),
+                namespacedStorage,
+                LuaDataStorage(),
+                moduleManager,
+                writeCompilationManifest = writeCompilationManifest,
+            ),
+            FileScriptSource(entrypointScript),
+        )
+    }
 
     override fun onInitializeServer() {
         val config = loadOrCreateServerConfig()

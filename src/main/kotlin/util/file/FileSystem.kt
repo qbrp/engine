@@ -28,6 +28,7 @@ object FileSystem {
     const val SKINS_PATH = "skins"
     const val ACCOUNT_CACHE_NAME = "account.json"
     const val ASSETS_PATH = "assets"
+    const val WALLPAPERS_PATH = "wallpapers"
     const val WEB_PATH = "web"
     const val EXTENSIONS_PATH = "extensions"
     const val GRAPHENE_JCEF_PATH = "graphene-jcef"
@@ -41,7 +42,8 @@ object FileSystem {
     val moduleSet = modules.resolve(MODULE_SET_NAME)
         .apply {
             if (!exists()) {
-                writeText(builtinResource("modules/$MODULE_SET_NAME")!!.readText())
+                val resource = builtinResource("modules/$MODULE_SET_NAME")
+                resource?.let { writeText(it.readText()) }
             }
         }
 
@@ -57,9 +59,11 @@ object FileSystem {
     val bookBackups: File = ensureDirectory(storage.resolve(BOOK_BACKUPS_PATH))
 
     val skins: File = ensureDirectory(root.resolve(SKINS_PATH))
+    val wallpapers: File = ensureDirectory(root.resolve(WALLPAPERS_PATH))
 
     val accountCache: File = root.resolve(ACCOUNT_CACHE_NAME)
     val web: File = root.resolve(WEB_PATH)
+
     val extensions: File = root.resolve(EXTENSIONS_PATH)
     val grapheneJcef: File = File(GRAPHENE_JCEF_PATH)
 

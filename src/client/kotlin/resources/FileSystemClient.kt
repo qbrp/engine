@@ -72,8 +72,10 @@ typealias AssetPacker = () -> Asset
 
 class Assets(val source: SourceFile) {
     val directory = source.file
-    val spriteAtlases = source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules()
-    val autogenerationItemAssets = source.resolve("autogenerate.yml")?.yaml<AutoGenerationList>() ?: AutoGenerationList()
+    val spriteAtlases =
+        source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules()
+    val autogenerationItemAssets =
+        source.resolve("autogenerate.yml")?.yaml<AutoGenerationList>() ?: AutoGenerationList()
 
     fun getAsset(relative: String): Asset? {
         val relative = File(relative)
@@ -124,9 +126,11 @@ data class AutoGenerationList(
 
 private fun bakeResourceContext(serverId: ServerId?): ResourceContext {
     val assetsSource = ASSETS.fetch(serverId).getOrThrow()
+    val assets = Assets(assetsSource)
+
 
     return ResourceContext(
-        Assets(assetsSource),
+        assets,
         CONTENTS.fetch(serverId).getOrThrow(),
         WEB.fetch(serverId).getOrThrow(),
         CHAT_BAR_CONFIG.fetch(serverId)?.yaml(),

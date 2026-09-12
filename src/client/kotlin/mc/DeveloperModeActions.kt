@@ -10,6 +10,8 @@ import org.lain.engine.client.render.ui.TransformationsEditorScreen
 import org.lain.engine.client.render.ui.WebDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.render.MAP
+import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.mc.commands.playerPositionsMessage
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.util.Timestamp
@@ -97,7 +99,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) 
                 val gameSession = gameSession ?: return@with true
                 MinecraftClient.setScreen(WebDebugScreen(gameSession.client.resources))
             } else if (key == GLFW.GLFW_KEY_7){
-                ClientMixin.setGrapheneTestScreen()
+
             } else {
                 return@with false
             }

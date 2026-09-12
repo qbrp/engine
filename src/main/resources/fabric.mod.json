@@ -3,7 +3,7 @@
   "id": "engine",
   "version": "${version}",
   "name": "Engine",
-  "description": "Модификация сервера qbrp, добавляет новые механики и утилиты для РП",
+  "description": "Модификация сервера qbrp, добавляет новые ролевые механики и утилиты",
   "authors": ["lain1wakura"],
   "contact": {
     "homepage": "https://wiki.qbrp.online"

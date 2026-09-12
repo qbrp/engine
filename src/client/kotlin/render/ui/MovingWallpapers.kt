@@ -1,20 +1,15 @@
 package org.lain.engine.client.render.ui
 
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.gui.screens.LevelLoadingScreen
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.util.ARGB
 import net.minecraft.util.Mth
-import net.minecraft.util.RandomSource
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.mc.engineId
-import kotlin.collections.plusAssign
-import kotlin.compareTo
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.random.Random
-import kotlin.times
 
 object MovingWallpapers {
     private val VIGNETTE = engineId("textures/vignette.png")
@@ -23,38 +18,51 @@ object MovingWallpapers {
     private const val WALLPAPER_OVERSCAN = 48
     private const val WALLPAPER_TRAVEL = 24.0f
 
-    private data class Wallpaper(val id: net.minecraft.resources.Identifier, val width: Int, val height: Int)
-
-    private val WALLPAPERS = listOf(
-        Wallpaper(engineId("textures/wallapers/boys.png"), 3840, 2160),
-        Wallpaper(engineId("textures/wallapers/boys2.png"), 3840, 2160),
-        Wallpaper(engineId("textures/wallapers/cleaner.png"), 3840, 2034),
-        Wallpaper(engineId("textures/wallapers/teddy.png"), 3840, 2054),
-    )
-
-    private val random = Random(System.currentTimeMillis())
+    private var textureManager: WallpaperTextureManager? = null
     private var wallpaperMovementProgress = 0.0f
     private var wallpaperMovementDirection = 1.0f
     private var outgoingWallpaperProgress: Float? = null
     private var wallpaperTransitionTicks = 0.0f
-    private var currentWallpaperIndex = random.nextInt(WALLPAPERS.size)
-    private var incomingWallpaperIndex: Int? = null
+    private var transitioning = false
 
     private val width
         get() = MinecraftClient.window.guiScaledWidth
     private val height
         get() = MinecraftClient.window.guiScaledHeight
 
+    fun loadWallpapers(client: Minecraft) {
+        val manager = textureManager ?: WallpaperTextureManager(client).also { textureManager = it }
+        resetAnimation()
+        manager.reload()
+    }
+
+    fun close() {
+        textureManager?.close()
+        textureManager = null
+        resetAnimation()
+    }
+
+    fun next() {
+        textureManager
+        resetAnimation()
+    }
+
     fun render(guiGraphics: GuiGraphics, delta: Float) {
-        renderWallpaper(
-            guiGraphics,
-            WALLPAPERS[currentWallpaperIndex],
-            outgoingWallpaperProgress ?: wallpaperMovementProgress,
-            1.0f
-        )
-        incomingWallpaperIndex?.let { index ->
+        val manager = textureManager
+        manager?.beginFrame()
+        manager?.current?.let { wallpaper ->
+            renderWallpaper(
+                guiGraphics,
+                wallpaper,
+                outgoingWallpaperProgress ?: wallpaperMovementProgress,
+                1.0f,
+            )
+        }
+        if (transitioning) {
             val alpha = Mth.clamp(wallpaperTransitionTicks / WALLPAPER_TRANSITION_TICKS, 0.0f, 1.0f)
-            renderWallpaper(guiGraphics, WALLPAPERS[index], wallpaperMovementProgress, alpha)
+            manager?.next?.let { wallpaper ->
+                renderWallpaper(guiGraphics, wallpaper, wallpaperMovementProgress, alpha)
+            }
         }
         guiGraphics.fill(0, 0, width, height, 0x66000000)
         guiGraphics.nextStratum()
@@ -72,40 +80,39 @@ object MovingWallpapers {
 
     fun updateWallpaper(delta: Float) {
         wallpaperMovementProgress += delta / WALLPAPER_MOVE_TICKS * wallpaperMovementDirection
-        wallpaperMovementProgress = Mth.clamp(wallpaperMovementProgress, 0.0f, 1.0f)
+        wallpaperMovementProgress = wallpaperMovementProgress.coerceIn(0.0f, 1.0f)
 
-        if (incomingWallpaperIndex != null) {
+        if (transitioning) {
             wallpaperTransitionTicks += delta
             if (wallpaperTransitionTicks >= WALLPAPER_TRANSITION_TICKS) {
-                currentWallpaperIndex = incomingWallpaperIndex!!
-                incomingWallpaperIndex = null
+                textureManager?.advance()
+                transitioning = false
                 outgoingWallpaperProgress = null
                 wallpaperTransitionTicks = 0.0f
             }
             return
         }
 
-        val reachedMovementEdge = wallpaperMovementProgress == 0.0f || wallpaperMovementProgress == 1.0f
-        if (reachedMovementEdge && WALLPAPERS.size > 1) {
-            incomingWallpaperIndex = pickNextWallpaperIndex()
+        val reachedMovementEdge =
+            wallpaperMovementProgress == 0.0f || wallpaperMovementProgress == 1.0f
+        if (reachedMovementEdge && textureManager?.next != null) {
+            transitioning = true
             outgoingWallpaperProgress = wallpaperMovementProgress
             wallpaperTransitionTicks = 0.0f
             wallpaperMovementDirection *= -1.0f
         }
     }
 
-    fun pickNextWallpaperIndex(): Int {
-        var index = currentWallpaperIndex
-        while (index == currentWallpaperIndex) {
-            index = random.nextInt(WALLPAPERS.size)
-        }
-        return index
-    }
-
-    private fun renderWallpaper(guiGraphics: GuiGraphics, wallpaper: Wallpaper, progress: Float, alpha: Float) {
+    private fun renderWallpaper(
+        guiGraphics: GuiGraphics,
+        wallpaper: WallpaperTextureManager.Wallpaper,
+        progress: Float,
+        alpha: Float,
+    ) {
         val targetWidth = width + WALLPAPER_OVERSCAN * 2
         val targetHeight = height + WALLPAPER_OVERSCAN * 2
-        val scale = max(targetWidth.toFloat() / wallpaper.width, targetHeight.toFloat() / wallpaper.height)
+        val scale =
+            max(targetWidth.toFloat() / wallpaper.width, targetHeight.toFloat() / wallpaper.height)
         val drawWidth = ceil(wallpaper.width * scale).toInt()
         val drawHeight = ceil(wallpaper.height * scale).toInt()
         val actualTravel = min(
@@ -134,5 +141,13 @@ object MovingWallpapers {
             ARGB.white(alpha)
         )
         guiGraphics.pose().popMatrix()
+    }
+
+    private fun resetAnimation() {
+        wallpaperMovementProgress = 0.0f
+        wallpaperMovementDirection = 1.0f
+        outgoingWallpaperProgress = null
+        wallpaperTransitionTicks = 0.0f
+        transitioning = false
     }
 }
