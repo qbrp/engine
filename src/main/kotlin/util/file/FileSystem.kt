@@ -30,8 +30,6 @@ object FileSystem {
     const val ASSETS_PATH = "assets"
     const val WALLPAPERS_PATH = "wallpapers"
     const val WEB_PATH = "web"
-    const val EXTENSIONS_PATH = "extensions"
-    const val GRAPHENE_JCEF_PATH = "graphene-jcef"
     const val CHAT_BAR_CONFIG_NAME = "chat-bar.yml"
     const val FORMAT_CONFIG_NAME = "format.yml"
 
@@ -62,10 +60,6 @@ object FileSystem {
     val wallpapers: File = ensureDirectory(root.resolve(WALLPAPERS_PATH))
 
     val accountCache: File = root.resolve(ACCOUNT_CACHE_NAME)
-    val web: File = root.resolve(WEB_PATH)
-
-    val extensions: File = root.resolve(EXTENSIONS_PATH)
-    val grapheneJcef: File = File(GRAPHENE_JCEF_PATH)
 
     val preferences: Preferences = Preferences.userRoot().node(ROOT_PATH)
 

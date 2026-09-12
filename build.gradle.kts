@@ -64,7 +64,6 @@ dependencies {
     mappings(loom.officialMojangMappings())
     modImplementation(libs.bundles.fabric)
 
-    modImplementation(libs.graphene)
     modImplementation(libs.yaml)
     modImplementation(libs.ui)
     modImplementation(libs.architectury)
@@ -88,21 +87,18 @@ tasks.test {
 }
 
 tasks.processResources {
-    val version = version
-    inputs.property("version", version)
-    inputs.property("minecraft_version", libs.versions.minecraft.get())
-    inputs.property("loader_version", libs.versions.fabric.loader.get())
-    inputs.property("kotlin_loader_version", libs.versions.fabric.kotlin.get())
-    inputs.property("cyberia_version", libs.versions.cyberia.version.get())
+    val properties = mapOf(
+        "version" to project.version.toString(),
+        "minecraft_version" to libs.versions.minecraft.get(),
+        "loader_version" to libs.versions.fabric.loader.get(),
+        "kotlin_loader_version" to libs.versions.fabric.kotlin.get(),
+        "cyberia_version" to libs.versions.cyberia.version.get(),
+    )
+
+    inputs.properties(properties)
 
     filesMatching("fabric.mod.json") {
-        expand(
-            "version" to version,
-            "minecraft_version" to libs.versions.minecraft.get(),
-            "loader_version" to libs.versions.fabric.loader.get(),
-            "kotlin_loader_version" to libs.versions.fabric.kotlin.get(),
-            "cyberia_version" to libs.versions.cyberia.version.get(),
-        )
+        expand(properties)
     }
 }
 

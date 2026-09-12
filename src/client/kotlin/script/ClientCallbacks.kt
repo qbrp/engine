@@ -7,8 +7,7 @@ import org.lain.engine.script.SNil
 import org.lain.engine.script.ScriptContext
 
 object ClientCallbacks {
-    val WORKSPACE_OPEN = CallbackType<ClientScriptContext.WorkspaceOpen, SNil>("workspace_open")
     val SHOWED_ITEM_TOOLTIP = CallbackType<ClientScriptContext.ItemTooltip, SList>("show_item_tooltip")
 
-    fun list() = listOf(WORKSPACE_OPEN, SHOWED_ITEM_TOOLTIP)
+    fun list() = listOf(SHOWED_ITEM_TOOLTIP)
 }

@@ -28,7 +28,7 @@ class ChatTest : EngineTest() {
     @Test
     fun testMessageFiltering() {
         // Кейс #1: Подслушанное сообщение в отключенном системном канале
-        val message = LiteralSystemEngineChatMessage(
+        val message = LiteralSystemMessage(
             DummyWorld(),
             "Dummy message",
             isSpy = true
@@ -37,7 +37,7 @@ class ChatTest : EngineTest() {
         chatBar.toggleHide(SYSTEM_CHANNEL.id, null)
 
         assertFalse(isMessageVisible(message, true, chatBar), "Не должно быть видно")
-        val message2 = LiteralSystemEngineChatMessage(
+        val message2 = LiteralSystemMessage(
             DummyWorld(),
             "Dummy message",
         )

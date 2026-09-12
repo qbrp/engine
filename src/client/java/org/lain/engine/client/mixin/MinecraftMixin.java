@@ -17,8 +17,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import tytoo.grapheneui.api.GrapheneCore;
-import tytoo.grapheneui.internal.cef.startup.GrapheneNativeDownloadOverlay;
 
 @Mixin(Minecraft.class)
 public abstract class MinecraftMixin {
@@ -39,16 +37,6 @@ public abstract class MinecraftMixin {
     @Shadow
     @org.jspecify.annotations.Nullable
     public ClientLevel level;
-
-    @Inject(
-            method = "setOverlay",
-            at = @At("HEAD")
-    )
-    public void engine$showGrapheneTestScreen(Overlay overlay, CallbackInfo ci) {
-        if (this.overlay instanceof GrapheneNativeDownloadOverlay && overlay == null && GrapheneCore.isInitialized()) {
-            ClientMixin.INSTANCE.setGrapheneTestScreen();
-        }
-    }
 
     @Inject(
             method = "setScreen",

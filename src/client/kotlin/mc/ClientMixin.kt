@@ -23,8 +23,6 @@ import org.lain.engine.client.render.player.setEngineState
 import org.lain.engine.client.render.player.update
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.EngineTitleMenu
-import org.lain.engine.client.render.ui.TestGrapheneScreen
-import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
@@ -52,7 +50,7 @@ object ClientMixin {
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
-    fun shouldFocusChatIfNot() = MinecraftClient.screen is Workspace
+    fun shouldFocusChatIfNot() = false // раньше здесь была логика рабочего стола
 
     fun canCloseLevelLoadingScreen() = client.joinFlow?.canCloseLevelLoadingScreen ?: false
 
@@ -60,10 +58,6 @@ object ClientMixin {
 
     fun openEngineTitleMenu(fading: Boolean) {
         MinecraftClient.setScreen(EngineTitleMenu(fading, client))
-    }
-
-    fun setGrapheneTestScreen() {
-        MinecraftClient.setScreen(TestGrapheneScreen(client))
     }
 
     fun onYamlConfigScreenClosed() {

@@ -24,7 +24,6 @@ import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.showInpectionModeToggleNotification
 import org.lain.engine.client.render.showSpectatingNotification
 import org.lain.engine.client.render.tickBulletHitSystem
-import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.tickRecoilShakeSystem
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
@@ -126,7 +125,6 @@ class GameSession(
         get() = simulation.ticks
 
     val endTickTaskExecutor = TaskExecutor()
-    var workspaceSavedState: Workspace.SavedState? = null
 
     var inspectionMode: Boolean = false
         set(value) {

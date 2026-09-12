@@ -23,7 +23,6 @@ import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.client.render.ui.MovingWallpapers
-import org.lain.engine.client.render.ui.initializeGraphene
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.EquipmentFeatureRenderer
@@ -89,7 +88,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)
         registerClientEngineCommands(engine)
-        initializeGraphene()
 
         Injector.register(keybindManager)
         Injector.register(this)
