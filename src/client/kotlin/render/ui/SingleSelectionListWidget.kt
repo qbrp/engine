@@ -31,7 +31,6 @@ class SingleSelectionListWidget<T>(
     /** Колбек: вызывается при клике по элементу (index, value) */
     var onSelect: ((Int, T) -> Unit)? = null
 
-    // --- API для работы со списком ---
     fun add(text: Text, value: T) {
         entries += Entry(value, text)
         if (selectedIndex == -1) selectedIndex = 0

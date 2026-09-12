@@ -1,10 +1,10 @@
 [versions]
-minecraft = "1.21.11"
+minecraft = "1.21.1"
 kotlin = "2.4.0"
 
 # Fabric
 fabric-loader = "0.19.3"
-fabric-api = "0.141.4+1.21.11"
+fabric-api = "0.116.17+1.21.1"
 fabric-kotlin = "1.13.12+kotlin.2.4.0"
 
 # Build tools
@@ -12,16 +12,15 @@ loom = "1.16-SNAPSHOT"
 shadow = "9.3.0"
 
 # Library mods
-graphene = "1.7.2"
-adventure = "6.8.0"
-yaml-config = "19.1.0-fabric"
-ui-lib = "19.1.0-fabric"
-architectury-api = "19.0.1+fabric"
-permissions-api = "0.6.1"
-female-gender = "5.0.0-Beta.3+1.21.11"
+adventure = "5.14.2"
+yaml-config = "9.0.0-fabric"
+ui-lib = "9.0.0-fabric"
+architectury-api = "13.0.11+fabric"
+permissions-api = "0.3.3"
+female-gender = "3.2.1+1.21"
+cyberia-version = "1.8"
 
 # Libraries
-cyberia-version = "1.8"
 cyberia-ecs-api = "1.3.4"
 exposed = "1.0.0"
 sqlite = "3.51.1.0"
@@ -33,9 +32,9 @@ protobuf = "1.9.0"
 credential-secure-storage = "1.0.3"
 
 # Mod compatibility
-camera-overhaul = "2.0.6-fabric+mc.1.21.11-plus"
-lambdynlights = "4.9.1+1.21.11"
-worldedit = "7.4.2"
+camera-overhaul = "2.0.6-fabric+mc.1.21.0-1.21.2"
+lambdynlights = "4.8.11+1.21.1"
+worldedit = "7.3.8"
 
 [plugins]
 loom = { id = "fabric-loom", version.ref = "loom" }
@@ -51,7 +50,6 @@ fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fab
 fabric-kotlin = { module = "net.fabricmc:fabric-language-kotlin", version.ref = "fabric-kotlin" }
 fabric-loader-junit = { module = "net.fabricmc:fabric-loader-junit", version.ref = "fabric-loader" }
 
-graphene = { module = "io.github.trethore:graphene-ui", version.ref = "graphene" }
 yaml = { module = "maven.modrinth:yaml-config", version.ref = "yaml-config" }
 ui = { module = "maven.modrinth:ui-lib", version.ref = "ui-lib" }
 architectury = { module = "maven.modrinth:architectury-api", version.ref = "architectury-api" }
@@ -63,9 +61,9 @@ camera-overhaul = { module = "maven.modrinth:cameraoverhaul", version.ref = "cam
 lambdynlights-api = { module = "dev.lambdaurora.lambdynamiclights:lambdynamiclights-api", version.ref = "lambdynlights" }
 lambdynlights-runtime = { module = "dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime", version.ref = "lambdynlights" }
 worldedit-api = { module = "com.sk89q.worldedit:worldedit-core", version.ref = "worldedit" }
-worldedit-fabric = { module = "com.sk89q.worldedit:worldedit-fabric-mc1.21.11", version.ref = "worldedit" }
-
+worldedit-fabric = { module = "com.sk89q.worldedit:worldedit-fabric-mc1.21", version.ref = "worldedit" }
 cyberia = { module = "org.lain.cyberia:fabric", version.ref = "cyberia-version" }
+
 cyberia-ecs-api = { module = "org.lain.cyberia:ecs-api", version.ref = "cyberia-ecs-api" }
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
