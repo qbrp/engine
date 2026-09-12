@@ -6,8 +6,15 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.renderer.texture.SpriteContents
 import net.minecraft.client.renderer.texture.atlas.SpriteSource
 import net.minecraft.client.resources.metadata.animation.FrameSize
+import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection
+import net.minecraft.client.resources.metadata.texture.TextureMetadataSection
 import net.minecraft.resources.Identifier
+import net.minecraft.server.packs.metadata.MetadataSectionType
+import net.minecraft.server.packs.resources.ResourceMetadata
+import net.minecraft.server.packs.resources.ResourceManager
 import org.lain.engine.util.Timestamp
+import java.io.File
+import java.util.Optional
 
 /**
  * Гарантируется, что текстура из ассета загружена и существует по `textureId`
@@ -29,7 +36,7 @@ data class SpriteAtlasRules(
 
 class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
     override fun run(
-        resourceManager: net.minecraft.server.packs.resources.ResourceManager,
+        resourceManager: ResourceManager,
         output: SpriteSource.Output
     ) {
         val start = Timestamp()
@@ -48,15 +55,42 @@ class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
         val CODEC = MapCodec.unit { throw NotImplementedError() }
 
         fun openSprite(id: Identifier, path: Asset): SpriteContents? {
-            val file = path.source.file
-            if (!file.exists()) return null
-            val input = file.inputStream()
-            val nativeImage = NativeImage.read(input)
-            val width = nativeImage.width
-            val height = nativeImage.height
-            val spriteDimensions = FrameSize(width, height)
-            input.close()
-            return SpriteContents(id, spriteDimensions, nativeImage)
+            val imageFile = path.source.file
+            if (!imageFile.isFile) return null
+
+            val metadata = loadMetadata(imageFile)
+            val animationMetadata = metadata.getSection(AnimationMetadataSection.TYPE)
+            val textureMetadata = metadata.getSection(TextureMetadataSection.TYPE)
+            val additionalMetadata: List<MetadataSectionType.WithValue<*>> = textureMetadata
+                .map { listOf(TextureMetadataSection.TYPE.withValue(it)) }
+                .orElse(emptyList())
+            val nativeImage = imageFile.inputStream().use(NativeImage::read)
+            val spriteDimensions = animationMetadata
+                .map { it.calculateFrameSize(nativeImage.width, nativeImage.height) }
+                .orElseGet { FrameSize(nativeImage.width, nativeImage.height) }
+
+            return try {
+                SpriteContents(
+                    id,
+                    spriteDimensions,
+                    nativeImage,
+                    animationMetadata,
+                    additionalMetadata,
+                    textureMetadata,
+                )
+            } catch (exception: Throwable) {
+                nativeImage.close()
+                throw exception
+            }
+        }
+
+        private fun loadMetadata(imageFile: File): ResourceMetadata {
+            val metadataFile = imageFile.resolveSibling("${imageFile.name}.mcmeta")
+            return if (metadataFile.isFile) {
+                metadataFile.inputStream().use(ResourceMetadata::fromJsonStream)
+            } else {
+                ResourceMetadata.EMPTY
+            }
         }
     }
 }
