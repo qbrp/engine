@@ -40,6 +40,7 @@ class IntegratedEngineMinecraftServer(
 
         fun registerEvent(client: EngineMinecraftClient) {
             ServerLifecycleEvents.SERVER_STARTING.register { server ->
+                client.engine.moduleManager.composeModules()
                 val dependencies = try {
                     val config = loadOrCreateServerConfig()
                     val entrypoint = FileSystem.compilationEntrypoint

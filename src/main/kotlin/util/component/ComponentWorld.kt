@@ -25,6 +25,7 @@ class ComponentWorld(
 ) : MutableComponentAccess, IterationComponentAccess {
     @Volatile
     var threadRestrictionMode = true
+    var entityDestroyedListener: ((EntityId, PersistentId?) -> Unit)? = null
     private val arrays = ArrayList<ComponentArray<*>>()
     private val savableArrays = ArrayList<ComponentArray<*>>()
     private val networkingArrays = ArrayList<ComponentArray<*>>()
@@ -234,10 +235,16 @@ class ComponentWorld(
     // главный поток
     override fun destroy(entity: EntityId) {
         require(exists(entity)) { "Entity $entity does not exist" }
+        val array = getComponentArray(componentTypeOf(PersistentIdComponent::class).castIndexed())
+        val persistentId = array.componentOf(entity)?.id
         arrays.forEach { array -> removeComponent(entity, array.type) }
         synchronized(entityInstantiationLock) {
-            freeIndexes.add(entity)
             destroyed[entity] = true
+        }
+        try {
+            entityDestroyedListener?.invoke(entity, persistentId)
+        } finally {
+            freeIndexes.add(entity)
         }
     }
 

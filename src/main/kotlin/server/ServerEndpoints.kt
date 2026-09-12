@@ -11,7 +11,7 @@ import org.lain.engine.transport.packet.SERVERBOUND_DEVELOPER_MODE_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_COMPONENT_RPC_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT
-import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_RESYNC_REQUEST_ENDPOINT
+import org.lain.engine.transport.packet.SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_INPUT_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_LOOK_APPLY_ENDPOINT
@@ -82,8 +82,8 @@ fun ServerHandler.registerEndpoints() {
             actions
         )
     }
-    SERVERBOUND_ENTITY_RESYNC_REQUEST_ENDPOINT.registerReceiver { ctx ->
-        onEntityResyncRequest(ctx.sender, persistentId)
+    SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT.registerReceiver { ctx ->
+        onReplicationResyncRequest(ctx.sender, target)
     }
     SERVERBOUND_VOXEL_BLOCK_HINT_PACKET.registerReceiver { ctx ->
         onVoxelBlockHint(

@@ -6,7 +6,6 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.storage.PersistentId
 import org.lain.engine.storage.toSnapshotDto
-import org.lain.engine.transport.packet.PlayerInputProcessedPacket
 import org.lain.engine.util.component.ComponentTypeRegistry
 import org.lain.engine.util.component.EntityId
 import org.lain.engine.util.component.IndexedComponentType
@@ -87,7 +86,7 @@ context(world: World)
 fun EntityId.collectNetworkedComponents() = world.componentManager.getNetworkedComponents(this)
     .map { component -> component.toSnapshotDto() }
 
-private fun EntityStateFrame.deltaSnapshot() = EntityNetworkSnapshot.Delta(baseRevision, revision, delta)
+private fun NetworkStateFrame.deltaSnapshot() = EntityNetworkSnapshot.Delta(baseRevision, revision, delta)
 
 context(world: World)
 fun EntityId.fullNetworkSnapshot() = EntityNetworkSnapshot.Full(
@@ -96,7 +95,6 @@ fun EntityId.fullNetworkSnapshot() = EntityNetworkSnapshot.Full(
 )
 
 fun World.sendSnapshots(
-    server: EngineServer,
     worldStateFrame: WorldStateFrame,
     handler: ServerHandler
 ) {
@@ -106,7 +104,7 @@ fun World.sendSnapshots(
 
     iterate<PlayerComponent, PlayerSyncState>() { _, (player), state ->
         if (!state.confirmed) return@iterate
-        val entities = mutableListOf<ReplicationFrameSnapshot.Entity>()
+        val entities = mutableMapOf<PersistentId, EntityNetworkSnapshot>()
 
         state.freshPlayers.forEach { (playerToSync) ->
             handler.sendFullPlayerState(player, playerToSync)
@@ -115,11 +113,11 @@ fun World.sendSnapshots(
             trackState.fresh.forEach {
                 val entity = persistentIdToEntity[it] ?: return@forEach
                 val state = fullSnapshotCache.getOrPut(it) { entity.fullNetworkSnapshot() }
-                entities += ReplicationFrameSnapshot.Entity(it, state)
+                entities[it] = state
             }
             (trackState.synced - trackState.fresh).forEach {
                 val snapshot = entitiesFrame[it] ?: return@forEach
-                entities += ReplicationFrameSnapshot.Entity(it, snapshot.deltaSnapshot())
+                entities[it] = snapshot.deltaSnapshot()
             }
         }
 
@@ -130,15 +128,17 @@ fun World.sendSnapshots(
             worldStateFrame.worldState?.deltaSnapshot()
         }
 
-        if (state.processedInputTick > state.lastSentProcessedInputTick) {
-            handler.sendProcessedInput(
-                player,
-                PlayerInputProcessedPacket(state.processedInputTick),
-            )
+        val processedInputTick = if (state.processedInputTick > state.lastSentProcessedInputTick) {
             state.lastSentProcessedInputTick = state.processedInputTick
+            state.processedInputTick
+        } else {
+            null
         }
 
-        handler.sendReplicationFrame(player, ReplicationFrameSnapshot(worldSnapshot, entities))
+        handler.sendReplicationFrame(
+            player,
+            ReplicationFrameSnapshot(worldSnapshot, entities, processedInputTick),
+        )
     }
 }
 
@@ -155,5 +155,5 @@ fun World.tickSynchronizationSystem(server: EngineServer) = runBlocking {
     }
     job.join()
     tickPlayerTrackingSystem(server, desynchronizationRadius)
-    sendSnapshots(server, frame.await(), server.handler)
+    sendSnapshots(frame.await(), server.handler)
 }

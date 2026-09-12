@@ -62,12 +62,12 @@ public abstract class ItemStackMixin {
             cancellable = true
     )
     public void engine$getTooltip(Item.TooltipContext tooltipContext, @org.jspecify.annotations.Nullable Player player, TooltipFlag tooltipFlag, CallbackInfoReturnable<List<Component>> cir) {
-        if (components.has(ItemStacksKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
-            ArrayList<Component> list = Lists.newArrayList();
-            list.add(getStyledHoverName());
-            cir.setReturnValue(list);
-            cir.cancel();
-        }
+//        if (components.has(ItemStacksKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
+//            ArrayList<Component> list = Lists.newArrayList();
+//            list.add(getStyledHoverName());
+//            cir.setReturnValue(list);
+//            cir.cancel();
+//        }
     }
 
     @Inject(

@@ -2,6 +2,9 @@ package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
+import net.minecraft.client.renderer.item.MissingItemModel
 import net.minecraft.core.Registry
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
@@ -28,8 +31,12 @@ private val ITEM_GROUP = FabricItemGroup.builder()
     .title(literalText("Engine"))
     .build()
 
-fun updateRandomEngineItemGroupIcon() {
-    val stacks = ITEM_GROUP.displayItems
+fun updateRandomEngineItemGroupIcon(client: Minecraft) {
+    if (client.player?.containerMenu !is CreativeModeInventoryScreen.ItemPickerMenu) return
+    val stacks = ITEM_GROUP.displayItems.filter {
+        val itemModel = it.get(DataComponents.ITEM_MODEL) ?: return@filter false
+        client.modelManager.getItemModel(itemModel) !is MissingItemModel
+    }
     val itemGroup = ITEM_GROUP as CreativeModeTabAccessor
     if (stacks.isNotEmpty()) {
         itemGroup.`engine$setIcon`(stacks.random())
@@ -51,8 +58,10 @@ fun updateEngineItemGroupEntries(gameSession: GameSession) {
 fun registerEngineItemGroupEvent(client: EngineClient) {
     Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, KEY, ITEM_GROUP);
     ItemGroupEvents.modifyEntriesEvent(KEY).register { entries ->
-        currentGameSession?.namespacedStorage?.items?.toList()?.sortedBy { it.first.toString() }
-            ?.forEach { (id, prefab) ->
+        val gameSession = currentGameSession ?: return@register
+        gameSession.inventoryTab.entries
+            .mapNotNull { gameSession.namespacedStorage.items[it.prefabId] }
+            .forEach { prefab ->
                 val stack = ITEM_STACK_MATERIAL.copy()
                 val assets = prefab.assets?.assets ?: return@forEach
 
@@ -65,7 +74,7 @@ fun registerEngineItemGroupEvent(client: EngineClient) {
                         ?: "missingno"
                     )
                 )
-                stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, id.toString())
+                stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, prefab.id.toString())
                 entries.prepend(stack)
             }
     }

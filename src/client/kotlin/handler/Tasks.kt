@@ -59,7 +59,10 @@ fun <P : Packet> ClientHandler.registerGameSessionReceiver(
             LOGGER.warn("Получен пакет данных в раннем состоянии авторизации на сервере [${endpoint.identifier}]")
             return@registerClientReceiver
         }
-        taskExecutor(session).add(endpoint.identifier) { this.executor(session) }
+        taskExecutor(session).add(endpoint.identifier) task@{
+            if (client.gameSession !== session) return@task
+            this.executor(session)
+        }
     }
 }
 

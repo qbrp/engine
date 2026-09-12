@@ -144,10 +144,14 @@ fun <T : ArgumentBuilder<CommandSourceStack, T>> ArgumentBuilder<CommandSourceSt
     }
 }
 
-fun CommandSourceStack.hasPermission(text: String): Boolean {
-    if (permissions().hasPermission(Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS))) return true
-    if (player?.hasPermission(text) == true) return true
-    return false
+fun CommandSourceStack.hasPermission(permission: String): Boolean {
+    val vanillaAllowed = permissions().hasPermission(
+        Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS)
+    )
+    if (vanillaAllowed) {
+        return true
+    }
+    return player?.hasPermission(permission) ?: true
 }
 
 open class FriendlyException(message: String) : Exception(message)

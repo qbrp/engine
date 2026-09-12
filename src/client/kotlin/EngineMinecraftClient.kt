@@ -168,7 +168,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             }
 
             if (engine.ticks % 20L == 0L) {
-                updateRandomEngineItemGroupIcon()
+                updateRandomEngineItemGroupIcon(MinecraftClient)
             }
 
             engine.tick()

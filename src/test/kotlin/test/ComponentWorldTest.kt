@@ -27,6 +27,9 @@ import org.lain.engine.listKotlinComponentTypeEntries
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.server.Changes
+import org.lain.engine.storage.PersistentId
+import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.storage.persistentId
 import org.lain.engine.util.component.castIndexed
 import java.util.concurrent.ConcurrentHashMap
 
@@ -111,6 +114,26 @@ class ComponentWorldTest : EngineTest() {
         assertEquals(first, componentWorld.addEntity())
         assertTrue(componentWorld.exists(first))
         assertTrue(componentWorld.exists(second))
+    }
+
+    @Test
+    fun entityDestroyedListenerReceivesPersistentIdAfterDestruction() {
+        val entity = componentWorld.addEntity()
+        val persistentId = persistentId("destroyed-entity")
+        var notification: Pair<EntityId, PersistentId?>? = null
+        componentWorld.setComponentWithType(
+            entity,
+            PersistentIdComponent(persistentId),
+            componentTypeOf(PersistentIdComponent::class),
+        )
+        componentWorld.entityDestroyedListener = { destroyedEntity, destroyedPersistentId ->
+            assertFalse(componentWorld.exists(destroyedEntity))
+            notification = destroyedEntity to destroyedPersistentId
+        }
+
+        componentWorld.destroy(entity)
+
+        assertEquals(entity to persistentId, notification)
     }
 
     @Test

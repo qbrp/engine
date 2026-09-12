@@ -36,15 +36,8 @@ data class CompilationManifestNamespace(
     @SerialName("progression_animations") val progressionAnimations: List<String>,
     val scripts: List<String>,
     val components: List<String>,
-    val operations: List<CompilationManifestOperation>,
+    val operations: List<String>,
     val systems: List<CompilationManifestSystem>,
-)
-
-@Serializable
-data class CompilationManifestOperation(
-    val id: String,
-    val linked: Boolean,
-    val script: CompilationManifestReference,
 )
 
 @Serializable
@@ -105,9 +98,6 @@ fun compilationManifestOf(
     val componentIds = draftNamespaces.values
         .flatMap { it.components.keys }
         .toSet()
-    val linkedOperationIds = linkedNamespaces.values
-        .flatMap { it.operations.keys }
-        .toSet()
     val linkedSystemIds = linkedNamespaces.values
         .flatMap { it.systems.keys }
         .toSet()
@@ -141,18 +131,7 @@ fun compilationManifestOf(
                     progressionAnimations = namespace.progressionAnimations.keys.sortedEngineIds(),
                     scripts = namespace.scripts.keys.sortedEngineIds(),
                     components = namespace.components.keys.sortedEngineIds(),
-                    operations = namespace.operations.entries
-                        .sortedBy { it.key.engineId.full }
-                        .map { (id, operation) ->
-                            CompilationManifestOperation(
-                                id = id.engineId.full,
-                                linked = id in linkedOperationIds,
-                                script = CompilationManifestReference(
-                                    id = operation.script.engineId.full,
-                                    resolved = operation.script in scriptIds,
-                                ),
-                            )
-                        },
+                    operations = namespace.operations.keys.sortedEngineIds(),
                     systems = namespace.systems.entries
                         .sortedBy { it.key.engineId.full }
                         .map { (id, system) ->

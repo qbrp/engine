@@ -11,7 +11,7 @@ import org.lain.engine.world.VoxelPos
 data class Operation(
     val id: OperationId,
     val name: String,
-    val script: VoidScript<ScriptContext.OperationExecution>,
+    val script: Script<ScriptContext.OperationExecution, *>,
     val inputs: List<AnyInput>,
     val actors: List<OperationActor.Type> = OperationActor.Type.entries,
     val permission: String? = null,
@@ -77,7 +77,7 @@ fun EngineId.toOperationId() = OperationId(this)
 fun Operation.execute(
     ctx: ScriptContext.OperationExecution,
     handler: ServerHandler? = null,
-): ExecutionResult<Unit> {
+): ExecutionResult<*> {
     val result = script.execute(ctx)
     handler?.onPlayerOperation(ctx, this)
     return result

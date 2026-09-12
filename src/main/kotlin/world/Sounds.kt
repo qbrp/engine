@@ -40,6 +40,10 @@ value class SoundEventId(val value: EngineId) : Identifiable {
     }
 }
 
+fun EngineId.toSoundEventId() = SoundEventId(this)
+
+fun String.toSoundId() = SoundId(this)
+
 @Serializable
 data class ESoundSource(
     val id: SoundId,

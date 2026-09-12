@@ -11,6 +11,7 @@ import org.lain.engine.mc.literalText
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.player.*
 import org.lain.engine.script.FileScriptSource
+import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.script.lua.LuaDataStorage
@@ -40,13 +41,15 @@ class ServerPlayerTest : EngineTest() {
         val scriptsPath = tempDir.resolve("scripts").toFile()
         scriptsPath.mkdirs()
         val entrypoint = scriptsPath.resolve("entrypoint.lua")
+        val moduleManager = ModuleManager()
         entrypoint.createNewFile()
         server = EngineServer(
             ServerId("test"),
             PlayerStorage(),
             AcousticSimulator.DUMMY,
             ServerPlatform.DUMMY,
-            namespacedStorage = namespacedStorage,
+            namespacedStorage,
+            moduleManager,
             Thread.currentThread(),
             false,
             tempDir.resolve("world").toFile(),
@@ -55,8 +58,9 @@ class ServerPlayerTest : EngineTest() {
                 LuaScriptEngine.Dependencies(
                     LuaScriptEngine.globals(),
                     namespacedStorage,
+                    LuaDataStorage(),
+                    moduleManager,
                     scriptsPath.path,
-                    LuaDataStorage()
                 ),
                 FileScriptSource(entrypoint)
             ),

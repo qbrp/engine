@@ -2,6 +2,7 @@ package org.lain.engine.mc
 
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.chunk.LevelChunk
 import org.lain.engine.player.EnginePlayer
@@ -50,7 +51,11 @@ object ServerMixin {
         val chunkStorage = world.chunkStorage
         val chunkPos = chunk.pos.engineChunkPos()
         val engineChunk = chunkStorage.requireChunk(chunkPos)
-        server.engine.handler.sendChunkSnapshot(player.engineId, engineChunk, chunkPos)
+        server.engine.handler.sendOrQueueChunk(player.engineId, engineChunk, chunkPos)
+    }
+
+    fun onChunkDropped(pos: ChunkPos, player: ServerPlayer) = server?.let { server ->
+        server.engine.handler.onChunkDropped(player.engineId, pos.engineChunkPos())
     }
 
     fun shouldCancelSendJoinMessage() = chatSettings?.let { it.joinMessage != "" || !it.joinMessageEnabled } ?: true

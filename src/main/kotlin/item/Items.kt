@@ -25,6 +25,8 @@ value class ItemId(val value: EngineId) : Identifiable {
     override fun toString(): String = value.toString()
 }
 
+fun EngineId.toItemPrefabId() = ItemId(this)
+
 class ItemStorage : Storage<PersistentId, EngineItem>() {
     override val map: MutableMap<PersistentId, EngineItem> = ConcurrentHashMap()
 }

@@ -1,11 +1,17 @@
 package org.lain.engine.script.lua.compilation
 
+import org.lain.engine.item.toItemPrefabId
 import org.lain.engine.script.*
 import org.lain.engine.script.compilation.*
 import org.lain.engine.script.lua.*
 import org.lain.engine.script.lua.library.resolveIdReference
+import org.lain.engine.util.Operation
 import org.lain.engine.util.component.ComponentMeta
 import org.lain.engine.util.toOperationId
+import org.lain.engine.world.ESoundSource
+import org.lain.engine.world.SoundEvent
+import org.lain.engine.world.toSoundEventId
+import org.lain.engine.world.toSoundId
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaTable
 
@@ -72,6 +78,7 @@ private fun compiledNamespacesList(
         val componentsArray = namespace.get("components").nullable()?.checktable()
         val operationsArray = namespace.get("operations").nullable()?.checktable()
         val systemsArray = namespace.get("systems").nullable()?.checktable()
+        val soundEventsArray = namespace.get("sound_events").nullable()?.checktable()
 
         val items =
             compileItemPrefabsLua(
@@ -125,7 +132,7 @@ private fun compiledNamespacesList(
                     operation
                 ) {
                     val id = operation.get("id").resolveIdReference().toOperationId()
-                    val script = operation.get("script").resolveIdReference().toScriptId()
+                    val script = LuaScript<ScriptContext.OperationExecution, SNil>(luaScriptEngine, operation.get("execute").checkfunction())
                     val name = operation.get("name")?.nullable()?.tojstring() ?: id.toString()
                     val inputs = operation.get("inputs")?.nullable()?.checktable()
                         ?.toList { it.checktable() }
@@ -136,7 +143,7 @@ private fun compiledNamespacesList(
                         } else {
                             null
                         }
-                    id to NamespaceDraft.Operation(name, script, inputs, permission = permission)
+                    id to Operation(id, name, script, inputs, permission = permission)
                 }
             }
             ?.toMap()
@@ -163,9 +170,34 @@ private fun compiledNamespacesList(
             ?.toMap()
             ?: emptyMap()
 
+        val soundEvents = soundEventsArray?.toList { it.checktable() }
+            ?.mapNotNull { soundEventL ->
+                compileEntry(
+                    namespaceId,
+                    SymbolKind.SOUND,
+                    soundEventL
+                ) {
+                    val id = soundEventL.get("id").resolveIdReference().toSoundEventId()
+                    val sources = soundEventL.get("sources").checktable().toList {
+                        val table = it.checktable()
+                        ESoundSource(
+                            table["id"].tojstring().toSoundId(),
+                            table["volume"].nullable()?.tofloat() ?: 1f,
+                            table["pitch"].nullable()?.tofloat() ?: 1f,
+                            table["weight"].nullable()?.toint() ?: 1,
+                            table["distance"].nullable()?.toint() ?: 16,
+                            table["pitch_random"].nullable()?.tofloat() ?: 0f
+                        )
+                    }
+                    id to SoundEvent(id, sources)
+                }
+            }
+            ?.toMap()
+            ?: emptyMap()
+
         namespaceId to NamespaceDraft(
             items = items.associateBy { it.id },
-            sounds = emptyMap(),
+            sounds = soundEvents,
             progressionAnimations = emptyMap(),
             scripts = scripts,
             components = components,
@@ -223,10 +255,22 @@ fun LuaCompilationContext.compiledBuildDraft(table: LuaTable): BuildDraft {
         ?.toList { phaseL -> phaseL.checktable().toPhaseDraft() }
         ?: emptyList()
 
+    val inventoryTabEntries = table.get("inventory_tab").nullable()?.checktable()
+        ?.let {
+            it["entries"].checktable().toList {
+                InventoryTab.Entry(
+                    it["prefab_id"].resolveIdReference().toItemPrefabId(),
+                    it["tooltip"]?.nullable()?.checktable()?.toList { it.tojstring() } ?: emptyList()
+                )
+            }
+        }
+        ?: emptyList()
+
     return BuildDraft(
         phases = phases,
         callbacks = callbacks,
         namespaces = namespaces,
+        inventoryTab = InventoryTab(inventoryTabEntries)
     )
 }
 

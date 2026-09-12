@@ -36,7 +36,7 @@ fun ServerCommandDispatcher.registerOperationCommands(
     handler: ServerHandler,
 ) = operations.forEach { operation ->
     val (rawId, name, script, inputs, actors, permission) = operation
-    val id = operation.id.value.namespace.substringAfterLast('/')
+    val id = operation.id.value.local
     val node = literal(id)
         .requires { ctx -> permission == null || ctx.hasPermission(permission) }
     if (inputs.any { it.type is Input.Type.Table }) error("Can't create $id command operation: table input type is not supported")

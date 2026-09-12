@@ -1,5 +1,7 @@
 package org.lain.engine.script.lua.library
 
+import org.lain.cyberia.ecs.ComponentType
+import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.lua.*
@@ -17,7 +19,7 @@ class ComponentLibrary(
     private val namespacedStorageAccess: NamespacedStorageAccess,
     private var ready: Boolean = false
 ) {
-    private val type = LuaUserdataType<ScriptComponentType> {
+    private val type = LuaUserdataType<ComponentType<*>> {
         indexSelf { self, key ->
             when (key.tojstring()) {
                 "id" -> self.id.luaStr()
@@ -35,8 +37,8 @@ class ComponentLibrary(
                 )
             } else {
                 val idRef = varargs.arg1()
-                val id = idRef.resolveIdReference()
-                val foundType = namespacedStorageAccess.components[id.toScriptComponentId()]
+                val id = idRef.resolveIdReference().toScriptComponentId()
+                val foundType = CoreScriptComponents.get(id) ?: namespacedStorageAccess.components[id]
                     ?: error("unknown component type: $id")
                 LuaValue.varargsOf(
                     coerceComponentType(foundType),
@@ -46,7 +48,7 @@ class ComponentLibrary(
         }
     }
 
-    fun coerceComponentType(type: ScriptComponentType): LuaUserdata {
+    fun coerceComponentType(type: ComponentType<*>): LuaUserdata {
         return this.type.newInstance(type)
     }
 

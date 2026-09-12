@@ -7,6 +7,7 @@ import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.exists
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.getLuaScriptComponent
@@ -14,6 +15,7 @@ import org.lain.engine.script.lua.hasLuaScriptComponent
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaUserdataTable
+import org.lain.engine.script.lua.nullable
 import org.lain.engine.script.lua.removeLuaScriptComponent
 import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.script.lua.toLuaList
@@ -24,6 +26,7 @@ import org.luaj.vm2.LuaInteger
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
+import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
 data class LuaEntity(
     val writeAccess: WriteComponentAccess,
@@ -94,12 +97,18 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
         world.componentManager.markDirty(entityId, type)
         NIL
     }
-    functionSelf("list_components") { entity ->
+    functionSelf2("list_components") { entity, queryL ->
         val entityId = entity.id
-        val world = entity.world ?: error("entity hasn't write component access")
+        val world = entity.world ?: error("entity hasn't read component access")
+        val query = queryL.nullable()?.toboolean() ?: false
         world.getComponents(entityId)
-            .filterIsInstance<LuaScriptComponent>()
-            .associate { it.type to it.luaValue }
+            .filter { query || it is LuaScriptComponent }
+            .associate {
+                when(it) {
+                    is LuaScriptComponent -> it.type to it.luaValue
+                    else -> componentTypeOf(it::class) to CoerceJavaToLua.coerce(it)
+                }
+            }
             .toLuaTable(
                 { lua.componentLibrary.coerceComponentType(it) },
                 { it }

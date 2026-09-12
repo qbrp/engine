@@ -4,10 +4,17 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.LuaUserdataType
+import org.lain.engine.script.lua.NIL
 import org.lain.engine.script.lua.castLua
+import org.lain.engine.script.lua.luaBool
+import org.lain.engine.script.lua.luaStr
 import org.lain.engine.script.lua.luaValue
+import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.world.VoxelDoor
 import org.lain.engine.world.VoxelMeta
+import org.lain.engine.world.VoxelTag
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
@@ -15,33 +22,22 @@ import org.luaj.vm2.LuaValue
 import org.luaj.vm2.lib.OneArgFunction
 import org.luaj.vm2.lib.TwoArgFunction
 
-fun VoxelMeta.coerceToLua(): LuaUserdata {
-    val userdata = LuaUserdata(this)
-    val meta = object : LuaTable() {
-        init {
-            set("__index", object : TwoArgFunction() {
-                override fun call(self: LuaValue, key: LuaValue): LuaValue {
-                    return when (val k = key.tojstring()) {
-                        "id" -> luaValue(this@coerceToLua.id)
-                        "has_tag" -> object : OneArgFunction() {
-                            override fun call(tag: LuaValue): LuaValue {
-                                return luaValue(
-                                    this@coerceToLua.hasTag(
-                                        tag.tojstring()
-                                    )
-                                )
-                            }
-                        }
-                        else -> NIL
-                    }
-                }
-            })
-        }
+fun VoxelMetaUserdataType() = LuaUserdataType<VoxelMeta> {
+    functionSelf2("has_tag") { self, tag ->
+        self.hasTag(VoxelTag(tag.tojstring())).luaBool()
     }
 
-    userdata.setmetatable(meta)
-    return userdata
+    indexSelf { self, key ->
+        when(key.tojstring()) {
+            "id" -> self.id.luaStr()
+            "tags" -> self.tags.toList().toLuaList { it.value.luaStr() }
+            else -> NIL
+        }
+    }
 }
+
+context(lua: LuaScriptEngine)
+fun VoxelMeta.coerceToLua(): LuaUserdata = lua.voxelMetaUserdataType.newInstance(this)
 
 fun World.applyLuaVoxelDoorComponents() {
     iterate(CoreScriptComponents.VOXEL_DOOR) { entity, door ->

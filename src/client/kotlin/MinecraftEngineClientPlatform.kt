@@ -22,6 +22,7 @@ import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.*
 import org.lain.engine.script.EntityDebugData
+import org.lain.engine.script.InventoryTab
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.FullPlayerData
@@ -104,7 +105,7 @@ class MinecraftEngineClientPlatform(
             volumes.map { (pos, volume) -> BlockPos(pos.x, pos.y, pos.z) to volume }
     }
 
-    override fun onCompiled(gameSession: GameSession) {
+    override fun onCompiled(gameSession: GameSession, inventoryTab: InventoryTab) {
         updateEngineItemGroupEntries(gameSession)
     }
 

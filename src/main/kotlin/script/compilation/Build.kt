@@ -1,6 +1,7 @@
 package org.lain.engine.script.compilation
 
 import org.lain.engine.script.Callbacks
+import org.lain.engine.script.InventoryTab
 import org.lain.engine.script.Namespace
 import org.lain.engine.script.NamespaceId
 import org.lain.engine.script.SystemPhase
@@ -10,6 +11,7 @@ data class Build(
     val namespaces: Map<NamespaceId, Namespace>,
     val callbacks: Callbacks?,
     val phases: List<SystemPhase>,
+    val inventoryTab: InventoryTab,
     val time: Long
 ) {
     fun log() {

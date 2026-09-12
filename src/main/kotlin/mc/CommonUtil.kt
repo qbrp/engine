@@ -284,14 +284,7 @@ fun Callbacks.executePlaceVoxelCallback(player: EnginePlayer?, world: World, pos
             player,
             world,
             pos,
-            object : VoxelMeta {
-                override val id: String
-                    get() = state.registryKey.idString
-
-                override fun hasTag(id: String): Boolean {
-                    return state.`is`(blockTag(id))
-                }
-            }
+            MinecraftBlockState(state)
         )
     )
 }

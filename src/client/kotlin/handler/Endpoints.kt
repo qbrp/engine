@@ -74,20 +74,12 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
         applyVoxelEvent(event)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_WORLD_STATE_DELTA_PACKET) { gameSession ->
-        applyWorldState(gameSession, snapshot)
-    }
-
     CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { _ ->
         taskExecutor.add("chunk-load") { applyChunkPacket(chunk) }
     }
 
     registerGameSessionReceiver(CLIENTBOUND_REPLICATION_ENDPOINT) {
-        applyReplicationFrame(it, persistentId, snapshot)
-    }
-
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_INPUT_PROCESSED_ENDPOINT) {
-        applyProcessedInput(it, processedInputTick)
+        applyReplicationFrame(it, frame)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { _ -> applyOperation(dto, operation) }

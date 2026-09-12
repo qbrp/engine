@@ -1,15 +1,9 @@
 package org.lain.engine.server
 
-import org.lain.engine.mc.engineChunkPos
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.transport.packet.CLIENTBOUND_CHUNK_ENDPOINT
-import org.lain.engine.transport.packet.EngineChunkDto
-import org.lain.engine.transport.packet.EngineChunkPacket
 import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
-import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.pos
 
 sealed interface ConnectionState {
     val playerId: PlayerId
@@ -28,6 +22,7 @@ sealed interface ConnectionState {
 
     class Play(
         val player: EnginePlayer,
+        val handler: ServerHandler,
         queuedChunks: List<EngineChunkPos>
     ) : ConnectionState {
         override val playerId: PlayerId
@@ -39,20 +34,8 @@ sealed interface ConnectionState {
             }
         }
 
-        override fun sendChunk(
-            chunk: EngineChunk,
-            pos: EngineChunkPos
-        ) {
-            CLIENTBOUND_CHUNK_ENDPOINT.sendS2C(
-                EngineChunkPacket(
-                    EngineChunkDto(
-                        pos,
-                        chunk.decals.mapKeys { (k, v) -> ImmutableVoxelPos(k) },
-                        chunk.hints.mapKeys { (k, v) -> ImmutableVoxelPos(k) }
-                    )
-                ),
-                playerId
-            )
+        override fun sendChunk(chunk: EngineChunk, pos: EngineChunkPos) {
+            handler.sendChunk(player, chunk, pos)
         }
     }
 }
@@ -61,11 +44,11 @@ class Connection(
     val playerId: PlayerId,
     var state: ConnectionState
 ) {
-    fun onAuthorized(player: EnginePlayer) = state.let { state ->
+    fun onAuthorized(handler: ServerHandler, player: EnginePlayer) = state.let { state ->
         if (state !is ConnectionState.Authorization) {
             error("Player already authorized")
         }
         val queuedChunks = state.queuedChunks
-        this.state = ConnectionState.Play(player, queuedChunks)
+        this.state = ConnectionState.Play(player, handler, queuedChunks)
     }
 }

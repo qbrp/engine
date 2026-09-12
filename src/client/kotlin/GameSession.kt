@@ -1,5 +1,8 @@
 package org.lain.engine.client
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.requireComponent
@@ -25,6 +28,7 @@ import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.tickRecoilShakeSystem
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
+import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
@@ -33,6 +37,7 @@ import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.interaction.PlayerInputMode
+import org.lain.engine.script.InventoryTab
 import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
@@ -64,6 +69,7 @@ class GameSession(
     val luaContext = compilation.luaContext
     val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
     val playerStorage = PlayerStorage()
+    var inventoryTab: InventoryTab = build.inventoryTab
     val simulation = EngineSimulation(
         isClient = true,
         this,
@@ -79,6 +85,9 @@ class GameSession(
         simulation,
     )
     val itemStorage: ItemStorage = this.world.itemStorage
+
+    private val sessionScope = CoroutineScope(handler.coroutineDispatcher + SupervisorJob())
+    val replicationController: ClientReplicationController
 
     val chatEventBus = client.chatEventBus
     var synchronizationRadius: Int = setup.settings.synchronizationRadius
@@ -145,7 +154,15 @@ class GameSession(
         }
 
         player.character?.let { this.world.emitEvent(CharacterApplyEvent(it, mainPlayer.id)) }
-        handler.initializeEntitySynchronization(this)
+        replicationController = ClientReplicationController(
+            gameSession = this,
+            coroutineScope = sessionScope,
+            requestResync = { target ->
+                SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT.sendC2SPacket(
+                    ReplicationResyncRequestPacket(target)
+                )
+            },
+        )
     }
 
     fun logInMainThread(loggerGetter: context(World) GameSession.(tick: Long) -> Log) {
@@ -183,10 +200,12 @@ class GameSession(
         }
     }
 
-    fun applyCompilation(result: Build) {
-        simulation.applyCompilationResult(result)
+    fun applyCompilation(build: Build) {
+        simulation.applyCompilationResult(build)
         luaContext.setupClientGameSession(this)
-        onContentsUpdated()
+        client.audioManager.invalidateCache()
+        inventoryTab = build.inventoryTab
+        client.infrastructure.onCompiled(this, build.inventoryTab)
     }
 
     fun recompile() {
@@ -209,11 +228,6 @@ class GameSession(
                 e.log()
             }
         }
-    }
-
-    fun onContentsUpdated() {
-        client.audioManager.invalidateCache()
-        client.infrastructure.onCompiled(this)
     }
 
     override fun World.beforeInput() = with(systems) {
@@ -315,8 +329,10 @@ class GameSession(
     fun destroy() {
         characterChange?.cancel()
         characterChange = null
+        replicationController.close()
+        sessionScope.cancel()
         client.renderer.invalidate()
-        handler.disable(this)
+        handler.disable()
         client.skinTextureManager.close()
     }
 

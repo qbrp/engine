@@ -29,13 +29,20 @@ sealed class EntityNetworkSnapshot {
 }
 
 @Serializable
+sealed interface ReplicationTarget {
+    @Serializable
+    data object World : ReplicationTarget
+
+    @Serializable
+    data class Entity(val persistentId: PersistentId) : ReplicationTarget
+}
+
+@Serializable
 data class ReplicationFrameSnapshot(
     val world: EntityNetworkSnapshot?, //null if is empty
-    val entities: List<Entity>
-) {
-    @Serializable
-    data class Entity(val persistentId: PersistentId, val snapshot: EntityNetworkSnapshot)
-}
+    val entities: Map<PersistentId, EntityNetworkSnapshot>,
+    val processedInputTick: Long? = null,
+)
 
 @Serializable
 data class EntityDelta(
@@ -43,17 +50,15 @@ data class EntityDelta(
     val removed: List<String>
 )
 
-data class EntityStateFrame(
-    val entity: EntityId,
-    val persistentId: PersistentId?,
+data class NetworkStateFrame(
     val baseRevision: Long?,
     val revision: Long,
     val delta: EntityDelta
 )
 
 data class WorldStateFrame(
-    val worldState: EntityStateFrame?, //null if is empty
-    val entities: Map<PersistentId, EntityStateFrame>
+    val worldState: NetworkStateFrame?, //null if is empty
+    val entities: Map<PersistentId, NetworkStateFrame>
 )
 
 context(world: World)
@@ -90,42 +95,27 @@ fun Changes.collectChanges(entityId: EntityId): EntityDelta? {
 }
 
 context(world: World)
-fun Changes.freezeSnapshot(persistentId: PersistentId?, entity: EntityId): EntityStateFrame? {
-    val entityDelta = collectChanges(entity)
-    return if (entityDelta != null) {
-        val baseRevision = revision
-        val newRevision = baseRevision + 1
-        EntityStateFrame(
-            entity,
-            persistentId,
-            baseRevision,
-            newRevision,
-            entityDelta
-        ).also {
-            revision = newRevision
-        }
-    } else {
-        null
-    }
+fun Changes.freezeSnapshot(entity: EntityId): NetworkStateFrame? {
+    val delta = collectChanges(entity) ?: return null
+    val baseRevision = revision
+    revision++
+    return NetworkStateFrame(baseRevision, revision, delta)
 }
 
 fun World.composeStateFrame(): WorldStateFrame {
-    val entities = mutableMapOf<PersistentId, EntityStateFrame>()
+    val entities = mutableMapOf<PersistentId, NetworkStateFrame>()
     iterate<Networked, Changes, PersistentIdComponent>() { entity, _, networkState, (persistentId) ->
         if (!networkState.changed) {
             return@iterate
         }
 
-        val snapshot = networkState.freezeSnapshot(persistentId, entity)
-        if (snapshot != null) {
-            entities[persistentId] = snapshot
-        }
+        networkState.freezeSnapshot(entity)?.let { entities[persistentId] = it }
 
         networkState.clear()
     }
 
     val worldNetworkState = state.networkState()
-    val worldEntityFrame = worldNetworkState.freezeSnapshot(null, state)
+    val worldEntityFrame = worldNetworkState.freezeSnapshot(state)
     worldNetworkState.clear()
     return WorldStateFrame(worldEntityFrame, entities)
 }

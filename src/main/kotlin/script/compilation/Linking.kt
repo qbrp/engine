@@ -1,22 +1,6 @@
 package org.lain.engine.script.compilation
 
-import org.lain.engine.script.ContentHolder
-import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.Namespace
-import org.lain.engine.script.NamespaceId
-import org.lain.engine.script.Script
-import org.lain.engine.script.ScriptComponentId
-import org.lain.engine.script.ScriptComponentType
-import org.lain.engine.script.ScriptContext
-import org.lain.engine.script.ScriptId
-import org.lain.engine.script.ScriptSystem
-import org.lain.engine.script.SystemPhase
-import org.lain.engine.script.VoidScript
-import org.lain.engine.script.collect
-import org.lain.engine.util.Operation
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.toMap
+import org.lain.engine.script.*
 
 internal data class LinkingSymbols(
     val scripts: Map<ScriptId, Script<*, *>>,
@@ -52,27 +36,6 @@ internal fun NamespaceDraft.linkedNamespace(
     symbols: LinkingSymbols,
     id: NamespaceId,
 ): Namespace = with(id) {
-    val operations = operations.mapNotNull { (operationId, operation) ->
-        val script = symbols.scripts[operation.script] ?: run {
-            context.exceptions.reportLinkingError(
-                "Используемый скрипт ${operation.script} не найден",
-                SymbolKind.OPERATION,
-                operationId.toString()
-            )
-            return@mapNotNull null
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        operationId to Operation(
-            id = operationId,
-            name = operation.name,
-            script = script as VoidScript<ScriptContext.OperationExecution>,
-            inputs = operation.inputs,
-            actors = operation.actors,
-            permission = operation.permission
-        )
-    }.toMap()
-
     val systems = systems.mapNotNull { (systemId, system) ->
         val query = system.queryComponents.mapNotNull { componentId ->
             symbols.components[componentId]

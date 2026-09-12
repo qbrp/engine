@@ -225,20 +225,31 @@ class ServerHandler(
             this.entity.requireComponent<PlayerSyncState>().enqueueInput(tick, input)
         }
 
-    internal fun onEntityResyncRequest(playerId: PlayerId, persistentId: PersistentId) =
+    internal fun onReplicationResyncRequest(playerId: PlayerId, target: ReplicationTarget) =
         updatePlayerWithContext(playerId) {
-            val syncState = entity.requireComponent<PlayerSyncState>()
-            if (persistentId !in syncState.entities.synced) {
-                return@updatePlayerWithContext
+            val frame = when (target) {
+                ReplicationTarget.World -> ReplicationFrameSnapshot(
+                    world = world.state.fullNetworkSnapshot(),
+                    entities = emptyMap(),
+                )
+
+                is ReplicationTarget.Entity -> {
+                    val persistentId = target.persistentId
+                    val syncState = entity.requireComponent<PlayerSyncState>()
+                    if (persistentId !in syncState.entities.synced) {
+                        return@updatePlayerWithContext
+                    }
+                    val networkedEntity = world.persistentIdToEntity[persistentId]
+                        ?: return@updatePlayerWithContext
+                    ReplicationFrameSnapshot(
+                        world = null,
+                        entities = mapOf(
+                            persistentId to networkedEntity.fullNetworkSnapshot(),
+                        ),
+                    )
+                }
             }
-            val networkedEntity = world.persistentIdToEntity[persistentId]
-                ?: return@updatePlayerWithContext
-            sendReplicationFrame(
-                this,
-                persistentId,
-                networkedEntity,
-                networkedEntity.fullNetworkSnapshot(),
-            )
+            sendReplicationFrame(this, frame)
         }
 
     internal fun onWriteableContentsUpdate(
@@ -370,10 +381,6 @@ class ServerHandler(
             )
     }
 
-    fun sendProcessedInput(player: EnginePlayer, packet: PlayerInputProcessedPacket) {
-        CLIENTBOUND_PLAYER_INPUT_PROCESSED_ENDPOINT.sendS2C(packet, player.id)
-    }
-
     fun onCharacterApplyConfirmation(
         player: EnginePlayer,
         requestId: Long,
@@ -438,8 +445,26 @@ class ServerHandler(
             )
     }
 
-    fun sendChunkSnapshot(playerId: PlayerId, chunk: EngineChunk, chunkPos: EngineChunkPos) {
+    fun sendChunk(player: EnginePlayer, chunk: EngineChunk, pos: EngineChunkPos) {
+        CLIENTBOUND_CHUNK_ENDPOINT.sendS2C(
+            EngineChunkPacket(
+                EngineChunkDto(
+                    pos,
+                    chunk.decals.mapKeys { (k, v) -> ImmutableVoxelPos(k) },
+                    chunk.hints.mapKeys { (k, v) -> ImmutableVoxelPos(k) }
+                )
+            ),
+            player.id
+        )
+        player.require<PlayerSyncState>().sentChunks[pos] = chunk
+    }
+
+    fun sendOrQueueChunk(playerId: PlayerId, chunk: EngineChunk, chunkPos: EngineChunkPos) {
         connections[playerId]!!.state.sendChunk(chunk, chunkPos)
+    }
+
+    fun onChunkDropped(player: PlayerId, chunkPos: EngineChunkPos) = playerStorage.get(player)?.let {
+        it.require<PlayerSyncState>().sentChunks -= chunkPos
     }
 
     fun onServerNotification(player: PlayerId, notification: Notification, once: Boolean) {
@@ -472,7 +497,7 @@ class ServerHandler(
         }
 
     fun onPlayerInstantiationConfirm(playerId: PlayerId) = updatePlayer(playerId) {
-        connections[playerId]!!.onAuthorized(this)
+        connections[playerId]!!.onAuthorized(this@ServerHandler, this)
         remove<PlayerInstantiationConfirmation>() ?: desync("Invalid player state")
     }
 

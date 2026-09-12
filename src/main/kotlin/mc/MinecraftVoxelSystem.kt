@@ -13,15 +13,20 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.world.DynamicVoxel
 import org.lain.engine.world.VoxelDoor
 import org.lain.engine.world.VoxelMeta
+import org.lain.engine.world.VoxelTag
 import org.lain.engine.world.World
+import java.util.stream.Stream
 
 data class MinecraftBlockState(val blockState: BlockState) : Component, VoxelMeta {
     override val id: String
         get() = blockState.registryKey.idString
 
-    override fun hasTag(id: String): Boolean {
-        return blockState.`is`(blockTag(id))
+    override fun hasTag(id: VoxelTag): Boolean {
+        return blockState.`is`(blockTag(id.value))
     }
+
+    override val tags: Stream<VoxelTag>
+        get() = blockState.tags.map { VoxelTag(it.location.toString()) }
 }
 
 fun World.tickVoxelAdapterSystem(level: Level) = iterate<DynamicVoxel> { voxel, (pos) ->

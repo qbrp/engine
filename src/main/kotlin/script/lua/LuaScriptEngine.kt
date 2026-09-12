@@ -70,6 +70,7 @@ open class LuaScriptEngine(
     val entityRpcReceiverMetaTable: LuaTable = EntityRpcReceiverMetaTable()
     val entityRpcMessageMetaTable: LuaTable = EntityRpcMessageMetaTable()
     val entityRpcQueueMetaTable: LuaTable = EntityRpcQueueMetaTable()
+    val voxelMetaUserdataType = VoxelMetaUserdataType()
     val moduleFileMetaTable = ModuleFileUserdataType()
     val moduleFolderMetaTable = ModuleFolderUserdataType()
     val moduleUserdataType = ModuleUserdataType()
@@ -188,6 +189,7 @@ open class LuaScriptEngine(
                         namespaces = linkedNamespaces,
                         callbacks = Callbacks(buildDraft.callbacks),
                         phases = linkedPhases,
+                        inventoryTab = buildDraft.inventoryTab,
                         time = start.timeElapsed(),
                     ),
                     report

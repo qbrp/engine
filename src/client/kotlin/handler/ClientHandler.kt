@@ -35,8 +35,8 @@ import org.lain.engine.script.EntityDebugData
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.server.EntityNetworkSnapshot
 import org.lain.engine.server.Notification
+import org.lain.engine.server.ReplicationFrameSnapshot
 import org.lain.engine.server.desync
 import org.lain.engine.storage.*
 import org.lain.engine.transport.packet.*
@@ -55,19 +55,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
 
     val processedInteraction = linkedSetOf<InteractionId>()
 
-    private val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
+    internal val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
     private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
-
-    private val awaitingChunks = mutableMapOf<EngineChunkPos, CompletableDeferred<EngineChunk>>()
-    private val replication = ClientReplicationController(
-        coroutineScope = coroutineScope,
-        awaitChunk = ::awaitChunk,
-        requestEntityResync = { persistentId ->
-            SERVERBOUND_ENTITY_RESYNC_REQUEST_ENDPOINT.sendC2SPacket(
-                EntityResyncRequestPacket(persistentId)
-            )
-        },
-    )
 
     override fun begin(
         world: World,
@@ -75,13 +64,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         interactionId: InteractionId
     ) {
         rememberProcessedInteraction(interactionId)
-        replication.beginPrediction(world, entity, interactionId)
+        val replication = gameSession?.replicationController
+            ?: error("Prediction started without an active game session")
+        check(gameSession?.world === world) { "Prediction started in an inactive world" }
+        replication.beginPrediction(entity, interactionId)
     }
 
-    fun initializeEntitySynchronization(gameSession: GameSession) = replication.initialize(gameSession)
-
     fun endInteractionPrediction() {
-        replication.endPrediction()
+        gameSession?.replicationController?.endPrediction()
     }
 
     fun rememberProcessedInteraction(interactionId: InteractionId) {
@@ -127,12 +117,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         )
     }
 
-    fun disable(gameSession: GameSession) {
-        replication.disable(gameSession.world)
+    fun disable() {
         injectValue<ClientTransportContext>().unregisterAll()
         showedNotifications.clear()
         processedInteraction.clear()
-        awaitingChunks.clear()
     }
 
     fun tick() {
@@ -179,11 +167,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
                 )
             )
         }
-    }
-
-    private suspend fun awaitChunk(gameSession: GameSession, pos: EngineChunkPos): EngineChunk {
-        gameSession.world.chunkStorage.getChunk(pos)?.let { return it }
-        return awaitingChunks.getOrPut(pos) { CompletableDeferred() }.await()
     }
 
     private suspend fun waitNextTick() = MinecraftClientDispatcher.waitNextTick()
@@ -316,14 +299,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
     fun applyPlayerJoined(data: GeneralPlayerData) {
         processedInteraction.removeIf { it.source == data.playerId }
         val persistentId = CustomPersistentId(data.playerId.toString())
-        replication.removeEntity(persistentId)
+        gameSession!!.replicationController.removeEntity(persistentId)
         gameSession!!.instantiateLowDetailedPlayer(data)
     }
 
     fun applyPlayerDestroyed(gameSession: GameSession, player: EnginePlayer) {
         processedInteraction.removeIf { it.source == player.id }
-        val persistentId = CustomPersistentId(player.id.toString())
-        replication.removeEntity(persistentId)
         gameSession.removePlayer(player)
     }
 
@@ -392,18 +373,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
             mutableMapOf()
         )
         loadChunk(pos, chunk)
-        awaitingChunks.remove(pos)?.complete(chunk)
     }
 
     fun applyVoxelEvent(event: VoxelEvent) = with(gameSession!!) {
         world.emitEvent(event)
     }
 
-    fun applyReplicationFrame(
-        gameSession: GameSession,
-        persistentId: PersistentId,
-        snapshot: EntityNetworkSnapshot
-    ) = replication.applyEntity(gameSession, persistentId, snapshot)
+    fun applyReplicationFrame(gameSession: GameSession, frame: ReplicationFrameSnapshot) =
+        gameSession.replicationController.enqueue(frame)
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {
         client.infrastructure.onEntityDebugViewData(data)
@@ -441,14 +418,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         )
     }
 
-    fun applyProcessedInput(gameSession: GameSession, processedInputTick: Long) =
-        replication.applyProcessedInput(gameSession, processedInputTick)
-
-    fun applyWorldState(gameSession: GameSession, snapshot: EntityNetworkSnapshot) =
-        replication.applyWorldState(gameSession, snapshot)
-
     fun applyItemUnload(gameSession: GameSession, items: List<PersistentId>) =
-        replication.applyItemUnload(gameSession, items)
+        gameSession.replicationController.applyItemUnload(items)
 
     companion object {
         private const val MAX_PROCESSED_INTERACTIONS = 4096
