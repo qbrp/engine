@@ -2,7 +2,7 @@ package org.lain.engine.client.mixin.sound;
 
 import com.mojang.blaze3d.audio.SoundBuffer;
 import net.minecraft.client.sounds.SoundBufferLibrary;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import org.lain.engine.mc.CommonEngineMod;
 import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Final;
@@ -20,20 +20,20 @@ import static org.lain.engine.client.mc.sound.UtilKt.loadEngineStaticSound;
 
 @Mixin(SoundBufferLibrary.class)
 public class SoundBufferLibraryMixin {
-    @Shadow @Final private Map<Identifier, CompletableFuture<SoundBuffer>> cache;
+    @Shadow @Final private Map<ResourceLocation, CompletableFuture<SoundBuffer>> cache;
 
     @Inject(
             method = "getCompleteBuffer",
             at = @At("HEAD"),
             cancellable = true
     )
-    public void engine$loadStatic(Identifier id, CallbackInfoReturnable<CompletableFuture<SoundBuffer>> cir) {
+    public void engine$loadStatic(ResourceLocation id, CallbackInfoReturnable<CompletableFuture<SoundBuffer>> cir) {
         if (Objects.equals(id.getNamespace(), CommonEngineMod.MOD_ID) && !id.getPath().startsWith("sounds/builtin")) {
             cir.setReturnValue(
                 loadEngineStaticSound(
                     ClientMixin.INSTANCE.getAssets(),
                     this.cache,
-                    Identifier.fromNamespaceAndPath(id.getNamespace(), id.getPath().replaceFirst("sounds/", ""))
+                    ResourceLocation.fromNamespaceAndPath(id.getNamespace(), id.getPath().replaceFirst("sounds/", ""))
                 )
             );
             cir.cancel();

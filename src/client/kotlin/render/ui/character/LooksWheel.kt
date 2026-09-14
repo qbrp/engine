@@ -5,8 +5,8 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.input.KeyEvent
-import net.minecraft.client.renderer.entity.state.AvatarRenderState
+import net.minecraft.client.gui.screens.inventory.InventoryScreen
+import net.minecraft.client.player.AbstractClientPlayer
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lain.engine.client.account.SkinTextureManager
@@ -57,12 +57,12 @@ class LooksWheel<T>(
         height = screen.height
     }
 
-    override fun keyPressed(keyEvent: KeyEvent): Boolean {
-        return if (keyEvent.key == InputConstants.KEY_RETURN) {
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        return if (keyCode == InputConstants.KEY_RETURN) {
             onSelectLook(entries.getOrNull(selectedIndex))
             true
         } else {
-            super.keyPressed(keyEvent)
+            super.keyPressed(keyCode, scanCode, modifiers)
         }
     }
 
@@ -78,15 +78,16 @@ class LooksWheel<T>(
     }
 
     private fun applyCursorLook(
-        renderState: AvatarRenderState,
+        entity: AbstractClientPlayer,
         entityX: Int,
         entityY: Int,
         mouseX: Int,
         mouseY: Int,
     ) {
         val yaw = ((mouseX - entityX) / 8f).coerceIn(-35f, 35f)
-        renderState.bodyRot = 180f + -yaw * 0.35f
-        renderState.yRot = -yaw
+        entity.yBodyRot = 180f + -yaw * 0.35f
+        entity.setYRot(-yaw)
+        entity.yHeadRot = entity.yRot
     }
 
     override fun renderWidget(
@@ -123,41 +124,50 @@ class LooksWheel<T>(
                 entry.profile.biologicalCategory,
                 entry.profile.biologicalSex
             )
-            val renderState = createCharacterPreviewRenderState(
+            val entity = createCharacterPreviewPlayer(
                 entry.profile,
-                CharacterSkin(skinTextureManager.getOrDownloadTexture(look), model),
-                1f
-            )
+                CharacterSkin(skinTextureManager.getOrDownloadTexture(look), model)
+            ) ?: return@character
 
             if (index == selectedIndex) {
-                applyCursorLook(renderState, itemX, baseY, mouseX, mouseY)
+                applyCursorLook(entity, itemX, baseY, mouseX, mouseY)
             } else {
-                renderState.yRot = -offset * SIDE_CHARACTER_ROTATION
-                renderState.bodyRot = 180f + renderState.yRot
+                entity.setYRot(-offset * SIDE_CHARACTER_ROTATION)
+                entity.yHeadRot = entity.yRot
+                entity.yBodyRot = 180f + entity.yRot
             }
+            entity.yBodyRotO = entity.yBodyRot
+            entity.yRotO = entity.yRot
+            entity.yHeadRotO = entity.yHeadRot
 
-            val headRotation = Quaternionf().rotateX(renderState.xRot * DEGREES_TO_RADIANS)
+            val headRotation = Quaternionf().rotateX(entity.xRot * DEGREES_TO_RADIANS)
             val entityRotation = Quaternionf()
                 .rotateZ(Math.PI.toFloat())
                 .mul(headRotation)
-            val boundsWidth = (renderState.boundingBoxWidth * entityScale * 2.4f)
+            val boundsWidth = (entity.bbWidth * entityScale * 2.4f)
                 .roundToInt()
                 .coerceAtLeast(MIN_ITEM_BOUNDS)
-            val boundsHeight = (renderState.boundingBoxHeight * entityScale + BOUNDS_VERTICAL_PADDING)
+            val boundsHeight = (entity.bbHeight * entityScale + BOUNDS_VERTICAL_PADDING)
                 .roundToInt()
                 .coerceAtLeast(MIN_ITEM_BOUNDS)
 
-            guiGraphics.submitEntityRenderState(
-                renderState,
-                entityScale,
-                Vector3f(0f, renderState.boundingBoxHeight / 2f + ENTITY_Y_OFFSET, 0f),
-                entityRotation,
-                headRotation,
+            guiGraphics.enableScissor(
                 itemX - boundsWidth / 2,
                 baseY - boundsHeight,
                 itemX + boundsWidth / 2,
                 baseY
             )
+            InventoryScreen.renderEntityInInventory(
+                guiGraphics,
+                itemX.toFloat(),
+                baseY.toFloat(),
+                entityScale,
+                Vector3f(0f, entity.bbHeight / 2f + ENTITY_Y_OFFSET, 0f),
+                entityRotation,
+                headRotation,
+                entity
+            )
+            guiGraphics.disableScissor()
 
             val textY = baseY + (14 * visualScale).roundToInt()
             guiGraphics.drawCenteredString(font, entry.text, itemX, textY, 0xFFFFFFFF.toInt())

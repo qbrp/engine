@@ -67,19 +67,30 @@ dependencies {
     modImplementation(libs.yaml)
     modImplementation(libs.ui)
     modImplementation(libs.architectury)
-    modImplementation(libs.adventure)
-    modImplementation(libs.cyberia)
-    modImplementation(libs.cyberia.ecs.api)
-    modImplementation(libs.permissions)
+    modImplementation(libs.adventure) {
+        exclude(group = "net.fabricmc.fabric-api", module = "fabric-api-bom")
+    }
+    modImplementation(libs.permissions) {
+        exclude(group = "net.fabricmc.fabric-api", module = "fabric-api-bom")
+    }
     modImplementation(libs.female.gender)
-    modLocalRuntime(libs.lambdynlights.runtime)
+    modLocalRuntime(libs.lambdynlights.runtime) {
+        exclude(group = "net.fabricmc", module = "fabric-loader")
+    }
     modCompileOnly(libs.bundles.compat)
 
-    compileOnly(libs.bundles.libraries)
+    implementation(libs.cyberia.ecs.api)
+    include(libs.cyberia.ecs.api)
+    shaded(libs.exposed.core)
+    shaded(libs.exposed.jdbc)
+    shaded(libs.sqlite.jdbc)
+    shaded(libs.luaj)
+    shaded(libs.reflections)
+    shaded(libs.obj)
+    shaded(libs.kaml)
+    shaded(libs.protobuf)
+    shaded(libs.credential.secure.storage)
     testImplementation(libs.fabric.loader.junit)
-
-    implementation(libs.protobuf)
-    include(libs.protobuf)
 }
 
 tasks.test {
@@ -92,7 +103,6 @@ tasks.processResources {
         "minecraft_version" to libs.versions.minecraft.get(),
         "loader_version" to libs.versions.fabric.loader.get(),
         "kotlin_loader_version" to libs.versions.fabric.kotlin.get(),
-        "cyberia_version" to libs.versions.cyberia.version.get(),
     )
 
     inputs.properties(properties)

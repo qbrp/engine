@@ -37,7 +37,6 @@
     "fabric-language-kotlin": ">=${kotlin_loader_version}",
     "fabric": "*",
     "minecraft": "${minecraft_version}",
-    "cyberia": ">=${cyberia_version}",
     "lambdynlights": ">=4.8.7",
     "yamlconfig": "*"
   }

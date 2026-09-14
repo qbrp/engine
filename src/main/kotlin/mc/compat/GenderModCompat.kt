@@ -1,7 +1,7 @@
 package org.lain.engine.mc.compat
 
 import com.wildfire.main.WildfireGender
-import com.wildfire.main.config.enums.Gender
+import com.wildfire.main.Gender
 import com.wildfire.main.entitydata.PlayerConfig
 import com.wildfire.main.networking.WildfireSync
 import net.minecraft.server.level.ServerPlayer

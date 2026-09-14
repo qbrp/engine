@@ -2,11 +2,10 @@ package org.lain.engine.client.render.ui
 
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.util.ARGB
 import net.minecraft.util.Mth
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.mc.engineId
+import org.lain.engine.util.Color
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -65,12 +64,12 @@ object MovingWallpapers {
             }
         }
         guiGraphics.fill(0, 0, width, height, 0x66000000)
-        guiGraphics.nextStratum()
-        guiGraphics.blurBeforeThisStratum()
-        guiGraphics.blit(
+        MinecraftClient.gameRenderer.processBlurEffect(delta)
+        MinecraftClient.mainRenderTarget.bindWrite(false)
+        guiGraphics.drawTexturedQuad(
             VIGNETTE,
-            0, 0,
-            width, height,
+            0f, width.toFloat(),
+            0f, height.toFloat(),
             0f, 1f,
             0f, 1f
         )
@@ -123,24 +122,19 @@ object MovingWallpapers {
         val x = -((drawWidth - width + actualTravel) / 2.0f).toInt()
         val y = -((drawHeight - height + actualTravel) / 2.0f).toInt()
 
-        guiGraphics.pose().pushMatrix()
-        guiGraphics.pose().translate(offset, offset)
-        guiGraphics.blit(
-            RenderPipelines.GUI_TEXTURED,
+        guiGraphics.pose().pushPose()
+        guiGraphics.pose().translate(offset.toDouble(), offset.toDouble(), 0.0)
+        guiGraphics.drawTexturedQuad(
             wallpaper.id,
-            x,
-            y,
-            0.0f,
-            0.0f,
-            drawWidth,
-            drawHeight,
-            wallpaper.width,
-            wallpaper.height,
-            wallpaper.width,
-            wallpaper.height,
-            ARGB.white(alpha)
+            x.toFloat(),
+            (x + drawWidth).toFloat(),
+            y.toFloat(),
+            (y + drawHeight).toFloat(),
+            0f, 1f,
+            0f, 1f,
+            Color(ColorMc.color(alpha, 0xFFFFFF))
         )
-        guiGraphics.pose().popMatrix()
+        guiGraphics.pose().popPose()
     }
 
     private fun resetAnimation() {

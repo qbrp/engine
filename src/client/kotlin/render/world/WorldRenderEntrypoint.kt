@@ -1,6 +1,6 @@
 package org.lain.engine.client.render.world
 
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents
 import net.minecraft.client.Minecraft
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.MinecraftEngineClientPlatform
@@ -21,30 +21,28 @@ fun registerWorldRenderEvents(
     eventBus: MinecraftEngineClientPlatform,
     decalsStorage: DecalSystem
 ) {
-    WorldRenderEvents.END_MAIN.register { context ->
-        val gameRenderer = context.gameRenderer()
-        val camera = gameRenderer.mainCamera
-        val cameraPos = camera.position()
-        val matrices = context.matrices()
-        val queue = context.commandQueue()
+    WorldRenderEvents.BEFORE_ENTITIES.register {
+        engineClient.gameSession?.updatePlayerEntityRenderStates()
+    }
 
+    WorldRenderEvents.AFTER_ENTITIES.register { renderContext ->
         val gameSession = engineClient.gameSession ?: return@register
-        val acousticDebugVolumes = gameSession.acousticDebugVolumes
+        val matrices = renderContext.matrixStack() ?: return@register
+        val vertexConsumers = renderContext.consumers() as? ImmediateVertexConsumers ?: return@register
+        val camera = renderContext.camera()
+        val cameraPos = camera.position
         val playerBlockPos = client.player?.blockPosition() ?: return@register
-        if (engineClient.developerMode && engineClient.acousticDebug && acousticDebugVolumes.isNotEmpty()) {
-            renderAcousticDebugLabels(
-                eventBus.acousticDebugVolumesBlockPosCache,
-                listOf(playerBlockPos, playerBlockPos.offset(0, 1, 0)),
-                gameSession.vocalRegulator.volume.base,
-                gameSession.vocalRegulator.volume.max,
-                queue,
-                matrices,
-                gameRenderer.levelRenderState.cameraRenderState
-            )
-        }
 
-        val vertexConsumers = context.consumers()
-        if (vertexConsumers !is ImmediateVertexConsumers) return@register
+        val images = decalsStorage.getBlockImages(
+            gameSession.mainPlayer.pos,
+            MinecraftClient.options.renderDistance().get()
+        )
+        matrices.pushPose()
+        matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z)
+        for ((pos, image) in images) {
+            renderBlockDecals(image.gameTexture, pos, matrices, vertexConsumers)
+        }
+        matrices.popPose()
 
         val context = ImmediateWorldRenderContext(
             vertexConsumers,
@@ -52,8 +50,19 @@ fun registerWorldRenderEvents(
             matrices,
             screenRenderer = engineClient.renderer
         )
-        val deltaTicks = client.deltaTracker.realtimeDeltaTicks
+        val deltaTicks = renderContext.tickCounter().realtimeDeltaTicks
         with(context) {
+            val acousticDebugVolumes = gameSession.acousticDebugVolumes
+            if (engineClient.developerMode && engineClient.acousticDebug && acousticDebugVolumes.isNotEmpty()) {
+                renderAcousticDebugLabels(
+                    eventBus.acousticDebugVolumesBlockPosCache,
+                    listOf(playerBlockPos, playerBlockPos.offset(0, 1, 0)),
+                    gameSession.vocalRegulator.volume.base,
+                    gameSession.vocalRegulator.volume.max,
+                    camera
+                )
+            }
+
             val options = engineClient.options
             if (!engineClient.renderer.hudHidden) {
                 if (!options.hideChatBubblesWithUi && options.chatBubbles) {
@@ -84,27 +93,6 @@ fun registerWorldRenderEvents(
                         )
                     }
             }
-        }
-    }
-
-    WorldRenderEvents.BEFORE_ENTITIES.register { context ->
-        val matrices = context.matrices()
-        val queue = context.commandQueue()
-        val camera = context.gameRenderer().mainCamera
-
-        val gameSession = engineClient.gameSession
-        if (gameSession != null) {
-            gameSession.updatePlayerEntityRenderStates()
-            val images = decalsStorage.getBlockImages(
-                engineClient.gameSession?.mainPlayer?.pos ?: return@register,
-                MinecraftClient.options.renderDistance().get()
-            )
-            matrices.pushPose()
-            matrices.translate(camera.position().reverse())
-            for ((pos, image) in images) {
-                renderBlockDecals(image.gameTexture, pos, matrices, queue)
-            }
-            matrices.popPose()
         }
     }
 }

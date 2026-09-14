@@ -1,7 +1,5 @@
 package org.lain.engine.client.render.player
 
-import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey
-import net.minecraft.client.renderer.entity.state.AvatarRenderState
 import net.minecraft.world.entity.player.Player
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
@@ -17,6 +15,7 @@ import org.lain.engine.item.FireMode
 import org.lain.engine.item.GunFireState
 import org.lain.engine.item.isGun
 import org.lain.engine.mc.ecs.MinecraftPlayer
+import org.lain.engine.mc.getEngineState
 import org.lain.engine.player.ArmPose
 import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.EnginePlayer
@@ -37,26 +36,10 @@ data class EnginePlayerRenderState(
     var skinEyeY: Float = 0f
 )
 
-private val ENGINE_PLAYER_RENDER_STATE_KEY =
-    RenderStateDataKey<EnginePlayerRenderState>.create<EnginePlayerRenderState> { "Engine render state" }
-
 data class RenderStateComponent(val renderState: EnginePlayerRenderState) : Component
 
-fun AvatarRenderState.setEngineState(state: EnginePlayerRenderState) {
-    setData(ENGINE_PLAYER_RENDER_STATE_KEY, state)
-}
-
-fun AvatarRenderState.getEngineState() = getData(ENGINE_PLAYER_RENDER_STATE_KEY)
-
-fun AvatarRenderState.update(gameSession: GameSession?, player: EnginePlayer?) {
-    if (player != null) {
-        skin = player.get<EnginePlayerSkin>()?.skin ?: skin
-    } else {
-        isInvisible = gameSession == null
-        isInvisibleToPlayer = gameSession == null
-        nameTag = nameTag.takeIf { gameSession != null }
-    }
-}
+fun Player.getEngineRenderState(): EnginePlayerRenderState? =
+    getEngineState()?.get<RenderStateComponent>()?.renderState
 
 fun GameSession.updatePlayerEntityRenderStates() = with(world) {
     iterate<LowDetail, MinecraftPlayer>() { player, (isLowDetailed), (entity) ->
@@ -85,7 +68,7 @@ fun GameSession.updatePlayerEntityRenderStates() = with(world) {
 context(world: World)
 fun armPoseOf(main: Boolean, extendsArm: Boolean, inventory: PlayerInventory): ArmPose {
     val rHand = if (main) inventory.mainHandItem else inventory.offHandItem
-    val lHand = if (main) inventory.offHandItem else inventory.offHandItem
+    val lHand = if (main) inventory.offHandItem else inventory.mainHandItem
     return armPoseOf(
         extendsArm,
         rHand != null,

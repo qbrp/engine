@@ -19,7 +19,10 @@ public class ServerGameModeMixin {
 
     @Inject(
             method = "changeGameModeForPlayer",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;getAbilities()Lnet/minecraft/world/entity/player/Abilities;"),
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/server/level/ServerPlayerGameMode;setGameModeForPlayer(Lnet/minecraft/world/level/GameType;Lnet/minecraft/world/level/GameType;)V"
+            ),
             cancellable = true
     )
     public void engine$changeGameMode(GameType gameType, CallbackInfoReturnable<Boolean> cir) {

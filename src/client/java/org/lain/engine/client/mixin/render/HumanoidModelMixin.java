@@ -3,8 +3,8 @@ package org.lain.engine.client.mixin.render;
 import net.minecraft.client.model.AnimationUtils;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.renderer.entity.state.AvatarRenderState;
-import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import org.lain.engine.client.render.player.EnginePlayerRenderState;
 import org.lain.engine.client.render.player.PlayerRenderStateKt;
 import org.lain.engine.player.ArmPose;
@@ -31,31 +31,42 @@ public abstract class HumanoidModelMixin {
     public ModelPart leftArm;
 
     @Inject(
-            method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V",
+            method = "setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/model/HumanoidModel;setupAttackAnimation(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V"
+                    target = "Lnet/minecraft/client/model/HumanoidModel;setupAttackAnimation(Lnet/minecraft/world/entity/LivingEntity;F)V"
             )
     )
-    private void engine$setAngles(HumanoidRenderState renderState, CallbackInfo ci) {
-        if (renderState instanceof AvatarRenderState state) {
-            EnginePlayerRenderState playerRenderState = PlayerRenderStateKt.getEngineState(state);
-            if (playerRenderState != null) {
-                ArmPose mainArmPose = playerRenderState.getMainArmPose();
-                ArmPose minorArmPose = playerRenderState.getMinorArmPose();
+    private void engine$setAngles(
+            LivingEntity entity,
+            float limbSwing,
+            float limbSwingAmount,
+            float ageInTicks,
+            float netHeadYaw,
+            float headPitch,
+            CallbackInfo ci
+    ) {
+        if (!(entity instanceof Player player)) {
+            return;
+        }
 
-                if (mainArmPose == ArmPose.EXPOSE) {
-                    holdSingle(this.rightArm, this.head, true);
-                } else if (mainArmPose == ArmPose.HOLD_WEAPON) {
-                    AnimationUtils.animateCrossbowHold(this.rightArm, this.leftArm, this.head, true);
-                }
+        EnginePlayerRenderState renderState = PlayerRenderStateKt.getEngineRenderState(player);
+        if (renderState == null) {
+            return;
+        }
 
-                if (minorArmPose == ArmPose.EXPOSE) {
-                    holdSingle(this.leftArm, this.head, false);
-                } else if (minorArmPose == ArmPose.HOLD_WEAPON) {
-                    AnimationUtils.animateCrossbowHold(this.rightArm, this.leftArm, this.head, false);
-                }
-            }
+        ArmPose mainArmPose = renderState.getMainArmPose();
+        ArmPose minorArmPose = renderState.getMinorArmPose();
+        if (mainArmPose == ArmPose.EXPOSE) {
+            holdSingle(this.rightArm, this.head, true);
+        } else if (mainArmPose == ArmPose.HOLD_WEAPON) {
+            AnimationUtils.animateCrossbowHold(this.rightArm, this.leftArm, this.head, true);
+        }
+
+        if (minorArmPose == ArmPose.EXPOSE) {
+            holdSingle(this.leftArm, this.head, false);
+        } else if (minorArmPose == ArmPose.HOLD_WEAPON) {
+            AnimationUtils.animateCrossbowHold(this.rightArm, this.leftArm, this.head, false);
         }
     }
 

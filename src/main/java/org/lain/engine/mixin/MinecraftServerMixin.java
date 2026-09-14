@@ -7,16 +7,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.function.BooleanSupplier;
+
 @Mixin(MinecraftServer.class)
 public class MinecraftServerMixin {
     @Inject(
-            method = "processPacketsAndTick",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/network/PacketProcessor;processQueuedPackets()V"
-            )
+            method = "tickServer",
+            at = @At("HEAD")
     )
-    private void engine$processPacketsAndTick(CallbackInfo ci) {
+    private void engine$processPacketsAndTick(BooleanSupplier hasTimeLeft, CallbackInfo ci) {
         ServerMixin.INSTANCE.onProcessPackets();
     }
 }

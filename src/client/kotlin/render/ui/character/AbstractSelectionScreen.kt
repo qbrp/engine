@@ -1,9 +1,9 @@
 package org.lain.engine.client.render.ui.character
 
 import kotlinx.coroutines.CompletableDeferred
+import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.input.KeyEvent
 import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.mc.literalText
 
@@ -34,13 +34,13 @@ abstract class AbstractSelectionScreen<T>(
         addRenderableWidget(looksWheel)
     }
 
-    override fun keyPressed(keyEvent: KeyEvent): Boolean {
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         if (overlay != null) return true
-        return if (keyEvent.isEscape) {
+        return if (keyCode == InputConstants.KEY_ESCAPE) {
             onClose()
             true
-        } else if (!looksWheel.keyPressed(keyEvent)) {
-            super.keyPressed(keyEvent)
+        } else if (!looksWheel.keyPressed(keyCode, scanCode, modifiers)) {
+            super.keyPressed(keyCode, scanCode, modifiers)
         } else {
             true
         }
@@ -67,7 +67,7 @@ abstract class AbstractSelectionScreen<T>(
 
     override fun renderBackground(guiGraphics: GuiGraphics, i: Int, j: Int, f: Float) {
         if (!isFadingOut()) {
-            super.renderBlurredBackground(guiGraphics)
+            super.renderBlurredBackground(f)
         }
     }
 }

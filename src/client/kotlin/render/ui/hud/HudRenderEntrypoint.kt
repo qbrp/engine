@@ -1,6 +1,6 @@
 package org.lain.engine.client.render.ui.hud
 
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import org.lain.cyberia.ecs.getComponent
@@ -10,7 +10,6 @@ import org.lain.engine.client.render.ScreenRenderer
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.client.render.ui.renderInteractionProgression
 import org.lain.engine.client.render.ui.renderNarrations
-import org.lain.engine.mc.engineId
 import org.lain.engine.player.Narration
 import org.lain.engine.player.handle
 import org.lain.engine.player.interaction.Progression
@@ -21,17 +20,15 @@ fun registerHudRenderEvent(
     screenRenderer: ScreenRenderer,
     engineUiRenderPipeline: EngineUiRenderPipeline,
 ) {
-    HudElementRegistry.addLast(
-        engineId("ui")
-    ) { context, tickCounter ->
+    HudRenderCallback.EVENT.register { context, tickCounter ->
         val deltaTick = tickCounter.realtimeDeltaTicks
-        context.pose().pushMatrix()
+        context.pose().pushPose()
         val window = MinecraftClient.window
         val mouse = MinecraftClient.mouseHandler
         screenRenderer.isFirstPerson = !client.gameRenderer.mainCamera.isDetached
         screenRenderer.chatOpen = client.screen is ChatScreen
-        val mouseX = mouse.getScaledXPos(window)
-        val mouseY = mouse.getScaledYPos(window)
+        val mouseX = mouse.xpos() * window.guiScaledWidth / window.screenWidth
+        val mouseY = mouse.ypos() * window.guiScaledHeight / window.screenHeight
         val gameSession = engineClient.gameSession
         val mainPlayer = gameSession?.mainPlayer
         if (gameSession != null && mainPlayer != null) {
@@ -63,6 +60,6 @@ fun registerHudRenderEvent(
             mouseX.toFloat(),
             mouseY.toFloat()
         )
-        context.pose().popMatrix()
+        context.pose().popPose()
     }
 }

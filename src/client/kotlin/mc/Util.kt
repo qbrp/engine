@@ -3,12 +3,11 @@ package org.lain.engine.client.mc
 import com.google.gson.JsonParser
 import com.mojang.authlib.minecraft.client.MinecraftClient
 import com.mojang.serialization.JsonOps
-import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
+import net.kyori.adventure.platform.fabric.FabricClientAudiences
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.MultiBufferSource
-import net.minecraft.client.renderer.item.ClientItem
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite
 import net.minecraft.network.chat.ComponentSerialization
 import net.minecraft.util.GsonHelper
@@ -21,10 +20,6 @@ import org.lain.engine.mc.Text
 import org.lain.engine.mc.removeLegacyFormattingCodes
 import org.lain.engine.util.inject
 import org.lain.engine.util.injectCaching
-
-typealias ItemAsset = ClientItem
-
-typealias ItemAssetProperties = ClientItem.Properties
 
 typealias JsonMc = GsonHelper
 
@@ -49,7 +44,7 @@ fun String.parseMiniMessageClient(): Text {
 
     val component = MiniMessage.miniMessage().deserialize(text)
     return try {
-        MinecraftClientAudiences.of().asNative(component)
+        FabricClientAudiences.of().toNative(component)
     } catch (e: Throwable) {
         TEXT_LOGGER.error("Возникла ошибка при десериализации текста MiniMessage:\n$this", e)
         val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))

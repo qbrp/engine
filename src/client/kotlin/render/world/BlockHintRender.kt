@@ -38,7 +38,7 @@ fun renderBlockHints(
     if (inspection && hint != null) {
         val renderState = screenRenderer.blockHintInspectionRenderState ?: run {
             val state = BlockHintInspectionRenderState()
-            screenRenderer.blockHintInspectionRenderState
+            screenRenderer.blockHintInspectionRenderState = state
             state
         }
 
@@ -93,7 +93,7 @@ fun renderBlockHints(
                 0.25f * multiplierAlpha,
                 LightTexture.FULL_BRIGHT,
                 easing = LabelEasing(
-                    centerPos.squaredDistanceTo(camera.position().engine()),
+                    centerPos.squaredDistanceTo(camera.position.engine()),
                     easingDistance,
                     fade
                 )

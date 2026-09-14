@@ -2,26 +2,27 @@ package org.lain.engine.client.render.item
 
 import net.minecraft.client.renderer.block.model.ItemTransform
 import net.minecraft.client.renderer.block.model.ItemTransforms
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemDisplayContext
+import org.joml.Vector3f
 import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.minecraft
 import org.lain.engine.util.math.MutableEVec3
 
 object AdditionalTransformationsBank {
-    private val modelToTransformations: MutableMap<Identifier, EngineTransformationsBundle> = mutableMapOf()
+    private val modelToTransformations: MutableMap<ResourceLocation, EngineTransformationsBundle> = mutableMapOf()
     var clipboardSingleTransform: EngineTransformation? = null
     var clipboardFullTransform: EngineTransformationsBundle? = null
     var lastDisplayContext: EngineItemDisplayContext? = null
 
-    fun set(model: Identifier, transformations: EngineTransformationsBundle) {
+    fun set(model: ResourceLocation, transformations: EngineTransformationsBundle) {
         modelToTransformations[model] = transformations.copy()
     }
 
-    fun remove(model: Identifier) = modelToTransformations.remove(model)
+    fun remove(model: ResourceLocation) = modelToTransformations.remove(model)
 
-    fun get(model: Identifier) = modelToTransformations[model]?.copy()
+    fun get(model: ResourceLocation) = modelToTransformations[model]?.copy()
 }
 
 enum class EngineItemDisplayContext(val minecraft: ItemDisplayContext) {
@@ -87,7 +88,11 @@ fun ItemTransform.engine(): EngineTransformation {
 }
 
 fun EngineTransformation.minecraft(): ItemTransform {
-    return ItemTransform(rotation.minecraft(), translation.minecraft(), scale.minecraft())
+    return ItemTransform(
+        Vector3f(rotation.minecraft()),
+        Vector3f(translation.minecraft()),
+        Vector3f(scale.minecraft())
+    )
 }
 
 fun EngineTransformationsBundle.minecraft() = ItemTransforms(
@@ -99,5 +104,4 @@ fun EngineTransformationsBundle.minecraft() = ItemTransforms(
     gui.minecraft(),
     ground.minecraft(),
     fixed.minecraft(),
-    fixed.minecraft(), // ???
 )

@@ -57,7 +57,7 @@ public class ScreenMixin {
             at = @At("HEAD"),
             cancellable = true
     )
-    public void engine$fixBlurTwiceRenderCrash(GuiGraphics guiGraphics, CallbackInfo ci) {
+    public void engine$fixBlurTwiceRenderCrash(float delta, CallbackInfo ci) {
         if (blurredBackground) {
             ci.cancel();
         }

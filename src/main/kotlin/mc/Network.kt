@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.network.RegistryFriendlyByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.deserializePacket
@@ -27,7 +27,7 @@ fun <P : Packet> registerServerReceiverInternal(
     ServerPlayNetworking.registerGlobalReceiver(payloadId) { payload, context ->
         val session = connectionManager.getSession(context.player().engineId)
         val packet = payload.packet
-        handler(session, context.server(), packet)
+        handler(session, context.player().server, packet)
     }
 }
 
@@ -65,7 +65,7 @@ object PayloadRegistry {
     fun all() = map.values
 }
 
-val Endpoint<*>.minecraftIdentifier: Identifier
+val Endpoint<*>.minecraftIdentifier: ResourceLocation
     get() = engineId(identifier.lowercase())
 
 fun <P : Packet> PayloadTypeRegistry<RegistryFriendlyByteBuf>.registerPayload(endpoint: Endpoint<P>): PayloadId<EnginePayload<P>> {

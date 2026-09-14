@@ -1,10 +1,8 @@
 package org.lain.engine.client.mixin.resource;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.renderer.texture.atlas.SpriteSource;
 import net.minecraft.client.renderer.texture.atlas.SpriteSourceList;
-import net.minecraft.resources.FileToIdConverter;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.resources.EngineAtlasSource;
@@ -18,36 +16,32 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(SpriteSourceList.class)
 public class SpriteSourceListMixin {
-    @Shadow @Final private static FileToIdConverter ATLAS_INFO_CONVERTER;
+    @Shadow
+    @Final
+    private static Logger LOGGER;
 
-    @Shadow @Final private static Logger LOGGER;
-
-    @Inject(
-            method = "load",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Ljava/util/List;addAll(Ljava/util/Collection;)Z",
-                    shift = At.Shift.AFTER
-            )
-    )
-    private static void addCustomAtlas(
+    @Inject(method = "load", at = @At("RETURN"), cancellable = true)
+    private static void engine$addCustomAtlas(
             ResourceManager resourceManager,
-            Identifier identifier,
-            CallbackInfoReturnable<SpriteSourceList> cir,
-            @Local List<SpriteSource> list
+            ResourceLocation atlasId,
+            CallbackInfoReturnable<SpriteSourceList> cir
     ) {
         ResourceList resourceList = ClientMixin.INSTANCE.getResourceList();
-        List<EngineTexture> atlasTextures = resourceList.getTextureAssets().get(
-                identifier.getPath().replace("atlases/", "").replace(".json", "")
-        );
-
-        if (atlasTextures != null) {
-            list.add(new EngineAtlasSource(atlasTextures));
-            LOGGER.info("Атлас {} дополнен {} текстурами Engine", identifier, atlasTextures.size());
+        List<EngineTexture> atlasTextures = resourceList.getTextureAssets().get(atlasId.getPath());
+        if (atlasTextures == null || atlasTextures.isEmpty()) {
+            return;
         }
+
+        List<SpriteSource> sources = new ArrayList<>(
+                ((SpriteSourceListAccessor)(Object)cir.getReturnValue()).engine$getSources()
+        );
+        sources.add(new EngineAtlasSource(atlasTextures));
+        cir.setReturnValue(SpriteSourceListAccessor.newAtlasLoader(sources));
+        LOGGER.info("Atlas {} extended with {} Engine textures", atlasId, atlasTextures.size());
     }
 }

@@ -1,15 +1,13 @@
 package org.lain.engine.client.mc
 
-import net.minecraft.client.model.player.PlayerModel
+import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.client.player.LocalPlayer
-import net.minecraft.client.renderer.entity.state.AvatarRenderState
+import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.client.resources.sounds.SoundInstance
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
-import net.minecraft.world.entity.Avatar
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.entity.player.PlayerSkin
 import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
@@ -19,8 +17,6 @@ import org.lain.engine.client.render.getSkin
 import org.lain.engine.client.render.item.resolveTooltip
 import org.lain.engine.client.render.player.RenderStateComponent
 import org.lain.engine.client.render.player.modelPartOf
-import org.lain.engine.client.render.player.setEngineState
-import org.lain.engine.client.render.player.update
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.EngineTitleMenu
 import org.lain.engine.client.resources.Assets
@@ -30,6 +26,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Writable
 import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.ecs.engine
+import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.getEngineState
 import org.lain.engine.mc.replacePlayerMinecraftState
@@ -104,7 +101,7 @@ object ClientMixin {
     }
 
     fun editVolume(sound: SoundInstance, volume: Float, category: SoundSource): Float? {
-        if (category == SoundSource.UI || category == SoundSource.MUSIC) return null
+        if (category == SoundSource.MUSIC || sound.isRelative && sound.attenuation == SoundInstance.Attenuation.NONE) return null
         if (sound.sound?.location?.path == "builtin/tinnitus") return null
         val loss = mainPlayerHearing?.loss ?: return null
         return volume * (1f - loss).coerceIn(0.01f, 1f)
@@ -114,16 +111,13 @@ object ClientMixin {
         mainPlayerHearing = mainPlayer.require<Hearing>()
     }
 
-    fun updatePlayerRenderState(playerLikeEntity: Avatar, playerEntityRenderState: AvatarRenderState, model: PlayerModel) {
-        if (playerLikeEntity !is Player) return
-        val enginePlayer = playerLikeEntity.getEngineState()
-        playerEntityRenderState.update(client.gameSession, enginePlayer)
+    fun updatePlayerRenderState(player: Player, model: PlayerModel<*>) {
+        val enginePlayer = player.getEngineState()
         val renderState = enginePlayer?.get<RenderStateComponent>()?.renderState
         if (enginePlayer != null && renderState != null) {
             renderState.detachedEquipment.forEach {
                 it.playerModelPart = modelPartOf(it.playerPart, model)
             }
-            playerEntityRenderState.setEngineState(renderState)
         }
     }
 
@@ -135,9 +129,10 @@ object ClientMixin {
         return client.gameSession?.skinSystem?.get(player.profile.id)
     }
 
-    private val identifierCache = mutableMapOf<String, Identifier>()
+    private val identifierCache = mutableMapOf<String, ResourceLocation>()
 
-    fun getEngineItemModel(itemStack: ItemStack): Identifier? {
+    fun getEngineItemModel(itemStack: ItemStack): ResourceLocation? {
+        itemStack.get(ENGINE_ITEM_MODEL_COMPONENT)?.let { return it }
         val gameSession = client.gameSession ?: return null
         val engineItem = itemStack.engine()?.getClientItem(gameSession) ?: return null
 

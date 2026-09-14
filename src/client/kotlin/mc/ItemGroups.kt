@@ -4,9 +4,7 @@ import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
-import net.minecraft.client.renderer.item.MissingItemModel
 import net.minecraft.core.Registry
-import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceKey
 import net.minecraft.world.item.CreativeModeTab
@@ -17,6 +15,7 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.mixin.CreativeModeTabAccessor
 import org.lain.engine.mc.*
 import org.lain.engine.mc.ecs.ENGINE_ITEM_INSTANTIATE_COMPONENT
+import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
 import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.ecs.wrapEngineItemStackBase
 import org.lain.engine.mc.ecs.wrapEngineItemStackVisual
@@ -34,8 +33,8 @@ private val ITEM_GROUP = FabricItemGroup.builder()
 fun updateRandomEngineItemGroupIcon(client: Minecraft) {
     if (client.player?.containerMenu !is CreativeModeInventoryScreen.ItemPickerMenu) return
     val stacks = ITEM_GROUP.displayItems.filter {
-        val itemModel = it.get(DataComponents.ITEM_MODEL) ?: return@filter false
-        client.modelManager.getItemModel(itemModel) !is MissingItemModel
+        val itemModel = it.get(ENGINE_ITEM_MODEL_COMPONENT) ?: return@filter false
+        client.modelManager.getModel(itemModel) !== client.modelManager.missingModel
     }
     val itemGroup = ITEM_GROUP as CreativeModeTabAccessor
     if (stacks.isNotEmpty()) {
@@ -68,7 +67,7 @@ fun registerEngineItemGroupEvent(client: EngineClient) {
                 wrapEngineItemStackVisual(stack, prefab.name)
                 wrapEngineItemStackBase(stack, prefab.maxCount)
                 stack.set(
-                    DataComponents.ITEM_MODEL,
+                    ENGINE_ITEM_MODEL_COMPONENT,
                     engineId(
                         assets["default"]?.full ?: assets.toList().firstOrNull()?.second?.full
                         ?: "missingno"

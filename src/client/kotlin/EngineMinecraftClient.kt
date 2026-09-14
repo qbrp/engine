@@ -7,8 +7,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.client.renderer.entity.player.AvatarRenderer
-import net.minecraft.util.profiling.Profiler
+import net.minecraft.client.renderer.entity.player.PlayerRenderer
 import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.handler.disconnectText
 import org.lain.engine.client.mc.*
@@ -28,6 +27,7 @@ import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.world.registerWorldRenderEvents
+import org.lain.engine.client.resources.registerEngineModelLoading
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.mc.*
@@ -85,6 +85,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engine)
+        registerEngineModelLoading()
         registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)
         registerClientEngineCommands(engine)
@@ -136,7 +137,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         IntegratedEngineMinecraftServer.registerEvent(this)
 
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register { _, renderer, helper, _ ->
-            if (renderer is AvatarRenderer) {
+            if (renderer is PlayerRenderer) {
                 helper.register(EquipmentFeatureRenderer(renderer))
                 helper.register(HeadEquipmentFeatureRenderer(renderer))
             }
@@ -145,7 +146,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
 
     private fun tickClient() {
         val mainPlayerEntity = client.player
-        val profiler = Profiler.get()
+        val profiler = client.profiler
         profiler.push("engineClientTick")
 
         ClientMixin.tick()

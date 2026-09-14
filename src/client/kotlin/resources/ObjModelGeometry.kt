@@ -1,135 +1,194 @@
 package org.lain.engine.client.resources
 
+import com.mojang.math.Transformation
 import de.javagl.obj.Mtl
 import de.javagl.obj.Obj
 import de.javagl.obj.ObjFace
 import de.javagl.obj.ObjSplitting
-import net.fabricmc.fabric.api.renderer.v1.Renderer
+import net.fabricmc.fabric.api.renderer.v1.RendererAccess
+import net.fabricmc.fabric.api.renderer.v1.mesh.Mesh
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView
-import net.fabricmc.fabric.api.renderer.v1.mesh.QuadAtlas
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter
-import net.fabricmc.fabric.api.renderer.v1.model.MeshBakedGeometry
-import net.fabricmc.fabric.impl.client.indigo.renderer.IndigoRenderer
+import net.fabricmc.fabric.api.renderer.v1.model.FabricBakedModel
+import net.fabricmc.fabric.api.renderer.v1.render.RenderContext
+import net.minecraft.client.renderer.block.model.BakedQuad
+import net.minecraft.client.renderer.block.model.BlockModel
+import net.minecraft.client.renderer.block.model.ItemOverrides
 import net.minecraft.client.renderer.block.model.ItemTransforms
-import net.minecraft.client.renderer.block.model.TextureSlots
 import net.minecraft.client.renderer.texture.TextureAtlas
-import net.minecraft.client.resources.model.*
-import net.minecraft.resources.Identifier
+import net.minecraft.client.renderer.texture.TextureAtlasSprite
+import net.minecraft.client.resources.model.BakedModel
+import net.minecraft.client.resources.model.Material
+import net.minecraft.client.resources.model.ModelBaker
+import net.minecraft.client.resources.model.ModelState
+import net.minecraft.client.resources.model.UnbakedModel
+import net.minecraft.core.Direction
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.util.RandomSource
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.block.state.BlockState
+import org.joml.Matrix3f
 import org.joml.Vector3f
 import org.lain.engine.mc.engineId
+import java.util.function.Function
+import java.util.function.Supplier
 
-val ITEMS_ATLAS = TextureAtlas.LOCATION_ITEMS
+val ITEMS_ATLAS: ResourceLocation = TextureAtlas.LOCATION_BLOCKS
 
-class ObjGeometry(
-    val obj: Obj,
-    val mtl: Map<String, Mtl>,
-    val flipV: Boolean,
-    val offset: Boolean
-) : UnbakedGeometry {
-    private val flg = MutableQuadView.BAKE_NORMALIZED or (if (flipV) MutableQuadView.BAKE_FLIP_V else 0)
+class ObjUnbakedModel(
+    private val obj: Obj,
+    private val mtl: Map<String, Mtl>,
+    val options: ObjModelOptions
+) : UnbakedModel {
+    override fun getDependencies(): Collection<ResourceLocation> = emptyList()
+
+    override fun resolveParents(resolver: Function<ResourceLocation, UnbakedModel>) = Unit
 
     override fun bake(
-        textures: TextureSlots,
         baker: ModelBaker,
-        settings: ModelState,
-        modelDebugName: ModelDebugName
-    ): QuadCollection {
-        var renderer = Renderer.get()
-
-        if (renderer == null) {
-            renderer = IndigoRenderer.INSTANCE;
+        textureGetter: Function<Material, TextureAtlasSprite>,
+        state: ModelState
+    ): BakedModel {
+        val renderer = requireNotNull(RendererAccess.INSTANCE.renderer) {
+            "Fabric renderer is unavailable while baking an Engine OBJ model"
         }
-
-        val builder = renderer.mutableMesh()
-        val emitter = builder.emitter()
-        val spriteGetter = baker.sprites()
+        val builder = renderer.meshBuilder()
+        val emitter = builder.emitter
+        val transform = state.rotation
+        val normalMatrix = Matrix3f(transform.matrix)
         val materialGroups = ObjSplitting.splitByMaterialGroups(obj)
+        var particle = options.particle?.let { textureGetter.apply(Material(ITEMS_ATLAS, it)) }
 
-        materialGroups.forEach { (name: String, objModel: Obj) ->
-            val mtl = mtl[name]
-            val sprite = mtl?.mapKd?.let { Material(ModelManager.BLOCK_OR_ITEM, engineId(it)) } ?: MISSING_SPRITE
-            val emissive = name == "emissive"
+        materialGroups.forEach { (name, model) ->
+            val materialDefinition = options.mtlOverride?.let(mtl::get) ?: mtl[name]
+            val spriteMaterial = materialDefinition?.mapKd
+                ?.let { Material(ITEMS_ATLAS, engineId(it)) }
+                ?: MISSING_SPRITE
+            val sprite = textureGetter.apply(spriteMaterial)
+            if (particle == null) particle = sprite
+            val renderMaterial = renderer.materialFinder()
+                .emissive(name == "emissive")
+                .find()
 
-            for (i in 0..<objModel.numFaces) {
+            for (faceIndex in 0 until model.numFaces) {
                 emitFace(
                     emitter,
-                    settings,
-                    offset,
-                    spriteGetter,
-                    modelDebugName,
+                    model,
+                    model.getFace(faceIndex),
                     sprite,
-                    emissive,
-                    objModel,
-                    objModel.getFace(i)
+                    renderMaterial,
+                    transform,
+                    normalMatrix
                 )
             }
         }
 
-        return MeshBakedGeometry(builder.immutableCopy())
+        return ObjBakedModel(
+            builder.build(),
+            particle ?: textureGetter.apply(MISSING_SPRITE),
+            options
+        )
     }
 
     private fun emitFace(
         emitter: QuadEmitter,
-        settings: ModelState,
-        offset: Boolean,
-        spriteGetter: SpriteGetter,
-        modelDebugName: ModelDebugName,
-        sprite: Material,
-        emissive: Boolean,
-        fObj: Obj,
-        face: ObjFace
+        model: Obj,
+        face: ObjFace,
+        sprite: TextureAtlasSprite,
+        material: net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial,
+        transform: Transformation,
+        normalMatrix: Matrix3f
     ) {
-        for (i in 0..<face.numVertices) {
-            emitVertex(i, i, emitter, settings, offset, emissive, fObj, face)
+        for (vertexIndex in 0 until face.numVertices) {
+            emitVertex(vertexIndex, vertexIndex, emitter, model, face, transform, normalMatrix)
         }
-        if (face.numVertices == 3) emitVertex(3, 2, emitter, settings, offset, emissive, fObj, face)
+        if (face.numVertices == 3) {
+            emitVertex(3, 2, emitter, model, face, transform, normalMatrix)
+        }
 
-        emitter.atlas(QuadAtlas.ITEM)
-        emitter.spriteBake(spriteGetter.get(sprite, modelDebugName), flg)
-        emitter.color(-1, -1, -1, -1)
-        emitter.emit()
+        emitter
+            .material(material)
+            .spriteBake(
+                sprite,
+                MutableQuadView.BAKE_NORMALIZED or
+                    (if (options.flipV) MutableQuadView.BAKE_FLIP_V else 0)
+            )
+            .color(-1, -1, -1, -1)
+            .emit()
     }
 
     private fun emitVertex(
         index: Int,
-        vertexNum: Int,
+        sourceIndex: Int,
         emitter: QuadEmitter,
-        settings: ModelState,
-        offset: Boolean,
-        emissive: Boolean,
-        fObj: Obj,
-        face: ObjFace
+        model: Obj,
+        face: ObjFace,
+        transform: Transformation,
+        normalMatrix: Matrix3f
     ) {
-        val vt = fObj.getVertex(face.getVertexIndex(vertexNum))
-        val vertex = Vector3f(vt.x, vt.y, vt.z)
-        if (offset) vertex.add(0.5f, 0.5f, 0.5f)
+        val sourceVertex = model.getVertex(face.getVertexIndex(sourceIndex))
+        val vertex = Vector3f(sourceVertex.x, sourceVertex.y, sourceVertex.z)
+        if (options.offset) vertex.add(0.5f, 0.5f, 0.5f)
+        if (transform !== Transformation.identity()) {
+            vertex.sub(0.5f, 0.5f, 0.5f)
+            transform.matrix.transformPosition(vertex)
+            vertex.add(0.5f, 0.5f, 0.5f)
+        }
 
-        val normal = fObj.getNormal(face.getNormalIndex(vertexNum))
-        val tex = fObj.getTexCoord(face.getTexCoordIndex(vertexNum))
+        val sourceNormal = model.getNormal(face.getNormalIndex(sourceIndex))
+        val normal = Vector3f(sourceNormal.x, sourceNormal.y, sourceNormal.z)
+        normalMatrix.transform(normal).normalize()
+        val uv = model.getTexCoord(face.getTexCoordIndex(sourceIndex))
 
         emitter
-            .pos(index, vertex.x, vertex.y, vertex.z)
-            .normal(index, normal.x, normal.y, normal.z)
-            .uv(index, tex.x, tex.y)
-            .emissive(emissive)
+            .pos(index, vertex)
+            .normal(index, normal)
+            .uv(index, uv.x, uv.y)
     }
 }
 
+private class ObjBakedModel(
+    private val mesh: Mesh,
+    private val particle: TextureAtlasSprite,
+    private val options: ObjModelOptions
+) : BakedModel, FabricBakedModel, EngineModelMetadata {
+    override val disableCulling: Boolean = options.disableCulling
 
-class ObjUnbakedModel(
-    val obj: Obj,
-    val mtl: Map<String, Mtl>,
-    val options: ObjModelOptions
-): UnbakedModel {
-    private val objGeometry = ObjGeometry(obj, mtl, options.flipV, options.offset)
-    override fun geometry(): UnbakedGeometry = objGeometry
-    override fun transforms(): ItemTransforms = options.transforms
+    override fun getQuads(
+        state: BlockState?,
+        direction: Direction?,
+        random: RandomSource
+    ): List<BakedQuad> = emptyList()
+
+    override fun useAmbientOcclusion(): Boolean = options.useAmbientOcclusion
+
+    override fun isGui3d(): Boolean = true
+
+    override fun usesBlockLight(): Boolean = options.guiLight != BlockModel.GuiLight.FRONT
+
+    override fun isCustomRenderer(): Boolean = false
+
+    override fun getParticleIcon(): TextureAtlasSprite = particle
+
+    override fun getTransforms(): ItemTransforms = options.transforms
+
+    override fun getOverrides(): ItemOverrides = ItemOverrides.EMPTY
+
+    override fun isVanillaAdapter(): Boolean = false
+
+    override fun emitItemQuads(
+        stack: ItemStack,
+        randomSupplier: Supplier<RandomSource>,
+        context: RenderContext
+    ) {
+        mesh.outputTo(context.emitter)
+    }
 }
 
 data class ObjModelOptions(
     val useAmbientOcclusion: Boolean,
-    val guiLight: UnbakedModel.GuiLight?,
-    val particle: Identifier?,
+    val guiLight: BlockModel.GuiLight?,
+    val particle: ResourceLocation?,
     val transforms: ItemTransforms,
     val flipV: Boolean,
     val mtlOverride: String?,

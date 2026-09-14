@@ -8,7 +8,7 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
@@ -81,7 +81,7 @@ class MinecraftRaycastProvider() : RaycastProvider {
             entity1.boundingBox
                 .expandTowards(entity1.lookAngle.scale(distance.toDouble()))
                 .inflate(1.0),
-            EntitySelector.CAN_BE_PICKED,
+            EntitySelector.CAN_BE_COLLIDED_WITH,
             distance*distance.toDouble(),
         );
         return (results?.entity as? Player?)?.getEngineState()
@@ -140,7 +140,7 @@ object McGameModes {
     val SURVIVAL = GameType.SURVIVAL
 }
 
-val Player.ownedItems get() = inventory.iterator().asSequence().toList()
+val Player.ownedItems get() = inventory.run { (items + armor + offhand).toList() }
 
 val Player.visibleInventoryItems: Set<ItemStack>
     get() {
@@ -189,24 +189,24 @@ fun EngineServer.getWorld(world: Level): World {
 
 // ID
 
-fun vanillaId(id: String) = Identifier.withDefaultNamespace(id)
+fun vanillaId(id: String) = ResourceLocation.withDefaultNamespace(id)
 
-fun engineId(path: String) = Identifier.fromNamespaceAndPath(CommonEngineMod.MOD_ID, path)!!
+fun engineId(path: String) = ResourceLocation.fromNamespaceAndPath(CommonEngineMod.MOD_ID, path)
 
-fun parseId(str: String) = Identifier.parse(str)
+fun parseId(str: String) = ResourceLocation.parse(str)
 
 fun <T : Any> registryOf(key: ResourceKey<Registry<T>>): Registry<T> {
     val server = requireEngineMinecraftServer()
-    return server.minecraftServer.registryAccess().get(key).get().value()
+    return server.minecraftServer.registryAccess().registryOrThrow(key)
 }
 
 val ResourceKey<*>.path
-    get() = identifier().path
+    get() = location().path
 
 val ResourceKey<*>.idString
-    get() = identifier().toString()
+    get() = location().toString()
 
-typealias McIdentifier = Identifier
+typealias McIdentifier = ResourceLocation
 
 fun <T : Any> registerDataComponentType(
     id: String,
@@ -291,7 +291,7 @@ fun Callbacks.executePlaceVoxelCallback(player: EnginePlayer?, world: World, pos
 
 fun blockTag(rawId: String) = blockTag(parseId(rawId))
 
-fun blockTag(id: Identifier) = TagKey.create(Registries.BLOCK, id)
+fun blockTag(id: ResourceLocation) = TagKey.create(Registries.BLOCK, id)
 
 fun MutableVoxelPos.Companion.ofLong(long: Long) = BlockPos.of(long).let { MutableVoxelPos(it.x, it.y, it.z) }
 

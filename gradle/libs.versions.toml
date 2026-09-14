@@ -18,7 +18,6 @@ ui-lib = "9.0.0-fabric"
 architectury-api = "13.0.11+fabric"
 permissions-api = "0.3.3"
 female-gender = "3.2.1+1.21"
-cyberia-version = "1.8"
 
 # Libraries
 cyberia-ecs-api = "1.3.4"
@@ -62,7 +61,6 @@ lambdynlights-api = { module = "dev.lambdaurora.lambdynamiclights:lambdynamiclig
 lambdynlights-runtime = { module = "dev.lambdaurora.lambdynamiclights:lambdynamiclights-runtime", version.ref = "lambdynlights" }
 worldedit-api = { module = "com.sk89q.worldedit:worldedit-core", version.ref = "worldedit" }
 worldedit-fabric = { module = "com.sk89q.worldedit:worldedit-fabric-mc1.21", version.ref = "worldedit" }
-cyberia = { module = "org.lain.cyberia:fabric", version.ref = "cyberia-version" }
 
 cyberia-ecs-api = { module = "org.lain.cyberia:ecs-api", version.ref = "cyberia-ecs-api" }
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }

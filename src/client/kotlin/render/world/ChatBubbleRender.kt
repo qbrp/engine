@@ -9,6 +9,7 @@ import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.ecs.minecraftEntityNullable
 import org.lain.engine.mc.engine
 import org.lain.engine.util.then
+import kotlin.math.max
 
 context(ctx: ImmediateWorldRenderContext)
 fun renderChatBubbles(
@@ -28,7 +29,7 @@ fun renderChatBubbles(
 
     for (bubble in bubbles) {
         updateChatBubble(bubble, dt, height)
-        bubble.squaredDistanceToCamera = bubble.pos.squaredDistanceTo(camera.position().engine())
+        bubble.squaredDistanceToCamera = bubble.pos.squaredDistanceTo(camera.position.engine())
         val easing = { bubble.canSee }.then { LabelEasing(bubble.squaredDistanceToCamera, easingDistance*easingDistance) }
         val player = bubble.player.minecraftEntityNullable
         val bubblePos = bubble.pos
@@ -39,11 +40,15 @@ fun renderChatBubbles(
             LabelRenderState(bubblePos, alpha, bubble.lines, scale),
             backgroundOpacity,
             if (!ignoreLightLevel && player != null) {
-                LightTexture.lightCoordsWithEmission(
-                    client.entityRenderDispatcher.getPackedLightCoords(player, client.deltaTracker.getGameTimeDeltaPartialTick(true)
-                    ),
-                    2
-                )
+                client.entityRenderDispatcher.getPackedLightCoords(
+                    player,
+                    client.timer.getGameTimeDeltaPartialTick(true)
+                ).let { packedLight ->
+                    LightTexture.pack(
+                        max(LightTexture.block(packedLight), 2),
+                        LightTexture.sky(packedLight)
+                    )
+                }
             } else {
                 LightTexture.FULL_BRIGHT
             },

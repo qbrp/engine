@@ -1,8 +1,7 @@
 package org.lain.engine.client.render.ui
 
 import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.CommonColors
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
@@ -17,7 +16,7 @@ import kotlin.math.pow
 data class InteractionProgressionRenderState(
     var opacity: Float,
     var progressionType: ProgressionType? = null,
-    var texture: Identifier? = null,
+    var texture: ResourceLocation? = null,
     var text: Text? = null,
     var time: Float = 0f,
     var endTime: Float = 0f,
@@ -73,8 +72,7 @@ fun renderInteractionProgression(
         val scale = 16
         renderState.texture?.let { texture ->
             fun draw(color: Int, offset: Int = 0) {
-                context.blitSprite(
-                    RenderPipelines.GUI_TEXTURED,
+                context.drawTintedSprite(
                     texture,
                     2 + offset,
                     context.guiHeight() - 10 - scale + offset,

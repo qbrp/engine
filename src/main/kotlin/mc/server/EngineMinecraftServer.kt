@@ -1,14 +1,15 @@
 package org.lain.engine.mc.server
 
 import kotlinx.coroutines.runBlocking
-import net.kyori.adventure.platform.modcommon.MinecraftServerAudiences
+import net.kyori.adventure.platform.fabric.FabricServerAudiences
 import net.minecraft.core.BlockPos
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.ListTag
+import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.util.ProblemReporter
-import net.minecraft.world.ItemStackWithSlot
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ChunkPos
@@ -16,8 +17,6 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
-import net.minecraft.world.level.storage.TagValueInput
-import net.minecraft.world.level.storage.TagValueOutput
 import net.minecraft.world.phys.Vec3
 import org.lain.cyberia.ecs.destroy
 import org.lain.engine.item.EngineItem
@@ -80,7 +79,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             (config.itemAutosavePeriod * 0.5).toInt()
         )
     )
-    val miniMessageAudiences = MinecraftServerAudiences.of(minecraftServer)
+    val miniMessageAudiences = FabricServerAudiences.of(minecraftServer)
     val engine = EngineServer(
         config.server,
         playerStorage,
@@ -215,12 +214,8 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     override fun serializeInventory(player: EnginePlayer): String {
         val entity = player.minecraftEntity
-        val output = TagValueOutput.createWithContext(
-            ProblemReporter.ScopedCollector(LOGGER),
-            minecraftServer.registries().compositeAccess()
-        )
-        entity.inventory.save(output.list("Inventory", ItemStackWithSlot.CODEC))
-        val tag = output.buildResult()
+        val tag = CompoundTag()
+        tag.put("Inventory", entity.inventory.save(ListTag()))
         return tag.toString()
     }
 
@@ -230,12 +225,8 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     override fun openInventory(player: EnginePlayer, inventory: SerializedInventory) {
         val entity = player.minecraftEntityNullable ?: minecraftServer.getPlayer(player.id)!!
-        val output = TagValueInput.create(
-            ProblemReporter.ScopedCollector(LOGGER),
-            minecraftServer.registries().compositeAccess(),
-            TagParser.parseCompoundFully(inventory)
-        )
-        entity.inventory.load(output.listOrEmpty("Inventory", ItemStackWithSlot.CODEC))
+        val tag = TagParser.parseTag(inventory)
+        entity.inventory.load(tag.getList("Inventory", Tag.TAG_COMPOUND.toInt()))
     }
 
     override fun onCompiled(contents: NamespacedStorage) {

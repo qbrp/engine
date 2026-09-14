@@ -7,7 +7,6 @@ import net.minecraft.client.gui.components.events.ContainerEventHandler
 import net.minecraft.client.gui.components.events.GuiEventListener
 import net.minecraft.client.gui.narration.NarratableEntry
 import net.minecraft.client.gui.narration.NarrationElementOutput
-import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.util.CommonColors
 import org.lain.engine.mc.MathMc
 import org.lain.engine.mc.Text
@@ -112,9 +111,9 @@ class SingleSelectionListWidget<T>(
         }
     }
 
-    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
-        val mouseX = click.x.toInt()
-        val mouseY = click.y.toInt()
+    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        val mouseX = mouseX.toInt()
+        val mouseY = mouseY.toInt()
         if (mouseX !in x..(x + width) || mouseY !in y..(y + height)) return false
         if (entries.isEmpty()) return true
         val localY = mouseY - y + scroll.toInt()

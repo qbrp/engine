@@ -2,7 +2,6 @@ package org.lain.engine.client.render.ui.character
 
 import com.mojang.blaze3d.platform.InputConstants
 import kotlinx.coroutines.withContext
-import net.minecraft.client.input.KeyEvent
 import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
@@ -43,12 +42,12 @@ class LookSelectionScreen(
         )
     }
 
-    override fun keyPressed(keyEvent: KeyEvent): Boolean {
-        return if (keyEvent.key == InputConstants.KEY_O && overlay == null) {
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        return if (keyCode == InputConstants.KEY_O && overlay == null) {
             selection.complete(Result.Switch) // переключение в выбор персонажей
             true
         } else {
-            super.keyPressed(keyEvent)
+            super.keyPressed(keyCode, scanCode, modifiers)
         }
     }
 

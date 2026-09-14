@@ -82,12 +82,13 @@ public class LivingEntityMixin {
     }
 
     @Inject(
-            method = "hurtServer",
+            method = "hurt",
             at = @At("HEAD"),
             cancellable = true
     )
-    public void onDamage(ServerLevel serverLevel, DamageSource damageSource, float f, CallbackInfoReturnable<Boolean> cir) {
-        if (ServerMixin.INSTANCE.shouldCancelDamage()) {
+    public void onDamage(DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity entity = (LivingEntity)(Object)this;
+        if (entity.level() instanceof ServerLevel && ServerMixin.INSTANCE.shouldCancelDamage()) {
             cir.setReturnValue(false);
             cir.cancel();
         }

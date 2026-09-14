@@ -3,7 +3,7 @@ package org.lain.engine.client.mixin.render;
 import kotlin.Unit;
 import net.minecraft.client.Camera;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.level.BlockGetter;
 import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -25,7 +25,7 @@ public abstract class CameraMixin {
             method = "setup",
             at = @At("TAIL")
     )
-    public void engine$update(Level level, Entity entity, boolean bl, boolean bl2, float tickProgress, CallbackInfo ci) {
+    public void engine$update(BlockGetter level, Entity entity, boolean bl, boolean bl2, float tickProgress, CallbackInfo ci) {
         org.lain.engine.client.render.Camera camera = ClientMixin.INSTANCE.getCamera();
         camera.update(
                 (vec) -> {

@@ -14,6 +14,7 @@ import net.minecraft.client.gui.components.Checkbox
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.mc.literalText
 import org.slf4j.LoggerFactory
 
@@ -109,7 +110,7 @@ class DiscordAuthorizationScreen(private val client: EngineClient) : Screen(TITL
                 val job = client.accountManager.authorizeDiscordOAuth2()
                 authorizationJob = job
                 job.join()
-                minecraft.execute {
+                MinecraftClient.execute {
                     if (closed) {
                         return@execute
                     }
@@ -123,7 +124,7 @@ class DiscordAuthorizationScreen(private val client: EngineClient) : Screen(TITL
                 throw exception
             } catch (exception: Throwable) {
                 LOGGER.error("Не удалось начать авторизацию через Discord", exception)
-                minecraft.execute {
+                MinecraftClient.execute {
                     if (!closed) authorizationFailed()
                 }
             }

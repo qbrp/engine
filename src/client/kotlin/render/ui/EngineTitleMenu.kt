@@ -16,10 +16,7 @@ import net.minecraft.client.gui.screens.options.LanguageSelectScreen
 import net.minecraft.client.gui.screens.options.OptionsScreen
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen
-import net.minecraft.client.input.KeyEvent
-import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.FontDescription
 import net.minecraft.util.Mth
 import net.minecraft.util.RandomSource
 import org.lain.engine.client.EngineClient
@@ -60,7 +57,7 @@ class EngineTitleMenu(
             86,
             15,
             Component.translatable("menu.options"),
-            { minecraft.setScreen(OptionsScreen(this, minecraft.options)) },
+            { MinecraftClient.setScreen(OptionsScreen(this, MinecraftClient.options)) },
             font
         )
         addRenderableWidget(plainTextButton)
@@ -73,7 +70,7 @@ class EngineTitleMenu(
             86,
             15,
             Component.translatable("options.accessibility"),
-            { minecraft.setScreen(AccessibilityOptionsScreen(this, minecraft.options)) },
+            { MinecraftClient.setScreen(AccessibilityOptionsScreen(this, MinecraftClient.options)) },
             font
         )
         addRenderableWidget(accessibilityButton)
@@ -87,11 +84,11 @@ class EngineTitleMenu(
             15,
             Component.translatable("options.language"),
             {
-                minecraft.setScreen(
+                MinecraftClient.setScreen(
                     LanguageSelectScreen(
                         this,
-                        minecraft.options,
-                        minecraft.languageManager
+                        MinecraftClient.options,
+                        MinecraftClient.languageManager
                     )
                 )
             },
@@ -107,7 +104,7 @@ class EngineTitleMenu(
                 copyrightWidth,
                 10,
                 COPYRIGHT_TEXT,
-                { minecraft.setScreen(CreditsAndAttributionScreen(this)) },
+                { MinecraftClient.setScreen(CreditsAndAttributionScreen(this)) },
                 font
             )
         )
@@ -119,7 +116,7 @@ class EngineTitleMenu(
                 86,
                 20,
                 Component.translatable("menu.quit"),
-                { minecraft.stop() },
+                { MinecraftClient.stop() },
                 font
             )
         )
@@ -141,7 +138,9 @@ class EngineTitleMenu(
             } else {
                 alpha = Mth.clampedMap(Mth.clamp(progress, 0.0f, 1.0f), 0.5f, 1.0f, 0.0f, 1.0f)
             }
-            fadeWidgets(alpha)
+            children().filterIsInstance<net.minecraft.client.gui.components.AbstractWidget>().forEach {
+                it.setAlpha(alpha)
+            }
         }
 
         super.render(guiGraphics, mouseX, mouseY, delta)
@@ -160,11 +159,11 @@ class EngineTitleMenu(
         MovingWallpapers.render(guiGraphics, delta)
     }
 
-    override fun keyPressed(keyEvent: KeyEvent): Boolean {
-        return if (keyEvent.hasControlDown() && keyEvent.key == InputConstants.KEY_F10) {
-            minecraft.setScreen(TitleScreen())
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        return if (Screen.hasControlDown() && keyCode == InputConstants.KEY_F10) {
+            MinecraftClient.setScreen(TitleScreen())
             true
-        } else if (keyEvent.hasControlDown() && keyEvent.key == InputConstants.KEY_R) {
+        } else if (Screen.hasControlDown() && keyCode == InputConstants.KEY_R) {
             MovingWallpapers.loadWallpapers(MinecraftClient)
             client.showNotification(
                 LittleNotification(
@@ -174,26 +173,24 @@ class EngineTitleMenu(
             )
             true
         } else {
-            super.keyPressed(keyEvent)
+            super.keyPressed(keyCode, scanCode, modifiers)
         }
     }
 
-    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
-        if (click.button() == GLFW.GLFW_MOUSE_BUTTON_1) {
+    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        if (button == GLFW.GLFW_MOUSE_BUTTON_1) {
             val status = authorizationStatus(client)
-            if (isAuthorizationStatusHovered(click.x(), click.y(), status.text)) {
+            if (isAuthorizationStatusHovered(mouseX, mouseY, status.text)) {
                 ClientMixin.setDiscordAuthorizationScreen()
                 return true
             }
         }
-        return super.mouseClicked(click, doubled)
+        return super.mouseClicked(mouseX, mouseY, button)
     }
 
     override fun isPauseScreen(): Boolean = false
 
     override fun shouldCloseOnEsc(): Boolean = false
-
-    override fun canInterruptWithAnotherScreen(): Boolean = true
 
     private fun createNormalMenuOptions(x: Int, y: Int): Int {
         multiplayerButton = addRenderableWidget(
@@ -219,7 +216,7 @@ class EngineTitleMenu(
                 BUTTON_WIDTH,
                 20,
                 Component.translatable("menu.singleplayer"),
-                { minecraft.setScreen(SelectWorldScreen(this)) },
+                { MinecraftClient.setScreen(SelectWorldScreen(this)) },
                 font
             )
         ).also {
@@ -234,15 +231,15 @@ class EngineTitleMenu(
         val nextY = y + BUTTON_STEP
         addRenderableWidget(
             Button.builder(Component.literal("Create Test World")) {
-                CreateWorldScreen.testWorld(minecraft, { minecraft!!.setScreen(this) })
+                CreateWorldScreen.openFresh(MinecraftClient, this)
             }.bounds(x, nextY, BUTTON_WIDTH, 20).build()
         )
         return nextY
     }
 
     private fun renderLogo(guiGraphics: GuiGraphics, x: Int, y: Int, alpha: Float) {
-        guiGraphics.pose().pushMatrix()
-        guiGraphics.pose().translate(x.toFloat(), y.toFloat())
+        guiGraphics.pose().pushPose()
+        guiGraphics.pose().translate(x.toDouble(), y.toDouble(), 0.0)
         renderAnimatedLogoLine(guiGraphics, "qbrp", 0.0f, 0.0f, LOGO_TOP_SCALE, alpha, 0, RED_HUE)
 //        val engineX = font.width(logoText("qb")) * LOGO_TOP_SCALE + LOGO_ENGINE_X_OFFSET
 //        renderAnimatedLogoLine(
@@ -255,7 +252,7 @@ class EngineTitleMenu(
 //            4,
 //            GREEN_HUE
 //        )
-        guiGraphics.pose().popMatrix()
+        guiGraphics.pose().popPose()
     }
 
     private fun renderAnimatedLogoLine(
@@ -268,9 +265,9 @@ class EngineTitleMenu(
         letterOffset: Int,
         baseHue: Float
     ) {
-        guiGraphics.pose().pushMatrix()
-        guiGraphics.pose().translate(x, y)
-        guiGraphics.pose().scale(scale, scale)
+        guiGraphics.pose().pushPose()
+        guiGraphics.pose().translate(x.toDouble(), y.toDouble(), 0.0)
+        guiGraphics.pose().scale(scale, scale, 1f)
 
         var letterX = 0
         text.forEachIndexed { index, letter ->
@@ -286,7 +283,7 @@ class EngineTitleMenu(
             letterX += font.width(glyph)
         }
 
-        guiGraphics.pose().popMatrix()
+        guiGraphics.pose().popPose()
     }
 
     private fun logoText(text: String): Component {
@@ -339,7 +336,7 @@ class EngineTitleMenu(
     companion object {
         private val TITLE: Component = Component.translatable("narrator.screen.title")
         private val COPYRIGHT_TEXT: Component = Component.translatable("title.credits")
-        private val ALVERA_FONT = FontDescription.Resource(engineId("alvera"))
+        private val ALVERA_FONT = engineId("alvera")
         private const val LOGO_TOP_SCALE = 0.85f
         private const val LOGO_ENGINE_SCALE = 0.85f
         private const val LOGO_ENGINE_X_OFFSET = 4.0f

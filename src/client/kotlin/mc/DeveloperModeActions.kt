@@ -65,7 +65,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) 
                 val mainHandItemStack = player.mainHandItem
                 val offHandItemStack = player.offhandItem
                 val itemStack = if (mainHandItemStack.isEmpty) offHandItemStack else mainHandItemStack
-                if (developerMode && player.activeItem != null && !itemStack.isEmpty) {
+                if (developerMode && player.isUsingItem && !itemStack.isEmpty) {
                     MinecraftClient.setScreen(TransformationsEditorScreen(itemStack))
                 }
             } else if (key == GLFW.GLFW_KEY_3) {

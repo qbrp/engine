@@ -4,14 +4,16 @@ import com.google.common.collect.Lists;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.component.PatchedDataComponentMap;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.component.TooltipProvider;
 import org.jetbrains.annotations.Nullable;
 import org.lain.engine.client.mc.ClientMixin;
@@ -38,21 +40,13 @@ public abstract class ItemStackMixin {
     PatchedDataComponentMap components;
 
     @Shadow
-    public abstract Item getItem();
+    public abstract <T extends TooltipProvider> void addToTooltip(DataComponentType<T> dataComponentType, Item.TooltipContext tooltipContext, Consumer<Component> consumer, TooltipFlag tooltipFlag);
 
     @Shadow
-    @Final
-    @Deprecated
-    private @Nullable Item item;
+    public abstract Component getHoverName();
 
     @Shadow
-    public abstract <T extends TooltipProvider> void addToTooltip(DataComponentType<T> dataComponentType, Item.TooltipContext tooltipContext, TooltipDisplay tooltipDisplay, Consumer<Component> consumer, TooltipFlag tooltipFlag);
-
-    @Shadow
-    public abstract @org.jspecify.annotations.Nullable Component getCustomName();
-
-    @Shadow
-    public abstract Component getStyledHoverName();
+    public abstract Rarity getRarity();
 
     @Inject(
             method = "getTooltipLines",
@@ -62,38 +56,28 @@ public abstract class ItemStackMixin {
             cancellable = true
     )
     public void engine$getTooltip(Item.TooltipContext tooltipContext, @org.jspecify.annotations.Nullable Player player, TooltipFlag tooltipFlag, CallbackInfoReturnable<List<Component>> cir) {
-//        if (components.has(ItemStacksKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
-//            ArrayList<Component> list = Lists.newArrayList();
-//            list.add(getStyledHoverName());
-//            cir.setReturnValue(list);
-//            cir.cancel();
-//        }
-    }
-
-    @Inject(
-            method = "addDetailsToTooltip",
-            at = @At(
-                    value = "HEAD"
-            ),
-            cancellable = true)
-    public void engine$appendTooltip(
-            Item.TooltipContext context,
-            TooltipDisplay displayComponent,
-            @org.jspecify.annotations.Nullable Player player,
-            TooltipFlag type,
-            Consumer<Component> textConsumer,
-            CallbackInfo ci
-    ) {
         Integer engineItem = getEngineItem((ItemStack) ((Object) this));
+        boolean instantiateItem = components.has(ItemStacksKt.getENGINE_ITEM_INSTANTIATE_COMPONENT());
+        if (engineItem == null && !instantiateItem) {
+            return;
+        }
+
+        ArrayList<Component> lines = Lists.newArrayList();
+        MutableComponent name = Component.empty().append(getHoverName()).withStyle(getRarity().color());
+        if (components.has(DataComponents.CUSTOM_NAME)) {
+            name.withStyle(ChatFormatting.ITALIC);
+        }
+        lines.add(name);
+
         if (engineItem != null) {
-            addToTooltip(DataComponents.LORE, context, displayComponent, textConsumer, type);
-            for (String line : ClientMixin.INSTANCE.getTooltip(engineItem, type.isAdvanced())) {
-                textConsumer.accept(UtilKt.parseMiniMessageClient(line));
+            addToTooltip(DataComponents.LORE, tooltipContext, lines::add, tooltipFlag);
+            for (String line : ClientMixin.INSTANCE.getTooltip(engineItem, tooltipFlag.isAdvanced())) {
+                lines.add(UtilKt.parseMiniMessageClient(line));
             }
         }
-        if (engineItem != null || components.has(ItemStacksKt.getENGINE_ITEM_INSTANTIATE_COMPONENT())) {
-            ci.cancel();
-        }
+
+        cir.setReturnValue(lines);
+        cir.cancel();
     }
 
     @Inject(

@@ -1,58 +1,50 @@
 package org.lain.engine.client.render.world
 
-import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.client.Camera
 import net.minecraft.client.renderer.LightTexture
-import net.minecraft.client.renderer.OrderedSubmitNodeCollector
-import net.minecraft.client.renderer.state.CameraRenderState
 import net.minecraft.core.BlockPos
 import net.minecraft.util.CommonColors
 import org.lain.engine.client.render.ui.ColorMc
 import org.lain.engine.mc.Text
-
+import org.lain.engine.mc.engine
 import kotlin.math.abs
 import kotlin.math.max
 
+context(ctx: ImmediateWorldRenderContext)
 fun renderAcousticDebugLabels(
     volumes: List<Pair<BlockPos, Float>>,
     hide: List<BlockPos>,
     baseVolume: Float,
     maxVolume: Float,
-    queue: OrderedSubmitNodeCollector,
-    matrices: PoseStack,
-    cameraRenderState: CameraRenderState
+    camera: Camera
 ) {
     for ((pos, volume) in volumes) {
         if (pos in hide) continue
-        val camPos = cameraRenderState.pos
-        val centerPos = pos.center
-        val renderPos = centerPos
-            .subtract(camPos)
-            .add(0.0, -0.5, 0.0)
-        val distance = cameraRenderState.pos.distanceToSqr(centerPos)
-
-        val t = ((volume - baseVolume) / (maxVolume - baseVolume))
-            .coerceIn(-1f, 1f)
-
-        val red = (255f * max(0f,  t)).toInt()
+        val center = pos.center
+        val t = ((volume - baseVolume) / (maxVolume - baseVolume)).coerceIn(-1f, 1f)
+        val red = (255f * max(0f, t)).toInt()
         val blue = (255f * max(0f, -t)).toInt()
         val green = (255f * (1f - abs(t))).toInt()
+        val text = Text.literal("%.2f".format(volume))
+            .withColor(
+                if (volume > 0.05f) {
+                    ColorMc.color(red, green, blue)
+                } else {
+                    CommonColors.GRAY
+                }
+            )
+            .visualOrderText
 
-        queue.submitNameTag(
-            matrices,
-            renderPos,
-            0,
-            Text.literal("%.2f".format(volume))
-                .withColor(
-                    if (volume > 0.05f) {
-                        ColorMc.color(red, green, blue)
-                    } else {
-                        CommonColors.GRAY
-                    }
-                ),
-            true,
-            LightTexture.FULL_BRIGHT,
-            distance,
-            cameraRenderState
+        renderLabel(
+            camera,
+            LabelRenderState(
+                center.engine().sub(y = 0.5f),
+                1f,
+                listOf(ctx.textRenderer.labelRenderStateLine(text)),
+                0.025f
+            ),
+            0f,
+            LightTexture.FULL_BRIGHT
         )
     }
 }

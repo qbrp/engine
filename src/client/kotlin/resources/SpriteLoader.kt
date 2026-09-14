@@ -5,16 +5,14 @@ import com.mojang.serialization.MapCodec
 import kotlinx.serialization.Serializable
 import net.minecraft.client.renderer.texture.SpriteContents
 import net.minecraft.client.renderer.texture.atlas.SpriteSource
+import net.minecraft.client.renderer.texture.atlas.SpriteSourceType
 import net.minecraft.client.resources.metadata.animation.FrameSize
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection
-import net.minecraft.client.resources.metadata.texture.TextureMetadataSection
-import net.minecraft.resources.Identifier
-import net.minecraft.server.packs.metadata.MetadataSectionType
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceMetadata
 import net.minecraft.server.packs.resources.ResourceManager
 import org.lain.engine.util.Timestamp
 import java.io.File
-import java.util.Optional
 
 /**
  * Гарантируется, что текстура из ассета загружена и существует по `textureId`
@@ -47,36 +45,31 @@ class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
         LOGGER.info("Ассеты загружены за {} мл.", start.timeElapsed())
     }
 
-    override fun codec(): MapCodec<out SpriteSource> = CODEC
+    override fun type(): SpriteSourceType = TYPE
 
     companion object {
         // Этот источник создаётся непосредственно в рантайме и нужен только для кастомных текстур Engine
         // Не поддерживает JSON
         val CODEC = MapCodec.unit { throw NotImplementedError() }
+        val TYPE = SpriteSourceType(CODEC)
 
-        fun openSprite(id: Identifier, path: Asset): SpriteContents? {
+        fun openSprite(id: ResourceLocation, path: Asset): SpriteContents? {
             val imageFile = path.source.file
             if (!imageFile.isFile) return null
 
             val metadata = loadMetadata(imageFile)
-            val animationMetadata = metadata.getSection(AnimationMetadataSection.TYPE)
-            val textureMetadata = metadata.getSection(TextureMetadataSection.TYPE)
-            val additionalMetadata: List<MetadataSectionType.WithValue<*>> = textureMetadata
-                .map { listOf(TextureMetadataSection.TYPE.withValue(it)) }
-                .orElse(emptyList())
+            val animationMetadata = metadata
+                .getSection(AnimationMetadataSection.SERIALIZER)
+                .orElse(AnimationMetadataSection.EMPTY)
             val nativeImage = imageFile.inputStream().use(NativeImage::read)
-            val spriteDimensions = animationMetadata
-                .map { it.calculateFrameSize(nativeImage.width, nativeImage.height) }
-                .orElseGet { FrameSize(nativeImage.width, nativeImage.height) }
+            val spriteDimensions = animationMetadata.calculateFrameSize(nativeImage.width, nativeImage.height)
 
             return try {
                 SpriteContents(
                     id,
                     spriteDimensions,
                     nativeImage,
-                    animationMetadata,
-                    additionalMetadata,
-                    textureMetadata,
+                    metadata,
                 )
             } catch (exception: Throwable) {
                 nativeImage.close()

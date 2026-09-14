@@ -1,6 +1,7 @@
 package org.lain.engine.client.mixin.render;
 
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.DeltaTracker;
 import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,10 +14,10 @@ public class GameRendererMixin {
             method = "renderLevel",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/blaze3d/systems/RenderSystem;setProjectionMatrix(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lcom/mojang/blaze3d/ProjectionType;)V"
+                    target = "Lnet/minecraft/client/renderer/GameRenderer;resetProjectionMatrix(Lorg/joml/Matrix4f;)V"
             )
     )
-    public void engine$onSetProjectionMatrix(CallbackInfo ci) {
+    public void engine$onSetProjectionMatrix(DeltaTracker deltaTracker, CallbackInfo ci) {
         ClientMixin.INSTANCE.onSetWorldProjectionMatrix();
     }
 }

@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class MouseHandlerMixin {
     @Inject(method = "onScroll", at=@At(value = "HEAD"), cancellable = true)
     public void engine$onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
-        if (window == Minecraft.getInstance().getWindow().handle()) {
+        if (window == Minecraft.getInstance().getWindow().getWindow()) {
             ClientMixin mixinAccess = ClientMixin.INSTANCE;
             mixinAccess.onScroll((float) vertical);
             if (!mixinAccess.isScrollAllowed()) {

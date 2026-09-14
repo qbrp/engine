@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.engineId
 import org.lain.engine.util.file.FileSystem
@@ -26,7 +26,7 @@ class WallpaperTextureManager(
     private val random: Random = Random.Default,
 ) : AutoCloseable {
     data class Wallpaper(
-        val id: Identifier,
+        val id: ResourceLocation,
         val width: Int,
         val height: Int,
         val source: File,
@@ -147,7 +147,7 @@ class WallpaperTextureManager(
                 if (generation != expectedGeneration) return@withContext
 
                 val id = engineId("wallpapers/runtime_${textureSequence++}")
-                val texture = DynamicTexture({ "Engine wallpaper ${source.name}" }, image)
+                val texture = DynamicTexture(image)
                 imageOwnedByTexture = true
                 try {
                     client.textureManager.register(id, texture)

@@ -6,11 +6,12 @@ import net.minecraft.core.Registry
 import net.minecraft.core.component.DataComponentType
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Unit
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.component.ItemLore
-import net.minecraft.world.item.component.TooltipDisplay
+import net.minecraft.world.item.component.Unbreakable
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.*
 import org.lain.engine.mc.engineId
@@ -60,16 +61,11 @@ fun wrapEngineItemStackVisual(
 fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int) {
     itemStack.set(
         DataComponents.UNBREAKABLE,
-        Unit.INSTANCE
+        Unbreakable(false)
     )
     itemStack.set(
         DataComponents.MAX_STACK_SIZE,
         maxStackSize
-    )
-    itemStack.set(
-        DataComponents.TOOLTIP_DISPLAY,
-        TooltipDisplay.DEFAULT
-            .withHidden(DataComponents.UNBREAKABLE, true)
     )
 }
 
@@ -81,7 +77,7 @@ fun wrapEngineItemStack(
     wrapEngineItemStackVisual(itemStack, item.getName())
     wrapEngineItemStackBase(itemStack, item.requireComponent<Count>().max)
     itemStack.set(
-        DataComponents.ITEM_MODEL,
+        ENGINE_ITEM_MODEL_COMPONENT,
         engineId(resolveItemAsset(item))
     )
 
@@ -113,6 +109,16 @@ val ENGINE_ITEM_INSTANTIATE_COMPONENT: DataComponentType<String> = Registry.regi
     DataComponentType
         .builder<String>()
         .persistent(Codec.STRING)
+        .build()
+)
+
+val ENGINE_ITEM_MODEL_COMPONENT: DataComponentType<ResourceLocation> = Registry.register(
+    BuiltInRegistries.DATA_COMPONENT_TYPE,
+    engineId("item-model-component"),
+    DataComponentType
+        .builder<ResourceLocation>()
+        .persistent(ResourceLocation.CODEC)
+        .networkSynchronized(ResourceLocation.STREAM_CODEC)
         .build()
 )
 

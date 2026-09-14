@@ -1,91 +1,41 @@
 package org.lain.engine.client.resources
 
-import com.mojang.serialization.MapCodec
-import net.minecraft.client.multiplayer.ClientLevel
+import net.fabricmc.fabric.api.renderer.v1.model.ForwardingBakedModel
 import net.minecraft.client.renderer.block.model.ItemTransform
-import net.minecraft.client.renderer.item.ItemModel
-import net.minecraft.client.renderer.item.ItemModelResolver
-import net.minecraft.client.renderer.item.ItemStackRenderState
-import net.minecraft.client.resources.model.ResolvableModel
-import net.minecraft.world.entity.ItemOwner
-import net.minecraft.world.item.ItemDisplayContext
-import net.minecraft.world.item.ItemStack
+import net.minecraft.client.renderer.block.model.ItemTransforms
+import net.minecraft.client.resources.model.BakedModel
+import net.minecraft.resources.ResourceLocation
 import org.joml.Vector3fc
-import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.item.EngineItemDisplayContext
-import org.lain.engine.client.render.item.culling
-import org.lain.engine.client.render.item.engineOutfit
-import org.lain.engine.client.render.item.engineTransformation
-import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
+import org.lain.engine.client.render.item.AdditionalTransformationsBank
+import org.lain.engine.client.render.item.minecraft
 
-class EngineItemModel(
+data class EngineItemDefinition(
     val asset: Asset,
-    val itemModel: ItemModel,
+    val model: ResourceLocation,
     val disableCulling: Boolean,
     val markers: Map<String, Vector3fc>,
     val outfitTransformation: ItemTransform?
-) : ItemModel by itemModel {
-    override fun update(
-        state: ItemStackRenderState,
-        stack: ItemStack,
-        resolver: ItemModelResolver,
-        displayContext: ItemDisplayContext,
-        world: ClientLevel?,
-        heldItemContext: ItemOwner?,
-        seed: Int
-    ) {
-        // TODO: попробовать изобрести свой пайплайн рендеринга, т.к. ванильный жрёт очень много
-        itemModel.update(state, stack, resolver, displayContext, world, heldItemContext, seed)
-        state.culling = !disableCulling
-        if (state.engineOutfit != null && outfitTransformation != null) {
-            state.engineTransformation = outfitTransformation
-        }
-    }
+)
 
-    fun updateEngine(
-        state: ItemStackRenderState,
-        stack: ItemStack?,
-        displayContext: EngineItemDisplayContext,
-        world: ClientLevel?,
-        heldItemContext: ItemOwner?,
-        seed: Int
-    ) {
-        itemModel.update(
-            state,
-            stack ?: ITEM_STACK_MATERIAL,
-            MinecraftClient.itemModelResolver,
-            displayContext.minecraft,
-            world,
-            heldItemContext,
-            seed
-        )
-        state.culling = !disableCulling
-        if (displayContext == EngineItemDisplayContext.OUTFIT) {
-            state.engineTransformation = outfitTransformation
-        }
-    }
+interface EngineModelMetadata {
+    val disableCulling: Boolean
+}
 
-    class Unbaked(
-        val asset: Asset,
-        val model: ItemModel.Unbaked,
-        val disableCulling: Boolean,
-        val markers: Map<String, Vector3fc>,
-        val outfitTransformation: ItemTransform?
-    ) : ItemModel.Unbaked {
-        override fun type(): MapCodec<out ItemModel.Unbaked> { throw AssertionError() }
+class EngineItemModel(
+    val id: ResourceLocation,
+    val asset: Asset,
+    val wrapped: BakedModel,
+    definitionDisableCulling: Boolean,
+    val markers: Map<String, Vector3fc>,
+    val outfitTransformation: ItemTransform?
+) : ForwardingBakedModel(), EngineModelMetadata {
+    override fun getWrappedModel(): BakedModel = wrapped
+    val baseTransforms: ItemTransforms = wrapped.transforms
 
-        override fun bake(bakingContext: ItemModel.BakingContext): ItemModel {
-            return EngineItemModel(
-                asset,
-                model.bake(bakingContext),
-                disableCulling,
-                markers,
-                outfitTransformation
-            )
-        }
+    override val disableCulling: Boolean =
+        definitionDisableCulling || (wrapped as? EngineModelMetadata)?.disableCulling == true
 
-        override fun resolveDependencies(resolver: ResolvableModel.Resolver) {
-            model.resolveDependencies(resolver)
-        }
+    override fun getTransforms(): ItemTransforms {
+        return AdditionalTransformationsBank.get(id)?.minecraft() ?: baseTransforms
     }
 }
