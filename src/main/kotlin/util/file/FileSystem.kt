@@ -2,6 +2,7 @@ package org.lain.engine.util.file
 
 import org.lain.engine.Constants
 import org.lain.engine.server.ServerId
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URL
 import java.nio.file.FileSystems
@@ -12,6 +13,7 @@ import java.util.prefs.Preferences
 import kotlin.io.path.copyTo
 
 object FileSystem {
+    val LOGGER = LoggerFactory.getLogger("Engine Files")
     const val ROOT_PATH = "engine"
 
     const val COMPILATION_ENTRYPOINT_NAME = "install.lua"
@@ -30,12 +32,14 @@ object FileSystem {
     const val ASSETS_PATH = "assets"
     const val WALLPAPERS_PATH = "wallpapers"
     const val WEB_PATH = "web"
+    const val SERVER_PLAY_STATES_NAME = "servers"
     const val CHAT_BAR_CONFIG_NAME = "chat-bar.yml"
     const val FORMAT_CONFIG_NAME = "format.yml"
 
     const val DEFAULT_RESOURCES_PATH = "defaults"
 
     val root: File = ensureDirectory(File(ROOT_PATH))
+    val serverPlayStates = ensureDirectory(root.resolve(SERVER_PLAY_STATES_NAME))
     val modules = ensureDirectory(root.resolve(MODULES_PATH))
     val moduleSet = modules.resolve(MODULE_SET_NAME)
         .apply {
@@ -138,7 +142,7 @@ object FileSystem {
         val items = root.resolve(LEGACY_ITEMS_PATH)
         if (items.exists()) {
             items.renameTo(contents)
-            CONFIG_LOGGER.warn("Файл старого формата engine/items переименован в engine/contents")
+            LOGGER.warn("Файл старого формата engine/items переименован в engine/contents")
         }
     }
 }

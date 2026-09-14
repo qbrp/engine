@@ -5,7 +5,7 @@ import org.lain.engine.script.InventoryTab
 import org.lain.engine.script.Namespace
 import org.lain.engine.script.NamespaceId
 import org.lain.engine.script.SystemPhase
-import org.lain.engine.util.file.CONFIG_LOGGER
+import org.lain.engine.util.file.FileSystem
 
 data class Build(
     val namespaces: Map<NamespaceId, Namespace>,
@@ -16,7 +16,7 @@ data class Build(
 ) {
     fun log() {
         val namespaces = namespaces.values
-        CONFIG_LOGGER.info(
+        FileSystem.LOGGER.info(
             "Скомпилировано {} предметов, {} звуковых событий, {} прогрессий, {} компонентов, {} систем и {} скриптов в пространствах имён {} за {} мл.",
             namespaces.sumOf { it.items.count() },
             namespaces.sumOf { it.sounds.count() },
