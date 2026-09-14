@@ -1,5 +1,6 @@
 package org.lain.engine.client.render.ui
 
+import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.util.Mth
@@ -66,13 +67,18 @@ object MovingWallpapers {
         guiGraphics.fill(0, 0, width, height, 0x66000000)
         MinecraftClient.gameRenderer.processBlurEffect(delta)
         MinecraftClient.mainRenderTarget.bindWrite(false)
-        guiGraphics.drawTexturedQuad(
+        guiGraphics.flush()
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        guiGraphics.blit(
             VIGNETTE,
-            0f, width.toFloat(),
-            0f, height.toFloat(),
-            0f, 1f,
-            0f, 1f
+            0, 0,
+            0f, 0f,
+            width, height,
+            width, height
         )
+        RenderSystem.disableBlend()
 
         updateWallpaper(delta.coerceAtMost(0.333f))
     }

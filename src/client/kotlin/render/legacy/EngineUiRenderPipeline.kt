@@ -91,14 +91,6 @@ class EngineUiRenderPipeline(
         if (state.visible) {
             val ceilWidth = ceil(width).toInt()
             val ceilHeight = ceil(height).toInt()
-            if (!developerMode) {
-                context.enableScissor(
-                    -2, -2,
-                    ceilWidth + 2,
-                    ceilHeight + 2
-                )
-            }
-
             renderFeatures(
                 size.width, size.height,
                 ceilWidth, ceilHeight,
@@ -117,10 +109,6 @@ class EngineUiRenderPipeline(
             for (child in composition.children) {
                 val pos = child.render.position
                 collectVertexes(child, context, dt, localMouseX - pos.x, localMouseY - pos.y)
-            }
-
-            if (!developerMode) {
-                context.disableScissor()
             }
         }
 

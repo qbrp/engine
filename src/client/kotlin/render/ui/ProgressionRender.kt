@@ -72,7 +72,7 @@ fun renderInteractionProgression(
         val scale = 16
         renderState.texture?.let { texture ->
             fun draw(color: Int, offset: Int = 0) {
-                context.drawTintedSprite(
+                context.blitSprite(
                     texture,
                     2 + offset,
                     context.guiHeight() - 10 - scale + offset,

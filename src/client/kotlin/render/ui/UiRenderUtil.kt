@@ -98,15 +98,23 @@ fun GuiGraphics.drawTexturedQuad(
 ) {
     flush()
     RenderSystem.setShaderTexture(0, texture)
-    RenderSystem.setShader(GameRenderer::getPositionTexColorShader)
+    RenderSystem.setShader(GameRenderer::getPositionTexShader)
+    RenderSystem.setShaderColor(
+        color.r / 255f,
+        color.g / 255f,
+        color.b / 255f,
+        color.a / 255f
+    )
     RenderSystem.enableBlend()
+    RenderSystem.defaultBlendFunc()
     val matrix = pose().last().pose()
-    val builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
-    builder.addVertex(matrix, x1, y1, 0f).setUv(u1, v1).setColor(color.integer)
-    builder.addVertex(matrix, x1, y2, 0f).setUv(u1, v2).setColor(color.integer)
-    builder.addVertex(matrix, x2, y2, 0f).setUv(u2, v2).setColor(color.integer)
-    builder.addVertex(matrix, x2, y1, 0f).setUv(u2, v1).setColor(color.integer)
+    val builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
+    builder.addVertex(matrix, x1, y1, 0f).setUv(u1, v1)
+    builder.addVertex(matrix, x1, y2, 0f).setUv(u1, v2)
+    builder.addVertex(matrix, x2, y2, 0f).setUv(u2, v2)
+    builder.addVertex(matrix, x2, y1, 0f).setUv(u2, v1)
     BufferUploader.drawWithShader(builder.buildOrThrow())
+    RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
     RenderSystem.disableBlend()
 }
 

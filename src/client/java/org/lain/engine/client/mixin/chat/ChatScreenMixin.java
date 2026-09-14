@@ -100,12 +100,15 @@ public abstract class ChatScreenMixin {
         }
 
         String normalized = this.normalizeChatMessage(chatText);
-        if (!normalized.isEmpty()) {
-            Minecraft minecraft = Minecraft.getInstance();
+        if (!normalized.isEmpty()) {Minecraft minecraft = Minecraft.getInstance();
             if (addToHistory) {
                 minecraft.gui.getChat().addRecentChat(normalized);
             }
-            ClientMixin.INSTANCE.sendChatMessage(normalized);
+            if (!normalized.startsWith("/")) {
+                ClientMixin.INSTANCE.sendChatMessage(normalized);
+            } else if (minecraft.player != null) {
+                minecraft.player.connection.sendCommand(normalized.substring(1));
+            }
         }
         ci.cancel();
     }

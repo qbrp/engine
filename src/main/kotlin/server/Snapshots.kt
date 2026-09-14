@@ -42,7 +42,9 @@ data class ReplicationFrameSnapshot(
     val world: EntityNetworkSnapshot?, //null if is empty
     val entities: Map<PersistentId, EntityNetworkSnapshot>,
     val processedInputTick: Long? = null,
-)
+) {
+    fun isEmpty() = world == null && entities.isEmpty()
+}
 
 @Serializable
 data class EntityDelta(

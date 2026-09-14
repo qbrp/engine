@@ -24,12 +24,16 @@ interface EngineModelMetadata {
 class EngineItemModel(
     val id: ResourceLocation,
     val asset: Asset,
-    val wrapped: BakedModel,
+    wrapped: BakedModel,
     definitionDisableCulling: Boolean,
     val markers: Map<String, Vector3fc>,
     val outfitTransformation: ItemTransform?
 ) : ForwardingBakedModel(), EngineModelMetadata {
-    override fun getWrappedModel(): BakedModel = wrapped
+
+    init {
+        this.wrapped = wrapped
+    }
+
     val baseTransforms: ItemTransforms = wrapped.transforms
 
     override val disableCulling: Boolean =

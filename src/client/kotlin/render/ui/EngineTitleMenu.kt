@@ -1,9 +1,11 @@
 package org.lain.engine.client.render.ui
 
 import com.mojang.blaze3d.platform.InputConstants
+import net.minecraft.ChatFormatting
 import net.minecraft.SharedConstants
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.PlainTextButton
 import net.minecraft.client.gui.screens.CreditsAndAttributionScreen
@@ -17,6 +19,7 @@ import net.minecraft.client.gui.screens.options.OptionsScreen
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.Style
 import net.minecraft.util.Mth
 import net.minecraft.util.RandomSource
 import org.lain.engine.client.EngineClient
@@ -26,7 +29,6 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.client.render.MAP
 import org.lain.engine.mc.engineId
-import org.lwjgl.glfw.GLFW
 import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -38,7 +40,8 @@ class EngineTitleMenu(
     private val random = RandomSource.create()
     private var animationTicks = 0.0f
     private var singleplayerButton: Button? = null
-    private var multiplayerButton: Button? = null
+    private var multiplayerButton: ColoredPlainTextButton? = null
+    private var authorizationButton: ColoredPlainTextButton? = null
 
     override fun init() {
         val menuX = MENU_PADDING.coerceAtMost(
@@ -120,11 +123,38 @@ class EngineTitleMenu(
                 font
             )
         )
+
+        val authorizationStatus = authorizationStatus(client)
+        authorizationButton = addRenderableWidget(
+            ColoredPlainTextButton(
+                authorizationStatusX(width, font, authorizationStatus.text),
+                AUTHORIZATION_STATUS_PADDING,
+                font.width(authorizationStatus.text),
+                AUTHORIZATION_BUTTON_HEIGHT,
+                Component.literal(authorizationStatus.text),
+                { ClientMixin.setDiscordAuthorizationScreen() },
+                font,
+                authorizationStatus.color
+            )
+        )
     }
 
     override fun tick() {
         singleplayerButton?.active = client.canPlaySingleplayer
-        multiplayerButton?.active = client.canPlayMultiplayer
+        multiplayerButton?.let { button ->
+            button.active = client.canPlayMultiplayer
+            button.textColor = multiplayerButtonColor(client.canPlayMultiplayer)
+        }
+        authorizationButton?.let { button ->
+            val status = authorizationStatus(client)
+            val buttonWidth = font.width(status.text)
+            button.setMessage(Component.literal(status.text))
+            button.setWidth(buttonWidth)
+            button.setX(authorizationStatusX(width, font, status.text))
+            button.textColor = status.color
+            button.message = Component.literal(status.text)
+            button.active = client.connectionState !is ConnectionState.Authorizing
+        }
     }
 
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
@@ -138,16 +168,13 @@ class EngineTitleMenu(
             } else {
                 alpha = Mth.clampedMap(Mth.clamp(progress, 0.0f, 1.0f), 0.5f, 1.0f, 0.0f, 1.0f)
             }
-            children().filterIsInstance<net.minecraft.client.gui.components.AbstractWidget>().forEach {
-                it.setAlpha(alpha)
-            }
+            children().filterIsInstance<AbstractWidget>().forEach { it.setAlpha(alpha) }
         }
 
         super.render(guiGraphics, mouseX, mouseY, delta)
 
         val logoY = (height / 4 - 40).coerceAtLeast(38)
         renderLogo(guiGraphics, MENU_PADDING, logoY, alpha)
-        renderAuthorizationStatus(guiGraphics, mouseX, mouseY)
     }
 
     override fun renderBackground(
@@ -177,25 +204,15 @@ class EngineTitleMenu(
         }
     }
 
-    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (button == GLFW.GLFW_MOUSE_BUTTON_1) {
-            val status = authorizationStatus(client)
-            if (isAuthorizationStatusHovered(mouseX, mouseY, status.text)) {
-                ClientMixin.setDiscordAuthorizationScreen()
-                return true
-            }
-        }
-        return super.mouseClicked(mouseX, mouseY, button)
-    }
-
     override fun isPauseScreen(): Boolean = false
 
     override fun shouldCloseOnEsc(): Boolean = false
 
     private fun createNormalMenuOptions(x: Int, y: Int): Int {
+        val multiplayerText = Component.translatable("menu.multiplayer")
         multiplayerButton = addRenderableWidget(
-            PlainTextButton(
-                x, y, BUTTON_WIDTH, 15, Component.translatable("menu.multiplayer"), {
+            ColoredPlainTextButton(
+                x, y, BUTTON_WIDTH, 15, multiplayerText, {
                     val screen = if (minecraft!!.options.skipMultiplayerWarning) {
                         JoinMultiplayerScreen(this)
                     } else {
@@ -203,7 +220,8 @@ class EngineTitleMenu(
                     }
                     minecraft!!.setScreen(screen)
                 },
-                font
+                font,
+                multiplayerButtonColor(client.canPlayMultiplayer)
             )
         ).also {
             it.active = client.canPlayMultiplayer
@@ -241,17 +259,6 @@ class EngineTitleMenu(
         guiGraphics.pose().pushPose()
         guiGraphics.pose().translate(x.toDouble(), y.toDouble(), 0.0)
         renderAnimatedLogoLine(guiGraphics, "qbrp", 0.0f, 0.0f, LOGO_TOP_SCALE, alpha, 0, RED_HUE)
-//        val engineX = font.width(logoText("qb")) * LOGO_TOP_SCALE + LOGO_ENGINE_X_OFFSET
-//        renderAnimatedLogoLine(
-//            guiGraphics,
-//            "engine",
-//            engineX,
-//            LOGO_ENGINE_Y,
-//            LOGO_ENGINE_SCALE,
-//            alpha,
-//            4,
-//            GREEN_HUE
-//        )
         guiGraphics.pose().popPose()
     }
 
@@ -305,32 +312,30 @@ class EngineTitleMenu(
         return ((hue % 1.0f) + 1.0f) % 1.0f
     }
 
-    private fun renderAuthorizationStatus(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int) {
-        val status = authorizationStatus(client)
-        val x = authorizationStatusX(guiGraphics.guiWidth(), font, status.text)
-        val y = AUTHORIZATION_STATUS_PADDING
-
-        guiGraphics.drawString(font, status.text, x, y, status.color)
-
-        if (isAuthorizationStatusHovered(mouseX.toDouble(), mouseY.toDouble(), status.text)) {
-            guiGraphics.fill(
-                x,
-                y + font.lineHeight,
-                x + font.width(status.text),
-                y + font.lineHeight + 1,
-                status.color
-            )
+    private class ColoredPlainTextButton(
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+        message: Component,
+        onPress: OnPress,
+        private val font: Font,
+        var textColor: Int
+    ) : PlainTextButton(x, y, width, height, message, onPress, font) {
+        override fun renderWidget(
+            guiGraphics: GuiGraphics,
+            mouseX: Int,
+            mouseY: Int,
+            delta: Float
+        ) {
+            val message = if (isHoveredOrFocused && isActive) {
+                getMessage().copy().withStyle(Style.EMPTY.withUnderlined(true))
+            } else {
+                getMessage()
+            }
+            val color = (Mth.ceil(alpha * 255.0f) shl 24) or (textColor and 0x00FFFFFF)
+            guiGraphics.drawString(font, message, x, y, color)
         }
-    }
-
-    private fun isAuthorizationStatusHovered(
-        mouseX: Double,
-        mouseY: Double,
-        text: String
-    ): Boolean {
-        val x = authorizationStatusX(width, font, text)
-        val y = AUTHORIZATION_STATUS_PADDING
-        return mouseX >= x && mouseX <= x + font.width(text) && mouseY >= y && mouseY <= y + font.lineHeight
     }
 
     companion object {
@@ -348,6 +353,7 @@ class EngineTitleMenu(
         private const val BUTTON_WIDTH = 200
         private const val BUTTON_STEP = 18
         private const val AUTHORIZATION_STATUS_PADDING = 4
+        private const val AUTHORIZATION_BUTTON_HEIGHT = 10
         private const val FADE_IN_TICKS = 40.0f
         private const val RED_HUE = 0.0f
         private const val GREEN_HUE = 1.0f / 3.0f
@@ -376,6 +382,10 @@ class EngineTitleMenu(
 
         private fun authorizationStatusX(screenWidth: Int, font: Font, text: String): Int {
             return screenWidth - font.width(text) - AUTHORIZATION_STATUS_PADDING
+        }
+
+        private fun multiplayerButtonColor(canPlayMultiplayer: Boolean): Int {
+            return if (canPlayMultiplayer) 0xFFFFFFFF.toInt() else 0xFFAAAAAA.toInt()
         }
     }
 }
