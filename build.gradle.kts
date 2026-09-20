@@ -79,17 +79,17 @@ dependencies {
     }
     modCompileOnly(libs.bundles.compat)
 
-    implementation(libs.cyberia.ecs.api)
-    include(libs.cyberia.ecs.api)
-    shaded(libs.exposed.core)
-    shaded(libs.exposed.jdbc)
-    shaded(libs.sqlite.jdbc)
-    shaded(libs.luaj)
-    shaded(libs.reflections)
-    shaded(libs.obj)
-    shaded(libs.kaml)
-    shaded(libs.protobuf)
-    shaded(libs.credential.secure.storage)
+    compileOnly(libs.cyberia.ecs.api)
+    compileOnly(libs.exposed.core)
+    compileOnly(libs.exposed.jdbc)
+    compileOnly(libs.sqlite.jdbc)
+    compileOnly(libs.luaj)
+    compileOnly(libs.reflections)
+    compileOnly(libs.obj)
+    compileOnly(libs.kaml)
+    compileOnly(libs.protobuf)
+    compileOnly(libs.credential.secure.storage)
+    modImplementation("org.lain.cyberia:fabric:1.13")
     testImplementation(libs.fabric.loader.junit)
 }
 

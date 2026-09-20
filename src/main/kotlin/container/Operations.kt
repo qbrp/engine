@@ -2,7 +2,7 @@ package org.lain.engine.container
 
 import org.lain.cyberia.ecs.*
 import org.lain.engine.item.*
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.getDebugName
 import org.lain.engine.world.World
 

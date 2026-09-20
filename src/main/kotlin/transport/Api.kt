@@ -11,7 +11,6 @@ import org.lain.engine.debugPacket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.transport.packet.InputPacket
-import org.lain.engine.transport.packet.ServerAcknowledgeTask
 import org.lain.engine.util.injectServerTransportContext
 import org.lain.engine.util.math.randomLong
 import org.lain.engine.util.nextIdFast
@@ -45,10 +44,6 @@ class Endpoint<P : Packet>(
 
     fun sendAllS2C(packets: List<P>, player: PlayerId) = executeOnThread {
         packets.forEach { sendS2C(it, player) }
-    }
-
-    fun taskS2C(packet: P, player: PlayerId, id: Long = nextIdFast()): ServerPacketSendTask<P> {
-        return ServerPacketSendTask(id, packet, this, transport, player)
     }
 
     fun registerReceiver(handler: ServerPacketHandler<P>) = executeOnThread {
@@ -109,39 +104,6 @@ interface ServerTransportContext {
 
     fun isOnThread(): Boolean
     fun executeOnThread(runnable: () -> Unit)
-}
-
-class ServerPacketSendTask<P : Packet>(
-    val id: Long,
-    private val packet: P,
-    private val endpoint: Endpoint<P>,
-    private val transport: ServerTransportContext,
-    private val player: PlayerId
-) {
-    fun send(): ServerPacketSendTask<P> {
-        transport.sendClientboundPacket(endpoint, packet, player, id)
-        return this
-    }
-
-    suspend fun requestAcknowledge(
-        retryAttempts: Int = 10,
-        retryTime: Int = 500
-    ) = withAcknowledge(retryAttempts, retryTime)
-            .also { it.run() }
-
-    fun withAcknowledge(
-        retryAttempts: Int = 10,
-        retryTime: Int = 500
-    ): ServerAcknowledgeTask {
-        return ServerAcknowledgeTask(
-            id,
-            packet,
-            player,
-            transport,
-            retryAttempts,
-            retryTime
-        )
-    }
 }
 
 // Packet

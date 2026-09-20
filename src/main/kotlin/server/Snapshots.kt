@@ -5,13 +5,9 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.storage.ComponentDto
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.storage.toSnapshotDto
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.world.World
-import kotlin.collections.plusAssign
-import kotlin.collections.set
 
 @Serializable
 sealed class EntityNetworkSnapshot {
@@ -24,7 +20,7 @@ sealed class EntityNetworkSnapshot {
     @Serializable
     data class Full(
         val revision: Long,
-        val components: List<ComponentDto>
+        val components: List<ReplicationSnapshot>
     ) : EntityNetworkSnapshot()
 }
 
@@ -48,7 +44,7 @@ data class ReplicationFrameSnapshot(
 
 @Serializable
 data class EntityDelta(
-    val updated: List<ComponentDto>,
+    val updated: List<ReplicationSnapshot>,
     val removed: List<String>
 )
 
@@ -88,7 +84,7 @@ fun Changes.collectChanges(entityId: EntityId): EntityDelta? {
     val removes = collectRemoves()
     return if (updates.isNotEmpty() || removes.isNotEmpty()) {
         EntityDelta(
-            updates.map { it.toSnapshotDto() },
+            updates.map { it.replicationSnapshot() },
             removes.map { it.id }
         )
     } else {

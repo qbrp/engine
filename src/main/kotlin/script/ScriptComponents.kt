@@ -1,12 +1,13 @@
 package org.lain.engine.script
 
+import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
-import org.lain.engine.util.component.ComponentMeta
-import org.lain.engine.util.component.IndexedComponentType
-import kotlin.reflect.KClass
+import org.lain.engine.util.ecs.ComponentMeta
+import org.lain.engine.util.ecs.IndexedComponentType
 
 @JvmInline
+@Serializable
 value class ScriptComponentId(val id: EngineId) : Identifiable {
     override val engineId: EngineId get() = id
     override fun toString(): String = id.toString()
@@ -20,8 +21,10 @@ interface ScriptComponent : Component {
 }
 
 class ScriptComponentType(
+    val engineId: ScriptComponentId,
     val ecsType: ComponentType<ScriptComponent>,
-    val meta: ComponentMeta
+    val meta: ComponentMeta,
+    val version: Int = 0
 ) : IndexedComponentType<ScriptComponent>(ecsType.id) {
     override fun toString(): String = "ScriptComponentType($idx, $id, $meta)"
 }
@@ -46,8 +49,6 @@ object CoreScriptComponents {
     val USE_RESTRICTION = register("core/voxel/use_restriction", savable = true, networking = true) // TODO: переместить в движок
     val LIGHT_SOURCE = register("core/light/source", savable = true, networking = true)
     val LUMINANCE = register("core/light/luminance", savable = true, networking = true)
-    val PARENT = register("core/ownership/parent", savable = true, networking = true)
-    val CHILDREN = register("core/ownership/children", savable = true, networking = true)
     val ENTITY_RPC_RECEIVER = register("core/networking/entity_rpc_receiver", savable = false, networking = false)
     val ENTITY_RPC_QUEUE = register("core/networking/entity_rpc_queue", savable = false, networking = false)
     val DYNAMIC_VOXEL_INTEREST = register("core/networking/voxel_interest", savable = true, networking = false)
@@ -60,17 +61,17 @@ object CoreScriptComponents {
     private fun register(
         id: String,
         savable: Boolean = false,
-        networking: Boolean = false,
-        serializationClass: KClass<out Any>? = null
-    ) = register(id, ComponentMeta(savable, serializationClass, networking))
+        networking: Boolean = false
+    ) = register(id, ComponentMeta(savable, networking))
 
     private fun register(
         id: String,
-        meta: ComponentMeta = ComponentMeta(false, null, false)
+        meta: ComponentMeta = ComponentMeta(false, false)
     ): ScriptComponentType {
         val ecsType = ComponentType<ScriptComponent>(id)
-        val type = ScriptComponentType(ecsType, meta)
-        all[ScriptComponentId(EngineId(id))] = type
+        val scriptComponentId = EngineId(id).toScriptComponentId()
+        val type = ScriptComponentType(scriptComponentId, ecsType, meta)
+        all[scriptComponentId] = type
         return type
     }
 }

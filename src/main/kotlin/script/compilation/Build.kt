@@ -10,7 +10,7 @@ import org.lain.engine.util.file.FileSystem
 data class Build(
     val namespaces: Map<NamespaceId, Namespace>,
     val callbacks: Callbacks?,
-    val phases: List<SystemPhase>,
+    val rootPhase: SystemPhase,
     val inventoryTab: InventoryTab,
     val time: Long
 ) {

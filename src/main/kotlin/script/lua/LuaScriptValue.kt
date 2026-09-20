@@ -1,6 +1,8 @@
 package org.lain.engine.script.lua
 
+import org.jetbrains.exposed.v1.core.resolveColumnType
 import org.lain.engine.script.SBool
+import org.lain.engine.script.SEntityRef
 import org.lain.engine.script.SInt
 import org.lain.engine.script.SList
 import org.lain.engine.script.SNil
@@ -8,9 +10,12 @@ import org.lain.engine.script.SNumber
 import org.lain.engine.script.SString
 import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptValue
+import org.lain.engine.script.lua.library.LuaEntityRef
+import org.lain.engine.script.lua.library.toEntityRef
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
+context(lua: LuaScriptEngine)
 fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
     LuaValue.TNIL -> SNil
     LuaValue.TBOOLEAN -> SBool(toboolean())
@@ -60,9 +65,19 @@ fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
             )
         }
     }
+    LuaValue.TUSERDATA -> {
+        val metaTable = getmetatable()
+        if (lua.entityRefUserdataType.metaTable == metaTable) {
+            val ref = checkuserdata(LuaEntityRef::class.java) as? LuaEntityRef ?: error("Invalid userdata")
+            SEntityRef(ref.id.toint())
+        } else {
+            error("Unsupported userdata type: $this")
+        }
+    }
     else -> error("Unsupported Lua type: ${typename()}")
 }
 
+context(lua: LuaScriptEngine)
 fun ScriptValue.toLuaValue(): LuaValue = when (this) {
     SNil -> LuaValue.NIL
     is SBool -> value.luaBool()
@@ -75,5 +90,6 @@ fun ScriptValue.toLuaValue(): LuaValue = when (this) {
             .toTypedArray()
     )
     is SInt -> value.luaNum()
+    is SEntityRef -> id.toEntityRef()
     is SList -> values.toLuaList { it.toLuaValue() }
 }

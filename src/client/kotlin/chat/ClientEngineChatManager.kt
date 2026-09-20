@@ -113,7 +113,9 @@ class ClientEngineChatManager(
         trackMessageTyping = !trackMessageTyping
     }
 
-    val messages: MutableList<AcceptedMessage> = mutableListOf()
+    private val messagesMap: MutableMap<MessageId, AcceptedMessage> = mutableMapOf()
+    val messages
+        get() = messagesMap.values
 
     fun endTyping() {
         charTypeTimer = 0
@@ -178,15 +180,15 @@ class ClientEngineChatManager(
         val isNotify = message.notify
 
         // Если есть точно такое же сообщение
-        val similar = messages
-            .takeLast(9)
-            .find { it.channel == channel && it.displayText == message.displayText }
+        val similar = messages.toList()
+            .takeLast(8)
+            .find { it.channel != SYSTEM_CHANNEL && it.channel == channel && it.displayText == message.displayText }
         if (similar != null) {
             similar.repeat += 1
             return
         }
 
-        messages += message
+        messagesMap[message.id] = message
 
         if (isMentioned) {
             chatBar.markMentioned(channel.id)
@@ -197,7 +199,7 @@ class ClientEngineChatManager(
 
         val visible = isMessageVisible(message, spy, chatBar)
         eventBus.addToGui(message, visible)
-        if (isMessageVisible(message, spy, chatBar)) {
+        if (visible) {
             val showSelf = authorId != mainPlayerId || client.developerMode
             if (authorId != null && message.isSpeech && showSelf && client.options.chatBubbles) {
                 val authorPlayer = gameSession.playerStorage.get(authorId)
@@ -215,10 +217,11 @@ class ClientEngineChatManager(
     }
 
     fun deleteMessage(id: MessageId) {
-        val toDelete = messages.find { it.id == id } ?: return
+        val toDelete = messagesMap[id] ?: return
         if (toDelete.source.player?.id == gameSession.mainPlayer.id) {
             deleteSelfMessage(toDelete)
         }
+        messagesMap.remove(id)
         eventBus.onMessageDelete(toDelete)
     }
 

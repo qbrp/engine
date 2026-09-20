@@ -2,12 +2,18 @@ package org.lain.engine.client.handler
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.componentTypeOfGeneral
+import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.data.ComponentLoadSettings
+import org.lain.engine.data.ComponentSnapshot
+import org.lain.engine.data.EntityResolver
+import org.lain.engine.data.revive
 import org.lain.engine.player.*
 import org.lain.engine.player.interaction.ActionExecution
 import org.lain.engine.player.interaction.ActionSyncEvent
+import org.lain.engine.script.EntityRpcQueue
+import org.lain.engine.server.ReplicationSnapshot
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData
@@ -19,6 +25,7 @@ import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.location
+import java.util.LinkedList
 
 /**
  * Объект находится за пределами видимости игрока и не синхронизируется точно.
@@ -85,7 +92,7 @@ fun World.tickActionSyncSystem(handler: ClientHandler) {
             event.entity.setComponent(
                 ActionExecution(event.interactionId)
             )
-            event.entity.setComponent(event.action, componentTypeOfGeneral(event.action) as ComponentType<Component>)
+            event.entity.setComponent(event.action, componentTypeOf(event.action) as ComponentType<Component>)
         } else {
             EngineLogger.log(
                 Log(
@@ -118,5 +125,17 @@ fun World.tickPlayerLowDetailedSystem(
         } else {
             lowDetailed.enabled = false
         }
+    }
+}
+
+fun ReplicationSnapshot.revive(resolver: EntityResolver, settings: ComponentLoadSettings): Component? {
+    return when (this) {
+        is ReplicationSnapshot.EntityRpcReceiver -> EntityRpcQueue(LinkedList())
+        is ReplicationSnapshot.ActionSync -> ActionSyncEvent(
+            resolver.find(entity) ?: return null,
+            action.revive(resolver, settings),
+            interactionId
+        )
+        is ReplicationSnapshot.Component -> component.revive(resolver, settings)
     }
 }

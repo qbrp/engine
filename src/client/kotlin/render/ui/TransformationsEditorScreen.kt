@@ -19,13 +19,13 @@ import org.lain.engine.client.resources.EngineItemModel
 import org.lain.engine.client.resources.exportEngineModelTransformations
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
+import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText
 import kotlin.math.abs
 import kotlin.math.max
 
 class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(literalText("Transformation editor")) {
-    private val modelId = ClientMixin.getEngineItemModel(itemStack)
-        ?: itemStack.get(ENGINE_ITEM_MODEL_COMPONENT)
+    private val modelId = ClientMixin.getEngineItemModelId(itemStack)
         ?: error("Transformation editor requires an Engine item model")
     private val model = MinecraftClient.modelManager.getModel(modelId)
     private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)

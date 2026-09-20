@@ -15,17 +15,17 @@ import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.server.EngineServer
-import org.lain.engine.storage.ComponentLoadSettings
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.storage.persistentId
+import org.lain.engine.data.ComponentLoadSettings
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.persistentId
 import org.lain.engine.util.Storage
-import org.lain.engine.util.component.ComponentWorld
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.ComponentWorld
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.server.Networked
-import org.lain.engine.storage.loadWorldComponents
+import org.lain.engine.data.loadWorldComponents
 import org.lain.engine.util.ConcurrentStorage
-import org.lain.engine.util.component.getKotlinComponentTypeEntries
+import org.lain.engine.util.ecs.getKotlinComponentTypeEntries
 import java.util.concurrent.ConcurrentHashMap
 
 @Serializable

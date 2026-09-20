@@ -12,7 +12,7 @@ import org.joml.Vector3f
 import org.joml.Vector3fc
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.mc.JsonMc
-import org.lain.engine.client.mc.MissingSpriteId
+import org.lain.engine.client.mc.missingSpriteId
 import org.lain.engine.mc.engineId
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.injectValue
@@ -73,7 +73,7 @@ enum class ModelType {
 }
 
 internal val LOGGER = LoggerFactory.getLogger("Engine Model Loader")
-internal val MISSING_SPRITE = Material(ITEMS_ATLAS, MissingSpriteId)
+internal val MISSING_SPRITE = Material(ITEMS_ATLAS, missingSpriteId)
 
 data class ResourceList(
     // Спрайт атлас -> текстуры

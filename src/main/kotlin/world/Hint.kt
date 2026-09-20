@@ -2,7 +2,7 @@ package org.lain.engine.world
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.engine.storage.Uuid
+import org.lain.engine.data.Uuid
 
 @Serializable
 /**

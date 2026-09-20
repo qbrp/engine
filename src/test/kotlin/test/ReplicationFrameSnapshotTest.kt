@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test
 import org.lain.engine.server.EntityNetworkSnapshot
 import org.lain.engine.server.ReplicationFrameSnapshot
 import org.lain.engine.server.ReplicationTarget
-import org.lain.engine.storage.COMPONENT_CBOR
-import org.lain.engine.storage.persistentId
+import org.lain.engine.data.COMPONENT_CBOR
+import org.lain.engine.data.persistentId
 import org.lain.engine.transport.packet.ReplicationResyncRequestPacket
 
 class ReplicationFrameSnapshotTest : EngineTest() {

@@ -147,7 +147,7 @@ class PlayerInputSystem(
             if (mode is PlayerInputMode.Predictive) {
                 mode.predictionSink.begin(world, entity, execution.interactionId)
             }
-            entity.setComponent(intent, componentTypeOfGeneral(intent) as ComponentType<Component>)
+            entity.setComponent(intent, componentTypeOf(intent) as ComponentType<Component>)
             input.action = null
         }
     }

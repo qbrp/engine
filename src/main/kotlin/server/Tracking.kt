@@ -7,7 +7,7 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.has
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.data.PersistentId
 import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.Location

@@ -2,7 +2,7 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.data.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 

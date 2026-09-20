@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.item.EngineItem
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.util.component.ComponentState
+import org.lain.engine.data.PersistentId
+import org.lain.engine.util.ecs.ComponentState
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 

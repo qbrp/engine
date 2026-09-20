@@ -23,21 +23,18 @@ import org.lain.engine.server.ReplicationFrameSnapshot
 import org.lain.engine.server.ReplicationTarget
 import org.lain.engine.server.desync
 import org.lain.engine.server.networkState
-import org.lain.engine.storage.ComponentDto
-import org.lain.engine.storage.EntityProvider
-import org.lain.engine.storage.EntityResolver
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.storage.VoxelPosId
-import org.lain.engine.storage.copyComponentDtoState
-import org.lain.engine.storage.instantiateEntity
-import org.lain.engine.storage.toDomainWithoutRelationships
-import org.lain.engine.storage.toSnapshotDto
+import org.lain.engine.data.EntityProvider
+import org.lain.engine.data.EntityResolver
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.VoxelPosId
+import org.lain.engine.data.copyComponentDtoState
+import org.lain.engine.data.toDomainWithoutRelationships
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
-import org.lain.engine.util.component.ComponentTypeRegistry
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.ComponentTypeRegistry
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.World
@@ -73,7 +70,7 @@ class ClientReplicationController(
 
             iterate<Networked, PersistentIdComponent> { entity, _, (persistentId) ->
                 val components = runCatching {
-                    componentManager.getNetworkedComponents(entity).map { it.toSnapshotDto() }
+                    componentManager.getNetworkedComponents(entity).map { it.snapshotDto() }
                 }.getOrElse { exception ->
                     LOGGER.warn("Failed to seed authoritative state for $persistentId", exception)
                     emptyList()
@@ -83,7 +80,7 @@ class ClientReplicationController(
 
             replicationState.seed(
                 ReplicationTarget.World,
-                componentManager.getNetworkedComponents(state).map { it.toSnapshotDto() },
+                componentManager.getNetworkedComponents(state).map { it.snapshotDto() },
             )
         }
         frameJob = coroutineScope.launch { consumeFrames() }
@@ -284,11 +281,7 @@ class ClientReplicationController(
 
         with(replicationWorld) {
             state.copyComponentDtoState(accepted.updated) {
-                toDomainWithoutRelationships(
-                    itemStorage,
-                    gameSession.namespacedStorage,
-                    gameSession.luaContext,
-                )
+                toDomainWithoutRelationships(componentLoadSettings)
             }
             removeSnapshotComponents(state, accepted.removed)
             state.networkState().revision = accepted.revision

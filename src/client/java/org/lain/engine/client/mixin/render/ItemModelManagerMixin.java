@@ -31,19 +31,10 @@ public abstract class ItemModelManagerMixin {
             int seed,
             CallbackInfoReturnable<BakedModel> cir
     ) {
-        ResourceLocation id = ClientMixin.INSTANCE.getEngineItemModel(stack);
-        if (id == null) {
-            return;
-        }
-
         FabricBakedModelManager modelManager = (FabricBakedModelManager) this.itemModelShaper.getModelManager();
-        BakedModel model = modelManager.getModel(id);
-        if (model == null) {
-            return;
+        BakedModel model = ClientMixin.INSTANCE.getEngineItemModel(stack, modelManager);
+        if (model != null) {
+            cir.setReturnValue(model);
         }
-
-        ClientLevel clientLevel = level instanceof ClientLevel ? (ClientLevel) level : null;
-        BakedModel resolved = model.getOverrides().resolve(model, stack, clientLevel, entity, seed);
-        cir.setReturnValue(resolved == null ? model : resolved);
     }
 }

@@ -14,14 +14,14 @@ import org.lain.engine.player.character.*
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.script.*
 import org.lain.engine.server.account.SessionTicket
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.storage.backupBookContent
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.backupBookContent
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
-import org.lain.engine.util.component.EntityCommandBuffer
+import org.lain.engine.util.ecs.EntityCommandBuffer
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -78,7 +78,6 @@ class ServerHandler(
 
     fun run() {
         running = true
-        GlobalAcknowledgeListener.start()
         registerEndpoints()
     }
 
@@ -111,42 +110,36 @@ class ServerHandler(
 
     internal fun onCharacterApply(
         playerId: PlayerId,
-        characterId: String,
+        characterId: CharacterId,
         character: EngineCharacter?,
         sessionTicket: SessionTicket?,
         requestId: Long,
-    ) = updatePlayer(playerId) {
-        val appliedCharacters = require<AppliedCharacters>()
-        val persistent = appliedCharacters.characters[characterId]
-        val player = this
-        with(world) {
-            removeCharacter(engineServer.platform, appliedCharacters)
-        }
+    ) {
+        val persistence = engineServer.playerPersistence
+        val player = getPlayer(playerId) ?: desync("Игрок не существует")
+        val world = player.world
+        with(world) { player.unloadCharacter(engineServer.platform, persistence) }
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val eventListener = engineServer.platform
-                val validatedCharacter =
-                    eventListener.validateCharacter(
-                        this@updatePlayer,
-                        characterId,
-                        character,
-                        sessionTicket
-                    )
+                val validatedCharacter = eventListener.validateCharacter(
+                    player,
+                    characterId,
+                    character,
+                    sessionTicket
+                )
+                val characterRecord = persistence.loadPersistentCharacter(world.componentLoadSettings, playerId, characterId)
                 withContext(engineServer.dispatcher) {
-                    with(EntityCommandBuffer(world)) {
-                        persistent?.let { prepareCharacter(world.componentLoadSettings, it) }
-                        engineServer.platform.clearInventory(player)
-                        applyCharacter(validatedCharacter, persistent, eventListener)
-                        apply(world)
-                    }
-                    onCharacterApplyConfirmation(this@updatePlayer, requestId)
+                    engineServer.platform.clearInventory(player)
+                    player.applyCharacter(validatedCharacter, characterRecord, eventListener)
+                    onCharacterApplyConfirmation(player, requestId)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val message = e.message ?: "Не удалось применить персонажа"
-                engineServer.execute {
-                    onCharacterApplyConfirmation(this@updatePlayer, requestId, message)
+                withContext(engineServer.dispatcher) {
+                    onCharacterApplyConfirmation(player, requestId, message)
                 }
                 e.printStackTrace()
             }

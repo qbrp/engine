@@ -38,7 +38,7 @@ import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ReplicationFrameSnapshot
 import org.lain.engine.server.desync
-import org.lain.engine.storage.*
+import org.lain.engine.data.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
 import org.lain.engine.world.*
@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory
 
 class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : PredictionSink {
     private val gameSession get() = client.gameSession
-    private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
 
     val taskExecutor = TaskExecutor()
 
@@ -135,7 +134,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         }
         if (MinecraftClient.connection != null) {
             taskExecutor.flush()
-            clientAcknowledgeHandler.tick()
         } else if (taskExecutor.notEmpty()) {
             taskExecutor.clear()
         }

@@ -19,8 +19,8 @@ import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
 import org.lain.engine.server.ServerPlatform
-import org.lain.engine.storage.SaveTimers
-import org.lain.engine.storage.connectDatabase
+import org.lain.engine.data.SaveTimers
+import org.lain.engine.data.connectDatabase
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
 import org.lain.engine.world.World

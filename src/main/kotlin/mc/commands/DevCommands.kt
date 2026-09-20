@@ -10,7 +10,7 @@ import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.lua.LuaFunctionChunk
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.luaWorld
-import org.lain.engine.storage.saveItemsBlocking
+import org.lain.engine.data.saveItemsBlocking
 import org.lain.engine.util.getServerStats
 import org.lain.engine.util.requireEngineMinecraftServer
 import org.luaj.vm2.LuaError

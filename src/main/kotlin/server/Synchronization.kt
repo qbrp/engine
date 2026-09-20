@@ -3,12 +3,11 @@ package org.lain.engine.server
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
+import org.lain.engine.data.PersistentId
 import org.lain.engine.player.PlayerComponent
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.toSnapshotDto
-import org.lain.engine.util.component.ComponentTypeRegistry
-import org.lain.engine.util.component.EntityId
-import org.lain.engine.util.component.IndexedComponentType
+import org.lain.engine.util.ecs.ComponentTypeRegistry
+import org.lain.engine.util.ecs.EntityId
+import org.lain.engine.util.ecs.IndexedComponentType
 import org.lain.engine.world.World
 import java.util.*
 
@@ -84,7 +83,7 @@ inline fun BitSet.forEachIndex(action: (Int) -> Unit) {
 
 context(world: World)
 fun EntityId.collectNetworkedComponents() = world.componentManager.getNetworkedComponents(this)
-    .map { component -> component.toSnapshotDto() }
+    .map { component -> component.replicationSnapshot() }
 
 private fun NetworkStateFrame.deltaSnapshot() = EntityNetworkSnapshot.Delta(baseRevision, revision, delta)
 

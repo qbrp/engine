@@ -11,6 +11,7 @@ import net.minecraft.client.resources.model.UnbakedModel
 import net.minecraft.resources.ResourceLocation
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.JsonMc
+import org.lain.engine.item.UNDEFINED_MODEL_ID
 import org.lain.engine.util.Timestamp
 import org.slf4j.LoggerFactory
 import java.util.function.Function
@@ -26,6 +27,7 @@ fun registerEngineModelLoading() {
         }
         val itemDefinitions = parseEngineItemAssets(resources.allItemAssets)
         val modelIds = buildSet {
+            add(UNDEFINED_MODEL_ID)
             addAll(models.keys)
             addAll(itemDefinitions.keys)
             addAll(itemDefinitions.values.map { it.model })

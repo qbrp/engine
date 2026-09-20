@@ -16,7 +16,7 @@ data class CompilationManifest(
     val modules: List<CompilationManifestModule>,
     val namespaces: List<CompilationManifestNamespace>,
     val callbacks: List<String>,
-    val phases: List<CompilationManifestPhase>,
+    val rootPhase: CompilationManifestPhase?,
     val diagnostics: List<CompilationManifestDiagnostic>,
 )
 
@@ -50,9 +50,18 @@ data class CompilationManifestSystem(
 
 @Serializable
 data class CompilationManifestPhase(
-    val id: String,
-    val systems: List<CompilationManifestReference>,
+    val name: String,
+    val steps: List<CompilationManifestPhaseStep>,
 )
+
+@Serializable
+sealed class CompilationManifestPhaseStep {
+    @Serializable
+    data class System(val id: String) : CompilationManifestPhaseStep()
+
+    @Serializable
+    data class Phase(val phase: CompilationManifestPhase) : CompilationManifestPhaseStep()
+}
 
 @Serializable
 data class CompilationManifestReference(
@@ -154,19 +163,7 @@ fun compilationManifestOf(
             .orEmpty()
             .map { it.id }
             .sorted(),
-        phases = buildDraft?.phases
-            .orEmpty()
-            .map { phase ->
-                CompilationManifestPhase(
-                    id = phase.name,
-                    systems = phase.systems.map { systemId ->
-                        CompilationManifestReference(
-                            id = systemId.engineId.full,
-                            resolved = systemId in linkedSystemIds,
-                        )
-                    },
-                )
-            },
+        rootPhase = buildDraft?.rootPhase?.toCompilationManifestDto(),
         diagnostics = outcome.report.diagnostics.map { diagnostic ->
             CompilationManifestDiagnostic(
                 severity = diagnostic.severity.name.lowercase(),
@@ -189,6 +186,18 @@ fun compilationManifestOf(
                 },
             )
         },
+    )
+}
+
+private fun SystemPhaseDraft.toCompilationManifestDto(): CompilationManifestPhase {
+    return CompilationManifestPhase(
+        name,
+        steps.map { step ->
+            when (step) {
+                is PhaseStepDraft.Phase -> CompilationManifestPhaseStep.Phase(step.phase.toCompilationManifestDto())
+                is PhaseStepDraft.System -> CompilationManifestPhaseStep.System(step.system.toString())
+            }
+        }
     )
 }
 

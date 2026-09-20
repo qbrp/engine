@@ -88,6 +88,10 @@ class CommonEngineMod : ModInitializer {
             replacePlayerMinecraftState(newPlayer)
         }
 
+        ServerChunkEvents.CHUNK_LOAD.register { world, chunk ->
+            engineServer?.onChunkLoad(world, chunk)
+        }
+
         ServerChunkEvents.CHUNK_UNLOAD.register { world, chunk ->
             engineServer?.onChunkUnload(world, chunk)
         }

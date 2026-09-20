@@ -42,14 +42,14 @@ import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.server.ServerId
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.storage.toDomainSuspend
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.toDomainSuspend
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.WARNING_COLOR
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.*
 
 class GameSession(

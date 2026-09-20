@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.*
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.VoxelPos
 

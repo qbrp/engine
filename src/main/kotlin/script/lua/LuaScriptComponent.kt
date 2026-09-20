@@ -10,7 +10,7 @@ import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptDebugTarget
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue

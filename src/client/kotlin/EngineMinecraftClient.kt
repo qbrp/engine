@@ -34,8 +34,8 @@ import org.lain.engine.mc.*
 import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.player.*
 import org.lain.engine.util.Injector
-import org.lain.engine.util.component.ComponentTypeRegistry
-import org.lain.engine.util.component.registerAllClient
+import org.lain.engine.util.ecs.ComponentTypeRegistry
+import org.lain.engine.util.ecs.registerAllClient
 import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.ecs.MinecraftSystem
 import org.lain.engine.mc.server.EngineMinecraftServer

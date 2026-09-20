@@ -12,9 +12,8 @@ import kotlinx.coroutines.withTimeout
 import net.minecraft.world.item.ItemStack
 import org.lain.engine.item.createInvalidItem
 import org.lain.engine.server.EngineServer
-import org.lain.engine.storage.ItemLoadContext
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.dataFixItem
+import org.lain.engine.data.ItemLoadContext
+import org.lain.engine.data.PersistentId
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
@@ -47,7 +46,11 @@ fun updateMinecraftItemLoadSystem(
                     async {
                         semaphore.withPermit {
                             try {
-                                val item = withTimeout(5000) { engine.itemLoader.loadWorldItem(data.itemUuid, world, data.context) }
+                                val item = withTimeout(5000) {
+                                    engine.itemLoader.loadWorldItem(
+                                        data.itemUuid, world, data.context
+                                    )
+                                }
                                 context(world) {
                                     engine.execute {
                                         try {

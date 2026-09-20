@@ -2,16 +2,16 @@ package org.lain.engine
 
 import org.lain.cyberia.ecs.ComponentTypeProviderContext
 import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.util.component.CommonComponentTypeProvider
-import org.lain.engine.util.component.ComponentTypeRegistry
-import org.lain.engine.util.component.registerAll
-import org.lain.engine.util.component.registerComponents
+import org.lain.engine.util.ecs.CommonComponentTypeProvider
+import org.lain.engine.util.ecs.ComponentTypeRegistry
+import org.lain.engine.util.ecs.registerReflectedComponents
+import org.lain.engine.util.ecs.registerKotlinComponents
 import kotlin.to
 
 fun bootstrap() {
-    ComponentTypeRegistry.registerComponents()
-    ComponentTypeRegistry.registerAll()
-    ComponentTypeProviderContext.KCLASS = ComponentTypeRegistry
+    ComponentTypeRegistry.registerKotlinComponents()
+    ComponentTypeRegistry.registerReflectedComponents()
+    ComponentTypeProviderContext.PROVIDER = ComponentTypeRegistry
     ComponentTypeProviderContext.GENERAL = CommonComponentTypeProvider
     CoreScriptComponents.getAll() //lazy init
 }

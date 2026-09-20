@@ -13,7 +13,9 @@ import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
-import org.lain.engine.storage.*
+import org.lain.engine.data.*
+import org.lain.engine.server.ReplicationSnapshot
+import org.lain.engine.server.replicationSnapshot
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.World
@@ -87,7 +89,7 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
 @Serializable
 data class ClientboundItemData(
     val persistentId: PersistentId,
-    val components: List<ComponentDto>
+    val components: List<ReplicationSnapshot>
 ) {
     companion object {
         context(world: World)
@@ -96,7 +98,7 @@ data class ClientboundItemData(
                 item.requireComponent<PersistentIdComponent>().id,
                 world.componentManager
                     .getNetworkedComponents(item)
-                    .map { it.toSnapshotDto() }
+                    .map { it.replicationSnapshot() }
             )
         }
     }

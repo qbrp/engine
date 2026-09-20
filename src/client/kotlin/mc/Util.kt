@@ -1,7 +1,6 @@
 package org.lain.engine.client.mc
 
 import com.google.gson.JsonParser
-import com.mojang.authlib.minecraft.client.MinecraftClient
 import com.mojang.serialization.JsonOps
 import net.kyori.adventure.platform.fabric.FabricClientAudiences
 import net.kyori.adventure.text.minimessage.MiniMessage
@@ -18,7 +17,6 @@ import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.mc.TEXT_LOGGER
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.removeLegacyFormattingCodes
-import org.lain.engine.util.inject
 import org.lain.engine.util.injectCaching
 
 typealias JsonMc = GsonHelper
@@ -33,7 +31,7 @@ val Minecraft.entityHitResult
 val Minecraft.blockHitResult
     get() = this.hitResult as? BlockHitResult
 
-val MissingSpriteId get() = MissingTextureAtlasSprite.getLocation()
+val missingSpriteId get() = MissingTextureAtlasSprite.getLocation()
 
 fun injectClient() = injectCaching<EngineClient>()
 

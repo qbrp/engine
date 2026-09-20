@@ -4,7 +4,8 @@ import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.NamespacedStorage
-import org.lain.engine.storage.SerializedInventory
+import org.lain.engine.data.SerializedInventory
+import org.lain.engine.player.character.CharacterId
 import org.lain.engine.world.World
 
 interface ServerPlatform {
@@ -14,7 +15,7 @@ interface ServerPlatform {
     fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter) {}
     suspend fun validateCharacter(
         player: EnginePlayer,
-        characterId: String,
+        characterId: CharacterId,
         character: EngineCharacter?,
         sessionTicket: SessionTicket?
     ): EngineCharacter = character!!

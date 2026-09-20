@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.phys.Vec3
-import org.lain.cyberia.ecs.destroy
+import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.createItem
@@ -43,7 +43,6 @@ import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerPlatform
-import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
@@ -186,7 +185,10 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
     }
 
     open fun disable() = runBlocking {
-        engine.allWorlds().forEach { database.saveItemsBlocking(it) }
+        engine.chunkPersistence.close()
+        engine.allWorlds().forEach {
+            database.saveWorldSnapshot(it.createSaveSnapshot())
+        }
         engine.stop()
         MinecraftAccessRegistry.invalidate()
     }
@@ -268,29 +270,17 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         )
     }
 
+    fun onChunkLoad(world: Level, chunk: ChunkAccess) {
+        val engineWorld = engine.simulation.worlds[world.engineId] ?: return
+        engine.chunkPersistence.loadChunkAsync(engineWorld, chunk.pos.engineChunkPos())
+    }
+
     fun onChunkUnload(world: Level, chunk: ChunkAccess) {
         val pos = chunk.pos.engineChunkPos()
         acousticSimulator.unloadChunkAsync(world.engineId, chunk)
         val engineWorld = engine.getWorld(world)
         val engineChunk = engineWorld.chunkStorage.getChunk(pos) ?: return
-        val componentManager = engineWorld.componentManager
-        val savableComponentArrays = componentManager.listArrays().filter { it.meta.savable }
-        engineWorld.chunkStorage.removeChunk(pos)
-        saveChunkAsync(
-            engine,
-            pos,
-            engineChunk.decals.toMap(),
-            engineChunk.hints.toMap(),
-            engineChunk.dynamicVoxels.mapValues { (_, entity) ->
-                savableComponentArrays.mapNotNull {
-                    with(engineWorld) {
-                        val component = it.componentOf(entity)?.toSnapshotDto()
-                        entity.destroy() // сделать в будущем проверку владения
-                        component
-                    }
-                }
-            }
-        )
+        engine.chunkPersistence.saveChunk(engineWorld, pos, engineChunk)
     }
 
     fun onWorldUnload(world: Level) {
@@ -365,7 +355,6 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
                 developerModeStatus,
                 server.getWorld(worldId),
                 isReplayViewer,
-                server.globals.savePath.playerData.parsePersistentPlayerData(playerId),
                 playerMode,
             )
         }

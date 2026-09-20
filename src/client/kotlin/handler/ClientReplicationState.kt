@@ -4,8 +4,8 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.server.EntityNetworkSnapshot
 import org.lain.engine.server.ReplicationTarget
-import org.lain.engine.storage.ComponentDto
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.data.ComponentDto
+import org.lain.engine.data.PersistentId
 
 internal data class ReplicatedComponentKey(
     val entity: PersistentId,

@@ -11,7 +11,7 @@ import org.lain.engine.script.DebugEntry.*
 import org.lain.engine.script.DebugPrimitive.*
 import org.lain.engine.script.lua.library.LuaEntityComponent
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 import java.util.UUID
 import javax.naming.OperationNotSupportedException
@@ -136,7 +136,7 @@ fun World.tickEntityDebugViewSnapshotSystem(handler: ServerHandler) {
 
 context(world: World)
 fun EntityId.snapshotDebugData(): EntityDebugData {
-    val components = world.componentManager.getComponentsMap(this, null)
+    val components = world.componentManager.getComponentsMap(this)
     val context = DebugSerializationContext()
     val debugData = components
         .filter { (_, component) -> component !is LuaEntityComponent }

@@ -41,7 +41,7 @@ Dependency resolution may require network access and GitHub Packages credentials
 Important package areas:
 
 - `world`: engine world state, locations, chunks, sounds, voxel events.
-- `util/component`: custom ECS storage (`ComponentWorld`, `ComponentArray`, command buffers).
+- `util/component`: custom ECS data (`ComponentWorld`, `ComponentArray`, command buffers).
 - `server`: `EngineServer`, synchronization, server handler, global settings.
 - `client/handler`: client packet handlers, task queue, synchronization receivers.
 - `client/GameSession.kt`: client-side world/session tick pipeline.
@@ -49,7 +49,7 @@ Important package areas:
 - `script/lua`: LuaJ bridge, runtime context, Lua API tables.
 - `script/yaml`: YAML content compilation.
 - `transport`: packet endpoints and codecs.
-- `storage`: persistence, DTO conversion, save/load systems.
+- `data`: persistence, DTO conversion, save/load systems.
 - `mc`: Minecraft-specific server adapters, commands, mixin access, block/entity bridging.
 - `client/mc`: Minecraft client adapters, keybinds, audio, rendering integration.
 
@@ -57,11 +57,11 @@ Important package areas:
 
 `EngineMinecraftServer` is the Minecraft-facing server wrapper. It creates `EngineServer`, registers dependencies, compiles/loads script content, creates engine worlds for Minecraft levels, and calls `engine.update(...)` from the Minecraft server tick.
 
-`EngineServer` is the main server engine loop. It owns worlds, storage loaders, chat, callbacks, server handler, and tick phases. Most gameplay systems run inside `EngineServer.update`.
+`EngineServer` is the main server engine loop. It owns worlds, data loaders, chat, callbacks, server handler, and tick phases. Most gameplay systems run inside `EngineServer.update`.
 
-`GameSession` is the client-side mirror. It owns a client `World`, local player storage, client Lua context integration, prediction-ish action systems, rendering hooks, and client tick phases.
+`GameSession` is the client-side mirror. It owns a client `World`, local player data, client Lua context integration, prediction-ish action systems, rendering hooks, and client tick phases.
 
-`World` delegates ECS reads/writes to `ComponentWorld`. It also owns script context, chunk storage, item storage, and registered script component types.
+`World` delegates ECS reads/writes to `ComponentWorld`. It also owns script context, chunk data, item data, and registered script component types.
 
 The Lua/content pipeline is:
 
@@ -127,7 +127,7 @@ Script component types are registered dynamically. When adding new script-facing
 
 ## Persistence
 
-Persistence code is under `storage`. Persistent ids (`PersistentId`, `PersistentIdComponent`) are used to reconnect saved/networked entities with runtime ECS ids.
+Persistence code is under `data`. Persistent ids (`PersistentId`, `PersistentIdComponent`) are used to reconnect saved/networked entities with runtime ECS ids.
 
 When changing components that can be saved or networked, check:
 
@@ -157,7 +157,7 @@ Prefer fast JVM tests for engine logic:
 - ECS behavior,
 - component serialization,
 - interaction/action systems,
-- storage DTO roundtrips,
+- data DTO roundtrips,
 - Lua/YAML compilation where possible,
 - pure math/chunk/voxel/container logic.
 

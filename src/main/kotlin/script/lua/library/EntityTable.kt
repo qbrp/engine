@@ -20,7 +20,7 @@ import org.lain.engine.script.lua.removeLuaScriptComponent
 import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toLuaTable
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaInteger
 import org.luaj.vm2.LuaUserdata

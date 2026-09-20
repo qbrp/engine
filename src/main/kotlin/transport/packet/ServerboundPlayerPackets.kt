@@ -5,7 +5,8 @@ import org.lain.engine.player.ScriptBindings
 import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.InputAction
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.data.PersistentId
+import org.lain.engine.player.character.CharacterId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 
@@ -65,7 +66,7 @@ val SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT = Endpoint<ScriptBindingsPacket>()
 
 @Serializable
 data class CharacterApplyPacket(
-    val characterId: String,
+    val characterId: CharacterId,
     val character: EngineCharacter? = null,
     val sessionTicket: SessionTicketDto? = null,
     val requestId: Long,

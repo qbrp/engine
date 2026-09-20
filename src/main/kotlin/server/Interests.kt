@@ -6,8 +6,8 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerComponent
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.ChunkedPos
 import org.lain.engine.world.DynamicVoxelInterest

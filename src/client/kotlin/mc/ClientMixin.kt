@@ -1,9 +1,11 @@
 package org.lain.engine.client.mc
 
+import net.fabricmc.fabric.api.client.model.loading.v1.FabricBakedModelManager
 import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.client.resources.PlayerSkin
+import net.minecraft.client.resources.model.BakedModel
 import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
@@ -23,8 +25,11 @@ import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.UNDEFINED_MODEL_ID
 import org.lain.engine.item.Writable
 import org.lain.engine.item.resolveItemAsset
+import org.lain.engine.mc.ecs.ENGINE_ITEM_COMPONENT
+import org.lain.engine.mc.ecs.ENGINE_ITEM_INSTANTIATE_COMPONENT
 import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
 import org.lain.engine.mc.engineId
@@ -35,7 +40,7 @@ import org.lain.engine.player.Hearing
 import org.lain.engine.player.get
 import org.lain.engine.player.require
 import org.lain.engine.player.interaction.processLeftClickInteraction
-import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.util.injectValue
 
 object ClientMixin {
@@ -129,17 +134,23 @@ object ClientMixin {
         return client.gameSession?.skinSystem?.get(player.profile.id)
     }
 
-    private val identifierCache = mutableMapOf<String, ResourceLocation>()
+    fun getEngineItemModel(
+        itemStack: ItemStack,
+        itemModelManager: FabricBakedModelManager
+    ): BakedModel? {
+        // если это не engine-предмет, забиваем на него
+        if (!itemStack.has(ENGINE_ITEM_COMPONENT)) {
+            return null
+        }
+        val engineModel = itemStack.get(ENGINE_ITEM_MODEL_COMPONENT)?.let { itemModelManager.getModel(it) }
+        return engineModel ?: itemModelManager.getModel(UNDEFINED_MODEL_ID)
+    }
 
-    fun getEngineItemModel(itemStack: ItemStack): ResourceLocation? {
+    fun getEngineItemModelId(itemStack: ItemStack): ResourceLocation? {
         itemStack.get(ENGINE_ITEM_MODEL_COMPONENT)?.let { return it }
         val gameSession = client.gameSession ?: return null
         val engineItem = itemStack.engine()?.getClientItem(gameSession) ?: return null
-
-        return with(gameSession.world) {
-            val path = resolveItemAsset(engineItem)
-            identifierCache.getOrPut(path) { engineId(path) }
-        }
+        return with(gameSession.world) { resolveItemAsset(engineItem)?.let { engineId(it) } }
     }
 
     fun getEngineItem(itemStack: ItemStack): EngineItem? {
@@ -150,7 +161,9 @@ object ClientMixin {
 
     fun predictItemLeftClickInteraction(): Boolean {
         val player = client.gameSession?.mainPlayer ?: return false
-        return with(client.gameSession?.world ?: return false) { processLeftClickInteraction(player) }
+        return with(
+            client.gameSession?.world ?: return false
+        ) { processLeftClickInteraction(player) }
     }
 
     fun canBreakBlocks(): Boolean {
@@ -217,7 +230,8 @@ object ClientMixin {
 
     fun getKeybindManager(): KeybindManager = injectValue()
 
-    fun deleteChatMessage(message: AcceptedMessage) = client.gameSession?.chatManager?.deleteMessage(message.id)
+    fun deleteChatMessage(message: AcceptedMessage) =
+        client.gameSession?.chatManager?.deleteMessage(message.id)
 
     fun sendingMessageClosesChat() = client.options.chatInputSendClosesChat
 }

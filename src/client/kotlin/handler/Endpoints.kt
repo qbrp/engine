@@ -5,9 +5,7 @@ import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.transport.packet.*
 
-fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler) {
-    clientAcknowledgeHandler.run()
-
+fun ClientHandler.runEndpoints() {
     CLIENTBOUND_JOIN_GAME_ENDPOINT.registerClientReceiver { _ ->
         taskExecutor.add("join_game") { applyJoinGame(this) }
     }

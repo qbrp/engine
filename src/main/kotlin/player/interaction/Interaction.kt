@@ -5,7 +5,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerId
 import org.lain.engine.util.DebugName
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 
@@ -21,7 +21,6 @@ data class ActionExecution(
     val interactionId: InteractionId,
 ) : Component
 
-@Serializable
 data class ActionSyncEvent(
     val entity: EntityId,
     val action: Component,

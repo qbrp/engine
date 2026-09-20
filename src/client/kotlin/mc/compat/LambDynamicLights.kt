@@ -34,7 +34,7 @@ import org.lain.engine.player.Orientation
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.get
 import org.lain.engine.util.Injector
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.inject
 import org.lain.engine.util.math.MutableEVec3
 import org.lain.engine.util.math.Pos

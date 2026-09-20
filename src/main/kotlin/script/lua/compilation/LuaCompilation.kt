@@ -6,7 +6,7 @@ import org.lain.engine.script.compilation.*
 import org.lain.engine.script.lua.*
 import org.lain.engine.script.lua.library.resolveIdReference
 import org.lain.engine.util.Operation
-import org.lain.engine.util.component.ComponentMeta
+import org.lain.engine.util.ecs.ComponentMeta
 import org.lain.engine.util.toOperationId
 import org.lain.engine.world.ESoundSource
 import org.lain.engine.world.SoundEvent
@@ -115,8 +115,9 @@ private fun compiledNamespacesList(
                     val isNetworking =
                         componentType.get("networking").nullable()?.toboolean() ?: false
                     componentId to ScriptComponentType(
+                        componentId,
                         ComponentType(componentId.id),
-                        ComponentMeta(isSavable, null, isNetworking)
+                        ComponentMeta(isSavable, isNetworking)
                     )
                 }
             }
@@ -242,18 +243,19 @@ fun LuaCompilationContext.compiledBuildDraft(table: LuaTable): BuildDraft {
     fun LuaTable.toPhaseDraft(): SystemPhaseDraft {
         return SystemPhaseDraft(
             get("name").tojstring(),
-            get("systems").checktable().toList { systemIdL ->
-                systemIdL.resolveIdReference().toScriptSystemId()
+            get("steps").checktable().toList { stepL ->
+                val type = stepL.tojstring()
+                when(type) {
+                    "phase" -> PhaseStepDraft.Phase(stepL["phase"].checktable().toPhaseDraft())
+                    "system" -> PhaseStepDraft.System(stepL["system"].resolveIdReference().toScriptSystemId())
+                    else -> error("Unknown phase step draft type: $type (supports `phase` and `system`)")
+                }
             },
-            get("phases").checktable().toList { innerPhaseL ->
-                innerPhaseL.checktable().toPhaseDraft()
-            }
         )
     }
 
-    val phases = table.get("phases").nullable()?.checktable()
-        ?.toList { phaseL -> phaseL.checktable().toPhaseDraft() }
-        ?: emptyList()
+    val rootPhase = table["root_phase"]?.nullable()?.checktable()?.toPhaseDraft()
+        ?: SystemPhaseDraft("Root", emptyList())
 
     val inventoryTabEntries = table.get("inventory_tab").nullable()?.checktable()
         ?.let {
@@ -267,7 +269,7 @@ fun LuaCompilationContext.compiledBuildDraft(table: LuaTable): BuildDraft {
         ?: emptyList()
 
     return BuildDraft(
-        phases = phases,
+        rootPhase = rootPhase,
         callbacks = callbacks,
         namespaces = namespaces,
         inventoryTab = InventoryTab(inventoryTabEntries)

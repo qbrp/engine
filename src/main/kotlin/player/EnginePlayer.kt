@@ -15,8 +15,9 @@ import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.data.Uuid
 import org.lain.engine.server.markUpdated
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 import java.util.*
 
@@ -24,7 +25,7 @@ class EnginePlayer(
     val id: PlayerId,
     val entity: EntityId,
     val world: World,
-    var destroyed: Boolean = false
+    var destroyed: Boolean = false,
 ) {
     val simulation get() = world.simulation
     val simulationSettings get() = simulation.settings
@@ -76,7 +77,7 @@ inline fun <reified T : Component, R> EnginePlayer.let(noinline todo: T.() -> R)
 }
 
 fun EnginePlayer.getComponents(): List<Component> = with(world) {
-    componentManager.getComponents(entity, null)
+    componentManager.getComponents(entity)
 }
 
 inline fun <reified T : Component> EnginePlayer.markUpdated() = with(world) { entity.markUpdated<T>() }
@@ -84,6 +85,8 @@ inline fun <reified T : Component> EnginePlayer.markUpdated() = with(world) { en
 @JvmInline
 @Serializable(with = PlayerIdSerializer::class)
 value class PlayerId(val value: UUID) {
+    fun asPersistentId() = Uuid.from(value.toString())
+
     override fun toString(): String {
         return value.toString()
     }

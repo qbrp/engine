@@ -121,10 +121,12 @@ class GameSessionJoinFlow(
         if (joinType.isReplay) return null
         return coroutineScope {
             state = State.CHARACTER_LOAD
-            val playStateDeferred = async { ServerPlayState.open(serverId) }
-            val characters = async { listAccountCharacters() }
-                .await()
-            val previousPlayCharacter = playStateDeferred.await()?.character
+            val playStateDeferred = async {
+                ServerPlayState.open(serverId)
+            }
+            val characters = listAccountCharacters()
+            val previousPlayCharacter = playStateDeferred.await()
+                ?.character
                 ?.let { characterId ->
                     characters.find { it.profile.id == characterId }
                 }
@@ -135,6 +137,27 @@ class GameSessionJoinFlow(
         }
     }
 
+    private suspend fun compileResources(verificationNamespaceHashMap: NamespaceHashMap?): ResourceCompilationResult {
+        val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
+        val luaContext = createLuaContext(namespacedStorage)
+        val compilation = ClientCompilation(luaContext, client)
+        val compilationResult = withClientContext {
+            val build = compilation.compileScriptsOrThrow()
+            namespacedStorage.loadResult(build)
+            build
+        }
+
+        val namespaceHashMap = namespacedStorage.get().namespaceHashMap
+        if (verificationNamespaceHashMap != null) {
+            val result = validateNamespaceHashMap(namespaceHashMap, verificationNamespaceHashMap)
+            if (result is NamespaceHashMapValidationResult.Error) {
+                friendlyError(result.computeErrorMessage())
+            }
+        }
+
+        return ResourceCompilationResult(namespaceHashMap, compilationResult, compilation)
+    }
+
     private val job = CoroutineScope(Dispatchers.IO).launch {
         try {
             accountManager.requireAccountResponse()
@@ -142,35 +165,15 @@ class GameSessionJoinFlow(
 
             state = State.COMPILATION
             val (namespaceHashMap, compilationResult, compilation) = coroutineScope {
-                val deferred = async {
-                    val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
-                    val luaContext = createLuaContext(namespacedStorage)
-                    val compilation = ClientCompilation(luaContext, client)
-                    val compilationResult = withClientContext {
-                        val build = compilation.compileScriptsOrThrow()
-                        namespacedStorage.loadResult(build)
-                        build
-                    }
-
-                    // потокобезопасный доступ к namespacedStorage
-                    val namespaceHashMap = namespacedStorage.get().namespaceHashMap
-                    val verificationNamespaceHashMap = server.verificationNamespaceHashMap
-                    if (verificationNamespaceHashMap != null) {
-                        val result = validateNamespaceHashMap(namespaceHashMap, verificationNamespaceHashMap)
-                        if (result is NamespaceHashMapValidationResult.Error) {
-                            friendlyError(result.computeErrorMessage())
-                        }
-                    }
-
-                    ResourceCompilationResult(namespaceHashMap, compilationResult, compilation)
+                val resourceCompilationResult = async {
+                    compileResources(server.verificationNamespaceHashMap)
                 }
-
                 val resourceReloadJob = launch {
                     client.resourceManager.reload(server.id)
                 }
 
                 resourceReloadJob.join()
-                deferred.await()
+                resourceCompilationResult.await()
             }
 
             val selectedCharacter = computePlayCharacter(server.id)

@@ -68,6 +68,14 @@ enum class LogLevel {
     INFO, WARN, ERROR, FATAL
 }
 
+data class LogDiagnosticContext(val data: Map<String, String> = mapOf())
+
+fun LogDiagnosticContext.append(diagnostic: Map<String, String>) =
+    LogDiagnosticContext(diagnostic + data)
+
+fun LogDiagnosticContext.append(vararg values: Pair<String, String>) =
+    append(mapOf(*values))
+
 object EngineLogger {
     private val messageWriteQueue: ConcurrentLinkedQueue<Log> = ConcurrentLinkedQueue()
     private val slf4jLoggerAdapter = LoggerFactory.getLogger("Engine")
@@ -134,12 +142,17 @@ object EngineLogger {
         if (log.tick != null) {
             startStringBuilder.append(" [${log.tick}] ")
         }
-        val msg = "${startStringBuilder.toString()}${log.message} (${log.data})"
+        val msg = "$startStringBuilder${log.message} (${log.data})"
         when (log.level) {
             LogLevel.INFO -> slf4jLoggerAdapter.info(msg)
             LogLevel.WARN -> slf4jLoggerAdapter.warn(msg)
             LogLevel.ERROR -> slf4jLoggerAdapter.error(msg, log.error)
             LogLevel.FATAL -> slf4jLoggerAdapter.error(msg, log.error)
         }
+    }
+
+    context(diagnosticContext: LogDiagnosticContext)
+    fun logContextual(log: Log) {
+        log(log.copy(data = diagnosticContext.data + log.data))
     }
 }

@@ -3,9 +3,9 @@ package org.lain.engine.container
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.server.Networked
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.util.component.ComponentState
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.util.ecs.ComponentState
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import kotlin.let

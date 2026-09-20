@@ -10,14 +10,13 @@ import org.lain.engine.client.render.item.EngineItemDisplayContext
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemAssets
 import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
-import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
-import org.lain.engine.mc.engineId
+import org.lain.engine.mc.ecs.setPreviewItemModel
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Outfit
 import org.lain.engine.player.PlayerPart
 import org.lain.engine.player.getOrSet
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.world.World
 
 data class EquipmentRenderState(
@@ -39,15 +38,12 @@ fun createModelPartEquipmentRenderStates(
     return items
         .map {
             val outfit = it.requireComponent<Outfit>()
-            val model = it.requireComponent<ItemAssets>()
+            val assets = it.requireComponent<ItemAssets>()
             val part = outfit.parts.first()
             val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
             val itemStack = equipmentStacks.computeIfAbsent(it.requireComponent<PersistentIdComponent>().id) {
                 val stack = ITEM_STACK_MATERIAL.copy()
-                stack.set(
-                    ENGINE_ITEM_MODEL_COMPONENT,
-                    engineId(model.assets["default"]?.full ?: "missingno")
-                )
+                stack.setPreviewItemModel(assets)
                 stack
             }
             EquipmentRenderState(

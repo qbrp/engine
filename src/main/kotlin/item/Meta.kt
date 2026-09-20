@@ -7,7 +7,7 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.EngineId
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.data.PersistentId
 import org.lain.engine.transport.packet.ItemComponent
 import org.lain.engine.world.*
 
@@ -29,7 +29,7 @@ fun EngineItem.emitPlaySoundEvent(
 
 @Serializable
 data class ItemAssets(val assets: Map<String, EngineId>) : Component {
-    val default = assets["default"] ?: EngineId("missingno")
+    val default = assets["default"]
     fun copy() = ItemAssets(assets.toMap())
 
     companion object {

@@ -17,6 +17,7 @@ import org.lain.engine.mc.*
 import org.lain.engine.mc.ecs.ENGINE_ITEM_INSTANTIATE_COMPONENT
 import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
 import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
+import org.lain.engine.mc.ecs.setPreviewItemModel
 import org.lain.engine.mc.ecs.wrapEngineItemStackBase
 import org.lain.engine.mc.ecs.wrapEngineItemStackVisual
 
@@ -33,8 +34,8 @@ private val ITEM_GROUP = FabricItemGroup.builder()
 fun updateRandomEngineItemGroupIcon(client: Minecraft) {
     if (client.player?.containerMenu !is CreativeModeInventoryScreen.ItemPickerMenu) return
     val stacks = ITEM_GROUP.displayItems.filter {
-        val itemModel = it.get(ENGINE_ITEM_MODEL_COMPONENT) ?: return@filter false
-        client.modelManager.getModel(itemModel) !== client.modelManager.missingModel
+        //ClientMixin.getEngineItemModel(it)
+        true
     }
     val itemGroup = ITEM_GROUP as CreativeModeTabAccessor
     if (stacks.isNotEmpty()) {
@@ -62,17 +63,11 @@ fun registerEngineItemGroupEvent(client: EngineClient) {
             .mapNotNull { gameSession.namespacedStorage.items[it.prefabId] }
             .forEach { prefab ->
                 val stack = ITEM_STACK_MATERIAL.copy()
-                val assets = prefab.assets?.assets ?: return@forEach
+                val assets = prefab.assets
 
                 wrapEngineItemStackVisual(stack, prefab.name)
                 wrapEngineItemStackBase(stack, prefab.maxCount)
-                stack.set(
-                    ENGINE_ITEM_MODEL_COMPONENT,
-                    engineId(
-                        assets["default"]?.full ?: assets.toList().firstOrNull()?.second?.full
-                        ?: "missingno"
-                    )
-                )
+                assets?.let { stack.setPreviewItemModel(assets) }
                 stack.set(ENGINE_ITEM_INSTANTIATE_COMPONENT, prefab.id.toString())
                 entries.prepend(stack)
             }
