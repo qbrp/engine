@@ -64,7 +64,8 @@ fun PlayerMetaTable() = luaTable {
             player.entity.syncAction(
                 LuaScriptComponent(
                     action,
-                    type.asEngineScriptComponentType()
+                    type.asEngineScriptComponentType(),
+                    lua
                 )
             )
         }

@@ -30,7 +30,8 @@ fun EngineServer.createInvalidItem(world: World): EngineItem = with(world) {
 
 context(write: WriteComponentAccess)
 fun EngineServer.createInvalidItem(): EngineItem {
-    val prefab = namespacedStorage.items[BuiltinNamespaces.Items.INVALID_ID]!!
+    val prefab = namespacedStorage.items[BuiltinNamespaces.Items.INVALID_ID]
+        ?: BuiltinNamespaces.Items.INVALID
     return write.createItem(prefab)
 }
 

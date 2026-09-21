@@ -235,7 +235,7 @@ open class LuaScriptEngine(
     }
 
     override fun createScriptComponent(value: ScriptValue, type: ScriptComponentType): ScriptComponent {
-        return LuaScriptComponent(value.toLuaValue(), type)
+        return LuaScriptComponent(value.toLuaValue(), type, this)
     }
 
     data class Dependencies(

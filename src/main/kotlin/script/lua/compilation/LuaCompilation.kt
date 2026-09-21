@@ -160,7 +160,7 @@ private fun compiledNamespacesList(
                     val id = systemL["id"].resolveIdReference().toScriptSystemId()
                     val script = LuaScript<ScriptContext.SystemEntityHandle, ScriptValue>(
                         luaScriptEngine,
-                        systemL["update"].checkfunction()
+                        systemL["tick"].checkfunction()
                     )
                     val side = SystemSide.valueOf(systemL["side"].checkjstring().uppercase())
                     val query = systemL["query"].checktable()
@@ -244,7 +244,7 @@ fun LuaCompilationContext.compiledBuildDraft(table: LuaTable): BuildDraft {
         return SystemPhaseDraft(
             get("name").tojstring(),
             get("steps").checktable().toList { stepL ->
-                val type = stepL.tojstring()
+                val type = stepL["type"].tojstring()
                 when(type) {
                     "phase" -> PhaseStepDraft.Phase(stepL["phase"].checktable().toPhaseDraft())
                     "system" -> PhaseStepDraft.System(stepL["system"].resolveIdReference().toScriptSystemId())
@@ -254,8 +254,18 @@ fun LuaCompilationContext.compiledBuildDraft(table: LuaTable): BuildDraft {
         )
     }
 
-    val rootPhase = table["root_phase"]?.nullable()?.checktable()?.toPhaseDraft()
-        ?: SystemPhaseDraft("Root", emptyList())
+    val rootPhase = try {
+        table["root_phase"]?.nullable()?.checktable()?.toPhaseDraft()
+            ?: SystemPhaseDraft("Root", emptyList())
+    } catch (e: Exception) {
+        exceptions.abort(
+            e.toDiagnostic(
+                CompilationPhase.COMPILATION,
+                severity = CompilationDiagnosticSeverity.FATAL,
+                target = CompilationDiagnosticTarget(SymbolKind.PHASE, "root_phase")
+            )
+        )
+    }
 
     val inventoryTabEntries = table.get("inventory_tab").nullable()?.checktable()
         ?.let {

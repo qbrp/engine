@@ -220,13 +220,14 @@ private fun ScriptValue.toScriptDebugEntry(
     readonly: Boolean,
     target: ScriptDebugTarget? = null
 ): DebugEntry = when (this) {
-    SNil -> DebugEntry.Null
+    SNil -> Null
     is STable -> Reference(appendScriptSerializationContext(target))
     is SString -> Primitive(readonly, Str(value))
     is SNumber -> Primitive(readonly, Double(value))
     is SBool -> Primitive(readonly, Bool(value))
     is SInt -> Primitive(readonly, Int(value))
     is SList -> TODO("Списки не поддерживаются, т.к. используются только для перевода ScriptValue -> LuaValue")
+    is SEntityRef -> Primitive(readonly, Int(id))
 }
 
 context(ctx: DebugSerializationContext)
@@ -256,6 +257,7 @@ private fun ScriptValue.toDebugKey(): String = when (this) {
     is SBool -> value.toString()
     is STable -> "table@${identityKey().toString(16)}"
     is SList -> "list@${identityKey().toString(16)}"
+    is SEntityRef -> "entityRef${id}"
 }
 
 context(ctx: DebugSerializationContext)

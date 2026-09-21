@@ -16,7 +16,7 @@ fun World.applyLuaEntityRpcQueues() {
 
     iterate<EntityRpcQueue>() { entity, queue ->
         queueComponents.getOrSet(entity) {
-            LuaScriptComponent(queue.coerceToLua(), CoreScriptComponents.ENTITY_RPC_QUEUE)
+            LuaScriptComponent(queue.coerceToLua(), CoreScriptComponents.ENTITY_RPC_QUEUE, lua)
         }
     }
 }

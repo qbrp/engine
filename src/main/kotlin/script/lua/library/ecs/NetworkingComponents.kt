@@ -116,7 +116,7 @@ fun World.applyLuaNetworkingComponents() {
 
     iterate<EntityRpcReceiver>() { entity, receiver ->
         receiverComponents.getOrSet(entity) {
-            LuaScriptComponent(receiver.coerceToLua(), CoreScriptComponents.ENTITY_RPC_RECEIVER)
+            LuaScriptComponent(receiver.coerceToLua(), CoreScriptComponents.ENTITY_RPC_RECEIVER, lua)
         }.castedLuaValue.asLuaEntityRpcReceiver().refreshMessages()
     }
 

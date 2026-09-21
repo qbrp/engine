@@ -185,7 +185,9 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
     }
 
     open fun disable() = runBlocking {
+        LOGGER.info("Сохранение чанков")
         engine.chunkPersistence.close()
+        LOGGER.info("Сохранение миров")
         engine.allWorlds().forEach {
             database.saveWorldSnapshot(it.createSaveSnapshot())
         }
