@@ -14,7 +14,7 @@ import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
 import org.lain.engine.data.*
 import org.lain.engine.player.character.CharacterId
-import org.lain.engine.server.replication.EntityReplicationUpdate
+import org.lain.engine.server.replication.EntityStateUpdate
 import org.lain.engine.server.replication.fullReplicationUpdate
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -88,8 +88,8 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
 
 @Serializable
 data class InitialReplicationState(
-    val world: EntityReplicationUpdate.Full,
-    val snapshots: Map<PersistentId, EntityReplicationUpdate.Full>
+    val world: EntityStateUpdate.Full,
+    val snapshots: Map<PersistentId, EntityStateUpdate.Full>
 )
 
 @Serializable

@@ -10,7 +10,7 @@ import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptComponentId
-import org.lain.engine.server.replication.EntityReplicationUpdate
+import org.lain.engine.server.replication.EntityStateUpdate
 import org.lain.engine.server.replication.ReplicationFrame
 import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.server.protocolError
@@ -117,10 +117,11 @@ class ClientReplicationController(
     }
 
     private fun applyFrame(frame: ReplicationFrame) {
+        frame.out.forEach { entity -> removeEntity(entity) }
         frame.world?.let { applyWorldState(it) }
 
         val acceptedSnapshots = frame.entities.mapNotNull { (id, snapshot) ->
-            acceptEntitySnapshot(id, snapshot)
+            acceptUpdate(id, snapshot)
         }
 
         acceptedSnapshots.forEach { ensureEntity(it.persistentId) }
@@ -131,23 +132,23 @@ class ClientReplicationController(
         }
     }
 
-    private fun acceptEntitySnapshot(
+    private fun acceptUpdate(
         persistentId: PersistentId,
-        snapshot: EntityReplicationUpdate,
-    ): AcceptedEntitySnapshot? {
-        if (snapshot is EntityReplicationUpdate.Delta && replicationWorld.persistentIdToEntity[persistentId] == null) {
+        snapshot: EntityStateUpdate,
+    ): AcceptedEntityStateUpdate? {
+        if (snapshot is EntityStateUpdate.Delta && replicationWorld.persistentIdToEntity[persistentId] == null) {
             protocolError("Получен частичный снапшот отсутствующей сущности $persistentId")
         }
 
         val accepted = acceptSnapshot(ReplicationTarget.Entity(persistentId), snapshot)
             ?: return null
 
-        return AcceptedEntitySnapshot(persistentId, accepted)
+        return AcceptedEntityStateUpdate(persistentId, accepted)
     }
 
     private fun acceptSnapshot(
         target: ReplicationTarget,
-        snapshot: EntityReplicationUpdate,
+        snapshot: EntityStateUpdate,
     ): SnapshotAcceptance.Accepted? {
         val accepted = when (val acceptance = replicationState.accept(target, snapshot)) {
             SnapshotAcceptance.Ignored -> return null
@@ -169,14 +170,14 @@ class ClientReplicationController(
             is SnapshotAcceptance.Accepted -> acceptance
         }
 
-        if (snapshot is EntityReplicationUpdate.Full) {
+        if (snapshot is EntityStateUpdate.Full) {
             targetsAwaitingResync.remove(target)
         }
 
         return accepted
     }
 
-    private fun applyEntitySnapshot(acceptedSnapshot: AcceptedEntitySnapshot) = with(replicationWorld) {
+    private fun applyEntitySnapshot(acceptedSnapshot: AcceptedEntityStateUpdate) = with(replicationWorld) {
         val persistentId = acceptedSnapshot.persistentId
         val snapshot = acceptedSnapshot.snapshot
         val updated = snapshot.updated.filterNot { component ->
@@ -225,7 +226,7 @@ class ClientReplicationController(
         }
     }
 
-    private fun applyWorldState(snapshot: EntityReplicationUpdate) {
+    private fun applyWorldState(snapshot: EntityStateUpdate) {
         val accepted = acceptSnapshot(ReplicationTarget.World, snapshot) ?: return
 
         with(replicationWorld) {
@@ -283,7 +284,7 @@ class ClientReplicationController(
         }
     }
 
-    private data class AcceptedEntitySnapshot(
+    private data class AcceptedEntityStateUpdate(
         val persistentId: PersistentId,
         val snapshot: SnapshotAcceptance.Accepted,
     )

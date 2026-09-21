@@ -18,8 +18,9 @@ sealed interface ReplicationTarget {
 
 @Serializable
 data class ReplicationFrame(
-    val world: EntityReplicationUpdate?, //null if is empty
-    val entities: Map<PersistentId, EntityReplicationUpdate>,
+    val world: EntityStateUpdate?, //null if is empty
+    val entities: Map<PersistentId, EntityStateUpdate> = emptyMap(),
+    val out: Set<PersistentId> = emptySet(),
     val processedInputTick: Long? = null,
 ) {
     fun isEmpty() = world == null && entities.isEmpty()
@@ -31,25 +32,26 @@ fun World.sendReplicationPackets(
 ) {
     val world = this
     val entitiesFrame = replicationDeltaSnapshot.entities
-    val fullSnapshotCache = mutableMapOf<PersistentId, EntityReplicationUpdate.Full>()
+    val fullSnapshotCache = mutableMapOf<PersistentId, EntityStateUpdate.Full>()
 
     iterate<PlayerComponent, PlayerSyncState>() { _, (player), state ->
         if (!state.confirmed) return@iterate
-        val entities = mutableMapOf<PersistentId, EntityReplicationUpdate>()
+        val trackState = state.entities
+        val entities = mutableMapOf<PersistentId, EntityStateUpdate>()
+        val out = trackState.previousTickSynced - trackState.synced
 
         state.freshPlayers.forEach { (playerToSync) ->
             handler.sendFullPlayerState(player, playerToSync)
         }
-        state.entities.let { trackState ->
-            trackState.fresh.forEach {
-                val entity = persistentIdToEntity[it] ?: return@forEach
-                val state = fullSnapshotCache.getOrPut(it) { entity.fullReplicationUpdate() }
-                entities[it] = state
-            }
-            (trackState.synced - trackState.fresh).forEach {
-                val snapshot = entitiesFrame[it] ?: return@forEach
-                entities[it] = snapshot.toReplicationUpdate()
-            }
+
+        trackState.fresh.forEach {
+            val entity = persistentIdToEntity[it] ?: return@forEach
+            val state = fullSnapshotCache.getOrPut(it) { entity.fullReplicationUpdate() }
+            entities[it] = state
+        }
+        (trackState.synced - trackState.fresh).forEach {
+            val snapshot = entitiesFrame[it] ?: return@forEach
+            entities[it] = snapshot.toReplicationUpdate()
         }
 
         val worldSnapshot = if (!state.isWorldSynced) {
@@ -68,7 +70,7 @@ fun World.sendReplicationPackets(
 
         handler.sendReplicationFrame(
             player,
-            ReplicationFrame(worldSnapshot, entities, processedInputTick),
+            ReplicationFrame(worldSnapshot, entities, out, processedInputTick),
         )
     }
 }

@@ -22,6 +22,8 @@ internal class CharacterPreviewPlayer(
 ) : RemotePlayer(level, profile) {
     override fun getSkin(): PlayerSkin = skinGetter()
 
+    override fun shouldShowName(): Boolean = false
+
     override fun isSpectator(): Boolean = false
 
     override fun isCreative(): Boolean = false

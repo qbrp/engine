@@ -228,7 +228,6 @@ class ServerHandler(
             val frame = when (target) {
                 ReplicationTarget.World -> ReplicationFrame(
                     world = world.state.fullReplicationUpdate(),
-                    entities = emptyMap(),
                 )
 
                 is ReplicationTarget.Entity -> {

@@ -1,8 +1,9 @@
 package org.lain.engine.client.handler
 
+import org.lain.engine.client.handler.SnapshotAcceptance.*
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.interaction.InteractionId
-import org.lain.engine.server.replication.EntityReplicationUpdate
+import org.lain.engine.server.replication.EntityStateUpdate
 import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.data.PersistentId
 import org.lain.engine.server.replication.ReplicationSnapshot
@@ -52,7 +53,7 @@ internal class ClientReplicationState {
         processedInputTick = -1
     }
 
-    fun seed(target: ReplicationTarget, snapshot: EntityReplicationUpdate.Full) {
+    fun seed(target: ReplicationTarget, snapshot: EntityStateUpdate.Full) {
         targets[target] = TargetState(
             snapshot.revision,
             snapshot.components.associateByTo(mutableMapOf()) { it.id }
@@ -101,10 +102,10 @@ internal class ClientReplicationState {
 
     fun accept(
         target: ReplicationTarget,
-        snapshot: EntityReplicationUpdate,
+        snapshot: EntityStateUpdate,
     ): SnapshotAcceptance {
         return when (snapshot) {
-            is EntityReplicationUpdate.Full -> {
+            is EntityStateUpdate.Full -> {
                 val state = targets.getOrPut(target) { TargetState(snapshot.revision) }
                 val currentRevision = state.revision
                 if (snapshot.revision < currentRevision) {
@@ -115,7 +116,7 @@ internal class ClientReplicationState {
                     state.components.clear()
                     state.components.putAll(newComponents)
                     state.revision = snapshot.revision
-                    SnapshotAcceptance.Accepted(
+                    Accepted(
                         snapshot.revision,
                         snapshot.components,
                         removed,
@@ -123,26 +124,26 @@ internal class ClientReplicationState {
                 }
             }
 
-            is EntityReplicationUpdate.Delta -> {
+            is EntityStateUpdate.Delta -> {
                 val state = targets[target] ?: protocolError("Получен delta-снимок не полностью синхронизированной сущности")
                 val currentRevision = state.revision
                 when {
-                    snapshot.revision <= currentRevision ->
+                    snapshot.delta.revision <= currentRevision ->
                         SnapshotAcceptance.Ignored
 
-                    snapshot.baseRevision != currentRevision ->
-                        SnapshotAcceptance.Gap(
+                    snapshot.delta.baseRevision != currentRevision ->
+                        Gap(
                             currentRevision,
-                            snapshot.baseRevision,
-                            snapshot.revision,
+                            snapshot.delta.baseRevision,
+                            snapshot.delta.revision,
                         )
 
                     else -> {
                         snapshot.delta.updated.forEach { state.components[it.id] = it }
                         snapshot.delta.removed.forEach(state.components::remove)
-                        state.revision = snapshot.revision
-                        SnapshotAcceptance.Accepted(
-                            snapshot.revision,
+                        state.revision = snapshot.delta.revision
+                        Accepted(
+                            snapshot.delta.revision,
                             snapshot.delta.updated,
                             snapshot.delta.removed.toSet(),
                         )

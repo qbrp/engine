@@ -8,21 +8,21 @@ import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.world.World
 
 @Serializable
-sealed class EntityReplicationUpdate {
+sealed class EntityStateUpdate {
     @Serializable
-    data class Delta(val delta: EntityDelta) : EntityReplicationUpdate()
+    data class Delta(val delta: EntityDelta) : EntityStateUpdate()
 
     @Serializable
     data class Full(
         val revision: Long,
         val components: List<ReplicationSnapshot>
-    ) : EntityReplicationUpdate()
+    ) : EntityStateUpdate()
 }
 
-fun EntityDelta.toReplicationUpdate() = EntityReplicationUpdate.Delta(this)
+fun EntityDelta.toReplicationUpdate() = EntityStateUpdate.Delta(this)
 
 context(world: World)
-fun EntityId.fullReplicationUpdate() = EntityReplicationUpdate.Full(
+fun EntityId.fullReplicationUpdate() = EntityStateUpdate.Full(
     networkState().revision,
     collectNetworkedComponents()
 )

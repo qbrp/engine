@@ -17,7 +17,7 @@ import org.lain.engine.script.ScriptSystemDispatcher
 import org.lain.engine.script.compilation.loadResult
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.ServerPlatform
-import org.lain.engine.server.confirmProcessedPlayerInputsSystem
+import org.lain.engine.server.replication.confirmProcessedPlayerInputsSystem
 import org.lain.engine.data.PersistentCharacterRecord
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId

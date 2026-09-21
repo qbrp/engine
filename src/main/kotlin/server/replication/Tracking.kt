@@ -16,10 +16,14 @@ import org.lain.engine.world.World
 import java.util.TreeMap
 
 data class TrackingState(
+    val previousTickSynced: MutableSet<PersistentId> = mutableSetOf(),
     val synced: MutableSet<PersistentId> = mutableSetOf(),
     val fresh: MutableSet<PersistentId> = mutableSetOf()
 ) {
     fun update(entities: Set<PersistentId>) {
+        previousTickSynced.clear()
+        previousTickSynced.addAll(synced)
+
         fresh.clear()
         synced.retainAll(entities)
         entities.forEach { entity ->
@@ -27,7 +31,6 @@ data class TrackingState(
                 fresh.add(entity)
             }
         }
-
     }
 }
 
