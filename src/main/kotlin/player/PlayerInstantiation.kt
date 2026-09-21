@@ -171,7 +171,7 @@ class PlayerLoader(
         val playerId = settings.playerId
         val transaction = server.createTransactionContext(world)
 
-        val prepared = transaction.rollbackOnFailure {
+        val prepared = try {
             val persistentRecord = persistence.loadRecord(playerId)
             val persistentData = persistentRecord?.data
 
@@ -220,7 +220,7 @@ class PlayerLoader(
                 characterId in persistentData?.usedCharacters.orEmpty()
             ) {
                 persistence.loadPersistentCharacter(
-                    world.componentLoadSettings,
+                    world.componentReviveSettings,
                     playerId,
                     characterId,
                 )
@@ -229,6 +229,9 @@ class PlayerLoader(
             }
 
             PreparedPlayer(player, character, persistentCharacter)
+        } catch (exception: Throwable) {
+            transaction.rollback(exception)
+            throw exception
         }
 
         withContext(server.dispatcher) {
@@ -299,8 +302,8 @@ class PlayerLoader(
         itemLoadContext: ItemLoadContext.PreparingPlayer
     ): InventoryItemsLoadResult = coroutineScope {
         val inventoryJobs = inventoryItems.map { uuid ->
-            transactionContext.withChild { childContext ->
-                async(Dispatchers.IO) {
+            async(Dispatchers.IO) {
+                transactionContext.withChild { childContext ->
                     itemLoader.loadWorldItem(
                         uuid,
                         itemLoadContext,
@@ -311,8 +314,8 @@ class PlayerLoader(
         }
 
         val equipmentJobs = equipmentItems.map { (slot, uuid) ->
-            transactionContext.withChild { childContext ->
-                async(Dispatchers.IO) {
+            async(Dispatchers.IO) {
+                transactionContext.withChild { childContext ->
                     slot to itemLoader.loadWorldItem(
                         uuid,
                         itemLoadContext,
@@ -322,10 +325,9 @@ class PlayerLoader(
             }
         }
 
-        transactionContext.awaitChildren()
-
         val inventory = inventoryJobs.awaitAll()
         val equipment = equipmentJobs.awaitAll().toMap()
+        transactionContext.awaitChildren()
 
         InventoryItemsLoadResult(inventory, equipment)
     }

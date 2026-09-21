@@ -7,6 +7,7 @@ import org.lain.engine.player.character.BodyType
 import org.lain.engine.player.character.CharacterHeight
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.CharacterGradientName
+import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.GenderParams
 import org.lain.engine.player.character.Look
@@ -47,7 +48,7 @@ data class CharacterDataResponse(
 
 @Serializable
 data class CharacterProfileResponse(
-    val id: String,
+    val id: CharacterId,
     val accountId: String,
     val name: CharacterNameDto,
     val biologicalCategory: BiologicalCategory,

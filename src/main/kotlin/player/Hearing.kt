@@ -34,23 +34,6 @@ data class AcousticMessage(
 
 data class AcousticMessageQueue(val messages: Queue<AcousticMessage>) : Component
 
-private fun EnginePlayer.flushAcousticMessages(todo: (AcousticMessage) -> Unit) {
-    get<AcousticMessageQueue>()?.messages?.flush(todo)
-}
-
-fun updateHearing(player: EnginePlayer) = player.handle<Hearing>() {
-    tinnitus?.let {
-        val (trauma, duration) = it.tinnitus
-        if (it.elapsed++ > duration) {
-            tinnitus = null
-        }
-        loss = (1f - it.elapsed / duration) * trauma
-    }
-    if (tinnitus == null) {
-        loss = 0f
-    }
-}
-
 const val TINNITUS_HEAR_THRESHOLD = 0.2f
 
 fun World.tickAcousticHearingSystem(handler: ServerHandler, settings: EngineChatSettings) {
@@ -66,23 +49,3 @@ fun World.tickAcousticHearingSystem(handler: ServerHandler, settings: EngineChat
         }
     }
 }
-
-
-// МЕХАНИКА ОТКЛЮЧЕНА
-//fun EnginePlayer.appendTinnitus(tinnitus: Tinnitus) = handle<Hearing> {
-//    return@handle
-//    val oldTinnitus = this.tinnitus
-//    if (oldTinnitus == null) {
-//        this.tinnitus = Hearing.ActiveTinnitus(tinnitus, 0)
-//    } else {
-//        val newDuration = max(oldTinnitus.tinnitus.duration, tinnitus.duration)
-//        this.tinnitus = Hearing.ActiveTinnitus(
-//            tinnitus.copy(
-//                trauma = oldTinnitus.tinnitus.trauma + tinnitus.trauma,
-//                duration = newDuration.coerceAtLeast(1)
-//            ),
-//            (oldTinnitus.elapsed - newDuration).coerceAtLeast(0)
-//        )
-//    }
-//    this@appendTinnitus.markDirty<Hearing>()
-//}

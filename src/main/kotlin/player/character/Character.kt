@@ -6,7 +6,9 @@ import org.lain.engine.data.PersistentCharacterSnapshot
 
 @JvmInline
 @Serializable
-value class CharacterId(val value: String)
+value class CharacterId(val value: String) {
+    override fun toString(): String = value
+}
 
 @Serializable
 data class EngineCharacter(

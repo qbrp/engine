@@ -38,7 +38,7 @@ enum class CharacterModelType {
  */
 @Serializable
 data class CharacterDisplay(
-    val id: String,
+    val id: CharacterId,
     val name: CharacterGradientName,
     val biologicalCategory: BiologicalCategory,
     val appearanceDescription: String,
