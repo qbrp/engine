@@ -18,13 +18,17 @@ import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 
-const val MAXIMUM_REPEATS_TEXT = "x999"
+const val MAXIMUM_REPEATS_TEXT = "x999+"
 
 data class EngineChatHudMessage(
     val author: PlayerInfo?,
     val engineMessage: AcceptedMessage,
     val addedTime: Int,
 ) {
+    val clipboardText: String by lazy {
+        engineMessage.vanilla?.content?.string ?: engineMessage.displayText.parseMiniMessageClient().string
+    }
+
     val debugText: Text? by lazy {
         val volume = engineMessage.volume
         volume?.let { (input, result) -> literalText(" [input $input, result $result]") }
@@ -43,7 +47,7 @@ data class EngineChatHudMessage(
                 width - font.width(MAXIMUM_REPEATS_TEXT),
                 font
             )
-            true -> engineMessage.vanilla.splitLines(font, width)
+            true -> ComponentRenderUtils.wrapComponents(engineMessage.vanilla.content, width, font)
         }
         return lines.mapIndexed { i, line ->
             EngineChatHudLine(this, line, i == 0, i == lines.lastIndex)

@@ -1,7 +1,7 @@
 package org.lain.engine.client.mc.chat
 
 import net.minecraft.client.GuiMessage
-import net.minecraft.world.entity.player.PlayerSkin
+import net.minecraft.client.resources.PlayerSkin
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
@@ -117,7 +117,12 @@ object MinecraftChat : ChatEventBus {
             id = MessageId.next(),
             vanilla = guiMessage
         )
-        chatManager?.addMessage(engineMessage)
+        val manager = chatManager
+        if (manager != null) {
+            manager.addMessage(engineMessage)
+        } else {
+            addToGui(engineMessage, true)
+        }
     }
 
     fun deleteMessage(chatMessage: AcceptedMessage) {
@@ -127,6 +132,7 @@ object MinecraftChat : ChatEventBus {
         deletedMessage?.let {
             messages.remove(it)
             visibleMessages.removeIf { visible -> visible.message == it }
+            if (selectedMessage == it) selectedMessage = null
         }
     }
 
@@ -134,6 +140,7 @@ object MinecraftChat : ChatEventBus {
 
     fun clearChatData() {
         messages.clear()
+        visibleMessages.clear()
         selectedMessage = null
         typingPlayers.clear()
     }
@@ -143,9 +150,10 @@ object MinecraftChat : ChatEventBus {
         messages.addFirst(messageData)
         if (visible) {
             chatHud.`engine$addMessage`(messageData, false)
-            if (messages.size > client.options.chatFieldSize) {
-                messages.removeLast()
-            }
+        }
+        while (messages.size > client.options.chatFieldSize) {
+            val removed = messages.removeLast()
+            visibleMessages.removeIf { it.message == removed }
         }
     }
 
@@ -162,15 +170,15 @@ object MinecraftChat : ChatEventBus {
 
     private fun restore() {
         visibleMessages.clear()
+        val manager = chatManager
         messages
-            .filter { isMessageVisible(it.engineMessage, requireChatManager().spy, requireChatBar()) }
+            .filter { message ->
+                val chatBar = manager?.chatBar
+                manager == null || chatBar == null || isMessageVisible(message.engineMessage, manager.spy, chatBar)
+            }
             .reversed()
             .forEach { chatHud.`engine$addMessage`(it, false) }
     }
-
-    private fun requireChatBar() = chatManager?.chatBar ?: error("Chat bar is not available")
-
-    private fun requireChatManager() = chatManager ?: error("Chat is not available")
 
     override fun onSettingsUpdate(settings: ClientChatSettings, chatBar: ChatBar) {
         channelsBar.updateButtons(chatBar.sections)

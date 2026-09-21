@@ -6,7 +6,6 @@ import net.minecraft.client.gui.components.PlayerFaceRenderer
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.network.chat.FormattedText
 import net.minecraft.util.FormattedCharSequence
-import org.joml.Matrix3x2f
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.render.ui.drawEngineSprite
@@ -71,14 +70,13 @@ class EngineUiRenderPipeline(
         val scale = state.scale
         val opacity = max(0, 255 - (state.opacity - (alphaStack.lastOrNull() ?: 255)))
         alphaStack.addLast(opacity)
-        matrices.pushMatrix()
-        matrices.translate(position.x - origin.x, position.y - origin.y)
+        matrices.pushPose()
+        matrices.translate((position.x - origin.x).toDouble(), (position.y - origin.y).toDouble(), 0.0)
 
         if (scale != UiState.DEFAULT_SCALE) {
-            matrices
-                .translate(-origin.x, -origin.y)
-                .mul(Matrix3x2f().scaling(scale.x, scale.y))
-                .translate(origin.x, origin.y)
+            matrices.translate(-origin.x.toDouble(), -origin.y.toDouble(), 0.0)
+            matrices.scale(scale.x, scale.y, 1f)
+            matrices.translate(origin.x.toDouble(), origin.y.toDouble(), 0.0)
         }
 
         val size = state.size
@@ -93,14 +91,6 @@ class EngineUiRenderPipeline(
         if (state.visible) {
             val ceilWidth = ceil(width).toInt()
             val ceilHeight = ceil(height).toInt()
-            if (!developerMode) {
-                context.enableScissor(
-                    -2, -2,
-                    ceilWidth + 2,
-                    ceilHeight + 2
-                )
-            }
-
             renderFeatures(
                 size.width, size.height,
                 ceilWidth, ceilHeight,
@@ -117,14 +107,8 @@ class EngineUiRenderPipeline(
             renderBorders(borders, width, height, context)
 
             for (child in composition.children) {
-                context.nextStratum()
-                context.guiRenderState.up()
                 val pos = child.render.position
                 collectVertexes(child, context, dt, localMouseX - pos.x, localMouseY - pos.y)
-            }
-
-            if (!developerMode) {
-                context.disableScissor()
             }
         }
 
@@ -136,7 +120,7 @@ class EngineUiRenderPipeline(
             context
         )
 
-        matrices.popMatrix()
+        matrices.popPose()
         alphaStack.removeLast()
     }
 
@@ -171,7 +155,7 @@ class EngineUiRenderPipeline(
         context: GuiGraphics,
         dt: Float
     ) {
-        context.pose().pushMatrix()
+        context.pose().pushPose()
         val tint = features.tint
 
         fun getColor(color: Color): Color {
@@ -194,7 +178,7 @@ class EngineUiRenderPipeline(
         features.text?.let { text ->
             var textY = 0
             val color = getColor(text.color)
-            context.pose().scale(text.scale)
+            context.pose().scale(text.scale, text.scale, 1f)
             text.lines.forEach { line ->
                 context.drawString(
                     client.font,
@@ -207,7 +191,7 @@ class EngineUiRenderPipeline(
             }
         }
 
-        context.pose().popMatrix()
+        context.pose().popPose()
     }
 
     fun resizeRoot() = with(rootSize) {

@@ -12,10 +12,9 @@ import net.fabricmc.fabric.api.event.player.UseEntityCallback
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.server.players.NameAndId
 import net.minecraft.world.Difficulty
 import net.minecraft.world.InteractionResult
-import net.minecraft.world.level.gamerules.GameRules
+import net.minecraft.world.level.GameRules
 import org.lain.engine.Constants
 import org.lain.engine.bootstrap
 import org.lain.engine.mc.commands.WORLD_EDIT_AVAILABLE
@@ -53,7 +52,7 @@ class CommonEngineMod : ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
             if (Constants.DEVELOPER_TEST_ENVIRONMENT) {
                 val gameRules = server.worldData.gameRules
-                gameRules.set(GameRules.ADVANCE_TIME, false, server)
+                gameRules.getRule(GameRules.RULE_DAYLIGHT).set(false, server)
                 server.setDifficulty(Difficulty.PEACEFUL, true)
             }
             Injector.register<RaycastProvider>(MinecraftRaycastProvider())
@@ -76,7 +75,7 @@ class CommonEngineMod : ModInitializer {
 
         ServerPlayConnectionEvents.JOIN.register { handler, _, server ->
             if (Constants.DEVELOPER_TEST_ENVIRONMENT) {
-                server.playerList.op(NameAndId(handler.player.gameProfile))
+                server.playerList.op(handler.player.gameProfile)
             }
             engineServer?.onJoinPlayer(handler.player)
         }
@@ -87,6 +86,10 @@ class CommonEngineMod : ModInitializer {
 
         ServerPlayerEvents.AFTER_RESPAWN.register { _, newPlayer, _ ->
             replacePlayerMinecraftState(newPlayer)
+        }
+
+        ServerChunkEvents.CHUNK_LOAD.register { world, chunk ->
+            engineServer?.onChunkLoad(world, chunk)
         }
 
         ServerChunkEvents.CHUNK_UNLOAD.register { world, chunk ->

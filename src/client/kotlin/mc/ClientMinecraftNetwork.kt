@@ -41,7 +41,7 @@ class ClientMinecraftNetwork : ClientTransportContext {
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    client.disconnectFromWorld(DisconnectText(e.message ?: "Unknown error"))
+                    client.connection?.connection?.disconnect(DisconnectText(e.message ?: "Unknown error"))
                 }
             }
         }

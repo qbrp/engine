@@ -2,17 +2,12 @@ package org.lain.engine.test
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentCollisionException
-import org.lain.engine.item.ItemStorage
-import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
-import org.lain.engine.util.Storage
-import org.lain.engine.util.component.ComponentArray
-import org.lain.engine.util.component.ComponentMeta
-import org.lain.engine.util.component.ComponentState
-import org.lain.engine.util.component.ComponentWorld
-import org.lain.engine.util.component.EntityCommandBuffer
-import org.lain.engine.util.component.EntityId
-import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
+import org.lain.engine.util.ecs.ComponentArray
+import org.lain.engine.util.ecs.ComponentMeta
+import org.lain.engine.util.ecs.ComponentState
+import org.lain.engine.util.ecs.ComponentWorld
+import org.lain.engine.util.ecs.EntityCommandBuffer
+import org.lain.engine.util.ecs.EntityId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -24,14 +19,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.engine.listKotlinComponentTypeEntries
-import org.lain.engine.script.NamespacedStorage
-import org.lain.engine.script.ScriptEngine
-import org.lain.engine.server.Changes
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.storage.persistentId
-import org.lain.engine.util.component.castIndexed
-import java.util.concurrent.ConcurrentHashMap
+import org.lain.engine.server.replication.Changes
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.persistentId
+import org.lain.engine.util.ecs.castIndexed
 
 class ComponentWorldTest : EngineTest() {
     private lateinit var componentWorld: ComponentWorld
@@ -78,10 +70,19 @@ class ComponentWorldTest : EngineTest() {
         state.setComponent(positionType, TestPosition(7))
 
         assertEquals(TestPosition(7), state.getComponent(positionType))
-        assertEquals(TestPosition(7), state.getComponent<TestPosition>(positionType.id))
         assertEquals(TestPosition(7), state.removeComponent(positionType))
         assertNull(state.getComponent(positionType))
-        assertNull(state.getComponent<TestPosition>(positionType.id))
+    }
+
+    @Test
+    fun componentStateCopiesDynamicallyTypedComponents() {
+        val source = ComponentState(listOf(TestPosition(7)))
+        val target = ComponentState()
+
+        source.copyTo(target)
+
+        assertEquals(TestPosition(7), source.getComponent(positionType))
+        assertEquals(TestPosition(7), target.getComponent(positionType))
     }
 
     @Test
@@ -99,9 +100,7 @@ class ComponentWorldTest : EngineTest() {
         componentWorld.destroy(entity)
 
         assertFalse(componentWorld.exists(entity))
-        assertThrows<IllegalArgumentException> {
-            componentWorld.getComponent(entity, positionType)
-        }
+        assertNull(componentWorld.getComponent(entity, positionType))
     }
 
     @Test
@@ -212,7 +211,7 @@ class ComponentWorldTest : EngineTest() {
         componentWorld.setComponentWithType(entity, TestName("saved"), nameType)
         componentWorld.setComponentWithType(entity, TestVelocity(2), velocityType)
 
-        assertEquals(listOf(TestName("saved")), componentWorld.getSavableComponents(entity))
+        assertEquals(mapOf(nameType to TestName("saved")), componentWorld.getSavableComponents(entity))
     }
 
     @Test
@@ -291,7 +290,7 @@ class ComponentWorldTest : EngineTest() {
         assertTrue(componentWorld.exists(entity))
         assertFalse(componentWorld.hasComponent(entity, positionType))
 
-        buffer.apply(componentWorld)
+        buffer.apply()
 
         assertEquals(TestPosition(42), componentWorld.getComponent(entity, positionType))
         assertTrue(buffer.isEmpty())
@@ -306,9 +305,9 @@ class ComponentWorldTest : EngineTest() {
         val velocityType = componentTypeOf(TestVelocity::class).castIndexed()
         val nameType = componentTypeOf(TestName::class).castIndexed()
 
-        val basicMeta = ComponentMeta(savable = false, serializationClass = null, networking = false)
-        val networkingMeta = ComponentMeta(savable = false, serializationClass = null, networking = true)
-        val savableMeta = ComponentMeta(savable = true, serializationClass = TestName::class, networking = false)
+        val basicMeta = ComponentMeta(savable = false, networking = false)
+        val networkingMeta = ComponentMeta(savable = false, networking = true)
+        val savableMeta = ComponentMeta(savable = true, networking = false)
 
         val testEntries = listOf(
             positionType to basicMeta,

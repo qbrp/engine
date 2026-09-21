@@ -9,13 +9,14 @@ import org.lain.engine.chat.trySendJoinMessage
 import org.lain.engine.chat.trySendLeaveMessage
 import org.lain.engine.player.*
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.player.character.removeCharacter
+import org.lain.engine.player.character.unloadCharacter
 import org.lain.engine.player.interaction.PlayerInputMode
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.tickEntityDebugViewSnapshotSystem
-import org.lain.engine.storage.*
+import org.lain.engine.data.*
+import org.lain.engine.server.replication.tickSynchronizationSystem
 import org.lain.engine.util.*
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -34,7 +35,7 @@ class EngineServer(
     val thread: Thread,
     val isReplay: Boolean,
     savePath: File,
-    database: Database,
+    val database: Database,
     val luaScriptEngine: LuaScriptEngine,
     val saveTimers: SaveTimers,
 ): Executor, EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
@@ -51,8 +52,10 @@ class EngineServer(
     val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val itemLoader = ItemLoader(this, database)
+    val playerPersistence = PlayerPersistence(this)
     val playerLoader = PlayerLoader(this, itemLoader)
-    val chunkLoader = ChunkLoader(this, database)
+    val chunkPersistence = ChunkPersistence(this, database)
+    val entityCoordinator = EntityCoordinator()
     val simulation = EngineSimulation(
         false,
         this,
@@ -95,10 +98,10 @@ class EngineServer(
     override fun World.beforeEventCleanup() = with(platform) {
         tickSynchronizationSystem(this@EngineServer)
         updateSaveSystem()
-        updateUnloadSystem(handler, saveTimers)
+        updateUnloadSystem(entityCoordinator, saveTimers)
     }
 
-    fun update() = with(namespacedStorage) {
+    fun update(): Unit = with(namespacedStorage) {
         if (stopped) return
         val start = Timestamp()
         taskQueue.flush { it.run() }
@@ -121,9 +124,9 @@ class EngineServer(
         player: EnginePlayer,
         notifications: List<Notification> = listOf(),
         engineCharacter: EngineCharacter? = null,
-        characterPersistentCharacter: PersistentCharacterData? = null,
+        characterPersistentRecord: PersistentCharacterRecord? = null,
     ) = with(player.world) {
-        simulation.instantiatePlayer(player, engineCharacter, characterPersistentCharacter, platform)
+        simulation.instantiatePlayer(player, engineCharacter, characterPersistentRecord, platform)
 
         if (!globals.spectateOnJoin) {
             player.stopSpectating()
@@ -136,10 +139,10 @@ class EngineServer(
     fun destroyPlayer(player: EnginePlayer) = with(player.world) {
         try {
             simulation.preparePlayerDestroy(player)
-            player.removeCharacter(platform)
+            player.unloadCharacter(platform, playerPersistence)
             chat.trySendLeaveMessage(player)
             handler.onPlayerDestroy(player)
-            globals.savePath.playerData.savePersistentPlayerData(player)
+            playerPersistence.save(player.snapshotPersistent())
         } finally {
             simulation.destroyPlayer(player)
         }

@@ -55,6 +55,7 @@ internal fun NamespaceDraft.linkedNamespace(
         }
 
         systemId to ScriptSystem(
+            systemId,
             query,
             system.side,
             system.entityHandleScript
@@ -85,17 +86,18 @@ internal fun BuildDraft.linkedNamespaces(): Map<NamespaceId, Namespace> {
 }
 
 context(context: CompilationContext)
-fun BuildDraft.linkedSystemPhases(
+fun linkedSystemPhase(
+    phase: SystemPhaseDraft,
     linkedNamespaces: Map<NamespaceId, Namespace>
-): List<SystemPhase> {
+): SystemPhase {
     val systems = linkedNamespaces.collect { it.systems }
 
     fun SystemPhaseDraft.toPhase(): SystemPhase {
         return SystemPhase(
             name,
-            this.systems.mapNotNull {
-                systems[it]
-                    ?: run {
+            steps.mapNotNull {
+                when(val draft = it) {
+                    is PhaseStepDraft.System -> systems[draft.system]?.let { PhaseStep.System(it) } ?: run {
                         context.exceptions.reportLinkingError(
                             "Составляющая фазу система $it не найдена",
                             SymbolKind.PHASE,
@@ -103,11 +105,12 @@ fun BuildDraft.linkedSystemPhases(
                         )
                         null
                     }
+                    is PhaseStepDraft.Phase -> PhaseStep.Phase(draft.phase.toPhase())
+                }
             },
-            phases.map { it.toPhase() }
         )
     }
 
 
-    return phases.map { it.toPhase() }
+    return phase.toPhase()
 }

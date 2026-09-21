@@ -61,16 +61,19 @@ val GameType.enginePlayerMode
     }
 
 val Player.enginePlayerMode
-    get() = (this.gameMode() ?: GameType.DEFAULT_MODE).enginePlayerMode
+    get() = when {
+        isSpectator -> PlayerMode.SPECTATOR
+        isCreative -> PlayerMode.GM
+        else -> PlayerMode.DEFAULT
+    }
 
 fun World.synchronizeMinecraftPlayerGameMode() {
     iterate<MinecraftPlayer, PlayerModeComponent>() { entity, player, modeComponent ->
         val spawnMark = entity.removeComponent<SpawnMark>()
         val spectatorMark = entity.removeComponent<StartSpectatingMark>()
-        val gameMode = player.entity.gameMode()
         val previousGameMode = player.previousGameMode
 
-        if (spectatorMark != null && gameMode != GameType.SPECTATOR) {
+        if (spectatorMark != null && !player.entity.isSpectator) {
             player.setGameMode = McGameModes.SPECTATOR
         }
 

@@ -1,15 +1,15 @@
 package org.lain.engine.client.mc
 
-import net.minecraft.client.model.player.PlayerModel
+import net.fabricmc.fabric.api.client.model.loading.v1.FabricBakedModelManager
+import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.client.player.LocalPlayer
-import net.minecraft.client.renderer.entity.state.AvatarRenderState
+import net.minecraft.client.resources.PlayerSkin
+import net.minecraft.client.resources.model.BakedModel
 import net.minecraft.client.resources.sounds.SoundInstance
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
-import net.minecraft.world.entity.Avatar
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.entity.player.PlayerSkin
 import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
@@ -19,19 +19,19 @@ import org.lain.engine.client.render.getSkin
 import org.lain.engine.client.render.item.resolveTooltip
 import org.lain.engine.client.render.player.RenderStateComponent
 import org.lain.engine.client.render.player.modelPartOf
-import org.lain.engine.client.render.player.setEngineState
-import org.lain.engine.client.render.player.update
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.EngineTitleMenu
-import org.lain.engine.client.render.ui.TestGrapheneScreen
-import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.UNDEFINED_MODEL_ID
 import org.lain.engine.item.Writable
 import org.lain.engine.item.resolveItemAsset
+import org.lain.engine.mc.ecs.ENGINE_ITEM_COMPONENT
+import org.lain.engine.mc.ecs.ENGINE_ITEM_INSTANTIATE_COMPONENT
 import org.lain.engine.mc.ecs.engine
+import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.getEngineState
 import org.lain.engine.mc.replacePlayerMinecraftState
@@ -40,7 +40,7 @@ import org.lain.engine.player.Hearing
 import org.lain.engine.player.get
 import org.lain.engine.player.require
 import org.lain.engine.player.interaction.processLeftClickInteraction
-import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.util.injectValue
 
 object ClientMixin {
@@ -52,7 +52,7 @@ object ClientMixin {
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
-    fun shouldFocusChatIfNot() = MinecraftClient.screen is Workspace
+    fun shouldFocusChatIfNot() = false // раньше здесь была логика рабочего стола
 
     fun canCloseLevelLoadingScreen() = client.joinFlow?.canCloseLevelLoadingScreen ?: false
 
@@ -60,10 +60,6 @@ object ClientMixin {
 
     fun openEngineTitleMenu(fading: Boolean) {
         MinecraftClient.setScreen(EngineTitleMenu(fading, client))
-    }
-
-    fun setGrapheneTestScreen() {
-        MinecraftClient.setScreen(TestGrapheneScreen(client))
     }
 
     fun onYamlConfigScreenClosed() {
@@ -110,7 +106,7 @@ object ClientMixin {
     }
 
     fun editVolume(sound: SoundInstance, volume: Float, category: SoundSource): Float? {
-        if (category == SoundSource.UI || category == SoundSource.MUSIC) return null
+        if (category == SoundSource.MUSIC || sound.isRelative && sound.attenuation == SoundInstance.Attenuation.NONE) return null
         if (sound.sound?.location?.path == "builtin/tinnitus") return null
         val loss = mainPlayerHearing?.loss ?: return null
         return volume * (1f - loss).coerceIn(0.01f, 1f)
@@ -120,16 +116,13 @@ object ClientMixin {
         mainPlayerHearing = mainPlayer.require<Hearing>()
     }
 
-    fun updatePlayerRenderState(playerLikeEntity: Avatar, playerEntityRenderState: AvatarRenderState, model: PlayerModel) {
-        if (playerLikeEntity !is Player) return
-        val enginePlayer = playerLikeEntity.getEngineState()
-        playerEntityRenderState.update(client.gameSession, enginePlayer)
+    fun updatePlayerRenderState(player: Player, model: PlayerModel<*>) {
+        val enginePlayer = player.getEngineState()
         val renderState = enginePlayer?.get<RenderStateComponent>()?.renderState
         if (enginePlayer != null && renderState != null) {
             renderState.detachedEquipment.forEach {
                 it.playerModelPart = modelPartOf(it.playerPart, model)
             }
-            playerEntityRenderState.setEngineState(renderState)
         }
     }
 
@@ -141,16 +134,23 @@ object ClientMixin {
         return client.gameSession?.skinSystem?.get(player.profile.id)
     }
 
-    private val identifierCache = mutableMapOf<String, Identifier>()
+    fun getEngineItemModel(
+        itemStack: ItemStack,
+        itemModelManager: FabricBakedModelManager
+    ): BakedModel? {
+        // если это не engine-предмет, забиваем на него
+        if (!itemStack.has(ENGINE_ITEM_COMPONENT)) {
+            return null
+        }
+        val engineModel = itemStack.get(ENGINE_ITEM_MODEL_COMPONENT)?.let { itemModelManager.getModel(it) }
+        return engineModel ?: itemModelManager.getModel(UNDEFINED_MODEL_ID)
+    }
 
-    fun getEngineItemModel(itemStack: ItemStack): Identifier? {
+    fun getEngineItemModelId(itemStack: ItemStack): ResourceLocation? {
+        itemStack.get(ENGINE_ITEM_MODEL_COMPONENT)?.let { return it }
         val gameSession = client.gameSession ?: return null
         val engineItem = itemStack.engine()?.getClientItem(gameSession) ?: return null
-
-        return with(gameSession.world) {
-            val path = resolveItemAsset(engineItem)
-            identifierCache.getOrPut(path) { engineId(path) }
-        }
+        return with(gameSession.world) { resolveItemAsset(engineItem)?.let { engineId(it) } }
     }
 
     fun getEngineItem(itemStack: ItemStack): EngineItem? {
@@ -161,7 +161,9 @@ object ClientMixin {
 
     fun predictItemLeftClickInteraction(): Boolean {
         val player = client.gameSession?.mainPlayer ?: return false
-        return with(client.gameSession?.world ?: return false) { processLeftClickInteraction(player) }
+        return with(
+            client.gameSession?.world ?: return false
+        ) { processLeftClickInteraction(player) }
     }
 
     fun canBreakBlocks(): Boolean {
@@ -228,7 +230,8 @@ object ClientMixin {
 
     fun getKeybindManager(): KeybindManager = injectValue()
 
-    fun deleteChatMessage(message: AcceptedMessage) = client.gameSession?.chatManager?.deleteMessage(message.id)
+    fun deleteChatMessage(message: AcceptedMessage) =
+        client.gameSession?.chatManager?.deleteMessage(message.id)
 
     fun sendingMessageClosesChat() = client.options.chatInputSendClosesChat
 }

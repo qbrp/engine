@@ -86,6 +86,7 @@ fun PlayerAttributesMetaTable() = LuaUserdataType<PlayerAttributes>() {
     }
 }
 
+context(lua: LuaScriptEngine)
 fun PlayerCustomAttributesMetaTable() = LuaUserdataType<CustomPlayerAttributes> {
     newIndexSelf { self, key, value ->
         when(key.tojstring()) {

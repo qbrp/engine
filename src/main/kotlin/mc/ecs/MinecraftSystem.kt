@@ -13,7 +13,7 @@ import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.mc.visibleInventoryItems
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.EngineId
-import org.lain.engine.storage.ItemLoadContext
+import org.lain.engine.data.ItemLoadContext
 import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
 import org.lain.engine.player.PlayerComponent as PlayerComponent

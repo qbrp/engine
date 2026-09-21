@@ -46,7 +46,7 @@ fun String.parseMiniMessage(): Component {
     val component = MiniMessage.miniMessage().deserialize(text)
     val server = requireEngineMinecraftServer()
     return try {
-        server.miniMessageAudiences.asNative(component)
+        server.miniMessageAudiences.toNative(component)
     } catch (e: Throwable) {
         TEXT_LOGGER.error("Возникла ошибка при десериализации текста MiniMessage:\n$this", e)
         val jsonObject = JsonParser.parseString(GsonComponentSerializer.gson().serialize(component))

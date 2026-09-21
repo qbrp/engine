@@ -1,11 +1,9 @@
 package org.lain.engine.client.mixin.hud;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import net.minecraft.client.gui.Font;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.contextualbar.ContextualBarRenderer;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,12 +18,20 @@ public class GuiMixin {
             method = "renderCrosshair",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V"
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIII)V"
             )
     )
-    public void engine$hideCrosshairAttackIndicator(GuiGraphics instance, RenderPipeline pipeline, Identifier sprite, int x, int y, int width, int height) {
-        if (ClientMixin.INSTANCE.isCrosshairAttackIndicatorVisible() || sprite.getPath() == GuiAccessor.engine$getCrosshairTexture().getPath()) {
-            instance.blitSprite(pipeline, sprite, x, y, width, height);
+    private void engine$hideCrosshairAttackIndicator(
+            GuiGraphics guiGraphics,
+            ResourceLocation sprite,
+            int x,
+            int y,
+            int width,
+            int height
+    ) {
+        if (ClientMixin.INSTANCE.isCrosshairAttackIndicatorVisible()
+                || sprite.equals(GuiAccessor.engine$getCrosshairTexture())) {
+            guiGraphics.blitSprite(sprite, x, y, width, height);
         }
     }
 
@@ -33,58 +39,66 @@ public class GuiMixin {
             method = "renderCrosshair",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIIIIII)V"
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIIIIIII)V"
             )
     )
-    public void engine$hideCrosshairAttackIndicator2(GuiGraphics instance, RenderPipeline pipeline, Identifier sprite, int textureWidth, int textureHeight, int u, int v, int x, int y, int width, int height) {
-        if (ClientMixin.INSTANCE.isCrosshairAttackIndicatorVisible() || sprite.getPath() == GuiAccessor.engine$getCrosshairTexture().getPath()) {
-            instance.blitSprite(pipeline, sprite, textureWidth, textureHeight, x, y, u, v, width, height);
+    private void engine$hideCrosshairAttackProgress(
+            GuiGraphics guiGraphics,
+            ResourceLocation sprite,
+            int textureWidth,
+            int textureHeight,
+            int u,
+            int v,
+            int x,
+            int y,
+            int width,
+            int height
+    ) {
+        if (ClientMixin.INSTANCE.isCrosshairAttackIndicatorVisible()) {
+            guiGraphics.blitSprite(sprite, textureWidth, textureHeight, u, v, x, y, width, height);
         }
     }
 
-    @Inject(
-            method = "renderFood",
-            at = @At(value = "HEAD"),
-            cancellable = true
-    )
-    public void engine$hideFoodIndicator(GuiGraphics guiGraphics, Player player, int i, int j, CallbackInfo ci) {
+    @Inject(method = "renderFood", at = @At("HEAD"), cancellable = true)
+    private void engine$hideFoodIndicator(GuiGraphics guiGraphics, Player player, int y, int right, CallbackInfo ci) {
         if (!ClientMixin.INSTANCE.isHotbarIndicatorsVisible()) {
             ci.cancel();
         }
     }
 
-    @Inject(
-            method = "renderPlayerHealth",
-            at = @At(value = "HEAD"),
-            cancellable = true
-    )
-    public void engine$hideHealthIndicator(GuiGraphics guiGraphics, CallbackInfo ci) {
+    @Inject(method = "renderPlayerHealth", at = @At("HEAD"), cancellable = true)
+    private void engine$hideHealthIndicator(GuiGraphics guiGraphics, CallbackInfo ci) {
         if (!ClientMixin.INSTANCE.isHotbarIndicatorsVisible()) {
             ci.cancel();
         }
     }
 
-    @Inject(
-            method = "renderArmor",
-            at = @At(value = "HEAD"),
-            cancellable = true
-    )
-    private static void engine$hideArmorIndicator(GuiGraphics guiGraphics, Player player, int i, int j, int k, int l, CallbackInfo ci) {
+    @Inject(method = "renderArmor", at = @At("HEAD"), cancellable = true)
+    private static void engine$hideArmorIndicator(
+            GuiGraphics guiGraphics,
+            Player player,
+            int y,
+            int rows,
+            int rowHeight,
+            int left,
+            CallbackInfo ci
+    ) {
         if (!ClientMixin.INSTANCE.isHotbarIndicatorsVisible()) {
             ci.cancel();
         }
     }
 
-    @Redirect(
-            method = "renderHotbarAndDecorations",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/contextualbar/ContextualBarRenderer;renderExperienceLevel(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/gui/Font;I)V"
-            )
-    )
-    public void engine$hideExperienceIndicator(GuiGraphics guiGraphics, Font font, int i) {
-        if (ClientMixin.INSTANCE.isHotbarIndicatorsVisible()) {
-            ContextualBarRenderer.renderExperienceLevel(guiGraphics, font, i);
+    @Inject(method = "renderExperienceBar", at = @At("HEAD"), cancellable = true)
+    private void engine$hideExperienceBar(GuiGraphics guiGraphics, int x, CallbackInfo ci) {
+        if (!ClientMixin.INSTANCE.isHotbarIndicatorsVisible()) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "renderExperienceLevel", at = @At("HEAD"), cancellable = true)
+    private void engine$hideExperienceLevel(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (!ClientMixin.INSTANCE.isHotbarIndicatorsVisible()) {
+            ci.cancel();
         }
     }
 }

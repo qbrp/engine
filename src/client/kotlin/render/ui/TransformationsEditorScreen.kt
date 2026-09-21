@@ -10,50 +10,42 @@ import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.components.StringWidget
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.input.MouseButtonEvent
-import net.minecraft.client.renderer.item.BlockModelWrapper
-import net.minecraft.client.renderer.item.ItemModel
-import net.minecraft.core.component.DataComponents
+import net.minecraft.client.resources.model.BakedModel
 import net.minecraft.world.item.ItemStack
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mixin.render.BlockModelWrapperAccessor
-import org.lain.engine.client.mixin.render.GameRendererAccessor
-import org.lain.engine.client.mixin.render.GuiRendererAccessor
 import org.lain.engine.client.render.item.*
 import org.lain.engine.client.resources.EngineItemModel
 import org.lain.engine.client.resources.exportEngineModelTransformations
 import org.lain.engine.mc.Text
+import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
+import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText
 import kotlin.math.abs
 import kotlin.math.max
 
-private val guiRenderer get() = (MinecraftClient.gameRenderer as GameRendererAccessor).`engine$getGuiRenderer`() as GuiRendererAccessor
-
 class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(literalText("Transformation editor")) {
-    private val modelId = ClientMixin.getEngineItemModel(itemStack) ?: itemStack.get(DataComponents.ITEM_MODEL)!!
-    private val model = MinecraftClient.modelManager.getItemModel(modelId)
+    private val modelId = ClientMixin.getEngineItemModelId(itemStack)
+        ?: error("Transformation editor requires an Engine item model")
+    private val model = MinecraftClient.modelManager.getModel(modelId)
     private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)
     private val sliders
         get() = this@TransformationsEditorScreen.children().filterIsInstance<TransformationSliderWidget>()
 
-    private fun computeTransformations(model: ItemModel): EngineTransformationsBundle {
+    private fun computeTransformations(model: BakedModel): EngineTransformationsBundle {
         val engineModel = model as? EngineItemModel
-        val basicModel = (model as? BlockModelWrapper) ?: engineModel?.itemModel as? BlockModelWrapper
-
-        return (basicModel as? BlockModelWrapperAccessor)?.`engine$getModelSettings`()?.transforms()?.let {
-            EngineTransformationsBundle(
-                it.firstPersonRightHand.engine(),
-                it.firstPersonLeftHand.engine(),
-                it.thirdPersonRightHand.engine(),
-                it.thirdPersonRightHand.engine(),
-                it.head.engine(),
-                it.gui.engine(),
-                it.ground.engine(),
-                it.fixed.engine(),
-                engineModel?.outfitTransformation?.engine() ?: EngineTransformation.Identity(),
-            )
-        } ?: EngineTransformationsBundle()
+        val transforms = engineModel?.baseTransforms ?: model.transforms
+        return EngineTransformationsBundle(
+            transforms.firstPersonRightHand.engine(),
+            transforms.firstPersonLeftHand.engine(),
+            transforms.thirdPersonRightHand.engine(),
+            transforms.thirdPersonLeftHand.engine(),
+            transforms.head.engine(),
+            transforms.gui.engine(),
+            transforms.ground.engine(),
+            transforms.fixed.engine(),
+            engineModel?.outfitTransformation?.engine() ?: EngineTransformation.Identity(),
+        )
     }
 
     private var context =
@@ -119,13 +111,12 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
         val text = literalText(text)
         addRenderableWidget(
             Button.builder(text) { button ->
-                if (model == null) return@builder
                 val results = setter()
                 if (!results) return@builder
                 button.message = literalText(callback)
                 CoroutineScope(Dispatchers.Default).launch {
                     delay(500)
-                    minecraft?.execute { button.message = text }
+                    MinecraftClient.execute { button.message = text }
                 }
             }
                 .size(SLIDER_WIDTH, LINE_HEIGHT)
@@ -154,7 +145,6 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
             Button.builder(
                 literalText("Reset"),
                 {
-                    if (model == null) return@builder
                     transformations = computeTransformations(model)
                     sliders.forEach { it.refresh() }
                     AdditionalTransformationsBank.set(modelId, transformations)
@@ -237,9 +227,8 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
         sliders.forEach { it.tick++ }
     }
 
-    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
-        super.mouseClicked(click, doubled)
-        return contextList.mouseClicked(click, doubled)
+    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        return contextList.mouseClicked(mouseX, mouseY, button) || super.mouseClicked(mouseX, mouseY, button)
     }
 
     override fun mouseScrolled(
@@ -288,7 +277,7 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
         val maxValue: Float,
         private val getter: () -> Float,
         private val setter: (Float) -> Unit,
-        private val model: ItemModel,
+        private val model: BakedModel,
     ) : AbstractSliderButton(PADDING, y, SLIDER_WIDTH, LINE_HEIGHT, literalText(option), getter().toDouble()) {
         private var lastValue: Float = getter()
         private val epsilon = 0.001f
@@ -308,9 +297,6 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
             if (tick > 10 && abs(lastValue - value) > epsilon) {
                 lastValue = value
                 tick = 0
-                (model as? EngineItemModel).let {
-                    guiRenderer.`engine$onItemAtlasChanged`()
-                }
             }
         }
 

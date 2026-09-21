@@ -40,9 +40,9 @@ fun renderLabel(
     light: Int,
     easing: LabelEasing? = null,
 ) {
-    val cameraX = camera.position().x
-    val cameraY = camera.position().y
-    val cameraZ = camera.position().z
+    val cameraX = camera.position.x
+    val cameraY = camera.position.y
+    val cameraZ = camera.position.z
     val (labelPos, labelAlpha, labelLines) = renderState
     if (labelAlpha <= 0f) return
 

@@ -12,15 +12,17 @@ import kotlinx.coroutines.withTimeout
 import net.minecraft.world.item.ItemStack
 import org.lain.engine.item.createInvalidItem
 import org.lain.engine.server.EngineServer
-import org.lain.engine.storage.ItemLoadContext
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.dataFixItem
+import org.lain.engine.data.ItemLoadContext
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.TransactionContext
+import org.lain.engine.data.createTransactionContext
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
 import org.lain.engine.util.toLogError
 import org.lain.engine.world.World
+import kotlin.time.Duration.Companion.milliseconds
 
 private val ItemStackIoCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -47,19 +49,21 @@ fun updateMinecraftItemLoadSystem(
                     async {
                         semaphore.withPermit {
                             try {
-                                val item = withTimeout(5000) { engine.itemLoader.loadWorldItem(data.itemUuid, world, data.context) }
-                                context(world) {
+                                context(data.context.logContext(), world) {
+                                    val transaction = engine.createTransactionContext(world)
+                                    val item = withTimeout(5000.milliseconds) {
+                                        engine.itemLoader.loadWorldItem(data.itemUuid, data.context, transaction)
+                                    }
                                     engine.execute {
                                         try {
-                                            dataFixItem(item, engine.namespacedStorage)
+                                            transaction.commit()
                                             wrapEngineItemStack(item, data.itemStack)
                                         } catch (e: Throwable) {
-                                            EngineLogger.log(
+                                            EngineLogger.logContextual(
                                                 Log(
                                                     LogMessages.ITEM_STACK_INIT_ERROR,
                                                     LogLevel.ERROR,
                                                     error = e.toLogError(),
-                                                    data = data.context.data(),
                                                     tick = engine.simulation.ticks,
                                                     world = world.id
                                                 )

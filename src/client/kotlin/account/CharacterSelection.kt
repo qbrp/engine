@@ -37,13 +37,18 @@ class CharacterSelection(
                 characters,
             )
         } else {
-            CharacterSelectionScreen.awaitCharacterSelection(
-                this,
-                null,
-                characters,
-            )
+            awaitCharacterSelection(null, characters)
         }
     }
+
+    suspend fun awaitCharacterSelection(
+        current: EngineCharacter?,
+        characters: List<EngineCharacter>,
+    ) = CharacterSelectionScreen.awaitCharacterSelection(
+        this,
+        current,
+        characters,
+    )
 
     data class CurrentCharacter(
         val character: EngineCharacter,

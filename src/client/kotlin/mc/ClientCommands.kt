@@ -17,7 +17,7 @@ import org.lain.engine.player.handItem
 import org.lain.engine.script.lua.LuaFunctionChunk
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.luaWorld
-import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.world.LightBehaviour
 import org.lain.engine.world.LightSource
 import org.lain.engine.world.Luminance

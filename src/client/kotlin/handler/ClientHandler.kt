@@ -13,7 +13,6 @@ import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.chat.acceptOutcomingMessage
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
@@ -36,9 +35,9 @@ import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
-import org.lain.engine.server.ReplicationFrameSnapshot
-import org.lain.engine.server.desync
-import org.lain.engine.storage.*
+import org.lain.engine.server.replication.ReplicationFrame
+import org.lain.engine.server.protocolError
+import org.lain.engine.data.*
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
 import org.lain.engine.world.*
@@ -47,7 +46,6 @@ import org.slf4j.LoggerFactory
 
 class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : PredictionSink {
     private val gameSession get() = client.gameSession
-    private val clientAcknowledgeHandler = ClientAcknowledgeHandler()
 
     val taskExecutor = TaskExecutor()
 
@@ -86,7 +84,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
     }
 
     fun run() {
-        runEndpoints(clientAcknowledgeHandler)
+        runEndpoints()
         CLIENTBOUND_VERIFICATION_ENDPOINT.registerClientReceiver { ctx ->
             client.joinFlow?.verificationStateStartCompletableDeferred?.complete(server)
         }
@@ -135,7 +133,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         }
         if (MinecraftClient.connection != null) {
             taskExecutor.flush()
-            clientAcknowledgeHandler.tick()
         } else if (taskExecutor.notEmpty()) {
             taskExecutor.clear()
         }
@@ -379,8 +376,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         world.emitEvent(event)
     }
 
-    fun applyReplicationFrame(gameSession: GameSession, frame: ReplicationFrameSnapshot) =
-        gameSession.replicationController.enqueue(frame)
+    fun applyReplicationFrame(gameSession: GameSession, frame: ReplicationFrame) =
+        gameSession.replicationController.apply(frame)
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {
         client.infrastructure.onEntityDebugViewData(data)
@@ -388,7 +385,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
 
     fun applyOperation(dto: OperationExecuteDto, operationId: OperationId) = with(gameSession!!) {
         val operation = namespacedStorage.operations[operationId]
-            ?: desync("Операция $operationId не существует")
+            ?: protocolError("Операция $operationId не существует")
         val actor = dto.actor.let { actor ->
             val enginePlayer =
                 getPlayer(actor.player) ?: error("Can't find operation actor ${actor.player}")
@@ -417,9 +414,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
             )
         )
     }
-
-    fun applyItemUnload(gameSession: GameSession, items: List<PersistentId>) =
-        gameSession.replicationController.applyItemUnload(items)
 
     companion object {
         private const val MAX_PROCESSED_INTERACTIONS = 4096

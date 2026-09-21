@@ -1,27 +1,28 @@
 package org.lain.engine.client.mixin.render;
 
-import net.minecraft.client.model.player.PlayerModel;
-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
-import net.minecraft.client.renderer.entity.player.AvatarRenderer;
-import net.minecraft.client.renderer.entity.state.AvatarRenderState;
-import net.minecraft.world.entity.Avatar;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(AvatarRenderer.class)
+@Mixin(PlayerRenderer.class)
 public class AvatarRendererMixin {
-    @Inject(
-            method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
-            at = @At("TAIL")
-    )
-    public void engine$updateRenderState(Avatar avatar, AvatarRenderState avatarRenderState, float f, CallbackInfo ci) {
-        ClientMixin.INSTANCE.updatePlayerRenderState(
-                avatar,
-                avatarRenderState,
-                ((LivingEntityRenderer<Avatar, AvatarRenderState, PlayerModel>)(Object)this).getModel()
-        );
+    @Inject(method = "render", at = @At("HEAD"))
+    private void engine$updateRenderState(
+            AbstractClientPlayer player,
+            float entityYaw,
+            float partialTick,
+            PoseStack poseStack,
+            MultiBufferSource buffers,
+            int light,
+            CallbackInfo ci
+    ) {
+        PlayerRenderer renderer = (PlayerRenderer) (Object) this;
+        ClientMixin.INSTANCE.updatePlayerRenderState(player, renderer.getModel());
     }
 }

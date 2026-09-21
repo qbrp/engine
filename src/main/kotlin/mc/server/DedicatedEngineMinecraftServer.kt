@@ -6,9 +6,10 @@ import org.lain.engine.mc.isOp
 import org.lain.engine.mc.ecs.minecraftEntityNullable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Username
+import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.get
-import org.lain.engine.server.PlayerInstantiationConfirmation
+import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.account.DedicatedEngineAccountService
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.transport.ServerTransportContext
@@ -85,7 +86,7 @@ class DedicatedEngineMinecraftServer(
 
     override suspend fun validateCharacter(
         player: EnginePlayer,
-        characterId: String,
+        characterId: CharacterId,
         character: EngineCharacter?,
         sessionTicket: SessionTicket?
     ): EngineCharacter {

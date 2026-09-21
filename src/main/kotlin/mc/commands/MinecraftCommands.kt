@@ -19,9 +19,6 @@ import net.minecraft.commands.arguments.coordinates.Vec3Argument
 import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.server.permissions.LevelBasedPermissionSet
-import net.minecraft.server.permissions.Permission
-import net.minecraft.server.permissions.PermissionLevel
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.chunk.LevelChunk
@@ -53,7 +50,7 @@ fun World.updateCommandInvokeSystem(table: ServerWorldTable) {
         val mcPlayer = player.minecraftEntity as ServerPlayer
         var commandSourceStack = mcPlayer.createCommandSourceStack()
         if (root) commandSourceStack =
-            commandSourceStack.withPermission(LevelBasedPermissionSet.OWNER)
+            commandSourceStack.withPermission(4)
         commandDispatcher.performPrefixedCommand(
             commandSourceStack,
             command
@@ -145,9 +142,7 @@ fun <T : ArgumentBuilder<CommandSourceStack, T>> ArgumentBuilder<CommandSourceSt
 }
 
 fun CommandSourceStack.hasPermission(permission: String): Boolean {
-    val vanillaAllowed = permissions().hasPermission(
-        Permission.HasCommandLevel(PermissionLevel.GAMEMASTERS)
-    )
+    val vanillaAllowed = hasPermission(2)
     if (vanillaAllowed) {
         return true
     }

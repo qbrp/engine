@@ -3,7 +3,7 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.Serializable
 import org.lain.engine.script.DebugPrimitive
 import org.lain.engine.script.EntityDebugData
-import org.lain.engine.storage.PersistentId
+import org.lain.engine.data.PersistentId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.ImmutableVoxelPos

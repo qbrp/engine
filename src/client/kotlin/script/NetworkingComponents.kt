@@ -7,7 +7,7 @@ import org.lain.engine.script.EntityRpcQueue
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.library.ecs.coerceToLua
-import org.lain.engine.storage.PersistentIdComponent
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.world.World
 
 context(lua: LuaScriptEngine)
@@ -16,7 +16,7 @@ fun World.applyLuaEntityRpcQueues() {
 
     iterate<EntityRpcQueue>() { entity, queue ->
         queueComponents.getOrSet(entity) {
-            LuaScriptComponent(queue.coerceToLua(), CoreScriptComponents.ENTITY_RPC_QUEUE)
+            LuaScriptComponent(queue.coerceToLua(), CoreScriptComponents.ENTITY_RPC_QUEUE, lua)
         }
     }
 }

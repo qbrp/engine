@@ -3,9 +3,6 @@ package org.lain.engine.client.render.ui.hud
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.narration.NarrationElementOutput
-import net.minecraft.client.input.CharacterEvent
-import net.minecraft.client.input.KeyEvent
-import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.util.CommonColors
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.ChatBarSection
@@ -49,20 +46,20 @@ class HandStatusButtonWidget(val client: EngineClient, x: Int, y: Int, width: In
         )
     }
 
-    override fun onClick(click: MouseButtonEvent, doubled: Boolean) {
+    override fun onClick(mouseX: Double, mouseY: Double) {
         client.gameSession?.apply { extendArm = !extendArm }
     }
 
-    override fun charTyped(input: CharacterEvent): Boolean {
-        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.charTyped(input) ?: false
+    override fun charTyped(codePoint: Char, modifiers: Int): Boolean {
+        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.charTyped(codePoint, modifiers) ?: false
     }
 
-    override fun keyPressed(input: KeyEvent): Boolean {
-        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyPressed(input) ?: false
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyPressed(keyCode, scanCode, modifiers) ?: false
     }
 
-    override fun keyReleased(input: KeyEvent): Boolean {
-        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyReleased(input) ?: false
+    override fun keyReleased(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyReleased(keyCode, scanCode, modifiers) ?: false
     }
 
     override fun updateWidgetNarration(narrationElementOutput: NarrationElementOutput) {}

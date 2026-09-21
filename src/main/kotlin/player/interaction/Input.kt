@@ -7,7 +7,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.ScriptContext
-import org.lain.engine.server.tickQueuedPlayerInputsSystem
+import org.lain.engine.server.replication.tickQueuedPlayerInputsSystem
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
@@ -147,7 +147,7 @@ class PlayerInputSystem(
             if (mode is PlayerInputMode.Predictive) {
                 mode.predictionSink.begin(world, entity, execution.interactionId)
             }
-            entity.setComponent(intent, componentTypeOfGeneral(intent) as ComponentType<Component>)
+            entity.setComponent(intent, componentTypeOf(intent) as ComponentType<Component>)
             input.action = null
         }
     }

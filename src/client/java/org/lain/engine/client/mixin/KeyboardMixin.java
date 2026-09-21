@@ -7,7 +7,6 @@ import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.input.KeyEvent;
 import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mc.DeveloperModeActionsKt;
 import org.lain.engine.client.mc.KeybindManager;
@@ -39,11 +38,11 @@ public class KeyboardMixin {
             method = "keyPress",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/blaze3d/platform/InputConstants;getKey(Lnet/minecraft/client/input/KeyEvent;)Lcom/mojang/blaze3d/platform/InputConstants$Key;"
+                    target = "Lcom/mojang/blaze3d/platform/InputConstants;getKey(II)Lcom/mojang/blaze3d/platform/InputConstants$Key;"
             )
     )
-    public InputConstants.Key engine$invokeChatScreenKeybindings(net.minecraft.client.input.KeyEvent keyEvent) {
-        InputConstants.Key key = InputConstants.getKey(keyEvent);
+    private InputConstants.Key engine$invokeChatScreenKeybindings(int keyCode, int scanCode) {
+        InputConstants.Key key = InputConstants.getKey(keyCode, scanCode);
         KeybindManager keybindManager = ClientMixin.INSTANCE.getKeybindManager();
         KeyMapping[] keybindings = new KeyMapping[] {};
         if (minecraft.screen instanceof ChatScreen) {
@@ -61,7 +60,7 @@ public class KeyboardMixin {
         }
 
         for (KeyMapping keybinding : keybindings) {
-            keybinding.setDown(KeyBindingHelper.getBoundKeyOf(keybinding) == key);
+            keybinding.setDown(KeyBindingHelper.getBoundKeyOf(keybinding).equals(key));
         }
 
         return key;
@@ -74,8 +73,8 @@ public class KeyboardMixin {
             ),
             cancellable = true
     )
-    public void engine$onKey(long l, int i, KeyEvent keyEvent, CallbackInfo ci) {
-        if (DeveloperModeActionsKt.onKeyDeveloperMode(keyEvent.key()) && minecraft.screen == null) {
+    private void engine$onKey(long window, int keyCode, int scanCode, int action, int modifiers, CallbackInfo ci) {
+        if (DeveloperModeActionsKt.onKeyDeveloperMode(keyCode) && minecraft.screen == null) {
             ci.cancel();
         }
     }

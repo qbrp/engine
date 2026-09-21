@@ -33,7 +33,7 @@ class Window(val mod: EngineMinecraftClient) {
     }
 
     fun isMinimized(): Boolean {
-        val handle = window.handle()
+        val handle = window.window
         return GLFW.glfwGetWindowAttrib(handle, GLFW.GLFW_ICONIFIED) == 1
     }
 

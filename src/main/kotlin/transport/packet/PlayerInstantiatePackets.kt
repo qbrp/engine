@@ -4,7 +4,6 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerItems
-import org.lain.engine.item.EngineItem
 import org.lain.engine.player.*
 import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.AppliedCharacter
@@ -13,7 +12,10 @@ import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
-import org.lain.engine.storage.*
+import org.lain.engine.data.*
+import org.lain.engine.player.character.CharacterId
+import org.lain.engine.server.replication.EntityStateUpdate
+import org.lain.engine.server.replication.fullReplicationUpdate
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.World
@@ -85,22 +87,10 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
 }
 
 @Serializable
-data class ClientboundItemData(
-    val persistentId: PersistentId,
-    val components: List<ComponentDto>
-) {
-    companion object {
-        context(world: World)
-        fun of(item: EngineItem): ClientboundItemData {
-            return ClientboundItemData(
-                item.requireComponent<PersistentIdComponent>().id,
-                world.componentManager
-                    .getNetworkedComponents(item)
-                    .map { it.toSnapshotDto() }
-            )
-        }
-    }
-}
+data class InitialReplicationState(
+    val world: EntityStateUpdate.Full,
+    val snapshots: Map<PersistentId, EntityStateUpdate.Full>
+)
 
 @Serializable
 data class ServerPlayerData(
@@ -112,8 +102,7 @@ data class ServerPlayerData(
     val minVolume: Float,
     val maxVolume: Float,
     val baseVolume: Float,
-    val items: List<ClientboundItemData>,
-    val equipment: Map<EquipmentSlot, ClientboundItemData>,
+    val replicationSnapshot: InitialReplicationState,
     val skinEyeY: Float,
     val character: EngineCharacter?
 ) {
@@ -121,7 +110,6 @@ data class ServerPlayerData(
         get() = general.playerId
 
     companion object {
-        context(world: World)
         fun of(player: EnginePlayer): ServerPlayerData {
             val movementStatus = player.require<MovementStatus>().copy()
             val voiceApparatus = player.require<VoiceApparatus>().copy()
@@ -135,12 +123,19 @@ data class ServerPlayerData(
                 voiceApparatus.minVolume ?: defaults.minVolume,
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
-                player.items.map { ClientboundItemData.of(it) },
-                player.equipmentContainer
-                    .getEquipmentContainerSlots()
-                    .mapValues { (_, item) -> ClientboundItemData.of(item) },
+                composeInitialReplicationState(player),
                 player.skinEyeY,
                 player.get<AppliedCharacter>()?.character
+            )
+        }
+
+        fun composeInitialReplicationState(player: EnginePlayer): InitialReplicationState = with(player.world) {
+            val snapshots = player.collectReplicationEntities().associate { entity ->
+                entity.requireComponent<PersistentIdComponent>().id to entity.fullReplicationUpdate()
+            }
+            return InitialReplicationState(
+                player.world.state.fullReplicationUpdate(),
+                snapshots
             )
         }
     }
@@ -185,7 +180,7 @@ data class FullPlayerData(
         fun of(player: EnginePlayer) = FullPlayerData(
             player.require<MovementStatus>().copy(),
             player.require<PlayerAttributes>().copy(),
-      //      player.require<ArmStatus>().copy(),
+            //      player.require<ArmStatus>().copy(),
             player.skinEyeY,
             PlayerReferencedItems.of(player)
         )
@@ -235,7 +230,7 @@ val CLIENTBOUND_PLAYER_DESTROY_ENDPOINT = Endpoint<PlayerDestroyPacket>()
 data class VerificationResponsePacket(
     val developerModeStatus: DeveloperModeStatus,
     val namespaces: NamespaceHashMap,
-    val characterId: String?,
+    val characterId: CharacterId?,
     val sessionTicket: SessionTicketDto,
 ) : Packet {
     override val requireAuthorized: Boolean = false

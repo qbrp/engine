@@ -6,6 +6,7 @@ import dev.lambdaurora.lambdynlights.api.DynamicLightsContext
 import dev.lambdaurora.lambdynlights.api.DynamicLightsInitializer
 import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
 import dev.lambdaurora.lambdynlights.api.entity.luminance.EntityLuminance
+import dev.lambdaurora.lambdynlights.api.item.ItemLightSourceManager
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
 import net.minecraft.core.component.DataComponentType
@@ -33,7 +34,7 @@ import org.lain.engine.player.Orientation
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.get
 import org.lain.engine.util.Injector
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.inject
 import org.lain.engine.util.math.MutableEVec3
 import org.lain.engine.util.math.Pos
@@ -49,6 +50,9 @@ class LambDynamicLights : DynamicLightsInitializer {
     override fun onInitializeDynamicLights(p0: DynamicLightsContext) {
         Injector.register(p0)
     }
+
+    @Suppress("DEPRECATION")
+    override fun onInitializeDynamicLights(p0: ItemLightSourceManager) = Unit
 }
 
 data class LamdLightSource(val behaivour: EngineDynamicLightBehavior) : Component
@@ -81,10 +85,7 @@ class LightSystem(private val context: DynamicLightsContext) {
                 val minecraftEntity = entity.getComponent<MinecraftEntity>()
 
                 if (minecraftEntity != null) {
-                    minecraftEntity.entity.setComponent(
-                        ENGINE_ENTITY_LUMINANCE_COMPONENT,
-                        luminance
-                    )
+                    minecraftEntity.entity.setEngineLuminance(luminance)
                 }
             }
         }

@@ -1,97 +1,52 @@
 package org.lain.engine.client.render.item
 
-import net.minecraft.client.multiplayer.ClientLevel
-import net.minecraft.client.renderer.item.ItemStackRenderState
-import net.minecraft.core.component.DataComponents
-import net.minecraft.resources.Identifier
-import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.ItemOwner
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.resources.model.BakedModel
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.resources.EngineItemModel
+import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
 
-private val BAKED_MODEL_MANAGER = MinecraftClient.modelManager
-
-fun updateForLivingEntity(
-    renderState: ItemStackRenderState,
-    stack: ItemStack,
-    displayContext: EngineItemDisplayContext,
-    entity: LivingEntity
-) {
-    clearAndUpdate(
-        renderState,
-        stack,
-        displayContext,
-        entity.level(),
-        entity as ItemOwner,
-        entity.id + displayContext.ordinal
-    )
+fun getEngineItemModel(stack: ItemStack): BakedModel? {
+    val id = stack.get(ENGINE_ITEM_MODEL_COMPONENT) ?: return null
+    return MinecraftClient.modelManager.getModel(id)
 }
 
-fun updateForNonLivingEntity(
-    renderState: ItemStackRenderState,
+fun renderEngineItem(
     stack: ItemStack,
     displayContext: EngineItemDisplayContext,
-    entity: Entity
+    poseStack: PoseStack,
+    buffers: MultiBufferSource,
+    light: Int,
+    overlay: Int,
+    level: Level? = null,
+    entity: LivingEntity? = null,
+    seed: Int = 0
 ) {
-    clearAndUpdate(renderState, stack, displayContext, entity.level(), null, entity.id)
-}
-
-fun clearAndUpdate(
-    renderState: ItemStackRenderState,
-    stack: ItemStack,
-    displayContext: EngineItemDisplayContext,
-    world: Level?,
-    heldItemContext: ItemOwner?,
-    seed: Int
-) {
-    renderState.clear()
-    if (!stack.isEmpty) {
-        update(renderState, stack, displayContext, world, heldItemContext, seed)
+    val model = getEngineItemModel(stack) ?: return
+    poseStack.pushPose()
+    if (displayContext == EngineItemDisplayContext.OUTFIT) {
+        val engineModel = model as? EngineItemModel
+        val modelId = stack.get(ENGINE_ITEM_MODEL_COMPONENT)
+        val transformation = modelId
+            ?.let(AdditionalTransformationsBank::get)
+            ?.outfit
+            ?.minecraft()
+            ?: engineModel?.outfitTransformation
+        transformation?.apply(false, poseStack)
     }
-}
-
-fun update(
-    renderState: ItemStackRenderState,
-    stack: ItemStack,
-    displayContext: EngineItemDisplayContext,
-    world: Level?,
-    heldItemContext: ItemOwner?,
-    seed: Int
-) {
-    val clientWorld = world as? ClientLevel
-    val identifier = stack.get(DataComponents.ITEM_MODEL) ?: return
-    renderState.isOversizedInGui = BAKED_MODEL_MANAGER.getItemProperties(identifier).oversizedInGui()
-    renderState.setupAdditionalTransformationsEngine(stack, displayContext)
-    (BAKED_MODEL_MANAGER.getItemModel(identifier) as? EngineItemModel)?.updateEngine(
-        renderState,
+    MinecraftClient.itemRenderer.render(
         stack,
-        displayContext,
-        clientWorld,
-        heldItemContext,
-        seed
+        displayContext.minecraft,
+        false,
+        poseStack,
+        buffers,
+        light,
+        overlay,
+        model
     )
-}
-
-fun updateItemRenderState(
-    renderState: ItemStackRenderState,
-    itemModel: Identifier,
-    oversizedInGui: Boolean,
-    displayContext: EngineItemDisplayContext,
-    world: Level?,
-    heldItemContext: ItemOwner?,
-    seed: Int
-) {
-    val clientWorld = world as? ClientLevel
-    renderState.isOversizedInGui = oversizedInGui
-    (BAKED_MODEL_MANAGER.getItemModel(itemModel) as? EngineItemModel)?.updateEngine(
-        renderState,
-        null,
-        displayContext,
-        clientWorld,
-        heldItemContext,
-        seed
-    )
+    poseStack.popPose()
 }

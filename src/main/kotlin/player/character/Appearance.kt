@@ -1,7 +1,6 @@
 package org.lain.engine.player.character
 
 import kotlinx.serialization.Serializable
-import net.minecraft.world.entity.player.PlayerModelType
 import org.lain.cyberia.ecs.Component
 import org.lain.engine.player.ColoredChar
 import org.lain.engine.player.gradientText
@@ -29,12 +28,17 @@ data class Look(
 @Serializable
 data class SelectedLook(val look: Look) : Component
 
+enum class CharacterModelType {
+    WIDE,
+    SLIM,
+}
+
 /**
  * Информация о персонаже, что может обновляться с сервера
  */
 @Serializable
 data class CharacterDisplay(
-    val id: String,
+    val id: CharacterId,
     val name: CharacterGradientName,
     val biologicalCategory: BiologicalCategory,
     val appearanceDescription: String,
@@ -71,11 +75,11 @@ fun computeCharacterModel(
     bodyType: BodyType,
     category: BiologicalCategory,
     sex: BiologicalSex
-): PlayerModelType {
+): CharacterModelType {
     fun default() = when(bodyType) {
-        BodyType.BROAD -> PlayerModelType.WIDE
-        BodyType.NORMAL -> PlayerModelType.WIDE
-        BodyType.SLIM -> PlayerModelType.SLIM
+        BodyType.BROAD -> CharacterModelType.WIDE
+        BodyType.NORMAL -> CharacterModelType.WIDE
+        BodyType.SLIM -> CharacterModelType.SLIM
     }
 
     return when (category) {
@@ -83,8 +87,8 @@ fun computeCharacterModel(
             when(sex) {
                 BiologicalSex.MALE, BiologicalSex.OTHER -> default()
                 BiologicalSex.FEMALE -> when(bodyType) {
-                    BodyType.NORMAL, BodyType.SLIM ->  PlayerModelType.SLIM
-                    BodyType.BROAD ->  PlayerModelType.WIDE
+                    BodyType.NORMAL, BodyType.SLIM -> CharacterModelType.SLIM
+                    BodyType.BROAD -> CharacterModelType.WIDE
                 }
             }
         }

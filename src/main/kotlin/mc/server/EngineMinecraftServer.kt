@@ -1,14 +1,15 @@
 package org.lain.engine.mc.server
 
 import kotlinx.coroutines.runBlocking
-import net.kyori.adventure.platform.modcommon.MinecraftServerAudiences
+import net.kyori.adventure.platform.fabric.FabricServerAudiences
 import net.minecraft.core.BlockPos
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.ListTag
+import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.util.ProblemReporter
-import net.minecraft.world.ItemStackWithSlot
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ChunkPos
@@ -16,10 +17,8 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
-import net.minecraft.world.level.storage.TagValueInput
-import net.minecraft.world.level.storage.TagValueOutput
 import net.minecraft.world.phys.Vec3
-import org.lain.cyberia.ecs.destroy
+import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.createItem
@@ -44,7 +43,6 @@ import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerPlatform
-import org.lain.engine.storage.*
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
@@ -80,7 +78,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             (config.itemAutosavePeriod * 0.5).toInt()
         )
     )
-    val miniMessageAudiences = MinecraftServerAudiences.of(minecraftServer)
+    val miniMessageAudiences = FabricServerAudiences.of(minecraftServer)
     val engine = EngineServer(
         config.server,
         playerStorage,
@@ -187,7 +185,12 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
     }
 
     open fun disable() = runBlocking {
-        engine.allWorlds().forEach { database.saveItemsBlocking(it) }
+        LOGGER.info("Сохранение чанков")
+        engine.chunkPersistence.close()
+        LOGGER.info("Сохранение миров")
+        engine.allWorlds().forEach {
+            database.saveWorldSnapshot(it.createSaveSnapshot())
+        }
         engine.stop()
         MinecraftAccessRegistry.invalidate()
     }
@@ -215,12 +218,8 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     override fun serializeInventory(player: EnginePlayer): String {
         val entity = player.minecraftEntity
-        val output = TagValueOutput.createWithContext(
-            ProblemReporter.ScopedCollector(LOGGER),
-            minecraftServer.registries().compositeAccess()
-        )
-        entity.inventory.save(output.list("Inventory", ItemStackWithSlot.CODEC))
-        val tag = output.buildResult()
+        val tag = CompoundTag()
+        tag.put("Inventory", entity.inventory.save(ListTag()))
         return tag.toString()
     }
 
@@ -230,12 +229,8 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     override fun openInventory(player: EnginePlayer, inventory: SerializedInventory) {
         val entity = player.minecraftEntityNullable ?: minecraftServer.getPlayer(player.id)!!
-        val output = TagValueInput.create(
-            ProblemReporter.ScopedCollector(LOGGER),
-            minecraftServer.registries().compositeAccess(),
-            TagParser.parseCompoundFully(inventory)
-        )
-        entity.inventory.load(output.listOrEmpty("Inventory", ItemStackWithSlot.CODEC))
+        val tag = TagParser.parseTag(inventory)
+        entity.inventory.load(tag.getList("Inventory", Tag.TAG_COMPOUND.toInt()))
     }
 
     override fun onCompiled(contents: NamespacedStorage) {
@@ -277,29 +272,19 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         )
     }
 
+    fun onChunkLoad(world: Level, chunk: ChunkAccess) {
+        val engineWorld = engine.simulation.worlds[world.engineId] ?: return
+        engine.chunkPersistence.loadChunkAsync(engineWorld, chunk.pos.engineChunkPos())
+    }
+
     fun onChunkUnload(world: Level, chunk: ChunkAccess) {
         val pos = chunk.pos.engineChunkPos()
         acousticSimulator.unloadChunkAsync(world.engineId, chunk)
         val engineWorld = engine.getWorld(world)
         val engineChunk = engineWorld.chunkStorage.getChunk(pos) ?: return
-        val componentManager = engineWorld.componentManager
-        val savableComponentArrays = componentManager.listArrays().filter { it.meta.savable }
-        engineWorld.chunkStorage.removeChunk(pos)
-        saveChunkAsync(
-            engine,
-            pos,
-            engineChunk.decals.toMap(),
-            engineChunk.hints.toMap(),
-            engineChunk.dynamicVoxels.mapValues { (_, entity) ->
-                savableComponentArrays.mapNotNull {
-                    with(engineWorld) {
-                        val component = it.componentOf(entity)?.toSnapshotDto()
-                        entity.destroy() // сделать в будущем проверку владения
-                        component
-                    }
-                }
-            }
-        )
+        if (!engineChunk.isEmpty()) {
+            engine.chunkPersistence.saveChunk(engineWorld, pos, engineChunk)
+        }
     }
 
     fun onWorldUnload(world: Level) {
@@ -374,7 +359,6 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
                 developerModeStatus,
                 server.getWorld(worldId),
                 isReplayViewer,
-                server.globals.savePath.playerData.parsePersistentPlayerData(playerId),
                 playerMode,
             )
         }

@@ -1,6 +1,7 @@
 package org.lain.engine.script
 
 import com.charleskorn.kaml.Yaml
+import dev.architectury.platform.Mod
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.file.readFile
@@ -56,12 +57,8 @@ class ModuleNamespaceOverlapException(
 }
 
 class ModuleManager {
-    lateinit var modules: Modules
+    var modules: Modules = Modules(emptyMap())
         private set
-
-    init {
-        composeModules()
-    }
 
     fun composeModules(): Modules {
         return findModuleFiles()

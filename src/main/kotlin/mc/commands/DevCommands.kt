@@ -1,7 +1,10 @@
 package org.lain.engine.mc.commands
 
 import com.mojang.brigadier.arguments.StringArgumentType
+import kotlinx.coroutines.runBlocking
 import net.minecraft.world.entity.player.Player
+import org.lain.engine.data.createSaveSnapshot
+import org.lain.engine.data.saveWorldSnapshot
 import org.lain.engine.item.createInvalidItem
 import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.getWorld
@@ -10,7 +13,7 @@ import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.lua.LuaFunctionChunk
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.luaWorld
-import org.lain.engine.storage.saveItemsBlocking
+import org.lain.engine.util.Timestamp
 import org.lain.engine.util.getServerStats
 import org.lain.engine.util.requireEngineMinecraftServer
 import org.luaj.vm2.LuaError
@@ -66,22 +69,17 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
                 literal("ticks")
                     .executeCatching { ctx ->
                         val stats = getServerStats(engine.tickTimes.toList())
-                        ctx.sendFeedback("Средняя длительность последних 20 тактов engine: ${stats.averageTickTimeMillis} мл.", false)
+                        ctx.sendFeedback(
+                            "Средняя длительность последних 20 тактов engine: ${stats.averageTickTimeMillis} мл.",
+                            false
+                        )
                     }
             )
             .then(
-                literal("save-items")
-                    .executeCatching { ctx ->
-                        val world = ctx.requirePlayer().world
-                        val count = server.database.saveItemsBlocking(world)
-                        ctx.sendFeedback("Вызвано блокирующее сохранение $count предметов", true)
-                    }
-            )
-            .then(
-                literal("save-items-timer")
+                literal("save")
                     .executeCatching { ctx ->
                         server.timers.items.activate()
-                        ctx.sendFeedback("Вызвано сохранение предметов", true)
+                        ctx.sendFeedback("Вызвано сохранение сущностей", true)
                     }
             )
             .then(

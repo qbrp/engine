@@ -72,8 +72,10 @@ typealias AssetPacker = () -> Asset
 
 class Assets(val source: SourceFile) {
     val directory = source.file
-    val spriteAtlases = source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules()
-    val autogenerationItemAssets = source.resolve("autogenerate.yml")?.yaml<AutoGenerationList>() ?: AutoGenerationList()
+    val spriteAtlases =
+        source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules()
+    val autogenerationItemAssets =
+        source.resolve("autogenerate.yml")?.yaml<AutoGenerationList>() ?: AutoGenerationList()
 
     fun getAsset(relative: String): Asset? {
         val relative = File(relative)
@@ -105,7 +107,6 @@ data class Asset(
 data class ResourceContext(
     val assets: Assets,
     val contents: SourceFile,
-    val web: SourceFile,
     val chatBarConfiguration: ChatBarConfiguration?,
     val formatConfiguration: ChatFormatSettings,
     val autogenerationItemAssets: AutoGenerationList = assets.autogenerationItemAssets
@@ -124,11 +125,12 @@ data class AutoGenerationList(
 
 private fun bakeResourceContext(serverId: ServerId?): ResourceContext {
     val assetsSource = ASSETS.fetch(serverId).getOrThrow()
+    val assets = Assets(assetsSource)
+
 
     return ResourceContext(
-        Assets(assetsSource),
+        assets,
         CONTENTS.fetch(serverId).getOrThrow(),
-        WEB.fetch(serverId).getOrThrow(),
         CHAT_BAR_CONFIG.fetch(serverId)?.yaml(),
         FORMAT_CONFIG.fetch(serverId).getOrThrow().yaml(),
     )
@@ -138,7 +140,6 @@ private val CHAT_BAR_CONFIG = OverridableResource(FileSystem.CHAT_BAR_CONFIG_NAM
 private val FORMAT_CONFIG = OverridableResource(FileSystem.FORMAT_CONFIG_NAME)
 private val ASSETS = OverridableResource(FileSystem.ASSETS_PATH, true)
 private val CONTENTS = OverridableResource(FileSystem.CONTENTS_PATH, true)
-private val WEB = OverridableResource(FileSystem.WEB_PATH, true)
 
 class ResourceManager(
     private val client: EngineClient

@@ -3,7 +3,6 @@ package org.lain.engine.util
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
-import org.lain.engine.storage.ItemData
 import java.util.Queue
 import kotlin.collections.ArrayDeque
 
@@ -69,14 +68,21 @@ fun <T> Collection<T>.forEachWithSelfContext(block: T.(T) -> Unit) {
     forEach { with (it) { block(it)  } }
 }
 
-fun <T : ItemData> MutableList<ItemData>.addIf(statement: () -> Boolean, component: () -> T) {
-    if (statement()) this += component()
-}
-
 fun <T : Any> MutableCollection<T>.addIfNotNull(component: T?) {
     if (component != null) this += component
 }
 
 fun <T : Any> MutableCollection<T>.addIfNotNull(component: () -> T?) {
     addIfNotNull(component())
+}
+
+fun <K, V> Map<K, V>.deepCopy(
+    copyKey: (K) -> K,
+    copyValue: (V) -> V
+): Map<K, V> {
+    val result = mutableMapOf<K, V>()
+    for ((k, v) in this) {
+        result[copyKey(k)] = copyValue(v)
+    }
+    return result
 }

@@ -2,16 +2,22 @@ package org.lain.engine.util.file
 
 import org.lain.engine.Constants
 import org.lain.engine.server.ServerId
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URL
+import java.nio.channels.FileChannel
+import java.nio.charset.StandardCharsets
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.util.prefs.Preferences
 import kotlin.io.path.copyTo
 
 object FileSystem {
+    val LOGGER = LoggerFactory.getLogger("Engine Files")
     const val ROOT_PATH = "engine"
 
     const val COMPILATION_ENTRYPOINT_NAME = "install.lua"
@@ -23,25 +29,26 @@ object FileSystem {
     const val SERVER_CONFIG_NAME = "server-config.yml"
     const val DEBUG_PATH = "debug"
     const val COMPILATION_MANIFEST_NAME = "compilation-manifest.json"
-    const val STORAGE_PATH = "storage"
+    const val STORAGE_PATH = "data"
     const val BOOK_BACKUPS_PATH = "books"
     const val SKINS_PATH = "skins"
     const val ACCOUNT_CACHE_NAME = "account.json"
     const val ASSETS_PATH = "assets"
-    const val WEB_PATH = "web"
-    const val EXTENSIONS_PATH = "extensions"
-    const val GRAPHENE_JCEF_PATH = "graphene-jcef"
+    const val WALLPAPERS_PATH = "wallpapers"
+    const val SERVER_PLAY_STATES_NAME = "servers"
     const val CHAT_BAR_CONFIG_NAME = "chat-bar.yml"
     const val FORMAT_CONFIG_NAME = "format.yml"
 
     const val DEFAULT_RESOURCES_PATH = "defaults"
 
     val root: File = ensureDirectory(File(ROOT_PATH))
+    val serverPlayStates = ensureDirectory(root.resolve(SERVER_PLAY_STATES_NAME))
     val modules = ensureDirectory(root.resolve(MODULES_PATH))
     val moduleSet = modules.resolve(MODULE_SET_NAME)
         .apply {
             if (!exists()) {
-                writeText(builtinResource("modules/$MODULE_SET_NAME")!!.readText())
+                val resource = builtinResource("modules/$MODULE_SET_NAME")
+                resource?.let { writeText(it.readText()) }
             }
         }
 
@@ -57,11 +64,9 @@ object FileSystem {
     val bookBackups: File = ensureDirectory(storage.resolve(BOOK_BACKUPS_PATH))
 
     val skins: File = ensureDirectory(root.resolve(SKINS_PATH))
+    val wallpapers: File = ensureDirectory(root.resolve(WALLPAPERS_PATH))
 
     val accountCache: File = root.resolve(ACCOUNT_CACHE_NAME)
-    val web: File = root.resolve(WEB_PATH)
-    val extensions: File = root.resolve(EXTENSIONS_PATH)
-    val grapheneJcef: File = File(GRAPHENE_JCEF_PATH)
 
     val preferences: Preferences = Preferences.userRoot().node(ROOT_PATH)
 
@@ -140,7 +145,40 @@ object FileSystem {
         val items = root.resolve(LEGACY_ITEMS_PATH)
         if (items.exists()) {
             items.renameTo(contents)
-            CONFIG_LOGGER.warn("Файл старого формата engine/items переименован в engine/contents")
+            LOGGER.warn("Файл старого формата engine/items переименован в engine/contents")
         }
+    }
+}
+
+fun File.writeTextAtomically(text: String) {
+    val target = toPath()
+    val directory = target.parent
+
+    val temp = Files.createTempFile(
+        directory,
+        "$name.",
+        ".tmp"
+    )
+
+    try {
+        FileChannel.open(
+            temp,
+            StandardOpenOption.WRITE,
+        ).use { channel ->
+            val buffer = StandardCharsets.UTF_8.encode(text)
+            while (buffer.hasRemaining()) {
+                channel.write(buffer)
+            }
+            channel.force(true)
+        }
+
+        Files.move(
+            temp,
+            target,
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING,
+        )
+    } finally {
+        Files.deleteIfExists(temp)
     }
 }

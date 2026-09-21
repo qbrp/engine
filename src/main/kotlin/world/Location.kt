@@ -4,7 +4,7 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ReadComponentAccess
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.MutableEVec3
 import org.lain.engine.util.math.Pos

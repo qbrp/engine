@@ -7,6 +7,7 @@ import org.lain.engine.transport.Packet
 import org.lain.engine.transport.PacketContext
 import org.lain.engine.transport.PacketHandler
 import org.lain.engine.transport.packet.EngineChunkPacket
+import org.lain.engine.transport.packet.ReplicationPacket
 import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.inject
 import org.lain.engine.util.injectValue
@@ -27,7 +28,7 @@ interface ClientTransportContext {
 fun <P : Packet> Endpoint<P>.registerClientReceiver(handler: ClientPacketHandler<P>) {
     injectValue<ClientTransportContext>().registerEndpoint(this) {
         handler(this, it)
-        if (this !is EngineChunkPacket || !this.chunk.isEmpty()) {
+        if ((this !is ReplicationPacket || !this.frame.isEmpty()) && (this !is EngineChunkPacket || !this.chunk.isEmpty())) {
             debugPacket("[Клиент] Принят пакет $this")
         }
     }

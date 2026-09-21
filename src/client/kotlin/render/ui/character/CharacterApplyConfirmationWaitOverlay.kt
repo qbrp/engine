@@ -92,7 +92,8 @@ class CharacterApplyConfirmationWaitOverlay(
             0,
             guiGraphics.guiWidth(),
             guiGraphics.guiHeight(),
-            Color.BLACK.withAlpha((overlayOpacity * 255).toInt()).integer
+            100,
+            Color.BLACK.withAlpha((overlayOpacity * 255).toInt()).integer,
         )
     }
 

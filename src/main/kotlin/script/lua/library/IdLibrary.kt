@@ -19,6 +19,7 @@ fun LuaValue.asEngineId() = checkuserdata(EngineId::class.java) as? EngineId ?: 
 fun LuaValue.resolveIdReference(): EngineId {
     return when(type()) {
         LuaValue.TSTRING -> EngineId.parse(tojstring())
+        LuaValue.TTABLE -> get("__id_reference").resolveIdReference()
         LuaValue.TUSERDATA -> asEngineId()
         else -> error("Invalid id reference type")
     }

@@ -3,6 +3,7 @@ package org.lain.engine.client
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.world.entity.player.Player
+import org.lain.engine.client.chat.LiteralSystemMessage
 import org.lain.engine.client.mc.ClientMinecraftAccess
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
@@ -11,7 +12,6 @@ import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.client.render.EnginePlayerSkin
 import org.lain.engine.client.render.ui.EntityDebugScreen
-import org.lain.engine.client.render.ui.Workspace
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.DisconnectText
@@ -94,7 +94,10 @@ class MinecraftEngineClientPlatform(
         val level = minecraft.level!!
         player.setMinecraftPlayerComponent(minecraft.player!!)
         ClientMixin.onMainPlayerInstantiated(player)
-        MinecraftAccessRegistry.register(level, ClientMinecraftAccess(engineMinecraftClient, gameSession))
+        MinecraftAccessRegistry.register(
+            level,
+            ClientMinecraftAccess(engineMinecraftClient, gameSession)
+        )
     }
 
     override fun onAcousticDebugVolumes(
@@ -124,8 +127,11 @@ class MinecraftEngineClientPlatform(
     }
 
     override fun onWorkspaceMenuOpen(gameSession: GameSession) {
-        MinecraftClient.setScreen(
-            Workspace(gameSession, gameSession.workspaceSavedState)
+        gameSession.chatManager.addMessage(
+            LiteralSystemMessage(
+                gameSession,
+                "Рабочий стол временно не поддерживается. WIP..."
+            )
         )
     }
 

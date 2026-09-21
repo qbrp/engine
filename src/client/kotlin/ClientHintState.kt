@@ -1,7 +1,7 @@
 package org.lain.engine.client
 
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.storage.Uuid
+import org.lain.engine.data.Uuid
 import org.lain.engine.util.addIfNotNull
 import org.lain.engine.world.HintDestroyEvent
 import org.lain.engine.world.VoxelDestroyEvent

@@ -14,14 +14,19 @@ import org.lain.engine.player.character.*
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.script.*
 import org.lain.engine.server.account.SessionTicket
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.storage.backupBookContent
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.backupBookContent
+import org.lain.engine.server.replication.PlayerInstantiationConfirmation
+import org.lain.engine.server.replication.PlayerSyncState
+import org.lain.engine.server.replication.ReplicationFrame
+import org.lain.engine.server.replication.ReplicationTarget
+import org.lain.engine.server.replication.fullReplicationUpdate
+import org.lain.engine.server.replication.markUpdated
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
-import org.lain.engine.util.component.EntityCommandBuffer
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -44,7 +49,7 @@ class ServerHandler(
     private val connections = mutableMapOf<PlayerId, Connection>()
 
     private fun updatePlayer(id: PlayerId, update: EnginePlayer.() -> Unit) {
-        val player = engineServer.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
+        val player = engineServer.playerStorage.get(id) ?: protocolError("Игрок не находится на сервере")
         player.update()
     }
 
@@ -52,7 +57,7 @@ class ServerHandler(
         id: PlayerId,
         update: context(World) EnginePlayer.(world: World) -> Unit
     ) {
-        val player = engineServer.playerStorage.get(id) ?: desync("Игрок не находится на сервере")
+        val player = engineServer.playerStorage.get(id) ?: protocolError("Игрок не находится на сервере")
         with(player.world) { player.update(player.world) }
     }
 
@@ -78,7 +83,6 @@ class ServerHandler(
 
     fun run() {
         running = true
-        GlobalAcknowledgeListener.start()
         registerEndpoints()
     }
 
@@ -104,49 +108,43 @@ class ServerHandler(
         updatePlayer(playerId) {
             val character = require<AppliedCharacter>().character
             val look =
-                character.looks.find { it.id == lookId } ?: desync("Образ $lookId не существует")
+                character.looks.find { it.id == lookId } ?: protocolError("Образ $lookId не существует")
             set(SelectedLook(look))
             onCharacterApplyConfirmation(this@updatePlayer, requestId)
         }
 
     internal fun onCharacterApply(
         playerId: PlayerId,
-        characterId: String,
+        characterId: CharacterId,
         character: EngineCharacter?,
         sessionTicket: SessionTicket?,
         requestId: Long,
-    ) = updatePlayer(playerId) {
-        val appliedCharacters = require<AppliedCharacters>()
-        val persistent = appliedCharacters.characters[characterId]
-        val player = this
-        with(world) {
-            removeCharacter(engineServer.platform, appliedCharacters)
-        }
+    ) {
+        val persistence = engineServer.playerPersistence
+        val player = getPlayer(playerId) ?: protocolError("Игрок не существует")
+        val world = player.world
+        with(world) { player.unloadCharacter(engineServer.platform, persistence) }
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val eventListener = engineServer.platform
-                val validatedCharacter =
-                    eventListener.validateCharacter(
-                        this@updatePlayer,
-                        characterId,
-                        character,
-                        sessionTicket
-                    )
+                val validatedCharacter = eventListener.validateCharacter(
+                    player,
+                    characterId,
+                    character,
+                    sessionTicket
+                )
+                val characterRecord = persistence.loadPersistentCharacter(world.componentReviveSettings, playerId, characterId)
                 withContext(engineServer.dispatcher) {
-                    with(EntityCommandBuffer(world)) {
-                        persistent?.let { prepareCharacter(world.componentLoadSettings, it) }
-                        engineServer.platform.clearInventory(player)
-                        applyCharacter(validatedCharacter, persistent, eventListener)
-                        apply(world)
-                    }
-                    onCharacterApplyConfirmation(this@updatePlayer, requestId)
+                    engineServer.platform.clearInventory(player)
+                    player.applyCharacter(validatedCharacter, characterRecord, eventListener)
+                    onCharacterApplyConfirmation(player, requestId)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 val message = e.message ?: "Не удалось применить персонажа"
-                engineServer.execute {
-                    onCharacterApplyConfirmation(this@updatePlayer, requestId, message)
+                withContext(engineServer.dispatcher) {
+                    onCharacterApplyConfirmation(player, requestId, message)
                 }
                 e.printStackTrace()
             }
@@ -160,7 +158,7 @@ class ServerHandler(
     ) = updatePlayerWithContext(sender) {
         val entity =
             world.persistentIdToEntity[entityPersistentId]
-                ?: desync("Сущности $entityPersistentId не существует")
+                ?: protocolError("Сущности $entityPersistentId не существует")
         entity.requireComponent<EntityRpcReceiver>().values.addAll(
             delta.map { EntityRpcReceiver.Message(this, it) }
         )
@@ -179,7 +177,7 @@ class ServerHandler(
         updatePlayer(player) {
             if (!engineServer.platform.hasPermission(this, "entity_debug")) return@updatePlayer
             val entity = world.persistentIdToEntity[persistentId]
-                ?: desync("Сущность $persistentId не существует")
+                ?: protocolError("Сущность $persistentId не существует")
             with(world) {
                 this@updatePlayer.entity.setComponent(
                     EntityDebugViewComponent(
@@ -210,9 +208,9 @@ class ServerHandler(
                 is VoxelBlockHintPacket.Action.Remove -> {
                     if (hasPermission("blockhint.remove")) {
                         val hint = world.chunkStorage.getBlockHint(pos)
-                            ?: desync("Описание блока не существует")
+                            ?: protocolError("Описание блока не существует")
                         if (hint.texts.size - 1 < action.index || action.index < 0) {
-                            desync("Невалидный индекс")
+                            protocolError("Невалидный индекс")
                         }
                         world.singleBlockVoxelEvent(pos, VoxelUpdate.RemoveHint(action.index))
                     }
@@ -228,9 +226,8 @@ class ServerHandler(
     internal fun onReplicationResyncRequest(playerId: PlayerId, target: ReplicationTarget) =
         updatePlayerWithContext(playerId) {
             val frame = when (target) {
-                ReplicationTarget.World -> ReplicationFrameSnapshot(
-                    world = world.state.fullNetworkSnapshot(),
-                    entities = emptyMap(),
+                ReplicationTarget.World -> ReplicationFrame(
+                    world = world.state.fullReplicationUpdate(),
                 )
 
                 is ReplicationTarget.Entity -> {
@@ -241,10 +238,10 @@ class ServerHandler(
                     }
                     val networkedEntity = world.persistentIdToEntity[persistentId]
                         ?: return@updatePlayerWithContext
-                    ReplicationFrameSnapshot(
+                    ReplicationFrame(
                         world = null,
                         entities = mapOf(
-                            persistentId to networkedEntity.fullNetworkSnapshot(),
+                            persistentId to networkedEntity.fullReplicationUpdate(),
                         ),
                     )
                 }
@@ -260,10 +257,10 @@ class ServerHandler(
         updatePlayerWithContext(playerId) {
             val item = this.handItem
             val writable = item?.getComponent<Writable>()
-            if (item?.requireComponent<PersistentIdComponent>()?.id != persistentId || writable == null) desync(
+            if (item?.requireComponent<PersistentIdComponent>()?.id != persistentId || writable == null) protocolError(
                 "Предмет для сохранения написанного контента не найден или им не является"
             )
-            if (contents.count() > writable.pages) desync("Страниц написано больше, чем возможно")
+            if (contents.count() > writable.pages) protocolError("Страниц написано больше, чем возможно")
 
             if (writable.contents != contents) {
                 writable.contents = contents.map { it.trim() }
@@ -310,7 +307,7 @@ class ServerHandler(
     internal fun onPlayerVolume(player: PlayerId, volume: Float) = updatePlayer(player) {
         val settings = require<DefaultPlayerAttributes>()
         if (volume > settings.maxVolume || volume < 0) {
-            desync("Недопустимый уровень громкости")
+            protocolError("Недопустимый уровень громкости")
         }
         require<VoiceApparatus>().inputVolume = volume
     }
@@ -338,10 +335,10 @@ class ServerHandler(
             val itemStorage = it.itemStorage
             val item = itemId?.let {
                 val result = itemStorage.get(it)
-                    ?: desync("Установленный курсором предмет $itemId не найден")
+                    ?: protocolError("Установленный курсором предмет $itemId не найден")
                 val owner = result.getOwner()
                 if (!hasPermission("invsee") && owner != null && owner.id != playerId) {
-                    desync("Захвачен чужой предмет")
+                    protocolError("Захвачен чужой предмет")
                 }
                 result
             }
@@ -365,7 +362,7 @@ class ServerHandler(
         taskQueue.flush { it() }
     }
 
-    fun sendReplicationFrame(player: EnginePlayer, frame: ReplicationFrameSnapshot) {
+    fun sendReplicationFrame(player: EnginePlayer, frame: ReplicationFrame) {
         CLIENTBOUND_REPLICATION_ENDPOINT.sendS2C(ReplicationPacket(frame), player.id)
     }
 
@@ -398,10 +395,6 @@ class ServerHandler(
             playerSynchronizationRadius,
             OperationPacket(operation.id, context.toDto())
         )
-    }
-
-    fun onItemsUnload(items: List<PersistentId>) {
-        CLIENTBOUND_ITEM_UNLOAD_ENDPOINT.broadcast(ItemUnloadPacket(items))
     }
 
     fun onScriptsCompiled() {
@@ -476,7 +469,6 @@ class ServerHandler(
         notifications: List<Notification> = listOf(),
     ) =
         with(player.world) {
-            val playerId = player.id
             val packet = PlayerJoinServerPacket(GeneralPlayerData.of(player))
 
             playerStorage.all.forEach {
@@ -498,7 +490,7 @@ class ServerHandler(
 
     fun onPlayerInstantiationConfirm(playerId: PlayerId) = updatePlayer(playerId) {
         connections[playerId]!!.onAuthorized(this@ServerHandler, this)
-        remove<PlayerInstantiationConfirmation>() ?: desync("Invalid player state")
+        remove<PlayerInstantiationConfirmation>() ?: protocolError("Invalid player state")
     }
 
     fun onPlayerDestroy(player: EnginePlayer) {

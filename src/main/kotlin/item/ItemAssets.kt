@@ -1,15 +1,19 @@
 package org.lain.engine.item
 
 import org.lain.cyberia.ecs.getComponent
+import org.lain.engine.mc.engineId
 import org.lain.engine.util.addIfNotNull
 import org.lain.engine.world.World
+
+const val UNDEFINED_MODEL = "core/error/undefined"
+val UNDEFINED_MODEL_ID = engineId(UNDEFINED_MODEL)
 
 const val WRITEABLE_WRITTEN_ASSET = "writable_written"
 const val WRITEABLE_EMPTY_ASSET = "writable_empty"
 
 context(world: World)
-fun resolveItemAsset(item: EngineItem): String {
-    val assets = item.getComponent<ItemAssets>()?.assets ?: return "missingno"
+fun resolveItemAsset(item: EngineItem): String? {
+    val assets = item.getComponent<ItemAssets>()?.assets ?: return null
 
     val writable = item.getComponent<Writable>()
     if (writable != null) {
@@ -22,5 +26,5 @@ fun resolveItemAsset(item: EngineItem): String {
         assets[variant]?.let { return it.full }
     }
 
-    return assets["default"]?.full ?: "missingno"
+    return assets["default"]?.full
 }

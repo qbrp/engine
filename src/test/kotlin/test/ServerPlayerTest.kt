@@ -1,6 +1,11 @@
 package org.lain.engine.test
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import org.lain.cyberia.ecs.componentTypeOf
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -19,11 +24,23 @@ import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
 import org.lain.engine.server.ServerPlatform
-import org.lain.engine.storage.SaveTimers
-import org.lain.engine.storage.connectDatabase
+import org.lain.engine.data.EntityDatabaseKind
+import org.lain.engine.data.EntityPersistenceData
+import org.lain.engine.data.EntityPersistentRecord
+import org.lain.engine.data.SaveTimers
+import org.lain.engine.data.SavingComponentSnapshot
+import org.lain.engine.data.Uuid
+import org.lain.engine.data.connectDatabase
+import org.lain.engine.data.saveEntity
+import org.lain.engine.data.snapshot
+import org.lain.engine.data.stringRepresentation
+import org.lain.engine.item.Item
+import org.lain.engine.item.toItemPrefabId
+import org.lain.engine.script.EngineId
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.util.Injector
 import org.lain.engine.world.World
+import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.WorldId
 import java.nio.file.Path
 import java.util.UUID
@@ -82,16 +99,40 @@ class ServerPlayerTest : EngineTest() {
     @Test
     fun testServerPlayerInstantiation() {
         val playerId = PlayerId(UUID.randomUUID())
+        val itemId = Uuid.next()
+        val missingItemId = Uuid.next()
+        val itemPrefabId = EngineId("test/item")
         runBlocking {
-            server.playerLoader.loadPreparing(
-                EngineMinecraftServer.serverPlayerLoadSettings(
-                    server,
-                    playerId,
-                    literalText("Test Player"),
-                    server.simulation.defaultWorld.id
-                ),
-                PlayerLoadSettings.Account(null)
+            server.database.saveEntity(
+                EntityDatabaseKind.ITEM,
+                EntityPersistentRecord(
+                    itemId,
+                    EntityPersistenceData.Item(itemPrefabId.stringRepresentation, 1, 64),
+                    listOf(
+                        SavingComponentSnapshot(
+                            Item(itemId, itemPrefabId.toItemPrefabId()).snapshot(),
+                            componentTypeOf(Item::class),
+                        ).serializeToRecord(),
+                    ),
+                    emptyList(),
+                )
             )
+            val loading = async {
+                server.playerLoader.loadPreparing(
+                    EngineMinecraftServer.serverPlayerLoadSettings(
+                        server,
+                        playerId,
+                        literalText("Test Player"),
+                        server.simulation.defaultWorld.id
+                    ).copy(inventoryItems = listOf(itemId, missingItemId)),
+                    PlayerLoadSettings.Account(null)
+                )
+            }
+            while (!loading.isCompleted) {
+                server.update()
+                delay(1)
+            }
+            loading.await()
         }
 
         val player = requireNotNull(server.playerStorage.get(playerId)) {
@@ -99,5 +140,24 @@ class ServerPlayerTest : EngineTest() {
         }
         assertSame(server.simulation.defaultWorld, player.world)
         assertTrue(player.has<PlayerComponent>())
+        assertEquals(2, player.items.size)
+    }
+
+    @Test
+    fun asyncChunkLoadCanBeRequestedOffThread() {
+        var failure: Throwable? = null
+        val thread = Thread {
+            runCatching {
+                server.chunkPersistence.loadChunkAsync(
+                    server.simulation.defaultWorld,
+                    EngineChunkPos(0, 0),
+                )
+            }.onFailure { failure = it }
+        }
+
+        thread.start()
+        thread.join()
+
+        assertNull(failure)
     }
 }

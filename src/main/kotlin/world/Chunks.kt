@@ -7,20 +7,19 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.storage.Uuid
+import org.lain.engine.data.Uuid
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.floorToInt
-import org.slf4j.LoggerFactory
 
 
 data class EngineChunk(
-    val decals: MutableMap<VoxelPos, BlockDecals> = mutableMapOf(),
-    val hints: MutableMap<VoxelPos, Hint> = mutableMapOf(),
-    val dynamicVoxels: MutableMap<VoxelPos, EntityId> = mutableMapOf()
+    val decals: MutableMap<ImmutableVoxelPos, BlockDecals> = mutableMapOf(),
+    val hints: MutableMap<ImmutableVoxelPos, Hint> = mutableMapOf(),
+    val dynamicVoxels: MutableMap<ImmutableVoxelPos, EntityId> = mutableMapOf()
 ) {
     fun isEmpty() = decals.isEmpty() && hints.isEmpty() && dynamicVoxels.isEmpty()
 
-    fun getOrCreateBlockHint(pos: VoxelPos) = hints.computeIfAbsent(pos) {
+    fun getOrCreateBlockHint(pos: VoxelPos) = hints.computeIfAbsent(ImmutableVoxelPos(pos)) {
         Hint(
             listOf(),
             Uuid.next()
@@ -134,18 +133,8 @@ class ChunkStorage(
     fun requireChunk(x: Int, z: Int): EngineChunk {
         return getChunk(x, z) ?: run {
             val pos = EngineChunkPos(x, z)
-            val loadedChunk = loadChunk(pos) ?: EngineChunk()
-            setChunk(pos, loadedChunk)
-            loadedChunk
-        }
-    }
-
-    private fun loadChunk(pos: EngineChunkPos): EngineChunk? {
-        return try {
-            server?.chunkLoader?.loadChunk(world, pos)
-        } catch (e: Throwable) {
-            LOGGER.error("Ошибка загрузки чанка $pos", e)
-            null
+            server?.chunkPersistence?.loadChunk(world, pos)
+                ?: EngineChunk().also { setChunk(pos, it) }
         }
     }
 
@@ -155,9 +144,6 @@ class ChunkStorage(
 
     private fun getChunkByVoxel(x: Int, z: Int): EngineChunk? = getChunk(chunkSectionCoord(x), chunkSectionCoord(z))
 
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger("Engine Chunks")
-    }
 }
 
 data class VoxelDestroyEvent(
@@ -171,9 +157,10 @@ fun interface EnginePlayersWatchingChunkProvider {
 
 @Serializable
 data class Setter<T>(val value: T?, val remove: Boolean) {
-    fun apply(pos: VoxelPos, map: MutableMap<VoxelPos, T>) {
-        if (remove) map.remove(pos)
-        if (value != null) map[pos] = value
+    fun apply(pos: VoxelPos, map: MutableMap<ImmutableVoxelPos, T>) {
+        val immutablePos = ImmutableVoxelPos(pos)
+        if (remove) map.remove(immutablePos)
+        if (value != null) map[immutablePos] = value
     }
 
     companion object {

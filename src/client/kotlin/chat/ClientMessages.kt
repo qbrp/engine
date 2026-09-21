@@ -144,7 +144,7 @@ fun MessageSource.Companion.getSystemClient(world: World) = MessageSource(
     Timestamp()
 )
 
-fun LiteralSystemEngineChatMessage(gameSession: GameSession, content: String) = AcceptedMessage(
+fun LiteralSystemMessage(gameSession: GameSession, content: String) = AcceptedMessage(
     content,
     content,
     content,
@@ -154,7 +154,7 @@ fun LiteralSystemEngineChatMessage(gameSession: GameSession, content: String) = 
 )
 
 
-fun LiteralSystemEngineChatMessage(world: World, content: String, isSpy: Boolean = false) = AcceptedMessage(
+fun LiteralSystemMessage(world: World, content: String, isSpy: Boolean = false) = AcceptedMessage(
     content,
     content,
     content,

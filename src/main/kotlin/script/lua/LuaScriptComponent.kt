@@ -1,28 +1,23 @@
 package org.lain.engine.script.lua
 
-import org.lain.cyberia.ecs.ReadComponentAccess
-import org.lain.cyberia.ecs.WriteComponentAccess
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.hasComponent
-import org.lain.cyberia.ecs.removeComponent
-import org.lain.cyberia.ecs.setComponent
+import org.lain.cyberia.ecs.*
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptDebugTarget
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.util.component.EntityId
-import org.lain.engine.world.World
+import org.lain.engine.util.ecs.EntityId
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
 class LuaScriptComponent(
     val luaValue: LuaValue,
-    override val type: ScriptComponentType
+    override val type: ScriptComponentType,
+    private val lua: LuaScriptEngine
 ) : ScriptComponent {
     override val value: ScriptValue
-        get() = luaValue.toScriptValue()
+        get() = with(lua) { luaValue.toScriptValue() }
     override val debugTarget: ScriptDebugTarget?
-        get() = if (luaValue.istable()) LuaScriptDebugTarget(luaValue.checktable()) else null
+        get() = if (luaValue.istable()) LuaScriptDebugTarget(luaValue.checktable(), lua) else null
 
     override fun toString(): String {
         return "${type.id}($value)"
@@ -30,24 +25,25 @@ class LuaScriptComponent(
 }
 
 private class LuaScriptDebugTarget(
-    private val table: LuaTable
+    private val table: LuaTable,
+    private val lua: LuaScriptEngine
 ) : ScriptDebugTarget {
     override val identity: Any
         get() = table
 
-    override fun child(key: ScriptValue): ScriptDebugTarget? {
+    override fun child(key: ScriptValue): ScriptDebugTarget? = with(lua) {
         val value = table.get(key.toLuaValue())
-        return if (value.istable()) LuaScriptDebugTarget(value.checktable()) else null
+        return if (value.istable()) LuaScriptDebugTarget(value.checktable(), lua) else null
     }
 
-    override fun set(property: String, value: ScriptValue) {
+    override fun set(property: String, value: ScriptValue) = with(lua) {
         table.set(property, value.toLuaValue())
     }
 }
 
-context(writeComponentAccess: WriteComponentAccess)
+context(writeComponentAccess: WriteComponentAccess, lua: LuaScriptEngine)
 fun EntityId.setLuaScriptComponent(value: LuaValue, type: ScriptComponentType): LuaScriptComponent {
-    val component = LuaScriptComponent(value, type)
+    val component = LuaScriptComponent(value, type, lua)
     setComponent(component, type)
     return component
 }

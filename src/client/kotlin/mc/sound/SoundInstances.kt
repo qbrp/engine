@@ -5,14 +5,14 @@ import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.client.resources.sounds.TickableSoundInstance
 import net.minecraft.client.sounds.SoundManager
 import net.minecraft.client.sounds.WeighedSoundEvents
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
 import org.lain.engine.mc.engineId
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.MutableEVec3
 
 class ServerSoundInstance(
-    val engineId: Identifier,
+    val engineId: ResourceLocation,
     val engineVolume: Float,
     val enginePitch: Float,
     val soundSet: WeighedSoundEvents,
@@ -23,7 +23,7 @@ class ServerSoundInstance(
     private var random = SoundInstance.createUnseededRandom()
     private var sound: Sound? = null
 
-    override fun getIdentifier(): Identifier = engineId
+    override fun getLocation(): ResourceLocation = engineId
 
     override fun resolve(soundManager: SoundManager): WeighedSoundEvents {
         this.sound = soundSet.getSound(random)
@@ -63,7 +63,7 @@ class ServerSoundInstance(
 
 class AudioSourceSoundInstance(
     private val mainPlayerPos: MutableEVec3,
-    private val engineId: Identifier,
+    private val engineId: ResourceLocation,
     private val sound: Sound,
     private val engineCategory: SoundSource,
     var _x: Float = 0f,
@@ -87,7 +87,7 @@ class AudioSourceSoundInstance(
 
     override fun isStopped(): Boolean { return false }
 
-    override fun getIdentifier(): Identifier = engineId
+    override fun getLocation(): ResourceLocation = engineId
 
     override fun resolve(soundManager: SoundManager): WeighedSoundEvents = SOUND_SET
 

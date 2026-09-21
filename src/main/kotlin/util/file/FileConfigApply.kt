@@ -14,8 +14,6 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import kotlin.jvm.optionals.getOrNull
 
-internal val CONFIG_LOGGER = LoggerFactory.getLogger("Engine Config")
-
 inline fun <reified T> Yaml.readFile(file: File): T =
     file.inputStream().use { decodeFromStream<T>(it) }
 
@@ -44,7 +42,7 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
                 }
                 ?: it.global.let { isGlobal ->
                     if (!isGlobal) {
-                        CONFIG_LOGGER.warn("Не указана акустика канала $id. Требуется указать один из вариантов: global, distance или acoustic")
+                        FileSystem.LOGGER.warn("Не указана акустика канала $id. Требуется указать один из вариантов: global, distance или acoustic")
                     }
                     Acoustic.Global
                 }
@@ -182,6 +180,6 @@ fun EngineMinecraftServer.applyConfigCatching(config: ServerConfig) {
     try {
         applyConfig(config)
     } catch (e: Throwable) {
-        CONFIG_LOGGER.error("Возникла ошибка применения конфигурации ${FileSystem.serverConfig.path}", e)
+        FileSystem.LOGGER.error("Возникла ошибка применения конфигурации ${FileSystem.serverConfig.path}", e)
     }
 }

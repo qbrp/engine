@@ -2,91 +2,91 @@ package org.lain.engine.client.render.world
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Axis
-import net.minecraft.client.model.HeadedModel
-import net.minecraft.client.model.player.PlayerModel
-import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.model.PlayerModel
+import net.minecraft.client.player.AbstractClientPlayer
+import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.entity.RenderLayerParent
 import net.minecraft.client.renderer.entity.layers.RenderLayer
-import net.minecraft.client.renderer.entity.state.AvatarRenderState
 import net.minecraft.client.renderer.texture.OverlayTexture
-import org.lain.engine.client.render.player.getEngineState
+import org.lain.engine.client.render.item.renderEngineItem
+import org.lain.engine.client.render.player.getEngineRenderState
 
 class EquipmentFeatureRenderer(
-    context: RenderLayerParent<AvatarRenderState, PlayerModel>,
-) : RenderLayer<AvatarRenderState, PlayerModel>(context) {
-    override fun submit(
+    context: RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>,
+) : RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>(context) {
+    override fun render(
         poseStack: PoseStack,
-        submitNodeCollector: SubmitNodeCollector,
-        i: Int,
-        entityRenderState: AvatarRenderState,
-        f: Float,
-        g: Float
+        buffers: MultiBufferSource,
+        light: Int,
+        entity: AbstractClientPlayer,
+        limbSwing: Float,
+        limbSwingAmount: Float,
+        partialTick: Float,
+        ageInTicks: Float,
+        netHeadYaw: Float,
+        headPitch: Float
     ) {
-        poseStack.pushPose()
-        parentModel.root().translateAndRotate(poseStack)
-        val items = entityRenderState.getEngineState()?.detachedEquipment
-        if (items != null) {
-            for (equip in items) {
-                poseStack.pushPose()
-                if (equip.playerModelPart !== (parentModel as HeadedModel).head) {
-                    equip.playerModelPart?.translateAndRotate(poseStack)
-                    poseStack.mulPose(Axis.YP.rotationDegrees(180.0f))
-                    equip.itemRenderState.submit(
-                        poseStack,
-                        submitNodeCollector,
-                        i,
-                        OverlayTexture.NO_OVERLAY,
-                        entityRenderState.outlineColor
-                    )
-                }
-                poseStack.popPose()
-            }
+        val items = entity.getEngineRenderState()?.detachedEquipment ?: return
+        for (equipment in items) {
+            if (equipment.playerModelPart === parentModel.head) continue
+            poseStack.pushPose()
+            equipment.playerModelPart?.translateAndRotate(poseStack)
+            poseStack.mulPose(Axis.YP.rotationDegrees(180.0f))
+            renderEngineItem(
+                equipment.itemStack,
+                equipment.displayContext,
+                poseStack,
+                buffers,
+                light,
+                OverlayTexture.NO_OVERLAY,
+                entity.level(),
+                entity,
+                entity.id
+            )
+            poseStack.popPose()
         }
-        poseStack.popPose()
     }
 }
 
 class HeadEquipmentFeatureRenderer(
-    context: RenderLayerParent<AvatarRenderState, PlayerModel>,
-) : RenderLayer<AvatarRenderState, PlayerModel>(context) {
+    context: RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>,
+) : RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>(context) {
     private val headTransformation: HeadTransformation = HeadTransformation.DEFAULT
 
-    override fun submit(
+    override fun render(
         poseStack: PoseStack,
-        submitNodeCollector: SubmitNodeCollector,
-        i: Int,
-        entityRenderState: AvatarRenderState,
-        f: Float,
-        g: Float
+        buffers: MultiBufferSource,
+        light: Int,
+        entity: AbstractClientPlayer,
+        limbSwing: Float,
+        limbSwingAmount: Float,
+        partialTick: Float,
+        ageInTicks: Float,
+        netHeadYaw: Float,
+        headPitch: Float
     ) {
-        poseStack.pushPose()
-        parentModel.root().translateAndRotate(poseStack)
-        val renderState = entityRenderState.getEngineState()
-        val items = renderState?.detachedEquipment
-        if (items != null) {
-            for (equip in items) {
-                poseStack.pushPose()
-                if (equip.playerModelPart == (parentModel as HeadedModel).head) {
-                    equip.playerModelPart?.translateAndRotate(poseStack)
-                    (parentModel as HeadedModel).translateToHead(poseStack)
-                    val skinEyeY = renderState.skinEyeY
-                    if (equip.dependsEyeY) {
-                        poseStack.translate(0f, -skinEyeY, 0f)
-                    }
-                    translate(poseStack, headTransformation)
-
-                    equip.itemRenderState.submit(
-                        poseStack,
-                        submitNodeCollector,
-                        i,
-                        OverlayTexture.NO_OVERLAY,
-                        entityRenderState.outlineColor
-                    )
-                }
-                poseStack.popPose()
+        val renderState = entity.getEngineRenderState() ?: return
+        for (equipment in renderState.detachedEquipment) {
+            if (equipment.playerModelPart !== parentModel.head) continue
+            poseStack.pushPose()
+            parentModel.head.translateAndRotate(poseStack)
+            if (equipment.dependsEyeY) {
+                poseStack.translate(0f, -renderState.skinEyeY, 0f)
             }
+            translate(poseStack, headTransformation)
+            renderEngineItem(
+                equipment.itemStack,
+                equipment.displayContext,
+                poseStack,
+                buffers,
+                light,
+                OverlayTexture.NO_OVERLAY,
+                entity.level(),
+                entity,
+                entity.id
+            )
+            poseStack.popPose()
         }
-        poseStack.popPose()
     }
 
     data class HeadTransformation(val yOffset: Float, val skullYOffset: Float, val horizontalScale: Float) {
@@ -96,11 +96,10 @@ class HeadEquipmentFeatureRenderer(
     }
 
     companion object {
-        fun translate(matrices: PoseStack, transformation: HeadTransformation) {
-            matrices.translate(0.0f, -0.25f + transformation.yOffset, 0.0f)
-            matrices.mulPose(Axis.YP.rotationDegrees(180.0f))
-            matrices.scale(0.625f, -0.625f, -0.625f)
+        fun translate(poseStack: PoseStack, transformation: HeadTransformation) {
+            poseStack.translate(0.0f, -0.25f + transformation.yOffset, 0.0f)
+            poseStack.mulPose(Axis.YP.rotationDegrees(180.0f))
+            poseStack.scale(0.625f, -0.625f, -0.625f)
         }
     }
 }
-

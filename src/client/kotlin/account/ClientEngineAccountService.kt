@@ -5,7 +5,7 @@ import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import net.minecraft.util.Util
+import net.minecraft.Util
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.server.account.HttpStatusException
@@ -93,7 +93,7 @@ class ClientEngineAccountService(private val httpClient: EngineHttpClient) {
 
     private fun requestMinecraftWindowFocus() {
         MinecraftClient.execute {
-            val handle = MinecraftClient.window.handle()
+            val handle = MinecraftClient.window.window
             if (GLFW.glfwGetWindowAttrib(handle, GLFW.GLFW_ICONIFIED) == GLFW.GLFW_TRUE) {
                 GLFW.glfwRestoreWindow(handle)
             }

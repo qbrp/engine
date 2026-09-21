@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.client.resources.DefaultPlayerSkin
-import net.minecraft.core.ClientAsset
+import net.minecraft.resources.ResourceLocation
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.EngineOptions
 import org.lain.engine.client.util.MinecraftClientDispatcher
@@ -52,7 +52,7 @@ class SkinTextureManager(
         getOrDownloadTexture(look)
     }
 
-    fun getOrDownloadTextureNullable(look: Look): ClientAsset.Texture? {
+    fun getOrDownloadTextureNullable(look: Look): ResourceLocation? {
         loaded[look.id]
             ?.takeIf { it.url == look.skin.url }
             ?.let { return it.asset }
@@ -65,8 +65,8 @@ class SkinTextureManager(
         return null
     }
 
-    fun getOrDownloadTexture(look: Look): ClientAsset.Texture {
-        return getOrDownloadTextureNullable(look) ?: DefaultPlayerSkin.getDefaultSkin().body
+    fun getOrDownloadTexture(look: Look): ResourceLocation {
+        return getOrDownloadTextureNullable(look) ?: DefaultPlayerSkin.getDefaultTexture()
     }
 
     override fun close() {
@@ -141,7 +141,7 @@ class SkinTextureManager(
         validateSkinBytes(bytes)
         val image = NativeImage.read(bytes)
         val textureId = engineId("character_skins/$key")
-        val asset = ClientAsset.DownloadedTexture(textureId, url)
+        val asset = textureId
 
         withContext(MinecraftClientDispatcher) {
             if (loaded[lookId]?.key == key) {
@@ -149,7 +149,7 @@ class SkinTextureManager(
                 return@withContext
             }
 
-            val texture = DynamicTexture({ "Engine character skin $lookId" }, image)
+            val texture = DynamicTexture(image)
             MinecraftClient.textureManager.register(textureId, texture)
             loaded.put(lookId, LoadedSkin(key, url, asset, texture))?.takeIf { it.key != key }?.close()
         }
@@ -215,12 +215,11 @@ class SkinTextureManager(
     private data class LoadedSkin(
         val key: String,
         val url: String,
-        val asset: ClientAsset.Texture,
+        val asset: ResourceLocation,
         val texture: DynamicTexture,
     ) {
         fun close() {
-            MinecraftClient.textureManager.release(asset.texturePath())
-            texture.close()
+            MinecraftClient.textureManager.release(asset)
         }
     }
 }

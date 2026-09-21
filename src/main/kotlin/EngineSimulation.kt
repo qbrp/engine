@@ -17,8 +17,8 @@ import org.lain.engine.script.ScriptSystemDispatcher
 import org.lain.engine.script.compilation.loadResult
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.ServerPlatform
-import org.lain.engine.server.confirmProcessedPlayerInputsSystem
-import org.lain.engine.storage.PersistentCharacterData
+import org.lain.engine.server.replication.confirmProcessedPlayerInputsSystem
+import org.lain.engine.data.PersistentCharacterRecord
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.tickRecoilSystem
@@ -64,7 +64,7 @@ class EngineSimulation(
         result.callbacks?.let { callbacks = it }
         namespacedStorage.loadResult(result)
         worldsList.forEach { it.registerComponentTypes(namespacedStorage) }
-        scriptSystemDispatcher.load(result.phases)
+        scriptSystemDispatcher.rootPhase = result.rootPhase
     }
 
     fun World.tick(): Unit = with(extension) {
@@ -113,7 +113,7 @@ class EngineSimulation(
     fun instantiatePlayer(
         player: EnginePlayer,
         engineCharacter: EngineCharacter? = null,
-        characterPersistentCharacter: PersistentCharacterData? = null,
+        characterPersistentCharacter: PersistentCharacterRecord? = null,
         platform: ServerPlatform? = null,
     ) = with(player.world) {
         this@EngineSimulation.players.add(player)

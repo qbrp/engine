@@ -2,6 +2,7 @@ package org.lain.engine.client.mc
 
 import net.minecraft.client.gui.screens.inventory.BookEditScreen
 import net.minecraft.server.network.Filterable
+import net.minecraft.core.component.DataComponents
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.item.component.WritableBookContent
 import org.lain.cyberia.ecs.iterate
@@ -16,16 +17,13 @@ fun GameSession.tickWritableUiSystem() {
     val mainPlayerEntity = MinecraftClient.player
     world.iterate<WritableOpen, PlayerComponent>() { e, (writable), (player) ->
         if (player == mainPlayer) {
-            MinecraftClient.setScreen(
-                BookEditScreen(
-                    mainPlayerEntity ?: return@iterate,
-                    mainPlayerEntity.mainHandItem ?: return@iterate,
-                    InteractionHand.MAIN_HAND,
-                    WritableBookContent(
-                        writable.contents.map { Filterable(it, Optional.empty()) },
-                    )
-                )
+            val player = mainPlayerEntity ?: return@iterate
+            val itemStack = player.mainHandItem
+            itemStack.set(
+                DataComponents.WRITABLE_BOOK_CONTENT,
+                WritableBookContent(writable.contents.map { Filterable(it, Optional.empty()) })
             )
+            MinecraftClient.setScreen(BookEditScreen(player, itemStack, InteractionHand.MAIN_HAND))
         }
         e.removeComponent<WritableOpen>()
     }

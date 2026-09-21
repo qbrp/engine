@@ -13,7 +13,7 @@ import org.lain.engine.script.compilation.CompilationOutcome
 import org.lain.engine.script.compilation.CompilationPhase
 import org.lain.engine.script.compilation.compilationManifestOf
 import org.lain.engine.script.compilation.linkedNamespaces
-import org.lain.engine.script.compilation.linkedSystemPhases
+import org.lain.engine.script.compilation.linkedSystemPhase
 import org.lain.engine.script.compilation.validateNamespaces
 import org.lain.engine.script.compilation.writeTo
 import org.lain.engine.script.lua.compilation.LuaCompilationContext
@@ -75,6 +75,7 @@ open class LuaScriptEngine(
     val moduleFolderMetaTable = ModuleFolderUserdataType()
     val moduleUserdataType = ModuleUserdataType()
     val reportsCollectorUserdataType = ReportsCollectorUserdataType()
+    val entityRefUserdataType = EntityRefUserdataType()
 
     val engineTable = luaTable {
         "SCRIPTS_PATH"(scriptsPath)
@@ -178,7 +179,7 @@ open class LuaScriptEngine(
             buildDraft.validateNamespaces()
             val linkedNamespaces = buildDraft.linkedNamespaces()
             manifestLinkedNamespaces = linkedNamespaces
-            val linkedPhases = buildDraft.linkedSystemPhases(linkedNamespaces)
+            val rootPhase = linkedSystemPhase(buildDraft.rootPhase, linkedNamespaces)
 
             val report = exceptions.build()
             if (report.hasErrors) {
@@ -188,7 +189,7 @@ open class LuaScriptEngine(
                     Build(
                         namespaces = linkedNamespaces,
                         callbacks = Callbacks(buildDraft.callbacks),
-                        phases = linkedPhases,
+                        rootPhase = rootPhase,
                         inventoryTab = buildDraft.inventoryTab,
                         time = start.timeElapsed(),
                     ),
@@ -234,7 +235,7 @@ open class LuaScriptEngine(
     }
 
     override fun createScriptComponent(value: ScriptValue, type: ScriptComponentType): ScriptComponent {
-        return LuaScriptComponent(value.toLuaValue(), type)
+        return LuaScriptComponent(value.toLuaValue(), type, this)
     }
 
     data class Dependencies(

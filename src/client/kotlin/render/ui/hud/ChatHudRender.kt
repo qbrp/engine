@@ -3,8 +3,7 @@ package org.lain.engine.client.render.ui.hud
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.EditBox
-import net.minecraft.client.input.CharacterEvent
-import net.minecraft.client.input.KeyEvent
+import org.lwjgl.glfw.GLFW
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.mc.Text
@@ -48,10 +47,14 @@ open class ShakingTextFieldWidget(private val textRenderer: Font, x: Int, y: Int
 
     override fun renderWidget(context: GuiGraphics, mouseX: Int, mouseY: Int, deltaTicks: Float) {
         tickAnimation(deltaTicks)
-        context.pose().pushMatrix()
-        context.pose().translate(MinecraftChat.getRandomShakeTranslation(), MinecraftChat.getRandomShakeTranslation())
+        context.pose().pushPose()
+        context.pose().translate(
+            MinecraftChat.getRandomShakeTranslation().toDouble(),
+            MinecraftChat.getRandomShakeTranslation().toDouble(),
+            0.0
+        )
         super.renderWidget(context, mouseX, mouseY, deltaTicks)
-        context.pose().popMatrix()
+        context.pose().popPose()
 
         if (channelAnim > 0.01f) {
             val textWidth = textRenderer.width(channelText)
@@ -69,8 +72,8 @@ open class ShakingTextFieldWidget(private val textRenderer: Font, x: Int, y: Int
         }
     }
 
-    override fun charTyped(input: CharacterEvent): Boolean {
-        return if (super.charTyped(input)) {
+    override fun charTyped(codePoint: Char, modifiers: Int): Boolean {
+        return if (super.charTyped(codePoint, modifiers)) {
             updateChannel(MinecraftChat.chatManager?.onTextInput(this.value))
             MinecraftChat.updateChatInput(value)
             true
@@ -79,11 +82,11 @@ open class ShakingTextFieldWidget(private val textRenderer: Font, x: Int, y: Int
         }
     }
 
-    override fun keyPressed(input: KeyEvent): Boolean {
-        val result = super.keyPressed(input)
-        if (input.key == 259 || input.key == 261) {
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        val result = super.keyPressed(keyCode, scanCode, modifiers)
+        if (keyCode == GLFW.GLFW_KEY_BACKSPACE || keyCode == GLFW.GLFW_KEY_DELETE) {
             updateChannel(MinecraftChat.chatManager?.onTextInput(this.value))
-        } else if (input.isConfirmation) {
+        } else if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             updateChannel(null)
         }
         return result

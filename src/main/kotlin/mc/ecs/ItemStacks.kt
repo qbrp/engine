@@ -6,20 +6,21 @@ import net.minecraft.core.Registry
 import net.minecraft.core.component.DataComponentType
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Unit
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.component.ItemLore
-import net.minecraft.world.item.component.TooltipDisplay
+import net.minecraft.world.item.component.Unbreakable
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.*
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText
 import org.lain.engine.mc.parseMiniMessage
 import org.lain.engine.script.EngineId
-import org.lain.engine.storage.PersistentId
-import org.lain.engine.storage.PersistentIdComponent
-import org.lain.engine.storage.Uuid
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.Uuid
 import org.lain.engine.world.World
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
@@ -42,6 +43,7 @@ fun detachEngineItemStack(itemStack: ItemStack) {
 context(world: World)
 fun updateEngineItemStack(itemStack: ItemStack, item: EngineItem) {
     wrapEngineItemStackVisual(itemStack, item.getName())
+    itemStack.setResolvedItemModel(item)
 }
 
 fun wrapEngineItemStackVisual(
@@ -59,17 +61,16 @@ fun wrapEngineItemStackVisual(
 
 fun wrapEngineItemStackBase(itemStack: ItemStack, maxStackSize: Int) {
     itemStack.set(
-        DataComponents.UNBREAKABLE,
+        ENGINE_ITEM_COMPONENT,
         Unit.INSTANCE
+    )
+    itemStack.set(
+        DataComponents.UNBREAKABLE,
+        Unbreakable(false)
     )
     itemStack.set(
         DataComponents.MAX_STACK_SIZE,
         maxStackSize
-    )
-    itemStack.set(
-        DataComponents.TOOLTIP_DISPLAY,
-        TooltipDisplay.DEFAULT
-            .withHidden(DataComponents.UNBREAKABLE, true)
     )
 }
 
@@ -80,10 +81,7 @@ fun wrapEngineItemStack(
 ): ItemStack = with(world) {
     wrapEngineItemStackVisual(itemStack, item.getName())
     wrapEngineItemStackBase(itemStack, item.requireComponent<Count>().max)
-    itemStack.set(
-        DataComponents.ITEM_MODEL,
-        engineId(resolveItemAsset(item))
-    )
+    itemStack.setResolvedItemModel(item)
 
     itemStack.set(
         ENGINE_ITEM_REFERENCE_COMPONENT,
@@ -107,6 +105,15 @@ fun ItemStack.decrement(i: Int) = shrink(i)
 
 fun ItemStack.increment(i: Int) = grow(i)
 
+val ENGINE_ITEM_COMPONENT: DataComponentType<Unit> = Registry.register(
+    BuiltInRegistries.DATA_COMPONENT_TYPE,
+    engineId("engine-item"),
+    DataComponentType
+        .builder<Unit>()
+        .persistent(Unit.CODEC)
+        .build()
+)
+
 val ENGINE_ITEM_INSTANTIATE_COMPONENT: DataComponentType<String> = Registry.register(
     BuiltInRegistries.DATA_COMPONENT_TYPE,
     engineId("initialize-component"),
@@ -115,6 +122,33 @@ val ENGINE_ITEM_INSTANTIATE_COMPONENT: DataComponentType<String> = Registry.regi
         .persistent(Codec.STRING)
         .build()
 )
+
+val ENGINE_ITEM_MODEL_COMPONENT: DataComponentType<ResourceLocation?> = Registry.register(
+    BuiltInRegistries.DATA_COMPONENT_TYPE,
+    engineId("item-model-component"),
+    DataComponentType
+        .builder<ResourceLocation?>()
+        .persistent(ResourceLocation.CODEC)
+        .networkSynchronized(ResourceLocation.STREAM_CODEC)
+        .build()
+)
+
+fun ItemStack.setPreviewItemModel(assetsComponent: ItemAssets) {
+    val modelId = assetsComponent.default ?: assetsComponent.assets.entries.firstOrNull()?.value
+    set(
+        ENGINE_ITEM_MODEL_COMPONENT,
+        modelId?.full?.let { engineId(it) }
+    )
+}
+
+context(world: World)
+fun ItemStack.setResolvedItemModel(item: EngineItem) {
+    val modelId = resolveItemAsset(item)?.let(::engineId)
+
+    if (get(ENGINE_ITEM_MODEL_COMPONENT) != modelId) {
+        set(ENGINE_ITEM_MODEL_COMPONENT, modelId)
+    }
+}
 
 val ENGINE_ITEM_REFERENCE_COMPONENT: DataComponentType<EngineItemReferenceComponent> = Registry.register(
     BuiltInRegistries.DATA_COMPONENT_TYPE,

@@ -9,9 +9,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.input.KeyEvent
-import net.minecraft.client.renderer.RenderPipelines
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.CommonColors
 import org.lain.cyberia.ecs.get
 import org.lain.cyberia.ecs.getComponent
@@ -93,7 +91,6 @@ class InteractionSelectionScreen(
         val i = this.width / 2 - 62
         val j = this.height / 2 - 31 - 27
         context.blit(
-            RenderPipelines.GUI_TEXTURED,
             TEXTURE,
             i,
             j,
@@ -124,20 +121,20 @@ class InteractionSelectionScreen(
 //        }
     }
 
-    override fun keyPressed(input: KeyEvent): Boolean {
-        if (input.key() == InputConstants.KEY_F4) {
+    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        if (keyCode == InputConstants.KEY_F4) {
             this.mouseUsedForSelection = false
             val index = variants.indexOf(variant) + 1
             variant = variants[index % variants.size]
             return true
-        } else if (input.key() == InputConstants.KEY_RETURN) {
+        } else if (keyCode == InputConstants.KEY_RETURN) {
             this.apply()
             this.minecraft!!.setScreen(null)
-        } else if (input.key() == InputConstants.KEY_ESCAPE) {
+        } else if (keyCode == InputConstants.KEY_ESCAPE) {
             discard()
             this.minecraft!!.setScreen(null)
         }
-        return super.keyPressed(input)
+        return super.keyPressed(keyCode, scanCode, modifiers)
     }
 
     override fun isPauseScreen(): Boolean {
@@ -162,7 +159,6 @@ class InteractionSelectionScreen(
                 context.drawFakeEngineItem(textureId, this.variant.name, this.x + 5, this.y + 5)
             } else {
                 context.blitSprite(
-                    RenderPipelines.GUI_TEXTURED,
                     textureId,
                     x + 5,
                     y + 5,
@@ -184,7 +180,6 @@ class InteractionSelectionScreen(
 
         private fun drawBackground(context: GuiGraphics) {
             context.blitSprite(
-                RenderPipelines.GUI_TEXTURED,
                 SLOT_TEXTURE,
                 x,
                 y,
@@ -195,7 +190,6 @@ class InteractionSelectionScreen(
 
         private fun drawSelectionBox(context: GuiGraphics) {
             context.blitSprite(
-                RenderPipelines.GUI_TEXTURED,
                 SELECTION_TEXTURE,
                 x,
                 y,
@@ -206,9 +200,9 @@ class InteractionSelectionScreen(
     }
 
     companion object {
-        val SLOT_TEXTURE: Identifier = vanillaId("gamemode_switcher/slot")
-        val SELECTION_TEXTURE: Identifier = vanillaId("gamemode_switcher/selection")
-        private val TEXTURE: Identifier = vanillaId("textures/gui/container/gamemode_switcher.png")
+        val SLOT_TEXTURE: ResourceLocation = vanillaId("gamemode_switcher/slot")
+        val SELECTION_TEXTURE: ResourceLocation = vanillaId("gamemode_switcher/selection")
+        private val TEXTURE: ResourceLocation = vanillaId("textures/gui/container/gamemode_switcher.png")
         private val SELECT_NEXT_TEXT: Text = Text.translatable(
             "debug.gamemodes.select_next",
                 Text.translatable(

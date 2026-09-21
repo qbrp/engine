@@ -1,10 +1,10 @@
 package org.lain.engine.client.mc.sound
 
 import com.mojang.blaze3d.audio.SoundBuffer
+import net.minecraft.Util
 import net.minecraft.client.sounds.JOrbisAudioStream
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
-import net.minecraft.util.Util
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.world.EngineSoundCategory
 import java.io.IOException
@@ -25,8 +25,8 @@ fun EngineSoundCategory.toMinecraft() = when(this) {
 
 fun loadEngineStaticSound(
     assets: Assets,
-    loadedSounds: MutableMap<Identifier, CompletableFuture<SoundBuffer>>,
-    id: Identifier
+    loadedSounds: MutableMap<ResourceLocation, CompletableFuture<SoundBuffer>>,
+    id: ResourceLocation
 ): CompletableFuture<SoundBuffer> {
     return loadedSounds.computeIfAbsent(id) { id2 ->
         CompletableFuture.supplyAsync(

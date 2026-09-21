@@ -1,13 +1,10 @@
 package org.lain.engine.client.handler
 
 import org.lain.engine.client.resources.LOGGER
-import org.lain.engine.client.transport.ClientAcknowledgeHandler
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.transport.packet.*
 
-fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandler) {
-    clientAcknowledgeHandler.run()
-
+fun ClientHandler.runEndpoints() {
     CLIENTBOUND_JOIN_GAME_ENDPOINT.registerClientReceiver { _ ->
         taskExecutor.add("join_game") { applyJoinGame(this) }
     }
@@ -83,10 +80,6 @@ fun ClientHandler.runEndpoints(clientAcknowledgeHandler: ClientAcknowledgeHandle
     }
 
     registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { _ -> applyOperation(dto, operation) }
-
-    registerGameSessionReceiver(CLIENTBOUND_ITEM_UNLOAD_ENDPOINT, { it.endTickTaskExecutor }) {
-        applyItemUnload(it, items)
-    }
 
     registerGameSessionReceiver(CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT) { _ ->
          applyEntityDebugData(data)

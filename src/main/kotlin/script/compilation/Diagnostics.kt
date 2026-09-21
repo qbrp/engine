@@ -17,6 +17,7 @@ fun Throwable.toDiagnostic(
     severity: CompilationDiagnosticSeverity = CompilationDiagnosticSeverity.ERROR,
     message: String = this.message ?: "Неизвестная ошибка",
     location: CompilationDiagnosticLocation? = null,
+    target: CompilationDiagnosticTarget? = null,
 ) = CompilationDiagnostic(
     severity = severity,
     message = message,
@@ -24,6 +25,7 @@ fun Throwable.toDiagnostic(
     cause = this,
     location = location,
     namespace = namespace,
+    target = target,
 )
 
 data class DiagnosticContext(

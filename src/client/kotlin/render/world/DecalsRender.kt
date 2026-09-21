@@ -2,8 +2,8 @@ package org.lain.engine.client.render.world
 
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.renderer.LightTexture
-import net.minecraft.client.renderer.SubmitNodeCollector
-import net.minecraft.client.renderer.rendertype.RenderTypes
+import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.client.renderer.texture.TextureManager
@@ -106,12 +106,7 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
     // Полная развёртка всех сторон блока
     val width = 3 * resolution
     val height = 2 * resolution
-    private val texture = DynamicTexture(
-        "Block Decals ${blockPos.toShortString()}",
-        width,
-        height,
-        true
-    )
+    private val texture = DynamicTexture(width, height, true)
     val id = engineId("decals/${blockPos.x}/${blockPos.y}/${blockPos.z}")
     val depths = mutableMapOf<EDirection, MutableMap<Float, Area>>()
 
@@ -139,6 +134,7 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
 
         val image = texture.pixels ?: return
         image.fillRect(0, 0, width, height, 0)
+        depths.clear()
         for ((type, layer) in layers) {
             val scale = resolution / type.resolution
             for ((direction, decals) in layer.directions) {
@@ -165,7 +161,7 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
                                     val px = decal.x - halfRadius + i
                                     val py = decal.y - halfRadius + j
                                     if (px in 0 until resolution && py in 0 until resolution) {
-                                        image.setPixel(
+                                        image.setPixelRGBA(
                                             x0 + px,
                                             y0 + py,
                                             ColorMc.color(contents.opacity, CommonColors.BLACK)
@@ -199,16 +195,16 @@ private fun EDirection.getStartPos(resolution: Int) = when(this) {
     EDirection.EAST -> resolution * 2 to resolution
 }
 
-fun renderBlockDecals(texture: DecalsTexture, blockPos: VoxelPos, matrices: PoseStack, queue: SubmitNodeCollector) {
+fun renderBlockDecals(texture: DecalsTexture, blockPos: VoxelPos, matrices: PoseStack, buffers: MultiBufferSource) {
     matrices.pushPose()
     matrices.translate(blockPos.x.toDouble(), blockPos.y.toDouble(), blockPos.z.toDouble())
     for (direction in EDirection.entries) {
-        queue.drawSide(texture, matrices, direction)
+        buffers.drawSide(texture, matrices, direction)
     }
     matrices.popPose()
 }
 
-private fun SubmitNodeCollector.drawSide(
+private fun MultiBufferSource.drawSide(
     layerTexture: DecalsTexture,
     matrices: PoseStack,
     side: EDirection
@@ -234,7 +230,9 @@ private fun SubmitNodeCollector.drawSide(
         val px1 = (area.x2 + 1) / resolution
         val py1 = (area.y2 + 1) / resolution
 
-        submitCustomGeometry(matrices, RenderTypes.entityTranslucent(layerTexture.id)) { entry, vc ->
+        val entry = matrices.last()
+        val vc = getBuffer(RenderType.entityTranslucent(layerTexture.id))
+        run {
             fun submitVertex(x: Float, y: Float, z: Float, u: Float, v: Float) {
                 vc.addVertex(
                     entry,
@@ -246,7 +244,7 @@ private fun SubmitNodeCollector.drawSide(
                     .setOverlay(OverlayTexture.NO_OVERLAY)
                     .setColor(CommonColors.WHITE)
                     .setLight(light)
-                    .setNormal(entry, normal)
+                    .setNormal(entry, normal.x, normal.y, normal.z)
             }
 
             when (side) {

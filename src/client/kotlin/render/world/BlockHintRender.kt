@@ -10,6 +10,7 @@ import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.literalText
 import org.lain.engine.world.Hint
+import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.VoxelPos
 
 private val NOT_READ = literalText("?").withStyle(ChatFormatting.YELLOW).visualOrderText
@@ -25,7 +26,7 @@ fun renderBlockHints(
     inspectionMode: InspectionMode,
     inspection: Boolean,
     inspectionTextWidth: Int,
-    hints: Map<VoxelPos, Hint>,
+    hints: Map<ImmutableVoxelPos, Hint>,
     textCache: TextCache,
     dt: Float,
 ) {
@@ -38,7 +39,7 @@ fun renderBlockHints(
     if (inspection && hint != null) {
         val renderState = screenRenderer.blockHintInspectionRenderState ?: run {
             val state = BlockHintInspectionRenderState()
-            screenRenderer.blockHintInspectionRenderState
+            screenRenderer.blockHintInspectionRenderState = state
             state
         }
 
@@ -93,7 +94,7 @@ fun renderBlockHints(
                 0.25f * multiplierAlpha,
                 LightTexture.FULL_BRIGHT,
                 easing = LabelEasing(
-                    centerPos.squaredDistanceTo(camera.position().engine()),
+                    centerPos.squaredDistanceTo(camera.position.engine()),
                     easingDistance,
                     fade
                 )

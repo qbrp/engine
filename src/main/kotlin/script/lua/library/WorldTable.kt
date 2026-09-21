@@ -1,31 +1,20 @@
 package org.lain.engine.script.lua.library
 
-import org.lain.cyberia.ecs.*
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.castLua
-import org.lain.engine.script.lua.getLuaScriptComponent
-import org.lain.engine.script.lua.hasLuaScriptComponent
-import org.lain.engine.script.lua.library.luaWorld
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaStr
-import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.luaUserdataTable
-import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaValue
 import org.lain.engine.script.lua.nullable
-import org.lain.engine.script.lua.removeLuaScriptComponent
-import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.script.lua.toList
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toVoxelPos
-import org.lain.engine.util.component.EntityId
+import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 import org.lain.engine.world.invokeCommand
 import org.lain.engine.world.setDynamicVoxel
-import org.luaj.vm2.LuaInteger
-import org.luaj.vm2.LuaTable
-import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
 
@@ -85,11 +74,11 @@ fun WorldMetaTable() = luaUserdataTable<World> {
     }
 
     functionSelf4("emit") { world, typeL, event, networkedL ->
-        val type = typeL.asEngineScriptComponentType()
+        val type = typeL.fetchComponentTypeFromHolder()
         val networked = networkedL.toboolean()
         with(world) {
             world.emitEvent(
-                LuaScriptComponent(event, type),
+                LuaScriptComponent(event, type, lua),
                 type,
                 networked
             ).luaEntity()
@@ -98,7 +87,7 @@ fun WorldMetaTable() = luaUserdataTable<World> {
 
     function3("iterate") { self, types, func ->
         val world = self.asEngineWorld()
-        val typesL = types.checktable().toList { it.asEngineScriptComponentType() }
+        val typesL = types.checktable().toList { it.fetchComponentTypeFromHolder() }
         val entityArray = world.componentManager.getComponentArray(LuaEntityComponent.TYPE)
         fun getOrCreateEntityComponent(entityId: EntityId): LuaEntityComponent {
             return entityArray.componentOf(entityId) ?: run {

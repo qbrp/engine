@@ -3,11 +3,10 @@ package org.lain.engine.client.mc
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.minecraft.world.InteractionResult
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.chat.LiteralSystemEngineChatMessage
+import org.lain.engine.client.chat.LiteralSystemMessage
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.render.ui.TransformationsEditorScreen
-import org.lain.engine.client.render.ui.WebDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.mc.commands.playerPositionsMessage
@@ -66,7 +65,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) 
                 val mainHandItemStack = player.mainHandItem
                 val offHandItemStack = player.offhandItem
                 val itemStack = if (mainHandItemStack.isEmpty) offHandItemStack else mainHandItemStack
-                if (developerMode && player.activeItem != null && !itemStack.isEmpty) {
+                if (developerMode && player.isUsingItem && !itemStack.isEmpty) {
                     MinecraftClient.setScreen(TransformationsEditorScreen(itemStack))
                 }
             } else if (key == GLFW.GLFW_KEY_3) {
@@ -74,7 +73,7 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) 
                 val start = Timestamp()
                 repeat(100) {
                     gameSession.chatManager.addMessage(
-                        LiteralSystemEngineChatMessage(gameSession, roundToInt(Math.random() * 999999).toString()),
+                        LiteralSystemMessage(gameSession, roundToInt(Math.random() * 999999).toString()),
                     )
                 }
 
@@ -91,13 +90,8 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) 
             } else if (key == GLFW.GLFW_KEY_5) {
                 val gameSession = gameSession ?: return@with true
                 playerPositionsMessage(gameSession.playerStorage, MinecraftClient.level ?: return@with true).forEach { message ->
-                    gameSession.chatManager.addMessage(LiteralSystemEngineChatMessage(gameSession, message))
+                    gameSession.chatManager.addMessage(LiteralSystemMessage(gameSession, message))
                 }
-            } else if (key == GLFW.GLFW_KEY_6) {
-                val gameSession = gameSession ?: return@with true
-                MinecraftClient.setScreen(WebDebugScreen(gameSession.client.resources))
-            } else if (key == GLFW.GLFW_KEY_7){
-                ClientMixin.setGrapheneTestScreen()
             } else {
                 return@with false
             }

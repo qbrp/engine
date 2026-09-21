@@ -58,7 +58,7 @@ fun World.tickMinecraftPlayerInventorySystem() {
         inventory.mainHandFree = mainItemStack.isEmpty
         inventory.mainHandItem = mainHandItem
         inventory.offHandItem = offHandItem
-        inventory.selectedSlot = entity.inventory.selectedSlot
+        inventory.selectedSlot = entity.inventory.selected
 
         for (removedItem in remainingPlayerInventoryItems) {
             if (removedItem != inventory.cursorItem) {

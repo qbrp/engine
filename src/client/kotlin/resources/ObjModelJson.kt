@@ -6,8 +6,8 @@ import de.javagl.obj.MtlReader
 import de.javagl.obj.ObjReader
 import de.javagl.obj.ObjUtils
 import net.minecraft.client.renderer.block.model.ItemTransforms
-import net.minecraft.client.resources.model.UnbakedModel
-import net.minecraft.resources.Identifier
+import net.minecraft.client.renderer.block.model.BlockModel
+import net.minecraft.resources.ResourceLocation
 import org.lain.engine.client.mc.JsonMc
 import org.lain.engine.client.mixin.resource.JsonUnbakedModelAccessor
 import org.lain.engine.mc.parseId
@@ -80,12 +80,12 @@ fun parseObjJsonModelOptions(modelJson: JsonObject): ObjModelOptions {
         transform = JsonUnbakedModelAccessor.`engine$getGson`().fromJson(jo, ItemTransforms::class.java)
     }
 
-    var guiLight: UnbakedModel.GuiLight? = null
-    if (modelJson.has("gui_light")) guiLight = UnbakedModel.GuiLight.getByName(
+    var guiLight: BlockModel.GuiLight? = null
+    if (modelJson.has("gui_light")) guiLight = BlockModel.GuiLight.getByName(
         JsonMc.getAsString(modelJson, "gui_light")
     )
 
-    var particle: Identifier? = null
+    var particle: ResourceLocation? = null
     if (modelJson.has("particle")) particle = parseId(JsonMc.getAsString(modelJson, "particle"))
 
     val flipV = JsonMc.getAsBoolean(modelJson, "flip_v", false)

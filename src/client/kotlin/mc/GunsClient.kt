@@ -20,7 +20,7 @@ fun World.tickBulletFireSystem(mcWorld: ClientLevel) = iterate<BulletFireEvent> 
     mcWorld.spawnGunSmokeParticle(shoot.start, event.smoke.velocity, shoot.vector, event.smoke.offset)
     val hitResult = raycastBulletEvent(mcWorld, shoot) ?: return@iterate
     val blockPos = hitResult.blockPos
-    repeat(5) { mcWorld.addBreakingBlockEffect(blockPos, hitResult.direction) }
+    repeat(5) { mcWorld.addDestroyBlockEffect(blockPos, mcWorld.getBlockState(blockPos)) }
 
     val pos = hitResult.location.engine()
     emitEvent(
@@ -55,7 +55,6 @@ fun ClientLevel.spawnGunSmokeParticle(
     repeat(1) {
         addParticle(
             ParticleTypes.SMOKE,
-            false,
             false,
             spawnPos.x + (Math.random() * 0.1) - 0.05,
             spawnPos.y + (Math.random() * 0.1) - 0.05,

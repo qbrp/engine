@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import net.minecraft.core.BlockPos
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.tags.TagKey
 import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.Level
@@ -44,7 +44,7 @@ class InvalidMessageSourcePositionException(val y: Int) : RuntimeException("Mess
 const val SEGMENT_SIZE = 16
 
 fun Level.segmentOf(y: Int): Int {
-    return Math.floorDiv(y - minY, SEGMENT_SIZE)
+    return Math.floorDiv(y - minBuildHeight, SEGMENT_SIZE)
         .coerceIn(0, segmentCount - 1)
 }
 
@@ -54,11 +54,11 @@ data class AcousticBlockData(
     val solid: Float,
     val air: Float,
     val partial: Float,
-    val blocks: Map<Identifier, Float>,
+    val blocks: Map<ResourceLocation, Float>,
     val tags: Map<TagKey<Block>, Float>,
 ) {
     fun getPassability(pos: BlockPos, world: Level, blockstate: BlockState): Float {
-        val blockRegistryKey = blockstate.registryKey.identifier()
+        val blockRegistryKey = blockstate.registryKey.location()
         blocks[blockRegistryKey]?.let { return it }
 
         var hasTagOverride = false
@@ -176,8 +176,8 @@ class MinecraftChunkAcousticScene private constructor(
             val startX = chunk.startX
             val startZ = chunk.startZ
             val startY = y0
-            val maxY = chunk.maxY
-            val minY = chunk.minY
+            val maxY = chunk.maxBuildHeight
+            val minY = chunk.minBuildHeight
 
             val sceneWidth = x1 - x0
             val sceneHeight = y1 - y0
@@ -365,8 +365,8 @@ class ConcurrentAcousticSceneBank {
     private val chunkMap = ConcurrentHashMap<WorldChunkKey, AcousticSceneSegmentCompound>()
 
     fun addChunk(world: Level, chunk: ChunkAccess, acousticBlockData: AcousticBlockData): AcousticSceneSegmentCompound {
-        val topY = chunk.maxY
-        val bottomY = chunk.minY
+        val topY = chunk.maxBuildHeight
+        val bottomY = chunk.minBuildHeight
         val segments = world.segmentCount
         val segmentSize = SEGMENT_SIZE
 
@@ -527,7 +527,7 @@ class MinecraftAcousticManager(
 
         val blockPos = pos.toBlockPos()
         val y = blockPos.y
-        if (y >= mcWorld.maxY || y < mcWorld.minY) {
+        if (y >= mcWorld.maxBuildHeight || y < mcWorld.minBuildHeight) {
             throw InvalidMessageSourcePositionException(pos.y.toInt())
         }
         val x = blockPos.x

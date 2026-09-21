@@ -7,8 +7,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.client.renderer.entity.player.AvatarRenderer
-import net.minecraft.util.profiling.Profiler
+import net.minecraft.client.renderer.entity.player.PlayerRenderer
 import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.handler.disconnectText
 import org.lain.engine.client.mc.*
@@ -22,20 +21,21 @@ import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
-import org.lain.engine.client.render.ui.initializeGraphene
+import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.world.registerWorldRenderEvents
+import org.lain.engine.client.resources.registerEngineModelLoading
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.mc.*
 import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.player.*
 import org.lain.engine.util.Injector
-import org.lain.engine.util.component.ComponentTypeRegistry
-import org.lain.engine.util.component.registerAllClient
+import org.lain.engine.util.ecs.ComponentTypeRegistry
+import org.lain.engine.util.ecs.registerAllClient
 import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.ecs.MinecraftSystem
 import org.lain.engine.mc.server.EngineMinecraftServer
@@ -85,10 +85,10 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engine)
+        registerEngineModelLoading()
         registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)
         registerClientEngineCommands(engine)
-        initializeGraphene()
 
         Injector.register(keybindManager)
         Injector.register(this)
@@ -124,6 +124,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         }
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
+        ClientLifecycleEvents.CLIENT_STOPPING.register { MovingWallpapers.close() }
 
         ClientTickEvents.START_CLIENT_TICK.register { keybindManager.tick(engine) }
 
@@ -136,7 +137,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         IntegratedEngineMinecraftServer.registerEvent(this)
 
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register { _, renderer, helper, _ ->
-            if (renderer is AvatarRenderer) {
+            if (renderer is PlayerRenderer) {
                 helper.register(EquipmentFeatureRenderer(renderer))
                 helper.register(HeadEquipmentFeatureRenderer(renderer))
             }
@@ -145,7 +146,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
 
     private fun tickClient() {
         val mainPlayerEntity = client.player
-        val profiler = Profiler.get()
+        val profiler = client.profiler
         profiler.push("engineClientTick")
 
         ClientMixin.tick()
@@ -175,11 +176,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             renderer.tick()
 
         } catch (e: Throwable) {
-            when (e) {
-                is PlayerTickException -> e.log(connectionLogger)
-                else -> connectionLogger.error("При тике Engine возникла ошибка: ", e)
-            }
-
+            connectionLogger.error("При тике Engine возникла ошибка: ", e)
             disconnectWithReason(DisconnectText(e.message ?: "Неизвестная ошибка"))
             onDisconnect()
         }
@@ -197,6 +194,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.thread = (client as MinecraftClientAccessor).`engine$getThread`()
         registerWorldRenderEvents(client, engine, platform, decalSystem)
         registerHudRenderEvent(client, engine, renderer, uiRenderPipeline)
+        MovingWallpapers.loadWallpapers(client)
     }
 
     fun onDisconnect() {

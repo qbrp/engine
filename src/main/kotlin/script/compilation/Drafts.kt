@@ -41,13 +41,17 @@ data class NamespaceDraft(
 
 data class SystemPhaseDraft(
     val name: String,
-    val systems: List<ScriptSystemId>,
-    val phases: List<SystemPhaseDraft>
+    val steps: List<PhaseStepDraft>
 )
+
+sealed class PhaseStepDraft {
+    data class Phase(val phase: SystemPhaseDraft) : PhaseStepDraft()
+    data class System(val system: ScriptSystemId) : PhaseStepDraft()
+}
 
 data class BuildDraft(
     val namespaces: Map<NamespaceId, NamespaceDraft>,
     val callbacks: Map<CallbackType<*, *>, Script<*, *>>,
-    val phases: List<SystemPhaseDraft>,
+    val rootPhase: SystemPhaseDraft,
     val inventoryTab: InventoryTab
 )

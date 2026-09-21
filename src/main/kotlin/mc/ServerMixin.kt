@@ -45,7 +45,6 @@ object ServerMixin {
     }
 
     fun onChunkDataSent(chunk: LevelChunk, player: ServerPlayer) = server?.let { server ->
-        //TODO: потенциальный проёб с чанками
         val access = chunk.level.requireEngineAccess()
         val world = access.requireEngineWorld(chunk.level)
         val chunkStorage = world.chunkStorage
