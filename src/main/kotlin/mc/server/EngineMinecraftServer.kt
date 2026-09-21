@@ -282,7 +282,9 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         acousticSimulator.unloadChunkAsync(world.engineId, chunk)
         val engineWorld = engine.getWorld(world)
         val engineChunk = engineWorld.chunkStorage.getChunk(pos) ?: return
-        engine.chunkPersistence.saveChunk(engineWorld, pos, engineChunk)
+        if (!engineChunk.isEmpty()) {
+            engine.chunkPersistence.saveChunk(engineWorld, pos, engineChunk)
+        }
     }
 
     fun onWorldUnload(world: Level) {
