@@ -1,7 +1,7 @@
 package org.lain.engine.test
 
 import org.lain.engine.player.interaction.InputAction
-import org.lain.engine.server.PlayerSyncState
+import org.lain.engine.server.replication.PlayerSyncState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue

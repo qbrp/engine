@@ -20,7 +20,7 @@ import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
-import org.lain.engine.server.Networked
+import org.lain.engine.server.replication.Networked
 import org.lain.engine.util.Storage
 import org.lain.engine.util.ecs.ComponentWorld
 import org.lain.engine.util.ecs.EntityId

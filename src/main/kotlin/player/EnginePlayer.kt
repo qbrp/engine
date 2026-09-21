@@ -8,15 +8,13 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.ReadComponentAccess
-import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.data.Uuid
-import org.lain.engine.server.markUpdated
+import org.lain.engine.server.replication.markUpdated
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 import java.util.*

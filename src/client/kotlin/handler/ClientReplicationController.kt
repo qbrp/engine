@@ -1,9 +1,7 @@
 package org.lain.engine.client.handler
 
-import kotlinx.coroutines.CoroutineScope
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.GameSession
@@ -12,17 +10,17 @@ import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptComponentId
-import org.lain.engine.server.EntityNetworkSnapshot
-import org.lain.engine.server.ReplicationFrameSnapshot
-import org.lain.engine.server.ReplicationTarget
+import org.lain.engine.server.replication.EntityReplicationUpdate
+import org.lain.engine.server.replication.ReplicationFrame
+import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.server.protocolError
-import org.lain.engine.server.networkState
+import org.lain.engine.server.replication.networkState
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.VoxelPosId
 import org.lain.engine.player.collectReplicationEntities
-import org.lain.engine.server.Networked
-import org.lain.engine.server.ReplicationSnapshot
+import org.lain.engine.server.replication.Networked
+import org.lain.engine.server.replication.ReplicationSnapshot
 import org.lain.engine.transport.packet.InitialReplicationState
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
@@ -77,7 +75,7 @@ class ClientReplicationController(
         replicationState.endInteraction()
     }
 
-    fun apply(frame: ReplicationFrameSnapshot) {
+    fun apply(frame: ReplicationFrame) {
         try {
             applyFrame(frame)
         } catch (exception: Exception) {
@@ -118,7 +116,7 @@ class ClientReplicationController(
         }
     }
 
-    private fun applyFrame(frame: ReplicationFrameSnapshot) {
+    private fun applyFrame(frame: ReplicationFrame) {
         frame.world?.let { applyWorldState(it) }
 
         val acceptedSnapshots = frame.entities.mapNotNull { (id, snapshot) ->
@@ -135,9 +133,9 @@ class ClientReplicationController(
 
     private fun acceptEntitySnapshot(
         persistentId: PersistentId,
-        snapshot: EntityNetworkSnapshot,
+        snapshot: EntityReplicationUpdate,
     ): AcceptedEntitySnapshot? {
-        if (snapshot is EntityNetworkSnapshot.Delta && replicationWorld.persistentIdToEntity[persistentId] == null) {
+        if (snapshot is EntityReplicationUpdate.Delta && replicationWorld.persistentIdToEntity[persistentId] == null) {
             protocolError("Получен частичный снапшот отсутствующей сущности $persistentId")
         }
 
@@ -149,7 +147,7 @@ class ClientReplicationController(
 
     private fun acceptSnapshot(
         target: ReplicationTarget,
-        snapshot: EntityNetworkSnapshot,
+        snapshot: EntityReplicationUpdate,
     ): SnapshotAcceptance.Accepted? {
         val accepted = when (val acceptance = replicationState.accept(target, snapshot)) {
             SnapshotAcceptance.Ignored -> return null
@@ -171,7 +169,7 @@ class ClientReplicationController(
             is SnapshotAcceptance.Accepted -> acceptance
         }
 
-        if (snapshot is EntityNetworkSnapshot.Full) {
+        if (snapshot is EntityReplicationUpdate.Full) {
             targetsAwaitingResync.remove(target)
         }
 
@@ -227,7 +225,7 @@ class ClientReplicationController(
         }
     }
 
-    private fun applyWorldState(snapshot: EntityNetworkSnapshot) {
+    private fun applyWorldState(snapshot: EntityReplicationUpdate) {
         val accepted = acceptSnapshot(ReplicationTarget.World, snapshot) ?: return
 
         with(replicationWorld) {

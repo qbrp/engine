@@ -16,6 +16,7 @@ import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.tickEntityDebugViewSnapshotSystem
 import org.lain.engine.data.*
+import org.lain.engine.server.replication.tickSynchronizationSystem
 import org.lain.engine.util.*
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId

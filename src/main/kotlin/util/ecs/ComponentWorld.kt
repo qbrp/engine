@@ -4,7 +4,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
 import org.lain.engine.listKotlinComponentTypeEntries
-import org.lain.engine.server.networkState
+import org.lain.engine.server.replication.networkState
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.util.Storage

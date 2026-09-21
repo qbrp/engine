@@ -94,6 +94,7 @@ class ChunkPersistence(
         check(server.isOnThread())
         world.chunkStorage.getChunk(pos)?.let { return it }
 
+        LOGGER.warn("Вызвано блокирующее сохранение чанка $pos в мире ${world.id}")
         val pending = beginChunkLoad(world, pos)
         val prepared = runCatching {
             runBlocking { pending.deferred.await() }

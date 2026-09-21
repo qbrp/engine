@@ -9,7 +9,7 @@ import org.lain.engine.player.Username
 import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.get
-import org.lain.engine.server.PlayerInstantiationConfirmation
+import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.account.DedicatedEngineAccountService
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.transport.ServerTransportContext

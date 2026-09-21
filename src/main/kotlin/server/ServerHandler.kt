@@ -17,6 +17,12 @@ import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.backupBookContent
+import org.lain.engine.server.replication.PlayerInstantiationConfirmation
+import org.lain.engine.server.replication.PlayerSyncState
+import org.lain.engine.server.replication.ReplicationFrame
+import org.lain.engine.server.replication.ReplicationTarget
+import org.lain.engine.server.replication.fullReplicationUpdate
+import org.lain.engine.server.replication.markUpdated
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
@@ -220,8 +226,8 @@ class ServerHandler(
     internal fun onReplicationResyncRequest(playerId: PlayerId, target: ReplicationTarget) =
         updatePlayerWithContext(playerId) {
             val frame = when (target) {
-                ReplicationTarget.World -> ReplicationFrameSnapshot(
-                    world = world.state.fullNetworkSnapshot(),
+                ReplicationTarget.World -> ReplicationFrame(
+                    world = world.state.fullReplicationUpdate(),
                     entities = emptyMap(),
                 )
 
@@ -233,10 +239,10 @@ class ServerHandler(
                     }
                     val networkedEntity = world.persistentIdToEntity[persistentId]
                         ?: return@updatePlayerWithContext
-                    ReplicationFrameSnapshot(
+                    ReplicationFrame(
                         world = null,
                         entities = mapOf(
-                            persistentId to networkedEntity.fullNetworkSnapshot(),
+                            persistentId to networkedEntity.fullReplicationUpdate(),
                         ),
                     )
                 }
@@ -357,7 +363,7 @@ class ServerHandler(
         taskQueue.flush { it() }
     }
 
-    fun sendReplicationFrame(player: EnginePlayer, frame: ReplicationFrameSnapshot) {
+    fun sendReplicationFrame(player: EnginePlayer, frame: ReplicationFrame) {
         CLIENTBOUND_REPLICATION_ENDPOINT.sendS2C(ReplicationPacket(frame), player.id)
     }
 

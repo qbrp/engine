@@ -5,7 +5,6 @@ import kotlinx.serialization.json.Json
 import org.lain.cyberia.ecs.Component
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.server.EngineServer
-import org.lain.engine.server.ReplicationSnapshot
 import org.lain.engine.util.file.FileSystem
 import org.lain.engine.world.World
 import java.io.File

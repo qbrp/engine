@@ -2,10 +2,10 @@ package org.lain.engine.client.handler
 
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.interaction.InteractionId
-import org.lain.engine.server.EntityNetworkSnapshot
-import org.lain.engine.server.ReplicationTarget
+import org.lain.engine.server.replication.EntityReplicationUpdate
+import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.data.PersistentId
-import org.lain.engine.server.ReplicationSnapshot
+import org.lain.engine.server.replication.ReplicationSnapshot
 import org.lain.engine.server.protocolError
 
 internal data class ReplicatedComponentKey(
@@ -52,7 +52,7 @@ internal class ClientReplicationState {
         processedInputTick = -1
     }
 
-    fun seed(target: ReplicationTarget, snapshot: EntityNetworkSnapshot.Full) {
+    fun seed(target: ReplicationTarget, snapshot: EntityReplicationUpdate.Full) {
         targets[target] = TargetState(
             snapshot.revision,
             snapshot.components.associateByTo(mutableMapOf()) { it.id }
@@ -101,10 +101,10 @@ internal class ClientReplicationState {
 
     fun accept(
         target: ReplicationTarget,
-        snapshot: EntityNetworkSnapshot,
+        snapshot: EntityReplicationUpdate,
     ): SnapshotAcceptance {
         return when (snapshot) {
-            is EntityNetworkSnapshot.Full -> {
+            is EntityReplicationUpdate.Full -> {
                 val state = targets.getOrPut(target) { TargetState(snapshot.revision) }
                 val currentRevision = state.revision
                 if (snapshot.revision < currentRevision) {
@@ -123,7 +123,7 @@ internal class ClientReplicationState {
                 }
             }
 
-            is EntityNetworkSnapshot.Delta -> {
+            is EntityReplicationUpdate.Delta -> {
                 val state = targets[target] ?: protocolError("Получен delta-снимок не полностью синхронизированной сущности")
                 val currentRevision = state.revision
                 when {

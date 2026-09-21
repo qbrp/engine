@@ -1,4 +1,4 @@
-package org.lain.engine.server
+package org.lain.engine.server.replication
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -8,7 +8,6 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.data.ComponentSnapshot
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
-import org.lain.engine.data.revive
 import org.lain.engine.data.snapshot
 import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.player.interaction.InteractionId

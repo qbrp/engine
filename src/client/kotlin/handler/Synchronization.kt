@@ -12,7 +12,7 @@ import org.lain.engine.player.*
 import org.lain.engine.player.interaction.ActionExecution
 import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.script.EntityRpcQueue
-import org.lain.engine.server.ReplicationSnapshot
+import org.lain.engine.server.replication.ReplicationSnapshot
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.GeneralPlayerData
 import org.lain.engine.transport.packet.ServerPlayerData

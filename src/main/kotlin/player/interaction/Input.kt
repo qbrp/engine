@@ -7,7 +7,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.ScriptContext
-import org.lain.engine.server.tickQueuedPlayerInputsSystem
+import org.lain.engine.server.replication.tickQueuedPlayerInputsSystem
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel

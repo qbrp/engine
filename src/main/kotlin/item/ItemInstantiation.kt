@@ -1,18 +1,15 @@
 package org.lain.engine.item
 
-import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.WriteComponentAccess
-import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.BuiltinNamespaces
 import org.lain.engine.server.EngineServer
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
-import org.lain.engine.data.RawEngineId
 import org.lain.engine.data.Uuid
 import org.lain.engine.util.DebugName
-import org.lain.engine.server.Networked
+import org.lain.engine.server.replication.Networked
 import org.lain.engine.world.World
 
 data class ItemPrefab(

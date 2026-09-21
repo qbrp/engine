@@ -2,8 +2,8 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import org.lain.engine.server.ReplicationFrameSnapshot
-import org.lain.engine.server.ReplicationTarget
+import org.lain.engine.server.replication.ReplicationFrame
+import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.*
@@ -51,7 +51,7 @@ data class VoxelBlockHintPacket(val pos: VoxelPos, val action: Action) : Packet 
 val SERVERBOUND_VOXEL_BLOCK_HINT_PACKET = Endpoint<VoxelBlockHintPacket>()
 
 @Serializable
-data class ReplicationPacket(val frame: ReplicationFrameSnapshot) : Packet
+data class ReplicationPacket(val frame: ReplicationFrame) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)
 val CLIENTBOUND_REPLICATION_ENDPOINT = Endpoint<ReplicationPacket>()

@@ -2,17 +2,12 @@ package org.lain.engine.test
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentCollisionException
-import org.lain.engine.item.ItemStorage
-import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
-import org.lain.engine.util.Storage
 import org.lain.engine.util.ecs.ComponentArray
 import org.lain.engine.util.ecs.ComponentMeta
 import org.lain.engine.util.ecs.ComponentState
 import org.lain.engine.util.ecs.ComponentWorld
 import org.lain.engine.util.ecs.EntityCommandBuffer
 import org.lain.engine.util.ecs.EntityId
-import org.lain.engine.world.World
-import org.lain.engine.world.WorldId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -24,14 +19,11 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.engine.listKotlinComponentTypeEntries
-import org.lain.engine.script.NamespacedStorage
-import org.lain.engine.script.ScriptEngine
-import org.lain.engine.server.Changes
+import org.lain.engine.server.replication.Changes
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.persistentId
 import org.lain.engine.util.ecs.castIndexed
-import java.util.concurrent.ConcurrentHashMap
 
 class ComponentWorldTest : EngineTest() {
     private lateinit var componentWorld: ComponentWorld

@@ -45,7 +45,7 @@ import org.lain.engine.player.interaction.StartShootAction
 import org.lain.engine.player.interaction.StopShootAction
 import org.lain.engine.player.interaction.WritableOpenAction
 import org.lain.engine.script.EntityRpcReceiver
-import org.lain.engine.server.Networked
+import org.lain.engine.server.replication.Networked
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.Savable
 import org.lain.engine.data.SaveTag

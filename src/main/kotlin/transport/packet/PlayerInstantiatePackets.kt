@@ -4,7 +4,6 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.container.getContainerItems
-import org.lain.engine.item.EngineItem
 import org.lain.engine.player.*
 import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.AppliedCharacter
@@ -15,11 +14,8 @@ import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
 import org.lain.engine.data.*
 import org.lain.engine.player.character.CharacterId
-import org.lain.engine.server.EntityNetworkSnapshot
-import org.lain.engine.server.ReplicationFrameSnapshot
-import org.lain.engine.server.ReplicationSnapshot
-import org.lain.engine.server.fullNetworkSnapshot
-import org.lain.engine.server.replicationSnapshot
+import org.lain.engine.server.replication.EntityReplicationUpdate
+import org.lain.engine.server.replication.fullReplicationUpdate
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.World
@@ -92,8 +88,8 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
 
 @Serializable
 data class InitialReplicationState(
-    val world: EntityNetworkSnapshot.Full,
-    val snapshots: Map<PersistentId, EntityNetworkSnapshot.Full>
+    val world: EntityReplicationUpdate.Full,
+    val snapshots: Map<PersistentId, EntityReplicationUpdate.Full>
 )
 
 @Serializable
@@ -135,10 +131,10 @@ data class ServerPlayerData(
 
         fun composeInitialReplicationState(player: EnginePlayer): InitialReplicationState = with(player.world) {
             val snapshots = player.collectReplicationEntities().associate { entity ->
-                entity.requireComponent<PersistentIdComponent>().id to entity.fullNetworkSnapshot()
+                entity.requireComponent<PersistentIdComponent>().id to entity.fullReplicationUpdate()
             }
             return InitialReplicationState(
-                player.world.state.fullNetworkSnapshot(),
+                player.world.state.fullReplicationUpdate(),
                 snapshots
             )
         }

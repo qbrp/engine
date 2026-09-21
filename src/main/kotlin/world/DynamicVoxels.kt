@@ -11,7 +11,7 @@ import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.VoxelPosId
 import org.lain.engine.util.ecs.EntityId
-import org.lain.engine.server.Networked
+import org.lain.engine.server.replication.Networked
 import org.lain.engine.util.math.EVec3
 
 object DynamicVoxelInterest : Component

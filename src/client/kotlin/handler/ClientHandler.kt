@@ -35,7 +35,7 @@ import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
-import org.lain.engine.server.ReplicationFrameSnapshot
+import org.lain.engine.server.replication.ReplicationFrame
 import org.lain.engine.server.protocolError
 import org.lain.engine.data.*
 import org.lain.engine.transport.packet.*
@@ -376,7 +376,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         world.emitEvent(event)
     }
 
-    fun applyReplicationFrame(gameSession: GameSession, frame: ReplicationFrameSnapshot) =
+    fun applyReplicationFrame(gameSession: GameSession, frame: ReplicationFrame) =
         gameSession.replicationController.apply(frame)
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {

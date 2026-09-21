@@ -1,4 +1,4 @@
-package org.lain.engine.server
+package org.lain.engine.server.replication
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.hasComponent

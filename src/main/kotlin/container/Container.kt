@@ -2,7 +2,7 @@ package org.lain.engine.container
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
-import org.lain.engine.server.Networked
+import org.lain.engine.server.replication.Networked
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.util.ecs.ComponentState

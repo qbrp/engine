@@ -18,7 +18,10 @@ import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.server.*
 import org.lain.engine.data.*
 import org.lain.engine.transport.packet.DeveloperModeStatus
-import org.lain.engine.server.Networked
+import org.lain.engine.server.replication.Networked
+import org.lain.engine.server.replication.Interests
+import org.lain.engine.server.replication.PlayerInstantiationConfirmation
+import org.lain.engine.server.replication.PlayerSyncState
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
