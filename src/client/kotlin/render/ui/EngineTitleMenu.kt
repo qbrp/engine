@@ -3,6 +3,7 @@ package org.lain.engine.client.render.ui
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.ChatFormatting
 import net.minecraft.SharedConstants
+import net.minecraft.Util
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractWidget
@@ -30,6 +31,7 @@ import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.client.render.MAP
 import org.lain.engine.mc.engineId
 import kotlin.math.PI
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -39,6 +41,7 @@ class EngineTitleMenu(
 ) : Screen(TITLE) {
     private val random = RandomSource.create()
     private var animationTicks = 0.0f
+    private var fadeInStart = 0L
     private var singleplayerButton: Button? = null
     private var multiplayerButton: ColoredPlainTextButton? = null
     private var authorizationButton: ColoredPlainTextButton? = null
@@ -137,6 +140,13 @@ class EngineTitleMenu(
                 authorizationStatus.color
             )
         )
+
+        if (fading) {
+            if (fadeInStart == 0L) {
+                fadeInStart = Util.getMillis()
+            }
+            setWidgetsAlpha(0.0f)
+        }
     }
 
     override fun tick() {
@@ -160,21 +170,29 @@ class EngineTitleMenu(
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
         animationTicks += delta
 
+        if (fadeInStart == 0L && fading) {
+            fadeInStart = Util.getMillis()
+        }
+
         var alpha = 1.0f
         if (fading) {
-            val progress = animationTicks / FADE_IN_TICKS
+            val progress = (Util.getMillis() - fadeInStart).toFloat() / FADE_IN_DURATION_MS
             if (progress > 1.0f) {
                 fading = false
             } else {
-                alpha = Mth.clampedMap(Mth.clamp(progress, 0.0f, 1.0f), 0.5f, 1.0f, 0.0f, 1.0f)
+                alpha = ((progress.coerceIn(0.0f, 1.0f) - 0.5f) / 0.5f).coerceIn(0.0f, 1.0f)
             }
-            children().filterIsInstance<AbstractWidget>().forEach { it.setAlpha(alpha) }
+            setWidgetsAlpha(alpha)
         }
 
         super.render(guiGraphics, mouseX, mouseY, delta)
 
         val logoY = (height / 4 - 40).coerceAtLeast(38)
         renderLogo(guiGraphics, MENU_PADDING, logoY, alpha)
+    }
+
+    private fun setWidgetsAlpha(alpha: Float) {
+        children().filterIsInstance<AbstractWidget>().forEach { it.setAlpha(alpha) }
     }
 
     override fun renderBackground(
@@ -333,7 +351,7 @@ class EngineTitleMenu(
             } else {
                 getMessage()
             }
-            val color = (Mth.ceil(alpha * 255.0f) shl 24) or (textColor and 0x00FFFFFF)
+            val color = (ceil(alpha * 255.0f).toInt() shl 24) or (textColor and 0x00FFFFFF)
             guiGraphics.drawString(font, message, x, y, color)
         }
     }
@@ -354,7 +372,7 @@ class EngineTitleMenu(
         private const val BUTTON_STEP = 18
         private const val AUTHORIZATION_STATUS_PADDING = 4
         private const val AUTHORIZATION_BUTTON_HEIGHT = 10
-        private const val FADE_IN_TICKS = 40.0f
+        private const val FADE_IN_DURATION_MS = 2_000.0f
         private const val RED_HUE = 0.0f
         private const val GREEN_HUE = 1.0f / 3.0f
         private const val LOGO_HUE_RANGE = 0.085f

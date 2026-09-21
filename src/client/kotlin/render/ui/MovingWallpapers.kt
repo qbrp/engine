@@ -42,11 +42,6 @@ object MovingWallpapers {
         resetAnimation()
     }
 
-    fun next() {
-        textureManager
-        resetAnimation()
-    }
-
     fun render(guiGraphics: GuiGraphics, delta: Float) {
         val manager = textureManager
         manager?.beginFrame()
@@ -145,7 +140,7 @@ object MovingWallpapers {
 
     private fun resetAnimation() {
         wallpaperMovementProgress = 0.0f
-        wallpaperMovementDirection = 1.0f
+        wallpaperMovementDirection = listOf(1f, -1f).random()
         outgoingWallpaperProgress = null
         wallpaperTransitionTicks = 0.0f
         transitioning = false

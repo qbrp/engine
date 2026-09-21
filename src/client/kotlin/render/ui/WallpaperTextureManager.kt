@@ -66,7 +66,7 @@ class WallpaperTextureManager(
         currentLoaded = null
         nextLoaded = null
         sources = directory
-            .walkTopDown()
+            .listFiles()
             .filter(File::isFile)
             .filter { it.extension.lowercase(Locale.ROOT) in SUPPORTED_EXTENSIONS }
             .sortedBy { it.relativeTo(directory).invariantSeparatorsPath }
