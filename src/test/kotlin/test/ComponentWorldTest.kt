@@ -78,9 +78,19 @@ class ComponentWorldTest : EngineTest() {
         state.setComponent(positionType, TestPosition(7))
 
         assertEquals(TestPosition(7), state.getComponent(positionType))
-        assertEquals(TestPosition(7), state.getComponent<TestPosition>(positionType.id))
         assertEquals(TestPosition(7), state.removeComponent(positionType))
         assertNull(state.getComponent(positionType))
+    }
+
+    @Test
+    fun componentStateCopiesDynamicallyTypedComponents() {
+        val source = ComponentState(listOf(TestPosition(7)))
+        val target = ComponentState()
+
+        source.copyTo(target)
+
+        assertEquals(TestPosition(7), source.getComponent(positionType))
+        assertEquals(TestPosition(7), target.getComponent(positionType))
     }
 
     @Test
@@ -98,9 +108,7 @@ class ComponentWorldTest : EngineTest() {
         componentWorld.destroy(entity)
 
         assertFalse(componentWorld.exists(entity))
-        assertThrows<IllegalArgumentException> {
-            componentWorld.getComponent(entity, positionType)
-        }
+        assertNull(componentWorld.getComponent(entity, positionType))
     }
 
     @Test
@@ -211,7 +219,7 @@ class ComponentWorldTest : EngineTest() {
         componentWorld.setComponentWithType(entity, TestName("saved"), nameType)
         componentWorld.setComponentWithType(entity, TestVelocity(2), velocityType)
 
-        assertEquals(listOf(TestName("saved")), componentWorld.getSavableComponents(entity))
+        assertEquals(mapOf(nameType to TestName("saved")), componentWorld.getSavableComponents(entity))
     }
 
     @Test
@@ -290,7 +298,7 @@ class ComponentWorldTest : EngineTest() {
         assertTrue(componentWorld.exists(entity))
         assertFalse(componentWorld.hasComponent(entity, positionType))
 
-        buffer.apply(componentWorld)
+        buffer.apply()
 
         assertEquals(TestPosition(42), componentWorld.getComponent(entity, positionType))
         assertTrue(buffer.isEmpty())

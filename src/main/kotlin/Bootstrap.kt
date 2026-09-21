@@ -8,12 +8,24 @@ import org.lain.engine.util.ecs.registerReflectedComponents
 import org.lain.engine.util.ecs.registerKotlinComponents
 import kotlin.to
 
+private val bootstrapLock = Any()
+
+@Volatile
+private var bootstrapped = false
+
 fun bootstrap() {
-    ComponentTypeRegistry.registerKotlinComponents()
-    ComponentTypeRegistry.registerReflectedComponents()
-    ComponentTypeProviderContext.PROVIDER = ComponentTypeRegistry
-    ComponentTypeProviderContext.GENERAL = CommonComponentTypeProvider
-    CoreScriptComponents.getAll() //lazy init
+    if (bootstrapped) return
+
+    synchronized(bootstrapLock) {
+        if (bootstrapped) return
+
+        ComponentTypeRegistry.registerKotlinComponents()
+        ComponentTypeRegistry.registerReflectedComponents()
+        ComponentTypeProviderContext.PROVIDER = ComponentTypeRegistry
+        ComponentTypeProviderContext.GENERAL = CommonComponentTypeProvider
+        CoreScriptComponents.getAll() //lazy init
+        bootstrapped = true
+    }
 }
 
 fun listKotlinComponentTypeEntries() =
