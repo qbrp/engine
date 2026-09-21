@@ -1,5 +1,6 @@
 package org.lain.engine.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -42,23 +43,22 @@ class ItemLoader(
         transactionContext: TransactionContext,
     ): EngineItem {
         require(uuid is Uuid)
-        val childTransactionContext = transactionContext.child()
         return withContext(Dispatchers.IO) {
-            context(itemLoadContext.logContext(), childTransactionContext.commands) {
-                val result = EntityLoadOperation(uuid, database, childTransactionContext)
-                    .execute()
-
-                val item = when(result) {
-                    is EntityLoadResult.Success -> {
-                        childTransactionContext.commit()
-                        result.entity
-                    }
-                    is EntityLoadResult.Failure -> {
-                        childTransactionContext.rollback(result.error)
-                        server.createInvalidItem()
+            val diagnosticContext = itemLoadContext.logContext()
+            try {
+                transactionContext.withChild { childTransactionContext ->
+                    context(diagnosticContext, childTransactionContext.commands) {
+                        EntityLoadOperation(uuid, database, childTransactionContext)
+                            .execute()
+                            .getEntityOrThrow()
                     }
                 }
-                item
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                context(diagnosticContext, transactionContext.commands) {
+                    server.createInvalidItem()
+                }
             }
         }
     }

@@ -19,7 +19,7 @@ class CharacterSelectionScreen(
                 it.profile.name.gradientChars.getText(),
                 it.profile,
                 CharacterSelection.Selection.Character(it),
-                it.profile.id
+                it.profile.id.toString()
             )
         }
         val initial = entries.find { it.profile.id == character?.profile?.id }

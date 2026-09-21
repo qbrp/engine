@@ -9,6 +9,7 @@ import org.lain.engine.client.handler.disconnectText
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.script.*
 import org.lain.engine.script.compilation.CompilationFailedException
@@ -28,7 +29,7 @@ class IntegratedEngineMinecraftServer(
 
     override suspend fun validateCharacter(
         player: EnginePlayer,
-        characterId: String,
+        characterId: CharacterId,
         character: EngineCharacter?,
         sessionTicket: SessionTicket?
     ): EngineCharacter {

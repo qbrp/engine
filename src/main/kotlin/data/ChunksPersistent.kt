@@ -102,7 +102,12 @@ class ChunkPersistence(
     }
 
     fun loadChunkAsync(world: World, pos: EngineChunkPos) {
-        check(server.isOnThread())
+        if (!server.isOnThread()) {
+            check(!closed)
+            server.execute { loadChunkAsync(world, pos) }
+            return
+        }
+
         if (world.chunkStorage.getChunk(pos) != null) return
 
         beginChunkLoad(world, pos)

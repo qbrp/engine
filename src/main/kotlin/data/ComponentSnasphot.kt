@@ -1,8 +1,6 @@
 package org.lain.engine.data
 
-import com.daqem.snakeyaml.engine.v2.api.LoadSettings
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.engine.container.Entries
 import org.lain.engine.container.OccupiedSlots
@@ -12,31 +10,39 @@ import org.lain.engine.item.Flashlight
 import org.lain.engine.item.GunFireState
 import org.lain.engine.item.GunMagazines
 import org.lain.engine.item.Writable
-import org.lain.engine.script.Contents
-import org.lain.engine.script.EngineId
+import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.script.toScriptComponentId
 import org.lain.engine.world.Luminance
 
 sealed interface ComponentSnapshot {
+    val id: String
+
     data class Kotlin<T : Component>(
         val component: T
-    ) : ComponentSnapshot
+    ) : ComponentSnapshot {
+        override val id: String
+            get() = componentTypeOf(component).id
+    }
 
     data class Script(
-        val id: ScriptComponentId,
+        val scriptId: ScriptComponentId,
         val value: ScriptValue
-    ) : ComponentSnapshot
+    ) : ComponentSnapshot {
+        override val id: String
+            get() = scriptId.toString()
+    }
 }
 
+fun ScriptComponent.snapshot() = ComponentSnapshot.Script(
+    scriptId = type.engineId,
+    value = value.copy()
+)
+
 fun Component.snapshot(): ComponentSnapshot = when (this) {
-    is ScriptComponent -> ComponentSnapshot.Script(
-        id = type.engineId,
-        value = value.copy()
-    )
+    is ScriptComponent -> snapshot()
 
     else -> ComponentSnapshot.Kotlin(
         when (this) {
@@ -54,11 +60,16 @@ fun Component.snapshot(): ComponentSnapshot = when (this) {
     )
 }
 
-fun ComponentSnapshot.revive(resolver: EntityResolver, settings: ComponentLoadSettings): Component =
+data class ComponentReviveSettings(
+    val namespacedStorage: NamespacedStorageAccess,
+    val scriptEngine: ScriptEngine,
+)
+
+fun ComponentSnapshot.revive(resolver: EntityResolver, settings: ComponentReviveSettings): Component =
     when (this) {
         is ComponentSnapshot.Kotlin<*> -> component
         is ComponentSnapshot.Script -> {
-            val type = settings.namespacedStorage.get().components[id] ?: error("Component type $id does not exist")
+            val type = settings.namespacedStorage.get().components[scriptId] ?: error("Component type $scriptId does not exist")
             settings.scriptEngine.createScriptComponent(value, type)
         }
     }

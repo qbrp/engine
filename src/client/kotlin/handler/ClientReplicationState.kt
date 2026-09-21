@@ -4,8 +4,9 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.server.EntityNetworkSnapshot
 import org.lain.engine.server.ReplicationTarget
-import org.lain.engine.data.ComponentDto
 import org.lain.engine.data.PersistentId
+import org.lain.engine.server.ReplicationSnapshot
+import org.lain.engine.server.protocolError
 
 internal data class ReplicatedComponentKey(
     val entity: PersistentId,
@@ -23,18 +24,15 @@ internal sealed interface SnapshotAcceptance {
 
     data class Accepted(
         val revision: Long,
-        val updated: List<ComponentDto>,
+        val updated: List<ReplicationSnapshot>,
         val removed: Set<String>,
     ) : SnapshotAcceptance
 }
 
-/**
- * Stores the server-owned component state separately from the live, predicted client ECS state.
- */
 internal class ClientReplicationState {
     private data class TargetState(
-        var revision: Long? = null,
-        val components: LinkedHashMap<String, ComponentDto> = linkedMapOf(),
+        var revision: Long,
+        val components: MutableMap<String, ReplicationSnapshot> = mutableMapOf(),
     )
 
     private data class ActivePrediction(
@@ -54,11 +52,11 @@ internal class ClientReplicationState {
         processedInputTick = -1
     }
 
-    fun seed(target: ReplicationTarget, components: List<ComponentDto>) {
-        val state = targets.getOrPut(target) { TargetState() }
-        if (state.components.isEmpty()) {
-            components.forEach { state.components[it.id] = it }
-        }
+    fun seed(target: ReplicationTarget, snapshot: EntityNetworkSnapshot.Full) {
+        targets[target] = TargetState(
+            snapshot.revision,
+            snapshot.components.associateByTo(mutableMapOf()) { it.id }
+        )
     }
 
     fun beginInteraction(interactionId: InteractionId, entities: Set<PersistentId>) {
@@ -69,10 +67,10 @@ internal class ClientReplicationState {
         activePrediction = null
     }
 
-    fun recordComponentChange(persistentId: PersistentId, componentTypeId: String) {
+    fun onComponentChange(entityId: PersistentId, componentTypeId: String) {
         val prediction = activePrediction ?: return
-        if (persistentId !in prediction.entities) return
-        predictedComponents[ReplicatedComponentKey(persistentId, componentTypeId)] =
+        if (entityId !in prediction.entities) return
+        predictedComponents[ReplicatedComponentKey(entityId, componentTypeId)] =
             prediction.interactionId
     }
 
@@ -93,7 +91,7 @@ internal class ClientReplicationState {
         return confirmed
     }
 
-    fun authoritativeComponent(key: ReplicatedComponentKey): ComponentDto? =
+    fun authoritativeComponent(key: ReplicatedComponentKey): ReplicationSnapshot? =
         targets[ReplicationTarget.Entity(key.entity)]?.components?.get(key.componentTypeId)
 
     fun removeEntity(persistentId: PersistentId) {
@@ -105,14 +103,14 @@ internal class ClientReplicationState {
         target: ReplicationTarget,
         snapshot: EntityNetworkSnapshot,
     ): SnapshotAcceptance {
-        val state = targets.getOrPut(target) { TargetState() }
         return when (snapshot) {
             is EntityNetworkSnapshot.Full -> {
+                val state = targets.getOrPut(target) { TargetState(snapshot.revision) }
                 val currentRevision = state.revision
-                if (currentRevision != null && snapshot.revision < currentRevision) {
+                if (snapshot.revision < currentRevision) {
                     SnapshotAcceptance.Ignored
                 } else {
-                    val newComponents = snapshot.components.associateByTo(linkedMapOf()) { it.id }
+                    val newComponents = snapshot.components.associateBy { it.id }
                     val removed = state.components.keys - newComponents.keys
                     state.components.clear()
                     state.components.putAll(newComponents)
@@ -126,9 +124,10 @@ internal class ClientReplicationState {
             }
 
             is EntityNetworkSnapshot.Delta -> {
+                val state = targets[target] ?: protocolError("Получен delta-снимок не полностью синхронизированной сущности")
                 val currentRevision = state.revision
                 when {
-                    currentRevision != null && snapshot.revision <= currentRevision ->
+                    snapshot.revision <= currentRevision ->
                         SnapshotAcceptance.Ignored
 
                     snapshot.baseRevision != currentRevision ->

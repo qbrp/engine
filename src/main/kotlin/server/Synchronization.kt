@@ -85,14 +85,6 @@ context(world: World)
 fun EntityId.collectNetworkedComponents() = world.componentManager.getNetworkedComponents(this)
     .map { component -> component.replicationSnapshot() }
 
-private fun NetworkStateFrame.deltaSnapshot() = EntityNetworkSnapshot.Delta(baseRevision, revision, delta)
-
-context(world: World)
-fun EntityId.fullNetworkSnapshot() = EntityNetworkSnapshot.Full(
-    networkState().revision,
-    collectNetworkedComponents()
-)
-
 fun World.sendSnapshots(
     worldStateFrame: WorldStateFrame,
     handler: ServerHandler

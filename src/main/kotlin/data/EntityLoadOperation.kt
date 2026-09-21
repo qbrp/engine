@@ -2,6 +2,7 @@ package org.lain.engine.data
 
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogDiagnosticContext
@@ -127,7 +128,7 @@ class EntityLoadOperation(
         val entityId = entity.entityId
         val entityRecord = entity.record
         try {
-            val materializedComponents = entityRecord.materialize(world.componentLoadSettings, this@EntityLoadOperation)
+            val materializedComponents = entityRecord.materialize(world.componentReviveSettings, this@EntityLoadOperation)
             unresolvedComponents += materializedComponents.unresolved
             materializedComponents.apply(entityId)
 

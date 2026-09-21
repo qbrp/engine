@@ -42,9 +42,7 @@ import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.server.ServerId
-import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
-import org.lain.engine.data.toDomainSuspend
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
@@ -69,6 +67,7 @@ class GameSession(
     val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
     val playerStorage = PlayerStorage()
     var inventoryTab: InventoryTab = build.inventoryTab
+
     val simulation = EngineSimulation(
         isClient = true,
         this,
@@ -84,11 +83,18 @@ class GameSession(
         simulation,
     )
     val itemStorage: ItemStorage = this.world.itemStorage
+    val chatEventBus = client.chatEventBus
 
     private val sessionScope = CoroutineScope(handler.coroutineDispatcher + SupervisorJob())
-    val replicationController: ClientReplicationController
-
-    val chatEventBus = client.chatEventBus
+    val replicationController = ClientReplicationController(
+        gameSession = this,
+        initialReplicationState = player.replicationSnapshot,
+        requestResync = { target ->
+            SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT.sendC2SPacket(
+                ReplicationResyncRequestPacket(target)
+            )
+        },
+    )
     var synchronizationRadius: Int = setup.settings.synchronizationRadius
     var playerDesynchronizationThreshold: Int = setup.settings.playerDesynchronizationThreshold
 
@@ -139,8 +145,6 @@ class GameSession(
         applyCompilation(build)
         simulation.loadWorld(this.world)
 
-        val items = (player.items + player.equipment.values).associateBy { it.persistentId }
-        preloadPlayerItems(items)
         instantiatePlayer(mainPlayer, player.general, mutableMapOf())
 
         client.infrastructure.onMainPlayerInstantiated(client, this, mainPlayer)
@@ -152,15 +156,6 @@ class GameSession(
         }
 
         player.character?.let { this.world.emitEvent(CharacterApplyEvent(it, mainPlayer.id)) }
-        replicationController = ClientReplicationController(
-            gameSession = this,
-            coroutineScope = sessionScope,
-            requestResync = { target ->
-                SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT.sendC2SPacket(
-                    ReplicationResyncRequestPacket(target)
-                )
-            },
-        )
     }
 
     fun logInMainThread(loggerGetter: context(World) GameSession.(tick: Long) -> Log) {
@@ -176,26 +171,6 @@ class GameSession(
 
     fun toggleInspectionMode() {
         inspectionMode = !inspectionMode
-    }
-
-    private fun preloadPlayerItems(items: Map<PersistentId, ClientboundItemData>) = with(world) {
-        val itemEntities = items.mapValues { (_, item) -> item to addEntity() }
-        runBlocking {
-            itemEntities.forEach { (persistentId, pair) ->
-                val (clientboundItemData, itemEntity) = pair
-                itemEntity.copyState(
-                    clientboundItemData.components.toDomainSuspend {
-                        toDomainSuspend(
-                            componentLoadSettings,
-                            { persistentId ->
-                                itemEntities[persistentId]?.second
-                                    ?: playerJoinException("Предмет $persistentId требует несуществующую связь $persistentId")
-                            },
-                        )
-                    }
-                )
-            }
-        }
     }
 
     fun applyCompilation(build: Build) {

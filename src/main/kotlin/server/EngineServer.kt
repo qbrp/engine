@@ -51,10 +51,10 @@ class EngineServer(
     val tickTimes = FixedSizeList<Int>(20)
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val itemLoader = ItemLoader(this, database)
+    val playerPersistence = PlayerPersistence(this)
     val playerLoader = PlayerLoader(this, itemLoader)
     val chunkPersistence = ChunkPersistence(this, database)
     val entityCoordinator = EntityCoordinator()
-    val playerPersistence = PlayerPersistence(this)
     val simulation = EngineSimulation(
         false,
         this,

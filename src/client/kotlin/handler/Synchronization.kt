@@ -5,8 +5,7 @@ import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.data.ComponentLoadSettings
-import org.lain.engine.data.ComponentSnapshot
+import org.lain.engine.data.ComponentReviveSettings
 import org.lain.engine.data.EntityResolver
 import org.lain.engine.data.revive
 import org.lain.engine.player.*
@@ -128,7 +127,7 @@ fun World.tickPlayerLowDetailedSystem(
     }
 }
 
-fun ReplicationSnapshot.revive(resolver: EntityResolver, settings: ComponentLoadSettings): Component? {
+fun ReplicationSnapshot.revive(resolver: EntityResolver, settings: ComponentReviveSettings): Component? {
     return when (this) {
         is ReplicationSnapshot.EntityRpcReceiver -> EntityRpcQueue(LinkedList())
         is ReplicationSnapshot.ActionSync -> ActionSyncEvent(

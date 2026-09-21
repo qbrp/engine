@@ -1,27 +1,35 @@
 package org.lain.engine.data
 
-import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.setRequiredItemComponents
 import org.lain.engine.item.toItemPrefabId
 import org.lain.engine.util.ecs.EntityId
-import org.lain.engine.world.World
 
 data class MaterializedComponents(
+    val persistentId: PersistentId,
     val data: EntityPersistenceData?,
     val resolved: List<Component>,
     val unresolved: List<ComponentBatchDto>,
 ) {
+    @Suppress("UNCHECKED_CAST")
     context(write: WriteComponentAccess)
     fun apply(entity: EntityId) {
-        resolved.forEach { entity.setComponent(it) }
-        data?.let { entity.configure(it) }
+        resolved.forEach { component ->
+            write.setComponentWithType(
+                entity,
+                component,
+                componentTypeOf(component) as ComponentType<Component>,
+            )
+        }
+        data?.let { entity.configure(persistentId, it) }
     }
 }
 
-fun EntityPersistentRecord.materialize(settings: ComponentLoadSettings, resolver: EntityResolver): MaterializedComponents {
+fun EntityPersistentRecord.materialize(settings: ComponentReviveSettings, resolver: EntityResolver): MaterializedComponents {
     val resolvedComponents = mutableListOf<Component>()
     val unresolvedComponents = mutableListOf<ComponentBatchDto>()
     components.forEach { componentRecord ->
@@ -47,11 +55,12 @@ fun EntityPersistentRecord.materialize(settings: ComponentLoadSettings, resolver
             return@forEach
         }
     }
-    return MaterializedComponents(data, resolvedComponents, unresolvedComponents)
+    return MaterializedComponents(uuid, data, resolvedComponents, unresolvedComponents)
 }
 
 context(write: WriteComponentAccess)
-fun EntityId.configure(data: EntityPersistenceData) {
+fun EntityId.configure(persistentId: PersistentId, data: EntityPersistenceData) {
+    setComponent(PersistentIdComponent(persistentId))
     when (data) {
         is EntityPersistenceData.Item -> {
             setRequiredItemComponents(

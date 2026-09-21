@@ -79,18 +79,18 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<Location>()
     registerComponent<Savable>()
 
-    registerComponent<Networked>(isNetworking = true)
-    registerComponent<PersistentIdComponent>(isSavable = true, isNetworking = true)
+    registerComponent<Networked>()
+    registerComponent<PersistentIdComponent>()
     registerComponent<EntityRpcReceiver>(isNetworking = true, isSavable = true, replicationClass = null)
     registerComponent<DebugName>(isNetworking = true, isSavable = true)
 
     // Containers
-    registerComponent<Entries>(isNetworking = true)
+    registerComponent<Entries>()
     registerComponent<Container>(isNetworking = true)
     registerComponent<HasContainer>()
     registerComponent<TransferOperation>()
-    registerComponent<OccupiedSlots>(isNetworking = true)
-    registerComponent<Slots>(isNetworking = true)
+    registerComponent<OccupiedSlots>()
+    registerComponent<Slots>()
 
     // World and voxels
     registerComponent<DynamicVoxel>()

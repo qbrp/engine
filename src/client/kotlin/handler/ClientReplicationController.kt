@@ -1,35 +1,29 @@
 package org.lain.engine.client.handler
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.iterate
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.GameSession
-import org.lain.engine.player.PlayerContainer
-import org.lain.engine.player.PlayerInventory
+import org.lain.engine.data.EntityResolver
 import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.server.EntityNetworkSnapshot
-import org.lain.engine.server.Networked
 import org.lain.engine.server.ReplicationFrameSnapshot
 import org.lain.engine.server.ReplicationTarget
-import org.lain.engine.server.desync
+import org.lain.engine.server.protocolError
 import org.lain.engine.server.networkState
-import org.lain.engine.data.EntityProvider
-import org.lain.engine.data.EntityResolver
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.VoxelPosId
-import org.lain.engine.data.copyComponentDtoState
-import org.lain.engine.data.toDomainWithoutRelationships
+import org.lain.engine.player.collectReplicationEntities
+import org.lain.engine.server.Networked
+import org.lain.engine.server.ReplicationSnapshot
+import org.lain.engine.transport.packet.InitialReplicationState
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
@@ -39,70 +33,43 @@ import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
+import kotlin.collections.set
 
 class ClientReplicationController(
     private val gameSession: GameSession,
-    coroutineScope: CoroutineScope,
+    initialReplicationState: InitialReplicationState,
     private val requestResync: (ReplicationTarget) -> Unit,
 ) {
     private val replicationWorld: World = gameSession.world
     private val replicationState = ClientReplicationState()
     private val targetsAwaitingResync = mutableSetOf<ReplicationTarget>()
 
-    private val frames = Channel<ReplicationFrameSnapshot>(Channel.UNLIMITED)
-    private val frameJob: Job
-
-    private val missingEntityProvider = object : EntityProvider {
-        override suspend fun loadEntity(persistentId: PersistentId): List<ComponentDto> =
-            desync("Сетевой снапшот ссылается на отсутствующую сущность $persistentId")
-    }
-
     init {
         with(replicationWorld) {
             componentManager.networkedComponentChangeListener = listener@{ entity, type ->
                 val persistentId =
                     entity.getComponent<PersistentIdComponent>()?.id ?: return@listener
-                replicationState.recordComponentChange(persistentId, type.id)
+                replicationState.onComponentChange(persistentId, type.id)
             }
             componentManager.entityDestroyedListener = { _, persistentId ->
                 persistentId?.let(::removeEntity)
             }
 
-            iterate<Networked, PersistentIdComponent> { entity, _, (persistentId) ->
-                val components = runCatching {
-                    componentManager.getNetworkedComponents(entity).map { it.snapshotDto() }
-                }.getOrElse { exception ->
-                    LOGGER.warn("Failed to seed authoritative state for $persistentId", exception)
-                    emptyList()
-                }
-                replicationState.seed(ReplicationTarget.Entity(persistentId), components)
-            }
-
             replicationState.seed(
                 ReplicationTarget.World,
-                componentManager.getNetworkedComponents(state).map { it.snapshotDto() },
+                initialReplicationState.world
             )
-        }
-        frameJob = coroutineScope.launch { consumeFrames() }
-    }
 
-    fun enqueue(frame: ReplicationFrameSnapshot) {
-        val result = frames.trySend(frame)
-        if (result.isFailure) {
-            throw IllegalStateException(
-                "Не удалось добавить сетевой кадр в очередь",
-                result.exceptionOrNull(),
-            )
+            initialReplicationState.snapshots.forEach { (persistentId, snapshot) ->
+                replicationState.seed(ReplicationTarget.Entity(persistentId), snapshot)
+            }
         }
     }
 
-    fun beginPrediction(
-        playerEntity: EntityId,
-        interactionId: InteractionId,
-    ) {
+    fun beginPrediction(playerEntity: EntityId, interactionId: InteractionId) {
         replicationState.beginInteraction(
             interactionId,
-            replicationWorld.collectPredictionEntities(playerEntity),
+            replicationWorld.collectPredictionEntities(),
         )
     }
 
@@ -110,64 +77,59 @@ class ClientReplicationController(
         replicationState.endInteraction()
     }
 
+    fun apply(frame: ReplicationFrameSnapshot) {
+        try {
+            applyFrame(frame)
+        } catch (exception: Exception) {
+            LOGGER.error("Не удалось применить кадр репликации", exception)
+            gameSession.client.infrastructure.disconnect(
+                exception.message ?: "Не удалось применить кадр репликации",
+            )
+        }
+    }
+
     fun removeEntity(persistentId: PersistentId) {
         replicationState.removeEntity(persistentId)
         targetsAwaitingResync.remove(ReplicationTarget.Entity(persistentId))
     }
 
-    fun applyItemUnload(items: List<PersistentId>) = with(replicationWorld) {
-        items.forEach { item ->
-            gameSession.itemStorage.remove(item)?.destroy() ?: removeEntity(item)
-        }
-    }
-
     fun close() {
         replicationWorld.componentManager.networkedComponentChangeListener = null
         replicationWorld.componentManager.entityDestroyedListener = null
-        frames.close()
-        frameJob.cancel()
         replicationState.clear()
         targetsAwaitingResync.clear()
     }
 
-    private suspend fun consumeFrames() {
-        try {
-            for (frame in frames) {
-                applyFrame(frame)
+    private fun ensureEntity(persistentId: PersistentId): EntityId {
+        replicationWorld.persistentIdToEntity[persistentId]?.let { return it }
+
+        return replicationWorld.addEntity().also { entity ->
+            with(replicationWorld) {
+                entity.setComponent(PersistentIdComponent(persistentId))
+                entity.setComponent(Networked)
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            frames.close(e)
-            LOGGER.error("Не удалось применить сетевой кадр репликации", e)
-            gameSession.client.infrastructure.disconnect(
-                e.message ?: "Не удалось применить сетевой кадр репликации",
-            )
+
+            if (persistentId is VoxelPosId) {
+                val chunkPos = EngineChunkPos(persistentId.pos)
+                val chunk = replicationWorld.chunkStorage.getChunk(chunkPos)
+                    ?: protocolError("Получена сущность $persistentId на непрогруженном $chunkPos")
+                chunk.dynamicVoxels[persistentId.pos] = entity
+            }
         }
     }
 
-    private suspend fun applyFrame(frame: ReplicationFrameSnapshot) {
-        val acceptedSnapshots = frame.entities.mapNotNull { (persistentId, snapshot) ->
-            acceptEntitySnapshot(persistentId, snapshot)
-        }
-
-        with(replicationWorld) {
-            acceptedSnapshots.forEach { snapshot ->
-                if (persistentIdToEntity[snapshot.persistentId] == null) {
-                    instantiateEntity(snapshot.persistentId, emptyList())
-                }
-            }
-        }
-
+    private fun applyFrame(frame: ReplicationFrameSnapshot) {
         frame.world?.let { applyWorldState(it) }
 
-        val resolver = EntityResolver(missingEntityProvider)
-        acceptedSnapshots.forEach { pending ->
-            applyEntitySnapshot(pending, resolver)
+        val acceptedSnapshots = frame.entities.mapNotNull { (id, snapshot) ->
+            acceptEntitySnapshot(id, snapshot)
         }
 
+        acceptedSnapshots.forEach { ensureEntity(it.persistentId) }
+        acceptedSnapshots.forEach(::applyEntitySnapshot)
+
         frame.processedInputTick?.let { processedInputTick ->
-            applyProcessedInput(processedInputTick, resolver)
+            applyProcessedInput(processedInputTick)
         }
     }
 
@@ -175,11 +137,8 @@ class ClientReplicationController(
         persistentId: PersistentId,
         snapshot: EntityNetworkSnapshot,
     ): AcceptedEntitySnapshot? {
-        if (
-            snapshot is EntityNetworkSnapshot.Delta &&
-            replicationWorld.persistentIdToEntity[persistentId] == null
-        ) {
-            desync("Получен частичный снапшот отсутствующей сущности $persistentId")
+        if (snapshot is EntityNetworkSnapshot.Delta && replicationWorld.persistentIdToEntity[persistentId] == null) {
+            protocolError("Получен частичный снапшот отсутствующей сущности $persistentId")
         }
 
         val accepted = acceptSnapshot(ReplicationTarget.Entity(persistentId), snapshot)
@@ -219,10 +178,7 @@ class ClientReplicationController(
         return accepted
     }
 
-    private suspend fun applyEntitySnapshot(
-        acceptedSnapshot: AcceptedEntitySnapshot,
-        resolver: EntityResolver,
-    ) = with(replicationWorld) {
+    private fun applyEntitySnapshot(acceptedSnapshot: AcceptedEntitySnapshot) = with(replicationWorld) {
         val persistentId = acceptedSnapshot.persistentId
         val snapshot = acceptedSnapshot.snapshot
         val updated = snapshot.updated.filterNot { component ->
@@ -235,7 +191,6 @@ class ClientReplicationController(
             persistentId,
             updated,
             removed,
-            resolver,
         )
         entity.networkState().revision = snapshot.revision
 
@@ -254,10 +209,7 @@ class ClientReplicationController(
         }
     }
 
-    private suspend fun applyProcessedInput(
-        processedInputTick: Long,
-        resolver: EntityResolver,
-    ) {
+    private fun applyProcessedInput(processedInputTick: Long) {
         val confirmedComponents = replicationState.confirmInput(
             gameSession.mainPlayer.id,
             processedInputTick,
@@ -271,71 +223,53 @@ class ClientReplicationController(
                 persistentId,
                 updated,
                 removed,
-                resolver,
             )
         }
     }
 
-    private suspend fun applyWorldState(snapshot: EntityNetworkSnapshot) {
+    private fun applyWorldState(snapshot: EntityNetworkSnapshot) {
         val accepted = acceptSnapshot(ReplicationTarget.World, snapshot) ?: return
 
         with(replicationWorld) {
-            state.copyComponentDtoState(accepted.updated) {
-                toDomainWithoutRelationships(componentLoadSettings)
+            accepted.updated.forEach {
+                val component = it.revive(EntityResolver.EMPTY, componentReviveSettings) ?: return@forEach
+                state.setComponent(component, runtimeComponentType(component))
             }
             removeSnapshotComponents(state, accepted.removed)
             state.networkState().revision = accepted.revision
         }
     }
 
-    private suspend fun applyEntityComponents(
+    private fun applyEntityComponents(
         persistentId: PersistentId,
-        updated: List<ComponentDto>,
+        updated: List<ReplicationSnapshot>,
         removed: Collection<String>,
-        resolver: EntityResolver,
     ): EntityId = with(replicationWorld) {
         val existing = persistentIdToEntity[persistentId]
-            ?: desync("Сущность $persistentId отсутствует при применении снапшота")
+            ?: protocolError("Сущность $persistentId отсутствует для применения снапшота")
 
-        val entity = if (updated.isNotEmpty()) {
-            resolver.loadEntity(
-                componentLoadSettings,
-                updated,
-                persistentId,
+        updated.forEach {
+            val component = it.revive(EntityResolver.EMPTY, componentReviveSettings) ?: return@forEach
+            componentManager.setComponentWithType(
+                existing,
+                component,
+                runtimeComponentType(component),
             )
-        } else {
-            existing
         }
+        removeSnapshotComponents(existing, removed)
 
-        removeSnapshotComponents(entity, removed)
-        if (persistentId is VoxelPosId) {
-            val chunkPos = EngineChunkPos(persistentId.pos)
-            val chunk = chunkStorage.getChunk(chunkPos)
-                ?: desync("Получена динамическая воксельная сущность $persistentId на непрогруженном $chunkPos")
-            chunk.dynamicVoxels[persistentId.pos] = entity
-        }
-        entity
+        existing
     }
 
-    private fun World.collectPredictionEntities(playerEntity: EntityId): Set<PersistentId> {
-        val inventory = playerEntity.getComponent<PlayerInventory>()
-        val playerContainer = playerEntity.getComponent<PlayerContainer>()
-        return buildSet {
-            add(playerEntity)
-            inventory?.let {
-                addAll(inventory.items)
-                inventory.cursorItem?.let(::add)
-                inventory.mainHandItem?.let(::add)
-                inventory.offHandItem?.let(::add)
+    private fun World.collectPredictionEntities(): Set<PersistentId> {
+        return gameSession.mainPlayer.collectReplicationEntities()
+            .mapNotNullTo(mutableSetOf()) { entity ->
+                if (componentManager.exists(entity)) {
+                    entity.getComponent<PersistentIdComponent>()?.id
+                } else {
+                    null
+                }
             }
-            playerContainer?.let { add(it.containerId) }
-        }.mapNotNullTo(mutableSetOf()) { entity ->
-            if (componentManager.exists(entity)) {
-                entity.getComponent<PersistentIdComponent>()?.id
-            } else {
-                null
-            }
-        }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -343,7 +277,7 @@ class ClientReplicationController(
         removedTypeIds.forEach { typeId ->
             val type = ComponentTypeRegistry.get(typeId)?.type
                 ?: ScriptComponentId(EngineId(typeId)).let { scriptComponentId ->
-                    componentLoadSettings.namespacedStorage.components[scriptComponentId]
+                    componentReviveSettings.namespacedStorage.components[scriptComponentId]
                         ?: CoreScriptComponents.get(scriptComponentId)
                         ?: error("Тип компонента $typeId не существует")
                 }
@@ -355,6 +289,11 @@ class ClientReplicationController(
         val persistentId: PersistentId,
         val snapshot: SnapshotAcceptance.Accepted,
     )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun runtimeComponentType(component: Component): ComponentType<Component> {
+        return org.lain.cyberia.ecs.componentTypeOf(component) as ComponentType<Component>
+    }
 
     private companion object {
         val LOGGER = LoggerFactory.getLogger("Engine Client Replication")

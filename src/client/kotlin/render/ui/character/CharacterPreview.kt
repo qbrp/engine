@@ -34,7 +34,7 @@ internal fun createCharacterPreviewPlayer(
     character: CharacterProfile,
     skinGetter: () -> PlayerSkin
 ): CharacterPreviewPlayer {
-    val uuid = UUID.nameUUIDFromBytes(character.id.toByteArray(Charsets.UTF_8))
+    val uuid = UUID.nameUUIDFromBytes(character.id.value.toByteArray(Charsets.UTF_8))
     if (GENDER_MOD_AVAILABLE) {
         WildfireGender.getOrAddPlayerById(uuid).apply {
             updateGender(character.biologicalSex.wildfireGender)

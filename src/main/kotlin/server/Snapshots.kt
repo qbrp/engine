@@ -24,6 +24,14 @@ sealed class EntityNetworkSnapshot {
     ) : EntityNetworkSnapshot()
 }
 
+fun NetworkStateFrame.deltaSnapshot() = EntityNetworkSnapshot.Delta(baseRevision, revision, delta)
+
+context(world: World)
+fun EntityId.fullNetworkSnapshot() = EntityNetworkSnapshot.Full(
+    networkState().revision,
+    collectNetworkedComponents()
+)
+
 @Serializable
 sealed interface ReplicationTarget {
     @Serializable

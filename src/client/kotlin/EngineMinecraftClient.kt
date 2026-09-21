@@ -176,11 +176,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             renderer.tick()
 
         } catch (e: Throwable) {
-            when (e) {
-                is PlayerTickException -> e.log(connectionLogger)
-                else -> connectionLogger.error("При тике Engine возникла ошибка: ", e)
-            }
-
+            connectionLogger.error("При тике Engine возникла ошибка: ", e)
             disconnectWithReason(DisconnectText(e.message ?: "Неизвестная ошибка"))
             onDisconnect()
         }

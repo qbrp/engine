@@ -62,8 +62,10 @@ fun PersistentComponentDto.decode(): ComponentSnapshot = when (this) {
     }
 }
 
+fun ComponentSnapshot.Script.toPersistentDto() = PersistentComponentDto.Script(scriptId, value)
+
 fun ComponentSnapshot.serializeToPersistentDto(): PersistentComponentDto = when (this) {
-    is ComponentSnapshot.Script -> PersistentComponentDto.Script(id, value)
+    is ComponentSnapshot.Script -> toPersistentDto()
     is ComponentSnapshot.Kotlin<*> -> {
         val id = componentTypeOf(component).id
         val entry = SerializationRegistry.get(id)

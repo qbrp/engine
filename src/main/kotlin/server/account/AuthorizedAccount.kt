@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.account.CharacterDataResponse
 import org.lain.engine.player.account.SessionTicketDto
+import org.lain.engine.player.character.CharacterId
 import java.time.Instant
 
 open class AuthorizedAccount(
@@ -18,7 +19,7 @@ open class AuthorizedAccount(
         }
     }
 
-    suspend fun getCharacter(id: String): CharacterDataResponse = withContext(Dispatchers.IO) {
+    suspend fun getCharacter(id: CharacterId): CharacterDataResponse = withContext(Dispatchers.IO) {
         checkValid()
         httpClient.getJson("characters/$id", bearerToken)
     }

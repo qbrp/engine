@@ -7,6 +7,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.lain.cyberia.ecs.Component
+import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.WorldId
 import java.util.*
@@ -71,7 +72,7 @@ object JavaUuidSerializer : KSerializer<UUID> {
 @Serializable
 class VoxelPosId internal constructor(
     val world: WorldId,
-    val pos: VoxelPos,
+    val pos: ImmutableVoxelPos,
 ): PersistentId {
     override fun equals(other: Any?): Boolean {
         return other is VoxelPosId && world == other.world && pos == other.pos

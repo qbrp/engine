@@ -24,7 +24,15 @@ fun connectDatabase(server: MinecraftServer): Database {
 
 fun connectDatabase(path: String): Database {
     val database = Database.connect("jdbc:sqlite:$path/engine.db")
-    transaction { SchemaUtils.create(EntityTable, ComponentsTable, RelationsTable, ItemsTable) }
+    transaction {
+        SchemaUtils.create(
+            EntityTable,
+            ComponentsTable,
+            RelationsTable,
+            ItemsTable,
+            CharactersTable,
+        )
+    }
     return database
 }
 
@@ -63,13 +71,22 @@ object ItemsTable : Table() {
     val uuid = reference("uuid", EntityTable.uuid)
     val prefabId = varchar("prefab_id", 255)
     val count = integer("count")
-    val maxCount = integer("count")
+    val maxCount = integer("max_count")
+
+    override val primaryKey = PrimaryKey(uuid)
+}
+
+object CharactersTable : Table() {
+    val uuid = reference("uuid", EntityTable.uuid)
+    val look = text("look")
+    val items = text("items")
 
     override val primaryKey = PrimaryKey(uuid)
 }
 
 data class EntityPersistenceDataBatchDto(
-    val items: List<Pair<PersistentId, EntityPersistenceData.Item>>
+    val items: List<Pair<PersistentId, EntityPersistenceData.Item>>,
+    val characters: List<Pair<PersistentId, EntityPersistenceData.Character>> = emptyList(),
 )
 
 data class EntityBatchDto(
@@ -100,7 +117,7 @@ suspend fun upsertComponentsBatch(components: List<ComponentBatchDto>) = withCon
         shouldReturnGeneratedValues = false
     ) {
         this[ComponentsTable.entity] = it.entityId.toString()
-        this[ComponentsTable.id] = it.record.id.toString()
+        this[ComponentsTable.id] = it.record.id.id
         this[ComponentsTable.version] = it.record.version
         this[ComponentsTable.component] = ExposedBlob(it.record.payload)
         this[ComponentsTable.error] = it.record.error
@@ -129,9 +146,18 @@ suspend fun Database.saveEntitiesBatch(
             ItemsTable.batchUpsert(data.items, shouldReturnGeneratedValues = false) {
                 val (entityId, item) = it
                 this[ItemsTable.uuid] = entityId.toString()
-                this[ItemsTable.prefabId] = item.prefabId.toString()
+                this[ItemsTable.prefabId] = item.prefabId.id
                 this[ItemsTable.count] = item.count
                 this[ItemsTable.maxCount] = item.maxCount
+            }
+        }
+
+        if (data.characters.isNotEmpty()) {
+            CharactersTable.batchUpsert(data.characters, shouldReturnGeneratedValues = false) {
+                val (entityId, character) = it
+                this[CharactersTable.uuid] = entityId.toString()
+                this[CharactersTable.look] = character.look
+                this[CharactersTable.items] = character.items
             }
         }
 
@@ -165,7 +191,11 @@ suspend fun Database.saveEntity(
             items = when (val data = entity.data) {
                 is EntityPersistenceData.Item -> listOf(entity.uuid to data)
                 else -> emptyList()
-            }
+            },
+            characters = when (val data = entity.data) {
+                is EntityPersistenceData.Character -> listOf(entity.uuid to data)
+                else -> emptyList()
+            },
         ),
         components = entity.components.map { ComponentBatchDto(entity.uuid, it) },
         ownerships = entity.relations.map {
@@ -211,6 +241,18 @@ suspend fun Database.loadEntity(id: PersistentId): EntityPersistentRecord? {
                     row[ItemsTable.count],
                     row[ItemsTable.maxCount],
                 )
+            }
+            EntityDatabaseKind.CHARACTER -> {
+                val row = CharactersTable
+                    .selectAll()
+                    .where { CharactersTable.uuid eq id.toString() }
+                    .firstOrNull()
+                row?.let {
+                    EntityPersistenceData.Character(
+                        it[CharactersTable.look],
+                        it[CharactersTable.items],
+                    )
+                }
             }
             else -> null
         }

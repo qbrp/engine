@@ -225,12 +225,18 @@ class PlayerPersistence(server: EngineServer) {
     ): EntityId = loadPersistentEntity(playerId, context, diagnostic)
 
     suspend fun loadPersistentCharacter(
-        settings: ComponentLoadSettings,
+        settings: ComponentReviveSettings,
         playerId: PlayerId,
         characterId: CharacterId,
     ): PersistentCharacterRecord? = characterMutex(playerId, characterId).withLock {
         val entity = database.loadEntity(CharacterDatabasePersistentId(playerId, characterId)) ?: return null
-        val data = entity.data as EntityPersistenceData.Character
+        val data = entity.data as? EntityPersistenceData.Character ?: run {
+            LOGGER.warn(
+                "У персонажа $characterId игрока $playerId отсутствуют сохранённые данные; " +
+                    "персонаж будет создан заново"
+            )
+            return null
+        }
         val components = entity.materialize(settings, EntityResolver.EMPTY)
         return PersistentCharacterRecord(
             characterId,

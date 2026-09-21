@@ -3,28 +3,22 @@ package org.lain.engine.world
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EngineSimulation
-import org.lain.engine.item.EngineItem
-import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptContext
-import org.lain.engine.script.ScriptEngine
 import org.lain.engine.server.EngineServer
-import org.lain.engine.data.ComponentLoadSettings
+import org.lain.engine.data.ComponentReviveSettings
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.persistentId
-import org.lain.engine.util.Storage
 import org.lain.engine.util.ecs.ComponentWorld
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.server.Networked
 import org.lain.engine.data.loadWorldComponents
-import org.lain.engine.util.ConcurrentStorage
 import org.lain.engine.util.ecs.getKotlinComponentTypeEntries
 import java.util.concurrent.ConcurrentHashMap
 
@@ -57,13 +51,7 @@ class World(
 ) : MutableComponentAccess by componentManager, IterationComponentAccess by componentManager {
     val isClient = simulation.isClient
     val state: EntityId = componentManager.addWorldStateEntity()
-    val componentLoadSettings = ComponentLoadSettings(
-        itemStorage,
-        simulation.namespacedStorage,
-        persistentIdToEntity,
-        simulation.scriptEngine,
-        simulation.isClient
-    )
+    val componentReviveSettings = ComponentReviveSettings(simulation.namespacedStorage, simulation.scriptEngine)
 
     private val scriptContext = ScriptContext.World(this)
     val chunkStorage: ChunkStorage = ChunkStorage(this, server)

@@ -8,14 +8,14 @@ fun ComponentState(builder: ComponentState.() -> Unit): ComponentState {
 }
 
 @Suppress("UNCHECKED_CAST")
-class ComponentState(components: List<Component> = emptyList()) : ComponentManager {
+class ComponentState(initialComponents: List<Component> = emptyList()) : ComponentManager {
     private val components = ConcurrentHashMap<ComponentType<out Component>, Component>()
     val entries
         get() = components.entries
 
     init {
-        components.forEach {
-            setComponent(componentTypeOf(it) as ComponentType<Component>, it)
+        initialComponents.forEach { component ->
+            setComponent(componentTypeOf(component) as ComponentType<Component>, component)
         }
     }
 
@@ -45,7 +45,12 @@ class ComponentState(components: List<Component> = emptyList()) : ComponentManag
         return components[type] as? T
     }
 
-    override fun copyTo(componentState: ComponentManager){
-        getComponents().forEach { componentState.set(it) }
+    override fun copyTo(componentState: ComponentManager) {
+        getComponents().forEach { component ->
+            componentState.setComponent(
+                componentTypeOf(component) as ComponentType<Component>,
+                component,
+            )
+        }
     }
 }

@@ -50,6 +50,7 @@ data class VoxelBlockHintPacket(val pos: VoxelPos, val action: Action) : Packet 
 
 val SERVERBOUND_VOXEL_BLOCK_HINT_PACKET = Endpoint<VoxelBlockHintPacket>()
 
+@Serializable
 data class ReplicationPacket(val frame: ReplicationFrameSnapshot) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)

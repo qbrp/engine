@@ -40,7 +40,7 @@ fun EntityId.getDebugId() = EntityDebugId("$this")
 data class Log(
     val message: String,
     val level: LogLevel,
-    val data: Map<String, String>,
+    val data: Map<String, String> = emptyMap(),
     val tick: Long? = null,
     val world: WorldId? = null,
     val error: Error? = null,

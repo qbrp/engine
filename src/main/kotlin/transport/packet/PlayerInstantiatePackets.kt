@@ -14,7 +14,11 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
 import org.lain.engine.data.*
+import org.lain.engine.player.character.CharacterId
+import org.lain.engine.server.EntityNetworkSnapshot
+import org.lain.engine.server.ReplicationFrameSnapshot
 import org.lain.engine.server.ReplicationSnapshot
+import org.lain.engine.server.fullNetworkSnapshot
 import org.lain.engine.server.replicationSnapshot
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -87,22 +91,10 @@ data class ClientboundPlayerList private constructor(val players: List<GeneralPl
 }
 
 @Serializable
-data class ClientboundItemData(
-    val persistentId: PersistentId,
-    val components: List<ReplicationSnapshot>
-) {
-    companion object {
-        context(world: World)
-        fun of(item: EngineItem): ClientboundItemData {
-            return ClientboundItemData(
-                item.requireComponent<PersistentIdComponent>().id,
-                world.componentManager
-                    .getNetworkedComponents(item)
-                    .map { it.replicationSnapshot() }
-            )
-        }
-    }
-}
+data class InitialReplicationState(
+    val world: EntityNetworkSnapshot.Full,
+    val snapshots: Map<PersistentId, EntityNetworkSnapshot.Full>
+)
 
 @Serializable
 data class ServerPlayerData(
@@ -114,8 +106,7 @@ data class ServerPlayerData(
     val minVolume: Float,
     val maxVolume: Float,
     val baseVolume: Float,
-    val items: List<ClientboundItemData>,
-    val equipment: Map<EquipmentSlot, ClientboundItemData>,
+    val replicationSnapshot: InitialReplicationState,
     val skinEyeY: Float,
     val character: EngineCharacter?
 ) {
@@ -123,7 +114,6 @@ data class ServerPlayerData(
         get() = general.playerId
 
     companion object {
-        context(world: World)
         fun of(player: EnginePlayer): ServerPlayerData {
             val movementStatus = player.require<MovementStatus>().copy()
             val voiceApparatus = player.require<VoiceApparatus>().copy()
@@ -137,12 +127,19 @@ data class ServerPlayerData(
                 voiceApparatus.minVolume ?: defaults.minVolume,
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
-                player.items.map { ClientboundItemData.of(it) },
-                player.equipmentContainer
-                    .getEquipmentContainerSlots()
-                    .mapValues { (_, item) -> ClientboundItemData.of(item) },
+                composeInitialReplicationState(player),
                 player.skinEyeY,
                 player.get<AppliedCharacter>()?.character
+            )
+        }
+
+        fun composeInitialReplicationState(player: EnginePlayer): InitialReplicationState = with(player.world) {
+            val snapshots = player.collectReplicationEntities().associate { entity ->
+                entity.requireComponent<PersistentIdComponent>().id to entity.fullNetworkSnapshot()
+            }
+            return InitialReplicationState(
+                player.world.state.fullNetworkSnapshot(),
+                snapshots
             )
         }
     }
@@ -187,7 +184,7 @@ data class FullPlayerData(
         fun of(player: EnginePlayer) = FullPlayerData(
             player.require<MovementStatus>().copy(),
             player.require<PlayerAttributes>().copy(),
-      //      player.require<ArmStatus>().copy(),
+            //      player.require<ArmStatus>().copy(),
             player.skinEyeY,
             PlayerReferencedItems.of(player)
         )
@@ -237,7 +234,7 @@ val CLIENTBOUND_PLAYER_DESTROY_ENDPOINT = Endpoint<PlayerDestroyPacket>()
 data class VerificationResponsePacket(
     val developerModeStatus: DeveloperModeStatus,
     val namespaces: NamespaceHashMap,
-    val characterId: String?,
+    val characterId: CharacterId?,
     val sessionTicket: SessionTicketDto,
 ) : Packet {
     override val requireAuthorized: Boolean = false
