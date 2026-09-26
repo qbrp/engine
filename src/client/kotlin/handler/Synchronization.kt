@@ -52,7 +52,9 @@ fun lowDetailedClientPlayerInstance(
                 data.displayName,
                 developerModeStatus = DeveloperModeStatus(),
             ),
-            id
+            id,
+            character = null,
+            look = null,
         ).also {
             it.set(LowDetail(true))
         }
@@ -80,7 +82,9 @@ fun mainClientPlayerInstance(
                 developerModeStatus = developerModeStatus,
                 skinEyeY = data.skinEyeY
             ),
-            id
+            id,
+            character = data.character,
+            look = data.look
         ).also { it.isLowDetailed = false }
     }
 }

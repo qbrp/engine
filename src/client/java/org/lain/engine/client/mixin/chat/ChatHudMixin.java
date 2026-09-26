@@ -36,9 +36,14 @@ public abstract class ChatHudMixin implements EngineChatHudAccess {
      * @author Lain1wakura
      * @reason Engine owns chat layout, selection, avatars, and message metadata.
      */
-    @Overwrite
-    public void render(GuiGraphics guiGraphics, int currentTick, int mouseX, int mouseY, boolean focused) {
+    @Inject(
+            at = @At(value = "HEAD"),
+            method = "render",
+            cancellable = true
+    )
+    public void render(GuiGraphics guiGraphics, int currentTick, int mouseX, int mouseY, boolean focused, CallbackInfo ci) {
         this.engine$wrapper.render(guiGraphics, currentTick, mouseX, mouseY, focused);
+        ci.cancel();
     }
 
     /**

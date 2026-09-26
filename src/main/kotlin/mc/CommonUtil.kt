@@ -284,7 +284,7 @@ fun Callbacks.executePlaceVoxelCallback(player: EnginePlayer?, world: World, pos
             player,
             world,
             pos,
-            MinecraftBlockState(state)
+            BlockStateVoxelMeta(state)
         )
     )
 }
@@ -294,5 +294,3 @@ fun blockTag(rawId: String) = blockTag(parseId(rawId))
 fun blockTag(id: ResourceLocation) = TagKey.create(Registries.BLOCK, id)
 
 fun MutableVoxelPos.Companion.ofLong(long: Long) = BlockPos.of(long).let { MutableVoxelPos(it.x, it.y, it.z) }
-
-fun blockRegistryEntryExists() = Registries.BLOCK

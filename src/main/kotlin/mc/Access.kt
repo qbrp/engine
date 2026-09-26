@@ -19,6 +19,7 @@ import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.server.Notification
 import org.lain.engine.util.requireEngineMinecraftServer
 import org.lain.engine.world.World
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 interface MinecraftAccess {

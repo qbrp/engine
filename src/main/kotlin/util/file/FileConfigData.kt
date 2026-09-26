@@ -12,7 +12,6 @@ data class ServerConfig(
     val chat: ChatConfig,
     val player: PlayerConfig,
     val vocal: VoiceApparatusConfig,
-    val movement: MovementConfig,
     @SerialName("item_autosave_period") val itemAutosavePeriod: Int, // в секундах
 )
 
@@ -134,19 +133,6 @@ data class VoiceApparatusConfig(
     @SerialName("tiredness_threshold") val tirednessThreshold: Float,
     @SerialName("tiredness_gain") val tirednessGain: Float,
     @SerialName("tiredness_decrease_rate") val tirednessDecreaseRateSeconds: Float
-)
-
-@Serializable
-data class MovementConfig(
-    @SerialName("stamina") val enableStamina: Boolean,
-    @SerialName("sprint_multiplier") val sprintMultiplier: Float,
-    @SerialName("min_speed_factor") val minSpeedFactor: Float,
-    @SerialName("min_speed_multiplier_sprint_factor") val minSpeedSprintFactor: Float,
-    @SerialName("slowdown_stamina_threshold") val slowdownStaminaThreshold: Float,
-    @SerialName("stamina_consumption") val staminaConsumeMinutes: Float,
-    @SerialName("stamina_regen") val staminaRegenMinutes: Float,
-    @SerialName("jump_stamina_consume") val jumpStaminaConsume: Float,
-    @SerialName("intention_effect") val intentionEffect: Float
 )
 
 //// PLAYER CONFIG

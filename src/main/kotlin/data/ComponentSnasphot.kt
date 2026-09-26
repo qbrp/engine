@@ -1,5 +1,6 @@
 package org.lain.engine.data
 
+import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.engine.container.Entries
@@ -17,9 +18,11 @@ import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.world.Luminance
 
+@Serializable
 sealed interface ComponentSnapshot {
     val id: String
 
+    @Serializable
     data class Kotlin<T : Component>(
         val component: T
     ) : ComponentSnapshot {
@@ -27,6 +30,7 @@ sealed interface ComponentSnapshot {
             get() = componentTypeOf(component).id
     }
 
+    @Serializable
     data class Script(
         val scriptId: ScriptComponentId,
         val value: ScriptValue

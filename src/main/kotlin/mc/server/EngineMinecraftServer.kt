@@ -193,6 +193,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         }
         engine.stop()
         MinecraftAccessRegistry.invalidate()
+        Injector.unregister<EngineMinecraftServer>()
     }
 
     open fun onJoinPlayer(entity: ServerPlayer) {
@@ -257,9 +258,6 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     fun onBlockBreak(pos: BlockPos, world: Level) {
         acousticSimulator.removeBlock(pos, world)
-        val engineWorld = engine.getWorld(world.engineId)
-        val voxelPos = ImmutableVoxelPos(pos.x, pos.y, pos.z)
-        engineWorld.chunkStorage.removeVoxel(voxelPos)
     }
 
     fun onBlockAdd(player: EnginePlayer?, pos: BlockPos, state: BlockState, world: Level) {

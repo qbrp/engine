@@ -64,34 +64,37 @@ fun registerWorldRenderEvents(
             }
 
             val options = engineClient.options
+
+            if ((!engineClient.renderer.hudHidden || !options.hideChatBubblesWithUi) && options.chatBubbles) {
+                renderChatBubbles(
+                    camera,
+                    options.labelEasingDistance.toFloat(),
+                    options.chatBubbleScale,
+                    options.chatBubbleHeight,
+                    options.chatBubbleBackgroundOpacity,
+                    gameSession.chatBubbleList.bubbles,
+                    options.chatBubbleIgnoreLightLevel,
+                    deltaTicks
+                )
+            }
+
             if (!engineClient.renderer.hudHidden) {
-                if (!options.hideChatBubblesWithUi && options.chatBubbles) {
-                    renderChatBubbles(
-                        camera,
-                        options.labelEasingDistance.toFloat(),
-                        options.chatBubbleScale,
-                        options.chatBubbleHeight,
-                        options.chatBubbleBackgroundOpacity,
-                        gameSession.chatBubbleList.bubbles,
-                        options.chatBubbleIgnoreLightLevel,
-                        deltaTicks
-                    )
-                }
                 val visibleBlockHintChunks = EngineChunkPos(playerBlockPos.voxelPos()).square(1)
-                visibleBlockHintChunks
-                    .mapNotNull { gameSession.world.chunkStorage.getChunk(it) }
-                    .forEach {
-                        renderBlockHints(
-                            camera,
-                            gameSession.hintState,
-                            gameSession.inspection,
-                            gameSession.inspectionMode,
-                            300,
-                            it.hints,
-                            TextCache,
-                            deltaTicks
-                        )
-                    }
+                val visibleBlockHints = buildMap {
+                    visibleBlockHintChunks
+                        .mapNotNull { gameSession.world.chunkStorage.getChunk(it) }
+                        .forEach { putAll(it.hints) }
+                }
+                renderBlockHints(
+                    camera,
+                    gameSession.hintState,
+                    gameSession.inspection,
+                    gameSession.inspectionMode,
+                    300,
+                    visibleBlockHints,
+                    TextCache,
+                    deltaTicks
+                )
             }
         }
     }

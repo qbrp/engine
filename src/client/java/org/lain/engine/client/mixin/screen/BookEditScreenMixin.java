@@ -2,15 +2,12 @@ package org.lain.engine.client.mixin.screen;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.BookEditScreen;
-import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.lain.engine.client.mc.ClientMixin;
-import org.lain.engine.client.mixin.render.ScreenAccessor;
 import org.lain.engine.item.Writable;
 import org.lain.engine.mc.CommonUtilKt;
 import org.spongepowered.asm.mixin.Final;
@@ -25,7 +22,6 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
-import java.util.Objects;
 
 @Mixin(BookEditScreen.class)
 public abstract class BookEditScreenMixin {
@@ -36,6 +32,9 @@ public abstract class BookEditScreenMixin {
     @Shadow
     @Final
     private List<String> pages;
+
+    @Shadow
+    private Button signButton;
 
     @Unique
     private Writable engine$writable;
@@ -48,29 +47,13 @@ public abstract class BookEditScreenMixin {
         this.engine$writable = ClientMixin.INSTANCE.getWriteable(stack);
     }
 
-    @Redirect(
-            method = "init",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screens/inventory/BookEditScreen;addRenderableWidget(Lnet/minecraft/client/gui/components/events/GuiEventListener;)Lnet/minecraft/client/gui/components/events/GuiEventListener;"
-            )
-    )
-    private GuiEventListener engine$removeSignButton(BookEditScreen screen, GuiEventListener widget) {
-        if (this.engine$writable != null
-                && widget instanceof Button button
-                && button.getMessage().getContents() instanceof TranslatableContents contents
-                && Objects.equals(contents.getKey(), "book.signButton")) {
-            return widget;
-        }
-
-        ((ScreenAccessor)(Object)this).engine$addDrawableChild(widget);
-        return widget;
-    }
-
     @Inject(method = "init", at = @At("TAIL"))
-    private void engine$resolveBackground(CallbackInfo ci) {
-        if (this.engine$writable != null && this.engine$writable.getBackgroundAsset() != null) {
-            this.engine$backgroundTexture = CommonUtilKt.engineId(this.engine$writable.getBackgroundAsset());
+    private void engine$configureWritableScreen(CallbackInfo ci) {
+        if (this.engine$writable != null) {
+            ((ScreenAccessor)(Object)this).engine$removeWidget(this.signButton);
+            if (this.engine$writable.getBackgroundAsset() != null) {
+                this.engine$backgroundTexture = CommonUtilKt.engineId(this.engine$writable.getBackgroundAsset());
+            }
         }
     }
 

@@ -1,6 +1,8 @@
 package org.lain.engine.script.lua.compilation
 
 import org.lain.engine.item.toItemPrefabId
+import org.lain.engine.player.interaction.ProgressionAnimation
+import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.*
 import org.lain.engine.script.compilation.*
 import org.lain.engine.script.lua.*
@@ -79,6 +81,7 @@ private fun compiledNamespacesList(
         val operationsArray = namespace.get("operations").nullable()?.checktable()
         val systemsArray = namespace.get("systems").nullable()?.checktable()
         val soundEventsArray = namespace.get("sound_events").nullable()?.checktable()
+        val progressionAnimationsArray = namespace.get("progression_animations").nullable()?.checktable()
 
         val items =
             compileItemPrefabsLua(
@@ -196,10 +199,34 @@ private fun compiledNamespacesList(
             ?.toMap()
             ?: emptyMap()
 
+        val progressionAnimations = progressionAnimationsArray?.toList { it.checktable() }
+            ?.mapNotNull { animation ->
+                compileEntry(
+                    namespaceId,
+                    SymbolKind.OTHER,
+                    animation
+                ) {
+                    val id = ProgressionAnimationId(animation["id"].resolveIdReference())
+                    val framesTable = animation["frames"].checktable()
+                    val frameName = framesTable["name"].nullable()?.tojstring()
+                    val frames = if (frameName == null) {
+                        framesTable.toList { it.checkjstring() }
+                    } else {
+                        val count = framesTable["count"].checkint()
+                        List(count) { index -> "$frameName${index + 1}" }
+                    }
+                    val text = animation["text"].checkjstring()
+                    val success = animation["success"].nullable()?.tojstring() ?: text
+                    id to ProgressionAnimation(frames, text, success)
+                }
+            }
+            ?.toMap()
+            ?: emptyMap()
+
         namespaceId to NamespaceDraft(
             items = items.associateBy { it.id },
             sounds = soundEvents,
-            progressionAnimations = emptyMap(),
+            progressionAnimations = progressionAnimations,
             scripts = scripts,
             components = components,
             operations = operations,

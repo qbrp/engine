@@ -85,6 +85,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
         registerEngineItemGroupEvent(engine)
+        ClientMixin.createResourceList(engine)
         registerEngineModelLoading()
         registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)

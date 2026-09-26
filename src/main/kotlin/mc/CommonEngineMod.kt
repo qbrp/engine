@@ -23,10 +23,12 @@ import org.lain.engine.mc.commands.registerWorldEditCommands
 import org.lain.engine.mc.ecs.initializeEngineItemComponents
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.player.RaycastProvider
+import org.lain.engine.script.ScriptExceptionHandler
 import org.lain.engine.util.Environment
 import org.lain.engine.util.Injector
 import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.requireEngineMinecraftServer
+import javax.script.ScriptException
 
 /**
  * Класс отвечает за объявление **общих** на выделенном клиенте и серверах событиях.
@@ -70,6 +72,7 @@ class CommonEngineMod : ModInitializer {
         }
 
         ServerLifecycleEvents.SERVER_STOPPED.register { server ->
+            ScriptExceptionHandler.invalidate()
             engineServer?.disable()
         }
 

@@ -23,7 +23,6 @@
     "ServerPlayerMixin",
     "WhisperCommandMixin"
   ],
-  "accessWidener": "engine.classtweaker",
   "injectors": {
     "defaultRequire": 1
   },

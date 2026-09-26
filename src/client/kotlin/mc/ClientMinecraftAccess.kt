@@ -42,7 +42,6 @@ class ClientMinecraftAccess(
 
     override fun onBlockDestroyed(level: Level, blockPos: BlockPos) {
         val pos = ImmutableVoxelPos(blockPos.immutableVoxelPos())
-        world.chunkStorage.removeVoxel(pos)
         client.decalSystem.unloadTexture(pos)
     }
 

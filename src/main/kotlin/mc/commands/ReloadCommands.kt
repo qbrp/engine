@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.minecraft.commands.CommandSourceStack
+import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadOrCreateServerConfig
 import org.lain.engine.util.requireEngineMinecraftServer
@@ -76,9 +77,10 @@ class ScriptPathSuggestionProvider : SuggestionProvider<CommandSourceStack> {
             val computingState = PathsState.Computing(version)
             if (paths.compareAndSet(state, computingState)) {
                 val scriptsDirectory = File(server.luaScriptEngine.scriptsPath)
+                val modulesDirectory = FileSystem.modules
                 scope.launch {
                     runCatching {
-                        scriptFilesList(scriptsDirectory)
+                        scriptFilesList(scriptsDirectory) + scriptFilesList(modulesDirectory)
                     }.onSuccess { scripts ->
                         if (generation.get() == version) {
                             paths.compareAndSet(

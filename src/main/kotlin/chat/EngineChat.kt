@@ -42,6 +42,11 @@ class EngineChat(
     val settings: EngineChatSettings
         get() = settingsAtomicRef.get()
 
+    fun close() {
+        coroutineScope.cancel()
+        executor.close()
+    }
+
     fun onSettingsUpdated(settings: EngineChatSettings) {
         settingsAtomicRef.set(settings)
         channelsMap = settings.channels.associateBy { it.id }

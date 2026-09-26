@@ -13,10 +13,9 @@ import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterModelType
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.character.computeCharacterModel
-import org.lain.engine.player.getOrSet
-import org.lain.engine.player.require
+import org.lain.engine.player.get
 import org.lain.engine.world.World
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 data class EnginePlayerSkin(
@@ -35,7 +34,7 @@ fun CharacterSkin(texture: ResourceLocation, model: CharacterModelType) = Player
     true
 )
 
-fun EnginePlayer.getSkin() = require<EnginePlayerSkin>().skin
+fun EnginePlayer.getSkin() = get<EnginePlayerSkin>()?.skin
 
 class SkinSystem(
     private val skinTextureManager: SkinTextureManager

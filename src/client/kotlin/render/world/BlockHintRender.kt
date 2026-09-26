@@ -12,12 +12,13 @@ import org.lain.engine.mc.literalText
 import org.lain.engine.world.Hint
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.VoxelPos
+import kotlin.math.pow
 
 private val NOT_READ = literalText("?").withStyle(ChatFormatting.YELLOW).visualOrderText
 private val CHANGED = literalText("?").withStyle(ChatFormatting.GOLD).visualOrderText
 private val READ = literalText("?").withStyle(ChatFormatting.DARK_GRAY).visualOrderText
 
-data class BlockHintInspectionRenderState(var time: Float = 0f)
+data class BlockHintInspectionRenderState(var opacity: Float = 0f)
 
 context(ctx: ImmediateWorldRenderContext)
 fun renderBlockHints(
@@ -35,14 +36,15 @@ fun renderBlockHints(
 
     val easingDistance = 12f * 12f
     val fade = 0.5f
+    val renderState = screenRenderer.blockHintInspectionRenderState ?: BlockHintInspectionRenderState().also {
+        screenRenderer.blockHintInspectionRenderState = it
+    }
+    val targetInspectionOpacity = if (inspection) 1f else 0f
+    val opacityStep = 1f - 0.7f.pow(dt.coerceAtLeast(0f))
+    renderState.opacity += (targetInspectionOpacity - renderState.opacity) * opacityStep
+    renderState.opacity = renderState.opacity.coerceIn(0f, 1f)
 
     if (inspection && hint != null) {
-        val renderState = screenRenderer.blockHintInspectionRenderState ?: run {
-            val state = BlockHintInspectionRenderState()
-            screenRenderer.blockHintInspectionRenderState = state
-            state
-        }
-
         val size = hint.hint.texts.size
         val (str, index) = hint.computeText()
         val text = if (size <= 1) {
@@ -60,14 +62,10 @@ fun renderBlockHints(
 
         renderLabel(
             camera,
-            LabelRenderState(pos, 0.5f, lines, scale),
+            LabelRenderState(pos, renderState.opacity, lines, scale),
             0.25f,
             LightTexture.FULL_BRIGHT
         )
-
-        renderState.time += dt
-    } else {
-        screenRenderer.blockHintInspectionRenderState = null
     }
 
     hints.forEach { (pos, hint) ->
@@ -80,18 +78,18 @@ fun renderBlockHints(
         // TODO
         val text = NOT_READ
         val centerPos = pos.toCenterPos()
-        val multiplierAlpha = if (!inspection) 0.3f else 1f
+        val multiplierAlpha = 0.3f + 0.7f * renderState.opacity
 
         if (!inspection || inspectionMode.voxelPos != pos) {
             renderLabel(
                 camera,
                 LabelRenderState(
                     centerPos,
-                    0.5f * multiplierAlpha,
+                    multiplierAlpha,
                     listOf(ctx.textRenderer.labelRenderStateLine(text)),
                     0.0285f
                 ),
-                0.25f * multiplierAlpha,
+                0.25f,
                 LightTexture.FULL_BRIGHT,
                 easing = LabelEasing(
                     centerPos.squaredDistanceTo(camera.position.engine()),

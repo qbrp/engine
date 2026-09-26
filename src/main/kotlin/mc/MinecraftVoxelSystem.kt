@@ -1,12 +1,10 @@
 package org.lain.engine.mc
 
-import net.minecraft.core.BlockPos
 import net.minecraft.tags.BlockTags
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.DoorBlock
 import net.minecraft.world.level.block.state.BlockState
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
@@ -17,7 +15,7 @@ import org.lain.engine.world.VoxelTag
 import org.lain.engine.world.World
 import java.util.stream.Stream
 
-data class MinecraftBlockState(val blockState: BlockState) : Component, VoxelMeta {
+data class BlockStateVoxelMeta(val blockState: BlockState) : Component, VoxelMeta {
     override val id: String
         get() = blockState.registryKey.idString
 
@@ -31,11 +29,11 @@ data class MinecraftBlockState(val blockState: BlockState) : Component, VoxelMet
 
 fun World.tickVoxelAdapterSystem(level: Level) = iterate<DynamicVoxel> { voxel, (pos) ->
     voxel.setComponent(
-        MinecraftBlockState(level.getBlockState(pos.toBlockPos()))
+        BlockStateVoxelMeta(level.getBlockState(pos.toBlockPos()))
     )
 }
 
-fun World.tickVoxelDoorSystem(level: Level) = iterate<DynamicVoxel, VoxelDoor, MinecraftBlockState> { voxel, (pos), door, (blockState) ->
+fun World.tickVoxelDoorSystem(level: Level) = iterate<DynamicVoxel, VoxelDoor, BlockStateVoxelMeta> { voxel, (pos), door, (blockState) ->
     val block = blockState.block
     if (!blockState.`is`(BlockTags.DOORS) || block !is DoorBlock) {
         voxel.removeComponent<VoxelDoor>()

@@ -80,6 +80,10 @@ class LooksWheel<T>(
         height = screen.height
     }
 
+    fun tick() {
+        items.forEach { it.previewPlayer.tick() }
+    }
+
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         return if (keyCode == InputConstants.KEY_RETURN) {
             onSelectLook(items.getOrNull(selectedIndex)?.entry)

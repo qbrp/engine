@@ -48,52 +48,11 @@ import java.util.UUID
 class ServerPlayerTest : EngineTest() {
     @field:TempDir
     lateinit var tempDir: Path
-
     private lateinit var server: EngineServer
-    private lateinit var transportContext: TestServerTransportContext
 
     @BeforeEach
     fun setup() {
-        val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
-        val scriptsPath = tempDir.resolve("scripts").toFile()
-        scriptsPath.mkdirs()
-        val entrypoint = scriptsPath.resolve("entrypoint.lua")
-        val moduleManager = ModuleManager()
-        entrypoint.createNewFile()
-        server = EngineServer(
-            ServerId("test"),
-            PlayerStorage(),
-            AcousticSimulator.DUMMY,
-            ServerPlatform.DUMMY,
-            namespacedStorage,
-            moduleManager,
-            Thread.currentThread(),
-            false,
-            tempDir.resolve("world").toFile(),
-            connectDatabase(tempDir.toString()),
-            LuaScriptEngine(
-                LuaScriptEngine.Dependencies(
-                    LuaScriptEngine.globals(),
-                    namespacedStorage,
-                    LuaDataStorage(),
-                    moduleManager,
-                    scriptsPath.path,
-                ),
-                FileScriptSource(entrypoint)
-            ),
-            SaveTimers(
-                SaveTimers.Counter(20),
-                SaveTimers.Counter(20),
-            )
-        )
-        transportContext = TestServerTransportContext(server)
-        Injector.register<ServerTransportContext>(transportContext)
-        server.simulation.loadWorld(
-            World(
-                WorldId("test"),
-                server.simulation
-            )
-        )
+        server = setupTestEngineServer(tempDir)
     }
 
     @Test
@@ -145,6 +104,26 @@ class ServerPlayerTest : EngineTest() {
 
     @Test
     fun asyncChunkLoadCanBeRequestedOffThread() {
+        var failure: Throwable? = null
+        val thread = Thread {
+            runCatching {
+                server.chunkPersistence.loadChunkAsync(
+                    server.simulation.defaultWorld,
+                    EngineChunkPos(0, 0),
+                )
+            }.onFailure { failure = it }
+        }
+
+        thread.start()
+        thread.join()
+
+        assertNull(failure)
+    }
+
+    @Test
+    fun asyncChunkLoadIsIgnoredAfterPersistenceIsClosed() = runBlocking {
+        server.chunkPersistence.close()
+
         var failure: Throwable? = null
         val thread = Thread {
             runCatching {

@@ -2,8 +2,12 @@ package org.lain.engine.server.replication
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.collectReplicationEntities
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.data.PersistentId
@@ -16,23 +20,40 @@ import org.lain.engine.world.World
 import java.util.TreeMap
 
 data class TrackingState(
-    val previousTickSynced: MutableSet<PersistentId> = mutableSetOf(),
+    val previousTickResident: MutableSet<PersistentId> = mutableSetOf(),
+    val resident: MutableSet<PersistentId> = mutableSetOf(),
     val synced: MutableSet<PersistentId> = mutableSetOf(),
     val fresh: MutableSet<PersistentId> = mutableSetOf()
 ) {
-    fun update(entities: Set<PersistentId>) {
-        previousTickSynced.clear()
-        previousTickSynced.addAll(synced)
+    fun update(
+        activeEntities: Set<PersistentId>,
+        residentEntities: Set<PersistentId> = activeEntities,
+    ) {
+        require(residentEntities.containsAll(activeEntities)) {
+            "Active replication entities must also be resident"
+        }
+
+        previousTickResident.clear()
+        previousTickResident.addAll(resident)
 
         fresh.clear()
-        synced.retainAll(entities)
-        entities.forEach { entity ->
+        synced.retainAll(activeEntities)
+        activeEntities.forEach { entity ->
             if (synced.add(entity)) {
                 fresh.add(entity)
             }
         }
+
+        resident.clear()
+        resident.addAll(residentEntities)
     }
 }
+
+context(world: World)
+private fun EnginePlayer.replicationPersistentIds(): Set<PersistentId> =
+    collectReplicationEntities().mapNotNullTo(mutableSetOf()) { entity ->
+        entity.getComponent<PersistentIdComponent>()?.id
+    }
 
 data class PlayerSyncState(
     val trackingPlayers: MutableMap<EntityId, LocationedPlayer> = mutableMapOf(),
@@ -84,6 +105,14 @@ fun World.confirmProcessedPlayerInputsSystem() {
 
 fun World.tickPlayerTrackingSystem(server: EngineServer, desynchronizationRadius: Int) {
     val squaredDesynchronizationRadius = desynchronizationRadius * desynchronizationRadius
+    val replicationEntitiesByPlayer = players
+        .asSequence()
+        .filterNot { it.destroyed }
+        .associate { it.entity to it.replicationPersistentIds() }
+    val onlinePlayerReplicationEntities = replicationEntitiesByPlayer.values
+        .flatten()
+        .toSet()
+
     iterate<Location, Interests, PlayerSyncState>()
         { player, (position), interests, syncState ->
             val trackingPlayers = syncState.trackingPlayers
@@ -117,6 +146,18 @@ fun World.tickPlayerTrackingSystem(server: EngineServer, desynchronizationRadius
                 .filter { syncState.sentChunks.contains(it.chunkPos) }
                 .map { it.id }
 
-            entities.update(frame.interestEntities + availableInterestsVoxels)
+            val activePlayerReplicationEntities = buildSet {
+                replicationEntitiesByPlayer[player]?.let(::addAll)
+                frame.interestPlayers.forEach { (interestPlayer) ->
+                    replicationEntitiesByPlayer[interestPlayer.entity]?.let(::addAll)
+                }
+            }
+            val activeEntities =
+                frame.interestEntities + availableInterestsVoxels + activePlayerReplicationEntities
+
+            entities.update(
+                activeEntities = activeEntities,
+                residentEntities = activeEntities + onlinePlayerReplicationEntities,
+            )
         }
 }

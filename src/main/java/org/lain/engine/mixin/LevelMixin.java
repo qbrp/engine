@@ -7,13 +7,18 @@ import org.lain.engine.mc.CommonMixin;
 import org.lain.engine.mc.ServerMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Desc;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Level.class)
 public class LevelMixin {
     @Inject(
-            method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
+            target = @Desc(
+                    value = "setBlock",
+                    args = {BlockPos.class, BlockState.class, int.class, int.class},
+                    ret = boolean.class
+            ),
             at = @At("RETURN")
     )
     public void engine$setBlockState(BlockPos blockPos, BlockState blockState, int i, int j, CallbackInfoReturnable<Boolean> cir) {

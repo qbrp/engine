@@ -32,16 +32,18 @@ public class SpriteSourceListMixin {
             CallbackInfoReturnable<SpriteSourceList> cir
     ) {
         ResourceList resourceList = ClientMixin.INSTANCE.getResourceList();
-        List<EngineTexture> atlasTextures = resourceList.getTextureAssets().get(atlasId.getPath());
-        if (atlasTextures == null || atlasTextures.isEmpty()) {
-            return;
-        }
+        if (resourceList != null) {
+            List<EngineTexture> atlasTextures = resourceList.getTextureAssets().get(atlasId.getPath());
+            if (atlasTextures == null || atlasTextures.isEmpty()) {
+                return;
+            }
 
-        List<SpriteSource> sources = new ArrayList<>(
-                ((SpriteSourceListAccessor)(Object)cir.getReturnValue()).engine$getSources()
-        );
-        sources.add(new EngineAtlasSource(atlasTextures));
-        cir.setReturnValue(SpriteSourceListAccessor.newAtlasLoader(sources));
-        LOGGER.info("Atlas {} extended with {} Engine textures", atlasId, atlasTextures.size());
+            List<SpriteSource> sources = new ArrayList<>(
+                    ((SpriteSourceListAccessor) (Object) cir.getReturnValue()).engine$getSources()
+            );
+            sources.add(new EngineAtlasSource(atlasTextures));
+            cir.setReturnValue(SpriteSourceListAccessor.newAtlasLoader(sources));
+            LOGGER.info("Atlas {} extended with {} Engine textures", atlasId, atlasTextures.size());
+        }
     }
 }

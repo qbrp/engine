@@ -2,12 +2,60 @@ package org.lain.engine.test
 
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.server.replication.PlayerSyncState
+import org.lain.engine.server.replication.ReplicationFrame
+import org.lain.engine.server.replication.TrackingState
+import org.lain.engine.data.persistentId
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PlayerSyncStateTest : EngineTest() {
+    @Test
+    fun outOnlyReplicationFrameIsNotEmpty() {
+        val entity = persistentId("entity")
+
+        assertFalse(ReplicationFrame(world = null, out = setOf(entity)).isEmpty())
+    }
+
+    @Test
+    fun residentEntityIsNotRemovedWhenItBecomesDormant() {
+        val state = TrackingState()
+        val player = persistentId("player")
+
+        state.update(setOf(player), setOf(player))
+        state.update(emptySet(), setOf(player))
+
+        assertTrue(state.synced.isEmpty())
+        assertTrue(state.fresh.isEmpty())
+        assertEquals(setOf(player), state.resident)
+        assertTrue((state.previousTickResident - state.resident).isEmpty())
+    }
+
+    @Test
+    fun dormantEntityGetsFullSnapshotWhenItBecomesActiveAgain() {
+        val state = TrackingState()
+        val player = persistentId("player")
+
+        state.update(setOf(player), setOf(player))
+        state.update(emptySet(), setOf(player))
+        state.update(setOf(player), setOf(player))
+
+        assertEquals(setOf(player), state.fresh)
+        assertEquals(setOf(player), state.synced)
+    }
+
+    @Test
+    fun entityIsRemovedOnlyWhenItStopsBeingResident() {
+        val state = TrackingState()
+        val player = persistentId("player")
+
+        state.update(setOf(player), setOf(player))
+        state.update(emptySet(), emptySet())
+
+        assertEquals(setOf(player), state.previousTickResident - state.resident)
+    }
+
     @Test
     fun inputTransitionsAreQueuedInTickOrderAndCopied() {
         val state = PlayerSyncState()

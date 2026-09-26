@@ -20,7 +20,7 @@ var MC_LOGGER = LoggerFactory.getLogger("Hacked Minecraft Model Loader")
 
 fun registerEngineModelLoading() {
     ModelLoadingPlugin.register { context ->
-        val resources = ClientMixin.getResourceList()
+        val resources = ClientMixin.getResourceList() ?: return@register
         val models = buildMap {
             putAll(autogenerateModels(resources.generatedItemAssets))
             putAll(parseEngineItemModels(resources.itemModels, resources.objModels))

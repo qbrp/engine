@@ -54,9 +54,11 @@ class EngineUiRenderPipeline(
     }
 
     fun render(context: GuiGraphics, dt: Float, mouseX: Float, mouseY: Float) {
-        elements.forEach {
-            val pos = it.composition.render.position
-            collectVertexes(it.composition, context, dt, mouseX - pos.x, mouseY - pos.y)
+        if (!engine.renderer.hudHidden) {
+            elements.forEach {
+                val pos = it.composition.render.position
+                collectVertexes(it.composition, context, dt, mouseX - pos.x, mouseY - pos.y)
+            }
         }
     }
 
