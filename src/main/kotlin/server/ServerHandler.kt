@@ -27,6 +27,7 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
+import org.lain.engine.util.ecs.assertExists
 import org.lain.engine.util.math.filterNearestPlayers
 import org.lain.engine.world.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -478,6 +479,8 @@ class ServerHandler(
                     it.id
                 )
             }
+
+            player.entity.assertExists()
 
             val joinGamePacket = JoinGamePacket(
                 ServerPlayerData.of(player),

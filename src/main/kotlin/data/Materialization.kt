@@ -17,7 +17,7 @@ data class MaterializedComponents(
 ) {
     @Suppress("UNCHECKED_CAST")
     context(write: WriteComponentAccess)
-    fun apply(entity: EntityId) {
+    fun applyResolved(entity: EntityId) {
         resolved.forEach { component ->
             write.setComponentWithType(
                 entity,
@@ -25,6 +25,11 @@ data class MaterializedComponents(
                 componentTypeOf(component) as ComponentType<Component>,
             )
         }
+    }
+
+    context(write: WriteComponentAccess)
+    fun apply(entity: EntityId) {
+        applyResolved(entity)
         data?.let { entity.configure(persistentId, it) }
     }
 }

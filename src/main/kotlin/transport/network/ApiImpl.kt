@@ -60,6 +60,7 @@ class ServerNetworkTransport(
         endpoint: Endpoint<P>,
         handler: ServerPacketHandler<P>
     ) {
+        endpoints += endpoint
         registerServerReceiverInternal(
             endpoint,
             connectionManager

@@ -14,6 +14,8 @@ import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
 import org.lain.engine.data.*
 import org.lain.engine.player.character.CharacterId
+import org.lain.engine.player.character.Look
+import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.server.replication.EntityStateUpdate
 import org.lain.engine.server.replication.fullReplicationUpdate
 import org.lain.engine.transport.Endpoint
@@ -62,7 +64,7 @@ data class PlayerReferencedItems(
         context(world: World)
         fun of(player: EnginePlayer) = PlayerReferencedItems(
             player.items.map { it.requireComponent<PersistentIdComponent>().id },
-            player.equipmentContainer.getContainerItems()
+            player.equipmentContainer!!.getContainerItems()
                 .map { it.requireComponent<PersistentIdComponent>().id }
         )
     }
@@ -104,7 +106,8 @@ data class ServerPlayerData(
     val baseVolume: Float,
     val replicationSnapshot: InitialReplicationState,
     val skinEyeY: Float,
-    val character: EngineCharacter?
+    val character: EngineCharacter?,
+    val look: Look?
 ) {
     val id
         get() = general.playerId
@@ -125,7 +128,8 @@ data class ServerPlayerData(
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
                 composeInitialReplicationState(player),
                 player.skinEyeY,
-                player.get<AppliedCharacter>()?.character
+                player.get<AppliedCharacter>()?.character,
+                player.get<SelectedLook>()?.look,
             )
         }
 
@@ -202,7 +206,7 @@ data class GeneralPlayerData(
             return GeneralPlayerData(
                 player.id,
                 player.require<DisplayName>().copy(),
-                player.equipmentContainer.entity.requireComponent<PersistentIdComponent>().id
+                player.equipmentContainer!!.entity.requireComponent<PersistentIdComponent>().id
             )
         }
     }

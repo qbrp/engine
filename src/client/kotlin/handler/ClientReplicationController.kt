@@ -2,6 +2,7 @@ package org.lain.engine.client.handler
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.GameSession
@@ -116,8 +117,22 @@ class ClientReplicationController(
         }
     }
 
+    private fun unloadEntity(persistentId: PersistentId) {
+        with(gameSession.world) {
+            persistentIdToEntity[persistentId]
+                ?.takeIf(componentManager::exists)
+                ?.destroy()
+        }
+
+        removeEntity(persistentId)
+
+        if (persistentId is VoxelPosId) {
+            replicationWorld.chunkStorage.removeVoxel(persistentId.pos)
+        }
+    }
+
     private fun applyFrame(frame: ReplicationFrame) {
-        frame.out.forEach { entity -> removeEntity(entity) }
+        frame.out.forEach { persistentId -> unloadEntity(persistentId) }
         frame.world?.let { applyWorldState(it) }
 
         val acceptedSnapshots = frame.entities.mapNotNull { (id, snapshot) ->

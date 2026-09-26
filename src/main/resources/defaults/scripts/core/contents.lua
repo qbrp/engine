@@ -1,2 +1,0 @@
----@class Contents
----@field sounds table<string, string>

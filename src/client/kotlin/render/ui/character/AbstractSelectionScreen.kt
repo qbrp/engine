@@ -34,6 +34,11 @@ abstract class AbstractSelectionScreen<T>(
         addRenderableWidget(looksWheel)
     }
 
+    override fun tick() {
+        super.tick()
+        looksWheel.tick()
+    }
+
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         if (overlay != null) return true
         return if (keyCode == InputConstants.KEY_ESCAPE) {

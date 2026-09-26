@@ -5,13 +5,18 @@ import net.minecraft.client.sounds.SoundEngine;
 import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Desc;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(SoundEngine.class)
 public class SoundSystemMixin {
     @Inject(
-            method = "calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F",
+            target = @Desc(
+                    value = "calculateVolume",
+                    args = SoundInstance.class,
+                    ret = float.class
+            ),
             at = @At("RETURN"),
             cancellable = true
     )

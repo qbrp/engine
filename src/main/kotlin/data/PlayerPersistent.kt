@@ -131,10 +131,11 @@ fun EnginePlayer.snapshotPersistent(): PersistentPlayerSnapshot = with(world) {
             voiceApparatus = require<VoiceApparatus>().copy(),
             voiceLoose = get<VoiceLoose>()?.copy(),
             chatHeads = chatHeadsEnabled,
-            equipment = equipmentContainer.getEquipmentContainerSlots()
-                .mapValues { (_, item) ->
+            equipment = equipmentContainer?.getEquipmentContainerSlots()
+                ?.mapValues { (_, item) ->
                     item.requireComponent<PersistentIdComponent>().id
-                },
+                }
+                ?: mapOf(),
             skinEyeY = require<EnginePlayerModel>().skinEyeY,
             appliedCharacter = get<AppliedCharacter>()
                 ?.character

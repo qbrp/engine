@@ -2,6 +2,7 @@ package org.lain.engine.player.character
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.getComponent
@@ -41,20 +42,38 @@ fun EnginePlayer.unloadCharacter(
     persistence.saveCharacter(id, snapshot)
 }
 
+context(write: WriteComponentAccess)
+fun EntityId.setCharacterComponents(
+    physical: CharacterPhysical?,
+    display: CharacterDisplay,
+    look: Look,
+    character: EngineCharacter
+) {
+    physical?.let { setComponent(it) }
+    setComponent(display)
+    setComponent(SelectedLook(look))
+    setComponent(AppliedCharacter(character))
+}
+
 fun EnginePlayer.applyCharacter(
     character: EngineCharacter,
     persistent: PersistentCharacterRecord?,
     platform: ServerPlatform
 ) {
-    if (persistent == null) {
-        set(character.getPhysical())
-    }
     val lastLook = persistent?.look?.let { lookId ->
         character.looks.firstOrNull { it.id == lookId }
     }
-    set(character.getDisplay())
-    set(SelectedLook(lastLook ?: character.baseLook))
-    set(AppliedCharacter(character))
+
+    with(world) {
+        entity.setCharacterComponents(
+            if (persistent == null) character.getPhysical() else null,
+            character.getDisplay(),
+            lastLook ?: character.baseLook,
+            character
+        )
+        persistent?.components?.applyResolved(entity)
+    }
+
     persistent?.items?.let {
         platform.openInventory(this, it)
     }

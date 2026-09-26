@@ -285,7 +285,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         }
         player.set(data.movementStatus)
         player.set(data.attributes)
-        player.require<EnginePlayerModel>().skinEyeY = data.skinEyeY
+        player.get<EnginePlayerModel>()?.skinEyeY = data.skinEyeY
         player.isLowDetailed = false
         client.infrastructure.onFullPlayerData(gameSession, player, data)
     }
@@ -293,11 +293,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
     private fun PlayerReferencedItems.isPresent() =
         all.none { gameSession?.itemStorage?.get(it) == null }
 
-    fun applyPlayerJoined(data: GeneralPlayerData) {
+    fun applyPlayerJoined(data: GeneralPlayerData, gameSession: GameSession) {
         processedInteraction.removeIf { it.source == data.playerId }
         val persistentId = CustomPersistentId(data.playerId.toString())
-        gameSession!!.replicationController.removeEntity(persistentId)
-        gameSession!!.instantiateLowDetailedPlayer(data)
+        gameSession.replicationController.removeEntity(persistentId)
+        gameSession.instantiateLowDetailedPlayer(data)
     }
 
     fun applyPlayerDestroyed(gameSession: GameSession, player: EnginePlayer) {

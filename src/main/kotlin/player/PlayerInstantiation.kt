@@ -17,6 +17,10 @@ import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.server.*
 import org.lain.engine.data.*
+import org.lain.engine.player.character.Look
+import org.lain.engine.player.character.getDisplay
+import org.lain.engine.player.character.getPhysical
+import org.lain.engine.player.character.setCharacterComponents
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.server.replication.Networked
 import org.lain.engine.server.replication.Interests
@@ -57,6 +61,8 @@ fun commonPlayerInstance(
     settings: PlayerInstantiateSettings,
     id: PlayerId,
     entity: EntityId = settings.world.addEntity(),
+    character: EngineCharacter?,
+    look: Look?
 ): EnginePlayer {
     entity
         .apply {
@@ -72,12 +78,20 @@ fun commonPlayerInstance(
             setComponent(Hearing())
             setComponent(ScriptBindings())
             setComponent(PlayerInput())
-            setComponent(PlayerPhysics(false))
+            setComponent(PlayerPhysics())
             setComponent(settings.displayName)
             setComponent(settings.movementStatus)
             setComponent(settings.mode)
             setComponent(settings.attributes)
             setComponent(CustomPlayerAttributes())
+            character?.let {
+                setCharacterComponents(
+                    character.getPhysical(),
+                    character.getDisplay(),
+                    look ?: character.baseLook,
+                    character
+                )
+            }
             if (settings.replayViewer) {
                 setComponent(ReplayViewer)
             }
@@ -96,7 +110,7 @@ fun serverPlayerInstance(
     entity: EntityId,
 ): EnginePlayer {
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
-    val player = commonPlayerInstance(settings, id, entity)
+    val player = commonPlayerInstance(settings, id, entity, null, null)
     player.entity.apply {
         setComponent(MessageQueue())
         setComponent(voiceApparatus)

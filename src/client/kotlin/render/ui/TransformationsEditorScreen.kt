@@ -12,6 +12,7 @@ import net.minecraft.client.gui.components.StringWidget
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.resources.model.BakedModel
 import net.minecraft.world.item.ItemStack
+import org.joml.Vector3f
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.item.*
@@ -31,6 +32,8 @@ class TransformationsEditorScreen(private val itemStack: ItemStack) : Screen(lit
     private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)
     private val sliders
         get() = this@TransformationsEditorScreen.children().filterIsInstance<TransformationSliderWidget>()
+
+
 
     private fun computeTransformations(model: BakedModel): EngineTransformationsBundle {
         val engineModel = model as? EngineItemModel

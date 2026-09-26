@@ -229,6 +229,7 @@ class GameSessionJoinFlow(
     }
 
     fun createLuaContext(namespacedStorage: NamespacedStorageAccess): ClientLuaScriptEngine {
+        client.moduleManager.composeModules()
         return ClientLuaScriptEngine(
             client,
             FileScriptSource(FileSystem.compilationEntrypoint),

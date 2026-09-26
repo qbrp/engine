@@ -23,7 +23,8 @@ data class ReplicationFrame(
     val out: Set<PersistentId> = emptySet(),
     val processedInputTick: Long? = null,
 ) {
-    fun isEmpty() = world == null && entities.isEmpty()
+    fun isEmpty() =
+        world == null && entities.isEmpty() && out.isEmpty() && processedInputTick == null
 }
 
 fun World.sendReplicationPackets(
@@ -38,7 +39,7 @@ fun World.sendReplicationPackets(
         if (!state.confirmed) return@iterate
         val trackState = state.entities
         val entities = mutableMapOf<PersistentId, EntityStateUpdate>()
-        val out = trackState.previousTickSynced - trackState.synced
+        val out = trackState.previousTickResident - trackState.resident
 
         state.freshPlayers.forEach { (playerToSync) ->
             handler.sendFullPlayerState(player, playerToSync)

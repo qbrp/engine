@@ -1,5 +1,6 @@
 package org.lain.engine.script.lua.library.ecs
 
+import org.lain.engine.mc.BlockStateVoxelMeta
 import org.lain.engine.player.CustomPlayerAttributes
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.MovementStatus
@@ -20,12 +21,14 @@ import org.lain.engine.script.lua.luaStr
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.nullable
 import org.lain.engine.script.lua.setLuaScriptComponent
+import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.script.lua.toScriptValue
 import org.lain.engine.world.World
 import org.lain.engine.world.location
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
+import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
 
 fun PlayerModeMetaTable() = LuaUserdataType<PlayerModeComponent> {
@@ -43,10 +46,12 @@ fun PlayerModeMetaTable() = LuaUserdataType<PlayerModeComponent> {
     }
 }
 
+context(lua: LuaScriptEngine)
 fun PlayerPhysicsMetaTable() = LuaUserdataType<PlayerPhysics> {
     indexSelf { self, key ->
         when(key.tojstring()) {
             "no_clip" -> self.noClip.luaBool()
+            "collides" -> self.collides.toLuaList { it.coerceToLua() }
             else -> NIL
         }
     }

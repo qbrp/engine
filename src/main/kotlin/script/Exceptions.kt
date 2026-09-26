@@ -54,4 +54,8 @@ object ScriptExceptionHandler {
             ScriptEngine.LOGGER.error("Ошибка выполнения скрипта ${error.script}", e)
         }
     }
+
+    fun invalidate() {
+        loggedErrors.clear()
+    }
 }

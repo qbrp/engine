@@ -5,6 +5,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.lain.cyberia.ecs.copyState
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.EngineSimulation
 import org.lain.engine.client.account.CharacterChange
@@ -17,6 +18,7 @@ import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
+import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.client.render.SPECTATOR_NOTIFICATION
 import org.lain.engine.client.render.SkinSystem
@@ -183,6 +185,7 @@ class GameSession(
 
     fun recompile() {
         try {
+            client.moduleManager.composeModules(luaContext)
             applyCompilation(compilation.compileScriptsOrThrow())
         } catch (e: CompilationFailedException) {
             val errors = e.report.errors
@@ -236,8 +239,20 @@ class GameSession(
     }
 
     fun removePlayer(player: EnginePlayer) {
-        simulation.preparePlayerDestroy(player)
-        simulation.destroyPlayer(player)
+        if (player.destroyed) return
+
+        val entityOwner = with(world) {
+            player.entity.getComponent<PlayerComponent>()?.obj
+        }
+        if (entityOwner === player) {
+            simulation.preparePlayerDestroy(player)
+            simulation.destroyPlayer(player)
+        } else {
+            playerStorage.remove(player)
+            world.players -= player
+            player.destroyed = true
+            LOGGER.warn("Player ${player.id} ECS entity was already destroyed before PlayerDestroyPacket")
+        }
         client.infrastructure.onPlayerDestroy(client, player.id)
         skinSystem.removePlayerFromCache(player.id)
     }

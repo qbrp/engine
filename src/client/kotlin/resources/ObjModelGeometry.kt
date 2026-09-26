@@ -127,17 +127,29 @@ class ObjUnbakedModel(
         normalMatrix: Matrix3f
     ) {
         val sourceVertex = model.getVertex(face.getVertexIndex(sourceIndex))
-        val vertex = Vector3f(sourceVertex.x, sourceVertex.y, sourceVertex.z)
-        if (options.offset) vertex.add(0.5f, 0.5f, 0.5f)
+
+        val vertex = Vector3f(
+            sourceVertex.x,
+            sourceVertex.y,
+            sourceVertex.z
+        )
+
+        // Все bake-time трансформации относительно OBJ origin.
         if (transform !== Transformation.identity()) {
-            vertex.sub(0.5f, 0.5f, 0.5f)
             transform.matrix.transformPosition(vertex)
-            vertex.add(0.5f, 0.5f, 0.5f)
         }
 
+        vertex.add(0.5f, 0.5f, 0.5f)
+
         val sourceNormal = model.getNormal(face.getNormalIndex(sourceIndex))
-        val normal = Vector3f(sourceNormal.x, sourceNormal.y, sourceNormal.z)
+        val normal = Vector3f(
+            sourceNormal.x,
+            sourceNormal.y,
+            sourceNormal.z
+        )
+
         normalMatrix.transform(normal).normalize()
+
         val uv = model.getTexCoord(face.getTexCoordIndex(sourceIndex))
 
         emitter

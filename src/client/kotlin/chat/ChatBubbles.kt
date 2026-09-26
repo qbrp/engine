@@ -7,8 +7,10 @@ import org.lain.engine.client.EngineOptions
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.eyePos
+import org.lain.engine.player.get
 import org.lain.engine.player.whoSee
 import org.lain.engine.util.math.MutableEVec3
+import org.lain.engine.world.Location
 import org.lain.engine.world.location
 import kotlin.math.pow
 import kotlin.math.sin
@@ -86,7 +88,7 @@ fun updateChatBubble(bubble: ChatBubble, dt: Float, height: Float) {
     val lifetime = bubble.lifetime
     val fadeout = lifetime > bubble.expiration
 
-    val playerPos = bubble.player.location.position
+    val playerPos = bubble.player.get<Location>()?.position ?: bubble.pos
     val t = (lifetime / bubble.expiration).coerceIn(0f, 1f)
     val t2 = ((lifetime - bubble.expiration) / FADE_OUT_TIME)
         .coerceIn(0f, 1f)

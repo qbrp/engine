@@ -9,6 +9,9 @@ import org.lain.engine.client.render.ScreenRenderer
 import org.lain.engine.mc.ServerWorldTable
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.EVec3
+import kotlin.math.roundToInt
+
+private const val MIN_VISIBLE_TEXT_ALPHA = 8
 
 data class ImmediateWorldRenderContext(
     val vertexConsumers: ImmediateVertexConsumers,
@@ -44,7 +47,27 @@ fun renderLabel(
     val cameraY = camera.position.y
     val cameraZ = camera.position.z
     val (labelPos, labelAlpha, labelLines) = renderState
-    if (labelAlpha <= 0f) return
+    var alpha = labelAlpha.coerceIn(0f, 1f)
+    if (easing != null) {
+        val endFade = easing.squaredDistance.coerceAtLeast(0f)
+        val startFade = endFade * easing.fade.coerceIn(0f, 1f)
+        val current = easing.squaredDistanceToCamera.coerceAtLeast(0f)
+
+        if (current > startFade) {
+            val fadeDistance = endFade - startFade
+            val t = if (fadeDistance > 0f) {
+                (current - startFade) / fadeDistance
+            } else {
+                1f
+            }
+            alpha *= (1f - t).coerceIn(0f, 1f)
+        }
+    }
+
+    val textAlpha = (alpha * 255f).roundToInt()
+    // Minecraft 1.21.1 Font treats colors with alpha 0..3 as legacy RGB colors
+    // and makes them opaque. Avoid that fallback and the shader cutoff region.
+    if (textAlpha <= MIN_VISIBLE_TEXT_ALPHA) return
 
     ctx.matrices.pushPose()
     ctx.matrices.translate(
@@ -55,26 +78,17 @@ fun renderLabel(
     ctx.matrices.mulPose(camera.rotation())
     ctx.matrices.scale(renderState.scale, -renderState.scale, renderState.scale)
 
-    var alpha = labelAlpha
-    if (easing != null) {
-        val startFade = easing.squaredDistance * easing.fade
-        val endFade = easing.squaredDistance
-        val current = easing.squaredDistanceToCamera
-
-        if (current > startFade) {
-            val t = (current - startFade) / (endFade - startFade)
-            alpha *= (1f - t).coerceIn(0f, 1f)
-        }
-    }
-
     var y = 0f
-    val textColor = Color.WHITE.withAlpha((alpha * 255).toInt())
-    val backgroundColor = Color.BLACK.withAlpha((backgroundOpacity * alpha * 255f).toInt())
+    val textColor = Color.WHITE.withAlpha(textAlpha)
+    val backgroundAlpha = (backgroundOpacity.coerceIn(0f, 1f) * alpha * 255f).roundToInt()
+    val backgroundColor = Color.BLACK.withAlpha(backgroundAlpha)
     for (line in labelLines) {
         val offset = -(line.width / 2.0f)
         y -= ctx.textRenderer.lineHeight
 
         val matrix = ctx.matrices.last().pose()
+        // Keep a see-through pass for labels which are intentionally visible
+        // behind geometry, then draw the regular depth-tested pass on top.
         ctx.textRenderer.drawInBatch(
             line.text,
             offset,
@@ -85,6 +99,18 @@ fun renderLabel(
             ctx.vertexConsumers,
             Font.DisplayMode.SEE_THROUGH,
             backgroundColor.integer,
+            light
+        )
+        ctx.textRenderer.drawInBatch(
+            line.text,
+            offset,
+            y,
+            textColor.integer,
+            false,
+            matrix,
+            ctx.vertexConsumers,
+            Font.DisplayMode.NORMAL,
+            0,
             light
         )
     }

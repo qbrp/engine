@@ -36,8 +36,16 @@ class EntityCoordinator {
                 }
 
                 is EntityState.Loaded -> {
-                    result = AcquireResult.Leased(EntityLease(world.id, currentState.entity, uuid))
-                    currentState.copy(leases = currentState.leases + 1)
+                    if (world.persistentIdToEntity[uuid] == currentState.entity) {
+                        result = AcquireResult.Leased(EntityLease(world.id, currentState.entity, uuid))
+                        currentState.copy(leases = currentState.leases + 1)
+                    } else {
+                        val deferred = CompletableDeferred<EntityLoadResult>()
+                        result = AcquireResult.Acquired(
+                            EntityLoadReservation(world.id, uuid, deferred)
+                        )
+                        EntityState.Loading(deferred)
+                    }
                 }
 
                 is EntityState.Loading -> {

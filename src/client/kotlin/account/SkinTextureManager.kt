@@ -101,7 +101,7 @@ class SkinTextureManager(
             register(key, look.id, file, look.skin.url)
         } catch (e: Throwable) {
             if (e is CancellationException) throw e
-            //logger.error("Не удалось загрузить скин образа ${look.id} с ${look.skin.url}", e)
+            logger.error("Не удалось загрузить скин образа ${look.id} с ${look.skin.url}", e)
             delay(skinDownloadRetryDelay.toLong() * 1000L) // чтобы не делать слишком частые повторы
         } finally {
             loading.remove(key)

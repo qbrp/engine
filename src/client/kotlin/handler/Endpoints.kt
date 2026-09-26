@@ -17,8 +17,8 @@ fun ClientHandler.runEndpoints() {
 
     // Join / Destroy
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_JOIN_ENDPOINT) {
-        applyPlayerJoined(player)
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_JOIN_ENDPOINT) { gameSession ->
+        applyPlayerJoined(player, gameSession)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_DESTROY_ENDPOINT) { gameSession ->

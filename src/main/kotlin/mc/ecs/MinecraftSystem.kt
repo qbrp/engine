@@ -114,7 +114,7 @@ class MinecraftSystem(private val minecraftServer: EngineMinecraftServer) {
             tickItemStackDuplicateSystem: World.() -> Unit = {}
         ) = with(world) {
             // сначала выдаем новые предметы
-            tickGiveItemSystem()
+            world.tickGiveItemSystem()
             tickMinecraftEntitySystem()
 
             // перед освновным тиком очищаем состояние обновленных предметов

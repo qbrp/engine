@@ -9,7 +9,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import org.lain.engine.mc.CommonMixin;
+import org.lain.engine.mc.PlayerEntityAccess;
 import org.lain.engine.mc.PlayerEntityAccessHolder;
 import org.lain.engine.mc.ServerMixin;
 import org.jetbrains.annotations.Nullable;
@@ -27,7 +27,7 @@ import java.util.Optional;
 public class LivingEntityMixin {
     @Unique
     @Nullable
-    private CommonMixin.PlayerEntityAccess engine$getPlayerEntityAccess() {
+    private PlayerEntityAccess engine$getPlayerEntityAccess() {
         if ((Object) this instanceof PlayerEntityAccessHolder holder) {
             return holder.engine$getPlayerEntityAccess();
         }
@@ -40,7 +40,7 @@ public class LivingEntityMixin {
             cancellable = true
     )
     public void engine$getAttributeValue(Holder<Attribute> holder, CallbackInfoReturnable<Double> cir) {
-        CommonMixin.PlayerEntityAccess access = engine$getPlayerEntityAccess();
+        PlayerEntityAccess access = engine$getPlayerEntityAccess();
         if (access != null) {
             if (is(holder, Attributes.MOVEMENT_SPEED)) {
                 cir.setReturnValue((double)access.getSpeed());
@@ -65,7 +65,7 @@ public class LivingEntityMixin {
             cancellable = true
     )
     public void engine$getScale(CallbackInfoReturnable<Float> cir) {
-        CommonMixin.PlayerEntityAccess access = engine$getPlayerEntityAccess();
+        PlayerEntityAccess access = engine$getPlayerEntityAccess();
         if (access != null) {
             cir.setReturnValue(access.getScale());
         }
@@ -100,10 +100,10 @@ public class LivingEntityMixin {
             cancellable = true
     )
     public void engine$jump(CallbackInfo ci) {
-        CommonMixin.PlayerEntityAccess access = engine$getPlayerEntityAccess();
+        PlayerEntityAccess access = engine$getPlayerEntityAccess();
         if (access != null) {
             if (access.canJump()) {
-                access.onPlayerJump();
+                access.onJump();
             } else {
                 ci.cancel();
             }

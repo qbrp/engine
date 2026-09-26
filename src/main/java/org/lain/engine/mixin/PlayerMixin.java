@@ -2,7 +2,7 @@ package org.lain.engine.mixin;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
-import org.lain.engine.mc.CommonMixin;
+import org.lain.engine.mc.PlayerEntityAccess;
 import org.lain.engine.mc.PlayerEntityAccessHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -14,14 +14,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Player.class)
 public abstract class PlayerMixin implements PlayerEntityAccessHolder {
     @Unique
-    private CommonMixin.PlayerEntityAccess engine$playerEntityAccess;
+    private volatile PlayerEntityAccess engine$playerEntityAccess;
 
     @Override
-    public CommonMixin.PlayerEntityAccess engine$getPlayerEntityAccess() {
-        if (engine$playerEntityAccess == null) {
-            engine$playerEntityAccess = new CommonMixin.PlayerEntityAccess((Player) (Object) this);
+    public PlayerEntityAccess engine$getPlayerEntityAccess() {
+        PlayerEntityAccess access = engine$playerEntityAccess;
+        if (access == null) {
+            synchronized (this) {
+                access = engine$playerEntityAccess;
+                if (access == null) {
+                    access = new PlayerEntityAccess();
+                    engine$playerEntityAccess = access;
+                }
+            }
         }
-        return engine$playerEntityAccess;
+        return access;
     }
 
     @Inject(

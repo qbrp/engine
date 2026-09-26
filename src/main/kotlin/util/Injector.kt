@@ -13,6 +13,14 @@ object Injector {
     var server: EngineMinecraftServer? = null
     private val map = Collections.synchronizedMap<KClass<*>, Any>(mutableMapOf())
 
+    fun <T : Any> unregister(kclass: KClass<T>) {
+        map.remove(kclass)
+    }
+
+    inline fun <reified T : Any> unregister() {
+        unregister<T>(T::class)
+    }
+
     fun <T: Any> register(clazz: KClass<T>, instance: T) {
         map[clazz] = instance
     }

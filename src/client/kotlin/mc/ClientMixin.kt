@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.client.model.loading.v1.FabricBakedModelManager
 import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.client.player.LocalPlayer
+import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.client.resources.model.BakedModel
 import net.minecraft.client.resources.sounds.SoundInstance
@@ -13,8 +14,10 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
+import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.getClientItem
+import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.client.render.getSkin
 import org.lain.engine.client.render.item.resolveTooltip
 import org.lain.engine.client.render.player.RenderStateComponent
@@ -41,6 +44,8 @@ import org.lain.engine.player.get
 import org.lain.engine.player.require
 import org.lain.engine.player.interaction.processLeftClickInteraction
 import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.player.character.CharacterModelType
+import org.lain.engine.util.Injector
 import org.lain.engine.util.injectValue
 
 object ClientMixin {
@@ -127,7 +132,10 @@ object ClientMixin {
     }
 
     fun getPlayerSkin(enginePlayer: EnginePlayer): PlayerSkin {
-        return enginePlayer.getSkin()
+        return enginePlayer.getSkin() ?: CharacterSkin(
+            DefaultPlayerSkin.getDefaultTexture(),
+            CharacterModelType.SLIM
+        )
     }
 
     fun getPlayerSkinThreadSafe(player: PlayerInfo): PlayerSkin? {
@@ -209,8 +217,8 @@ object ClientMixin {
         gameSession.chatManager.sendMessage(content)
     }
 
-    fun getResourceList(): ResourceList {
-        return resources ?: findAssets().also { resources = it }
+    fun getResourceList(): ResourceList? {
+        return resources
     }
 
     fun getChatWidth() = client.options.chatFieldWidth
@@ -223,9 +231,14 @@ object ClientMixin {
 
     fun getCamera() = client.camera
 
-    fun createResourceList(): ResourceList {
-        resources = findAssets()
-        return resources!!
+    fun createResourceList(client: EngineClient): ResourceList =
+        findAssets(client).also { resources = it }
+
+    fun onResourceReload() {
+        val client = Injector.resolveOrNull(EngineClient::class)
+        if (client != null) {
+            createResourceList(client)
+        }
     }
 
     fun getKeybindManager(): KeybindManager = injectValue()

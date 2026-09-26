@@ -1,22 +1,28 @@
 package org.lain.engine.mixin;
 
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerPlayerGameMode;
+import net.minecraft.world.level.GameType;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(ServerPlayer.class)
 public class ServerPlayerMixin {
-    @Inject(
+    @Shadow
+    @Final
+    public ServerPlayerGameMode gameMode;
+
+    @Redirect(
             method = "loadGameTypes",
             at = @At(
-                    value = "HEAD"
-            ),
-            cancellable = true
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/server/level/ServerPlayer;calculateGameModeForNewPlayer(Lnet/minecraft/world/level/GameType;)Lnet/minecraft/world/level/GameType;"
+            )
     )
-    private void engine$cancelLoadGameTypes(CompoundTag compoundTag, CallbackInfo ci) {
-        ci.cancel();
+    private GameType engine$cancelLoadGameTypes(ServerPlayer instance, GameType gameType) {
+        return GameType.SPECTATOR;
     }
 }

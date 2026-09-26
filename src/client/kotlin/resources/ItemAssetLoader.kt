@@ -86,9 +86,9 @@ data class ResourceList(
     val allItemAssets = itemAssets + generatedItemAssets
 }
 
-fun findAssets(): ResourceList {
+fun findAssets(client: EngineClient): ResourceList {
     val start = Timestamp()
-    val resources = injectValue<EngineClient>().resources
+    val resources = client.resources
     val assets = resources.assets
     val spriteAtlasRules = assets.spriteAtlases
     val spriteAtlasDirectories = spriteAtlasRules.directories.map { it.key to legacyAtlasName(it.value) }
