@@ -82,10 +82,6 @@ fun interface EngineAlphaCalculator {
     }
 }
 
-fun interface EngineLineConsumer {
-    fun accept(line: EngineChatHudLine, lineIndex: Int, alpha: Float)
-}
-
 fun DummyWorld() = World(
     WorldId("dummy"),
     EngineSimulation(

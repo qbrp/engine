@@ -158,6 +158,7 @@ sealed class Selector {
     @Serializable
     data class Regex(
         val expression: String,
+
         val remove: String? = null
     ) : Selector()
 }

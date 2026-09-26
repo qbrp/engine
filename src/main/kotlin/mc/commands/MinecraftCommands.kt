@@ -328,6 +328,15 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
             )
     )
 
+    register(
+        literal("clearname")
+            .executeCatching { ctx ->
+                val player = ctx.requirePlayer()
+                player.customName = null
+                player.markUpdated<DisplayName>()
+                ctx.sendFeedback("Имя сброшено", false)
+            }
+    )
 
     register(
         literal("spawn")

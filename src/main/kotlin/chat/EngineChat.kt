@@ -143,7 +143,13 @@ class EngineChat(
         // Рассылаем сообщение получателям и следящим игрокам, до которых сообщение не дошло
         recipients
             .distinct()
-            .filter { it == source.player || it.readPermission || (mentions && hasMention(it, content)) && (!mustBeSpectator || it.isSpectating) }
+            .filter {
+                val isMentioned = mentions && hasMention(it, content)
+                isMentioned || (
+                    (it == source.player || it.readPermission) &&
+                        (!mustBeSpectator || it.isSpectating)
+                )
+            }
             .forEach {
                 if (dontSendMessageToAuthor && it == source.player) return@forEach
                 val volume = volumes[it]

@@ -24,6 +24,7 @@ import org.lain.engine.client.mc.chat.MAXIMUM_REPEATS_TEXT
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
 import org.lain.engine.client.render.ui.hud.CHAT_HEAD_SIZE
+import kotlin.math.roundToInt
 
 class ChatHudWrapper(chatHud: ChatComponent) {
     private val access = chatHud as ChatHudAccessor
@@ -136,7 +137,7 @@ class ChatHudWrapper(chatHud: ChatComponent) {
         val backgroundOpacity = minecraft.options.textBackgroundOpacity().get().toFloat()
         val lineSpacing = minecraft.options.chatLineSpacing().get()
         val lineHeight = getLineHeight()
-        val textOffsetY = Math.round(-8.0 * (lineSpacing + 1.0) + 4.0 * lineSpacing).toInt()
+        val textOffsetY = (-8.0 * (lineSpacing + 1.0) + 4.0 * lineSpacing).roundToInt()
         return RenderState(
             focused,
             scale,

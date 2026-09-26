@@ -21,11 +21,9 @@ object FileSystem {
     const val ROOT_PATH = "engine"
 
     const val COMPILATION_ENTRYPOINT_NAME = "install.lua"
-    const val CONTENTS_PATH = "contents"
     const val MODULES_PATH = "modules"
     const val MODULE_SET_NAME = "modules.yaml"
     const val SCRIPTS_PATH = "scripts"
-    const val LEGACY_ITEMS_PATH = "items"
     const val SERVER_CONFIG_NAME = "server-config.yml"
     const val DEBUG_PATH = "debug"
     const val COMPILATION_MANIFEST_NAME = "compilation-manifest.json"
@@ -54,7 +52,6 @@ object FileSystem {
 
     val scripts: File = ensureDirectory(root.resolve(SCRIPTS_PATH))
     val compilationEntrypoint: File = scripts.resolve(COMPILATION_ENTRYPOINT_NAME)
-    val contents: File = ensureDirectory(root.resolve(CONTENTS_PATH))
     val builtinScripts: File = scripts
 
     val serverConfig: File = root.resolve(SERVER_CONFIG_NAME)
@@ -138,14 +135,6 @@ object FileSystem {
 
             Files.createDirectories(target.parent)
             source.copyTo(target, overwrite = true)
-        }
-    }
-
-    fun migrateLegacyStructure() {
-        val items = root.resolve(LEGACY_ITEMS_PATH)
-        if (items.exists()) {
-            items.renameTo(contents)
-            LOGGER.warn("Файл старого формата engine/items переименован в engine/contents")
         }
     }
 }

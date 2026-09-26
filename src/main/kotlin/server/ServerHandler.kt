@@ -134,7 +134,8 @@ class ServerHandler(
                     character,
                     sessionTicket
                 )
-                val characterRecord = persistence.loadPersistentCharacter(world.componentReviveSettings, playerId, characterId)
+                val characterRecord =
+                    persistence.loadPersistentCharacter(world.componentReviveSettings, playerId, characterId)
                 withContext(engineServer.dispatcher) {
                     engineServer.platform.clearInventory(player)
                     player.applyCharacter(validatedCharacter, characterRecord, eventListener)
@@ -288,7 +289,7 @@ class ServerHandler(
 
             val range = channel.typeIndicatorRange
             val nearestPlayers = range?.let { player.filterNearestPlayers(it) }
-            val players = nearestPlayers ?: when (acoustic) {
+            val players = (nearestPlayers ?: when (acoustic) {
                 is Acoustic.Global -> playerStorage.all
                 is Acoustic.Distance -> player.filterNearestPlayers(acoustic.radius)
                 is Acoustic.Realistic -> {
@@ -296,7 +297,7 @@ class ServerHandler(
                     CHAT_LOGGER.warn("Акустическая симуляция не работает, чтобы подсчитать, каким игрокам отображать индикатор ввода сообщения. Используется стандартный радиус $radius блоков.")
                     player.filterNearestPlayers(radius)
                 }
-            }.filter { it.isChannelAvailableToRead(channel) }
+            }).filter { it.isChannelAvailableToRead(channel) }
             val packet = ChatTypingPlayerPacket(player.id)
             players.forEach { CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.sendS2C(packet, it.id) }
         }
