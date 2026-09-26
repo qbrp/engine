@@ -57,14 +57,7 @@ fun gradientText(text: String, color1: Color, color2: Color): List<ColoredChar> 
 data class DisplayName(
     val username: Username,
     var custom: CustomName? = null
-) : Component {
-    val gradientText: List<ColoredChar>
-        get() {
-            val color1 = custom?.color1 ?: Color.WHITE
-            val color2 = custom?.color2 ?: color1
-            return gradientText(custom?.string ?: username.value, color1, color2)
-        }
-}
+) : Component
 
 fun EnginePlayer.removeCustomName() {
     get<DisplayName>()?.custom = null
@@ -86,7 +79,13 @@ var EnginePlayer.customName
     }
 
 context(world: World)
-fun EntityId.displayName() = getComponent<CharacterDisplay>()?.name?.gradientChars ?: requireComponent<DisplayName>().gradientText
+fun EntityId.displayName(): List<ColoredChar> {
+    val displayName = requireComponent<DisplayName>()
+    val characterDisplayName = getComponent<CharacterDisplay>()?.name?.gradientChars
+    return displayName.custom?.gradientText
+        ?: characterDisplayName
+        ?: displayName.username.value.map { ColoredChar(it, Color.WHITE) }
+}
 
 context(world: World)
 fun EntityId.displayNameString() = displayName().joinToString(separator = "") { it.char.toString() }
