@@ -47,7 +47,6 @@ class CommonEngineMod : ModInitializer {
             EnvType.CLIENT -> Environment.CLIENT
             EnvType.SERVER -> Environment.SERVER
         }
-        FileSystem.migrateLegacyStructure()
         FileSystem.loadStandardLuaLibrary()
         initializeEngineItemComponents()
 

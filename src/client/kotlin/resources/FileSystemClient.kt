@@ -106,7 +106,6 @@ data class Asset(
 
 data class ResourceContext(
     val assets: Assets,
-    val contents: SourceFile,
     val chatBarConfiguration: ChatBarConfiguration?,
     val formatConfiguration: ChatFormatSettings,
     val autogenerationItemAssets: AutoGenerationList = assets.autogenerationItemAssets
@@ -130,7 +129,6 @@ private fun bakeResourceContext(serverId: ServerId?): ResourceContext {
 
     return ResourceContext(
         assets,
-        CONTENTS.fetch(serverId).getOrThrow(),
         CHAT_BAR_CONFIG.fetch(serverId)?.yaml(),
         FORMAT_CONFIG.fetch(serverId).getOrThrow().yaml(),
     )
@@ -139,7 +137,6 @@ private fun bakeResourceContext(serverId: ServerId?): ResourceContext {
 private val CHAT_BAR_CONFIG = OverridableResource(FileSystem.CHAT_BAR_CONFIG_NAME)
 private val FORMAT_CONFIG = OverridableResource(FileSystem.FORMAT_CONFIG_NAME)
 private val ASSETS = OverridableResource(FileSystem.ASSETS_PATH, true)
-private val CONTENTS = OverridableResource(FileSystem.CONTENTS_PATH, true)
 
 class ResourceManager(
     private val client: EngineClient
