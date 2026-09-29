@@ -13,6 +13,10 @@ import org.lain.engine.script.lua.library.LuaEntityComponent
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.naming.OperationNotSupportedException
 import kotlin.collections.component1
@@ -50,6 +54,7 @@ sealed class DebugObject {
     @Serializable
     @SerialName("table")
     data class Table(val values: Map<String, DebugEntry>) : DebugObject()
+
     @Serializable
     @SerialName("collection")
     data class Collection(val values: List<DebugEntry>) : DebugObject()
@@ -61,33 +66,51 @@ sealed class DebugPrimitive {
     abstract fun toScriptValue(): ScriptValue
     abstract fun toJvmValue(): Any
 
-    @Serializable @SerialName("str") class Str(val string: String) : DebugPrimitive() {
+    @Serializable
+    @SerialName("str")
+    class Str(val string: String) : DebugPrimitive() {
         override fun toScriptValue(): ScriptValue = SString(string)
         override fun toJvmValue(): Any = string
     }
-    @Serializable @SerialName("bool") class Bool(val bool: Boolean) : DebugPrimitive() {
+
+    @Serializable
+    @SerialName("bool")
+    class Bool(val bool: Boolean) : DebugPrimitive() {
         val string = bool.toString()
         override fun toScriptValue(): ScriptValue = SBool(bool)
         override fun toJvmValue(): Any = bool
     }
-    @Serializable @SerialName("int") class Int(val int: kotlin.Int) : DebugPrimitive() {
+
+    @Serializable
+    @SerialName("int")
+    class Int(val int: kotlin.Int) : DebugPrimitive() {
         val string = int.toString()
         override fun toScriptValue(): ScriptValue = SNumber(int.toDouble())
         override fun toJvmValue(): Any = int
     }
-    @Serializable @SerialName("double") class Double(val double: kotlin.Double) : DebugPrimitive() {
+
+    @Serializable
+    @SerialName("double")
+    class Double(val double: kotlin.Double) : DebugPrimitive() {
         val string = double.toString()
         override fun toScriptValue(): ScriptValue = SNumber(double)
         override fun toJvmValue(): Any = double
     }
-    @Serializable @SerialName("uuid") class Uuid(val uuid: String) : DebugPrimitive() {
+
+    @Serializable
+    @SerialName("uuid")
+    class Uuid(val uuid: String) : DebugPrimitive() {
         val string = uuid
         override fun toScriptValue(): ScriptValue = SString(uuid)
         override fun toJvmValue(): Any = UUID.fromString(uuid)
     }
-    @Serializable @SerialName("enum") data class Enum(val enumClass: String, val name: String) : DebugPrimitive() {
+
+    @Serializable
+    @SerialName("enum")
+    data class Enum(val enumClass: String, val name: String) : DebugPrimitive() {
         val string = name
         override fun toScriptValue(): ScriptValue = SString(name)
+
         @Suppress("UNCHECKED_CAST")
         override fun toJvmValue(): Any {
             val clazz = Class.forName(enumClass)
@@ -96,9 +119,18 @@ sealed class DebugPrimitive {
             return result!!
         }
     }
-    @Serializable @SerialName("other") class Other(val str: String) : DebugPrimitive() {
-        override fun toJvmValue(): Any { throw OperationNotSupportedException() }
-        override fun toScriptValue(): ScriptValue { throw OperationNotSupportedException() }
+
+    @Serializable
+    @SerialName("other")
+    class Other(val str: String) : DebugPrimitive() {
+        override fun toJvmValue(): Any {
+            throw OperationNotSupportedException()
+        }
+
+        override fun toScriptValue(): ScriptValue {
+            throw OperationNotSupportedException()
+        }
+
         val string = str
     } // non editable
 }
@@ -108,9 +140,11 @@ sealed class DebugEntry {
     @Serializable
     @SerialName("ref")
     data class Reference(val id: Int) : DebugEntry()
+
     @Serializable
     @SerialName("primitive")
     data class Primitive(val readonly: Boolean, val entry: DebugPrimitive) : DebugEntry()
+
     @Serializable
     @SerialName("null")
     object Null : DebugEntry()
@@ -228,6 +262,13 @@ private fun ScriptValue.toScriptDebugEntry(
     is SInt -> Primitive(readonly, Int(value))
     is SList -> TODO("Списки не поддерживаются, т.к. используются только для перевода ScriptValue -> LuaValue")
     is SEntityRef -> Primitive(readonly, Int(id))
+    is SInstant -> Primitive(
+        readonly, Str(
+            LocalDateTime.ofInstant(instant, ZoneId.systemDefault()).format(
+                DateTimeFormatter.ISO_LOCAL_DATE_TIME
+            )
+        )
+    )
 }
 
 context(ctx: DebugSerializationContext)
@@ -258,23 +299,24 @@ private fun ScriptValue.toDebugKey(): String = when (this) {
     is STable -> "table@${identityKey().toString(16)}"
     is SList -> "list@${identityKey().toString(16)}"
     is SEntityRef -> "entityRef${id}"
+    is SInstant -> "instant(${instant.identityKey()})"
 }
 
 context(ctx: DebugSerializationContext)
 private fun Any?.toJvmDebugEntry(readonly: Boolean): DebugEntry {
     return when (this) {
-        is String -> DebugEntry.Primitive(readonly, DebugPrimitive.Str(this))
-        is Int -> DebugEntry.Primitive(readonly, DebugPrimitive.Int(this))
-        is Double -> DebugEntry.Primitive(readonly, DebugPrimitive.Double(this))
-        is Number -> DebugEntry.Primitive(readonly, DebugPrimitive.Double(this.toDouble()))
-        is Boolean -> DebugEntry.Primitive(readonly, DebugPrimitive.Bool(this))
-        is UUID -> DebugEntry.Primitive(true, DebugPrimitive.Uuid(this.toString()))
-        is Enum<*> -> DebugEntry.Primitive(readonly, DebugPrimitive.Enum(this::class.qualifiedName!!, name))
-        is EnginePlayer -> DebugEntry.Primitive(true, DebugPrimitive.Other(this.toString()))
+        is String -> Primitive(readonly, Str(this))
+        is Int -> Primitive(readonly, Int(this))
+        is Double -> Primitive(readonly, Double(this))
+        is Number -> Primitive(readonly, Double(this.toDouble()))
+        is Boolean -> Primitive(readonly, Bool(this))
+        is UUID -> Primitive(true, Uuid(this.toString()))
+        is Enum<*> -> Primitive(readonly, Enum(this::class.qualifiedName!!, name))
+        is EnginePlayer -> Primitive(true, Other(this.toString()))
         null -> DebugEntry.Null
         else -> {
             val clazz = this::class
-            when(clazz.isValue) {
+            when (clazz.isValue) {
                 false -> DebugEntry.Reference(appendSerializationContext { it.toJvmDebugObject() })
                 true -> {
                     val property = (clazz.memberProperties.first() as KProperty1<Any, *>)

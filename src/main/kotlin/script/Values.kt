@@ -1,8 +1,14 @@
 package org.lain.engine.script
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Serializer
+import kotlinx.serialization.builtins.InstantComponentSerializer
+import org.lain.engine.data.InstantSerializer
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.deepCopy
+import java.time.Instant
+import kotlin.time.ExperimentalTime
 
 @Serializable
 sealed interface ScriptValue {
@@ -33,6 +39,11 @@ data class SEntityRef(val id: EntityId) : ScriptValue {
     override fun copy(): ScriptValue {
         return SEntityRef(id)
     }
+}
+
+@Serializable
+data class SInstant(@Serializable(with = InstantSerializer::class) val instant: Instant) : ScriptValue {
+    override fun copy(): SInstant = SInstant(instant)
 }
 
 @Serializable

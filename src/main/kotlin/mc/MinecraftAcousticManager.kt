@@ -591,10 +591,10 @@ class MinecraftAcousticManager(
                 timestamp.timeElapsed()
             )
         } catch (e: Throwable) {
-            logger.error("Во время обработки акустики возникла ошибка", e)
+            logger.error("Во время обработки акустического распространения возникла ошибка", e)
             server.minecraftServer.execute { exceptionHandler(e) }
             lifetime.finish()
-            return AcousticSimulationResult.DUMMY
+            throw e
         }
 
         return object : AcousticSimulationResult {
