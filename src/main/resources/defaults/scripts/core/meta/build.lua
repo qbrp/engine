@@ -166,13 +166,45 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field inputs OperationInputDraft[]? empty
 ---@field permission boolean? false
 
----@class OperationInputDraft
----@field id IdReference
----@field type OperationInputType
+---@alias ScriptValue nil|boolean|number|string|table|EntityReference|userdata
 
----@alias OperationInputType
----| "text"
----| "int"
----| "double"
----| "logic"
----| "table"
+---@alias OperationInputDraft
+---| OperationLogicInputDraft
+---| OperationIntegerInputDraft
+---| OperationDoubleInputDraft
+---| OperationTableInputDraft
+---| OperationTextInputDraft
+---| OperationSelectionInputDraft
+
+---@class OperationInputBaseDraft
+---@field id string Argument name exposed through `context.inputs`
+
+---@class OperationLogicInputDraft : OperationInputBaseDraft
+---@field type "logic"
+
+---@class OperationIntegerInputDraft : OperationInputBaseDraft
+---@field type "integer"
+---@field min integer? Inclusive minimum
+---@field max integer? Inclusive maximum
+
+---@class OperationDoubleInputDraft : OperationInputBaseDraft
+---@field type "double"
+---@field min number? Inclusive minimum
+---@field max number? Inclusive maximum
+
+---@class OperationTableInputDraft : OperationInputBaseDraft
+---@field type "table"
+
+---@class OperationTextInputDraft : OperationInputBaseDraft
+---@field type "text"
+---@field single_word boolean? `true` accepts one word; otherwise consumes the rest of the command
+
+---@class OperationSelectionEntry
+---@field id string Command token
+---@field value ScriptValue Value passed through `context.inputs`
+
+---@alias OperationSelectionVariants OperationSelectionEntry[]|fun(context: OperationInputResolutionContext): OperationSelectionEntry[]?
+
+---@class OperationSelectionInputDraft : OperationInputBaseDraft
+---@field type "selection"
+---@field variants OperationSelectionVariants Available command entries

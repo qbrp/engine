@@ -1,6 +1,5 @@
 package org.lain.engine.script.lua.library.ecs
 
-import org.lain.engine.mc.BlockStateVoxelMeta
 import org.lain.engine.player.CustomPlayerAttributes
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.MovementStatus
@@ -13,7 +12,6 @@ import org.lain.engine.player.require
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.LuaUserdataType
-import org.lain.engine.script.lua.UserdataLuaTableBuilder
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaNum
@@ -26,9 +24,6 @@ import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.script.lua.toScriptValue
 import org.lain.engine.world.World
 import org.lain.engine.world.location
-import org.luaj.vm2.LuaTable
-import org.luaj.vm2.LuaUserdata
-import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
 
 fun PlayerModeMetaTable() = LuaUserdataType<PlayerModeComponent> {
@@ -143,7 +138,7 @@ private fun LuaPlayerComponent(player: EnginePlayer) = luaTable {
 }
 
 context(world: World, lua: LuaScriptEngine)
-fun EnginePlayer.prepareLuaScriptComponents() {
+fun EnginePlayer.setupLuaScriptComponents() {
     entity.setLuaScriptComponent(
         LuaPlayerComponent(this),
         CoreScriptComponents.PLAYER

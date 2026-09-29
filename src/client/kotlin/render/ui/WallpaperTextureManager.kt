@@ -41,6 +41,7 @@ class WallpaperTextureManager(
     private var generation = 0
     private var textureSequence = 0L
     private var sources: List<File> = emptyList()
+    private val showed: MutableList<File> = mutableListOf()
     private var currentLoaded: LoadedWallpaper? = null
     private var nextLoaded: LoadedWallpaper? = null
     private var preloadSource: File? = null
@@ -65,6 +66,7 @@ class WallpaperTextureManager(
         nextLoaded?.let(pendingRelease::add)
         currentLoaded = null
         nextLoaded = null
+        showed.clear()
         sources = directory
             .listFiles()
             .filter(File::isFile)
@@ -115,10 +117,15 @@ class WallpaperTextureManager(
     }
 
     private fun preloadNext() {
+        if (showed.size == sources.size) {
+            showed.clear()
+        }
         val currentSource = currentLoaded?.wallpaper?.source ?: return
         if (sources.size < 2 || nextLoaded != null || preloadSource == currentSource) return
 
-        val candidates = sources.filterNot { it == currentSource }.shuffled(random)
+        val candidates = sources
+            .filterNot { it == currentSource || it in showed }
+            .shuffled(random)
         preloadSource = currentSource
         val expectedGeneration = generation
         preloadJob = launchLoad(candidates, expectedGeneration) { loaded ->
@@ -152,11 +159,13 @@ class WallpaperTextureManager(
                 try {
                     client.textureManager.register(id, texture)
                     if (generation == expectedGeneration) {
+                        showed += source
                         accept(LoadedWallpaper(Wallpaper(id, width, height, source), texture))
                     } else {
                         client.textureManager.release(id)
                     }
                 } catch (exception: Throwable) {
+                    showed -= source
                     texture.close()
                     throw exception
                 }

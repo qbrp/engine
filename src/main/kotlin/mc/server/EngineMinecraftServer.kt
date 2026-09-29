@@ -37,7 +37,6 @@ import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.compilation.Build
-import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.script.compilation.loadBuild
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.server.EngineServer
@@ -50,7 +49,6 @@ import org.lain.engine.util.Injector
 import org.lain.engine.util.file.ServerConfig
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
-import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 
@@ -167,21 +165,6 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             MinecraftAccessRegistry.register(level, access)
         }
         engine.run()
-    }
-
-    fun recompileEngineContents(player: EnginePlayer?) {
-        val build = try {
-            luaScriptEngine.compileContents().successOrThrow()
-        } catch (e: CompilationFailedException) {
-            if (player != null) {
-                e.log()
-                engine.handler.onServerNotification(
-                    player, Notification.COMPILATION_ERROR, false
-                )
-            }
-            return
-        }
-        engine.loadBuild(build)
     }
 
     open fun disable() = runBlocking {

@@ -76,6 +76,22 @@ class EngineServer(
         handler.invalidate()
     }
 
+    fun recompileEngineContents(player: EnginePlayer?) {
+        val build = try {
+            moduleManager.composeModules(luaScriptEngine)
+            luaScriptEngine.compileContents().successOrThrow()
+        } catch (e: CompilationFailedException) {
+            if (player != null) {
+                e.log()
+                handler.onServerNotification(
+                    player, Notification.COMPILATION_ERROR, false
+                )
+            }
+            return
+        }
+        loadBuild(build)
+    }
+
     override fun World.beforeInput() = with(platform) {
         prepareData()
     }

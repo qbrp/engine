@@ -56,8 +56,8 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
             )
     )
     register(
-        literal("ed")
-            .requires { it.hasPermission("ed") }
+        literal("enginedev")
+            .requires { it.hasPermission("enginedev") }
             .then(
                 literal("positions")
                     .executeCatching { ctx ->

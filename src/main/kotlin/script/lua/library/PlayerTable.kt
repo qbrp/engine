@@ -1,11 +1,15 @@
 package org.lain.engine.script.lua.library
 
 import org.lain.engine.chat.hasPermission
+import org.lain.engine.mc.displayNameText
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.displayName
+import org.lain.engine.player.displayNameString
 import org.lain.engine.player.interaction.syncAction
 import org.lain.engine.player.isInGameMasterMode
 import org.lain.engine.player.isSpectating
 import org.lain.engine.player.serverNarration
+import org.lain.engine.player.username
 import org.lain.engine.script.lua.*
 import org.lain.engine.world.invokeCommand
 import org.luaj.vm2.LuaUserdata
@@ -21,6 +25,8 @@ fun PlayerMetaTable() = luaTable {
             "id" -> player.entity.luaNum()
             "entity" -> with(player.world) { player.entity.luaEntity() }
             "world" -> player.world.luaWorld()
+            "display_name" -> player.displayNameString.luaStr()
+            "user_name" -> player.username.luaStr()
             else -> with(player.world) {
                 val entity = player.entity.luaEntity()
                 val method = entity.get(key)

@@ -2,11 +2,15 @@ package org.lain.engine.script.lua
 
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptSource
-import org.lain.engine.util.Input
+import org.lain.engine.script.Input
+import org.lain.engine.script.InputType
+import org.lain.engine.script.ScriptContext
+import org.lain.engine.script.ScriptValue
+import org.lain.engine.script.SelectionVariants
+import org.lain.engine.script.toSelectionEntries
 import org.lain.engine.util.file.FileSystem
 import org.lain.engine.world.VoxelPos
 import org.luaj.vm2.Globals
-import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata

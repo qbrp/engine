@@ -15,7 +15,7 @@ object MovingWallpapers {
     private val VIGNETTE = engineId("textures/vignette.png")
     private const val WALLPAPER_MOVE_TICKS = 360.0f
     private const val WALLPAPER_TRANSITION_TICKS = 60.0f
-    private const val WALLPAPER_OVERSCAN = 48
+    private const val WALLPAPER_OVERSCAN = 38
     private const val WALLPAPER_TRAVEL = 24.0f
 
     private var textureManager: WallpaperTextureManager? = null

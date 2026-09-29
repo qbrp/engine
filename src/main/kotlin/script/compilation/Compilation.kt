@@ -52,11 +52,3 @@ fun EngineServer.loadBuild(result: Build) {
     platform.onCompiled(namespacedStorage.get())
     result.log()
 }
-
-//class EntrypointRunException(
-//    source: ScriptSource,
-//    error: Exception
-//) : RuntimeException(
-//    "Не удалось загрузить входной скрипт $source: $error",
-//    error
-//)

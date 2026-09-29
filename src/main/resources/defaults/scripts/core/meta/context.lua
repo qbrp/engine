@@ -43,17 +43,33 @@
 ---@class OperationContext : ScriptContext
 ---@field world World
 ---@field actor OperationActor
----@field target table?
----@field inputs table[]
----@field gen_target fun(): table
----@field gen_selection fun(): table?
+---@field target OperationTarget?
+---@field inputs table<string, ScriptValue>
+---@field gen_target fun(): OperationTarget
+---@field gen_selection fun(): OperationSelection?
 ---@field feedback fun(message: string)
+
+---@class OperationTarget
+---@field player Player?
+---@field voxel_pos integer[] `{x, y, z}`
+---@field pos Vec3
+
+---@class OperationSelection
+---@field pos1 integer[] `{x, y, z}`
+---@field pos2 integer[] `{x, y, z}`
+
+---@class OperationInputResolutionContext : ScriptContext
+---@field world World
+---@field actor OperationActor
+---@field operation_id string
+---@field input_id string
+---@field inputs table<string, ScriptValue> Previously resolved input values
 
 
 ---@class OperationActor
----@field type string
----@field player Player?
----@field entity integer?
+---@field type "command"|"toolgun"
+---@field player Player
+---@field entity integer
 
 
 ---@class WorkspaceOpenContext : ScriptContext

@@ -15,10 +15,8 @@ import org.lain.engine.item.GunFireState
 import org.lain.engine.item.Item
 import org.lain.engine.item.ItemTooltip
 import org.lain.engine.item.Magazine
-import org.lain.engine.script.CallbackType
 import org.lain.engine.script.ExecutionResult
 import org.lain.engine.script.SString
-import org.lain.engine.script.ScriptContext
 import org.lain.engine.world.World
 
 fun ItemTooltip.compile() = CompiledItemTooltip(
@@ -44,7 +42,7 @@ fun EngineItem.resolveTooltip(debug: Boolean): List<String> {
         ClientScriptContext.ItemTooltip(world, this)
     )
     if (linesS is ExecutionResult.Success) {
-        val values = linesS.result.values
+        val values = linesS.value.values
         lines.addAll(values.mapNotNull { (it as? SString)?.value })
     }
 

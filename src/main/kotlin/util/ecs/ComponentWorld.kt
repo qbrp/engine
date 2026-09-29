@@ -90,7 +90,7 @@ class ComponentWorld(
 
                 typesById.add(type.id)
 
-                val arr = if (existing != null && existing.type == type) {
+                val arr = if (existing != null && existing.type.id == type.id) {
                     existing
                 } else {
                     ComponentArray(idx, meta, type as IndexedComponentType<Component>)

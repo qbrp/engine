@@ -76,7 +76,7 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
             entityId.setLuaScriptComponent(component, type)
         }
         debugScript("entity", "($entity) ${type.id} added")
-        NIL
+        component
     }
     functionSelf2("remove_component") { entity, typeL ->
         val entityId = entity.id

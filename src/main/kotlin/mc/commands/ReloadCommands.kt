@@ -40,7 +40,7 @@ fun ServerCommandDispatcher.registerEngineReloadCommands(dedicated: Boolean) {
                 literal("compile")
                     .requires { it.hasPermission("re.compile") }
                     .executeCatching { ctx ->
-                        server.recompileEngineContents(ctx.player)
+                        server.engine.recompileEngineContents(ctx.player)
                         ctx.sendFeedback("Контент скомпилирован", true)
                     }
             )
