@@ -76,6 +76,10 @@ open class LuaScriptEngine(
     val moduleUserdataType = ModuleUserdataType()
     val reportsCollectorUserdataType = ReportsCollectorUserdataType()
     val entityRefUserdataType = EntityRefUserdataType()
+    val instantUserdataType = InstantUserdataType()
+    val zonedDateTimeUserdataType = ZonedDateTimeUserdataType()
+    val zoneUserdataType = ZoneUserdataType()
+    val timeLibrary = TimeLibraryTable()
 
     val engineTable = luaTable {
         "SCRIPTS_PATH"(scriptsPath)
@@ -89,6 +93,7 @@ open class LuaScriptEngine(
         "component"(componentLibrary.library)
         "modules"(ModulesTable(dependencies.moduleManager))
         "reports_collector"(reportsCollectorUserdataType.metaTable)
+        "time"(timeLibrary)
     }
 
     override fun loadWorld(world: World) {
@@ -151,7 +156,7 @@ open class LuaScriptEngine(
     }
 
     override fun setupPlayer(player: EnginePlayer) = with(player.world) {
-        player.prepareLuaScriptComponents()
+        player.setupLuaScriptComponents()
     }
 
     override fun reloadScript(moduleName: String) {

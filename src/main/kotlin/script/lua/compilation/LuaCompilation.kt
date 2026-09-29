@@ -7,9 +7,9 @@ import org.lain.engine.script.*
 import org.lain.engine.script.compilation.*
 import org.lain.engine.script.lua.*
 import org.lain.engine.script.lua.library.resolveIdReference
-import org.lain.engine.util.Operation
+import org.lain.engine.script.Operation
 import org.lain.engine.util.ecs.ComponentMeta
-import org.lain.engine.util.toOperationId
+import org.lain.engine.script.toOperationId
 import org.lain.engine.world.ESoundSource
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.toSoundEventId
@@ -114,13 +114,20 @@ private fun compiledNamespacesList(
                 ) {
                     val componentId =
                         componentType.get("id").resolveIdReference().toScriptComponentId()
-                    val isSavable = componentType.get("savable").nullable()?.toboolean() ?: false
+                    val isSavable = componentType.get("persistent").nullable()?.toboolean() ?: false
                     val isNetworking =
-                        componentType.get("networking").nullable()?.toboolean() ?: false
+                        componentType.get("replicating").nullable()?.toboolean() ?: false
+                    val version = componentType["version"].nullable()?.toint() ?: 0
+                    val migrations = componentType["migrations"].nullable()?.checktable()
+                        ?.toList { it.checkfunction() }
+                        ?.map { LuaScript<ScriptContext.ComponentMigration, ScriptValue>(luaScriptEngine, it) }
+                        ?: emptyList()
                     componentId to ScriptComponentType(
                         componentId,
                         ComponentType(componentId.id),
-                        ComponentMeta(isSavable, isNetworking)
+                        ComponentMeta(isSavable, isNetworking),
+                        version,
+                        migrations
                     )
                 }
             }

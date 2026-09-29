@@ -18,6 +18,8 @@ private val CBOR = Cbor { ignoreUnknownKeys = true }
 @Serializable
 value class ComponentByteArray(val array: ByteArray)
 
+//TODO: здесь стоит создать ещё одну прослойку, хранящую version для совместимости с WorldPersistent
+
 @Serializable
 sealed interface PersistentComponentDto {
     val id: String

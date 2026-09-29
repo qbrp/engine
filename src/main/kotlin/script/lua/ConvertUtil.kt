@@ -23,6 +23,11 @@ fun Double.luaNum(): LuaValue = luaValue(this)
 
 fun Int.luaNum(): LuaInteger = luaValue(this)
 
+inline fun <reified T : Any> LuaValue.asUserdata() = checkuserdata(T::class.java) as? T
+
+inline fun <reified T : Any> LuaValue.asUserdataOrThrow() = checkuserdata(T::class.java) as T?
+    ?: error("expected userdata type ${T::class}, got ${touserdata()::class}")
+
 //// Коллекции
 
 // Таблицы

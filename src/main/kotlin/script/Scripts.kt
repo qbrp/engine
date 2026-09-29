@@ -5,10 +5,6 @@ import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.util.AnyInputValue
-import org.lain.engine.util.OperationActor
-import org.lain.engine.util.OperationSelection
-import org.lain.engine.util.OperationTarget
 import org.lain.engine.world.VoxelMeta
 import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.World as EngineWorld
@@ -33,21 +29,28 @@ interface ScriptContext {
     data class OperationExecution(
         val actor: OperationActor,
         val target: OperationTarget? = null,
-        val inputValues: List<AnyInputValue>,
+        val inputValues: List<InputValue>,
         val behaviour: OperationBehaviour
+    ) : ScriptContext
+    data class OperationInputResolution(
+        val actor: OperationActor,
+        val operationId: OperationId,
+        val inputId: String,
+        val inputValues: List<InputValue>,
     ) : ScriptContext
     interface SystemEntityHandle : ScriptContext {
         val components: Collection<ScriptComponent>
         val world: EngineWorld
         val entity: EntityId
     }
+    data class ComponentMigration(val component: ScriptValue) : ScriptContext
 }
 
 val EnginePlayer.scriptContext: ScriptContext.Player
     get() = ScriptContext.Player(this)
 
 sealed class ExecutionResult<R> {
-    data class Success<R>(val result: R) : ExecutionResult<R>()
+    data class Success<R>(val value: R) : ExecutionResult<R>()
     data class Failure<R>(val error: Throwable) : ExecutionResult<R>()
 }
 

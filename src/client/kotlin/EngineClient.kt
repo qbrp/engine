@@ -23,7 +23,6 @@ import org.lain.engine.mc.DisconnectText
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.get
-import org.lain.engine.player.require
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.server.account.EngineHttpClient

@@ -38,6 +38,10 @@ import org.lain.engine.server.Notification
 import org.lain.engine.server.replication.ReplicationFrame
 import org.lain.engine.server.protocolError
 import org.lain.engine.data.*
+import org.lain.engine.script.OperationActor
+import org.lain.engine.script.OperationId
+import org.lain.engine.script.OperationTarget
+import org.lain.engine.script.execute
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
 import org.lain.engine.world.*
@@ -409,7 +413,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
             ScriptContext.OperationExecution(
                 actor,
                 target,
-                dto.inputValues.map { it.toDomain() },
+                dto.inputValues,
                 behaviour
             )
         )

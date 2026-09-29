@@ -5,8 +5,6 @@ import org.lain.engine.item.ItemPrefab
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.compilation.NamespaceDraft
-import org.lain.engine.util.Operation
-import org.lain.engine.util.OperationId
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 import kotlin.collections.component1

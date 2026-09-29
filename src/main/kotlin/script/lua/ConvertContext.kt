@@ -8,10 +8,9 @@ import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.script.lua.library.luaWorld
-import org.lain.engine.util.AnyInputValue
-import org.lain.engine.util.Input
-import org.lain.engine.util.OperationSelection
-import org.lain.engine.util.OperationTarget
+import org.lain.engine.script.InputValue
+import org.lain.engine.script.OperationSelection
+import org.lain.engine.script.OperationTarget
 import org.lain.engine.util.math.asMutableVec3
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
@@ -58,6 +57,20 @@ internal fun ScriptContext.toLuaValue(): LuaValue = when(this) {
             }
         )
     }
+    is ScriptContext.OperationInputResolution -> {
+        val (actor, operationId, inputId, inputs) = this
+        luaTableOf(
+            luaValue("world"), actor.player.world.luaWorld(),
+            luaValue("actor"), luaTableOf(
+                luaValue("type"), actor.type.name.lowercase().luaStr(),
+                luaValue("player"), actor.player.coerceToLua(),
+                luaValue("entity"), actor.entity.luaNum(),
+            ),
+            luaValue("operation_id"), operationId.toString().luaStr(),
+            luaValue("input_id"), inputId.luaStr(),
+            luaValue("inputs"), inputs.toLuaTable(),
+        )
+    }
 
     is ScriptContext.Item -> luaTableOf(
         luaValue("world"), world.luaWorld(),
@@ -73,6 +86,8 @@ internal fun ScriptContext.toLuaValue(): LuaValue = when(this) {
         "social_interaction_distance"(SOCIAL_INTERACTION_DISTANCE)
         "extend_arm"(player.extendArm)
     }
+
+    is ScriptContext.ComponentMigration -> component.toLuaValue()
 
     else -> error("Контекст скрипта $this не может быть использован на стороне сервера")
 }
@@ -95,18 +110,9 @@ fun OperationSelection.toLuaValue() = luaTableOf(
     luaValue("pos2"), pos2.toLuaValue(),
 )
 
-private fun Any?.toInputLuaValue(type: Input.Type<*>): LuaValue {
-    return when (type) {
-        Input.Type.Logic -> (this as Boolean).luaBool()
-        Input.Type.Integer -> (this as Int).luaNum()
-        Input.Type.Double -> (this as Double).luaNum()
-        Input.Type.Table -> TODO()
-        is Input.Type.Text -> (this as String).luaStr()
-    }
-}
-
-fun List<AnyInputValue>.toLuaTable(): LuaTable {
+context(ctx: LuaScriptEngine)
+fun List<InputValue>.toLuaTable(): LuaTable {
     val table = LuaTable()
-    forEach { table.set(luaValue(it.input.id), it.value.toInputLuaValue(it.input.type)) }
+    forEach { table.set(luaValue(it.id), it.value.toLuaValue()) }
     return table
 }

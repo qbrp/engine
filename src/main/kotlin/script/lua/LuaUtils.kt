@@ -78,14 +78,36 @@ fun LuaValue.toVoxelPos(): VoxelPos {
     )
 }
 
-fun LuaTable.toOperationInput(): Input<out Any> {
+context(lua: LuaScriptEngine)
+fun LuaTable.toOperationInput(): Input {
     val id = get("id").tojstring()
     val type = when(val type = get("type").tojstring()) {
-        "text" -> Input.Type.Text(false)
-        "int" -> Input.Type.Integer
-        "double" -> Input.Type.Double
-        "logic" -> Input.Type.Logic
-        "table" -> Input.Type.Table
+        "text" -> InputType.Text(
+            get("single_word").nullable()?.toboolean()
+                ?: get("is_single_word").nullable()?.toboolean()
+                ?: false
+        )
+        "int", "integer" -> InputType.Integer(
+            get("min").nullable()?.checkint(),
+            get("max").nullable()?.checkint(),
+        )
+        "double" -> InputType.Double(
+            get("min").nullable()?.checkdouble(),
+            get("max").nullable()?.checkdouble(),
+        )
+        "logic" -> InputType.Logic
+        "table" -> InputType.Table
+        "selection" -> InputType.Selection(
+            when (val variants = get("variants")) {
+                is LuaTable -> SelectionVariants.Static(
+                    variants.toScriptValue().toSelectionEntries()
+                )
+                is LuaFunction -> SelectionVariants.Dynamic(
+                    LuaScript(lua, variants)
+                )
+                else -> error("Selection variants must be a table or function")
+            }
+        )
         else -> error("Unsupported table type $type")
     }
     return Input(id, type)

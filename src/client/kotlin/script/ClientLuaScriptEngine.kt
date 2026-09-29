@@ -35,6 +35,7 @@ class ClientLuaScriptEngine(
         return when(context) {
             is ClientScriptContext.ItemTooltip -> with(context.world) {
                 luaTable {
+                    "game_session"(gameSessionTable)
                     "world"(context.world.luaWorld())
                     "item"(context.item.luaEntity())
                 }

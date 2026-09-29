@@ -15,8 +15,8 @@ import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptId
 import org.lain.engine.script.ScriptSystemId
 import org.lain.engine.script.SystemSide
-import org.lain.engine.util.Operation
-import org.lain.engine.util.OperationId
+import org.lain.engine.script.Operation
+import org.lain.engine.script.OperationId
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 

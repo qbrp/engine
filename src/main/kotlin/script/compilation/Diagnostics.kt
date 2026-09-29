@@ -5,7 +5,7 @@ import org.lain.engine.script.Identifiable
 import org.lain.engine.script.NamespaceId
 import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.ScriptSystemId
-import org.lain.engine.util.OperationId
+import org.lain.engine.script.OperationId
 import org.lain.engine.world.SoundEventId
 import org.slf4j.Logger
 
