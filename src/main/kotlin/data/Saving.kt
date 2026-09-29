@@ -51,7 +51,7 @@ fun World.updateUnloadSystem(coordinator: EntityCoordinator, timers: SaveTimers)
             item.setComponent(SaveTag)
             val containedIn = item.getComponent<ContainedIn>()
             val containerUnloaded = containedIn != null && !containedIn.container.exists()
-            if (!item.hasComponent<HeldBy>() || containerUnloaded) {
+            if (item.getComponent<HeldBy>()?.owner == null || containerUnloaded) {
                 entitiesToUnload += item
             }
         }

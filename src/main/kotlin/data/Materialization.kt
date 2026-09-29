@@ -7,6 +7,11 @@ import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.setRequiredItemComponents
 import org.lain.engine.item.toItemPrefabId
+import org.lain.engine.script.ExecutionResult
+import org.lain.engine.script.ScriptComponent
+import org.lain.engine.script.ScriptComponentType
+import org.lain.engine.script.ScriptContext
+import org.lain.engine.script.ScriptValue
 import org.lain.engine.util.ecs.EntityId
 
 data class MaterializedComponents(
@@ -34,13 +39,60 @@ data class MaterializedComponents(
     }
 }
 
-fun EntityPersistentRecord.materialize(settings: ComponentReviveSettings, resolver: EntityResolver): MaterializedComponents {
+class MigrationException(val version: Int, val targetVersion: Int, cause: Throwable? = null) :
+    RuntimeException("Не удалось выполнить миграцию с версии $version до $targetVersion", cause)
+
+fun ComponentSnapshot.Script.migrated(baseVersion: Int, type: ScriptComponentType): ComponentSnapshot.Script? {
+    var version = baseVersion
+    val targetVersion = type.version
+
+    if (baseVersion == targetVersion) return null
+
+    var value: ScriptValue = value
+    while (version < targetVersion) {
+        val result = type.migrations[version].execute(
+            ScriptContext.ComponentMigration(value)
+        )
+        value = when (result) {
+            is ExecutionResult.Failure<ScriptValue> -> throw MigrationException(version, targetVersion, result.error)
+            is ExecutionResult.Success<ScriptValue> -> result.value
+        }
+        version++
+    }
+    return copy(value = value)
+}
+
+fun ComponentSnapshot.Script.reviveScriptComponentMigrating(
+    record: ComponentPersistentRecord,
+    resolver: EntityResolver,
+    settings: ComponentReviveSettings
+): ScriptComponent {
+    val type = settings.resolveScriptComponentType(scriptId)
+    val snapshotToRevive = migrated(record.version, type) ?: this
+    return snapshotToRevive.revive(resolver, settings, type)
+}
+
+fun ComponentPersistentRecord.decodeRevive(
+    resolver: EntityResolver,
+    settings: ComponentReviveSettings
+): Component {
+    val snapshot = decode()
+    return if (snapshot is ComponentSnapshot.Script) {
+        snapshot.reviveScriptComponentMigrating(this, resolver, settings)
+    } else {
+        snapshot.revive(resolver, settings)
+    }
+}
+
+fun EntityPersistentRecord.materialize(
+    settings: ComponentReviveSettings,
+    resolver: EntityResolver
+): MaterializedComponents {
     val resolvedComponents = mutableListOf<Component>()
     val unresolvedComponents = mutableListOf<ComponentBatchDto>()
     components.forEach { componentRecord ->
         try {
-            val revived = componentRecord.decode().revive(resolver, settings)
-            resolvedComponents += revived
+            resolvedComponents += componentRecord.decodeRevive(resolver, settings)
         } catch (e: Exception) {
             unresolvedComponents.add(
                 ComponentBatchDto(

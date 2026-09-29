@@ -1,8 +1,8 @@
 package org.lain.engine.script.lua
 
-import org.jetbrains.exposed.v1.core.resolveColumnType
 import org.lain.engine.script.SBool
 import org.lain.engine.script.SEntityRef
+import org.lain.engine.script.SInstant
 import org.lain.engine.script.SInt
 import org.lain.engine.script.SList
 import org.lain.engine.script.SNil
@@ -12,8 +12,10 @@ import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.script.lua.library.LuaEntityRef
 import org.lain.engine.script.lua.library.toEntityRef
+import org.lain.engine.script.lua.library.toLuaInstant
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
+import java.time.Instant
 
 context(lua: LuaScriptEngine)
 fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
@@ -66,10 +68,12 @@ fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
         }
     }
     LuaValue.TUSERDATA -> {
-        val metaTable = getmetatable()
-        if (lua.entityRefUserdataType.metaTable == metaTable) {
-            val ref = checkuserdata(LuaEntityRef::class.java) as? LuaEntityRef ?: error("Invalid userdata")
+        if (isuserdata(LuaEntityRef::class.java)) {
+            val ref = checkuserdata(LuaEntityRef::class.java) as LuaEntityRef
             SEntityRef(ref.id.toint())
+        } else if (isuserdata(Instant::class.java)) {
+            val instant = checkuserdata(Instant::class.java) as Instant
+            SInstant(instant)
         } else {
             error("Unsupported userdata type: $this")
         }
@@ -91,5 +95,6 @@ fun ScriptValue.toLuaValue(): LuaValue = when (this) {
     )
     is SInt -> value.luaNum()
     is SEntityRef -> id.toEntityRef()
+    is SInstant -> instant.toLuaInstant()
     is SList -> values.toLuaList { it.toLuaValue() }
 }

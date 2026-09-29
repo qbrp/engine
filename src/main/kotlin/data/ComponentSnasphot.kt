@@ -14,6 +14,7 @@ import org.lain.engine.item.Writable
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentId
+import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.world.Luminance
@@ -45,8 +46,14 @@ fun ScriptComponent.snapshot() = ComponentSnapshot.Script(
     value = value.copy()
 )
 
+class ScriptComponentFreezeException(val component: ScriptComponent, cause: Exception) : RuntimeException(cause)
+
 fun Component.snapshot(): ComponentSnapshot = when (this) {
-    is ScriptComponent -> snapshot()
+    is ScriptComponent -> try {
+        snapshot()
+    } catch (e: Exception) {
+        throw ScriptComponentFreezeException(this, e)
+    }
 
     else -> ComponentSnapshot.Kotlin(
         when (this) {
@@ -69,11 +76,20 @@ data class ComponentReviveSettings(
     val scriptEngine: ScriptEngine,
 )
 
+fun ComponentReviveSettings.resolveScriptComponentType(id: ScriptComponentId): ScriptComponentType {
+    return namespacedStorage.get().components[id] ?: error("Component type $id does not exist")
+}
+
+fun ComponentSnapshot.Script.revive(
+    resolver: EntityResolver,
+    settings: ComponentReviveSettings,
+    type: ScriptComponentType = settings.resolveScriptComponentType(scriptId)
+): ScriptComponent {
+    return settings.scriptEngine.createScriptComponent(value, type)
+}
+
 fun ComponentSnapshot.revive(resolver: EntityResolver, settings: ComponentReviveSettings): Component =
     when (this) {
         is ComponentSnapshot.Kotlin<*> -> component
-        is ComponentSnapshot.Script -> {
-            val type = settings.namespacedStorage.get().components[scriptId] ?: error("Component type $scriptId does not exist")
-            settings.scriptEngine.createScriptComponent(value, type)
-        }
+        is ComponentSnapshot.Script -> revive(resolver, settings)
     }

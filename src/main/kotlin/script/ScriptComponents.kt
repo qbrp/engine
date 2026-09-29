@@ -3,6 +3,10 @@ package org.lain.engine.script
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
+import org.lain.engine.item.resolveItemAsset
+import org.lain.engine.script.compilation.CompilationDiagnostic
+import org.lain.engine.script.compilation.DiagnosticContext
+import org.lain.engine.script.compilation.DiagnosticException
 import org.lain.engine.util.ecs.ComponentMeta
 import org.lain.engine.util.ecs.IndexedComponentType
 
@@ -20,12 +24,26 @@ interface ScriptComponent : Component {
         get() = null
 }
 
+class MigrationDeclarationException(val type: ScriptComponentType) : DiagnosticException(
+    message = "Количество миграций (${type.migrations.size}) не совпадает с числом версий (${type.version}) типа компонента ${type.engineId}"
+) {
+    override fun toDiagnostic(context: DiagnosticContext): CompilationDiagnostic {
+        return super.toDiagnostic(context)
+            .copy(cause = null)
+    }
+}
+
 class ScriptComponentType(
     val engineId: ScriptComponentId,
     val ecsType: ComponentType<ScriptComponent>,
     val meta: ComponentMeta,
-    val version: Int = 0
+    val version: Int = 0,
+    val migrations: List<Script<ScriptContext.ComponentMigration, ScriptValue>>
 ) : IndexedComponentType<ScriptComponent>(ecsType.id) {
+    init {
+        if (migrations.size != version) throw MigrationDeclarationException(this)
+    }
+
     override fun toString(): String = "ScriptComponentType($idx, $id, $meta)"
 }
 
@@ -53,6 +71,7 @@ object CoreScriptComponents {
     val ENTITY_RPC_QUEUE = register("core/networking/entity_rpc_queue", savable = false, networking = false)
     val DYNAMIC_VOXEL_INTEREST = register("core/networking/voxel_interest", savable = true, networking = false)
     val VOXEL_DOOR = register("core/voxel/door", savable = true, networking = true)
+    val ITEM_DISPLAY = register("core/item/display", savable = true, networking = true)
 
     fun get(id: ScriptComponentId) = all[id]
 
@@ -70,7 +89,7 @@ object CoreScriptComponents {
     ): ScriptComponentType {
         val ecsType = ComponentType<ScriptComponent>(id)
         val scriptComponentId = EngineId(id).toScriptComponentId()
-        val type = ScriptComponentType(scriptComponentId, ecsType, meta)
+        val type = ScriptComponentType(scriptComponentId, ecsType, meta, 0,emptyList())
         all[scriptComponentId] = type
         return type
     }

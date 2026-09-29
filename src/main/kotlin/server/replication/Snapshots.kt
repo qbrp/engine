@@ -1,10 +1,16 @@
 package org.lain.engine.server.replication
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.iterate
+import org.lain.engine.data.LOGGER
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.ScriptComponentFreezeException
+import org.lain.engine.server.replication.replicationSnapshot
+import org.lain.engine.util.getDebugName
+import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.World
 
 @Serializable
@@ -24,12 +30,11 @@ fun EntityDelta.toReplicationUpdate() = EntityStateUpdate.Delta(this)
 context(world: World)
 fun EntityId.fullReplicationUpdate() = EntityStateUpdate.Full(
     networkState().revision,
-    collectNetworkedComponents()
+    captureSnapshotsCatching(
+        world.componentManager.getNetworkedComponents(this),
+        this
+    )
 )
-
-context(world: World)
-fun EntityId.collectNetworkedComponents() = world.componentManager.getNetworkedComponents(this)
-    .map { component -> component.replicationSnapshot() }
 
 @Serializable
 data class EntityDelta(
@@ -45,6 +50,18 @@ data class ReplicationDeltaSnapshot(
 )
 
 context(world: World)
+private fun captureSnapshotsCatching(components: List<Component>, entityId: EntityId): List<ReplicationSnapshot> {
+    return components.mapNotNull {
+        try {
+            it.replicationSnapshot()
+        } catch (e: ScriptComponentFreezeException) {
+            LOGGER.error("Не удалось создать снимок скриптового компонента ${e.component} при репликации сущности ${entityId.getEntityDebugNameId()}", e)
+            null
+        }
+    }
+}
+
+context(world: World)
 fun Changes.captureDelta(entity: EntityId): EntityDelta? {
     val updates = collectUpdates(entity)
     val removes = collectRemoves()
@@ -52,11 +69,14 @@ fun Changes.captureDelta(entity: EntityId): EntityDelta? {
         return null
     }
     val baseRevision = revision
+
+    val updated = captureSnapshotsCatching(updates, entity)
+
     revision++
     return EntityDelta(
         baseRevision,
         revision,
-        updates.map { it.replicationSnapshot() },
+        updated,
         removes.map { it.id }
     )
 }

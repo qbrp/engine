@@ -6,12 +6,15 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.data.ComponentSnapshot
+import org.lain.engine.data.LOGGER
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.ScriptComponentFreezeException
 import org.lain.engine.data.snapshot
 import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.script.EntityRpcReceiver
+import org.lain.engine.script.handleScriptException
 import org.lain.engine.world.World
 
 @Serializable
