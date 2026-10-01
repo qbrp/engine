@@ -5,14 +5,13 @@ import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.item.ItemSounds
-import org.lain.engine.script.*
-import org.lain.engine.script.compilation.NamespaceDraft
+import org.lain.engine.script.EngineId
+import org.lain.engine.script.NamespaceId
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.library.luaWritableEntity
 import org.lain.engine.script.lua.library.resolveIdReference
 import org.lain.engine.script.lua.nullable
 import org.lain.engine.script.lua.toMap
-import org.lain.engine.script.lua.toStringMap
 import org.lain.engine.world.SoundEventId
 import org.luaj.vm2.LuaTable
 

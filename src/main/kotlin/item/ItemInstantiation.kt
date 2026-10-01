@@ -18,7 +18,7 @@ data class ItemPrefab(
     val name: String,
     val assets: ItemAssets?,
     val progressionAnimations: ItemProgressionAnimations?,
-    val onLoad: context(WriteComponentAccess) (EngineItem) -> Unit,
+    val create: context(WriteComponentAccess) (EngineItem) -> Unit,
 )
 
 fun EngineServer.createInvalidItem(world: World): EngineItem = with(world) {
@@ -54,6 +54,6 @@ fun WriteComponentAccess.createItem(
     item.setRequiredItemComponents(1, prefab.maxCount, prefab.id)
     prefab.progressionAnimations?.let { item.setComponent(it) }
     prefab.assets?.let { item.setComponent(it) }
-    prefab.onLoad(item)
+    prefab.create(item)
     return item
 }

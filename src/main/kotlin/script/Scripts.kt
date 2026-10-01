@@ -2,6 +2,9 @@ package org.lain.engine.script
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.WriteComponentAccess
+import org.lain.engine.data.EntityPersistenceData
+import org.lain.engine.data.PersistentId
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.PlayerInput
@@ -18,7 +21,12 @@ interface OperationBehaviour {
 interface ScriptContext {
     data class Player(val player: EnginePlayer) : ScriptContext
     data class World(val world: EngineWorld) : ScriptContext
-    data class Item(val world: EngineWorld, val item: EngineItem) : ScriptContext
+    data class EntityMaterialization(
+        val entity: EntityId,
+        val world: EngineWorld,
+        val persistentId: PersistentId,
+        val persistentData: EntityPersistenceData,
+    ) : ScriptContext
     data class PlayerInputTick(val player: EnginePlayer, val input: PlayerInput) : ScriptContext
     data class VoxelAction(
         val player: EnginePlayer?,

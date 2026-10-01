@@ -11,7 +11,7 @@ data class CallbackType<C : ScriptContext, R : ScriptValue>(val id: String) {
         val WORLD_TICK_20 = voidType<ScriptContext.World>("world_tick_20")
         val WORLD_TICK = voidType<ScriptContext.World>("world_tick")
         val PLACE_VOXEL = voidType<ScriptContext.VoxelAction>("place_voxel")
-        val ITEM_LOAD = voidType<ScriptContext.Item>("item_load")
+        val ENTITY_MATERIALIZATION = voidType<ScriptContext.EntityMaterialization>("entity_materialization")
         val PLAYER_INPUT_TICK = voidType<ScriptContext.PlayerInputTick>("player_input_tick")
 
         fun <T : ScriptContext, R : ScriptValue> type(id: String) = CallbackType<T, R>(id)

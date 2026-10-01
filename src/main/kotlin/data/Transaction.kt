@@ -5,6 +5,8 @@ import org.lain.engine.world.World
 
 import kotlinx.coroutines.CompletableDeferred
 import org.lain.cyberia.ecs.destroy
+import org.lain.engine.script.CallbackType
+import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.ecs.EntityId
 import kotlin.collections.plusAssign
@@ -12,6 +14,8 @@ import kotlin.collections.plusAssign
 enum class TransactionState {
     ACTIVE,
     CLOSING,
+    COMMITTING,
+    COMMIT_FAILED,
     COMMITTED,
     MERGED,
     ROLLED_BACK,
@@ -19,6 +23,28 @@ enum class TransactionState {
 
 internal class TransactionTree {
     val lock = Any()
+}
+
+class PendingEntityLoad internal constructor(
+    val reservation: EntityLoadReservation,
+) {
+    var migrations: List<PlannedMigration>? = null
+        private set
+    var entity: EntityId? = null
+        private set
+    var persistentData: EntityPersistenceData? = null
+        private set
+
+    fun bind(entity: EntityId, persistenceData: EntityPersistenceData?) {
+        check(this.entity == null)
+        this.entity = entity
+        this.persistentData = persistenceData
+    }
+
+    fun planMigration(migrations: List<PlannedMigration>) {
+        check(this.migrations == null)
+        this.migrations = migrations.toList()
+    }
 }
 
 class TransactionContext internal constructor(
@@ -33,18 +59,6 @@ class TransactionContext internal constructor(
     private val children = mutableSetOf<TransactionContext>()
     private val entityLoads = mutableListOf<PendingEntityLoad>()
     private val entityLeases = mutableListOf<EntityLease>()
-
-    class PendingEntityLoad internal constructor(
-        val reservation: EntityLoadReservation,
-    ) {
-        var entity: EntityId? = null
-            private set
-
-        fun bind(entity: EntityId) {
-            check(this.entity == null)
-            this.entity = entity
-        }
-    }
 
     private var _state = TransactionState.ACTIVE
 
@@ -140,25 +154,68 @@ class TransactionContext internal constructor(
                 return
             }
 
+            check(server.isOnThread()) {
+                "Root transaction must be committed on the server thread"
+            }
+
             loads += entityLoads.map { load ->
                 val entity = checkNotNull(load.entity) {
                     "Cannot commit transaction with unfinished entity load " +
                             load.reservation.uuid
                 }
-
                 load to entity
             }
             leases += entityLeases
 
-            _state = TransactionState.COMMITTED
+            _state = TransactionState.COMMITTING
         }
 
-        commands.apply()
-        loads.forEach { (load, entity) -> coordinator.completeLoadReservation(load.reservation, entity) }
-        leases.forEach { coordinator.releaseEntity(it) }
+        try {
+            loads.forEach { (load, _) ->
+                load.migrations?.forEach(PlannedMigration::migrate)
+            }
+        } catch (cause: Throwable) {
+            try {
+                rollback(cause, allowCommitting = true)
+            } catch (rollbackFailure: Throwable) {
+                cause.addSuppressed(rollbackFailure)
+            }
+            throw cause
+        }
+
+        try {
+            commands.apply()
+            loads.forEach { (load, entity) ->
+                world.simulation.callbacks.of(CallbackType.ENTITY_MATERIALIZATION)?.execute(
+                    ScriptContext.EntityMaterialization(
+                        entity,
+                        world,
+                        load.reservation.uuid,
+                        load.persistentData!!
+                    )
+                )
+                coordinator.completeLoadReservation(load.reservation, entity)
+            }
+            leases.forEach { coordinator.releaseEntity(it) }
+        } catch (cause: Throwable) {
+            synchronized(tree.lock) {
+                check(_state == TransactionState.COMMITTING)
+                _state = TransactionState.COMMIT_FAILED
+            }
+            throw cause
+        }
+
+        synchronized(tree.lock) {
+            check(_state == TransactionState.COMMITTING) {
+                "Transaction state changed while committing: $_state"
+            }
+            _state = TransactionState.COMMITTED
+        }
     }
 
-    fun rollback(cause: Throwable) {
+    fun rollback(cause: Throwable) = rollback(cause, allowCommitting = false)
+
+    private fun rollback(cause: Throwable, allowCommitting: Boolean) {
         val leases = mutableListOf<EntityLease>()
         val loads = mutableListOf<PendingEntityLoad>()
 
@@ -173,7 +230,8 @@ class TransactionContext internal constructor(
 
             check(
                 _state == TransactionState.ACTIVE ||
-                        _state == TransactionState.CLOSING
+                        _state == TransactionState.CLOSING ||
+                        (allowCommitting && _state == TransactionState.COMMITTING)
             ) {
                 "Cannot rollback transaction while transaction is $_state"
             }
@@ -233,7 +291,20 @@ suspend inline fun <T> TransactionContext.rollbackOnFailure(
             this.commit()
         }
     } catch (e: Throwable) {
-        this.rollback(e)
+        when (state) {
+            TransactionState.ACTIVE,
+            TransactionState.CLOSING -> try {
+                rollback(e)
+            } catch (rollbackFailure: Throwable) {
+                e.addSuppressed(rollbackFailure)
+            }
+
+            TransactionState.ROLLED_BACK,
+            TransactionState.COMMITTING,
+            TransactionState.COMMIT_FAILED -> Unit
+
+            else -> error("Cannot rollback transaction while transaction is $state")
+        }
         throw e
     }
 }

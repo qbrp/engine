@@ -2,7 +2,6 @@ package org.lain.engine.data
 
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogDiagnosticContext
@@ -80,9 +79,7 @@ class EntityLoadOperation(
          }
     }
 
-    private suspend fun discoverEntity(
-        persistentId: PersistentId
-    ): DiscoveredEntity {
+    private suspend fun discoverEntity(persistentId: PersistentId): DiscoveredEntity {
         discovered[persistentId]?.let { return it }
 
         // когда в движке появятся произвольные связи, здесь может быть дедлок
@@ -94,9 +91,9 @@ class EntityLoadOperation(
                 val record = database.loadEntity(persistentId)
                     ?: throw EntityNotExistsException(persistentId)
                 val e = context.world.addEntity()
-                pending.bind(e)
+                pending.bind(e, record.data)
 
-                DiscoveredEntity.Acquired(e, record)
+                DiscoveredEntity.Acquired(e, record, pending)
             }
 
             is AcquireResult.Loading -> {
@@ -130,7 +127,7 @@ class EntityLoadOperation(
         try {
             val materializedComponents = entityRecord.materialize(world.componentReviveSettings, this@EntityLoadOperation)
             unresolvedComponents += materializedComponents.unresolved
-            materializedComponents.apply(entityId)
+            materializedComponents.apply(entityId, entity.load)
 
             EngineLogger.logContextual(
                 Log(
@@ -184,7 +181,8 @@ class EntityLoadOperation(
 
         data class Acquired(
             override val entityId: EntityId,
-            val record: EntityPersistentRecord
+            val record: EntityPersistentRecord,
+            val load: PendingEntityLoad
         ) : DiscoveredEntity
 
         data class Exists(

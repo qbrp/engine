@@ -1,6 +1,7 @@
 package org.lain.engine.script.lua.library
 
 import org.lain.engine.script.EngineId
+import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.LuaUserdataType
 import org.lain.engine.script.lua.NIL
 import org.lain.engine.script.lua.luaBool
@@ -24,6 +25,9 @@ fun LuaValue.resolveIdReference(): EngineId {
         else -> error("Invalid id reference type")
     }
 }
+
+context(lua: LuaScriptEngine)
+fun EngineId.coerceToLua(): LuaValue = lua.idLibrary.newInstance(this)
 
 class IdLibrary {
     private val type = LuaUserdataType<EngineId> {

@@ -1,5 +1,7 @@
 package org.lain.engine.script.lua
 
+import org.lain.engine.data.EntityPersistenceData
+import org.lain.engine.item.toItemPrefabId
 import org.lain.engine.player.extendArm
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.SOCIAL_INTERACTION_DISTANCE
@@ -72,9 +74,17 @@ internal fun ScriptContext.toLuaValue(): LuaValue = when(this) {
         )
     }
 
-    is ScriptContext.Item -> luaTableOf(
+    is ScriptContext.EntityMaterialization -> luaTableOf(
+        luaValue("entity"), with(world) { entity.luaEntity() },
         luaValue("world"), world.luaWorld(),
-        luaValue("item"), with(world) { item.luaEntity() },
+        luaValue("persistent_id"), persistentId.toString().luaStr(),
+        luaValue("item"), (persistentData as? EntityPersistenceData.Item)?.let {
+            luaTableOf(
+                luaValue("prefab_id"), it.prefabId.parse().coerceToLua(),
+                luaValue("count"), it.count.luaNum(),
+                luaValue("max_count"), it.maxCount.luaNum()
+            )
+        } ?: NIL,
     )
 
     is ScriptContext.PlayerInputTick -> luaTable {

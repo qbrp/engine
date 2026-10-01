@@ -19,6 +19,7 @@ data class MaterializedComponents(
     val data: EntityPersistenceData?,
     val resolved: List<Component>,
     val unresolved: List<ComponentBatchDto>,
+    val migrations: List<PlannedMigration>
 ) {
     @Suppress("UNCHECKED_CAST")
     context(write: WriteComponentAccess)
@@ -33,54 +34,10 @@ data class MaterializedComponents(
     }
 
     context(write: WriteComponentAccess)
-    fun apply(entity: EntityId) {
+    fun apply(entity: EntityId, entityLoad: PendingEntityLoad) {
         applyResolved(entity)
+        entityLoad.planMigration(migrations)
         data?.let { entity.configure(persistentId, it) }
-    }
-}
-
-class MigrationException(val version: Int, val targetVersion: Int, cause: Throwable? = null) :
-    RuntimeException("Не удалось выполнить миграцию с версии $version до $targetVersion", cause)
-
-fun ComponentSnapshot.Script.migrated(baseVersion: Int, type: ScriptComponentType): ComponentSnapshot.Script? {
-    var version = baseVersion
-    val targetVersion = type.version
-
-    if (baseVersion == targetVersion) return null
-
-    var value: ScriptValue = value
-    while (version < targetVersion) {
-        val result = type.migrations[version].execute(
-            ScriptContext.ComponentMigration(value)
-        )
-        value = when (result) {
-            is ExecutionResult.Failure<ScriptValue> -> throw MigrationException(version, targetVersion, result.error)
-            is ExecutionResult.Success<ScriptValue> -> result.value
-        }
-        version++
-    }
-    return copy(value = value)
-}
-
-fun ComponentSnapshot.Script.reviveScriptComponentMigrating(
-    record: ComponentPersistentRecord,
-    resolver: EntityResolver,
-    settings: ComponentReviveSettings
-): ScriptComponent {
-    val type = settings.resolveScriptComponentType(scriptId)
-    val snapshotToRevive = migrated(record.version, type) ?: this
-    return snapshotToRevive.revive(resolver, settings, type)
-}
-
-fun ComponentPersistentRecord.decodeRevive(
-    resolver: EntityResolver,
-    settings: ComponentReviveSettings
-): Component {
-    val snapshot = decode()
-    return if (snapshot is ComponentSnapshot.Script) {
-        snapshot.reviveScriptComponentMigrating(this, resolver, settings)
-    } else {
-        snapshot.revive(resolver, settings)
     }
 }
 
@@ -90,9 +47,18 @@ fun EntityPersistentRecord.materialize(
 ): MaterializedComponents {
     val resolvedComponents = mutableListOf<Component>()
     val unresolvedComponents = mutableListOf<ComponentBatchDto>()
+    val migrations = mutableListOf<PlannedMigration>()
     components.forEach { componentRecord ->
         try {
-            resolvedComponents += componentRecord.decodeRevive(resolver, settings)
+            val snapshot = componentRecord.decode()
+            resolvedComponents += if (snapshot is ComponentSnapshot.Script) {
+                val component = snapshot.revive(resolver, settings)
+                component.planMigration(componentRecord.version)
+                    ?.let { migrations += it }
+                component
+            } else {
+                snapshot.revive(resolver, settings)
+            }
         } catch (e: Exception) {
             unresolvedComponents.add(
                 ComponentBatchDto(
@@ -112,7 +78,7 @@ fun EntityPersistentRecord.materialize(
             return@forEach
         }
     }
-    return MaterializedComponents(uuid, data, resolvedComponents, unresolvedComponents)
+    return MaterializedComponents(uuid, data, resolvedComponents, unresolvedComponents, migrations)
 }
 
 context(write: WriteComponentAccess)

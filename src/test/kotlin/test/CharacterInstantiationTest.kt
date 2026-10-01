@@ -80,6 +80,7 @@ class CharacterInstantiationTest : EngineTest() {
                 data = EntityPersistenceData.Character(look.id, ""),
                 resolved = listOf(savedPhysical),
                 unresolved = emptyList(),
+                migrations = emptyList()
             ),
             items = "",
             look = look.id,
