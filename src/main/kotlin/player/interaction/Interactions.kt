@@ -16,7 +16,7 @@ data class InteractionId(
     val inputTick: Long,
 )
 
-fun World.afterInteractionReplication() {
+fun World.cleanupInteractionPhase() {
     iterate<InteractionExecution> { interactor, _ -> interactor.removeComponent<InteractionExecution>() }
     iterate<InteractionInterrupt> { interactor, _ -> interactor.removeComponent<InteractionInterrupt>() }
 }

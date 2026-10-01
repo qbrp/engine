@@ -15,7 +15,7 @@ import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.tickEntityDebugViewSnapshotSystem
 import org.lain.engine.data.*
-import org.lain.engine.player.interaction.afterInteractionReplication
+import org.lain.engine.player.interaction.cleanupInteractionPhase
 import org.lain.engine.player.interaction.tickTestAction
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.script.compilation.loadBuild
@@ -116,7 +116,6 @@ class EngineServer(
 
     override fun World.beforeEventCleanup() = with(platform) {
         tickReplicationSystem(this@EngineServer)
-        afterInteractionReplication()
         tickUnloadSystem(entityCoordinator, saveTimers)
         tickSaveSystem()
     }

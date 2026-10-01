@@ -102,6 +102,7 @@ class EngineSimulation(
         afterOperations()
 
         confirmProcessedPlayerInputsSystem()
+        cleanupInteractionPhase()
 
         beforeEventCleanup()
 
@@ -135,13 +136,14 @@ class EngineSimulation(
     }
 
     fun destroyPlayer(player: EnginePlayer) = with(player.world) {
-        val ownedItems = player.collectOwnedItems() + player.items
-        ownedItems.forEach { item ->
-            item.removeComponent<HeldBy>()
-        }
+        val inventory = player.require<PlayerInventory>()
+        val ownedItems = player.collectOwnedItems() + inventory.items
+        ownedItems.forEach { item -> item.removeComponent<HeldBy>() }
 
         player.equipmentContainer.destroy()
         player.mainContainer.destroy()
+        inventory.mainHandInteractor.destroy()
+        inventory.offHandInteractor.destroy()
         player.entity.destroy()
     }
 

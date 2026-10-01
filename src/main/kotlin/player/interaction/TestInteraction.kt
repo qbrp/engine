@@ -39,13 +39,15 @@ fun World.collectTestAction() = iterate<VerbLookup, PlayerInventory, PlayerCompo
 }
 
 fun World.tickTestAction(chat: EngineChat) {
-    iterate<TestCommand> { player, _ ->
-        player.setComponent(TestHold())
+    iterate<TestCommand, PlayerInventory> { player, _, inventory ->
         player.removeComponent<TestCommand>()
+        player.setComponent(UsingItem(inventory.mainHandItem ?: return@iterate))
+        player.setComponent(TestHold())
     }
     iterate<TestHold, PlayerComponent> { _, hold, (player) ->
         if (player.has<InteractionInterrupt>() || hold.ticks <= 0) {
             player.remove<TestHold>()
+            return@iterate
         }
         chat.sendMessage(
             "Holding: ${hold.ticks}",
