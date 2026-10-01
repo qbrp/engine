@@ -74,7 +74,7 @@ fun EngineItem.resolveTooltip(debug: Boolean): List<String> {
         val showSelector = display?.selectorStatus ?: true
         if (showSelector && fireState != null) {
             val selector = when (fireState.mode) {
-                FireMode.SELECTOR -> "<red>предохранитель"
+                FireMode.SAFETY -> "<red>предохранитель"
                 FireMode.SINGLE -> "<green>одиночный"
                 FireMode.AUTO -> "<yellow>автоматический"
             }

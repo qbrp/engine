@@ -1,13 +1,8 @@
 package org.lain.engine.script.lua.library
 
 import org.lain.engine.chat.hasPermission
-import org.lain.engine.mc.displayNameText
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.displayName
 import org.lain.engine.player.displayNameString
-import org.lain.engine.player.interaction.syncAction
-import org.lain.engine.player.isInGameMasterMode
-import org.lain.engine.player.isSpectating
 import org.lain.engine.player.serverNarration
 import org.lain.engine.player.username
 import org.lain.engine.script.lua.*
@@ -62,19 +57,6 @@ fun PlayerMetaTable() = luaTable {
         val commandStr = command.tojstring()
         val rootBl = root.nullable()?.toboolean() ?: false
         player.invokeCommand(commandStr, rootBl)
-        NIL
-    }
-    function3("sync_action") { self, type, action ->
-        val player = self.asEnginePlayer()
-        with(player.world) {
-            player.entity.syncAction(
-                LuaScriptComponent(
-                    action,
-                    type.asEngineScriptComponentType(),
-                    lua
-                )
-            )
-        }
         NIL
     }
 }

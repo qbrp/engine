@@ -34,13 +34,12 @@ fun raycastBulletEvent(world: Level, event: ShootGeometry): BlockHitResult? {
     }
 }
 
-fun tickBulletFireDecalSystem(
-    world: World,
+fun World.tickBulletFireDecalSystem(
     mcWorld: ServerLevel,
-) = world.iterate<BulletFireEvent> { _, event ->
+) = iterate<BulletFireEvent> { _, event ->
     val hitResult = raycastBulletEvent(mcWorld, event.shoot) ?: return@iterate
     val blockPos = hitResult.blockPos
     val pos = hitResult.location
     val dir = hitResult.direction.engine()
-    world.attachBulletDamageDecal(dir, pos.engine(), blockPos.voxelPos())
+    attachBulletDamageDecal(dir, pos.engine(), blockPos.voxelPos())
 }

@@ -20,5 +20,4 @@ data class Writable(
 
 const val WRITEABLE_OPEN_SOUND = "writable_open"
 
-// TODO: Сделать событием
-data class WritableOpen(val writable: Writable) : Component
+data class OpenWritable(val writable: Writable) : Component

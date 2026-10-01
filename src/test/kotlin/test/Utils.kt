@@ -18,7 +18,6 @@ import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.item.ItemProgressionAnimations
 import org.lain.engine.player.PlayerStorage
-import org.lain.engine.player.interaction.PlayerInputMode
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.FileScriptSource
 import org.lain.engine.script.ModuleManager
@@ -58,7 +57,6 @@ fun TestEngineSimulation(
     namespacedStorage,
     ScriptEngine.Dummy,
     Thread.currentThread(),
-    PlayerInputMode.Authoritative
 )
 
 fun TestComponentWorld(

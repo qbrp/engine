@@ -37,12 +37,12 @@ internal class ClientReplicationState {
     )
 
     private data class ActivePrediction(
-        val interactionId: InteractionId,
+        val inputTick: Long,
         val entities: Set<PersistentId>,
     )
 
     private val targets = mutableMapOf<ReplicationTarget, TargetState>()
-    private val predictedComponents = linkedMapOf<ReplicatedComponentKey, InteractionId>()
+    private val predictedComponents = linkedMapOf<ReplicatedComponentKey, Long>()
     private var activePrediction: ActivePrediction? = null
     private var processedInputTick: Long = -1
 
@@ -60,8 +60,8 @@ internal class ClientReplicationState {
         )
     }
 
-    fun beginInteraction(interactionId: InteractionId, entities: Set<PersistentId>) {
-        activePrediction = ActivePrediction(interactionId, entities)
+    fun beginInteraction(inputTick: Long, entities: Set<PersistentId>) {
+        activePrediction = ActivePrediction(inputTick, entities)
     }
 
     fun endInteraction() {
@@ -71,23 +71,21 @@ internal class ClientReplicationState {
     fun onComponentChange(entityId: PersistentId, componentTypeId: String) {
         val prediction = activePrediction ?: return
         if (entityId !in prediction.entities) return
-        predictedComponents[ReplicatedComponentKey(entityId, componentTypeId)] =
-            prediction.interactionId
+        predictedComponents[ReplicatedComponentKey(entityId, componentTypeId)] = prediction.inputTick
     }
 
     fun isPredicted(persistentId: PersistentId, componentTypeId: String): Boolean =
         ReplicatedComponentKey(persistentId, componentTypeId) in predictedComponents
 
-    fun confirmInput(playerId: PlayerId, inputTick: Long): List<ReplicatedComponentKey> {
+    fun confirmInput(inputTick: Long): List<ReplicatedComponentKey> {
         if (inputTick <= processedInputTick) return emptyList()
         processedInputTick = inputTick
 
         val confirmed = predictedComponents
-            .filterValues { interaction ->
-                interaction.source == playerId && interaction.inputTick <= inputTick
-            }
+            .filterValues { predictedAtTick -> predictedAtTick <= inputTick }
             .keys
             .toList()
+
         confirmed.forEach(predictedComponents::remove)
         return confirmed
     }
@@ -109,7 +107,7 @@ internal class ClientReplicationState {
                 val state = targets.getOrPut(target) { TargetState(snapshot.revision) }
                 val currentRevision = state.revision
                 if (snapshot.revision < currentRevision) {
-                    SnapshotAcceptance.Ignored
+                    Ignored
                 } else {
                     val newComponents = snapshot.components.associateBy { it.id }
                     val removed = state.components.keys - newComponents.keys
@@ -129,7 +127,7 @@ internal class ClientReplicationState {
                 val currentRevision = state.revision
                 when {
                     snapshot.delta.revision <= currentRevision ->
-                        SnapshotAcceptance.Ignored
+                        Ignored
 
                     snapshot.delta.baseRevision != currentRevision ->
                         Gap(

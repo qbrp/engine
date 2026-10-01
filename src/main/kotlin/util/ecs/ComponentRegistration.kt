@@ -28,7 +28,6 @@ import org.lain.engine.item.Writable
 import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.CustomPlayerAttributes
 import org.lain.engine.player.Narration
-import org.lain.engine.player.Outfit
 import org.lain.engine.player.PlayerContainer
 import org.lain.engine.player.PlayerContainerTag
 import org.lain.engine.player.PlayerEquipment
@@ -37,13 +36,12 @@ import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.character.CharacterDisplay
 import org.lain.engine.player.character.CharacterPhysical
 import org.lain.engine.player.character.SelectedLook
-import org.lain.engine.player.interaction.ActionSyncEvent
 import org.lain.engine.player.interaction.GiveAction
-import org.lain.engine.player.interaction.GunModeToggleAction
+import org.lain.engine.player.interaction.ToggleGunModeCommand
 import org.lain.engine.player.interaction.HailAction
-import org.lain.engine.player.interaction.StartShootAction
-import org.lain.engine.player.interaction.StopShootAction
-import org.lain.engine.player.interaction.WritableOpenAction
+import org.lain.engine.player.interaction.HoldGunTriggerCommand
+import org.lain.engine.player.interaction.LoadGunFromOffhandCommand
+import org.lain.engine.player.interaction.OpenWritableCommand
 import org.lain.engine.script.EntityRpcReceiver
 import org.lain.engine.server.replication.Networked
 import org.lain.engine.data.PersistentIdComponent
@@ -71,7 +69,6 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_positioned")
 
     registerComponent<Event>(isNetworking = true)
-    registerComponent<ActionSyncEvent>(isNetworking = true, replicationClass = null)
 
     // Entity lifecycle
     registerComponent<SaveTag>()
@@ -111,7 +108,6 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<ItemSounds>(isSavable = true, isNetworking = true)
     registerComponent<Count>(isSavable = true, isNetworking = true)
     registerComponent<Mass>(isSavable = true, isNetworking = true)
-    registerComponent<Outfit>(isSavable = true, isNetworking = true)
     registerComponent<Flashlight>(isSavable = true, isNetworking = true)
     registerComponent<Writable>(isSavable = true, isNetworking = true)
     registerComponent<ItemAssets>(isSavable = true, isNetworking = true)
@@ -142,10 +138,10 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<SelectedLook>(isNetworking = true)
     registerComponent<CharacterApplyEvent>(isNetworking = true)
 
-    registerComponent<GiveAction>()
-    registerComponent<HailAction>()
-    registerComponent<GunModeToggleAction>(replicationClass = GunModeToggleAction::class)
-    registerComponent<StartShootAction>(replicationClass = StartShootAction::class)
-    registerComponent<StopShootAction>(replicationClass = StopShootAction::class)
-    registerComponent<WritableOpenAction>(replicationClass = WritableOpenAction::class)
+    registerComponent<GiveAction>(isNetworking = true)
+    registerComponent<HailAction>(isNetworking = true)
+    registerComponent<ToggleGunModeCommand>(isNetworking = true)
+    registerComponent<LoadGunFromOffhandCommand>(isNetworking = true)
+    registerComponent<HoldGunTriggerCommand>(isNetworking = true)
+    registerComponent<OpenWritableCommand>(isNetworking = true)
 }

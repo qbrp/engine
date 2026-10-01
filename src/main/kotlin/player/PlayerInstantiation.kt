@@ -21,6 +21,8 @@ import org.lain.engine.player.character.Look
 import org.lain.engine.player.character.getDisplay
 import org.lain.engine.player.character.getPhysical
 import org.lain.engine.player.character.setCharacterComponents
+import org.lain.engine.player.interaction.HandType
+import org.lain.engine.player.interaction.setupHandInteractorEntity
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.server.replication.Networked
 import org.lain.engine.server.replication.Interests
@@ -64,14 +66,31 @@ fun commonPlayerInstance(
     character: EngineCharacter?,
     look: Look?
 ): EnginePlayer {
+    val pos = settings.pos
     entity
         .apply {
             setComponent(PersistentIdComponent(CustomPersistentId(id.toString())))
-            setComponent(Location(settings.pos))
+            setComponent(Location(pos))
             setComponent(Velocity())
             setComponent(Orientation())
             setComponent(EnginePlayerModel(skinEyeY = settings.skinEyeY))
-            setComponent(PlayerInventory(settings.items.toMutableSet()))
+            val mainHand = write.addEntity().apply {
+                setComponent(PersistentIdComponent(CustomPersistentId("player/$id/hand/main")))
+            }
+            val offHand = write.addEntity().apply {
+                setComponent(PersistentIdComponent(CustomPersistentId("player/$id/hand/offhand")))
+            }
+            setComponent(
+                PlayerInventory(
+                    settings.items.toMutableSet(),
+                    mainHand.setupHandInteractorEntity(
+                        entity, HandType.MAIN, offHand, CustomPersistentId("hand-main-$id"), pos
+                    ),
+                    offHand.setupHandInteractorEntity(
+                        entity, HandType.OFFHAND, mainHand, CustomPersistentId("hand-off-$id"), pos
+                    )
+                )
+            )
             setComponent(ArmStatus(false))
             setComponent(Narration(mutableListOf()))
             setComponent(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))

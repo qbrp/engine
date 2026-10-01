@@ -8,7 +8,6 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.LowDetail
-import org.lain.engine.client.render.EnginePlayerSkin
 import org.lain.engine.container.Entries
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.FireMode
@@ -18,7 +17,6 @@ import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.mc.getEngineState
 import org.lain.engine.player.ArmPose
 import org.lain.engine.player.ArmStatus
-import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.EnginePlayerModel
 import org.lain.engine.player.Outfit
 import org.lain.engine.player.OutfitDisplay
@@ -74,12 +72,12 @@ fun armPoseOf(main: Boolean, extendsArm: Boolean, inventory: PlayerInventory): A
         rHand != null,
         main,
         rHand?.isGun() == true,
-        rHand.isGunWithoutSelector(),
+        rHand.isGunWithoutSafety(),
         lHand?.isGun() == true
     )
 }
 
 context(world: World)
-private fun EngineItem?.isGunWithoutSelector(): Boolean {
-    return (this?.getComponent<GunFireState>() ?: return false).mode != FireMode.SELECTOR
+private fun EngineItem?.isGunWithoutSafety(): Boolean {
+    return (this?.getComponent<GunFireState>() ?: return false).mode != FireMode.SAFETY
 }

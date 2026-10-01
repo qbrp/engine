@@ -49,13 +49,15 @@ fun EnginePlayer.collectReplicationEntities(): Set<EntityId> {
     return buildSet {
         add(entity)
         add(mainContainer)
-        equipment?.entity?.let { add(it) }
+        equipment.entity.let { add(it) }
 
         addAll(inventory.items)
         inventory.cursorItem?.let(::add)
         inventory.mainHandItem?.let(::add)
         inventory.offHandItem?.let(::add)
+        add(inventory.mainHandInteractor)
+        add(inventory.offHandInteractor)
 
-        equipment?.getContainerItems()?.let { addAll(it) }
+        equipment.getContainerItems().let { addAll(it) }
     }
 }

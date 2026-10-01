@@ -10,13 +10,16 @@ import org.lain.engine.chat.trySendLeaveMessage
 import org.lain.engine.player.*
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.character.unloadCharacter
-import org.lain.engine.player.interaction.PlayerInputMode
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.tickEntityDebugViewSnapshotSystem
 import org.lain.engine.data.*
-import org.lain.engine.server.replication.tickSynchronizationSystem
+import org.lain.engine.player.interaction.afterInteractionReplication
+import org.lain.engine.player.interaction.tickTestAction
+import org.lain.engine.script.compilation.CompilationFailedException
+import org.lain.engine.script.compilation.loadBuild
+import org.lain.engine.server.replication.tickReplicationSystem
 import org.lain.engine.util.*
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -64,7 +67,6 @@ class EngineServer(
         namespacedStorage,
         luaScriptEngine,
         thread,
-        PlayerInputMode.Authoritative
     )
 
     fun run() {
@@ -97,6 +99,7 @@ class EngineServer(
     }
 
     override fun World.afterInteractions() {
+        tickTestAction(chat)
         val vocalSettings = globals.vocalSettings
         tickEntityDebugViewSnapshotSystem(handler) // Отсылаем слепок данных игроку
         tickPlayerSpeakSystem(chat, vocalSettings)
@@ -107,14 +110,15 @@ class EngineServer(
 
     override fun World.afterOperations() = with(platform) {
         // Обработка взаимодействий с вокселями
-        updateBulletHitSystem()
+        tickDataApply()
         updateVoxelEvents(handler)
     }
 
     override fun World.beforeEventCleanup() = with(platform) {
-        tickSynchronizationSystem(this@EngineServer)
-        updateSaveSystem()
-        updateUnloadSystem(entityCoordinator, saveTimers)
+        tickReplicationSystem(this@EngineServer)
+        afterInteractionReplication()
+        tickUnloadSystem(entityCoordinator, saveTimers)
+        tickSaveSystem()
     }
 
     fun update(): Unit = with(namespacedStorage) {

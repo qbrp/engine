@@ -8,14 +8,13 @@ import net.minecraft.world.item.component.WritableBookContent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.client.GameSession
-import org.lain.engine.item.WritableOpen
+import org.lain.engine.item.OpenWritable
 import org.lain.engine.player.PlayerComponent
-import org.lain.engine.world.World
 import java.util.Optional
 
 fun GameSession.tickWritableUiSystem() {
     val mainPlayerEntity = MinecraftClient.player
-    world.iterate<WritableOpen, PlayerComponent>() { e, (writable), (player) ->
+    world.iterate<OpenWritable, PlayerComponent>() { e, (writable), (player) ->
         if (player == mainPlayer) {
             val player = mainPlayerEntity ?: return@iterate
             val itemStack = player.mainHandItem
@@ -25,6 +24,6 @@ fun GameSession.tickWritableUiSystem() {
             )
             MinecraftClient.setScreen(BookEditScreen(player, itemStack, InteractionHand.MAIN_HAND))
         }
-        e.removeComponent<WritableOpen>()
+        e.removeComponent<OpenWritable>()
     }
 }

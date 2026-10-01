@@ -8,7 +8,6 @@ import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
@@ -117,23 +116,20 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     override fun World.prepareData() {
         val level = minecraftServer.allLevels.find { it.engineId == id }!!
-        minecraftSystem.tick(this)
+        minecraftSystem.tickDataPrepare(this)
         tickVoxelAdapterSystem(level)
         updateCommandInvokeSystem(dependencies.worldTable)
     }
 
-    override fun World.updateBulletHitSystem() {
-        val level = dependencies.worldTable.getMcWorld(id) as? ServerLevel
-        tickBulletFireDecalSystem(this, level!!)
+    override fun World.tickSaveSystem() {
+        tickSaveSystem(this@EngineMinecraftServer)
     }
 
-    override fun World.updateSaveSystem() {
-        updateSaveSystem(this@EngineMinecraftServer)
-    }
-
-    override fun World.applyData() {
+    override fun World.tickDataApply() {
         val level = minecraftServer.allLevels.find { it.engineId == id }!!
         tickVoxelDoorSystem(level)
+        tickBulletFireDecalSystem(level)
+        minecraftSystem.tickOperations(this)
     }
 
     open fun tick() {

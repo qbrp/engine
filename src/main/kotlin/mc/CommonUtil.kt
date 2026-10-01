@@ -8,14 +8,13 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
-import net.minecraft.resources.ResourceLocation
 import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.tags.TagKey
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.EntitySelector
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.entity.projectile.ProjectileUtil
 import net.minecraft.world.item.ItemStack
@@ -25,6 +24,7 @@ import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
+import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
 import net.minecraft.world.phys.shapes.CollisionContext
@@ -39,6 +39,7 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.util.math.*
 import org.lain.engine.util.requireEngineMinecraftServer
 import org.lain.engine.world.*
+import java.util.function.Predicate
 import kotlin.math.abs
 
 fun MinecraftUsername(player: Player) = Username(player.name.string)
@@ -71,20 +72,15 @@ fun minecraftChunkSectionCoord(value: Int): Int {
     return value shr 4
 }
 
-class MinecraftRaycastProvider() : RaycastProvider {
+class MinecraftRaycastProvider : RaycastProvider {
     override fun whoSee(player: EnginePlayer, distance: Int): EnginePlayer? {
         val entity1 = player.minecraftEntity
-        val results = ProjectileUtil.getEntityHitResult(
+        val hit = ProjectileUtil.getHitResultOnViewVector(
             entity1,
-            entity1.eyePosition,
-            entity1.eyePosition.add(entity1.lookAngle.scale(distance.toDouble())),
-            entity1.boundingBox
-                .expandTowards(entity1.lookAngle.scale(distance.toDouble()))
-                .inflate(1.0),
-            EntitySelector.CAN_BE_COLLIDED_WITH,
-            distance*distance.toDouble(),
+            { entity -> entity is Player && !entity.isSpectator && entity.isPickable },
+            distance.toDouble()
         );
-        return (results?.entity as? Player?)?.getEngineState()
+        return ((hit as? EntityHitResult)?.entity as? Player)?.getEngineState()
     }
 
     override fun canSee(player: EnginePlayer, voxelPos: VoxelPos): Boolean {

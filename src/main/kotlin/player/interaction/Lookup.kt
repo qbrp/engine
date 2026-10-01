@@ -3,12 +3,12 @@ package org.lain.engine.player.interaction
 import org.lain.cyberia.ecs.Component
 import kotlin.reflect.KClass
 
-data class VerbVariant(
-    val verb: Verb,
-    val action: InputAction,
-) : Component
-
-data class Verb(val type: VerbType, val component: () -> Component)
+data class Verb(
+    val type: VerbType,
+    val priority: Int,
+    val holdsInput: InputAction? = null,
+    val createCommand: () -> Component,
+)
 
 @Suppress("UNCHECKED_CAST")
 fun <T : InputAction> Set<InputAction>.forAction(
@@ -46,13 +46,11 @@ val GUN_BARREL_AMMO_LOAD_VERB = VerbType(
 val HAIL_VERB = VerbType(
     "hail",
     "Окликнуть",
-    priority = 10
 )
 
 val GIVE_AWAY = VerbType(
     "give_away",
     "Передать предмет",
-    priority = -5
 )
 
 val WRITEABLE_OPEN_VERB = VerbType(

@@ -12,11 +12,11 @@ import org.lain.engine.item.ItemAssets
 import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.ecs.setPreviewItemModel
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.Outfit
 import org.lain.engine.player.PlayerPart
 import org.lain.engine.player.getOrSet
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.player.Outfit
 import org.lain.engine.world.World
 
 data class EquipmentRenderState(

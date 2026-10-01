@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.player.*
+import org.lain.engine.player.interaction.Hand
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.VEC3_ZERO
 import org.lain.engine.world.BulletFireEvent
@@ -24,15 +25,16 @@ data class Barrel(
 data class Gun(
     val smoke: ImmutableEVec3? = null,
     val rate: Int = 10,
-    val modes: List<FireMode> = listOf(FireMode.SELECTOR, FireMode.SINGLE, FireMode.AUTO)
+    val modes: List<FireMode> = listOf(FireMode.SAFETY, FireMode.SINGLE, FireMode.AUTO)
 ) : Component
 
 @Serializable
 data class GunFireState(
     var cooldown: Int = 0,
-    var mode: FireMode = FireMode.SELECTOR,
+    var mode: FireMode = FireMode.SAFETY,
     var clicked: Boolean = false,
     var triggerPressed: Boolean = false,
+    var triggerSoundPlayed: Boolean = false,
     var fired: Boolean = false
 ) : Component {
     fun copy() = GunFireState(cooldown, mode, clicked, triggerPressed, fired)
@@ -48,7 +50,7 @@ data class GunMagazines(
 
 @Serializable
 enum class FireMode {
-    SELECTOR, SINGLE, AUTO
+    SAFETY, SINGLE, AUTO
 }
 
 @Serializable
@@ -58,7 +60,7 @@ data class GunDisplay(
     @SerialName("selector_status") val selectorStatus: Boolean = true,
 ) : Component
 
-object GunTriggerPressed : Component
+object HoldsGunTrigger : Component
 
 object GunModeToggle : Component
 
@@ -79,18 +81,27 @@ fun EngineItem.isGun() = hasComponent<Gun>()
 
 fun World.tickGunSystem() {
     iterate<GunFireState> { item, fireState ->
-        if (item.hasComponent<GunTriggerPressed>() && fireState.mode != FireMode.SELECTOR) {
-            if (!fireState.triggerPressed) {
-                item.emitPlaySoundEvent(GUN_TRIGGER_SOUND)
-                fireState.triggerPressed = true
-            }
-        } else {
-            fireState.triggerPressed = false
-            fireState.fired = false
-        }
+        fireState.triggerPressed = false
 
         if (fireState.cooldown >= 0) {
             fireState.cooldown--
+        }
+    }
+
+    iterate<Hand, HoldsGunTrigger>() { interactor, hand, _ ->
+        val item = hand.item
+        val fireState = item?.getComponent<GunFireState>() ?: return@iterate
+        fireState.triggerPressed = true
+    }
+
+    iterate<GunFireState>() { item, fireState ->
+        if (fireState.triggerPressed) {
+            if (!fireState.triggerSoundPlayed) {
+                item.emitPlaySoundEvent(GUN_TRIGGER_SOUND)
+                fireState.triggerSoundPlayed = true
+            }
+        } else {
+            fireState.triggerSoundPlayed = false
         }
     }
 
@@ -109,7 +120,7 @@ fun World.tickGunSystem() {
     iterate<Gun, Barrel, HeldBy, GunFireState>() { item, gun, barrel, (shooter), fireState ->
         if (shooter == null) return@iterate
         val canContinueShoot =
-            (!fireState.fired || fireState.mode == FireMode.AUTO) && fireState.mode != FireMode.SELECTOR
+            (!fireState.fired || fireState.mode == FireMode.AUTO) && fireState.mode != FireMode.SAFETY
         if (fireState.triggerPressed && fireState.cooldown < 0 && barrel.bullets > 0 && canContinueShoot) {
             fireState.cooldown = gun.rate
             fireState.fired = true
@@ -171,18 +182,3 @@ fun World.tickGunSystem() {
 val DEFAULT_WEAPON_MASS = 2f
 val DEFAULT_BULLET_MASS = 0.004f
 val DEFAULT_BULLET_SPEED = 800f
-
-fun updateBulletsAcoustic(world: World) = world.iterate<BulletFireEvent>() { _, event ->
-//    val start = event.shoot.start
-//    val affected = filterNearestPlayers(world, start, 8)
-//    affected.forEach { player ->
-//        // дистанция - 8 блоков
-//        val distanceStrength = (64f - player.location.position.squaredDistanceTo(start)).coerceAtLeast(0f) / 8f * 2.5f
-//        player.appendTinnitus(
-//            Tinnitus(
-//                (event.bullet.bulletMass / DEFAULT_BULLET_MASS) * 0.19f, // тиннитус от выстрела пулей стандартной массы = 0.2
-//                ((20 * 8) * distanceStrength).toInt()
-//            )
-//        )
-//    }
-}

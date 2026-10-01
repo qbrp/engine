@@ -3,8 +3,6 @@ package org.lain.engine.client
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
-import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.EngineSimulation
@@ -19,32 +17,24 @@ import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
-import org.lain.engine.client.render.LittleNotification
-import org.lain.engine.client.render.SPECTATOR_NOTIFICATION
-import org.lain.engine.client.render.SkinSystem
-import org.lain.engine.client.render.WARNING
-import org.lain.engine.client.render.showInpectionModeToggleNotification
-import org.lain.engine.client.render.showSpectatingNotification
-import org.lain.engine.client.render.tickBulletHitSystem
-import org.lain.engine.client.render.tickRecoilShakeSystem
+import org.lain.engine.client.render.*
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
 import org.lain.engine.client.transport.sendC2SPacket
-import org.lain.engine.client.util.*
+import org.lain.engine.client.util.processWorldSounds
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.character.SelectedLook
-import org.lain.engine.player.interaction.PlayerInputMode
 import org.lain.engine.script.InventoryTab
-import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
+import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.server.ServerId
-import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
@@ -78,7 +68,6 @@ class GameSession(
         namespacedStorage,
         luaContext,
         client.thread,
-        PlayerInputMode.Predictive(setOf(player.id), handler)
     )
     val world = World(
         world.id,
@@ -91,11 +80,6 @@ class GameSession(
     val replicationController = ClientReplicationController(
         gameSession = this,
         initialReplicationState = player.replicationSnapshot,
-        requestResync = { target ->
-            SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT.sendC2SPacket(
-                ReplicationResyncRequestPacket(target)
-            )
-        },
     )
     var synchronizationRadius: Int = setup.settings.synchronizationRadius
     var playerDesynchronizationThreshold: Int = setup.settings.playerDesynchronizationThreshold
@@ -212,12 +196,11 @@ class GameSession(
     }
 
     override fun World.afterInput() {
-        tickActionSyncSystem(handler)
+        handler.takePredictionTick()?.let(replicationController::beginPrediction)
     }
 
     override fun World.afterInteractions() {
-        tickProcessedActions(handler)
-        handler.endInteractionPrediction()
+        replicationController.endPrediction()
     }
 
     override fun World.afterOperations() = with(systems) {

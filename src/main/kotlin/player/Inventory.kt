@@ -10,6 +10,8 @@ import org.lain.engine.item.EngineItem
  */
 data class PlayerInventory(
     val items: MutableSet<EngineItem>,
+    val mainHandInteractor: EntityId,
+    val offHandInteractor: EntityId,
     var cursorItem: EngineItem? = null,
     var mainHandItem: EngineItem? = null,
     var offHandItem: EngineItem? = null,

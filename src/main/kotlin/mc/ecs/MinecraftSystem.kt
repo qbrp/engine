@@ -21,7 +21,7 @@ import org.lain.engine.player.PlayerComponent as PlayerComponent
 class MinecraftSystem(private val minecraftServer: EngineMinecraftServer) {
     private val itemStacksToLoad = mutableListOf<NotLoadedEngineItemStack>()
 
-    fun tick(world: World) {
+    fun tickDataPrepare(world: World) {
         refreshMinecraftPlayerEntityReferences(world)
         tickDataPrepareCommon(
             world,
@@ -31,6 +31,10 @@ class MinecraftSystem(private val minecraftServer: EngineMinecraftServer) {
         world.applyServerMinecraftPlayerGameMode()
 
         loadItemStacksBatch()
+    }
+
+    fun tickOperations(world: World) {
+        world.tickGiveItemSystem()
     }
 
     private fun refreshMinecraftPlayerEntityReferences(world: World) {
@@ -113,8 +117,6 @@ class MinecraftSystem(private val minecraftServer: EngineMinecraftServer) {
             tickInventorySyncSystem: World.() -> Unit,
             tickItemStackDuplicateSystem: World.() -> Unit = {}
         ) = with(world) {
-            // сначала выдаем новые предметы
-            world.tickGiveItemSystem()
             tickMinecraftEntitySystem()
 
             // перед освновным тиком очищаем состояние обновленных предметов

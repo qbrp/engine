@@ -11,7 +11,6 @@ import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.PlayerStorage
-import org.lain.engine.player.interaction.PlayerInputMode
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
@@ -92,6 +91,5 @@ fun DummyWorld() = World(
         ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage()),
         ScriptEngine.Dummy,
         Thread.currentThread(),
-        PlayerInputMode.Authoritative,
     )
 )

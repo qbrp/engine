@@ -38,6 +38,7 @@ import org.lain.engine.util.ecs.ComponentTypeRegistry
 import org.lain.engine.util.ecs.registerAllClient
 import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.ecs.MinecraftSystem
+import org.lain.engine.mc.ecs.tickGiveItemSystem
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.slf4j.LoggerFactory
@@ -233,6 +234,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
 
     override fun GameSession.tickDataApplySystem() {
         val level = currentLevel ?: return
+        world.tickGiveItemSystem()
         world.tickVoxelDoorSystem(level)
         tickOrientationTranslationSystem()
         tickWritableUiSystem()

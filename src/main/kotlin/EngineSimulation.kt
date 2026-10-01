@@ -32,7 +32,6 @@ class EngineSimulation(
     val namespacedStorage: NamespacedStorageAccess,
     val scriptEngine: ScriptEngine,
     val thread: Thread,
-    val playerInputMode: PlayerInputMode
 ) {
     @Volatile
     var ticks = 0L
@@ -40,19 +39,17 @@ class EngineSimulation(
     var callbacks = Callbacks()
     val scriptSystemDispatcher = ScriptSystemDispatcher()
 
-    private val _worlds: MutableMap<WorldId, World> = mutableMapOf()
     val worlds: Map<WorldId, World>
-        get() = _worlds
+        field: MutableMap<WorldId, World> = mutableMapOf()
     val defaultWorld
         get() = worlds.values.first()
     val worldsList
         get() = worlds.values
 
-    private val playerInputSystem = PlayerInputSystem(playerInputMode)
 
     fun loadWorld(world: World) {
         world.registerComponentTypes(namespacedStorage)
-        _worlds[world.id] = world
+        worlds[world.id] = world
         scriptEngine.loadWorld(world)
     }
 
@@ -72,10 +69,12 @@ class EngineSimulation(
         beforeInput()
         resetItemOwnershipState()
         tickItemOwnershipSystem()
+        tickInteractorLocations()
+        tickPlayerHandSystem()
         tickPlayerModelSystem()
 
         // Взаимодействия
-        playerInputSystem.tick(this@tick, callbacks) // здесь клиент начинает предсказывать поведение симуляции
+        tickInteractionPhase(callbacks) // здесь клиент начинает предсказывать поведение симуляции
         afterInput()
 
         tickGunActionSystem()

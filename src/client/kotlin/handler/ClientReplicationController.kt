@@ -1,28 +1,21 @@
 package org.lain.engine.client.handler
 
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.destroy
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.setComponent
+import org.lain.cyberia.ecs.*
 import org.lain.engine.client.GameSession
+import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.data.EntityResolver
-import org.lain.engine.player.interaction.InteractionId
-import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.EngineId
-import org.lain.engine.script.ScriptComponentId
-import org.lain.engine.server.replication.EntityStateUpdate
-import org.lain.engine.server.replication.ReplicationFrame
-import org.lain.engine.server.replication.ReplicationTarget
-import org.lain.engine.server.protocolError
-import org.lain.engine.server.replication.networkState
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.VoxelPosId
 import org.lain.engine.player.collectReplicationEntities
-import org.lain.engine.server.replication.Networked
-import org.lain.engine.server.replication.ReplicationSnapshot
+import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.EngineId
+import org.lain.engine.script.ScriptComponentId
+import org.lain.engine.server.protocolError
+import org.lain.engine.server.replication.*
 import org.lain.engine.transport.packet.InitialReplicationState
+import org.lain.engine.transport.packet.ReplicationResyncRequestPacket
+import org.lain.engine.transport.packet.SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
@@ -32,12 +25,10 @@ import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
-import kotlin.collections.set
 
 class ClientReplicationController(
     private val gameSession: GameSession,
     initialReplicationState: InitialReplicationState,
-    private val requestResync: (ReplicationTarget) -> Unit,
 ) {
     private val replicationWorld: World = gameSession.world
     private val replicationState = ClientReplicationState()
@@ -65,11 +56,8 @@ class ClientReplicationController(
         }
     }
 
-    fun beginPrediction(playerEntity: EntityId, interactionId: InteractionId) {
-        replicationState.beginInteraction(
-            interactionId,
-            replicationWorld.collectPredictionEntities(),
-        )
+    fun beginPrediction(inputTick: Long) {
+        replicationState.beginInteraction(inputTick, replicationWorld.collectPredictionEntities())
     }
 
     fun endPrediction() {
@@ -177,7 +165,9 @@ class ClientReplicationController(
                         "incoming=${acceptance.baseRevision}->${acceptance.revision}",
                 )
                 if (targetsAwaitingResync.add(target)) {
-                    requestResync(target)
+                    SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT.sendC2SPacket(
+                        ReplicationResyncRequestPacket(target)
+                    )
                 }
                 return null
             }
@@ -224,10 +214,7 @@ class ClientReplicationController(
     }
 
     private fun applyProcessedInput(processedInputTick: Long) {
-        val confirmedComponents = replicationState.confirmInput(
-            gameSession.mainPlayer.id,
-            processedInputTick,
-        )
+        val confirmedComponents = replicationState.confirmInput(processedInputTick)
         confirmedComponents.groupBy { it.entity }.forEach { (persistentId, keys) ->
             val updated = keys.mapNotNull(replicationState::authoritativeComponent)
             val removed = keys

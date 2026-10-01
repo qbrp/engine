@@ -3,11 +3,7 @@ package org.lain.engine.server.replication
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
-import org.lain.engine.data.PersistentId
-import org.lain.engine.player.PlayerComponent
 import org.lain.engine.server.EngineServer
-import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 
 data class PlayerInstantiationConfirmation(
@@ -17,7 +13,7 @@ data class PlayerInstantiationConfirmation(
 @Serializable
 object Networked : Component
 
-fun World.tickSynchronizationSystem(server: EngineServer) = runBlocking {
+fun World.tickReplicationSystem(server: EngineServer) = runBlocking {
     val globals = server.globals
     val synchronizationRadius = globals.playerSynchronizationRadius
     val desynchronizationRadius = synchronizationRadius + globals.playerDesynchronizationThreshold

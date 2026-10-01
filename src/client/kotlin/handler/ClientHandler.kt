@@ -27,9 +27,7 @@ import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.*
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.InputAction
-import org.lain.engine.player.interaction.InteractionId
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.player.interaction.PredictionSink
 import org.lain.engine.script.EntityDebugData
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.ScriptContext
@@ -48,40 +46,16 @@ import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : PredictionSink {
+class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     private val gameSession get() = client.gameSession
 
     val taskExecutor = TaskExecutor()
 
     private val showedNotifications = mutableSetOf<Notification>()
-
-    val processedInteraction = linkedSetOf<InteractionId>()
+    private var pendingPredictionTick: Long? = null
 
     internal val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
     private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
-
-    override fun begin(
-        world: World,
-        entity: EntityId,
-        interactionId: InteractionId
-    ) {
-        rememberProcessedInteraction(interactionId)
-        val replication = gameSession?.replicationController
-            ?: error("Prediction started without an active game session")
-        check(gameSession?.world === world) { "Prediction started in an inactive world" }
-        replication.beginPrediction(entity, interactionId)
-    }
-
-    fun endInteractionPrediction() {
-        gameSession?.replicationController?.endPrediction()
-    }
-
-    fun rememberProcessedInteraction(interactionId: InteractionId) {
-        processedInteraction += interactionId
-        while (processedInteraction.size > MAX_PROCESSED_INTERACTIONS) {
-            processedInteraction.remove(processedInteraction.first())
-        }
-    }
 
     fun applyCharacterApplyConfirmation(requestId: Long, errorMessage: String?) {
         gameSession?.characterChange?.confirm(requestId, errorMessage)
@@ -122,11 +96,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
     fun disable() {
         injectValue<ClientTransportContext>().unregisterAll()
         showedNotifications.clear()
-        processedInteraction.clear()
+        pendingPredictionTick = null
     }
 
     fun tick() {
-        endInteractionPrediction()
         val gameSession = client.gameSession
         if (gameSession != null) {
             with(gameSession.world) {
@@ -163,12 +136,16 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         if (input.actions != input.lastActions) {
             SERVERBOUND_INPUT_PACKET.sendC2SPacket(
                 InputPacket(
-                    gameSession.ticks,
+                    input.tick,
                     actions.toSet()
                 )
             )
+            pendingPredictionTick = input.tick
         }
     }
+
+    internal fun takePredictionTick(): Long? =
+        pendingPredictionTick.also { pendingPredictionTick = null }
 
     private suspend fun waitNextTick() = MinecraftClientDispatcher.waitNextTick()
 
@@ -298,14 +275,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) : Pr
         all.none { gameSession?.itemStorage?.get(it) == null }
 
     fun applyPlayerJoined(data: GeneralPlayerData, gameSession: GameSession) {
-        processedInteraction.removeIf { it.source == data.playerId }
         val persistentId = CustomPersistentId(data.playerId.toString())
         gameSession.replicationController.removeEntity(persistentId)
         gameSession.instantiateLowDetailedPlayer(data)
     }
 
     fun applyPlayerDestroyed(gameSession: GameSession, player: EnginePlayer) {
-        processedInteraction.removeIf { it.source == player.id }
         gameSession.removePlayer(player)
     }
 

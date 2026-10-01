@@ -139,7 +139,7 @@ object MovingWallpapers {
     }
 
     private fun resetAnimation() {
-        wallpaperMovementProgress = 0.0f
+        wallpaperMovementProgress = 0.5f
         wallpaperMovementDirection = listOf(1f, -1f).random()
         outgoingWallpaperProgress = null
         wallpaperTransitionTicks = 0.0f

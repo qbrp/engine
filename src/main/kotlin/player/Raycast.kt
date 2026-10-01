@@ -14,7 +14,7 @@ fun EnginePlayer.whoSee(distance: Int = SOCIAL_INTERACTION_DISTANCE): EnginePlay
     return raycastProvider.whoSee(this, distance)
 }
 
-fun EnginePlayer.canSee(pos: VoxelPos, isClient: Boolean = false): Boolean {
+fun EnginePlayer.canSee(pos: VoxelPos): Boolean {
     val raycastProvider by inject<RaycastProvider>()
     return raycastProvider.canSee(this, pos)
 }

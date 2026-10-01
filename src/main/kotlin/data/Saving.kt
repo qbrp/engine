@@ -42,7 +42,7 @@ object SaveTag : Component
 
 data class UnloadComponent(val handle: EntityUnload) : Component
 
-fun World.updateUnloadSystem(coordinator: EntityCoordinator, timers: SaveTimers) {
+fun World.tickUnloadSystem(coordinator: EntityCoordinator, timers: SaveTimers) {
     val itemsTimerElapsed = timers.items.isElapsed()
 
     if (itemsTimerElapsed) {
@@ -153,7 +153,7 @@ suspend fun Database.saveWorldSnapshot(snapshot: WorldSaveSnapshot) {
 
 //TODO: сделать разделение для разных миров
 context(world: World)
-fun updateSaveSystem(server: EngineMinecraftServer) {
+fun tickSaveSystem(server: EngineMinecraftServer) {
     val snapshot = world.createSaveSnapshot()
 
     var destroyed = 0

@@ -25,9 +25,8 @@ interface ServerPlatform {
     fun hasPermission(player: EnginePlayer, permission: String): Boolean = true
 
     fun World.prepareData() {}
-    fun World.updateBulletHitSystem() {}
-    fun World.updateSaveSystem() {}
-    fun World.applyData() {}
+    fun World.tickSaveSystem() {}
+    fun World.tickDataApply() {}
 
     companion object {
         val DUMMY = object : ServerPlatform {}
