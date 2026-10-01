@@ -17,7 +17,8 @@ local function explicit(kind, value)
     return setmetatable({ kind = kind, value = value }, script_declarations)
 end
 
----@param value table
+---@generic T
+---@param value T
 ---@return ScriptDeclarations
 function declarations.single(value)
     return explicit("single", value)

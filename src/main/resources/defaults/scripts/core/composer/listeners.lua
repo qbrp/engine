@@ -25,8 +25,12 @@ function listeners.merge(listeners_list)
                 local lines = {}
                 for _, fun in ipairs(functions) do
                     local result = fun(context)
-                    assert(type(result) == "string", "event callback is not string")
-                    table.insert(lines, result)
+                    if result then
+                       assert(type(result) == "table", "event callback must be array")
+                        for _, line in ipairs(result) do
+                            lines[#lines + 1] = line
+                        end 
+                    end
                 end
                 return lines
             end,
@@ -40,6 +44,7 @@ function listeners.merge(listeners_list)
         for _, listeners in ipairs(listeners_list) do
             local fun = listeners[name]
             if fun then
+                engine.logger.info("listening event {} in {}", name, fun)
                 table.insert(functions, fun)
             end
         end
