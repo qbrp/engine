@@ -7,6 +7,8 @@
 ---@field uuid string уникальный идентификатор, изначальный java uuid
 ---@field id integer идентификатор сущности, уникален для каждого мира
 ---@field entity Entity
+---@field display_name string
+---@field user_name string
 player = {}
 
 ---@param permission string

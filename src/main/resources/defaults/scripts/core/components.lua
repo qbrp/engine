@@ -1,7 +1,6 @@
 local lazy = require("core.util.lazy")
 
----@alias of<T> LazyComponentTypeHolder<T>
----@private
+---@alias of<T> ComponentTypeHolder<T>
 
 local type_of = lazy.component_holder
 

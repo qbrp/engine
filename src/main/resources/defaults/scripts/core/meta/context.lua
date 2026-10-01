@@ -5,15 +5,21 @@
 
 ---@class ScriptContext
 
----@class LoadItemContext : ScriptContext
----@field item Entity
----@field world World
+---@class ItemPersistentData
+---@field prefab_id Id
+---@field count integer
+---@field max_count integer
 
+---@class EntityMaterializationContext : ScriptContext
+---@field entity Entity
+---@field world World
+---@field persistent_id string
+---@field item ItemPersistentData?
 
 ---@class ItemTooltipContext : ScriptContext
+---@field game_session GameSession
 ---@field world World
 ---@field item Entity
----@field lines string[]
 
 
 ---@class InteractionContext : ScriptContext
@@ -44,7 +50,7 @@
 ---@field world World
 ---@field actor OperationActor
 ---@field target OperationTarget?
----@field inputs table<string, ScriptValue>
+---@field inputs table<string, any>
 ---@field gen_target fun(): OperationTarget
 ---@field gen_selection fun(): OperationSelection?
 ---@field feedback fun(message: string)

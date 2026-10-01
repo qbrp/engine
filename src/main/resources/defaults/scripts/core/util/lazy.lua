@@ -1,4 +1,4 @@
----@class LazyComponentTypeHolder : ComponentTypeHolder
+---@class LazyComponentTypeHolder<T> : ComponentTypeHolder<T>
 ---@field id Id
 
 local lazy = {}

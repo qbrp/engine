@@ -16,4 +16,5 @@
 ---@field component ComponentLibrary
 ---@field reports_collector ReportCollector
 ---@field reload_script fun(filename: string)?
+---@field time TimeLibrary
 engine = {}

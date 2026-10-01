@@ -68,7 +68,7 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field world_tick fun(world: World)?
 ---@field place_voxel fun(context: VoxelActionContext)?
 ---@field item_load fun(context: LoadItemContext)?
----@field show_item_tooltip fun(context: ItemTooltipContext)?
+---@field show_item_tooltip fun(context: ItemTooltipContext): string[]?
 ---@field player_input_tick fun(context: PlayerInputTickContext)?
 
 ---@class InventoryTab
@@ -144,20 +144,18 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---| "client"
 ---| "both"
 
+---@alias Migration fun(component: Component): Component
+
 ---@class ComponentTypeSettings
 ---@field id IdReference
 ---@field replicating boolean? false
 ---@field persistent boolean? false
+---@field version integer? 0
+---@field migrations Migration[]?
 
 ---@class Script
 ---@field id IdReference
 ---@field execute fun(context: ScriptContext)
-
----@class ItemPrefabDraft
----@field id IdReference
----@field max_count integer
----@field assets table<string, IdReference>
----@field on_load fun(world: World, item: WriteOnlyEntity)
 
 ---@class OperationDraft
 ---@field id IdReference
@@ -177,7 +175,7 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---| OperationSelectionInputDraft
 
 ---@class OperationInputBaseDraft
----@field id string Argument name exposed through `context.inputs`
+---@field id string содержится в context.inputs
 
 ---@class OperationLogicInputDraft : OperationInputBaseDraft
 ---@field type "logic"
@@ -197,14 +195,14 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 
 ---@class OperationTextInputDraft : OperationInputBaseDraft
 ---@field type "text"
----@field single_word boolean? `true` accepts one word; otherwise consumes the rest of the command
+---@field single_word boolean?
 
 ---@class OperationSelectionEntry
----@field id string Command token
----@field value ScriptValue Value passed through `context.inputs`
+---@field id string
+---@field value any
 
 ---@alias OperationSelectionVariants OperationSelectionEntry[]|fun(context: OperationInputResolutionContext): OperationSelectionEntry[]?
 
 ---@class OperationSelectionInputDraft : OperationInputBaseDraft
 ---@field type "selection"
----@field variants OperationSelectionVariants Available command entries
+---@field variants OperationSelectionVariants

@@ -30,8 +30,10 @@ function entity:get_component(type) end
 ---@return boolean
 function entity:has_component(type) end
 
----@param type ComponentTypeHolder
----@param component table
+---@generic T : Component
+---@param type ComponentTypeHolder<T>
+---@param component T
+---@return T
 function entity:set_component(type, component) end
 
 ---@generic T : Component

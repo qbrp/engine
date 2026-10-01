@@ -6,8 +6,7 @@
 ---@class ComponentLibrary
 component_library = {}
 
----@generic T : Component
----@class ComponentTypeHolder
+---@class ComponentTypeHolder<T>
 ---@field type ComponentType<T>
 
 ---@generic T : Component
