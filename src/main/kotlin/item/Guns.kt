@@ -164,10 +164,10 @@ fun World.tickGunSystem() {
     iterate<GunMagazines, GunFireState, GunMagazineLoad>() { item, magazines, fireState, (player, magazineItem) ->
         item.removeComponent<GunMagazineLoad>()
         if (magazines.base != null) {
-            player.serverNarration("<red>Магазин уже вставлен", 40)
+            player.narration("<red>Магазин уже вставлен", 40)
             return@iterate
         } else if (magazines.supports != magazineItem.requireComponent<Item>().id) {
-            player.serverNarration("<red>Магазин не подходит", 40)
+            player.narration("<red>Магазин не подходит", 40)
             return@iterate
         }
         magazines.base = magazineItem.getComponent<Magazine>()?.copy() ?: return@iterate

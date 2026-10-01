@@ -149,7 +149,7 @@ fun EnginePlayer.updateVoiceApparatus(
             (regenerationTime * (1 - regenerationTimeRandom * Random.nextFloat())).toInt())
         set(component)
         VOICE_BREAK_LOGGER.info("$username сломал голос! | VoiceApparatus: $this | VoiceLoose: $component")
-        serverNarration(
+        narration(
             "<yellow>Ой, кажется, вы сорвали голос! Следует быть поаккуратнее с криками.</yellow>",
             150
         )
@@ -186,7 +186,7 @@ fun World.tickPlayerVoiceSystem(
         if (tiredness > breakWarningThreshold && voiceApparatus.lastNotificationTick > 6000) {
             voiceApparatus.lastNotificationTick = 0
             if (voiceLoose == null) {
-                player.serverNarration(
+                player.narration(
                     "<yellow>Аккуратнее! Кажется, вы вот-вот сорвёте голос.</yellow>",
                     150
                 )

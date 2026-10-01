@@ -3,7 +3,7 @@ package org.lain.engine.script.lua.library
 import org.lain.engine.chat.hasPermission
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.displayNameString
-import org.lain.engine.player.serverNarration
+import org.lain.engine.player.narration
 import org.lain.engine.player.username
 import org.lain.engine.script.lua.*
 import org.lain.engine.world.invokeCommand
@@ -45,7 +45,7 @@ fun PlayerMetaTable() = luaTable {
     }
     function2("narration") { self, narration ->
         val player = self.asEnginePlayer()
-        player.serverNarration(
+        player.narration(
             narration.get("message").tojstring(),
             narration.get("time").toint(),
             narration.get("kick").nullable()?.toboolean() ?: false,

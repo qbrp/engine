@@ -16,7 +16,7 @@ import org.lain.engine.player.extendArm
 import org.lain.engine.player.handFree
 import org.lain.engine.player.handItem
 import org.lain.engine.player.selectedSlot
-import org.lain.engine.player.serverNarration
+import org.lain.engine.player.narration
 import org.lain.engine.player.whoSee
 import org.lain.engine.world.World
 
@@ -24,7 +24,8 @@ import org.lain.engine.world.World
 object HailAction : Component {
     val VERB = Verb(
         HAIL_VERB,
-        10
+        10,
+        InputAction.Attack
     ) { HailAction }
 }
 
@@ -32,7 +33,8 @@ object HailAction : Component {
 object GiveAction : Component {
     val VERB = Verb(
         GIVE_AWAY,
-        10
+        10,
+        InputAction.Base
     ) { GiveAction }
 }
 
@@ -55,7 +57,7 @@ fun World.tickSocialActionSystem() {
     iterate<PlayerComponent, HailAction> { e, (player), _ ->
         e.removeComponent<HailAction>()
         val toPlayer = player.whoSee() ?: return@iterate
-        toPlayer.serverNarration("${player.displayNameMiniMessage} окликнул вас!", 40, true)
+        toPlayer.narration("${player.displayNameMiniMessage} окликнул вас!", 40, true)
     }
 
     iterate<PlayerComponent, GiveAction>() { e, (player), action ->
@@ -72,19 +74,20 @@ fun World.tickSocialActionSystem() {
                 emitEvent(
                     GiveItemEvent(toPlayer, handItem, toPlayer.selectedSlot)
                 )
-                toPlayer.serverNarration("$playerName передал вам $itemName", 60)
+                println("Передан предмет $handItem")
+                toPlayer.narration("$playerName передал вам $itemName", 60)
             } else {
-                player.serverNarration("$raycastPlayerName не может принять предмет, так как его руки заняты", 160)
+                player.narration("$raycastPlayerName не может принять предмет, так как его руки заняты", 160)
                 failure = "Чтобы взять его, нужно освободить ведущую руку"
             }
         } else {
-            player.serverNarration("$raycastPlayerName не принял предмет...", 120)
+            player.narration("$raycastPlayerName не принял предмет...", 120)
             failure = "Чтобы взять его, нужно выставить руку"
         }
 
         if (failure != null) {
-            toPlayer.serverNarration("$playerName хочет передать предмет...", 120)
-            toPlayer.serverNarration(failure, 120)
+            toPlayer.narration("$playerName хочет передать предмет...", 120)
+            toPlayer.narration(failure, 120)
         }
     }
 }

@@ -41,10 +41,6 @@ fun EnginePlayer.narration(message: String, time: Int, kick: Boolean = false) = 
     markUpdated<Narration>()
 }
 
-fun EnginePlayer.serverNarration(message: String, time: Int, kick: Boolean = false) {
-    narration(message, time, kick)
-}
-
 fun World.tickNarrationSystem() {
     iterate<Narration>() { _, (messages) ->
         messages.removeIf {

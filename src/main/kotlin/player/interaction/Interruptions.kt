@@ -32,13 +32,10 @@ fun World.tickInterruptionsSystem() {
     }
 
     iterate<PlayerInput, PlayerInventory, UsingInput> { entity, input, inventory, using ->
-        // сомневаюсь насчёт entity.hasComponent<InteractionInterrupt>()
         if (using.input !in input.actions) {
             entity.setComponent(InteractionInterrupt)
             inventory.mainHandInteractor.setComponent(InteractionInterrupt)
             inventory.offHandInteractor.setComponent(InteractionInterrupt)
-        }
-        if (entity.hasComponent<InteractionInterrupt>()) {
             entity.removeComponent<UsingInput>()
         }
     }
