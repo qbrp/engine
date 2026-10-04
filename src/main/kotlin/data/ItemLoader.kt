@@ -57,7 +57,7 @@ class ItemLoader(
                 throw exception
             } catch (_: Exception) {
                 context(diagnosticContext, transactionContext.commands) {
-                    server.createInvalidItem()
+                    server.createInvalidItem(transactionContext.world)
                 }
             }
         }

@@ -83,14 +83,29 @@ class TransactionContext internal constructor(
                 }
             }
         } catch (e: Throwable) {
-            coordinator.abortLoadReservation(reservation, e)
+            try {
+                coordinator.abortLoadReservation(reservation, e)
+            } catch (abortFailure: Throwable) {
+                e.addCleanupFailure(abortFailure)
+            }
             throw e
         }
     }
 
-    fun registerEntityLease(lease: EntityLease) = synchronized(tree.lock) {
-        checkActive()
-        entityLeases += lease
+    fun registerEntityLease(lease: EntityLease) {
+        try {
+            synchronized(tree.lock) {
+                checkActive()
+                entityLeases += lease
+            }
+        } catch (cause: Throwable) {
+            try {
+                coordinator.releaseEntity(lease)
+            } catch (releaseFailure: Throwable) {
+                cause.addCleanupFailure(releaseFailure)
+            }
+            throw cause
+        }
     }
 
     fun child(): TransactionContext = synchronized(tree.lock) {
@@ -183,8 +198,10 @@ class TransactionContext internal constructor(
             throw cause
         }
 
+        var publishedLoadCount = 0
         try {
             commands.apply()
+
             loads.forEach { (load, entity) ->
                 world.simulation.callbacks.of(CallbackType.ENTITY_MATERIALIZATION)?.execute(
                     ScriptContext.EntityMaterialization(
@@ -194,23 +211,30 @@ class TransactionContext internal constructor(
                         load.persistentData!!
                     )
                 )
+            }
+
+            loads.forEach { (load, entity) ->
                 coordinator.completeLoadReservation(load.reservation, entity)
+                publishedLoadCount++
             }
-            leases.forEach { coordinator.releaseEntity(it) }
         } catch (cause: Throwable) {
-            synchronized(tree.lock) {
-                check(_state == TransactionState.COMMITTING)
-                _state = TransactionState.COMMIT_FAILED
-            }
+            setCommitState(TransactionState.COMMIT_FAILED)
+            commands.clear()
+
+            val unfinishedLoads = loads.drop(publishedLoadCount).map { it.first }
+            abortLoads(unfinishedLoads, cause)
+            destroyLoads(unfinishedLoads, cause)
+            releaseLeases(leases, cause)
             throw cause
         }
 
-        synchronized(tree.lock) {
-            check(_state == TransactionState.COMMITTING) {
-                "Transaction state changed while committing: $_state"
-            }
-            _state = TransactionState.COMMITTED
+        val releaseFailure = releaseLeases(leases)
+        if (releaseFailure != null) {
+            setCommitState(TransactionState.COMMIT_FAILED)
+            throw releaseFailure
         }
+
+        setCommitState(TransactionState.COMMITTED)
     }
 
     fun rollback(cause: Throwable) = rollback(cause, allowCommitting = false)
@@ -248,13 +272,60 @@ class TransactionContext internal constructor(
             _state = TransactionState.ROLLED_BACK
         }
 
-        leases.forEach { coordinator.releaseEntity(it) }
-        loads.forEach { coordinator.abortLoadReservation(it.reservation, cause) }
-        server.execute {
-            loads.forEach {
-                with(world) { it.entity?.destroy() }
+        abortLoads(loads, cause)
+        destroyLoads(loads, cause)
+        releaseLeases(leases, cause)
+    }
+
+    private fun setCommitState(state: TransactionState) = synchronized(tree.lock) {
+        check(_state == TransactionState.COMMITTING) {
+            "Transaction state changed while committing: $_state"
+        }
+        _state = state
+    }
+
+    private fun abortLoads(loads: Iterable<PendingEntityLoad>, failure: Throwable) {
+        loads.forEach { load ->
+            try {
+                coordinator.abortLoadReservation(load.reservation, failure)
+            } catch (abortFailure: Throwable) {
+                failure.addCleanupFailure(abortFailure)
             }
         }
+    }
+
+    private fun destroyLoads(loads: Iterable<PendingEntityLoad>, failure: Throwable) {
+        val snapshot = loads.toList()
+        try {
+            server.execute {
+                snapshot.forEach { load ->
+                    try {
+                        with(world) { load.entity?.destroy() }
+                    } catch (destroyFailure: Throwable) {
+                        failure.addCleanupFailure(destroyFailure)
+                    }
+                }
+            }
+        } catch (scheduleFailure: Throwable) {
+            failure.addCleanupFailure(scheduleFailure)
+        }
+    }
+
+    private fun releaseLeases(
+        leases: Iterable<EntityLease>,
+        initialFailure: Throwable? = null,
+    ): Throwable? {
+        var failure = initialFailure
+        leases.forEach { lease ->
+            try {
+                coordinator.releaseEntity(lease)
+            } catch (releaseFailure: Throwable) {
+                failure = failure?.also {
+                    it.addCleanupFailure(releaseFailure)
+                } ?: releaseFailure
+            }
+        }
+        return failure
     }
 
     private fun removeChildLocked(child: TransactionContext) {
@@ -270,6 +341,12 @@ class TransactionContext internal constructor(
     private fun checkActive() {
         check(_state == TransactionState.ACTIVE) {
             "Cannot perform this action while transaction is $_state"
+        }
+    }
+
+    private fun Throwable.addCleanupFailure(failure: Throwable) {
+        if (failure !== this) {
+            addSuppressed(failure)
         }
     }
 }

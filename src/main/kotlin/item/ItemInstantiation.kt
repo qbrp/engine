@@ -3,6 +3,7 @@ package org.lain.engine.item
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.data.EntityCoordinator
 import org.lain.engine.script.BuiltinNamespaces
 import org.lain.engine.server.EngineServer
 import org.lain.engine.data.PersistentId
@@ -21,15 +22,11 @@ data class ItemPrefab(
     val create: context(WriteComponentAccess) (EngineItem) -> Unit,
 )
 
-fun EngineServer.createInvalidItem(world: World): EngineItem = with(world) {
-    createInvalidItem()
-}
-
 context(write: WriteComponentAccess)
-fun EngineServer.createInvalidItem(): EngineItem {
+fun EngineServer.createInvalidItem(world: World): EngineItem {
     val prefab = namespacedStorage.items[BuiltinNamespaces.Items.INVALID_ID]
         ?: BuiltinNamespaces.Items.INVALID
-    return write.createItem(prefab)
+    return write.createItem(prefab, entityCoordinator, world)
 }
 
 context(write: WriteComponentAccess)
@@ -45,7 +42,9 @@ fun EntityId.setRequiredItemComponents(
 
 fun WriteComponentAccess.createItem(
     prefab: ItemPrefab,
-    uuid: PersistentId = Uuid.next()
+    coordinator: EntityCoordinator,
+    world: World,
+    uuid: PersistentId = Uuid.next(),
 ): EngineItem {
     val item = addEntity()
     item.setComponent(PersistentIdComponent(uuid))
@@ -55,5 +54,6 @@ fun WriteComponentAccess.createItem(
     prefab.progressionAnimations?.let { item.setComponent(it) }
     prefab.assets?.let { item.setComponent(it) }
     prefab.create(item)
+    coordinator.registerEntity(world, uuid, item)
     return item
 }

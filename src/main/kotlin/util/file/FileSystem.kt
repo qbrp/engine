@@ -126,8 +126,8 @@ object FileSystem {
         if (!Constants.LOAD_LUA_LIBRARIES) return
         if (Constants.DEVELOPER_TEST_ENVIRONMENT) return
 
+        LOGGER.info("Загрузка стандартной библиотеки Lua")
         builtinResources(SCRIPTS_PATH).forEach { source ->
-            println("Loading script $source")
             val relative = source.toString()
                 .replace("\\", "/")
                 .substringAfter("$SCRIPTS_PATH/")

@@ -87,7 +87,7 @@ fun ServerCommandDispatcher.registerEngineDeveloperCommands() {
                     .executeCatching { ctx ->
                         val player = ctx.requirePlayer()
                         val world = player.world
-                        val item = server.engine.createInvalidItem(world)
+                        val item = with(world) { server.engine.createInvalidItem(world) }
                         val entity = ctx.requireEntity() as? Player ?: return@executeCatching
                         val itemStack = ITEM_STACK_MATERIAL.copy()
                         with(world) { wrapEngineItemStack(item, itemStack) }
