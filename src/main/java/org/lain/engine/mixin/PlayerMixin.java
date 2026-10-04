@@ -1,5 +1,6 @@
 package org.lain.engine.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import org.lain.engine.mc.PlayerEntityAccess;
@@ -50,7 +51,7 @@ public abstract class PlayerMixin implements PlayerEntityAccessHolder {
     }
 
     @Inject(method = "aiStep", at = @At("HEAD"))
-    private void engine$modifyNoPhysics(CallbackInfo ci)
+    private void engine$modifyNoPhysicsAiStep(CallbackInfo ci)
     {
         Player self = (Player)(Object)this;
         Boolean noPhysics = engine$getPlayerEntityAccess().getNoPhysics();
@@ -58,5 +59,18 @@ public abstract class PlayerMixin implements PlayerEntityAccessHolder {
         if (noPhysics != null) {
             self.noPhysics = noPhysics;
         }
+    }
+
+    @ModifyExpressionValue(
+            method = "tick",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/player/Player;isSpectator()Z",
+                    ordinal = 0
+            )
+    )
+    private boolean engine$modifyNoPhysics(boolean original) {
+        Boolean override = engine$getPlayerEntityAccess().getNoPhysics();
+        return override != null ? override : original;
     }
 }
