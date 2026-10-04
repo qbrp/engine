@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.mc.literalText
+import org.lain.engine.util.Color
 
 abstract class AbstractSelectionScreen<T>(
     protected val characterSelection: CharacterSelection,
@@ -66,6 +67,14 @@ abstract class AbstractSelectionScreen<T>(
         super.render(guiGraphics, mouseX, mouseY, deltaTicks)
         looksWheel.visible = !isFadingOut()
         overlay?.render(guiGraphics, mouseX, mouseY, deltaTicks)
+        val minecraft = minecraft ?: return
+        guiGraphics.drawCenteredString(
+            minecraft.font,
+            "Нажмите на Enter, чтобы выбрать персонажа",
+            width / 2,
+            height - minecraft.font.lineHeight - 8,
+            Color.WHITE.integer
+        )
     }
 
     override fun isPauseScreen(): Boolean = false
