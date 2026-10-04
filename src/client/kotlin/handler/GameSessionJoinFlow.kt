@@ -74,7 +74,7 @@ class GameSessionJoinFlow(
     private suspend fun listAccountCharacters(): List<EngineCharacter> {
         val response = when (joinType) {
             is JoinType.Multiplayer -> {
-                accountManager.requireAuthorized().getAccount()
+                accountManager.fetchAccountResponse() ?: accountManager.requireAccountResponse()
             }
 
             is JoinType.Singleplayer -> {

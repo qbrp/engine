@@ -60,7 +60,7 @@ class AccountManager(
     }
 
     suspend fun getAvailableAccountResponse(): AccountResponse {
-        return runCatching { getAuthorized()?.getAccount() }
+        return runCatching { fetchAccountResponse() }
             .onFailure { it.printStackTrace() }
             .getOrNull()
             ?: requireAccountResponse()
@@ -69,11 +69,17 @@ class AccountManager(
     fun getAccountResponseUpdateLaunching(): AccountResponse {
         return requireAccountResponse()
             .also {
-                scope.launch { getAuthorized()?.getAccount() }
+                scope.launch { fetchAccountResponse() }
             }
     }
 
     suspend fun requireAuthorized() = getAuthorized() ?: throw NotAuthorizedException()
+
+    suspend fun fetchAccountResponse(): AccountResponse? {
+        return getAuthorized()?.getAccount()?.also {
+            lastAccountResponse = it
+        }
+    }
 
     suspend fun getAuthorized(): ClientAuthorizedAccount? {
         val authorizedState = state as? ConnectionState.Authorized
