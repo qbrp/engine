@@ -64,7 +64,7 @@ local categories = {
         target = "components",
         template_name = "components"
     },
-
+    
     systems = {
         id = "systems",
         type = "SystemDraft",

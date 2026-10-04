@@ -123,8 +123,6 @@ function resolver.resolve_symbols(context, drafts, symbols)
         end
     end
 
-    -- All templates must be registered before resolving their parents so
-    -- inheritance can refer to templates declared later or in another module.
     for _, module_draft in ipairs(drafts) do
         local module = module_draft.module
 

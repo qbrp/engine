@@ -9,6 +9,8 @@ local templates = require("core.composer.templates")
 local placeholders = require("core.composer.placeholders")
 local items = require("core.composer.items")
 local phases = require("core.composer.phases")
+local namespaces_util = require("core.composer.namespaces")
+local components = require("core.composer.components")
 
 ---@class ComposerModule
 ---@field module Module
@@ -69,6 +71,8 @@ function composer.build(context)
     )
 
     local module_files = files.scan(modules, categories)
+    -- Compilation mutates declaration drafts, so every build gets a fresh require generation.
+    declarations.begin_build(module_files)
     local symbols = drafts.categorized_symbols(categories)
     local module_drafts = {} ---@type ModuleSymbolsDraft[]
     local listeners_list = {}
@@ -84,6 +88,7 @@ function composer.build(context)
     resolving.resolve_symbols(context, module_drafts, symbols)
     templates.extend(symbols)
     placeholders.extend(symbols)
+    components.setup_definitions(symbols.components)
     items.lower_item_documents(symbols, categories)
 
     local namespaces = composer.group_namespaces(symbols)
@@ -91,33 +96,11 @@ function composer.build(context)
         { prefab_id = "core/error/item" }
     }
 
-    local sorted_namespaces = table.shallow_copy(namespaces)
-    table.sort(sorted_namespaces, function (a, b)
-        return a.id < b.id
-    end)
-    sorted_namespaces = table.map(sorted_namespaces, function (namespace)
-        local sorted_categories = {}
-        local categorized_contents = table.shallow_copy(namespace)
-        categorized_contents.id = nil
-        for category_id, drafts in pairs(categorized_contents) do
-            local sorted_drafts = table.shallow_copy(drafts)
-            local category = categories[category_id]
-            local symbol_category_id = category.draft_id or category.id
-            local symbol_category = symbols[symbol_category_id]
-            table.sort(sorted_drafts, function(a, b)
-                local symbol_a = assert(symbol_category[a.id])
-                local symbol_b = assert(symbol_category[b.id])
-
-                if symbol_a.ordinal ~= symbol_b.ordinal then
-                    return symbol_a.ordinal < symbol_b.ordinal
-                end
-
-                return a.id.full < b.id.full
-            end)
-            sorted_categories[category_id] = sorted_drafts
-        end
-        return sorted_categories
-    end)
+    local sorted_namespaces = namespaces_util.sort(
+        table.shallow_copy(namespaces),
+        categories,
+        symbols
+    )
     for _, namespace in ipairs(sorted_namespaces) do
         for _, item_prefab in ipairs(namespace.items) do
             table.insert(inventory_tab_entries, {

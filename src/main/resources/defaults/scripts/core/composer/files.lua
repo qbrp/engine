@@ -1,12 +1,26 @@
 ---@class ModuleScript
 ---@field file ModuleFile
 ---@field category string?
+---@field module_name string
 
 ---@class ModuleFiles
 ---@field yaml ModuleFile[]
 ---@field lua ModuleScript[]
 
 local files = {}
+
+---@param path string
+---@return string
+local function module_name(path)
+    local normalized_path = path:gsub("\\", "/")
+    local modules_path = engine.MODULES_PATH:gsub("\\", "/"):gsub("/+$", "")
+    local prefix = modules_path .. "/"
+    assert(string.sub(normalized_path, 1, #prefix) == prefix, path .. " is outside modules directory")
+
+    local relative = string.sub(normalized_path, #prefix + 1):gsub("%.lua$", "")
+    relative = relative:gsub("/module$", "")
+    return relative:gsub("/", ".")
+end
 
 ---@param categories Categories
 ---@param name string
@@ -48,7 +62,8 @@ function files.scan(modules, categories)
                 if string.ends_with(entry.name, ".lua") then
                     table.insert(output.lua, {
                         file = entry,
-                        category = category or category_from_filename(categories, entry.name)
+                        category = category or category_from_filename(categories, entry.name),
+                        module_name = module_name(entry.path)
                     })
 
                 elseif string.ends_with(entry.name, ".yaml") then
