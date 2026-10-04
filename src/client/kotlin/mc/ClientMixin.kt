@@ -44,9 +44,12 @@ import org.lain.engine.player.get
 import org.lain.engine.player.require
 import org.lain.engine.player.interaction.processLeftClickInteraction
 import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.Uuid
+import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.CharacterModelType
 import org.lain.engine.util.Injector
 import org.lain.engine.util.injectValue
+import java.util.UUID
 
 object ClientMixin {
     private val client by injectClient()
@@ -139,7 +142,11 @@ object ClientMixin {
     }
 
     fun getPlayerSkinThreadSafe(player: PlayerInfo): PlayerSkin? {
-        return client.gameSession?.skinSystem?.get(player.profile.id)
+        return getPlayerSkinThreadSafe(player.profile.id)
+    }
+
+    fun getPlayerSkinThreadSafe(uuid: UUID): PlayerSkin? {
+        return client.gameSession?.skinSystem?.get(uuid)
     }
 
     fun getEngineItemModel(
