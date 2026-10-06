@@ -365,7 +365,23 @@ class ServerHandler(
     }
 
     fun sendReplicationFrame(player: EnginePlayer, frame: ReplicationFrame) {
-        CLIENTBOUND_REPLICATION_ENDPOINT.sendS2C(ReplicationPacket(frame), player.id)
+        val entityMetadata = with(player.world) {
+            buildMap {
+                frame.entities.keys.forEach { persistentId ->
+                    val entity = persistentIdToEntity[persistentId]
+                        ?: error("Сущность $persistentId отсутствует при отправке кадра репликации")
+                    put(persistentId, ReplicationEntityMetadata(entity.getDebugName()))
+                }
+                frame.out.forEach { persistentId ->
+                    val entity = persistentIdToEntity[persistentId] ?: return@forEach
+                    put(persistentId, ReplicationEntityMetadata(entity.getDebugName()))
+                }
+            }
+        }
+        CLIENTBOUND_REPLICATION_ENDPOINT.sendS2C(
+            ReplicationPacket(frame, entityMetadata),
+            player.id,
+        )
     }
 
     context(world: World)

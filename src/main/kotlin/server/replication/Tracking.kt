@@ -7,7 +7,6 @@ import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.collectReplicationEntities
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.data.PersistentId

@@ -51,7 +51,15 @@ data class VoxelBlockHintPacket(val pos: VoxelPos, val action: Action) : Packet 
 val SERVERBOUND_VOXEL_BLOCK_HINT_PACKET = Endpoint<VoxelBlockHintPacket>()
 
 @Serializable
-data class ReplicationPacket(val frame: ReplicationFrame) : Packet
+data class ReplicationEntityMetadata(
+    val debugName: String?,
+)
+
+@Serializable
+data class ReplicationPacket(
+    val frame: ReplicationFrame,
+    val entityMetadata: Map<PersistentId, ReplicationEntityMetadata>,
+) : Packet
 
 @OptIn(ExperimentalSerializationApi::class)
 val CLIENTBOUND_REPLICATION_ENDPOINT = Endpoint<ReplicationPacket>()

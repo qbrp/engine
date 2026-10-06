@@ -33,7 +33,6 @@ import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
-import org.lain.engine.server.replication.ReplicationFrame
 import org.lain.engine.server.protocolError
 import org.lain.engine.data.*
 import org.lain.engine.script.OperationActor
@@ -355,8 +354,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         world.emitEvent(event)
     }
 
-    fun applyReplicationFrame(gameSession: GameSession, frame: ReplicationFrame) =
-        gameSession.replicationController.apply(frame)
+    fun applyReplicationPacket(gameSession: GameSession, packet: ReplicationPacket) =
+        gameSession.replicationController.apply(packet)
 
     fun applyEntityDebugData(data: EntityDebugData.Dto) {
         client.infrastructure.onEntityDebugViewData(data)
@@ -395,7 +394,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     }
 
     companion object {
-        private const val MAX_PROCESSED_INTERACTIONS = 4096
         val LOGGER: Logger = LoggerFactory.getLogger("Engine Client Handler")
     }
 }
