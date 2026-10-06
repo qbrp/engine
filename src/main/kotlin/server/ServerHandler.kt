@@ -204,6 +204,8 @@ class ServerHandler(
                 is VoxelBlockHintPacket.Action.Add -> {
                     if (hasPermission("blockhint.set")) {
                         world.singleBlockVoxelEvent(pos, VoxelUpdate.AddHint(action.text))
+                    } else {
+                        onServerNotification(this, Notification.BLOCKHINT_PERMISSION, false)
                     }
                 }
 
@@ -215,6 +217,8 @@ class ServerHandler(
                             protocolError("Невалидный индекс")
                         }
                         world.singleBlockVoxelEvent(pos, VoxelUpdate.RemoveHint(action.index))
+                    } else {
+                        onServerNotification(this, Notification.BLOCKHINT_PERMISSION, false)
                     }
                 }
             }

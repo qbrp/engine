@@ -97,6 +97,15 @@ data class LittleNotification(
                     EXCLAMATION_RED,
                     lifeTime = 160
                 )
+
+            Notification.BLOCKHINT_PERMISSION ->
+                LittleNotification(
+                    "Недостаточно прав",
+                    "",
+                    Color.RED,
+                    WARNING,
+                    lifeTime = 160
+                )
         }
     }
 }
