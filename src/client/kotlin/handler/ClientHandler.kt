@@ -324,10 +324,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         client.showNotification(LittleNotification.ofServer(type))
     }
 
-    fun applyPlaySoundPacket(play: SoundPlay, ignorePhysics: Boolean): Unit = with(gameSession!!) {
-        client.audioManager.playSound(play, ignorePhysics)
-    }
-
     fun applyAcousticDebugVolumePacket(volumes: List<Pair<VoxelPos, Float>>) = with(gameSession!!) {
         acousticDebugVolumes = volumes
         eventBus.onAcousticDebugVolumes(volumes, this)

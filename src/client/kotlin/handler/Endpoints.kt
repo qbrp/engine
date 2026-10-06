@@ -51,10 +51,6 @@ fun ClientHandler.runEndpoints() {
         applyDeleteChatMessage(message)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_SOUND_PLAY_ENDPOINT) { _ ->
-        applyPlaySoundPacket(play, ignorePhysics)
-    }
-
     registerGameSessionReceiver(CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT) { gameSession ->
         if (scope == null) {
             gameSession.recompile()
@@ -75,8 +71,8 @@ fun ClientHandler.runEndpoints() {
         taskExecutor.add("chunk-load") { applyChunkPacket(chunk) }
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_REPLICATION_ENDPOINT) {
-        applyReplicationFrame(it, frame)
+    registerGameSessionReceiver(CLIENTBOUND_REPLICATION_ENDPOINT) { gameSession ->
+        applyReplicationPacket(gameSession, this)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { _ -> applyOperation(dto, operation) }

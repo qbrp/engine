@@ -4,7 +4,9 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.data.ComponentReviveSettings
 import org.lain.engine.data.EntityResolver
+import org.lain.engine.data.PersistentId
 import org.lain.engine.data.revive
+import org.lain.engine.item.EngineItem
 import org.lain.engine.player.*
 import org.lain.engine.script.EntityRpcQueue
 import org.lain.engine.server.replication.ReplicationSnapshot
@@ -25,7 +27,9 @@ data class LowDetail(var enabled: Boolean = false) : Component
 
 var EnginePlayer.isLowDetailed: Boolean
     get() = this.getOrSet { LowDetail() }.enabled
-    set(value) { this.getOrSet { LowDetail() }.enabled = value }
+    set(value) {
+        this.getOrSet { LowDetail() }.enabled = value
+    }
 
 // Координаты объекта не важны, так как он не участвует в игре
 private val LOD_POS = Vec3(0, 0, 0)
@@ -42,6 +46,7 @@ fun lowDetailedClientPlayerInstance(
                 LOD_POS,
                 data.displayName,
                 developerModeStatus = DeveloperModeStatus(),
+                equipment = emptyMap()
             ),
             id,
             character = null,
@@ -56,7 +61,7 @@ fun mainClientPlayerInstance(
     id: PlayerId,
     world: World,
     data: ServerPlayerData,
-    developerModeStatus: DeveloperModeStatus
+    developerModeStatus: DeveloperModeStatus,
 ): EnginePlayer {
     return with(world) {
         commonPlayerInstance(
@@ -71,7 +76,8 @@ fun mainClientPlayerInstance(
                 ),
                 data.attributes,
                 developerModeStatus = developerModeStatus,
-                skinEyeY = data.skinEyeY
+                skinEyeY = data.skinEyeY,
+                equipment = emptyMap() // получается как ReplicationSnapshot
             ),
             id,
             character = data.character,
@@ -98,6 +104,13 @@ fun World.tickPlayerLowDetailedSystem(
 fun ReplicationSnapshot.revive(resolver: EntityResolver, settings: ComponentReviveSettings): Component? {
     return when (this) {
         is ReplicationSnapshot.EntityRpcReceiver -> EntityRpcQueue(LinkedList())
+        is ReplicationSnapshot.Equipment -> Equipment(
+            slots.mapValues { (slot, persistentId) ->
+                resolver.find(persistentId) ?: error("Не удалось разрешить ссылку на экипируемый предмет $persistentId (слот $slot)")
+            }
+                .toMutableMap()
+        )
+
         is ReplicationSnapshot.Component -> component.revive(resolver, settings)
     }
 }

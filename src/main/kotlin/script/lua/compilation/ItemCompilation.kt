@@ -26,6 +26,69 @@ import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.SoundEventId
 import org.lain.engine.world.toSoundEventId
 import org.luaj.vm2.LuaTable
+import org.luaj.vm2.LuaValue
+
+private typealias ComponentFactory = () -> Component
+
+private fun LuaValue.toFireMode(): FireMode = FireMode.valueOf(checkjstring())
+
+private fun LuaValue.toSmokeOffset() = checktable().toList { it.checkdouble().toFloat() }.let { coordinates ->
+    require(coordinates.size == 3) { "Gun smoke offset must contain exactly 3 coordinates" }
+    Vec3(coordinates[0], coordinates[1], coordinates[2])
+}
+
+private fun LuaTable.toGunComponentFactory(): ComponentFactory {
+    val smoke = get("smoke").nullable()?.toSmokeOffset()
+    val rate = get("rate").checkint()
+    val modes = get("modes").checktable().toList { it.toFireMode() }
+    return { Gun(smoke, rate, modes) }
+}
+
+private fun LuaTable.toGunFireStateComponentFactory(): ComponentFactory {
+    val cooldown = get("cooldown").checkint()
+    val mode = get("mode").toFireMode()
+    val clicked = get("clicked").checkboolean()
+    val triggerPressed = get("trigger_pressed").checkboolean()
+    val triggerSoundPlayed = get("trigger_sound_played").checkboolean()
+    val fired = get("fired").checkboolean()
+    return { GunFireState(cooldown, mode, clicked, triggerPressed, triggerSoundPlayed, fired) }
+}
+
+private fun LuaTable.toBarrelComponentFactory(): ComponentFactory {
+    val bullets = get("bullets").checkint()
+    val maxBullets = get("max_bullets").checkint()
+    val ammunition = get("ammunition").nullable()
+        ?.let { ItemId(it.resolveIdReference()) }
+    return { Barrel(bullets, maxBullets, ammunition) }
+}
+
+private fun LuaTable.toGunMagazinesComponentFactory(): ComponentFactory {
+    val supports = ItemId(get("supports").resolveIdReference())
+    return { GunMagazines(supports) }
+}
+
+private fun LuaTable.toGunDisplayComponentFactory(): ComponentFactory {
+    val ammunition = get("ammunition").nullable()?.checkjstring()
+    val magazine = get("magazine").nullable()?.checkjstring()
+    val selectorStatus = get("selector_status").checkboolean()
+    return { GunDisplay(ammunition, magazine, selectorStatus) }
+}
+
+private fun LuaTable.toMagazineComponentFactory(): ComponentFactory {
+    val capacity = get("capacity").checkint()
+    val bullets = get("bullets").checkint()
+    val ammunition = ItemId(get("ammunition").resolveIdReference())
+    return { Magazine(capacity, bullets, ammunition) }
+}
+
+private fun LuaTable.toBuiltInComponentFactories(): List<ComponentFactory> = buildList {
+    get("gun").nullable()?.checktable()?.let { add(it.toGunComponentFactory()) }
+    get("gun_fire_state").nullable()?.checktable()?.let { add(it.toGunFireStateComponentFactory()) }
+    get("barrel").nullable()?.checktable()?.let { add(it.toBarrelComponentFactory()) }
+    get("gun_magazines").nullable()?.checktable()?.let { add(it.toGunMagazinesComponentFactory()) }
+    get("gun_display").nullable()?.checktable()?.let { add(it.toGunDisplayComponentFactory()) }
+    get("magazine").nullable()?.checktable()?.let { add(it.toMagazineComponentFactory()) }
+}
 
 context(lua: LuaScriptEngine)
 fun compileItemPrefabsLua(namespaceId: NamespaceId, items: List<LuaTable>): List<ItemPrefab> =
