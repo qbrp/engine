@@ -24,6 +24,10 @@ public class PlayerMenuItemMixin {
             SkinManager instance,
             GameProfile gameProfile
     ) {
-        return () -> ClientMixin.INSTANCE.getPlayerSkinThreadSafe(gameProfile.getId());
+        Supplier<PlayerSkin> fallback = instance.lookupInsecure(gameProfile);
+        return () -> {
+            PlayerSkin engineSkin = ClientMixin.INSTANCE.getPlayerSkinThreadSafe(gameProfile.getId());
+            return engineSkin != null ? engineSkin : fallback.get();
+        };
     }
 }
