@@ -1,18 +1,30 @@
 package org.lain.engine.script.lua.compilation
 
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.copyState
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.item.Barrel
+import org.lain.engine.item.FireMode
+import org.lain.engine.item.Gun
+import org.lain.engine.item.GunDisplay
+import org.lain.engine.item.GunFireState
+import org.lain.engine.item.GunMagazines
 import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.item.ItemSounds
+import org.lain.engine.item.Magazine
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.NamespaceId
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.library.luaWritableEntity
 import org.lain.engine.script.lua.library.resolveIdReference
 import org.lain.engine.script.lua.nullable
+import org.lain.engine.script.lua.toList
 import org.lain.engine.script.lua.toMap
+import org.lain.engine.util.math.Vec3
 import org.lain.engine.world.SoundEventId
+import org.lain.engine.world.toSoundEventId
 import org.luaj.vm2.LuaTable
 
 context(lua: LuaScriptEngine)
@@ -35,6 +47,7 @@ fun compileItemPrefabsLua(namespaceId: NamespaceId, items: List<LuaTable>): List
             ),
             null,
             { entity ->
+                entity.copyState(builtInComponentFactories.map { it() })
                 soundEvents?.let { entity.setComponent(ItemSounds(it)) }
                 onLoad.call(entity.luaWritableEntity())
             }

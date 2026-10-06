@@ -106,6 +106,7 @@ value class SymbolKind(val name: String) {
         val SYSTEM = SymbolKind("system")
         val PHASE = SymbolKind("phase")
         val OTHER = SymbolKind("other")
+        val EQUIPMENT_SLOT = SymbolKind("equipment_slot")
     }
 }
 val Identifiable.contentKind

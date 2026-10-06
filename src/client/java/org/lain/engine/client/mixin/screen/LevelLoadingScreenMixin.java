@@ -73,7 +73,8 @@ public abstract class LevelLoadingScreenMixin {
         Component stateText = switch (state) {
             case AUTHORIZATION -> ENGINE_AUTHORIZATION_TEXT;
             case CHARACTER_LOAD -> ENGINE_CHARACTER_LOAD_TEXT;
-            default -> ENGINE_COMPILATION_TEXT;
+            case COMPILATION -> ENGINE_COMPILATION_TEXT;
+            default -> Component.literal("Загрузка...");
         };
         guiGraphics.drawCenteredString(font, stateText, x, y, color);
     }

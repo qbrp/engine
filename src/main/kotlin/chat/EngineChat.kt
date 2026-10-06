@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.acoustic.NEIGHBOURS_26
+import org.lain.engine.chat.messageSource
 import org.lain.engine.mc.InvalidMessageSourcePositionException
 import org.lain.engine.player.AcousticMessage
 import org.lain.engine.player.AcousticMessageQueue
@@ -435,4 +436,13 @@ class EngineChat(
     fun processSystemMessage(content: String, world: World) {
         processMessage(ChatChannel.SYSTEM, MessageSource.getSystem(world), content)
     }
+}
+
+fun EnginePlayer.sendSystemMessage(text: String) {
+    world.server!!.chat.sendMessage(
+        text,
+        MessageSource.getSystem(world),
+        ChatChannel.SYSTEM,
+        recipient = messageSource(ChatChannel.SYSTEM)
+    )
 }

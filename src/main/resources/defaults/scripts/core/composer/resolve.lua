@@ -9,6 +9,7 @@ local resolver = {}
 ---@field value T
 ---@field module Module
 ---@field file ModuleFile
+---@field path string
 ---@field ordinal integer
 ---@field template Symbol<Template>?
 
@@ -92,6 +93,7 @@ local function symbol_kind(id, draft, module, template, ordinal)
         value = draft.value,
         module = module,
         file = draft.file,
+        path = draft.path,
         template = template,
         ordinal = ordinal
     }

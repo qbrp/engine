@@ -20,10 +20,8 @@ import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.render.*
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
-import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.processWorldSounds
 import org.lain.engine.data.PersistentIdComponent
-import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
@@ -111,7 +109,7 @@ class GameSession(
         player.id,
         this.world,
         player,
-        DeveloperModeStatus(client.developerMode, client.acousticDebug)
+        DeveloperModeStatus(client.developerMode, client.acousticDebug),
     )
     val ticks
         get() = simulation.ticks
@@ -131,7 +129,7 @@ class GameSession(
         applyCompilation(build)
         simulation.loadWorld(this.world)
 
-        instantiatePlayer(mainPlayer, player.general, mutableMapOf())
+        instantiatePlayer(mainPlayer)
 
         client.infrastructure.onMainPlayerInstantiated(client, this, mainPlayer)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
@@ -266,16 +264,12 @@ class GameSession(
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {
         val player = lowDetailedClientPlayerInstance(data.playerId, world, data)
-        instantiatePlayer(player, data)
+        instantiatePlayer(player)
         return player
     }
 
-    fun instantiatePlayer(
-        player: EnginePlayer,
-        data: GeneralPlayerData,
-        equipment: Map<EquipmentSlot, EngineItem> = emptyMap(),
-    ) = with(player.world) {
-        player.prepareContainers(data.equipmentContainer, player.location, equipment)
+    fun instantiatePlayer(player: EnginePlayer) = with(player.world) {
+        player.prepareContainers(player.location)
         simulation.instantiatePlayer(player)
     }
 

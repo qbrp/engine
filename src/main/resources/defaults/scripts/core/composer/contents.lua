@@ -89,7 +89,7 @@ function composer.build(context)
     templates.extend(symbols)
     placeholders.extend(symbols)
     components.setup_definitions(symbols.components)
-    items.lower_item_documents(symbols, categories)
+    items.lower_item_documents(context, symbols, categories)
 
     local namespaces = composer.group_namespaces(symbols)
     local inventory_tab_entries = {

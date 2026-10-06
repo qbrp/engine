@@ -19,6 +19,19 @@ data class EnginePlayerModel(
     var skinEyeY: Float = 0f,
 ) : Component
 
+enum class PlayerPart {
+    HEAD,
+    LEFT_ARM,
+    RIGHT_ARM,
+    LEFT_PALM,
+    RIGHT_PALM,
+    BODY,
+    LEFT_LEG,
+    RIGHT_LEG,
+    LEFT_FEET,
+    RIGHT_FEET
+}
+
 val EnginePlayer.eyePos: EVec3
     get() {
         val location = require<Location>()

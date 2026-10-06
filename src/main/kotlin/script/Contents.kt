@@ -2,6 +2,8 @@ package org.lain.engine.script
 
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
+import org.lain.engine.player.EquipmentSlot
+import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.compilation.NamespaceDraft
@@ -28,6 +30,8 @@ interface Contents {
     val operations: ContentHolder<OperationId, Operation>
         get() = ContentHolder.empty()
     val systems: ContentHolder<ScriptSystemId, ScriptSystem>
+        get() = ContentHolder.empty()
+    val equipmentSlots: ContentHolder<EquipmentSlotId, EquipmentSlot>
         get() = ContentHolder.empty()
 }
 

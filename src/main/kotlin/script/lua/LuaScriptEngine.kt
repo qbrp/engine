@@ -151,8 +151,10 @@ open class LuaScriptEngine(
 
     override fun tick(world: World) = with(world) {
         flushEntityRpcMessageReceiver()
+        tickEquippableLuaProjectSystem()
         applyLuaLightComponents()
         applyLuaVoxelDoorComponents()
+        world.applyLuaEquipment()
     }
 
     override fun setupPlayer(player: EnginePlayer) = with(player.world) {

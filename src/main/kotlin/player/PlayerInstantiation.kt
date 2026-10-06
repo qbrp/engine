@@ -47,7 +47,8 @@ data class PlayerInstantiateSettings(
     val developerModeStatus: DeveloperModeStatus,
     val items: Set<EngineItem> = setOf(),
     val skinEyeY: Float = 0f,
-    val replayViewer: Boolean = false
+    val replayViewer: Boolean = false,
+    val equipment: Map<EquipmentSlotId, EngineItem>
 )
 
 data class DefaultPlayerAttributes(
@@ -111,6 +112,7 @@ fun commonPlayerInstance(
                     character
                 )
             }
+            setComponent(Equipment(settings.equipment.toMutableMap()))
             if (settings.replayViewer) {
                 setComponent(ReplayViewer)
             }
@@ -147,11 +149,10 @@ fun serverPlayerInstance(
     return player
 }
 
+//TODO: Equipment-контейнер
 context(componentAccess: WriteComponentAccess)
 fun EnginePlayer.prepareContainers(
-    persistentId: PersistentId,
     location: Location,
-    equipmentItems: Map<EquipmentSlot, EngineItem>
 ) {
     val playerUuid = this@prepareContainers.id
     val void = componentAccess.createContainer(
@@ -161,16 +162,6 @@ fun EnginePlayer.prepareContainers(
     )
     void.entity.setComponent(PlayerContainerTag)
     entity.setComponent(PlayerContainer(void.entity))
-
-    val container = componentAccess.createSlotContainer(
-        location,
-        EquipmentSlot.slotIds,
-        networked = true,
-        items = equipmentItems.mapKeys { (slot, _) -> slot.slotId },
-        persistentId = persistentId
-    )
-    container.entity.setComponent(PlayerEquipment(this@prepareContainers))
-    entity.setComponent(Equipment(container))
 }
 
 
@@ -240,11 +231,7 @@ class PlayerLoader(
                     persistentData,
                     playerEntity ?: world.addEntity(),
                 ).also {
-                    it.prepareContainers(
-                        Uuid.next(),
-                        Location(settings.initialPosition),
-                        inventory.equipmentItems,
-                    )
+                    it.prepareContainers(Location(settings.initialPosition))
                 }
             }
 
@@ -318,6 +305,7 @@ class PlayerLoader(
                 inventoryItemsLoadResult.inventoryItems.toSet(),
                 persistentPlayerData?.skinEyeY ?: 0f,
                 settings.isReplayViewer,
+                inventoryItemsLoadResult.equipmentItems
             ),
             persistentPlayerData,
             server.globals.defaultPlayerAttributes,
@@ -328,13 +316,13 @@ class PlayerLoader(
 
     data class InventoryItemsLoadResult(
         val inventoryItems: List<EngineItem>,
-        val equipmentItems: Map<EquipmentSlot, EngineItem>
+        val equipmentItems: Map<EquipmentSlotId, EngineItem>
     )
 
     private suspend fun loadInventoryItems(
         transactionContext: TransactionContext,
         inventoryItems: List<PersistentId>,
-        equipmentItems: Map<EquipmentSlot, PersistentId>,
+        equipmentItems: Map<EquipmentSlotId, PersistentId>,
         itemLoadContext: ItemLoadContext.PreparingPlayer
     ): InventoryItemsLoadResult = coroutineScope {
         val inventoryJobs = inventoryItems.map { uuid ->

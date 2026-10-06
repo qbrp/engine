@@ -2,7 +2,6 @@ package org.lain.engine.client.render.player
 
 import net.minecraft.client.model.geom.ModelPart
 import net.minecraft.client.model.PlayerModel
-import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.requireComponent
@@ -15,11 +14,11 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerPart
 import org.lain.engine.player.getOrSet
 import org.lain.engine.data.PersistentId
-import org.lain.engine.data.PersistentIdComponent
-import org.lain.engine.player.Outfit
+import org.lain.engine.data.persistentId
+import org.lain.engine.player.Equippable
 import org.lain.engine.world.World
 
-data class EquipmentRenderState(
+data class DetachedEquipmentRenderState(
     val itemStack: ItemStack,
     val displayContext: EngineItemDisplayContext,
     val dependsEyeY: Boolean,
@@ -30,27 +29,28 @@ data class EquipmentRenderState(
 data class PlayerEquipmentItemStacks(val stacks: MutableMap<PersistentId, ItemStack>) : Component
 
 context(world: World)
-fun createModelPartEquipmentRenderStates(
+fun createDetachedEquipmentRenderStates(
     items: List<EngineItem>,
-    entity: Player,
     player: EnginePlayer
-): List<EquipmentRenderState> {
+): List<DetachedEquipmentRenderState> {
     return items
-        .map {
-            val outfit = it.requireComponent<Outfit>()
+        .mapNotNull {
+            val equip = it.requireComponent<Equippable>()
             val assets = it.requireComponent<ItemAssets>()
-            val part = outfit.parts.first()
+            val slotId = equip.slot
+            val slot = world.simulation.namespacedStorage.equipmentSlots[slotId]
+                ?: return@mapNotNull null
             val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
-            val itemStack = equipmentStacks.computeIfAbsent(it.requireComponent<PersistentIdComponent>().id) {
+            val itemStack = equipmentStacks.computeIfAbsent(it.persistentId()) {
                 val stack = ITEM_STACK_MATERIAL.copy()
                 stack.setPreviewItemModel(assets)
                 stack
             }
-            EquipmentRenderState(
+            DetachedEquipmentRenderState(
                 itemStack,
-                if (part == PlayerPart.HEAD) EngineItemDisplayContext.HEAD else EngineItemDisplayContext.OUTFIT,
-                outfit.dependsEyeY,
-                part
+                if (slot.part == PlayerPart.HEAD) EngineItemDisplayContext.HEAD else EngineItemDisplayContext.OUTFIT,
+                false,
+                slot.part
             )
         }
 }

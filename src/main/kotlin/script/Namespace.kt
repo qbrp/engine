@@ -3,6 +3,8 @@ package org.lain.engine.script
 import kotlinx.serialization.Serializable
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
+import org.lain.engine.player.EquipmentSlot
+import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.world.SoundEvent
@@ -31,9 +33,10 @@ data class Namespace(
     val scripts: ContentHolder<ScriptId, Script<*, *>> = ContentHolder(),
     val components: ContentHolder<ScriptComponentId, ScriptComponentType> = ContentHolder(),
     val operations: ContentHolder<OperationId, Operation> = ContentHolder(),
-    val systems: ContentHolder<ScriptSystemId, ScriptSystem> = ContentHolder()
+    val systems: ContentHolder<ScriptSystemId, ScriptSystem> = ContentHolder(),
+    val equipmentSlots: ContentHolder<EquipmentSlotId, EquipmentSlot> = ContentHolder()
 ) {
-    val holders = listOf(items, sounds, scripts, progressionAnimations, components, operations, systems)
+    val holders = listOf(items, sounds, scripts, progressionAnimations, components, operations, systems, equipmentSlots)
     val hash by lazy { holders.hashCode() }
 }
 typealias NamespaceHashMap = Map<NamespaceId, Int>
@@ -60,6 +63,8 @@ class ThreadSafeNamespaceStorageAccessImpl(
         get() = namespacedStorage.items
     override val systems: ContentHolder<ScriptSystemId, ScriptSystem>
         get() = namespacedStorage.systems
+    override val equipmentSlots
+        get() = namespacedStorage.equipmentSlots
 
     override fun get(): NamespacedStorage = namespacedStorage
     override fun update(storage: NamespacedStorage) {
@@ -74,7 +79,8 @@ class NamespacedStorage(
     override val scripts: ContentHolder<ScriptId, Script<*, *>> = ContentHolder(),
     override val components: ContentHolder<ScriptComponentId, ScriptComponentType> = ContentHolder(),
     override val operations: ContentHolder<OperationId, Operation> = ContentHolder(),
-    override val systems: ContentHolder<ScriptSystemId, ScriptSystem> = ContentHolder()
+    override val systems: ContentHolder<ScriptSystemId, ScriptSystem> = ContentHolder(),
+    override val equipmentSlots: ContentHolder<EquipmentSlotId, EquipmentSlot> = ContentHolder()
 ) : Contents {
     val namespaceHashMap: NamespaceHashMap = namespaces.map { (id, namespace) -> id to namespace.hash }.toMap()
 }

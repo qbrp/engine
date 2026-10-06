@@ -88,6 +88,14 @@ local categories = {
         template_name = "operations"
     },
 
+    equipment_slots = {
+        id = "equipment_slots",
+        type = "EquipmentSlotDraft",
+        kind = "equipment_slot",
+        target = "equipment_slots",
+        template_name = "equipment_slots"
+    },
+
     sound_events = {
         id = "sound_events",
         type = "SoundEventDraft",
@@ -134,7 +142,8 @@ function drafts.contents()
         scripts = {},
         operations = {},
         sound_events = {},
-        progression_animations = {}
+        progression_animations = {},
+        equipment_slots = {}
     }
 end
 

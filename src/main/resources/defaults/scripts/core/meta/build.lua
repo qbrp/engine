@@ -22,6 +22,7 @@
 ---| "operation"
 ---| "system"
 ---| "phase"
+---| "equipment_slot"
 ---| "other"
 
 ---@alias ContentKind BuiltinContentKind|string
@@ -67,7 +68,7 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field world_tick_20 fun(world: World)?
 ---@field world_tick fun(world: World)?
 ---@field place_voxel fun(context: VoxelActionContext)?
----@field item_load fun(context: LoadItemContext)?
+---@field entity_materialization fun(context: EntityMaterializationContext)?
 ---@field show_item_tooltip fun(context: ItemTooltipContext): string[]?
 ---@field player_input_tick fun(context: PlayerInputTickContext)?
 
@@ -92,9 +93,27 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field systems SystemDraft[]
 ---@field sound_events SoundEventDraft[]
 ---@field progression_animations ProgressionAnimationDraft[]
+---@field equipment_slots EquipmentSlotDraft[]
 
 ---@class NamespaceDraft : ContentsDraft
 ---@field id string
+
+---@class EquipmentSlotDraft
+---@field id IdReference
+---@field name string
+---@field part PlayerPart
+
+---@alias PlayerPart
+---| "head"
+---| "left_arm"
+---| "right_arm"
+---| "left_palm"
+---| "right_palm"
+---| "body"
+---| "left_leg"
+---| "right_leg"
+---| "left_feet"
+---| "right_feet"
 
 ---@class SoundEventDraft
 ---@field id IdReference

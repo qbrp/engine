@@ -115,7 +115,7 @@ object EngineLogger {
     }
 
 
-    private fun writeLogs(file: File) = synchronized(writeLock) {
+    private fun writeLogs(file: File): Unit = synchronized(writeLock) {
         val messagesToWrite = mutableListOf<Log>()
         messageWriteQueue.flush { messagesToWrite.add(it) }
 

@@ -2,6 +2,8 @@ package org.lain.engine.script.compilation
 
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
+import org.lain.engine.player.EquipmentSlot
+import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.CallbackType
@@ -27,7 +29,8 @@ data class NamespaceDraft(
     val scripts: Map<ScriptId, Script<*, *>> = mapOf(),
     val components: Map<ScriptComponentId, ScriptComponentType> = mapOf(),
     val operations: Map<OperationId, Operation> = mapOf(),
-    val systems: Map<ScriptSystemId, ScriptSystem> = mapOf()
+    val systems: Map<ScriptSystemId, ScriptSystem> = mapOf(),
+    val equipmentSlots: Map<EquipmentSlotId, EquipmentSlot> = mapOf()
 ) {
     val holders: List<Map<out Identifiable, Any>> =
         listOf(items, sounds, scripts, progressionAnimations, components, operations, systems)

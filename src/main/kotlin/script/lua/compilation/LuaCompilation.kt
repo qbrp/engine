@@ -1,6 +1,9 @@
 package org.lain.engine.script.lua.compilation
 
 import org.lain.engine.item.toItemPrefabId
+import org.lain.engine.player.EquipmentSlot
+import org.lain.engine.player.EquipmentSlotId
+import org.lain.engine.player.PlayerPart
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.*
@@ -82,6 +85,7 @@ private fun compiledNamespacesList(
         val systemsArray = namespace.get("systems").nullable()?.checktable()
         val soundEventsArray = namespace.get("sound_events").nullable()?.checktable()
         val progressionAnimationsArray = namespace.get("progression_animations").nullable()?.checktable()
+        val equipmentSlotsArray = namespace.get("equipment_slots").nullable()?.checktable()
 
         val items =
             compileItemPrefabsLua(
@@ -230,6 +234,22 @@ private fun compiledNamespacesList(
             ?.toMap()
             ?: emptyMap()
 
+        val equipmentSlots = equipmentSlotsArray?.toList { it.checktable() }
+            ?.mapNotNull { equipmentSlot ->
+                compileEntry(
+                    namespaceId,
+                    SymbolKind.EQUIPMENT_SLOT,
+                    equipmentSlot
+                ) {
+                    val id = EquipmentSlotId(equipmentSlot["id"].resolveIdReference())
+                    val name = equipmentSlot["name"].tojstring()
+                    val part = PlayerPart.valueOf(equipmentSlot["part"].tojstring().lowercase())
+                    id to EquipmentSlot(name, false, part)
+                }
+            }
+            ?.toMap()
+            ?: emptyMap()
+
         namespaceId to NamespaceDraft(
             items = items.associateBy { it.id },
             sounds = soundEvents,
@@ -237,7 +257,8 @@ private fun compiledNamespacesList(
             scripts = scripts,
             components = components,
             operations = operations,
-            systems = systems
+            systems = systems,
+            equipmentSlots = equipmentSlots
         )
     } catch (e: DiagnosticException) {
         context.exceptions.report(
