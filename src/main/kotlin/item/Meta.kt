@@ -4,26 +4,23 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.EngineId
 import org.lain.engine.data.PersistentId
-import org.lain.engine.transport.packet.ItemComponent
+import org.lain.engine.util.math.snapshot
 import org.lain.engine.world.*
 
 @Serializable
 data class ItemSounds(val sounds: Map<String, SoundEventId>) : Component
 
 context(world: World)
-fun EngineItem.emitPlaySoundEvent(
-    key: String,
-    category: EngineSoundCategory = EngineSoundCategory.AMBIENT,
-    volume: Float = 1f,
-    pitch: Float = 1f,
-    player: EnginePlayer? = null
-) {
-    world.emitPlaySoundEvent(
-        WorldSoundPlayRequest.Item(this, key, category, volume, pitch, player)
+fun EngineItem.emitPlaySoundEvent(key: String, volume: Float = 1f, pitch: Float = 1f) {
+    val soundEventId = this.requireComponent<ItemSounds>().sounds[key] ?: return
+    world.emitEvent(
+        SoundEmission(
+            soundEventId,
+            SoundEmissionParameters(pos().snapshot(), volume, pitch)
+        )
     )
 }
 
@@ -49,5 +46,6 @@ context(world: World)
 fun EngineItem.getProgressionAnimation(key: String): ProgressionAnimationId? {
     return this.getComponent<ItemProgressionAnimations>()?.animations[key]
 }
+
 @Serializable
 data class Item(val uuid: PersistentId, val id: ItemId) : Component

@@ -2,19 +2,12 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import org.lain.engine.data.PersistentId
 import org.lain.engine.server.replication.ReplicationFrame
 import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.*
-
-@Serializable
-data class SoundPlayPacket(
-    val play: SoundPlay,
-    val ignorePhysics: Boolean
-) : Packet
-
-val CLIENTBOUND_SOUND_PLAY_ENDPOINT = Endpoint<SoundPlayPacket>()
 
 @Serializable
 data class EngineChunkPacket(val chunk: EngineChunkDto) : Packet {

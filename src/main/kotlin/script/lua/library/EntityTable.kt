@@ -9,6 +9,8 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.asUserdata
+import org.lain.engine.script.lua.asUserdataOrThrow
 import org.lain.engine.script.lua.getLuaScriptComponent
 import org.lain.engine.script.lua.hasLuaScriptComponent
 import org.lain.engine.script.lua.luaBool
@@ -139,6 +141,10 @@ fun EntityId.luaEntity(): LuaValue {
         setComponent(LuaEntityComponent(entity, entityTable))
         entityTable
     }
+}
+
+fun LuaValue.checkLuaEntity(): Int {
+    return checktable().asUserdataOrThrow<LuaEntity>().id
 }
 
 context(lua: LuaScriptEngine, access: WriteComponentAccess)

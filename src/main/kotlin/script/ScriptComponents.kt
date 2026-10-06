@@ -62,16 +62,17 @@ object CoreScriptComponents {
     val PLAYER_MOVEMENT_STATUS = register("core/player/movement_status")
     val PLAYER_VELOCITY = register("core/player/velocity")
     val PLAYER_JUMP = register("core/player/jump")
+    val PLAYER_EQUIPMENT = register("core/player/equipment")
     val LOCATION = register("core/location")
     val DYNAMIC_VOXEL = register("core/voxel/dynamic_voxel")
     val USE_RESTRICTION = register("core/voxel/use_restriction", savable = true, networking = true) // TODO: переместить в движок
+    val EQUIPPABLE = register("core/equipment/equippable")
     val LIGHT_SOURCE = register("core/light/source", savable = true, networking = true)
     val LUMINANCE = register("core/light/luminance", savable = true, networking = true)
     val ENTITY_RPC_RECEIVER = register("core/networking/entity_rpc_receiver", savable = false, networking = false)
     val ENTITY_RPC_QUEUE = register("core/networking/entity_rpc_queue", savable = false, networking = false)
     val DYNAMIC_VOXEL_INTEREST = register("core/networking/voxel_interest", savable = true, networking = false)
     val VOXEL_DOOR = register("core/voxel/door", savable = true, networking = true)
-    val ITEM_DISPLAY = register("core/item/display", savable = true, networking = true)
 
     fun get(id: ScriptComponentId) = all[id]
 

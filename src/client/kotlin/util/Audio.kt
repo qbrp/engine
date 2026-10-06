@@ -1,10 +1,7 @@
 package org.lain.engine.client.util
 
-import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.item.ItemSounds
 import org.lain.engine.script.NamespacedStorageAccess
-import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.*
 
 data class SoundParameters(val id: SoundId, val stream: Boolean)
@@ -28,7 +25,7 @@ interface EngineAudioManager {
     fun playUiNotificationSound()
     fun playPigScreamSound()
     fun playKickSound()
-    fun playSound(player: SoundPlay, ignorePhysics: Boolean = false)
+    fun playSound(event: SoundEvent, parameters: SoundEmissionParameters)
     fun containsAudioSource(slot: String): Boolean
     fun addAudioSource(audioSource: AudioSource, slot: String)
     fun stopAudioSource(audioSource: AudioSource)
@@ -39,28 +36,8 @@ fun World.processWorldSounds(
     storage: NamespacedStorageAccess,
     audioManager: EngineAudioManager
 ) {
-    iterate<WorldSoundPlayRequest> { _, request ->
-        val play = when(request) {
-            is WorldSoundPlayRequest.Positioned -> SoundPlay(
-                storage.getOrSingleSound(request.eventId),
-                request.pos,
-                request.category,
-                request.volume,
-                request.pitch
-            )
-            is WorldSoundPlayRequest.Item -> {
-                SoundPlay(
-                    storage.getOrSingleSound(
-                        request.item.getComponent<ItemSounds>()?.sounds?.get(request.key) ?: SoundEventId.MISSING,
-                    ),
-                    request.item.getComponent<Location>()?.position ?: ImmutableEVec3(),
-                    request.category,
-                    request.volume,
-                    request.pitch
-                )
-            }
-            is WorldSoundPlayRequest.Simple -> request.play
-        }
-        audioManager.playSound(play)
+    iterate<SoundEmission>() { _, emission ->
+        val event = storage.sounds[emission.sound] ?: return@iterate
+        audioManager.playSound(event, emission.parameters)
     }
 }

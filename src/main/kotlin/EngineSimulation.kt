@@ -137,10 +137,9 @@ class EngineSimulation(
 
     fun destroyPlayer(player: EnginePlayer) = with(player.world) {
         val inventory = player.require<PlayerInventory>()
-        val ownedItems = player.collectOwnedItems() + inventory.items
+        val ownedItems = player.equipment.values + inventory.items
         ownedItems.forEach { item -> item.removeComponent<HeldBy>() }
 
-        player.equipmentContainer.destroy()
         player.mainContainer.destroy()
         inventory.mainHandInteractor.destroy()
         inventory.offHandInteractor.destroy()

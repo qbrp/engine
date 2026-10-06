@@ -19,7 +19,8 @@ import org.lain.engine.mc.engineId
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
-import org.lain.engine.world.SoundPlay
+import org.lain.engine.world.SoundEmission
+import org.lain.engine.world.SoundEmissionParameters
 import org.lain.engine.world.location
 import kotlin.random.Random
 
@@ -66,18 +67,17 @@ class MinecraftAudioManager(
         soundSetCache.invalidate()
     }
 
-    override fun playSound(player: SoundPlay, ignorePhysics: Boolean) {
-        val event = player.sound
+    override fun playSound(event: SoundEvent, parameters: SoundEmissionParameters) {
         val soundSet = soundSetCache.get(event)
         soundManager.play(
             ServerSoundInstance(
                 engineId(event.id.toString()),
-                player.volume,
-                player.pitch,
+                parameters.volume,
+                parameters.pitch,
                 soundSet,
-                player.category.toMinecraft(),
-                ImmutableEVec3(player.pos),
-                static = ignorePhysics
+                parameters.category.toMinecraft(),
+                ImmutableEVec3(parameters.pos),
+                static = parameters.ignorePhysics
             )
         )
     }

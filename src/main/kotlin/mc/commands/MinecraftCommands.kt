@@ -35,6 +35,7 @@ import org.lain.engine.player.*
 import org.lain.engine.script.*
 import org.lain.engine.util.*
 import org.lain.engine.util.math.ImmutableEVec3
+import org.lain.engine.util.math.snapshot
 import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
@@ -553,20 +554,15 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         val storage = server.engine.namespacedStorage
         val id = SoundEventId(EngineId(id))
         val player = ctx.requirePlayer()
-        val event =
-            storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
-        val pos = pos?.engine() ?: ImmutableEVec3(player.location.position)
-        val distance = event.sources.maxOf { it.distance }
-        val players = ctx.requirePlayer().world.players.filter { playerP ->
-            playerP.location.position.squaredDistanceTo(pos) <= distance * distance
-        }
-        server.engine.handler.playSoundLocal(
-            SoundPlay(event, pos, EngineSoundCategory.AMBIENT, volume),
-            ignorePhysics,
-            players,
+        storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
+        val pos = pos?.engine()?.snapshot() ?: ImmutableEVec3(player.location.position)
+        player.world.emitEvent(
+            SoundEmission(id,
+                SoundEmissionParameters(pos, volume, 1f, ignorePhysics = ignorePhysics)
+            )
         )
         ctx.sendFeedback(
-            "Воспроизведено звуковое событие ${event.id} на координатах ${pos.x}, ${pos.y}, ${pos.z} громкостью $volume",
+            "Воспроизведено звуковое событие ${id} на координатах ${pos.x}, ${pos.y}, ${pos.z} громкостью $volume",
             true
         )
     }

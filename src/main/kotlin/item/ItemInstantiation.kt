@@ -38,6 +38,7 @@ fun EntityId.setRequiredItemComponents(
     setComponent(Count(count, maxCount))
     setComponent(Networked)
     setComponent(DebugName(prefabId.toString()))
+    setComponent(ItemSounds(emptyMap()))
 }
 
 fun WriteComponentAccess.createItem(

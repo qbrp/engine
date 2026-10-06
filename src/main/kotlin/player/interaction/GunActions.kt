@@ -25,6 +25,7 @@ object ToggleGunModeCommand : Component {
     val VERB = Verb(
         GUN_TOGGLE_MODE_VERB,
         0,
+        holdsInput = InputAction.Base
     ) { ToggleGunModeCommand }
 }
 
@@ -33,6 +34,7 @@ object LoadGunFromOffhandCommand : Component {
     val VERB = Verb(
         GUN_BARREL_AMMO_LOAD_VERB,
         0,
+        holdsInput = InputAction.Base
     ) { LoadGunFromOffhandCommand }
 }
 

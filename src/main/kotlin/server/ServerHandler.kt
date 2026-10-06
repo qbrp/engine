@@ -427,13 +427,6 @@ class ServerHandler(
         CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT.broadcast(ScriptsRecompileEndpoint(script))
     }
 
-    fun playSoundLocal(play: SoundPlay, ignorePhysics: Boolean, receivers: List<EnginePlayer>) {
-        val packet = SoundPlayPacket(play, ignorePhysics)
-        receivers.forEach {
-            CLIENTBOUND_SOUND_PLAY_ENDPOINT.sendS2C(packet, it.id)
-        }
-    }
-
     fun onOutcomingMessage(player: MessageSource.Player, message: OutcomingMessage) {
         CLIENTBOUND_CHAT_MESSAGE_ENDPOINT
             .sendS2C(

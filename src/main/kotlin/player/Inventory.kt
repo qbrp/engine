@@ -28,7 +28,12 @@ object PlayerContainerTag : Component
 data class DecrementItem(val count: Int = 1) : Component
 
 // Событие
-data class GiveItemEvent(val player: EnginePlayer, val item: EngineItem, val slot: Int?) : Component
+data class GiveItemEvent(
+    val source: EnginePlayer,
+    val target: EnginePlayer,
+    val item: EngineItem,
+    val slot: Int?,
+) : Component
 
 val EnginePlayer.items: Set<EngineItem>
     get() = this.require<PlayerInventory>().let { it.items + listOfNotNull(it.cursorItem) }

@@ -1,31 +1,44 @@
 package org.lain.engine.mc.ecs
 
+import net.minecraft.world.Container
+import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.EngineItem
-import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
-import org.lain.engine.mc.ecs.MinecraftItem
-import org.lain.engine.mc.ecs.MinecraftPlayer
-import org.lain.engine.mc.ecs.engineItem
-import org.lain.engine.mc.ecs.wrapEngineItemStack
 import org.lain.engine.player.GiveItemEvent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.get
 import org.lain.engine.world.World
 
 fun World.tickGiveItemSystem() {
-    iterate<GiveItemEvent>() { _, (player, item, slot) ->
-        val minecraftPlayer = player.get<MinecraftPlayer>() ?: return@iterate
-        val minecraftEntity = minecraftPlayer.entity
-        val entityInventory = minecraftEntity.inventory
-        val itemStack = wrapEngineItemStack(item, ITEM_STACK_MATERIAL.copy())
-        if (slot != null) {
-            entityInventory.add(slot, itemStack)
-        } else {
-            entityInventory.add(itemStack)
-        }
+    iterate<GiveItemEvent>() { _, (source, target, item, slot) ->
+        val sourceEntity = source.get<MinecraftPlayer>()?.entity ?: return@iterate
+        val targetEntity = target.get<MinecraftPlayer>()?.entity ?: return@iterate
+        val sourceInventory = sourceEntity.inventory
+        val targetInventory = targetEntity.inventory
+        val sourceStack = sourceEntity.mainHandItem
+        val targetSlot = slot ?: targetInventory.freeSlot
+
+        if (sourceStack.isEmpty || sourceStack.engineItem() != item) return@iterate
+        moveItemStack(sourceInventory, targetInventory, sourceStack, targetSlot)
     }
+}
+
+internal fun moveItemStack(
+    source: Container,
+    target: Container,
+    itemStack: ItemStack,
+    targetSlot: Int,
+): Boolean {
+    if (targetSlot !in 0..<target.containerSize || !target.getItem(targetSlot).isEmpty) return false
+    val sourceSlot = (0..<source.containerSize).firstOrNull { source.getItem(it) === itemStack } ?: return false
+
+    source.setItem(sourceSlot, ItemStack.EMPTY)
+    target.setItem(targetSlot, itemStack)
+    source.setChanged()
+    target.setChanged()
+    return true
 }
 
 fun World.tickMinecraftPlayerInventorySystem() {

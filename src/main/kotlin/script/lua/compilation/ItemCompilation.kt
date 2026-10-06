@@ -98,7 +98,10 @@ fun compileItemPrefabsLua(namespaceId: NamespaceId, items: List<LuaTable>): List
         val maxCount = item.get("max_count").toint()
         val assets = item.get("assets").nullable()?.checktable()?.toMap { it } ?: mapOf()
         val soundEvents = item.get("sound_events").nullable()?.checktable()
-            ?.toMap { SoundEventId(EngineId(it.tojstring())) }
+            ?.toMap { it.resolveIdReference().toSoundEventId() }
+        val builtInComponentFactories = item.get("built_in_components").nullable()?.checktable()
+            ?.toBuiltInComponentFactories()
+            ?: emptyList()
         val onLoad = item.get("on_load").checkfunction()
 
         ItemPrefab(

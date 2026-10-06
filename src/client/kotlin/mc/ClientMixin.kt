@@ -27,29 +27,26 @@ import org.lain.engine.client.render.ui.EngineTitleMenu
 import org.lain.engine.client.resources.Assets
 import org.lain.engine.client.resources.ResourceList
 import org.lain.engine.client.resources.findAssets
+import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.UNDEFINED_MODEL_ID
 import org.lain.engine.item.Writable
 import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.mc.ecs.ENGINE_ITEM_COMPONENT
-import org.lain.engine.mc.ecs.ENGINE_ITEM_INSTANTIATE_COMPONENT
-import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
+import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.getEngineState
 import org.lain.engine.mc.replacePlayerMinecraftState
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
-import org.lain.engine.player.get
-import org.lain.engine.player.require
-import org.lain.engine.player.interaction.processLeftClickInteraction
-import org.lain.engine.data.PersistentIdComponent
-import org.lain.engine.data.Uuid
-import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.CharacterModelType
+import org.lain.engine.player.get
+import org.lain.engine.player.interaction.processLeftClickInteraction
+import org.lain.engine.player.require
 import org.lain.engine.util.Injector
 import org.lain.engine.util.injectValue
-import java.util.UUID
+import java.util.*
 
 object ClientMixin {
     private val client by injectClient()

@@ -18,9 +18,7 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     // Events
     registerComponent<VoxelEvent>()
     registerComponent<BulletFireEvent>()
-    registerComponent<WorldSoundPlayRequest>()
-    registerComponent<WorldSoundPlayRequest.Item>(id = "sound_play_item")
-    registerComponent<WorldSoundPlayRequest.Positioned>(id = "sound_play_positioned")
+    registerComponent<SoundEmission>(isNetworking = true)
 
     registerComponent<Event>(isNetworking = true)
 

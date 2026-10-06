@@ -4,11 +4,8 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
-import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.item.getCount
 import org.lain.engine.item.getName
 import org.lain.engine.mc.displayNameMiniMessage
-import org.lain.engine.player.DecrementItem
 import org.lain.engine.player.GiveItemEvent
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
@@ -70,9 +67,8 @@ fun World.tickSocialActionSystem() {
         var failure: String? = null
         if (toPlayer.extendArm) {
             if (toPlayer.handFree) {
-                handItem.setComponent(DecrementItem(handItem.getCount()))
                 emitEvent(
-                    GiveItemEvent(toPlayer, handItem, toPlayer.selectedSlot)
+                    GiveItemEvent(player, toPlayer, handItem, toPlayer.selectedSlot)
                 )
                 println("Передан предмет $handItem")
                 toPlayer.narration("$playerName передал вам $itemName", 60)

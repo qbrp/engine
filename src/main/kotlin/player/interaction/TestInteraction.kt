@@ -9,6 +9,7 @@ import org.lain.engine.chat.ChatChannel
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.MessageSource
 import org.lain.engine.chat.messageSource
+import org.lain.engine.chat.sendSystemMessage
 import org.lain.engine.item.Item
 import org.lain.engine.mc.displayNameMiniMessage
 import org.lain.engine.player.DeveloperMode
@@ -49,12 +50,7 @@ fun World.tickTestAction(chat: EngineChat) {
             player.remove<TestHold>()
             return@iterate
         }
-        chat.sendMessage(
-            "Holding: ${hold.ticks}",
-            MessageSource.getSystem(this@tickTestAction),
-            ChatChannel.SYSTEM,
-            recipient = player.messageSource(ChatChannel.SYSTEM)
-        )
+        player.sendSystemMessage("Holding: ${hold.ticks}",)
         hold.ticks--
     }
 }
