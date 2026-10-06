@@ -78,7 +78,7 @@ data class SavingComponentSnapshot(
     fun serializeToRecord() = ComponentPersistentRecord(
         type.id.asRawEngineId(),
         (type as? ScriptComponentType)?.version ?: 0,
-        snapshot.serializeToPersistentDto().encode(),
+        snapshot.serializeToComponentPayload(),
         null
     )
 }

@@ -35,9 +35,9 @@ data class MaterializedComponents(
 
     context(write: WriteComponentAccess)
     fun apply(entity: EntityId, entityLoad: PendingEntityLoad) {
+        data?.let { entity.configure(persistentId, it) }
         applyResolved(entity)
         entityLoad.planMigration(migrations)
-        data?.let { entity.configure(persistentId, it) }
     }
 }
 

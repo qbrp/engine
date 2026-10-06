@@ -2,80 +2,69 @@
 package org.lain.engine.data
 
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import org.lain.cyberia.ecs.componentTypeOf
-import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.ScriptValue
+import org.lain.engine.script.toScriptComponentId
 import org.lain.engine.util.ecs.SerializationRegistry
 
 private val CBOR = Cbor { ignoreUnknownKeys = true }
 
-@JvmInline
-@Serializable
-value class ComponentByteArray(val array: ByteArray)
+fun ComponentPayload.encode(): ByteArray = CBOR.encodeToByteArray(this)
 
-//TODO: здесь стоит создать ещё одну прослойку, хранящую version для совместимости с WorldPersistent
-
-@Serializable
-sealed interface PersistentComponentDto {
-    val id: String
-
-    @Serializable
-    @SerialName("payload")
-    data class Payload(
-        override val id: String,
-        val payload: ComponentByteArray,
-    ) : PersistentComponentDto
-
-    @Serializable
-    @SerialName("script")
-    data class Script(
-        val scriptId: ScriptComponentId,
-        val value: ScriptValue,
-    ) : PersistentComponentDto {
-        override val id: String
-            get() = scriptId.toString()
-    }
-
-    fun encode(): ByteArray = Cbor.encodeToByteArray(this)
-
-    companion object {
-        fun decode(array: ByteArray): PersistentComponentDto =
-            Cbor.decodeFromByteArray<PersistentComponentDto>(array)
+fun decodeComponentPayload(array: ByteArray, id: RawEngineId): ComponentPayload {
+    return try {
+        CBOR.decodeFromByteArray<ComponentPayload>(array)
+    } catch (currentFormatException: Exception) {
+        try {
+            decodeLegacyComponentPayload(array, id)
+        } catch (legacyFormatException: Exception) {
+            legacyFormatException.addSuppressed(currentFormatException)
+            throw legacyFormatException
+        }
     }
 }
 
-fun PersistentComponentDto.decode(): ComponentSnapshot = when (this) {
-    is PersistentComponentDto.Payload -> {
-        val entry = SerializationRegistry.get(id)
+fun ComponentPayload.decode(id: RawEngineId): ComponentSnapshot = when (this) {
+    is ComponentPayload.Kotlin -> {
+        val entry = SerializationRegistry.get(id.id)
             ?: error("Serialization entry for component type $id does not exist")
         val serializer = entry.serializer
             ?: error("Serializer for component type $id is not registered")
         ComponentSnapshot.Kotlin(
-            Cbor.decodeFromByteArray(serializer, payload.array)
+            CBOR.decodeFromByteArray(serializer, cbor.array)
         )
     }
-    is PersistentComponentDto.Script -> {
-        ComponentSnapshot.Script(scriptId, value)
+
+    is ComponentPayload.Script.Json -> {
+        ComponentSnapshot.Script(id.parse().toScriptComponentId(), value)
+    }
+
+    is ComponentPayload.Script.Cbor -> {
+        ComponentSnapshot.Script(
+            id.parse().toScriptComponentId(),
+            CBOR.decodeFromByteArray<ScriptValue>(cbor.array)
+        )
     }
 }
 
-fun ComponentSnapshot.Script.toPersistentDto() = PersistentComponentDto.Script(scriptId, value)
+fun ComponentSnapshot.Script.toJsonComponentPayload(): ComponentPayload.Script.Json =
+    ComponentPayload.Script.Json(value)
 
-fun ComponentSnapshot.serializeToPersistentDto(): PersistentComponentDto = when (this) {
-    is ComponentSnapshot.Script -> toPersistentDto()
+fun ComponentSnapshot.serializeToComponentPayload(): ComponentPayload = when (this) {
+    is ComponentSnapshot.Script -> ComponentPayload.Script.Cbor(
+        ComponentByteArray(CBOR.encodeToByteArray<ScriptValue>(value))
+    )
+
     is ComponentSnapshot.Kotlin<*> -> {
         val id = componentTypeOf(component).id
         val entry = SerializationRegistry.get(id)
             ?: error("Serialization entry for component type $id does not exist")
         val serializer = entry.serializer
             ?: error("Serializer for component type $id is not registered")
-        PersistentComponentDto.Payload(
-            id,
+        ComponentPayload.Kotlin(
             ComponentByteArray(
                 CBOR.encodeToByteArray(
                     serializer,

@@ -119,7 +119,7 @@ suspend fun upsertComponentsBatch(components: List<ComponentBatchDto>) = withCon
         this[ComponentsTable.entity] = it.entityId.toString()
         this[ComponentsTable.id] = it.record.id.id
         this[ComponentsTable.version] = it.record.version
-        this[ComponentsTable.component] = ExposedBlob(it.record.payload)
+        this[ComponentsTable.component] = ExposedBlob(it.record.payload.encode())
         this[ComponentsTable.error] = it.record.error
     }
 }
@@ -212,10 +212,11 @@ suspend fun Database.loadEntity(id: PersistentId): EntityPersistentRecord? {
         val components = ComponentsTable.selectAll()
             .where { ComponentsTable.entity eq id.toString() }
             .map {
+                val componentId = it[ComponentsTable.id].asRawEngineId()
                 ComponentPersistentRecord(
-                    it[ComponentsTable.id].asRawEngineId(),
+                    componentId,
                     it[ComponentsTable.version],
-                    it[ComponentsTable.component].bytes,
+                    decodeComponentPayload(it[ComponentsTable.component].bytes, componentId),
                     it[ComponentsTable.error]
                 )
             }

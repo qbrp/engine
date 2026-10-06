@@ -7,7 +7,6 @@ import org.lain.engine.container.Entries
 import org.lain.engine.container.OccupiedSlots
 import org.lain.engine.item.Barrel
 import org.lain.engine.item.Count
-import org.lain.engine.item.Flashlight
 import org.lain.engine.item.GunFireState
 import org.lain.engine.item.GunMagazines
 import org.lain.engine.item.Writable
@@ -59,7 +58,6 @@ fun Component.snapshot(): ComponentSnapshot = when (this) {
         when (this) {
             is Count -> copy()
             is Entries -> Entries(items.toMutableSet())
-            is Flashlight -> copy()
             is GunFireState -> copy()
             is GunMagazines -> copy()
             is Barrel -> copy()

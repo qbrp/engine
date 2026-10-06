@@ -152,8 +152,8 @@ local tokens = {
     { "timestamp", "^(%d%d%d%d)-(%d%d?)-(%d%d?)%s+(%d%d?):(%d%d):(%d%d)" },
     { "timestamp", "^(%d%d%d%d)-(%d%d?)-(%d%d?)%s+(%d%d?):(%d%d)" },
     { "timestamp", "^(%d%d%d%d)-(%d%d?)-(%d%d?)%s+(%d%d?)" }, { "timestamp", "^(%d%d%d%d)-(%d%d?)-(%d%d?)" },
-    { "doc", "^%-%-%-[^%c]*" }, { ",", "^," }, { "string", "^%b{} *[^,%c]+", noinline = true }, { "{", "^{" },
-    { "}", "^}" }, { "string", "^%b[] *[^,%c]+", noinline = true }, { "[", "^%[" }, { "]", "^%]" },
+    { "doc", "^%-%-%-[^%c]*" }, { ",", "^," }, { "string", "^%b{} *[^#,%c ][^,%c]*", noinline = true }, { "{", "^{" },
+    { "}", "^}" }, { "string", "^%b[] *[^#,%c ][^,%c]*", noinline = true }, { "[", "^%[" }, { "]", "^%]" },
     { "-", "^%-", noinline = true }, { ":", "^:" }, { "pipe", "^(|)(%d*[+%-]?)", sep = "\n" },
     { "pipe", "^(>)(%d*[+%-]?)", sep = " " }, { "id", "^([%w][%w %-_]*)(:[%s%c])" },
     { "string", "^[^%c]+", noinline = true }, { "string", "^[^,%]}%c ]+" }

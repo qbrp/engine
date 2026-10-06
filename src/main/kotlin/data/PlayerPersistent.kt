@@ -22,7 +22,6 @@ import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.UsedCharacters
 import org.lain.engine.player.chatHeadsEnabled
 import org.lain.engine.player.customName
-import org.lain.engine.player.equipmentContainer
 import org.lain.engine.player.get
 import org.lain.engine.player.require
 import org.lain.engine.server.EngineServer
@@ -74,7 +73,7 @@ data class PersistentPlayerData(
     val voiceApparatus: VoiceApparatus,
     val voiceLoose: VoiceLoose?,
     @SerialName("chat_heads") val chatHeads: Boolean = true,
-    val equipment: Map<EquipmentSlot, PersistentId> = mapOf(),
+    val equipment: Map<EquipmentSlotId, PersistentId> = mapOf(),
     val skinEyeY: Float = 2f,
     val appliedCharacter: CharacterId? = null,
     val usedCharacters: Set<CharacterId>
@@ -111,10 +110,6 @@ fun CharacterDatabasePersistentId(playerId: PlayerId, characterId: CharacterId):
 }
 
 context(world: World)
-fun ContainerEntity.getEquipmentContainerSlots() = entity.requireComponent<OccupiedSlots>().slots
-    .mapKeys { (slotId, _) -> EquipmentSlot.ofSlot(slotId) }
-
-context(world: World)
 fun EntityId.savingSnapshot() =
     world.componentManager.getSavableComponents(this)
         .map { (type, component) -> SavingComponentSnapshot(component.snapshot(), type) }
@@ -131,11 +126,7 @@ fun EnginePlayer.snapshotPersistent(): PersistentPlayerSnapshot = with(world) {
             voiceApparatus = require<VoiceApparatus>().copy(),
             voiceLoose = get<VoiceLoose>()?.copy(),
             chatHeads = chatHeadsEnabled,
-            equipment = equipmentContainer?.getEquipmentContainerSlots()
-                ?.mapValues { (_, item) ->
-                    item.requireComponent<PersistentIdComponent>().id
-                }
-                ?: mapOf(),
+            equipment = equipment.mapValues { (_, entity) -> entity.persistentId() },
             skinEyeY = require<EnginePlayerModel>().skinEyeY,
             appliedCharacter = get<AppliedCharacter>()
                 ?.character

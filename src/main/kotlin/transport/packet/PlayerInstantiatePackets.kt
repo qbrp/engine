@@ -3,21 +3,22 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.container.getContainerItems
+import org.lain.engine.data.ComponentSnapshot
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.persistentId
 import org.lain.engine.player.*
 import org.lain.engine.player.account.SessionTicketDto
-import org.lain.engine.player.character.AppliedCharacter
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.*
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
-import org.lain.engine.data.*
-import org.lain.engine.player.character.CharacterId
-import org.lain.engine.player.character.Look
-import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.server.replication.EntityStateUpdate
+import org.lain.engine.server.replication.ReplicationSnapshot
+import org.lain.engine.server.replication.collectReplicationEntities
 import org.lain.engine.server.replication.fullReplicationUpdate
+import org.lain.engine.server.replication.replicationSnapshot
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.World
@@ -64,8 +65,8 @@ data class PlayerReferencedItems(
         context(world: World)
         fun of(player: EnginePlayer) = PlayerReferencedItems(
             player.items.map { it.requireComponent<PersistentIdComponent>().id },
-            player.equipmentContainer!!.getContainerItems()
-                .map { it.requireComponent<PersistentIdComponent>().id }
+            player.equipment.values
+                .map { it.persistentId() }
         )
     }
 }
@@ -107,13 +108,13 @@ data class ServerPlayerData(
     val replicationSnapshot: InitialReplicationState,
     val skinEyeY: Float,
     val character: EngineCharacter?,
-    val look: Look?
+    val look: Look?,
 ) {
     val id
         get() = general.playerId
 
     companion object {
-        fun of(player: EnginePlayer): ServerPlayerData {
+        fun of(player: EnginePlayer): ServerPlayerData = with(player.world)  {
             val movementStatus = player.require<MovementStatus>().copy()
             val voiceApparatus = player.require<VoiceApparatus>().copy()
             val defaults = player.require<DefaultPlayerAttributes>().copy()
@@ -129,13 +130,13 @@ data class ServerPlayerData(
                 composeInitialReplicationState(player),
                 player.skinEyeY,
                 player.get<AppliedCharacter>()?.character,
-                player.get<SelectedLook>()?.look,
+                player.get<SelectedLook>()?.look
             )
         }
 
         fun composeInitialReplicationState(player: EnginePlayer): InitialReplicationState = with(player.world) {
             val snapshots = player.collectReplicationEntities().associate { entity ->
-                entity.requireComponent<PersistentIdComponent>().id to entity.fullReplicationUpdate()
+                entity.persistentId() to entity.fullReplicationUpdate()
             }
             return InitialReplicationState(
                 player.world.state.fullReplicationUpdate(),
@@ -199,14 +200,12 @@ val CLIENTBOUND_FULL_PLAYER_ENDPOINT = Endpoint<FullPlayerPacket>()
 data class GeneralPlayerData(
     val playerId: PlayerId,
     val displayName: DisplayName,
-    val equipmentContainer: PersistentId
 ) {
     companion object {
         fun of(player: EnginePlayer): GeneralPlayerData = with(player.world) {
             return GeneralPlayerData(
                 player.id,
-                player.require<DisplayName>().copy(),
-                player.equipmentContainer!!.entity.requireComponent<PersistentIdComponent>().id
+                player.require<DisplayName>().copy()
             )
         }
     }

@@ -168,10 +168,6 @@ class EntityLoadOperation(
         return discovered[persistentId]?.entityId
     }
 
-    override fun require(persistentId: PersistentId): EntityId {
-        return find(persistentId) ?: error("Сущность $persistentId не была загружена")
-    }
-
     override fun toString(): String {
         return "EntityLoadTransaction(world='${world.id}', root_entity='$uuid)"
     }

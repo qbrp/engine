@@ -10,7 +10,12 @@ import org.lain.engine.world.World
 import java.io.File
 
 @Serializable
-data class WorldPersistent(val components: List<PersistentComponentDto.Script>)
+data class WorldPersistent(val components: List<ComponentPersistentRecord>)
+
+private val WORLD_JSON = Json {
+    allowStructuredMapKeys = true
+    ignoreUnknownKeys = true
+}
 
 val File.worldData
     get() = this.resolve("engine-worlds")
@@ -25,7 +30,12 @@ fun EngineServer.saveWorld(world: World) = with(world) {
         world.componentManager.getSavableComponents(world.state)
             .mapNotNull { (type, component) ->
                 when(component) {
-                    is ScriptComponent -> component.snapshot().toPersistentDto()
+                    is ScriptComponent -> ComponentPersistentRecord(
+                        component.type.engineId.toString().asRawEngineId(),
+                        component.type.version,
+                        component.snapshot().toJsonComponentPayload(),
+                        null,
+                    )
                     else -> {
                         LOGGER.warn("Движковый компонент $component ($type) проигнорирован при сохранении мира ${world.id}")
                         null
@@ -34,19 +44,34 @@ fun EngineServer.saveWorld(world: World) = with(world) {
             }
     )
     FileSystem.ensureFile(worldSavePath(world))
-        .writeText(Json.encodeToString(persistent))
+        .writeText(persistent.encode())
 }
 
 fun EngineServer.loadWorldComponents(world: World): List<Component> {
     val file = worldSavePath(world)
     file.parentFile.mkdirs()
     if (!file.exists()) return emptyList()
-    return Json.decodeFromString<WorldPersistent>(file.readText()).components.mapNotNull {
+    return decodeWorldPersistent(file.readText()).components.mapNotNull {
         try {
             it.decode().revive(EntityResolver.EMPTY, world.componentReviveSettings)
         } catch (e: Exception) {
             LOGGER.error("Не удалость загрузить компонент $it состояния мира ${world.id}", e)
             null
+        }
+    }
+}
+
+internal fun WorldPersistent.encode(): String = WORLD_JSON.encodeToString(this)
+
+internal fun decodeWorldPersistent(value: String): WorldPersistent {
+    try {
+        return WORLD_JSON.decodeFromString<WorldPersistent>(value)
+    } catch (currentFormatException: Exception) {
+        try {
+            return decodeLegacyWorldPersistent(value)
+        } catch (legacyFormatException: Exception) {
+            legacyFormatException.addSuppressed(currentFormatException)
+            throw legacyFormatException
         }
     }
 }

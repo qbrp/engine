@@ -1,7 +1,9 @@
 package org.lain.engine.data
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.script.EngineId
+import org.lain.engine.script.ScriptValue
 import org.lain.engine.util.ecs.EntityRelation
 import org.lain.engine.util.ecs.RelationTypeId
 
@@ -48,10 +50,38 @@ data class EntityPersistentRecord(
 data class ComponentPersistentRecord(
     val id: RawEngineId,
     val version: Int,
-    val payload: ByteArray,
+    val payload: ComponentPayload,
     val error: String?
 )
 
+@JvmInline
+@Serializable
+value class ComponentByteArray(val array: ByteArray)
+
+@Serializable
+sealed interface ComponentPayload {
+    @Serializable
+    @SerialName("kotlin")
+    data class Kotlin(
+        val cbor: ComponentByteArray,
+    ) : ComponentPayload
+
+    @Serializable
+    sealed interface Script : ComponentPayload {
+        @Serializable
+        @SerialName("script_json")
+        data class Json(
+            val value: ScriptValue,
+        ) : Script
+
+        @Serializable
+        @SerialName("script_cbor")
+        data class Cbor(
+            val cbor: ComponentByteArray,
+        ) : Script
+    }
+}
+
 fun ComponentPersistentRecord.decode(): ComponentSnapshot {
-    return PersistentComponentDto.decode(payload).decode()
+    return payload.decode(id)
 }

@@ -43,9 +43,9 @@ function table.shallow_copy(source)
     return copy
 end
 
----@generic K, V
----@param t table<K, V>
----@return table<K, V>
+---@generic T : table
+---@param t T
+---@return T
 function table.deep_copy(t)
     local copies = {}
 
