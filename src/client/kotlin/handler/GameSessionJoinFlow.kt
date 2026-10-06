@@ -178,10 +178,12 @@ class GameSessionJoinFlow(
 
             val selectedCharacter = computePlayCharacter(server.id)
 
+            state = State.AUTHORIZATION
             val (serverPlayerData, worldData, setupData, notifications) = acknowledge(
                 namespaceHashMap,
                 selectedCharacter
             )
+            state = State.DONE
             withClientContext {
                 val gameSession = GameSession(
                     joinType == JoinType.Multiplayer,
