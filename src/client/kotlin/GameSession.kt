@@ -188,7 +188,7 @@ class GameSession(
         }
     }
 
-    override fun World.beforeInput() = with(systems) {
+    override fun World.tickDaraPreparation() = with(systems) {
         tickDataPrepareSystem()
         tickPlayerLowDetailedSystem(mainPlayer, synchronizationRadius)
     }

@@ -4,7 +4,8 @@ import org.lain.cyberia.ecs.Component
 import kotlin.reflect.KClass
 
 data class Verb(
-    val type: VerbType,
+    val id: VerbId,
+    val name: String,
     val priority: Int,
     val holdsInput: InputAction? = null,
     val createCommand: () -> Component,
@@ -27,35 +28,3 @@ inline fun <reified T : InputAction> Set<InputAction>.forAction(
 ) {
     forAction(T::class, statement)
 }
-
-val GUN_SHOOT_VERB = VerbType(
-    "shoot",
-    "Нажать на спусковой крючок",
-)
-
-val GUN_TOGGLE_MODE_VERB = VerbType(
-    "gun_toggle_mode",
-    "Сменить режим огня",
-)
-
-val GUN_BARREL_AMMO_LOAD_VERB = VerbType(
-    "barrel_ammo_load",
-    "Загрузить патроны в патронник",
-)
-
-val HAIL_VERB = VerbType(
-    "hail",
-    "Окликнуть",
-)
-
-val GIVE_AWAY = VerbType(
-    "give_away",
-    "Передать предмет",
-)
-
-val WRITEABLE_OPEN_VERB = VerbType(
-    "writable_open",
-    "Открыть для чтения"
-)
-
-val SLOT_MERGE_VERB = VerbType("slot_merge", "Объединить предметы")

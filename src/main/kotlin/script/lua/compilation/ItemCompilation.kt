@@ -45,13 +45,8 @@ private fun LuaTable.toGunComponentFactory(): ComponentFactory {
 }
 
 private fun LuaTable.toGunFireStateComponentFactory(): ComponentFactory {
-    val cooldown = get("cooldown").checkint()
     val mode = get("mode").toFireMode()
-    val clicked = get("clicked").checkboolean()
-    val triggerPressed = get("trigger_pressed").checkboolean()
-    val triggerSoundPlayed = get("trigger_sound_played").checkboolean()
-    val fired = get("fired").checkboolean()
-    return { GunFireState(cooldown, mode, clicked, triggerPressed, triggerSoundPlayed, fired) }
+    return { GunFireState(0, mode, clicked = false, triggerPressed = false, triggerSoundPlayed = false, fired = false) }
 }
 
 private fun LuaTable.toBarrelComponentFactory(): ComponentFactory {

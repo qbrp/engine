@@ -86,10 +86,7 @@ internal fun BuildDraft.linkedNamespaces(): Map<NamespaceId, Namespace> {
 }
 
 context(context: CompilationContext)
-fun linkedSystemPhase(
-    phase: SystemPhaseDraft,
-    linkedNamespaces: Map<NamespaceId, Namespace>
-): SystemPhase {
+fun TickPhasesDraft.link(linkedNamespaces: Map<NamespaceId, Namespace>): TickPhases {
     val systems = linkedNamespaces.collect { it.systems }
 
     fun SystemPhaseDraft.toPhase(): SystemPhase {
@@ -112,5 +109,8 @@ fun linkedSystemPhase(
     }
 
 
-    return phase.toPhase()
+    return TickPhases(
+        base?.toPhase() ?: SystemPhase(),
+        afterVerbLookup?.toPhase() ?: SystemPhase(),
+    )
 }

@@ -11,16 +11,24 @@ value class ScriptSystemId(val value: EngineId) : Identifiable {
 
 fun EngineId.toScriptSystemId() = ScriptSystemId(this)
 
-data class SystemTickPhases(
-    val beforeInput: SystemPhase,
-    val afterInteractions: SystemPhase,
-    val afterOperations: SystemPhase
+data class TickPhases(
+    val base: SystemPhase = SystemPhase(),
+    val verbLookup: SystemPhase = SystemPhase(),
 )
 
 data class SystemPhase(
-    val name: String,
-    val steps: List<PhaseStep>
-)
+    val name: String = "Root",
+    val steps: List<PhaseStep> = emptyList()
+) {
+    fun tick(world: World) {
+        steps.forEach { step ->
+            when(step) {
+                is PhaseStep.Phase -> step.phase.tick(world)
+                is PhaseStep.System -> step.system.tick(world)
+            }
+        }
+    }
+}
 
 sealed class PhaseStep {
     data class Phase(val phase: SystemPhase) : PhaseStep()
@@ -60,18 +68,5 @@ class MutableEntityHandle(
 ) : ScriptContext.SystemEntityHandle
 
 class ScriptSystemDispatcher {
-    var rootPhase = SystemPhase("Root", emptyList())
-
-    fun tick(world: World) {
-        rootPhase.tick(world)
-    }
-
-    private fun SystemPhase.tick(world: World) {
-        steps.forEach { step ->
-            when(step) {
-                is PhaseStep.Phase -> step.phase.tick(world)
-                is PhaseStep.System -> step.system.tick(world)
-            }
-        }
-    }
+    var phases = TickPhases()
 }

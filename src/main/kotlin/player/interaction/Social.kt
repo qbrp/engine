@@ -17,21 +17,27 @@ import org.lain.engine.player.narration
 import org.lain.engine.player.whoSee
 import org.lain.engine.world.World
 
+val HAIL_VERB = VerbId("hail")
+
+val GIVE_AWAY = VerbId("give_away")
+
 @Serializable
 object HailAction : Component {
     val VERB = Verb(
-        HAIL_VERB,
-        10,
-        InputAction.Attack
+        id = HAIL_VERB,
+        name = "Окликнуть",
+        priority = 10,
+        holdsInput = InputAction.Attack
     ) { HailAction }
 }
 
 @Serializable
 object GiveAction : Component {
     val VERB = Verb(
-        GIVE_AWAY,
-        10,
-        InputAction.Base
+        id = GIVE_AWAY,
+        name = "Передать предмет",
+        priority = 10,
+        holdsInput = InputAction.Base
     ) { GiveAction }
 }
 

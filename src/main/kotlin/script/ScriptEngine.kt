@@ -10,8 +10,9 @@ interface ScriptEngine {
 
     fun updateModules(modules: Modules)
 
-    fun tickBeforeCallbacks(world: World)
-    fun tick(world: World)
+    fun tickPush(world: World)
+    fun tickPull(world: World)
+    fun tickVerbLookup(world: World)
 
     fun setupPlayer(player: EnginePlayer)
 
@@ -28,8 +29,10 @@ interface ScriptEngine {
         override fun reloadScript(moduleName: String) {}
         override fun updateModules(modules: Modules) {}
 
-        override fun tickBeforeCallbacks(world: World) {}
-        override fun tick(world: World) {}
+        override fun tickPush(world: World) {}
+        override fun tickPull(world: World) {}
+        override fun tickVerbLookup(world: World) {}
+
         override fun setupPlayer(player: EnginePlayer) {}
         override fun loadWorld(world: World) {}
     }

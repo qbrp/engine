@@ -1,82 +1,141 @@
 local resolver = require("core.composer.resolve")
 local phases = {}
 
+---@class SystemRelation
+---@field system Symbol<SystemDraft>
+---@field preceding Symbol<SystemDraft>
+
 ---@param context CompilationContext
----@param categorized_symbols CategorizedSymbols
----@return SystemPhase
-function phases.compose_root(context, categorized_symbols)
-    local systems = categorized_symbols.systems
-    local adjacency = {} ---@type table<Id, Id[]>
-    local indegree = {} ---@type table<Id, integer>\
-    local not_stated = {} ---@type table<Id, boolean>
-    local total = 0
+---@param systems table<Id, Symbol<SystemDraft>>
+---@return SystemRelation[]
+local function system_relations(context, systems)
+    local all_relations = {}
 
-    for id in pairs(systems) do
-        adjacency[id] = {}
-        indegree[id] = 0
-        total = total + 1
-    end
-
-    -- строим граф
-    for id, system_symbol in pairs(systems) do
+    for system_id, system_symbol in pairs(systems) do
+        local relation = { system = system_symbol }
         local system = system_symbol.value ---@type SystemDraft
+        local after = system["after"]
 
-        if system.after then
-            local base_system, err = resolver.resolve_id_catching(context,
+        if after then
+            local after_id, err = resolver.resolve_id_catching(
+                context,
                 system_symbol.module,
                 systems,
                 system_symbol,
-                system.after
+                after
             )
+
             if err then goto next_system end
-            assert(base_system)
-            if not systems[base_system] then
+            assert(after_id)
+
+            local after_system = systems[after_id]
+
+            if not after_system then
                 context.reports:report_error(
                     {
                         phase = "linking",
-                        message = "Ссылаемая системой " .. system.id .. " система " .. base_system.full .. " не найдена"
+                        message = "Ссылаемая системой " .. after_id.full ..
+                            " система " .. system_id.full .. " не найдена"
                     }
                 )
                 goto next_system
             end
 
-            table.insert(adjacency[base_system], id)
-            not_stated[id] = nil
-            not_stated[base_system] = nil
-            indegree[id] = indegree[id] + 1
-        elseif not indegree[id] and not adjacency[id] then
-            table.insert(not_stated, id)
+            relation.preceding = after_system
         end
+
+        table.insert(all_relations, relation)
+
         ::next_system::
     end
 
-    ---@param name string
-    ---@param systems Id[]
-    ---@return PhaseStep.Phase
-    local function phase_step(name, systems)
-        return {
-            type = "phase",
-            phase = {
-                name = name,
-                steps = table.map(systems, function (id)
-                    return { type = "system", system = id }
-                end)
-            }
-        }
+    return all_relations
+end
+
+---@param phase SystemPhase
+---@return PhaseStep.Phase
+local function phase_step(phase)
+    return {
+        type = "phase",
+        phase = phase
+    }
+end
+
+---@param system IdReference
+---@return PhaseStep.System
+local function system_step(system)
+    return {
+        type = "system",
+        system = system
+    }
+end
+
+---@param name string
+---@param systems Id[]
+---@return SystemPhase
+local function systems_phase(name, systems)
+    return {
+        name = name,
+        steps = table.map(systems, function(id)
+            return { type = "system", system = id }
+        end)
+    }
+end
+
+---@param name string
+---@param subphases SystemPhase[]
+---@return SystemPhase
+local function parent_phase(name, subphases)
+    return {
+        name = name,
+        steps = table.map(subphases, function(phase)
+            return { type = "phase", phase = phase }
+        end)
+    }
+end
+
+---@class Step
+---@field systems Symbol<SystemDraft>[]
+
+---@param context CompilationContext
+---@param relations SystemRelation[]
+---@return Step[]
+local function sort_dag(context, relations)
+    local adjacency = {} ---@type table<Id, Id[]> -- исходящие вершины
+    local indegree = {} ---@type table<Id, integer> -- входящие вершины
+
+    local total = 0
+
+    for _, relation in ipairs(relations) do
+        local id = relation.system.id
+        adjacency[id] = {}
+        indegree[id] = 0
+        total = total + 1
     end
 
-    local phases = { phase_step("Not stated", not_stated) } ---@type PhaseStep.Phase[]
+    for _, relation in ipairs(relations) do
+        local system = relation.system.id
+        local preceding_system = relation.preceding
+
+        if preceding_system then
+            table.insert(adjacency[preceding_system.id], system)
+            indegree[system] = indegree[system] + 1
+        end
+    end
+
+    local steps = {} ---@type Step[]
     local ready = {} ---@type Id[]
-    for system_id, links in pairs(indegree) do
-        if links == 0 then
+
+    for system_id, in_relations in pairs(indegree) do
+        if in_relations == 0 then
             table.insert(ready, system_id)
         end
     end
-    local idx = 0
+
     local processed = 0
     while #ready ~= 0 do
         processed = processed + #ready
-        table.insert(phases, phase_step("Node " .. idx, ready))
+
         local next = {}
         for _, system_id in ipairs(ready) do
             local links = adjacency[system_id]
@@ -89,8 +148,10 @@ function phases.compose_root(context, categorized_symbols)
                 end
             end
         end
+
+        table.insert(phases, { systems = ready })
+
         ready = next
-        idx = idx + 1
     end
 
     if processed ~= total then
@@ -100,9 +161,52 @@ function phases.compose_root(context, categorized_symbols)
         phases = {}
     end
 
+    return steps
+end
+
+---@param name string
+---@param context CompilationContext
+---@param systems table<Id, Symbol<SystemDraft>>
+---@return SystemPhase
+local function compose_phase(name, context, systems)
+    local relations = system_relations(context, systems)
+    local steps = sort_dag(context, relations)
+    local subphases = {}
+
+    for index, step in ipairs(steps) do
+        local system_steps = {}
+        for index, system in ipairs(step.systems) do
+            system_steps[index] = system_step(system)
+        end
+        table.insert(subphases, phase_step(systems_phase("Node " .. index, system_steps)))
+    end
+
+    return parent_phase(name, subphases)
+end
+
+---@param context CompilationContext
+---@param categorized_symbols CategorizedSymbols
+---@return TickPhasesDraft
+function phases.compose(context, categorized_symbols)
+    local systems = categorized_symbols.systems
+    local not_stated = {}
+    local verb_lookup = {}
+
+    for system_id, system_symbol in pairs(systems) do
+        local phase = system_symbol.value.phase
+        if not phase then
+            not_stated[system_id] = system_symbol
+        elseif phase == "verb_lookup" then
+            verb_lookup[system_id] = system_symbol
+        end
+    end
+
+    local base_phase = compose_phase("base", context, not_stated)
+    local verb_lookup_phase = compose_phase("verb_lookup", context, verb_lookup)
+
     return {
-        name = "Root",
-        steps = phases
+        base = base_phase,
+        after_verb_lookup = verb_lookup_phase
     }
 end
 

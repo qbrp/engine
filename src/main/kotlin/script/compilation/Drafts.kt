@@ -19,6 +19,8 @@ import org.lain.engine.script.ScriptSystemId
 import org.lain.engine.script.SystemSide
 import org.lain.engine.script.Operation
 import org.lain.engine.script.OperationId
+import org.lain.engine.script.SystemPhase
+import org.lain.engine.script.TickPhases
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 
@@ -52,9 +54,14 @@ sealed class PhaseStepDraft {
     data class System(val system: ScriptSystemId) : PhaseStepDraft()
 }
 
+data class TickPhasesDraft(
+    val base: SystemPhaseDraft?,
+    val afterVerbLookup: SystemPhaseDraft?,
+)
+
 data class BuildDraft(
     val namespaces: Map<NamespaceId, NamespaceDraft>,
     val callbacks: Map<CallbackType<*, *>, Script<*, *>>,
-    val rootPhase: SystemPhaseDraft,
+    val phases: TickPhasesDraft,
     val inventoryTab: InventoryTab
 )

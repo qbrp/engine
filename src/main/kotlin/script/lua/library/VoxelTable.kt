@@ -6,18 +6,13 @@ import org.lain.engine.script.lua.LuaUserdataType
 import org.lain.engine.script.lua.NIL
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaStr
-import org.lain.engine.script.lua.luaValue
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.library.ecs.projectLuaComponent
 import org.lain.engine.world.VoxelDoor
 import org.lain.engine.world.VoxelMeta
 import org.lain.engine.world.VoxelTag
 import org.lain.engine.world.World
-import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
-import org.luaj.vm2.LuaValue
-import org.luaj.vm2.lib.OneArgFunction
-import org.luaj.vm2.lib.TwoArgFunction
 
 fun VoxelMetaUserdataType() = LuaUserdataType<VoxelMeta> {
     functionSelf2("has_tag") { self, tag ->
@@ -36,7 +31,7 @@ fun VoxelMetaUserdataType() = LuaUserdataType<VoxelMeta> {
 context(lua: LuaScriptEngine)
 fun VoxelMeta.coerceToLua(): LuaUserdata = lua.voxelMetaUserdataType.newInstance(this)
 
-fun World.applyLuaVoxelDoorComponents() {
+fun World.pullVoxelDoor() {
     projectLuaComponent<VoxelDoor>(CoreScriptComponents.VOXEL_DOOR) { value, _ ->
         VoxelDoor(value["open"].toboolean())
     }

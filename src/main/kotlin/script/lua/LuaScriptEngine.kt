@@ -12,14 +12,14 @@ import org.lain.engine.script.compilation.CompilationDiagnosticSeverity
 import org.lain.engine.script.compilation.CompilationOutcome
 import org.lain.engine.script.compilation.CompilationPhase
 import org.lain.engine.script.compilation.compilationManifestOf
+import org.lain.engine.script.compilation.link
 import org.lain.engine.script.compilation.linkedNamespaces
-import org.lain.engine.script.compilation.linkedSystemPhase
 import org.lain.engine.script.compilation.validateNamespaces
 import org.lain.engine.script.compilation.writeTo
 import org.lain.engine.script.lua.compilation.LuaCompilationContext
 import org.lain.engine.script.lua.compilation.CompilationContextTable
 import org.lain.engine.script.lua.compilation.ReportsCollectorUserdataType
-import org.lain.engine.script.lua.compilation.compiledBuildDraft
+import org.lain.engine.script.lua.compilation.compileBuildDraft
 import org.lain.engine.script.lua.library.*
 import org.lain.engine.script.lua.library.ecs.*
 import org.lain.engine.util.Timestamp
@@ -144,17 +144,23 @@ open class LuaScriptEngine(
         setupGlobalsRuntime()
     }
 
-    override fun tickBeforeCallbacks(world: World) {
-        world.applyLuaNetworkingComponents()
-        world.refreshGeneralLuaComponentsView()
+    override fun tickPush(world: World) {
+        world.tickNetworkingLibrary()
+        world.pushLocationComponents()
+        world.pushInteractionComponents()
     }
 
-    override fun tick(world: World) = with(world) {
-        flushEntityRpcMessageReceiver()
-        tickEquippableLuaProjectSystem()
-        applyLuaLightComponents()
-        applyLuaVoxelDoorComponents()
-        world.applyLuaEquipment()
+    override fun tickPull(world: World) = with(world) {
+        clearEntityRpcMessages()
+        pullUsingItem()
+        pullEquippable()
+        pullLights()
+        pullVoxelDoor()
+        pullEquipment()
+    }
+
+    override fun tickVerbLookup(world: World) {
+        world.collectPulledInteractionVerbs()
     }
 
     override fun setupPlayer(player: EnginePlayer) = with(player.world) {
@@ -181,12 +187,12 @@ open class LuaScriptEngine(
         var manifestLinkedNamespaces: Map<NamespaceId, Namespace> = emptyMap()
 
         val outcome = try {
-            val buildDraft = compiledBuildDraft(runEntrypoint().checktable())
+            val buildDraft = compileBuildDraft(runEntrypoint().checktable())
             manifestBuildDraft = buildDraft
             buildDraft.validateNamespaces()
             val linkedNamespaces = buildDraft.linkedNamespaces()
             manifestLinkedNamespaces = linkedNamespaces
-            val rootPhase = linkedSystemPhase(buildDraft.rootPhase, linkedNamespaces)
+            val phases = buildDraft.phases.link(linkedNamespaces)
 
             val report = exceptions.build()
             if (report.hasErrors) {
@@ -196,7 +202,7 @@ open class LuaScriptEngine(
                     Build(
                         namespaces = linkedNamespaces,
                         callbacks = Callbacks(buildDraft.callbacks),
-                        rootPhase = rootPhase,
+                        phases = phases,
                         inventoryTab = buildDraft.inventoryTab,
                         time = start.timeElapsed(),
                     ),

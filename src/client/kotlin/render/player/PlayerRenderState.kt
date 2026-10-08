@@ -47,9 +47,11 @@ fun GameSession.updatePlayerEntityRenderStates() = with(world) {
     }
 
     iterate<RenderStateComponent, PlayerComponent, Equipment> { _, (renderState), (player), (slots) ->
-        val items = slots.values
-            .filter { it.requireComponent<Equippable>().display == OutfitDisplay.Separated }
-        renderState.detachedEquipment = createDetachedEquipmentRenderStates(items, player)
+        renderState.detachedEquipment = createDetachedEquipmentRenderStates(
+            slots
+                .filterValues { item -> item.requireComponent<Equippable>().display == OutfitDisplay.Separated },
+            player
+        )
     }
 
     iterate<RenderStateComponent, PlayerInventory, ArmStatus>() { _, (renderState), inventory, armStatus ->

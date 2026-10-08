@@ -61,41 +61,46 @@ class EngineSimulation(
         result.callbacks?.let { callbacks = it }
         namespacedStorage.loadResult(result)
         worldsList.forEach { it.registerComponentTypes(namespacedStorage) }
-        scriptSystemDispatcher.rootPhase = result.rootPhase
+        scriptSystemDispatcher.phases = result.phases
     }
 
     fun World.tick(): Unit = with(extension) {
+        val phases = scriptSystemDispatcher.phases
+
         // Фаза подготовки данных
-        beforeInput()
+        tickDaraPreparation()
         resetItemOwnershipState()
         tickItemOwnershipSystem()
         tickInteractorLocations()
         tickPlayerHandSystem()
         tickPlayerModelSystem()
 
-        // Взаимодействия
+        // Симуляция
         tickInteractionPhase(callbacks) // здесь клиент начинает предсказывать поведение симуляции
         afterInput()
+
+        scriptEngine.tickPush(this@tick)
+
+        tickCallbacks(callbacks)
+
+        phases.base.tick(this@tick)
+        scriptEngine.tickPull(this@tick)
+
+        phases.verbLookup.tick(this@tick)
+        scriptEngine.tickVerbLookup(this@tick)
+        tickVerbLookupApply()
 
         tickGunActionSystem()
         tickSocialActionSystem()
         tickWritableActionSystem()
 
-        // Оружейные системы
         tickMagazineActionSystem()
         tickGunSystem()
         tickRecoilSystem()
 
-        afterInteractions()
+        // Операции
 
-        // Скрипты
 
-        scriptEngine.tickBeforeCallbacks(this@tick)
-        tickCallbacks(callbacks)
-        scriptSystemDispatcher.tick(this@tick)
-        scriptEngine.tick(this@tick)
-
-        // Обработка накопленных операций
         tickNarrationSystem()
         tickContainerOperationsSystem() // Когда чтение данных контейнеров точно не будет, вызываем систему операций
 
@@ -154,7 +159,7 @@ class EngineSimulation(
     }
 
     interface SimulationTickExtension {
-        fun World.beforeInput() {}
+        fun World.tickDaraPreparation() {}
         fun World.afterInput() {}
         fun World.afterInteractions() {}
         fun World.afterOperations() {}

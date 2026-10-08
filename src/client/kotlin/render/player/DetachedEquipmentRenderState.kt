@@ -15,6 +15,7 @@ import org.lain.engine.player.PlayerPart
 import org.lain.engine.player.getOrSet
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.persistentId
+import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.player.Equippable
 import org.lain.engine.world.World
 
@@ -30,18 +31,17 @@ data class PlayerEquipmentItemStacks(val stacks: MutableMap<PersistentId, ItemSt
 
 context(world: World)
 fun createDetachedEquipmentRenderStates(
-    items: List<EngineItem>,
+    items: Map<EquipmentSlotId, EngineItem>,
     player: EnginePlayer
 ): List<DetachedEquipmentRenderState> {
     return items
-        .mapNotNull {
-            val equip = it.requireComponent<Equippable>()
-            val assets = it.requireComponent<ItemAssets>()
-            val slotId = equip.slot
+        .toList()
+        .mapNotNull { (slotId, item) ->
+            val assets = item.requireComponent<ItemAssets>()
             val slot = world.simulation.namespacedStorage.equipmentSlots[slotId]
                 ?: return@mapNotNull null
             val equipmentStacks = player.getOrSet { PlayerEquipmentItemStacks(mutableMapOf()) }.stacks
-            val itemStack = equipmentStacks.computeIfAbsent(it.persistentId()) {
+            val itemStack = equipmentStacks.computeIfAbsent(item.persistentId()) {
                 val stack = ITEM_STACK_MATERIAL.copy()
                 stack.setPreviewItemModel(assets)
                 stack

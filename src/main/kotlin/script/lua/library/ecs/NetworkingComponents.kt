@@ -98,7 +98,7 @@ fun EntityRpcQueue.coerceToLua(): LuaUserdata = LuaUserdata(LuaEntityRpcQueue(th
 }
 
 context(lua: LuaScriptEngine)
-fun World.applyLuaNetworkingComponents() {
+fun World.tickNetworkingLibrary() {
     val receiverComponents =
         componentManager.getComponentArray(CoreScriptComponents.ENTITY_RPC_RECEIVER)
     val dynamicVoxelInterestComponents = componentManager.getComponentArray<DynamicVoxelInterest>()

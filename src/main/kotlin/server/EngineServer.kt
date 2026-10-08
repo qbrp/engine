@@ -15,7 +15,6 @@ import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.tickEntityDebugViewSnapshotSystem
 import org.lain.engine.data.*
-import org.lain.engine.player.interaction.cleanupInteractionPhase
 import org.lain.engine.player.interaction.tickTestAction
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.script.compilation.loadBuild
@@ -94,8 +93,8 @@ class EngineServer(
         loadBuild(build)
     }
 
-    override fun World.beforeInput() = with(platform) {
-        prepareData()
+    override fun World.tickDaraPreparation() = with(platform) {
+        tickDataPreparation()
     }
 
     override fun World.afterInteractions() {

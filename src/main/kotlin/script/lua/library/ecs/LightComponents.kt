@@ -15,7 +15,7 @@ private fun LuaTable.toLightBehaviour(): LightBehaviour {
     }
 }
 
-fun World.applyLuaLightComponents() {
+fun World.pullLights() {
     projectLuaComponent<LightSource>(CoreScriptComponents.LIGHT_SOURCE) { value, _ ->
         val behaviour = value.get("behaviour").checktable()
         LightSource(behaviour.toLightBehaviour())

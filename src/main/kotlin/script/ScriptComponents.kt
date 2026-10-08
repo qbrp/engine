@@ -73,6 +73,11 @@ object CoreScriptComponents {
     val ENTITY_RPC_QUEUE = register("core/networking/entity_rpc_queue", savable = false, networking = false)
     val DYNAMIC_VOXEL_INTEREST = register("core/networking/voxel_interest", savable = true, networking = false)
     val VOXEL_DOOR = register("core/voxel/door", savable = true, networking = true)
+    val VERB_LOOKUP = register("core/interaction/verb_lookup")
+    val HAND = register("core/interaction/hand")
+    val INTERACTOR = register("core/interaction/interactor")
+    val USING_ITEM = register("core/interaction/using_item")
+    val INTERACTION_INTERRUPT = register("core/interaction/interrupt")
 
     fun get(id: ScriptComponentId) = all[id]
 

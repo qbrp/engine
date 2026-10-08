@@ -283,46 +283,21 @@ private fun compiledNamespacesList(
 }
 
 context(lua: LuaScriptEngine)
-fun LuaCompilationContext.compiledBuildDraft(table: LuaTable): BuildDraft {
-    val namespaces = table.get("namespaces").nullable()?.checktable()
+fun LuaCompilationContext.compileBuildDraft(buildL: LuaTable): BuildDraft {
+    val namespaces = buildL.get("namespaces").nullable()?.checktable()
         ?.toList { it.checktable() }
         ?.mapNotNull { namespace ->
             compiledNamespacesList(namespace)
         }
         ?.toMap()
         ?: emptyMap()
-    val callbacks = table.get("listeners").nullable()?.checktable()
+    val callbacks = buildL.get("listeners").nullable()?.checktable()
         ?.retrieveCallbacks(callbackTypes)
         ?: emptyMap()
 
-    fun LuaTable.toPhaseDraft(): SystemPhaseDraft {
-        return SystemPhaseDraft(
-            get("name").tojstring(),
-            get("steps").checktable().toList { stepL ->
-                val type = stepL["type"].tojstring()
-                when(type) {
-                    "phase" -> PhaseStepDraft.Phase(stepL["phase"].checktable().toPhaseDraft())
-                    "system" -> PhaseStepDraft.System(stepL["system"].resolveIdReference().toScriptSystemId())
-                    else -> error("Unknown phase step draft type: $type (supports `phase` and `system`)")
-                }
-            },
-        )
-    }
+    val phases = compileTickPhasesDraft(buildL)
 
-    val rootPhase = try {
-        table["root_phase"]?.nullable()?.checktable()?.toPhaseDraft()
-            ?: SystemPhaseDraft("Root", emptyList())
-    } catch (e: Exception) {
-        exceptions.abort(
-            e.toDiagnostic(
-                CompilationPhase.COMPILATION,
-                severity = CompilationDiagnosticSeverity.FATAL,
-                target = CompilationDiagnosticTarget(SymbolKind.PHASE, "root_phase")
-            )
-        )
-    }
-
-    val inventoryTabEntries = table.get("inventory_tab").nullable()?.checktable()
+    val inventoryTabEntries = buildL.get("inventory_tab").nullable()?.checktable()
         ?.let {
             it["entries"].checktable().toList {
                 InventoryTab.Entry(
@@ -334,9 +309,9 @@ fun LuaCompilationContext.compiledBuildDraft(table: LuaTable): BuildDraft {
         ?: emptyList()
 
     return BuildDraft(
-        rootPhase = rootPhase,
         callbacks = callbacks,
         namespaces = namespaces,
+        phases = phases,
         inventoryTab = InventoryTab(inventoryTabEntries)
     )
 }

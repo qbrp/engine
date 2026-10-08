@@ -4,17 +4,13 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
+import org.lain.engine.script.ScriptComponent
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 
 @Serializable
 @JvmInline
 value class VerbId(val value: String)
-
-@Serializable
-data class VerbType(val id: VerbId, val name: String)
-
-fun VerbType(id: String, name: String) = VerbType(VerbId(id), name)
 
 data class VerbLookup(
     val input: Set<InputAction>,
@@ -55,6 +51,10 @@ fun World.tickVerbLookupApply() {
         }
         val interactionId = InteractionId(player.id, input.tick)
         entity.setComponent(InteractionExecution(interactionId))
-        entity.setComponent(command, componentTypeOf(command) as ComponentType<Component>)
+        if (command is ScriptComponent) {
+            entity.setComponent(command, command.type)
+        } else {
+            entity.setComponent(command, componentTypeOf(command) as ComponentType<Component>)
+        }
     }
 }

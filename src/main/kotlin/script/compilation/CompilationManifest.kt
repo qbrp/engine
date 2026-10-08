@@ -16,7 +16,7 @@ data class CompilationManifest(
     val modules: List<CompilationManifestModule>,
     val namespaces: List<CompilationManifestNamespace>,
     val callbacks: List<String>,
-    val rootPhase: CompilationManifestPhase?,
+    val phases: CompilationManifestTickPhases?,
     val diagnostics: List<CompilationManifestDiagnostic>,
 )
 
@@ -52,6 +52,12 @@ data class CompilationManifestSystem(
 data class CompilationManifestPhase(
     val name: String,
     val steps: List<CompilationManifestPhaseStep>,
+)
+
+@Serializable
+data class CompilationManifestTickPhases(
+    val base: CompilationManifestPhase?,
+    val verbLookup: CompilationManifestPhase?
 )
 
 @Serializable
@@ -163,7 +169,12 @@ fun compilationManifestOf(
             .orEmpty()
             .map { it.id }
             .sorted(),
-        rootPhase = buildDraft?.rootPhase?.toCompilationManifestDto(),
+        phases = buildDraft?.phases?.let {
+            CompilationManifestTickPhases(
+                it.base?.toCompilationManifestDto(),
+                it.afterVerbLookup?.toCompilationManifestDto()
+            )
+        },
         diagnostics = outcome.report.diagnostics.map { diagnostic ->
             CompilationManifestDiagnostic(
                 severity = diagnostic.severity.name.lowercase(),

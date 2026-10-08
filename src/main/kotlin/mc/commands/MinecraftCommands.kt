@@ -40,7 +40,7 @@ import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 
-fun World.updateCommandInvokeSystem(table: ServerWorldTable) {
+fun World.tickCommandInvokeSystem(table: ServerWorldTable) {
     val mcWorld = table.getMcWorld(id) as? ServerLevel ?: error("World $id not found")
     val server = mcWorld.server ?: error("Minecraft server is not available")
     val commandDispatcher = server.commands

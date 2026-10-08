@@ -24,7 +24,7 @@ interface ServerPlatform {
     fun openInventory(player: EnginePlayer, inventory: SerializedInventory) {}
     fun hasPermission(player: EnginePlayer, permission: String): Boolean = true
 
-    fun World.prepareData() {}
+    fun World.tickDataPreparation() {}
     fun World.tickSaveSystem() {}
     fun World.tickDataApply() {}
 

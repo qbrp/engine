@@ -23,9 +23,10 @@ import org.lain.engine.world.World
 
 object TestCommand : Component {
     val VERB = Verb(
-        VerbType("test", "Тестовое действие"),
-        0,
-        InputAction.Base
+        id = VerbId("test"),
+        name = "Тестовое действие",
+        priority = 0,
+        holdsInput = InputAction.Base
     ) { TestCommand }
 }
 

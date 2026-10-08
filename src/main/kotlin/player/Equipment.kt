@@ -37,7 +37,6 @@ val EnginePlayer.equipment
 
 @Serializable
 data class Equippable(
-    val slot: EquipmentSlotId,
     val display: OutfitDisplay = OutfitDisplay.Separated,
 ) : Component
 

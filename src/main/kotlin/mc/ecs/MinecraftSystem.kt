@@ -21,7 +21,7 @@ import org.lain.engine.player.PlayerComponent as PlayerComponent
 class MinecraftSystem(private val minecraftServer: EngineMinecraftServer) {
     private val itemStacksToLoad = mutableListOf<NotLoadedEngineItemStack>()
 
-    fun tickDataPrepare(world: World) {
+    fun tickDataPreparation(world: World) {
         refreshMinecraftPlayerEntityReferences(world)
         tickDataPrepareCommon(
             world,

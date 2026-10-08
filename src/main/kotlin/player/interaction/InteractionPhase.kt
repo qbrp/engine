@@ -12,5 +12,4 @@ fun World.tickInteractionPhase(callbacks: Callbacks) {
     collectWritableVerbs()
     collectSocialVerbs()
     collectTestAction()
-    tickVerbLookupApply()
 }

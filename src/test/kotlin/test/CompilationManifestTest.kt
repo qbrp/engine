@@ -12,12 +12,12 @@ import org.lain.engine.script.compilation.BuildDraft
 import org.lain.engine.script.compilation.CompilationDiagnostic
 import org.lain.engine.script.compilation.CompilationDiagnosticSeverity
 import org.lain.engine.script.compilation.CompilationManifest
-import org.lain.engine.script.compilation.CompilationManifestPhase
 import org.lain.engine.script.compilation.CompilationOutcome
 import org.lain.engine.script.compilation.CompilationPhase
 import org.lain.engine.script.compilation.CompilationReport
 import org.lain.engine.script.compilation.NamespaceDraft
 import org.lain.engine.script.compilation.SystemPhaseDraft
+import org.lain.engine.script.compilation.TickPhasesDraft
 import org.lain.engine.script.compilation.compilationManifestOf
 import org.lain.engine.script.compilation.writeTo
 import java.nio.file.Path
@@ -34,7 +34,10 @@ class CompilationManifestTest {
                 NamespaceId("alpha") to emptyNamespaceDraft(),
             ),
             callbacks = emptyMap(),
-            rootPhase = SystemPhaseDraft("root", emptyList()),
+            phases = TickPhasesDraft(
+                SystemPhaseDraft("root", emptyList()),
+                null
+            ),
             inventoryTab = InventoryTab(emptyList())
         )
         val outcome = CompilationOutcome.Failure(

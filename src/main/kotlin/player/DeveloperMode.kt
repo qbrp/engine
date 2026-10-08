@@ -3,7 +3,6 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.require
-import org.lain.engine.player.interaction.VerbType
 import org.lain.engine.script.*
 
 data class DeveloperMode(var enabled: Boolean, var acoustic: Boolean = false) : Component

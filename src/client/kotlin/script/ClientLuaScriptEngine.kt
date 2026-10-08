@@ -22,8 +22,8 @@ class ClientLuaScriptEngine(
     val audioLibrary = AudioLibrary(client.audioManager)
     lateinit var gameSessionTable: LuaTable
 
-    override fun tickBeforeCallbacks(world: World) = with(world) {
-        super.tickBeforeCallbacks(world)
+    override fun tickPush(world: World) = with(world) {
+        super.tickPush(world)
         applyLuaEntityRpcQueues()
     }
 

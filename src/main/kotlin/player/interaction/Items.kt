@@ -13,11 +13,14 @@ import org.lain.engine.item.OpenWritable
 import org.lain.engine.item.emitPlaySoundEvent
 import org.lain.engine.world.World
 
+val WRITEABLE_OPEN_VERB = VerbId("writable_open")
+
 @Serializable
 object OpenWritableCommand : Component {
     val VERB = Verb(
-        WRITEABLE_OPEN_VERB,
-        10,
+        id = WRITEABLE_OPEN_VERB,
+        name = "Открыть для чтения",
+        priority = 10,
     ) { OpenWritableCommand }
 }
 

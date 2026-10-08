@@ -54,14 +54,14 @@ fun LuaPlayerInventoryComponent(player: EnginePlayer): LuaUserdata =
     }
 
 context(lua: LuaScriptEngine)
-fun World.applyLuaEquipment() {
+fun World.pullEquipment() {
     iterate<ScriptComponent, Equipment>(CoreScriptComponents.PLAYER_EQUIPMENT) { _, equipmentL, equipment ->
-        val table = equipmentL.value.toLuaValue().checktable()
+        val slotsL = equipmentL.value.toLuaValue().checktable()["slots"].checktable()
 
         val slots = buildMap {
-            table.keys().forEach { key ->
+            slotsL.keys().forEach { key ->
                 val slot = EquipmentSlotId(key.asUserdataOrThrow<EngineId>())
-                val item = table[key].checkLuaEntity()
+                val item = slotsL[key].checkLuaEntity()
                 put(slot, item)
             }
         }

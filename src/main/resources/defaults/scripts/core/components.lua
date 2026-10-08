@@ -24,4 +24,9 @@ return {
     entity_rpc_queue = type_of("core/networking/entity_rpc_queue"), ---@type of<EntityRpcQueueComponent>
     dynamic_voxel_interest = type_of("core/networking/voxel_interest"), ---@type of<DynamicVoxelInterestComponent>
     door = type_of("core/voxel/door"), ---@type of<DoorComponent>
+    verb_lookup = type_of("core/interaction/verb_lookup"), ---@type of<VerbLookupComponent>
+    hand = type_of("core/interaction/hand"), ---@type of<HandComponent>
+    interactor = type_of("core/interaction/interactor"), ---@type of<InteractorComponent>
+    using_item = type_of("core/interaction/using_item"), ---@type of<UsingItemComponent>
+    interaction_interrupt = type_of("core/interaction/interrupt"), ---@type of<InteractionInterruptComponent>
 }

@@ -24,7 +24,7 @@ import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.ScriptPathSuggestionProvider
 import org.lain.engine.mc.commands.registerOperationCommands
-import org.lain.engine.mc.commands.updateCommandInvokeSystem
+import org.lain.engine.mc.commands.tickCommandInvokeSystem
 import org.lain.engine.mc.compat.GENDER_MOD_AVAILABLE
 import org.lain.engine.mc.compat.isReplayServer
 import org.lain.engine.mc.compat.isReplayViewer
@@ -114,11 +114,11 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             .also { itemStackHandler(itemStack, it) }
     }
 
-    override fun World.prepareData() {
+    override fun World.tickDataPreparation() {
         val level = minecraftServer.allLevels.find { it.engineId == id }!!
-        minecraftSystem.tickDataPrepare(this)
+        minecraftSystem.tickDataPreparation(this)
         tickVoxelAdapterSystem(level)
-        updateCommandInvokeSystem(dependencies.worldTable)
+        tickCommandInvokeSystem(dependencies.worldTable)
     }
 
     override fun World.tickSaveSystem() {

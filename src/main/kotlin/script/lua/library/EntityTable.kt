@@ -144,7 +144,7 @@ fun EntityId.luaEntity(): LuaValue {
 }
 
 fun LuaValue.checkLuaEntity(): Int {
-    return checktable().asUserdataOrThrow<LuaEntity>().id
+    return asUserdataOrThrow<LuaEntity>().id
 }
 
 context(lua: LuaScriptEngine, access: WriteComponentAccess)

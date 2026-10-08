@@ -20,11 +20,18 @@ import org.lain.engine.item.isGun
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.world.World
 
+val GUN_SHOOT_VERB = VerbId("shoot")
+
+val GUN_TOGGLE_MODE_VERB = VerbId("gun_toggle_mode")
+
+val GUN_BARREL_AMMO_LOAD_VERB = VerbId("barrel_ammo_load")
+
 @Serializable
 object ToggleGunModeCommand : Component {
     val VERB = Verb(
-        GUN_TOGGLE_MODE_VERB,
-        0,
+        id = GUN_TOGGLE_MODE_VERB,
+        name = "Сменить режим огня",
+        priority = 0,
         holdsInput = InputAction.Base
     ) { ToggleGunModeCommand }
 }
@@ -32,8 +39,9 @@ object ToggleGunModeCommand : Component {
 @Serializable
 object LoadGunFromOffhandCommand : Component {
     val VERB = Verb(
-        GUN_BARREL_AMMO_LOAD_VERB,
-        0,
+        id = GUN_BARREL_AMMO_LOAD_VERB,
+        name = "Загрузить патроны в патронник",
+        priority = 0,
         holdsInput = InputAction.Base
     ) { LoadGunFromOffhandCommand }
 }
@@ -41,9 +49,10 @@ object LoadGunFromOffhandCommand : Component {
 @Serializable
 object HoldGunTriggerCommand : Component {
     val VERB = Verb(
-        GUN_SHOOT_VERB,
-        10,
-        InputAction.Attack
+        id = GUN_SHOOT_VERB,
+        name = "Нажать на спусковой крючок",
+        priority = 10,
+        holdsInput = InputAction.Attack
     ) { HoldGunTriggerCommand }
 }
 
