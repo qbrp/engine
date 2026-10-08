@@ -56,8 +56,27 @@ fun GameSession.updatePlayerEntityRenderStates() = with(world) {
 
     iterate<RenderStateComponent, PlayerInventory, ArmStatus>() { _, (renderState), inventory, armStatus ->
         val extendsArm = armStatus.extend
-        renderState.mainArmPose = armPoseOf(true, extendsArm, inventory)
-        renderState.minorArmPose = armPoseOf(false, extendsArm, inventory)
+        val mainHandItem = inventory.mainHandItem
+        val offHandItem = inventory.offHandItem
+        val holdsMultipleItems = mainHandItem != null && offHandItem != null
+        renderState.mainArmPose =
+            armPoseOf(
+                holdsMultipleItems,
+                mainHandItem.isGunWithoutSafety(),
+                extendsArm,
+                true,
+                mainHandItem != null,
+                offHandItem != null
+            )
+        renderState.minorArmPose =
+            armPoseOf(
+                holdsMultipleItems,
+                offHandItem.isGunWithoutSafety(),
+                extendsArm,
+                false,
+                offHandItem != null,
+                mainHandItem != null
+            )
     }
 
     iterate<RenderStateComponent, EnginePlayerModel>() { _, (renderState), model ->
@@ -66,20 +85,6 @@ fun GameSession.updatePlayerEntityRenderStates() = with(world) {
 }
 
 context(world: World)
-fun armPoseOf(main: Boolean, extendsArm: Boolean, inventory: PlayerInventory): ArmPose {
-    val rHand = if (main) inventory.mainHandItem else inventory.offHandItem
-    val lHand = if (main) inventory.offHandItem else inventory.mainHandItem
-    return armPoseOf(
-        extendsArm,
-        rHand != null,
-        main,
-        rHand?.isGun() == true,
-        rHand.isGunWithoutSafety(),
-        lHand?.isGun() == true
-    )
-}
-
-context(world: World)
-private fun EngineItem?.isGunWithoutSafety(): Boolean {
+fun EngineItem?.isGunWithoutSafety(): Boolean {
     return (this?.getComponent<GunFireState>() ?: return false).mode != FireMode.SAFETY
 }
