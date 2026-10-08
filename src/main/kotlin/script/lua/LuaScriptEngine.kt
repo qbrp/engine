@@ -2,6 +2,7 @@ package org.lain.engine.script.lua
 
 import org.lain.engine.EngineSimulation
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.interaction.UsingItem
 import org.lain.engine.script.*
 import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.compilation.BuildDraft
@@ -76,6 +77,7 @@ open class LuaScriptEngine(
     val moduleUserdataType = ModuleUserdataType()
     val reportsCollectorUserdataType = ReportsCollectorUserdataType()
     val entityRefUserdataType = EntityRefUserdataType()
+    val usingItemUserdataType = UsingItemUserdataType()
     val instantUserdataType = InstantUserdataType()
     val zonedDateTimeUserdataType = ZonedDateTimeUserdataType()
     val zoneUserdataType = ZoneUserdataType()

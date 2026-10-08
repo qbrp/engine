@@ -3,7 +3,6 @@ package org.lain.engine.script
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
-import org.lain.engine.item.resolveItemAsset
 import org.lain.engine.script.compilation.CompilationDiagnostic
 import org.lain.engine.script.compilation.DiagnosticContext
 import org.lain.engine.script.compilation.DiagnosticException

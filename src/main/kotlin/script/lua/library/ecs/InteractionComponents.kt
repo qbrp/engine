@@ -17,6 +17,9 @@ import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.LuaUserdataType
+import org.lain.engine.script.lua.NIL
+import org.lain.engine.script.lua.asUserdataOrThrow
 import org.lain.engine.script.lua.castedLuaValue
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.nullable
@@ -98,6 +101,23 @@ private fun Interactor.toLuaComponent(): LuaTable = luaTable {
     "owner"(owner.luaEntity())
 }
 
+data class LuaUsingItem(val world: World, val component: UsingItem)
+
+context(lua: LuaScriptEngine)
+fun UsingItemUserdataType() = LuaUserdataType<LuaUsingItem> {
+    indexSelf { self, key ->
+        when(key.tojstring()) {
+            "item" -> with(self.world) { self.component.item.luaEntity() }
+            else -> NIL
+        }
+    }
+    newIndexSelf { self, key, value ->
+        if (key.tojstring() == "item") {
+            self.component.item = value.checkLuaEntity()
+        }
+    }
+}
+
 private inline fun <reified T : Component> World.removeOrphanedLuaComponents(type: ScriptComponentType) {
     val source = componentManager.getComponentArray<T>()
     iterate(type) { entity, _ ->
@@ -109,6 +129,7 @@ private inline fun <reified T : Component> World.removeOrphanedLuaComponents(typ
 
 context(lua: LuaScriptEngine)
 fun World.pushInteractionComponents() {
+    val world = this
     removeOrphanedLuaComponents<VerbLookup>(CoreScriptComponents.VERB_LOOKUP)
     removeOrphanedLuaComponents<Hand>(CoreScriptComponents.HAND)
     removeOrphanedLuaComponents<Interactor>(CoreScriptComponents.INTERACTOR)
@@ -125,6 +146,12 @@ fun World.pushInteractionComponents() {
     }
     iterate<InteractionInterrupt> { entity, _ ->
         entity.setLuaScriptComponent(luaTable {}, CoreScriptComponents.INTERACTION_INTERRUPT)
+    }
+    iterate<UsingItem> { entity, usingItem ->
+        entity.setLuaScriptComponent(
+            lua.usingItemUserdataType.newInstance(LuaUsingItem(world, usingItem)),
+            CoreScriptComponents.USING_ITEM
+        )
     }
 }
 
@@ -144,7 +171,13 @@ fun World.collectPulledInteractionVerbs() {
 }
 
 fun World.pullUsingItem() {
+    removeOrphanedLuaComponents<UsingItem>(CoreScriptComponents.USING_ITEM)
     projectLuaComponent<UsingItem>(CoreScriptComponents.USING_ITEM) { value, _ ->
-        UsingItem(value.checktable()["item"].checkLuaEntity())
+        val item = if (value.isuserdata()) {
+            value.asUserdataOrThrow<LuaUsingItem>().component.item
+        } else {
+            value.checktable()["item"].checkLuaEntity()
+        }
+        UsingItem(item)
     }
 }
