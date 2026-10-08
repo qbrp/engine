@@ -55,7 +55,7 @@ public class KeyboardMixin {
             keybindings = new KeyMapping[]{
                     keybindManager.getBase().getMinecraft(),
                     keybindManager.getAttack().getMinecraft(),
-                    keybindManager.getTakeOffEquip().getMinecraft()
+                    keybindManager.getTakeOff().getMinecraft()
             };
         }
 

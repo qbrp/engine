@@ -27,5 +27,7 @@
   "yamlconfig.engine.engine-config.chat.size": "Вместимость",
   "yamlconfig.engine.engine-config.visual": "Визуал",
   "yamlconfig.engine.engine-config.visual.easing-distance": "Дистанция отображения надписей",
-  "key.categories.engine": "Engine"
+  "key.categories.engine": "Engine",
+  "key.categories.engine_gameplay": "Engine - Геймплей",
+  "key.categories.engine_util": "Engine - Служебное"
 }

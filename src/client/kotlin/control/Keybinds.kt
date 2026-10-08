@@ -133,8 +133,8 @@ val BASE = KeybindSettings(
 )
 
 
-val TAKE_OFF_EQUIP = KeybindSettings(
-    name = "Снять экипировку",
+val TAKE_OFF = KeybindSettings(
+    name = "Снять",
     id = KeybindId("unequip"),
     key = InputConstants.KEY_U,
     onPress = { client -> ClientMixin.takeOffEquipPressed = true },

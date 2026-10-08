@@ -9,7 +9,6 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.control.*
 import org.lain.engine.client.render.ui.InteractionSelectionScreen
-import org.lain.engine.mc.engineId
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lwjgl.glfw.GLFW
@@ -22,41 +21,46 @@ class KeybindManager(
     private val category: String = "key.categories.engine",
     private val config: IConfig
 ) {
+    private val gameplayCategory: String = "key.categories.engine_gameplay"
+    private val utilCategory: String = "key.categories.engine_util"
     private val keybinds = mutableMapOf<KeybindId, EngineKeybind>()
-    val adjustChatVolume = ADJUST_CHAT_VOLUME.register()
-    val decreaseChatVolume = DECREASE_CHAT_VOLUME.register()
-    val resetChatVolume = RESET_CHAT_VOLUME.register()
-    val base = BASE.register()
-    val attack = ATTACK.register()
-    val takeOffEquip = TAKE_OFF_EQUIP.register()
+    val adjustChatVolume = registerKeybinding(ADJUST_CHAT_VOLUME)
+    val decreaseChatVolume = registerKeybinding(DECREASE_CHAT_VOLUME)
+    val resetChatVolume = registerKeybinding(RESET_CHAT_VOLUME)
+
+    val attack = registerKeybinding(ATTACK, gameplayCategory)
+    val base = registerKeybinding(BASE, gameplayCategory)
+    val takeOff = registerKeybinding(TAKE_OFF, gameplayCategory)
 
     init {
-        DEVELOPER_MODE.register()
-        HIDE_INTERFACE.register()
-        ALLOW_SPEED_INTENTION_CHANGE.register()
-        TOGGLE_CHAT_SPY.register()
-        EXTEND_HAND.register()
-        TOGGLE_CHAT_ALLHEAR.register()
-        TOGGLE_CHAT_TYPING_INDICATOR.register()
-        TOGGLE_INSPECTION.register()
-        CONCENTRATION.register()
-        SELECT_CHARACTER.register()
-        OPEN_WORKSPACE.register()
+        registerKeybinding(DEVELOPER_MODE, utilCategory)
+        registerKeybinding(OPEN_WORKSPACE, utilCategory)
+        registerKeybinding(HIDE_INTERFACE, utilCategory)
+        registerKeybinding(ALLOW_SPEED_INTENTION_CHANGE)
+        registerKeybinding(TOGGLE_CHAT_SPY)
+        registerKeybinding(EXTEND_HAND, gameplayCategory)
+        registerKeybinding(TOGGLE_CHAT_ALLHEAR)
+        registerKeybinding(TOGGLE_CHAT_TYPING_INDICATOR)
+        registerKeybinding(TOGGLE_INSPECTION)
+        registerKeybinding(CONCENTRATION)
+        registerKeybinding(SELECT_CHARACTER)
 
-        KeybindSettings(
-            name = "Настройки",
-            id = KeybindId("options"),
-            key = GLFW.GLFW_KEY_F7,
-            onPress = { client ->
-                MinecraftClient.setScreen(
-                    ConfigScreen(null, config)
-                )
-            }
-        ).register()
+        registerKeybinding(
+            KeybindSettings(
+                name = "Настройки",
+                id = KeybindId("options"),
+                key = GLFW.GLFW_KEY_F7,
+                onPress = { client ->
+                    MinecraftClient.setScreen(
+                        ConfigScreen(null, config)
+                    )
+                }
+            )
+        )
     }
 
-    fun registerKeybinding(keybinding: KeybindSettings): EngineKeybind {
-        val type = when(keybinding.isMouse) {
+    fun registerKeybinding(keybinding: KeybindSettings, category: String = this.category): EngineKeybind {
+        val type = when (keybinding.isMouse) {
             true -> InputConstants.Type.MOUSE
             false -> InputConstants.Type.KEYSYM
         }
@@ -104,11 +108,9 @@ class KeybindManager(
             val input = with(world) { mainPlayer.entity.requireComponent<PlayerInput>().actions }
             if (base.isPressed) input.add(InputAction.Base)
             if (attack.isPressed) input.add(InputAction.Attack)
-            if (takeOffEquip.isPressed) input.add(InputAction.TakeOff)
+            if (takeOff.isPressed) input.add(InputAction.TakeOff)
         }
     }
-
-    private fun KeybindSettings.register(): EngineKeybind = registerKeybinding(this)
 }
 
 @JvmInline
