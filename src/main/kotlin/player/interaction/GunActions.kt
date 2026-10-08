@@ -11,6 +11,7 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.Barrel
 import org.lain.engine.item.GunBarrelLoad
 import org.lain.engine.item.GunMagazineLoad
+import org.lain.engine.item.GunMagazineTakeOff
 import org.lain.engine.item.GunMagazines
 import org.lain.engine.item.GunModeToggle
 import org.lain.engine.item.HoldsGunTrigger
@@ -20,18 +21,12 @@ import org.lain.engine.item.isGun
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.world.World
 
-val GUN_SHOOT_VERB = VerbId("shoot")
-
-val GUN_TOGGLE_MODE_VERB = VerbId("gun_toggle_mode")
-
-val GUN_BARREL_AMMO_LOAD_VERB = VerbId("barrel_ammo_load")
 
 @Serializable
 object ToggleGunModeCommand : Component {
     val VERB = Verb(
-        id = GUN_TOGGLE_MODE_VERB,
+        id = VerbId("gun_toggle_mode"),
         name = "Сменить режим огня",
-        priority = 0,
         holdsInput = InputAction.Base
     ) { ToggleGunModeCommand }
 }
@@ -39,9 +34,8 @@ object ToggleGunModeCommand : Component {
 @Serializable
 object LoadGunFromOffhandCommand : Component {
     val VERB = Verb(
-        id = GUN_BARREL_AMMO_LOAD_VERB,
+        id = VerbId("barrel_ammo_load"),
         name = "Загрузить патроны в патронник",
-        priority = 0,
         holdsInput = InputAction.Base
     ) { LoadGunFromOffhandCommand }
 }
@@ -49,11 +43,19 @@ object LoadGunFromOffhandCommand : Component {
 @Serializable
 object HoldGunTriggerCommand : Component {
     val VERB = Verb(
-        id = GUN_SHOOT_VERB,
+        id = VerbId("shoot"),
         name = "Нажать на спусковой крючок",
-        priority = 10,
         holdsInput = InputAction.Attack
     ) { HoldGunTriggerCommand }
+}
+
+@Serializable
+object TakeOffMagazineCommand : Component {
+    val VERB = Verb(
+        id = VerbId("take_off_magazine"),
+        name = "Снять магазин",
+        holdsInput = InputAction.TakeOff
+    ) { TakeOffMagazineCommand }
 }
 
 fun World.collectGunVerbs() = iterate<VerbLookup, Hand>() { _, lookup, hand ->
@@ -61,6 +63,10 @@ fun World.collectGunVerbs() = iterate<VerbLookup, Hand>() { _, lookup, hand ->
 
     if (InputAction.Attack in lookup.input) {
         lookup.verbs += HoldGunTriggerCommand.VERB
+    }
+
+    if (InputAction.TakeOff in lookup.input && gunItem.getComponent<GunMagazines>()?.base != null) {
+        lookup.verbs += TakeOffMagazineCommand.VERB
     }
 
     if (InputAction.Base !in lookup.input) return@iterate
@@ -82,26 +88,34 @@ fun World.collectGunVerbs() = iterate<VerbLookup, Hand>() { _, lookup, hand ->
 }
 
 fun World.tickGunActionSystem() {
-    iterate<HoldGunTriggerCommand, Hand> { interactor, command, hand ->
+    iterate<HoldGunTriggerCommand, Hand> { interactor, _, hand ->
         interactor.removeComponent<HoldGunTriggerCommand>()
         interactor.setComponent(UsingItem(hand.item ?: return@iterate))
         interactor.setComponent(HoldsGunTrigger)
     }
 
-    iterate<HoldsGunTrigger, Hand> { interactor, command, hand ->
+    iterate<HoldsGunTrigger, Hand> { interactor, _, hand ->
         if (interactor.removeComponent<InteractionInterrupt>() != null) {
             interactor.removeComponent<HoldsGunTrigger>()
             return@iterate
         }
     }
 
-    iterate<ToggleGunModeCommand, Hand> { interactor, command, hand ->
+    iterate<ToggleGunModeCommand, Hand> { interactor, _, hand ->
         interactor.removeComponent<ToggleGunModeCommand>()
         val gunItem = hand.item?.takeIf { it.isGun() } ?: return@iterate
-        gunItem.setComponent(GunModeToggle)
+        val owner = hand.owner.getComponent<PlayerComponent>()?.obj ?: return@iterate
+        gunItem.setComponent(GunModeToggle(owner))
     }
 
-    iterate<LoadGunFromOffhandCommand, Hand> { interactor, command, hand ->
+    iterate<TakeOffMagazineCommand, Hand> { interactor, _, hand ->
+        interactor.removeComponent<TakeOffMagazineCommand>()
+        val gunItem = hand.item?.takeIf { it.isGun() } ?: return@iterate
+        val owner = hand.owner.getComponent<PlayerComponent>()?.obj ?: return@iterate
+        gunItem.setComponent(GunMagazineTakeOff(owner))
+    }
+
+    iterate<LoadGunFromOffhandCommand, Hand> { interactor, _, hand ->
         interactor.removeComponent<LoadGunFromOffhandCommand>()
         val gunItem = hand.item ?: return@iterate
         val itemToLoad = hand.opposite.requireComponent<Hand>().item
@@ -111,12 +125,10 @@ fun World.tickGunActionSystem() {
         val isMagazine =
             itemToLoad.hasComponent<Magazine>() && itemToLoadId == gunItem.getComponent<GunMagazines>()?.supports
         val isBullet = itemToLoadId == gunItem.getComponent<Barrel>()?.ammunition
-        val action = when {
-            isMagazine -> GunMagazineLoad(player, itemToLoad)
-            isBullet -> GunBarrelLoad(player, itemToLoad)
+        when {
+            isMagazine -> gunItem.setComponent(GunMagazineLoad(player, itemToLoad))
+            isBullet -> gunItem.setComponent(GunBarrelLoad(player, itemToLoad))
             else -> return@iterate
         }
-
-        gunItem.setComponent(action)
     }
 }

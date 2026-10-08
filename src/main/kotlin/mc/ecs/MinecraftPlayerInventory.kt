@@ -7,12 +7,14 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.GiveItemEvent
+import org.lain.engine.player.TransferItemEvent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.get
+import org.lain.engine.player.require
 import org.lain.engine.world.World
 
 fun World.tickGiveItemSystem() {
-    iterate<GiveItemEvent>() { _, (source, target, item, slot) ->
+    iterate<TransferItemEvent>() { _, (source, target, item, slot) ->
         val sourceEntity = source.get<MinecraftPlayer>()?.entity ?: return@iterate
         val targetEntity = target.get<MinecraftPlayer>()?.entity ?: return@iterate
         val sourceInventory = sourceEntity.inventory
@@ -22,6 +24,13 @@ fun World.tickGiveItemSystem() {
 
         if (sourceStack.isEmpty || sourceStack.engineItem() != item) return@iterate
         moveItemStack(sourceInventory, targetInventory, sourceStack, targetSlot)
+    }
+
+    iterate<GiveItemEvent> { _, (target, item) ->
+        val entity = target.require<MinecraftPlayer>().entity
+        val itemStack = ITEM_STACK_MATERIAL.copy()
+        wrapEngineItemStack(item, itemStack)
+        entity.inventory.add(itemStack)
     }
 }
 

@@ -59,17 +59,25 @@ var EnginePlayer.extendArm
     }
 
 fun armPoseOf(
-    extend: Boolean,
-    item: Boolean,
-    main: Boolean,
-    gun: Boolean,
-    safetyOff: Boolean,
-    gunLeft: Boolean
+    handsHoldsMultipleItems: Boolean,
+    holdsGunSafetyOff: Boolean,
+    extendArm: Boolean,
+    isMain: Boolean,
+    holdsItem: Boolean,
+    otherHandHoldsItem: Boolean,
 ): ArmPose {
-    return when {
-        extend && (item || main) -> ArmPose.EXPOSE
-        gun && !gunLeft && !extend && safetyOff -> ArmPose.HOLD_WEAPON
-        else -> ArmPose.NEUTRAL
+    return if (!handsHoldsMultipleItems) {
+        when {
+            extendArm && (holdsItem || (isMain && !otherHandHoldsItem)) -> ArmPose.EXPOSE
+            holdsGunSafetyOff -> ArmPose.HOLD_WEAPON
+            else -> ArmPose.NEUTRAL
+        }
+    } else {
+        if (extendArm || holdsGunSafetyOff) {
+            ArmPose.EXPOSE
+        } else {
+            ArmPose.NEUTRAL
+        }
     }
 }
 

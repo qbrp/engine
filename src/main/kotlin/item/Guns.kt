@@ -49,8 +49,8 @@ data class GunMagazines(
 }
 
 @Serializable
-enum class FireMode {
-    SAFETY, SINGLE, AUTO
+enum class FireMode(val displayName: String) {
+    SAFETY("<red>Предохранитель"), SINGLE("<green>Одиночный"), AUTO("<yellow>Автоматический");
 }
 
 @Serializable
@@ -62,11 +62,13 @@ data class GunDisplay(
 
 object HoldsGunTrigger : Component
 
-object GunModeToggle : Component
+data class GunModeToggle(val player: EnginePlayer) : Component
 
 data class GunMagazineLoad(val player: EnginePlayer, val magazineItem: EngineItem) : Component
 
 data class GunBarrelLoad(val player: EnginePlayer, val ammoItem: EngineItem) : Component
+
+data class GunMagazineTakeOff(val player: EnginePlayer) : Component
 
 const val BULLET_FIRE_RADIUS = 64
 const val CLICK_SOUND = "click"
@@ -149,12 +151,13 @@ fun World.tickGunSystem() {
         }
     }
 
-    iterate<Gun, GunFireState, GunModeToggle>() { item, gun, fireState, _ ->
+    iterate<Gun, GunFireState, GunModeToggle>() { item, gun, fireState, (by) ->
         val modes = gun.modes
         if (modes.isNotEmpty()) {
             val currentIndex = modes.indexOf(fireState.mode)
             val nextIndex = (currentIndex + 1) % modes.size
             fireState.mode = modes[nextIndex]
+            by.narration(fireState.mode.displayName, 40)
             item.emitPlaySoundEvent(SELECTOR_TOGGLE_SOUND)
             item.removeComponent<GunModeToggle>()
             item.markDirty<GunFireState>()
@@ -175,7 +178,29 @@ fun World.tickGunSystem() {
         item.emitPlaySoundEvent(ROUND_BARREL_SOUND)
         item.markDirty<GunMagazines>()
         item.markDirty<GunFireState>()
-        player.set(DecrementItem(magazineItem))
+        magazineItem.setComponent(DecrementItem(magazineItem))
+    }
+
+    iterate<GunMagazines, GunMagazineTakeOff>() { gun, magazines, (player) ->
+        gun.removeComponent<GunMagazineTakeOff>()
+        val prefabId = magazines.supports
+
+        val taken = magazines.base ?: return@iterate
+        magazines.base = null
+
+        val prefab = simulation.namespacedStorage.items[prefabId] ?: run {
+            player.narration(
+                "<red>Магазин не может быть выдан из-за несовпадения идентификаторов. Это непредвиденная ошибка, сообщите о ней разработчику или администраторам сервера",
+                200
+            )
+            return@iterate
+        }
+
+        val magazine = createItem(prefab, server?.entityCoordinator, this@tickGunSystem)
+        magazine.setComponent(taken)
+        emitEvent(
+            GiveItemEvent(player, magazine)
+        )
     }
 }
 

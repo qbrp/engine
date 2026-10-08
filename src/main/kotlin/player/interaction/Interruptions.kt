@@ -14,7 +14,7 @@ object InteractionInterrupt : Component
 
 data class UsingInput(val input: InputAction) : Component
 
-data class UsingItem(val item: EntityId) : Component
+data class UsingItem(var item: EntityId) : Component
 
 fun World.tickInterruptionsSystem() {
     iterate<UsingItem>() { interactor, (usedItem) ->

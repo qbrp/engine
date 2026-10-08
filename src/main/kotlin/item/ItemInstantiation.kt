@@ -43,7 +43,7 @@ fun EntityId.setRequiredItemComponents(
 
 fun WriteComponentAccess.createItem(
     prefab: ItemPrefab,
-    coordinator: EntityCoordinator,
+    coordinator: EntityCoordinator?,
     world: World,
     uuid: PersistentId = Uuid.next(),
 ): EngineItem {
@@ -55,6 +55,6 @@ fun WriteComponentAccess.createItem(
     prefab.progressionAnimations?.let { item.setComponent(it) }
     prefab.assets?.let { item.setComponent(it) }
     prefab.create(item)
-    coordinator.registerEntity(world, uuid, item)
+    coordinator?.registerEntity(world, uuid, item)
     return item
 }

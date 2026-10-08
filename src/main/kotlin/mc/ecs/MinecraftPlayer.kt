@@ -1,13 +1,10 @@
 package org.lain.engine.mc.ecs
 
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.world.entity.ai.attributes.Attribute
-import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.requireComponent
@@ -27,18 +24,15 @@ import org.lain.engine.mc.yaw
 import org.lain.engine.player.CustomPlayerAttributes
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.EnginePlayerModel
-import org.lain.engine.player.GiveItemEvent
 import org.lain.engine.player.Orientation
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerComponent
-import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.PlayerMode
 import org.lain.engine.player.PlayerModeComponent
 import org.lain.engine.player.PlayerPhysics
 import org.lain.engine.player.SpawnMark
 import org.lain.engine.player.StartSpectatingMark
 import org.lain.engine.player.Velocity
-import org.lain.engine.player.attributes
 import org.lain.engine.player.displayName
 import org.lain.engine.player.get
 import org.lain.engine.player.interaction.PlayerInput
@@ -46,9 +40,7 @@ import org.lain.engine.player.require
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.SBool
 import org.lain.engine.world.Location
-import org.lain.engine.world.VoxelMeta
 import org.lain.engine.world.World
-import kotlin.streams.asSequence
 
 data class EngineItemStack(val engineItem: EngineItem, val itemStack: ItemStack)
 

@@ -6,7 +6,7 @@ import kotlin.reflect.KClass
 data class Verb(
     val id: VerbId,
     val name: String,
-    val priority: Int,
+    val priority: Int = 10,
     val holdsInput: InputAction? = null,
     val createCommand: () -> Component,
 )

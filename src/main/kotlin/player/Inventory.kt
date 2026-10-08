@@ -28,11 +28,16 @@ object PlayerContainerTag : Component
 data class DecrementItem(val count: Int = 1) : Component
 
 // Событие
-data class GiveItemEvent(
+data class TransferItemEvent(
     val source: EnginePlayer,
     val target: EnginePlayer,
     val item: EngineItem,
     val slot: Int?,
+) : Component
+
+data class GiveItemEvent(
+    val target: EnginePlayer,
+    val item: EngineItem
 ) : Component
 
 val EnginePlayer.items: Set<EngineItem>

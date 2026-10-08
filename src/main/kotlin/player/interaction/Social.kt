@@ -6,7 +6,7 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.item.getName
 import org.lain.engine.mc.displayNameMiniMessage
-import org.lain.engine.player.GiveItemEvent
+import org.lain.engine.player.TransferItemEvent
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.extendArm
@@ -74,7 +74,7 @@ fun World.tickSocialActionSystem() {
         if (toPlayer.extendArm) {
             if (toPlayer.handFree) {
                 emitEvent(
-                    GiveItemEvent(player, toPlayer, handItem, toPlayer.selectedSlot)
+                    TransferItemEvent(player, toPlayer, handItem, toPlayer.selectedSlot)
                 )
                 println("Передан предмет $handItem")
                 toPlayer.narration("$playerName передал вам $itemName", 60)
