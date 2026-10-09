@@ -48,11 +48,9 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     private val dynamicLights by injectDynamicLightsContext()
     val fabricLoader = FabricLoader.getInstance()
 
-    private val window = Window(this)
+    private val window = Window()
     private val audioManager = MinecraftAudioManager(client)
     internal val camera = MinecraftCamera(client)
-    val uiRenderPipeline = EngineUiRenderPipeline(client)
-
     val decalSystem: DecalSystem = DecalSystem()
     val platform = MinecraftEngineClientPlatform(this, client, decalSystem)
     internal lateinit var lightSystem: LightSystem
@@ -62,7 +60,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         camera,
         MinecraftChat,
         audioManager,
-        uiRenderPipeline,
         platform,
         EngineHttpClient()
     )

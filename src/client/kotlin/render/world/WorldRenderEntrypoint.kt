@@ -6,14 +6,13 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.MinecraftEngineClientPlatform
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.legacy.TextCache
 import org.lain.engine.client.render.player.updatePlayerEntityRenderStates
 import org.lain.engine.mc.square
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.pos
 
-private val TextCache = TextCache()
+private val textCache = TextCache()
 
 fun registerWorldRenderEvents(
     client: Minecraft,
@@ -92,7 +91,7 @@ fun registerWorldRenderEvents(
                     gameSession.inspectionMode,
                     300,
                     visibleBlockHints,
-                    TextCache,
+                    textCache,
                     deltaTicks
                 )
             }

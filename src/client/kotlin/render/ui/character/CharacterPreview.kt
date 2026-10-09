@@ -1,19 +1,15 @@
 package org.lain.engine.client.render.ui.character
 
 import com.mojang.authlib.GameProfile
-import com.wildfire.main.WildfireGender
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.player.RemotePlayer
 import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.world.entity.Pose
 import net.minecraft.world.entity.player.PlayerModelPart
-import net.minecraft.world.level.Level
-import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.mc.compat.GENDER_MOD_AVAILABLE
-import org.lain.engine.mc.compat.wildfireGender
+import org.lain.engine.Constants.GENDER_MOD_AVAILABLE
+import org.lain.engine.mc.compat.updateCharacterEntity
 import org.lain.engine.player.character.CharacterProfile
-import java.util.UUID
-import kotlin.text.toByteArray
+import java.util.*
 
 internal class CharacterPreviewPlayer(
     level: ClientLevel,
@@ -38,10 +34,7 @@ internal fun createCharacterPreviewPlayer(
 ): CharacterPreviewPlayer {
     val uuid = UUID.nameUUIDFromBytes(character.id.value.toByteArray(Charsets.UTF_8))
     if (GENDER_MOD_AVAILABLE) {
-        WildfireGender.getOrAddPlayerById(uuid).apply {
-            updateGender(character.biologicalSex.wildfireGender)
-            updateBustSize(character.genderParams.breastSize)
-        }
+        updateCharacterEntity(character, uuid)
     }
 
     return CharacterPreviewPlayer(

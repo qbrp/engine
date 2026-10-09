@@ -1,9 +1,11 @@
 package org.lain.engine.client.render
 
+import net.minecraft.client.gui.GuiGraphics
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.render.ui.InteractionProgressionRenderState
 import org.lain.engine.client.render.ui.hud.MovementStatusRenderState
 import org.lain.engine.client.render.ui.NarrationMessageRenderState
+import org.lain.engine.client.render.ui.hud.LittleNotificationsRenderManager
 import org.lain.engine.client.render.world.BlockHintInspectionRenderState
 import org.lain.engine.player.Narration
 import org.lain.engine.player.require
@@ -14,7 +16,7 @@ class ScreenRenderer(private val client: EngineClient) {
 
     var hudHidden = false
     var isFirstPerson = false
-    val littleNotificationsRenderer = LittleNotificationsRenderManager(window, client.ui)
+    val littleNotificationsRenderer = LittleNotificationsRenderManager(window)
     val narrations = mutableListOf<NarrationMessageRenderState>()
     val interactionProgression = InteractionProgressionRenderState(0f)
     val movementStatus = MovementStatusRenderState()

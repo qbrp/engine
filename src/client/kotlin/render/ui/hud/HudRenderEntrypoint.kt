@@ -1,13 +1,13 @@
 package org.lain.engine.client.render.ui.hud
 
+import foundry.imgui.api.ImGuiMC
+import foundry.imgui.api.ImGuiMCEvents
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import org.lain.cyberia.ecs.getComponent
 import org.lain.engine.client.EngineClient
-import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.ScreenRenderer
-import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.client.render.ui.renderInteractionProgression
 import org.lain.engine.client.render.ui.renderNarrations
 import org.lain.engine.player.Narration
@@ -18,19 +18,15 @@ fun registerHudRenderEvent(
     client: Minecraft,
     engineClient: EngineClient,
     screenRenderer: ScreenRenderer,
-    engineUiRenderPipeline: EngineUiRenderPipeline,
 ) {
     HudRenderCallback.EVENT.register { context, tickCounter ->
         val deltaTick = tickCounter.realtimeDeltaTicks
         context.pose().pushPose()
-        val window = MinecraftClient.window
-        val mouse = MinecraftClient.mouseHandler
         screenRenderer.isFirstPerson = !client.gameRenderer.mainCamera.isDetached
         screenRenderer.chatOpen = client.screen is ChatScreen
-        val mouseX = mouse.xpos() * window.guiScaledWidth / window.screenWidth
-        val mouseY = mouse.ypos() * window.guiScaledHeight / window.screenHeight
         val gameSession = engineClient.gameSession
         val mainPlayer = gameSession?.mainPlayer
+        screenRenderer.renderScreen(deltaTick)
         if (gameSession != null && mainPlayer != null) {
             mainPlayer.handle<Narration> {
                 renderNarrations(
@@ -52,14 +48,9 @@ fun registerHudRenderEvent(
                 gameSession,
                 deltaTick
             )
-            screenRenderer.renderScreen(deltaTick)
         }
-        engineUiRenderPipeline.render(
-            context,
-            deltaTick,
-            mouseX.toFloat(),
-            mouseY.toFloat()
-        )
+        screenRenderer.littleNotificationsRenderer.render(context)
+
         context.pose().popPose()
     }
 }

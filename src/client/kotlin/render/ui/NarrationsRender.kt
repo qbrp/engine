@@ -26,7 +26,7 @@ fun renderNarrations(
     val textRenderer = MinecraftClient.font
     var y = 20
     for (renderState in narrations) {
-        val narration = component.get(renderState.id) ?: return
+        val narration = component.get(renderState.id) ?: continue
         val content = narration.content
         val text = content.text.parseMiniMessageClient()
         val duration = content.duration

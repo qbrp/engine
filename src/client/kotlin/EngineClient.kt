@@ -33,7 +33,6 @@ class EngineClient(
     val camera: Camera,
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
-    val ui: EngineUi,
     val infrastructure: ClientPlatform,
     httpClient: EngineHttpClient,
 ) {

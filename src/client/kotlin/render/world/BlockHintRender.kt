@@ -5,7 +5,6 @@ import net.minecraft.client.Camera
 import net.minecraft.client.renderer.LightTexture
 import org.lain.engine.client.ClientHintState
 import org.lain.engine.client.control.InspectionMode
-import org.lain.engine.client.render.legacy.TextCache
 import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.literalText
