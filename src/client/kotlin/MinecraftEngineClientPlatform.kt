@@ -11,7 +11,6 @@ import org.lain.engine.client.mc.blockHitResult
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.client.render.EnginePlayerSkin
-import org.lain.engine.client.render.ui.EntityDebugScreen
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.DisconnectText
@@ -114,16 +113,6 @@ class MinecraftEngineClientPlatform(
 
     override fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk) {
         decalSystem.loadTextures(pos, chunk)
-    }
-
-    override fun onEntityDebugView(gameSession: GameSession) {
-        minecraft.setScreen(EntityDebugScreen(gameSession.client))
-    }
-
-    override fun onEntityDebugViewData(data: EntityDebugData.Dto) {
-        val screen = minecraft.screen
-        if (screen !is EntityDebugScreen) return
-        screen.applyEntityDebugData(data)
     }
 
     override fun onWorkspaceMenuOpen(gameSession: GameSession) {

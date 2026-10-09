@@ -19,6 +19,7 @@ import org.lain.engine.client.handler.*
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.render.*
 import org.lain.engine.client.script.ClientCompilation
+import org.lain.engine.client.script.EntityInspection
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
 import org.lain.engine.client.util.processWorldSounds
 import org.lain.engine.data.PersistentIdComponent
@@ -122,9 +123,11 @@ class GameSession(
             client.showInpectionModeToggleNotification(value)
             field = value
         }
-    val inspection = InspectionMode()
+    val     inspection = InspectionMode()
     var characterChange: CharacterChange? = null
         private set
+
+    var entityInspection: EntityInspection? = null
 
     init {
         applyCompilation(build)
@@ -252,12 +255,6 @@ class GameSession(
         simulation.tick()
 
         endTickTaskExecutor.flush()
-    }
-
-    fun viewEntityDebug(entity: EntityId) = with(world) {
-        val persistentId = entity.requireComponent<PersistentIdComponent>().id
-        handler.onEntityDebugView(persistentId)
-        client.infrastructure.onEntityDebugView(this@GameSession)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {

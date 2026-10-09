@@ -11,6 +11,7 @@ import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.script.startInspection
 import org.lain.engine.mc.literalText
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.handItem
@@ -175,7 +176,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                 return@executes 0
                             }
 
-                            gameSession.viewEntityDebug(voxel)
+                            gameSession.startInspection(voxel)
                             1
                         }
                 )
@@ -187,7 +188,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                 ctx.source.sendError(literalText("Вы не держите предмет!"))
                                 return@executes 0
                             }
-                            gameSession.viewEntityDebug(item)
+                            gameSession.startInspection(item)
                             1
                         }
                 )
@@ -195,7 +196,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                     ClientCommandManager.literal("self")
                         .executes { ctx ->
                             val gameSession = engineClient.gameSession ?: return@executes 0
-                            gameSession.viewEntityDebug(gameSession.mainPlayer.entity)
+                            gameSession.startInspection(gameSession.mainPlayer.entity)
                             1
                         }
                 )
@@ -213,7 +214,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                         } else if (!entity.hasComponent<PersistentIdComponent>()) {
                                             ctx.source.sendError(literalText("Сущность не существует на стороне сервера!"))
                                         } else {
-                                            gameSession.viewEntityDebug(entity)
+                                            gameSession.startInspection(entity)
                                         }
                                     }
                                     1

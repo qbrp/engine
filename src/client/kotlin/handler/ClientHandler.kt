@@ -346,8 +346,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     fun applyReplicationPacket(gameSession: GameSession, packet: ReplicationPacket) =
         gameSession.replicationController.apply(packet)
 
-    fun applyEntityDebugData(data: EntityDebugData.Dto) {
-        client.infrastructure.onEntityDebugViewData(data)
+    fun applyEntityDebugData(gameSession: GameSession, data: EntityDebugData.Dto) {
+        gameSession.entityInspection?.data = data
     }
 
     fun applyOperation(dto: OperationExecuteDto, operationId: OperationId) = with(gameSession!!) {

@@ -20,8 +20,6 @@ interface ClientPlatform {
     fun onAcousticDebugVolumes(volumes: List<Pair<VoxelPos, Float>>, gameSession: GameSession)
     fun onCompiled(gameSession: GameSession, inventoryTab: InventoryTab)
     fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk)
-    fun onEntityDebugView(gameSession: GameSession)
-    fun onEntityDebugViewData(data: EntityDebugData.Dto)
     fun onWorkspaceMenuOpen(gameSession: GameSession)
     fun getHitResultVoxelPos(): VoxelPos?
     fun disconnect(reason: String)

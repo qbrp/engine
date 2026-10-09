@@ -1,5 +1,7 @@
 package org.lain.engine.client
 
+import foundry.imgui.api.ImGuiMC
+import foundry.imgui.api.ImGuiMCEvents
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
@@ -20,7 +22,6 @@ import org.lain.engine.client.mc.compat.tickGenderSystem
 import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
-import org.lain.engine.client.render.legacy.EngineUiRenderPipeline
 import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
@@ -122,6 +123,10 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             }
         }
 
+        ImGuiMCEvents.INSTANCE.preRenderImGuiEvent {
+            engine.imGuiManager.render()
+        }
+
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }
         ClientLifecycleEvents.CLIENT_STOPPING.register { MovingWallpapers.close() }
 
@@ -192,7 +197,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         decalSystem.textureManager = client.textureManager
         engine.thread = (client as MinecraftClientAccessor).`engine$getThread`()
         registerWorldRenderEvents(client, engine, platform, decalSystem)
-        registerHudRenderEvent(client, engine, renderer, uiRenderPipeline)
+        registerHudRenderEvent(client, engine, renderer)
         MovingWallpapers.loadWallpapers(client)
     }
 
@@ -201,7 +206,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.stopJoinFlow()
         if (engine.gameSession == null) return
         engine.skinTextureManager.cancelDownloadTasks()
-        uiRenderPipeline.invalidate()
         decalSystem.unload()
         lightSystem.invalidate()
 

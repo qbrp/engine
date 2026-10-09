@@ -77,8 +77,8 @@ fun ClientHandler.runEndpoints() {
 
     registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { _ -> applyOperation(dto, operation) }
 
-    registerGameSessionReceiver(CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT) { _ ->
-         applyEntityDebugData(data)
+    registerGameSessionReceiver(CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT) { gameSession ->
+         applyEntityDebugData(gameSession, data)
     }
 
     CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.registerClientReceiver {

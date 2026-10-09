@@ -3,6 +3,8 @@ package org.lain.engine.client
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
 import org.lain.engine.client.account.SkinTextureManager
@@ -10,16 +12,12 @@ import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.handler.GameSessionJoinFlow
+import org.lain.engine.client.handler.ServerPlayState
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.*
-import org.lain.engine.client.render.legacy.EngineUi
+import org.lain.engine.client.render.ui.ImGuiManager
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.EngineAudioManager
-import org.lain.engine.client.EngineOptions
-import org.lain.engine.client.handler.ServerPlayState
-import org.lain.engine.client.render.LittleNotification
-import org.lain.engine.client.render.showAcousticDebugNotification
-import org.lain.engine.mc.DisconnectText
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.get
@@ -45,6 +43,7 @@ class EngineClient(
     val skinTextureManager = SkinTextureManager(httpClient.rest)
     val accountManager: AccountManager =
         AccountManager(skinTextureManager, ClientEngineAccountService(httpClient))
+    val imGuiManager = ImGuiManager()
 
     val resources
         get() = resourceManager.context
@@ -164,11 +163,8 @@ class EngineClient(
         val gameSession = gameSession ?: error("Game session is not active")
         val characterId = gameSession.mainPlayer.get<AppliedCharacter>()?.character?.profile?.id
         val serverId = gameSession.server
-        //TODO: возможно стоит хранить Job сохранения состояния сервера в переменной, дабы не было накладок
-        //но они маловероятны
-        CoroutineScope(Dispatchers.IO).launch {
-            ServerPlayState(characterId).save(serverId)
-        }
+        imGuiManager.closeAll()
+        runBlocking { ServerPlayState(characterId).save(serverId) }
         gameSession.destroy()
         this.gameSession = null
     }
