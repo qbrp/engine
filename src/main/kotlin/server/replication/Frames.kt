@@ -24,7 +24,7 @@ data class ReplicationFrame(
     val processedInputTick: Long? = null,
 ) {
     fun isEmpty() =
-        world == null && entities.isEmpty() && out.isEmpty() && processedInputTick == null
+        world == null && entities.isEmpty() && out.isEmpty()
 }
 
 fun World.sendReplicationPackets(
@@ -35,7 +35,7 @@ fun World.sendReplicationPackets(
     val entitiesFrame = replicationDeltaSnapshot.entities
     val fullSnapshotCache = mutableMapOf<PersistentId, EntityStateUpdate.Full>()
 
-    iterate<PlayerComponent, PlayerSyncState>() { _, (player), state ->
+    iterate<PlayerComponent, PlayerReplicationState>() { _, (player), state ->
         if (!state.confirmed) return@iterate
         val trackState = state.entities
         val entities = mutableMapOf<PersistentId, EntityStateUpdate>()
@@ -45,33 +45,57 @@ fun World.sendReplicationPackets(
             handler.sendFullPlayerState(player, playerToSync)
         }
 
-        trackState.fresh.forEach {
+        val requestedEntityResyncs = state.requestedResyncs
+            .filterIsInstance<ReplicationTarget.Entity>()
+            .mapTo(mutableSetOf()) { it.persistentId }
+        val resyncEntities = requestedEntityResyncs.filterTo(mutableSetOf()) { it in trackState.synced }
+        val fullEntities = trackState.fresh + resyncEntities
+        fullEntities.forEach {
             val entity = persistentIdToEntity[it] ?: return@forEach
             val state = fullSnapshotCache.getOrPut(it) { entity.fullReplicationUpdate() }
             entities[it] = state
         }
-        (trackState.synced - trackState.fresh).forEach {
+        (trackState.synced - fullEntities).forEach {
             val snapshot = entitiesFrame[it] ?: return@forEach
             entities[it] = snapshot.toReplicationUpdate()
         }
 
-        val worldSnapshot = if (!state.isWorldSynced) {
-            state.isWorldSynced = true
+        val worldResyncRequested = ReplicationTarget.World in state.requestedResyncs
+        val sendsFullWorld = !state.isWorldSynced || worldResyncRequested
+        val worldSnapshot = if (sendsFullWorld) {
             world.state.fullReplicationUpdate()
         } else {
             replicationDeltaSnapshot.worldState?.toReplicationUpdate()
         }
 
-        val processedInputTick = if (state.processedInputTick > state.lastSentProcessedInputTick) {
-            state.lastSentProcessedInputTick = state.processedInputTick
-            state.processedInputTick
-        } else {
-            null
-        }
+        val acknowledgedInputTick =
+            state.processedInputTick.takeIf { it > state.lastSentProcessedInputTick }
 
-        handler.sendReplicationFrame(
-            player,
-            ReplicationFrame(worldSnapshot, entities, out, processedInputTick),
+        val frame = ReplicationFrame(
+            world = worldSnapshot,
+            entities = entities,
+            out = out,
+            processedInputTick = acknowledgedInputTick,
         )
+
+        handler.sendReplicationFrame(player, frame)
+
+        if (sendsFullWorld) {
+            state.isWorldSynced = true
+        }
+        if (worldResyncRequested) {
+            state.requestedResyncs -= ReplicationTarget.World
+        }
+        resyncEntities.forEach { persistentId ->
+            state.requestedResyncs -= ReplicationTarget.Entity(persistentId)
+        }
+        requestedEntityResyncs
+            .filterNotTo(mutableSetOf()) { it in trackState.resident }
+            .forEach { persistentId ->
+                state.requestedResyncs -= ReplicationTarget.Entity(persistentId)
+            }
+        if (acknowledgedInputTick != null) {
+            state.lastSentProcessedInputTick = acknowledgedInputTick
+        }
     }
 }

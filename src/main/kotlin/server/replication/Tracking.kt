@@ -54,27 +54,40 @@ private fun EnginePlayer.replicationPersistentIds(): Set<PersistentId> =
         entity.getComponent<PersistentIdComponent>()?.id
     }
 
-data class PlayerSyncState(
+data class QueuedPlayerInput(
+    val actions: Set<InputAction>,
+    var lastTick: Long,
+)
+
+data class PlayerReplicationState(
     val trackingPlayers: MutableMap<EntityId, LocationedPlayer> = mutableMapOf(),
     val freshPlayers: MutableSet<LocationedPlayer> = mutableSetOf(),
     val entities: TrackingState = TrackingState(),
     var isWorldSynced: Boolean = false,
     var confirmed: Boolean = false,
-    val pendingInputs: TreeMap<Long, Set<InputAction>> = TreeMap(),
+    val pendingInputs: TreeMap<Long, QueuedPlayerInput> = TreeMap(),
     var lastReceivedInputTick: Long = -1,
     var processingInputTick: Long? = null,
     var processedInputTick: Long = -1,
     var lastSentProcessedInputTick: Long = -1,
-    val sentChunks: MutableMap<EngineChunkPos, EngineChunk> = mutableMapOf()
+    val sentChunks: MutableMap<EngineChunkPos, EngineChunk> = mutableMapOf(),
+    val requestedResyncs: MutableSet<ReplicationTarget> = mutableSetOf(),
 ) : Component {
     fun enqueueInput(tick: Long, actions: Set<InputAction>): Boolean {
         if (tick <= lastReceivedInputTick) {
             return false
         }
-        if (pendingInputs.size >= MAX_PENDING_INPUTS) {
-            pendingInputs.pollLastEntry()
+
+        val copiedActions = actions.toSet()
+        val lastInput = pendingInputs.lastEntry()?.value
+        if (lastInput?.actions == copiedActions) {
+            lastInput.lastTick = tick
+        } else {
+            if (pendingInputs.size >= MAX_PENDING_INPUTS) {
+                pendingInputs.pollLastEntry()
+            }
+            pendingInputs[tick] = QueuedPlayerInput(copiedActions, tick)
         }
-        pendingInputs[tick] = actions.toSet()
         lastReceivedInputTick = tick
         return true
     }
@@ -85,17 +98,17 @@ data class PlayerSyncState(
 }
 
 fun World.tickQueuedPlayerInputsSystem() {
-    iterate<PlayerInput, PlayerSyncState> { _, input, syncState ->
+    iterate<PlayerInput, PlayerReplicationState> { _, input, syncState ->
         val pendingInput = syncState.pendingInputs.pollFirstEntry() ?: return@iterate
         input.actions.clear()
-        input.actions.addAll(pendingInput.value)
+        input.actions.addAll(pendingInput.value.actions)
         input.tick = pendingInput.key
-        syncState.processingInputTick = pendingInput.key
+        syncState.processingInputTick = pendingInput.value.lastTick
     }
 }
 
 fun World.confirmProcessedPlayerInputsSystem() {
-    iterate<PlayerSyncState> { _, syncState ->
+    iterate<PlayerReplicationState> { _, syncState ->
         val processed = syncState.processingInputTick ?: return@iterate
         syncState.processedInputTick = maxOf(syncState.processedInputTick, processed)
         syncState.processingInputTick = null
@@ -112,7 +125,7 @@ fun World.tickPlayerTrackingSystem(server: EngineServer, desynchronizationRadius
         .flatten()
         .toSet()
 
-    iterate<Location, Interests, PlayerSyncState>()
+    iterate<Location, Interests, PlayerReplicationState>()
         { player, (position), interests, syncState ->
             val trackingPlayers = syncState.trackingPlayers
             val freshPlayers = syncState.freshPlayers

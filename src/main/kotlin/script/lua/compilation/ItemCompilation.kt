@@ -17,6 +17,8 @@ import org.lain.engine.item.Magazine
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.NamespaceId
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.library.luaEntity
+import org.lain.engine.script.lua.library.luaWorld
 import org.lain.engine.script.lua.library.luaWritableEntity
 import org.lain.engine.script.lua.library.resolveIdReference
 import org.lain.engine.script.lua.nullable
@@ -107,10 +109,12 @@ fun compileItemPrefabsLua(namespaceId: NamespaceId, items: List<LuaTable>): List
                 assets.mapValues { (key, value) -> value.resolveIdReference() }
             ),
             null,
-            { entity ->
-                entity.copyState(builtInComponentFactories.map { it() })
-                soundEvents?.let { entity.setComponent(ItemSounds(it)) }
-                onLoad.call(entity.luaWritableEntity())
+            { world, entity ->
+                with(world) {
+                    entity.copyState(builtInComponentFactories.map { it() })
+                    soundEvents?.let { entity.setComponent(ItemSounds(it)) }
+                    onLoad.call(world.luaWorld(), entity.luaEntity())
+                }
             }
         )
     }

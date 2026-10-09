@@ -9,7 +9,11 @@ import org.lain.engine.item.Barrel
 import org.lain.engine.item.Count
 import org.lain.engine.item.GunFireState
 import org.lain.engine.item.GunMagazines
+import org.lain.engine.item.Magazine
 import org.lain.engine.item.Writable
+import org.lain.engine.player.ArmStatus
+import org.lain.engine.player.CustomPlayerAttributes
+import org.lain.engine.player.Narration
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentId
@@ -61,9 +65,13 @@ fun Component.snapshot(): ComponentSnapshot = when (this) {
             is GunFireState -> copy()
             is GunMagazines -> copy()
             is Barrel -> copy()
+            is Magazine -> copy()
             is Luminance -> copy()
             is OccupiedSlots -> OccupiedSlots(slots.toMutableMap())
             is Writable -> copy()
+            is ArmStatus -> copy()
+            is CustomPlayerAttributes -> copy()
+            is Narration -> copy(messages = messages.map { it.copy() }.toMutableList())
             else -> this
         }
     )

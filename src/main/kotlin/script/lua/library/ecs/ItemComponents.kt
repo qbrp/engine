@@ -2,7 +2,9 @@ package org.lain.engine.script.lua.library.ecs
 
 import org.lain.engine.player.Equippable
 import org.lain.engine.player.OutfitDisplay
+import org.lain.engine.player.toEquipmentSlotId
 import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.lua.toEngineId
 import org.lain.engine.world.World
 
 fun World.pullEquippable() {

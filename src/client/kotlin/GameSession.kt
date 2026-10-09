@@ -27,6 +27,7 @@ import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.character.SelectedLook
+import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.InventoryTab
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
@@ -193,11 +194,13 @@ class GameSession(
         tickPlayerLowDetailedSystem(mainPlayer, synchronizationRadius)
     }
 
-    override fun World.afterInput() {
-        handler.takePredictionTick()?.let(replicationController::beginPrediction)
+    override fun World.beforeInteractions() {
+        replicationController.beginPrediction(
+            mainPlayer.entity.requireComponent<PlayerInput>().tick
+        )
     }
 
-    override fun World.afterInteractions() {
+    override fun World.beforeEventCleanup() {
         replicationController.endPrediction()
     }
 

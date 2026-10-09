@@ -32,8 +32,10 @@ object BuiltinNamespaces {
             "Недействительный предмет",
             ItemAssets.withDefaultAsset(INVALID_ID.value),
             null,
-            {
-                it.setComponent(ItemTooltip(INVALID_TOOLTIPS.random()))
+            { world, item ->
+                with(world) {
+                    item.setComponent(ItemTooltip(INVALID_TOOLTIPS.random()))
+                }
             }
         )
     }

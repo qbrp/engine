@@ -76,19 +76,20 @@ class EngineSimulation(
         tickPlayerModelSystem()
 
         // Симуляция
-        tickInteractionPhase(callbacks) // здесь клиент начинает предсказывать поведение симуляции
+        beforeInteractions()
+        tickInteractionPhase(callbacks)
         afterInput()
 
         scriptEngine.tickPush(this@tick)
 
         tickCallbacks(callbacks)
 
-        phases.base.tick(this@tick)
-        scriptEngine.tickPull(this@tick)
-
         phases.verbLookup.tick(this@tick)
         scriptEngine.tickVerbLookup(this@tick)
         tickVerbLookupApply()
+
+        phases.base.tick(this@tick)
+        scriptEngine.tickPull(this@tick)
 
         tickGunActionSystem()
         tickSocialActionSystem()
@@ -100,6 +101,7 @@ class EngineSimulation(
 
         // Операции
 
+        afterInteractions()
 
         tickNarrationSystem()
         tickContainerOperationsSystem() // Когда чтение данных контейнеров точно не будет, вызываем систему операций
@@ -160,6 +162,7 @@ class EngineSimulation(
 
     interface SimulationTickExtension {
         fun World.tickDaraPreparation() {}
+        fun World.beforeInteractions() {}
         fun World.afterInput() {}
         fun World.afterInteractions() {}
         fun World.afterOperations() {}

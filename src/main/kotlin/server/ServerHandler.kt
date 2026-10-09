@@ -18,7 +18,7 @@ import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.backupBookContent
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
-import org.lain.engine.server.replication.PlayerSyncState
+import org.lain.engine.server.replication.PlayerReplicationState
 import org.lain.engine.server.replication.ReplicationFrame
 import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.server.replication.fullReplicationUpdate
@@ -226,33 +226,13 @@ class ServerHandler(
 
     internal fun onPlayerInput(playerId: PlayerId, tick: Long, input: Set<InputAction>) =
         updatePlayerWithContext(playerId) {
-            this.entity.requireComponent<PlayerSyncState>().enqueueInput(tick, input)
+            require<PlayerReplicationState>().enqueueInput(tick, input)
         }
 
     internal fun onReplicationResyncRequest(playerId: PlayerId, target: ReplicationTarget) =
         updatePlayerWithContext(playerId) {
-            val frame = when (target) {
-                ReplicationTarget.World -> ReplicationFrame(
-                    world = world.state.fullReplicationUpdate(),
-                )
-
-                is ReplicationTarget.Entity -> {
-                    val persistentId = target.persistentId
-                    val syncState = entity.requireComponent<PlayerSyncState>()
-                    if (persistentId !in syncState.entities.synced) {
-                        return@updatePlayerWithContext
-                    }
-                    val networkedEntity = world.persistentIdToEntity[persistentId]
-                        ?: return@updatePlayerWithContext
-                    ReplicationFrame(
-                        world = null,
-                        entities = mapOf(
-                            persistentId to networkedEntity.fullReplicationUpdate(),
-                        ),
-                    )
-                }
-            }
-            sendReplicationFrame(this, frame)
+            val state = require<PlayerReplicationState>()
+            state.requestedResyncs += target
         }
 
     internal fun onWriteableContentsUpdate(
@@ -464,7 +444,7 @@ class ServerHandler(
             ),
             player.id
         )
-        player.require<PlayerSyncState>().sentChunks[pos] = chunk
+        player.require<PlayerReplicationState>().sentChunks[pos] = chunk
     }
 
     fun sendOrQueueChunk(playerId: PlayerId, chunk: EngineChunk, chunkPos: EngineChunkPos) {
@@ -472,7 +452,7 @@ class ServerHandler(
     }
 
     fun onChunkDropped(player: PlayerId, chunkPos: EngineChunkPos) = playerStorage.get(player)?.let {
-        it.require<PlayerSyncState>().sentChunks -= chunkPos
+        it.require<PlayerReplicationState>().sentChunks -= chunkPos
     }
 
     fun onServerNotification(player: PlayerId, notification: Notification, once: Boolean) {

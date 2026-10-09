@@ -1,18 +1,11 @@
 package org.lain.engine.client.handler
 
 import org.lain.engine.client.handler.SnapshotAcceptance.*
-import org.lain.engine.player.PlayerId
-import org.lain.engine.player.interaction.InteractionId
-import org.lain.engine.server.replication.EntityStateUpdate
-import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.data.PersistentId
-import org.lain.engine.server.replication.ReplicationSnapshot
 import org.lain.engine.server.protocolError
-
-internal data class ReplicatedComponentKey(
-    val entity: PersistentId,
-    val componentTypeId: String,
-)
+import org.lain.engine.server.replication.EntityStateUpdate
+import org.lain.engine.server.replication.ReplicationSnapshot
+import org.lain.engine.server.replication.ReplicationTarget
 
 internal sealed interface SnapshotAcceptance {
     data object Ignored : SnapshotAcceptance
@@ -30,73 +23,31 @@ internal sealed interface SnapshotAcceptance {
     ) : SnapshotAcceptance
 }
 
-internal class ClientReplicationState {
+internal class ClientAuthoritativeState {
     private data class TargetState(
         var revision: Long,
         val components: MutableMap<String, ReplicationSnapshot> = mutableMapOf(),
     )
 
-    private data class ActivePrediction(
-        val inputTick: Long,
-        val entities: Set<PersistentId>,
-    )
-
     private val targets = mutableMapOf<ReplicationTarget, TargetState>()
-    private val predictedComponents = linkedMapOf<ReplicatedComponentKey, Long>()
-    private var activePrediction: ActivePrediction? = null
-    private var processedInputTick: Long = -1
 
     fun clear() {
         targets.clear()
-        predictedComponents.clear()
-        activePrediction = null
-        processedInputTick = -1
     }
 
     fun seed(target: ReplicationTarget, snapshot: EntityStateUpdate.Full) {
         targets[target] = TargetState(
             snapshot.revision,
-            snapshot.components.associateByTo(mutableMapOf()) { it.id }
+            snapshot.components.associateByTo(mutableMapOf()) { it.id },
         )
     }
 
-    fun beginInteraction(inputTick: Long, entities: Set<PersistentId>) {
-        activePrediction = ActivePrediction(inputTick, entities)
-    }
-
-    fun endInteraction() {
-        activePrediction = null
-    }
-
-    fun onComponentChange(entityId: PersistentId, componentTypeId: String) {
-        val prediction = activePrediction ?: return
-        if (entityId !in prediction.entities) return
-        predictedComponents[ReplicatedComponentKey(entityId, componentTypeId)] = prediction.inputTick
-    }
-
-    fun isPredicted(persistentId: PersistentId, componentTypeId: String): Boolean =
-        ReplicatedComponentKey(persistentId, componentTypeId) in predictedComponents
-
-    fun confirmInput(inputTick: Long): List<ReplicatedComponentKey> {
-        if (inputTick <= processedInputTick) return emptyList()
-        processedInputTick = inputTick
-
-        val confirmed = predictedComponents
-            .filterValues { predictedAtTick -> predictedAtTick <= inputTick }
-            .keys
-            .toList()
-
-        confirmed.forEach(predictedComponents::remove)
-        return confirmed
-    }
-
-    fun authoritativeComponent(key: ReplicatedComponentKey): ReplicationSnapshot? =
-        targets[ReplicationTarget.Entity(key.entity)]?.components?.get(key.componentTypeId)
-
     fun removeEntity(persistentId: PersistentId) {
         targets.remove(ReplicationTarget.Entity(persistentId))
-        predictedComponents.keys.removeIf { it.entity == persistentId }
     }
+
+    fun component(persistentId: PersistentId, componentTypeId: String): ReplicationSnapshot? =
+        targets[ReplicationTarget.Entity(persistentId)]?.components?.get(componentTypeId)
 
     fun accept(
         target: ReplicationTarget,
@@ -123,7 +74,8 @@ internal class ClientReplicationState {
             }
 
             is EntityStateUpdate.Delta -> {
-                val state = targets[target] ?: protocolError("Получен delta-снимок не полностью синхронизированной сущности")
+                val state = targets[target]
+                    ?: protocolError("Получен delta-снимок не полностью синхронизированной сущности")
                 val currentRevision = state.revision
                 when {
                     snapshot.delta.revision <= currentRevision ->

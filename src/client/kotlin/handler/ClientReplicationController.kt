@@ -34,37 +34,41 @@ class ClientReplicationController(
     initialReplicationState: InitialReplicationState,
 ) : EntityResolver {
     private val replicationWorld: World = gameSession.world
-    private val replicationState = ClientReplicationState()
+    private val authoritativeState = ClientAuthoritativeState()
+    private val predictionState = ClientPredictionState()
     private val targetsAwaitingResync = mutableSetOf<ReplicationTarget>()
+    private var pendingProcessedInputTick: Long? = null
 
     init {
         with(replicationWorld) {
             componentManager.networkedComponentChangeListener = listener@{ entity, type ->
                 val persistentId =
                     entity.getComponent<PersistentIdComponent>()?.id ?: return@listener
-                replicationState.onComponentChange(persistentId, type.id)
+                predictionState.onComponentChange(persistentId, type.id)
             }
             componentManager.entityDestroyedListener = { _, persistentId ->
                 persistentId?.let(::removeEntity)
             }
 
-            replicationState.seed(
+            authoritativeState.seed(
                 ReplicationTarget.World,
                 initialReplicationState.world
             )
 
             initialReplicationState.snapshots.forEach { (persistentId, snapshot) ->
-                replicationState.seed(ReplicationTarget.Entity(persistentId), snapshot)
+                authoritativeState.seed(ReplicationTarget.Entity(persistentId), snapshot)
             }
         }
     }
 
     fun beginPrediction(inputTick: Long) {
-        replicationState.beginInteraction(inputTick, replicationWorld.collectPredictionEntities())
+        predictionState.startPrediction(inputTick, replicationWorld.collectPredictionEntities())
     }
 
     fun endPrediction() {
-        replicationState.endInteraction()
+        predictionState.endPrediction { persistentId, componentTypeId ->
+            replicationWorld.snapshotComponent(persistentId, componentTypeId)
+        }
     }
 
     fun apply(packet: ReplicationPacket) {
@@ -94,15 +98,18 @@ class ClientReplicationController(
     }
 
     fun removeEntity(persistentId: PersistentId) {
-        replicationState.removeEntity(persistentId)
+        authoritativeState.removeEntity(persistentId)
+        predictionState.invalidatePredictions(persistentId)
         targetsAwaitingResync.remove(ReplicationTarget.Entity(persistentId))
     }
 
     fun close() {
         replicationWorld.componentManager.networkedComponentChangeListener = null
         replicationWorld.componentManager.entityDestroyedListener = null
-        replicationState.clear()
+        authoritativeState.clear()
+        predictionState.clear()
         targetsAwaitingResync.clear()
+        pendingProcessedInputTick = null
     }
 
     private fun ensureEntity(persistentId: PersistentId): EntityId {
@@ -139,6 +146,9 @@ class ClientReplicationController(
 
     private fun applyPacket(packet: ReplicationPacket) {
         val frame = packet.frame
+        frame.processedInputTick?.let { processedInputTick ->
+            pendingProcessedInputTick = maxOf(pendingProcessedInputTick ?: -1, processedInputTick)
+        }
         frame.out.forEach { persistentId -> unloadEntity(persistentId) }
         frame.world?.let { applyWorldState(it) }
 
@@ -148,11 +158,31 @@ class ClientReplicationController(
             acceptUpdate(id, metadata, snapshot)
         }
 
+        acceptedSnapshots
+            .filter { it.isFull }
+            .forEach { predictionState.invalidatePredictions(it.persistentId) }
         acceptedSnapshots.forEach { ensureEntity(it.persistentId) }
-        acceptedSnapshots.forEach(::applyEntitySnapshot)
 
-        frame.processedInputTick?.let { processedInputTick ->
-            applyProcessedInput(processedInputTick)
+        val acceptedByEntity = acceptedSnapshots.associate { it.persistentId to it.snapshot }
+        val processedInputTick = if (targetsAwaitingResync.isEmpty()) {
+            pendingProcessedInputTick.also { pendingProcessedInputTick = null }
+        } else {
+            null
+        }
+        val applications = predictionState.resolveFrame(
+            acceptedByEntity,
+            processedInputTick,
+            authoritativeState::component,
+        )
+        acceptedSnapshots.forEach { accepted ->
+            applyEntitySnapshot(
+                accepted,
+                applications[accepted.persistentId] ?: EntityComponentApplication(),
+            )
+        }
+        (applications.keys - acceptedByEntity.keys).forEach { persistentId ->
+            val application = applications.getValue(persistentId)
+            applyEntityComponents(persistentId, application.updated, application.removed)
         }
     }
 
@@ -172,14 +202,20 @@ class ClientReplicationController(
             is EntityStateUpdate.Delta -> snapshot.delta.baseRevision
             is EntityStateUpdate.Full -> null
         }
-        return AcceptedEntityStateUpdate(persistentId, metadata, baseRevision, accepted)
+        return AcceptedEntityStateUpdate(
+            persistentId,
+            metadata,
+            baseRevision,
+            accepted,
+            snapshot is EntityStateUpdate.Full,
+        )
     }
 
     private fun acceptSnapshot(
         target: ReplicationTarget,
         snapshot: EntityStateUpdate,
     ): SnapshotAcceptance.Accepted? {
-        val accepted = when (val acceptance = replicationState.accept(target, snapshot)) {
+        val accepted = when (val acceptance = authoritativeState.accept(target, snapshot)) {
             SnapshotAcceptance.Ignored -> return null
             is SnapshotAcceptance.Gap -> {
                 val targetName = when (target) {
@@ -208,7 +244,10 @@ class ClientReplicationController(
         return accepted
     }
 
-    private fun applyEntitySnapshot(acceptedSnapshot: AcceptedEntityStateUpdate) = with(replicationWorld) {
+    private fun applyEntitySnapshot(
+        acceptedSnapshot: AcceptedEntityStateUpdate,
+        application: EntityComponentApplication,
+    ) = with(replicationWorld) {
         val persistentId = acceptedSnapshot.persistentId
         val entity = persistentIdToEntity[persistentId]
             ?: protocolError("Сущность $persistentId отсутствует для применения снапшота")
@@ -218,15 +257,21 @@ class ClientReplicationController(
 
         try {
             val snapshot = acceptedSnapshot.snapshot
-            val updated = snapshot.updated.filterNot { component ->
-                replicationState.isPredicted(persistentId, component.id)
-            }
-            val removed = snapshot.removed.filterNot { componentTypeId ->
-                replicationState.isPredicted(persistentId, componentTypeId)
+            val removed = if (acceptedSnapshot.isFull) {
+                val authoritativeComponentTypes = snapshot.updated.mapTo(mutableSetOf()) { it.id }
+                val liveComponentTypes = componentManager.listArrays()
+                    .asSequence()
+                    .filter { componentArray ->
+                        componentArray.meta.networking && componentArray.componentOf(entity) != null
+                    }
+                    .mapTo(mutableSetOf()) { it.type.id }
+                application.removed + (liveComponentTypes - authoritativeComponentTypes)
+            } else {
+                application.removed
             }
             val appliedEntity = applyEntityComponents(
                 persistentId,
-                updated,
+                application.updated,
                 removed,
             )
             appliedEntity.networkState().revision = snapshot.revision
@@ -238,7 +283,7 @@ class ClientReplicationController(
                     data = mapOf(
                         "entity" to appliedEntity.getEntityDebugNameId().name,
                         "persistent_id" to persistentId.toString(),
-                        "components" to updated.joinToString(),
+                        "components" to application.updated.joinToString(),
                     ),
                     world = world.id,
                     tick = it,
@@ -251,21 +296,6 @@ class ClientReplicationController(
                 baseRevision = acceptedSnapshot.baseRevision,
                 targetRevision = acceptedSnapshot.snapshot.revision,
                 cause = e,
-            )
-        }
-    }
-
-    private fun applyProcessedInput(processedInputTick: Long) {
-        val confirmedComponents = replicationState.confirmInput(processedInputTick)
-        confirmedComponents.groupBy { it.entity }.forEach { (persistentId, keys) ->
-            val updated = keys.mapNotNull(replicationState::authoritativeComponent)
-            val removed = keys
-                .filter { replicationState.authoritativeComponent(it) == null }
-                .map { it.componentTypeId }
-            applyEntityComponents(
-                persistentId,
-                updated,
-                removed,
             )
         }
     }
@@ -324,12 +354,7 @@ class ClientReplicationController(
     private fun World.removeSnapshotComponents(entity: EntityId, removedTypeIds: Collection<String>) {
         removedTypeIds.forEach { typeId ->
             try {
-                val type = ComponentTypeRegistry.get(typeId)?.type
-                    ?: ScriptComponentId(EngineId(typeId)).let { scriptComponentId ->
-                        componentReviveSettings.namespacedStorage.components[scriptComponentId]
-                            ?: CoreScriptComponents.get(scriptComponentId)
-                            ?: error("Тип компонента $typeId не существует")
-                    }
+                val type = replicatedComponentType(typeId)
                 removeComponent(entity, type as ComponentType<Component>)
             } catch (e: Exception) {
                 throw ComponentRemoveException(typeId, e)
@@ -337,11 +362,30 @@ class ClientReplicationController(
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun World.snapshotComponent(
+        persistentId: PersistentId,
+        componentTypeId: String,
+    ): ReplicationSnapshot? {
+        val entity = persistentIdToEntity[persistentId] ?: return null
+        val type = replicatedComponentType(componentTypeId) as ComponentType<Component>
+        return componentManager.getComponent(entity, type)?.replicationSnapshot()
+    }
+
+    private fun World.replicatedComponentType(componentTypeId: String): ComponentType<out Component> =
+        ComponentTypeRegistry.get(componentTypeId)?.type
+            ?: ScriptComponentId(EngineId(componentTypeId)).let { scriptComponentId ->
+                componentReviveSettings.namespacedStorage.components[scriptComponentId]
+                    ?: CoreScriptComponents.get(scriptComponentId)
+                    ?: error("Тип компонента $componentTypeId не существует")
+            }
+
     private data class AcceptedEntityStateUpdate(
         val persistentId: PersistentId,
         val metadata: ReplicationEntityMetadata,
         val baseRevision: Long?,
         val snapshot: SnapshotAcceptance.Accepted,
+        val isFull: Boolean,
     )
 
     @Suppress("UNCHECKED_CAST")

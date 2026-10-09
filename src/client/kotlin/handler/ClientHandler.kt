@@ -51,7 +51,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     val taskExecutor = TaskExecutor()
 
     private val showedNotifications = mutableSetOf<Notification>()
-    private var pendingPredictionTick: Long? = null
 
     internal val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
     private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
@@ -95,10 +94,15 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     fun disable() {
         injectValue<ClientTransportContext>().unregisterAll()
         showedNotifications.clear()
-        pendingPredictionTick = null
     }
 
     fun tick() {
+        if (MinecraftClient.connection != null) {
+            taskExecutor.flush()
+        } else if (taskExecutor.notEmpty()) {
+            taskExecutor.clear()
+        }
+
         val gameSession = client.gameSession
         if (gameSession != null) {
             with(gameSession.world) {
@@ -106,11 +110,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
                 val actions = input.actions.toMutableSet()
                 handlePlayerInput(input, actions, gameSession)
             }
-        }
-        if (MinecraftClient.connection != null) {
-            taskExecutor.flush()
-        } else if (taskExecutor.notEmpty()) {
-            taskExecutor.clear()
         }
 
         MinecraftClientDispatcher.confirmTick()
@@ -132,19 +131,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         gameSession: GameSession
     ) {
         input.tick = gameSession.ticks
-        if (input.actions != input.lastActions) {
-            SERVERBOUND_INPUT_PACKET.sendC2SPacket(
-                InputPacket(
-                    input.tick,
-                    actions.toSet()
-                )
+        SERVERBOUND_INPUT_PACKET.sendC2SPacket(
+            InputPacket(
+                input.tick,
+                actions.toSet()
             )
-            pendingPredictionTick = input.tick
-        }
+        )
     }
-
-    internal fun takePredictionTick(): Long? =
-        pendingPredictionTick.also { pendingPredictionTick = null }
 
     private suspend fun waitNextTick() = MinecraftClientDispatcher.waitNextTick()
 

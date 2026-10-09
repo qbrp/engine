@@ -9,7 +9,6 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.createContainer
-import org.lain.engine.container.createSlotContainer
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.character.UsedCharacters
@@ -27,7 +26,7 @@ import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.server.replication.Networked
 import org.lain.engine.server.replication.Interests
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
-import org.lain.engine.server.replication.PlayerSyncState
+import org.lain.engine.server.replication.PlayerReplicationState
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
@@ -139,7 +138,7 @@ fun serverPlayerInstance(
         setComponent(defaults)
         setComponent(PlayerChatHeadsComponent(persistent?.chatHeads ?: true))
         setComponent(PlayerInstantiationConfirmation())
-        setComponent(PlayerSyncState())
+        setComponent(PlayerReplicationState())
         setComponent(Interests())
         //require<PlayerAttributes>().gravity.default = defaults.gravity
         setComponent(AcousticMessageQueue(LinkedList()))

@@ -37,7 +37,7 @@ data class GunFireState(
     var triggerSoundPlayed: Boolean = false,
     var fired: Boolean = false
 ) : Component {
-    fun copy() = GunFireState(cooldown, mode, clicked, triggerPressed, fired)
+    fun copy() = GunFireState(cooldown, mode, clicked, triggerPressed, triggerSoundPlayed, fired)
 }
 
 @Serializable
@@ -127,6 +127,7 @@ fun World.tickGunSystem() {
             fireState.cooldown = gun.rate
             fireState.fired = true
             barrel.bullets = (barrel.bullets - 1).coerceAtLeast(0)
+            item.markDirty<Barrel>()
             item.emitPlaySoundEvent(GUNFIRE_SOUND)
 
             val rotationVector = shooter.require<Orientation>().rotationVector
@@ -196,7 +197,7 @@ fun World.tickGunSystem() {
             return@iterate
         }
 
-        val magazine = createItem(prefab, server?.entityCoordinator, this@tickGunSystem)
+        val magazine = createItem(prefab, server?.entityCoordinator)
         magazine.setComponent(taken)
         emitEvent(
             GiveItemEvent(player, magazine)
