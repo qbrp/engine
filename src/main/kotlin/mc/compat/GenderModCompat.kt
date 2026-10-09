@@ -8,10 +8,9 @@ import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.BiologicalSex
+import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.GenderParams
-import org.lain.engine.util.isClassAvailable
-
-val GENDER_MOD_AVAILABLE = isClassAvailable("com.wildfire.main.WildfireGender")
+import java.util.UUID
 
 fun syncPlayerGenderConfig(serverPlayer: ServerPlayer, sex: BiologicalSex, genderParams: GenderParams?) {
     val config = applyGenderConfig(serverPlayer.engineId, sex, genderParams)
@@ -25,7 +24,14 @@ fun applyGenderConfig(playerId: PlayerId, sex: BiologicalSex, genderParams: Gend
     return config
 }
 
-val BiologicalSex.wildfireGender
+fun updateCharacterEntity(character: CharacterProfile, uuid: UUID) {
+    WildfireGender.getOrAddPlayerById(uuid).apply {
+        updateGender(character.biologicalSex.wildfireGender)
+        updateBustSize(character.genderParams.breastSize)
+    }
+}
+
+private val BiologicalSex.wildfireGender
     get() = when(this) {
         BiologicalSex.MALE -> Gender.MALE
         BiologicalSex.FEMALE -> Gender.FEMALE

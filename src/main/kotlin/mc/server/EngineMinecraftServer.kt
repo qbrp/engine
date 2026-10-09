@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.phys.Vec3
+import org.lain.engine.Constants.GENDER_MOD_AVAILABLE
 import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemId
@@ -25,7 +26,6 @@ import org.lain.engine.mc.*
 import org.lain.engine.mc.commands.ScriptPathSuggestionProvider
 import org.lain.engine.mc.commands.registerOperationCommands
 import org.lain.engine.mc.commands.tickCommandInvokeSystem
-import org.lain.engine.mc.compat.GENDER_MOD_AVAILABLE
 import org.lain.engine.mc.compat.isReplayServer
 import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.compat.syncPlayerGenderConfig

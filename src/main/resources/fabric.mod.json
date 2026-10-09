@@ -39,6 +39,9 @@
     "minecraft": "${minecraft_version}",
     "lambdynlights": ">=4.8.7",
     "yamlconfig": "*",
-    "cyberia": "*"
+    "cyberia": "*",
+    "adventure-platform-fabric": "*",
+    "fabric-permissions-api-v0": "*",
+    "imguimc": "*"
   }
 }

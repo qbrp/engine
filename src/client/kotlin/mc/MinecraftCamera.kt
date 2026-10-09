@@ -2,7 +2,7 @@ package org.lain.engine.client.mc
 
 import net.minecraft.client.Minecraft
 import org.joml.Quaternionf
-import org.lain.engine.client.mc.compat.CAMERA_OVERHAUL_AVAILABLE
+import org.lain.engine.Constants.CAMERA_OVERHAUL_AVAILABLE
 import org.lain.engine.client.mc.compat.createCameraOverhaulShakeSlot
 import org.lain.engine.client.render.Camera
 import org.lain.engine.client.render.ShakeEffect

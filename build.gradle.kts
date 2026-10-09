@@ -31,10 +31,17 @@ repositories {
             includeGroup("maven.modrinth")
         }
     }
+    maven("https://maven.ryanhcode.dev/releases")
+    maven {
+        url = uri("https://maven.pkg.github.com/UpperMoon0/OpenUI-MC")
+        credentials {
+            username = providers.gradleProperty("gpr.user").orNull
+            password = providers.gradleProperty("gpr.key").orNull
+        }
+    }
     maven("https://maven.logandark.net")
     maven("https://maven.gegy.dev")
     maven("https://maven.enginehub.org/repo/")
-    maven("https://maven.wispforest.io/releases/2412")
     maven("https://jitpack.io")
     maven("https://oss.sonatype.org/content/repositories/snapshots/")
     mavenCentral()
@@ -73,6 +80,7 @@ dependencies {
     modImplementation(libs.permissions) {
         exclude(group = "net.fabricmc.fabric-api", module = "fabric-api-bom")
     }
+    modImplementation(libs.imgui.mc)
     modImplementation(libs.female.gender)
     modLocalRuntime(libs.lambdynlights.runtime) {
         exclude(group = "net.fabricmc", module = "fabric-loader")

@@ -17,6 +17,7 @@ import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.HitResult
+import org.lain.engine.Constants
 import org.lain.engine.mc.ecs.minecraftEntity
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.getEngineState
@@ -243,7 +244,7 @@ class CommandOperationBehaviour(private val _context: Context?, private val enti
     }
 
     override fun generateSelection(): OperationSelection? {
-        if (WORLD_EDIT_AVAILABLE) friendlyError("World edit API is not available")
+        if (!Constants.WORLD_EDIT_AVAILABLE) friendlyError("World edit API is not available")
         val source = context?.source ?: friendlyError("World edit API is not available from client")
         val actor = FabricAdapter.adaptCommandSource(source)
         val session = WorldEdit.getInstance().sessionManager.get(actor)
