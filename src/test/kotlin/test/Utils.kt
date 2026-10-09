@@ -76,7 +76,7 @@ fun DummyItemPrefab() = ItemPrefab(
     "Dummy Item Name",
     ItemAssets.withDefaultAsset(EngineId("dummy")),
     ItemProgressionAnimations(mapOf()),
-    {}
+    { world, entity -> }
 )
 
 fun setupTestEngineServer(tempDir: Path): EngineServer {

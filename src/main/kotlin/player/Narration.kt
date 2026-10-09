@@ -3,18 +3,29 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.util.nextIdFast
 import org.lain.engine.world.World
 import kotlin.math.max
 
-/**
- * # Нарративные уведомления
- * Отличаются от системных тем, что могут быть более массовыми и располагаются посередине экрана.
- * Могут почти не иметь содержание. Основная цель - передать мысли и чувства игрового персонажа
- */
 @Serializable
-data class Narration(val messages: MutableList<NarrationMessage>) : Component {
+data class Narration(
+    val messages: MutableList<NarrationMessage>,
+    var revision: Long = messages.maxOfOrNull { it.id } ?: 0,
+) : Component {
     fun get(id: Long) = messages.find { it.id == id }
+
+    fun addMessage(text: String, duration: Int, kick: Boolean = false) {
+        val identical = messages.find { it.content.text == text }
+        if (identical != null) {
+            identical.time = max(0, identical.time - duration)
+        } else {
+            messages += NarrationMessage(
+                NarrationContent(text, duration),
+                time = 0,
+                kick = kick,
+                id = ++revision,
+            )
+        }
+    }
 }
 
 @Serializable
@@ -28,16 +39,11 @@ data class NarrationMessage(
     val content: NarrationContent,
     var time: Int,
     val kick: Boolean,
-    val id: Long = nextIdFast()
+    val id: Long,
 )
 
 fun EnginePlayer.narration(message: String, time: Int, kick: Boolean = false) = this.apply<Narration>() {
-    val identical = messages.find { it.content.text == message }
-    if (identical != null) {
-        identical.time = max(0, identical.time - time)
-    } else {
-        messages += NarrationMessage(NarrationContent(message, time), 0, kick)
-    }
+    addMessage(message, time, kick)
     markUpdated<Narration>()
 }
 

@@ -19,14 +19,14 @@ data class ItemPrefab(
     val name: String,
     val assets: ItemAssets?,
     val progressionAnimations: ItemProgressionAnimations?,
-    val create: context(WriteComponentAccess) (EngineItem) -> Unit,
+    val create: (World, EngineItem) -> Unit,
 )
 
 context(write: WriteComponentAccess)
 fun EngineServer.createInvalidItem(world: World): EngineItem {
     val prefab = namespacedStorage.items[BuiltinNamespaces.Items.INVALID_ID]
         ?: BuiltinNamespaces.Items.INVALID
-    return write.createItem(prefab, entityCoordinator, world)
+    return createItemCommon(world, prefab, entityCoordinator)
 }
 
 context(write: WriteComponentAccess)
@@ -41,20 +41,31 @@ fun EntityId.setRequiredItemComponents(
     setComponent(ItemSounds(emptyMap()))
 }
 
-fun WriteComponentAccess.createItem(
+fun World.createItem(
     prefab: ItemPrefab,
     coordinator: EntityCoordinator?,
-    world: World,
     uuid: PersistentId = Uuid.next(),
 ): EngineItem {
-    val item = addEntity()
+    val item = createItemCommon(this, prefab, coordinator, uuid)
+    prefab.create(this, item)
+    return item
+}
+
+
+context(write: WriteComponentAccess)
+fun createItemCommon(
+    world: World,
+    prefab: ItemPrefab,
+    coordinator: EntityCoordinator?,
+    uuid: PersistentId = Uuid.next(),
+): EngineItem {
+    val item = world.addEntity()
     item.setComponent(PersistentIdComponent(uuid))
     item.setComponent(Item(uuid, prefab.id))
     item.setComponent(ItemName(prefab.name))
     item.setRequiredItemComponents(1, prefab.maxCount, prefab.id)
     prefab.progressionAnimations?.let { item.setComponent(it) }
     prefab.assets?.let { item.setComponent(it) }
-    prefab.create(item)
     coordinator?.registerEntity(world, uuid, item)
     return item
 }

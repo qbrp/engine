@@ -13,6 +13,8 @@ value class EquipmentSlotId(val value: EngineId) : Identifiable {
     override val engineId: EngineId get() = value
 }
 
+fun EngineId.toEquipmentSlotId() = EquipmentSlotId(this)
+
 @Serializable
 data class EquipmentSlot(
     val name: String,

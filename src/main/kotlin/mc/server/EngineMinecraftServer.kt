@@ -99,7 +99,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
     open fun wrapItemStack(itemId: ItemId, itemStack: ItemStack): EngineItem {
         val prefab =
             engine.namespacedStorage.items[itemId] ?: error("Префаб предмета $itemId не найден")
-        val item = world.createItem(prefab, engine.entityCoordinator, world)
+        val item = world.createItem(prefab, engine.entityCoordinator)
         wrapEngineItemStack(item, itemStack)
         return item
     }
