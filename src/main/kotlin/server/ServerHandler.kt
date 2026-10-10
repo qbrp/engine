@@ -4,7 +4,6 @@ import kotlinx.coroutines.*
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.markDirty
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.chat.*
 import org.lain.engine.item.Item
 import org.lain.engine.item.Writable
@@ -17,11 +16,16 @@ import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.backupBookContent
+import org.lain.engine.script.dev.EntityInspection
+import org.lain.engine.script.dev.EntityInspectionSnapshot
+import org.lain.engine.script.dev.EntityInspectionComponent
+import org.lain.engine.script.dev.InspectionPrimitive
+import org.lain.engine.script.dev.applyEdit
+import org.lain.engine.script.dev.snapshotInspection
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.replication.PlayerReplicationState
 import org.lain.engine.server.replication.ReplicationFrame
 import org.lain.engine.server.replication.ReplicationTarget
-import org.lain.engine.server.replication.fullReplicationUpdate
 import org.lain.engine.server.replication.markUpdated
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -175,23 +179,49 @@ class ServerHandler(
             set(bindings)
         }
 
-    internal fun onEntityDebugView(player: PlayerId, persistentId: PersistentId) =
+    internal fun onEntityDebugView(player: PlayerId, persistentId: PersistentId, rate: Int) =
         updatePlayer(player) {
             if (!engineServer.platform.hasPermission(this, "entity_debug")) return@updatePlayer
             val entity = world.persistentIdToEntity[persistentId]
                 ?: protocolError("Сущность $persistentId не существует")
-            with(world) {
-                this@updatePlayer.entity.setComponent(
-                    EntityDebugViewComponent(
-                        entity,
-                        entity.snapshotDebugData()
-                    )
-                )
-            }
+            require<EntityInspectionComponent>().entities[persistentId] = EntityInspection(
+                entity,
+                rate,
+                with(world) { entity.snapshotInspection() }
+            )
         }
 
-    internal fun onEntityDebugViewStop(player: PlayerId) = updatePlayer(player) {
-        remove<EntityDebugViewComponent>()
+    internal fun onEntityDebugViewStop(player: PlayerId, persistentId: PersistentId) = updatePlayer(player) {
+        require<EntityInspectionComponent>().entities.remove(persistentId)
+    }
+
+    internal fun onEntityInspectionValueEdit(
+        playerId: PlayerId,
+        persistentId: PersistentId,
+        objectId: Int,
+        key: String,
+        value: InspectionPrimitive
+    ) = updatePlayer(playerId) {
+        with(world) {
+            require<EntityInspectionComponent>().entities[persistentId]?.applyEdit(objectId, key, value)
+        }
+    }
+
+    internal fun onEntityInspectionMarkDirty(
+        playerId: PlayerId,
+        persistentId: PersistentId,
+        componentType: String
+    ) = updatePlayer(playerId) {
+        if (!engineServer.platform.hasPermission(this, "entity_debug")) return@updatePlayer
+        val inspection = require<EntityInspectionComponent>().entities[persistentId]
+            ?: protocolError("Инспекция сущности $persistentId не запущена")
+        val entity = world.persistentIdToEntity[persistentId]
+            ?.takeIf { it == inspection.entity }
+            ?: protocolError("Сущности $persistentId не существует")
+        val type = world.componentManager.getComponentsMap(entity).keys
+            .find { it.id == componentType }
+            ?: protocolError("Компонент $componentType отсутствует у сущности $persistentId")
+        world.componentManager.markDirty(entity, type)
     }
 
     internal fun onVoxelBlockHint(
@@ -415,9 +445,16 @@ class ServerHandler(
             )
     }
 
-    fun onEntityDebugSnapshot(player: EnginePlayer, data: EntityDebugData.Dto) {
+    fun onEntityDebugSnapshot(player: EnginePlayer, persistentId: PersistentId, data: EntityInspectionSnapshot.Dto) {
         CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT.sendS2C(
-            EntityDebugDataPacket(data),
+            EntityDebugDataPacket(persistentId, data),
+            player.id
+        )
+    }
+
+    fun onEntityInspectionAbort(player: EnginePlayer, persistentId: PersistentId,  reason: String) {
+        CLIENTBOUND_ENTITY_INSPECTION_ABORT_ENDPOINT.sendS2C(
+            EntityInspectionAbortPacket(persistentId, reason),
             player.id
         )
     }

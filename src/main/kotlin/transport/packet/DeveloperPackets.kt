@@ -39,9 +39,30 @@ data class EntityInspectionPacket(
 val SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT = Endpoint<EntityInspectionPacket>()
 
 @Serializable
-data class EntityDebugEditPacket(val id: Int, val value: InspectionPrimitive) : Packet
+data class EntityInspectionValueEditPacket(
+    val persistentId: PersistentId,
+    val id: Int,
+    val key: String,
+    val value: InspectionPrimitive
+) : Packet
 
-val SERVERBOUND_ENTITY_DEBUG_EDIT_ENDPOINT = Endpoint<EntityDebugEditPacket>()
+val SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT = Endpoint<EntityInspectionValueEditPacket>()
+
+@Serializable
+data class EntityInspectionMarkDirtyPacket(
+    val persistentId: PersistentId,
+    val componentType: String
+) : Packet
+
+val SERVERBOUND_ENTITY_INSPECTION_MARK_DIRTY_ENDPOINT = Endpoint<EntityInspectionMarkDirtyPacket>()
+
+@Serializable
+data class EntityInspectionAbortPacket(
+    val persistentId: PersistentId,
+    val reason: String
+) : Packet
+
+val CLIENTBOUND_ENTITY_INSPECTION_ABORT_ENDPOINT = Endpoint<EntityInspectionAbortPacket>()
 
 @Serializable
 data class EntityDebugViewStopPacket(val entity: PersistentId) : Packet

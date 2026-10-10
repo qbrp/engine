@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.componentTypeOf
+import org.lain.cyberia.ecs.exists
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.UnloadComponent
@@ -13,6 +14,7 @@ import org.lain.engine.mc.ecs.MinecraftItem
 import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.SString
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptEngine
@@ -32,7 +34,7 @@ data class EntityInspectionSnapshot(
     val clientSide: Boolean,
     val components: List<ComponentInspectionData>,
     val debugObjects: Map<Int, InspectionObject>, // для объектов в памяти - table и collection
-    val gameObjects: Map<Int, Any>
+    val gameObjects: Map<Int, InspectedObject>
 ) {
     fun toDto() = Dto(id, clientSide, components, debugObjects)
 
@@ -59,25 +61,57 @@ sealed class ComponentInspectionResult {
     data class Error(val message: String) : ComponentInspectionResult()
 }
 
-/**
- * Ставится игроку при открытии окна EntityDebug. Сигнализирует, что нужно отправлять информацию на клиент
- */
-data class EntityDebugViewComponent(
-    val entities: MutableMap<PersistentId, Inspecting>
-) : Component {
-    data class Inspecting(
-        val entity: EntityId,
-        val rate: Int,
-        var lastSnapshotTime: Int = 0
-    )
+data class InspectedObject(
+    val value: Any,
+    val parent: Parent,
+) {
+    sealed interface Parent {
+        data class Component(
+            val type: ComponentType<*>,
+        ) : Parent
+
+        data class Property(
+            val objectId: Int,
+            val name: String,
+        ) : Parent
+
+        data class Index(
+            val objectId: Int,
+            val index: Int,
+        ) : Parent
+    }
 }
 
+data class EntityInspection(
+    val entity: EntityId,
+    val rate: Int,
+    var lastSnapshot: EntityInspectionSnapshot,
+    var lastSnapshotTime: Int = 0
+)
+
+data class EntityInspectionComponent(
+    val entities: MutableMap<PersistentId, EntityInspection>
+) : Component
+
 fun World.tickEntityDebugViewSnapshotSystem(handler: ServerHandler) {
-    iterate<PlayerComponent, EntityDebugViewComponent>() { _, (player), debugView ->
-        debugView.entities.forEach { (persistentId, entityView) ->
-            if (entityView.lastSnapshotTime-- <= 0) {
-                entityView.lastSnapshotTime = entityView.rate
-                handler.onEntityDebugSnapshot(player, persistentId, entityView.entity.snapshotInspection().toDto())
+    iterate<PlayerComponent, EntityInspectionComponent>() { _, (player), (inspections) ->
+        inspections.keys.removeIf { persistentId ->
+            val inspection = inspections[persistentId] ?: return@removeIf true
+            (!inspection.entity.exists())
+                .also { removed ->
+                    if (removed) handler.onEntityInspectionAbort(
+                        player,
+                        persistentId,
+                        "Сущность была уничтожена"
+                    )
+                }
+        }
+        inspections.forEach { (persistentId, inspection) ->
+            if (inspection.lastSnapshotTime-- <= 0) {
+                inspection.lastSnapshotTime = inspection.rate
+                val snapshot = inspection.entity.snapshotInspection()
+                inspection.lastSnapshot = snapshot
+                handler.onEntityDebugSnapshot(player, persistentId, snapshot.toDto())
             }
         }
     }
@@ -103,26 +137,14 @@ fun EntityId.snapshotInspection(): EntityInspectionSnapshot {
     )
 }
 
-fun EntityInspectionSnapshot.applyEdit(objectId: Int, property: String, value: InspectionPrimitive) {
-    when (val obj = gameObjects[objectId] ?: error("Object $objectId not found")) {
-        is ScriptInspectionTarget -> obj.set(property, value.toScriptValue())
-        else -> {
-            val mutableProperty = obj::class.memberProperties
-                .find { it.name == property } as? KMutableProperty1<Any, Any?>
-                ?: error("Mutable property $property not found on ${obj::class.qualifiedName}")
-            mutableProperty.set(obj, value.toJvmValue())
-        }
-    }
-}
-
 class InspectionSerializationContext(
     var lastId: Int = 0,
     val visited: MutableMap<Int, Int> = mutableMapOf(),
     val debugObjects: MutableMap<Int, InspectionObject> = mutableMapOf(),
-    val gameObjects: MutableMap<Int, Any> = mutableMapOf(),
+    val gameObjects: MutableMap<Int, InspectedObject> = mutableMapOf(),
 ) {
-    fun registerObject(id: Int, obj: Any, identity: Any = obj) {
-        gameObjects[id] = obj
+    fun registerObject(id: Int, obj: Any, parent: InspectedObject.Parent, identity: Any = obj) {
+        gameObjects[id] = InspectedObject(obj, parent)
         visited[identity.identityKey()] = id
     }
 
@@ -134,7 +156,7 @@ private fun Component.shouldSkip(type: ComponentType<*>): Boolean {
             || this is LuaEntityComponent
             || this is PlayerReplicationState
             || this is Changes
-            || this is EntityDebugViewComponent
+            || this is EntityInspectionComponent
             || this is MinecraftEntity
             || this is MinecraftItem
             || this is MinecraftPlayer
@@ -149,10 +171,15 @@ fun Component.toInspectionData(type: ComponentType<out Component>): ComponentIns
             when (type) {
                 is ScriptComponentType -> {
                     component as ScriptComponent
-                    component.value.toScriptInspectionValue(false, component.inspectionTarget)
+                    component.inspectionValueNode.toScriptInspectionValue(
+                        InspectedObject.Parent.Component(type),
+                    )
                 }
 
-                else -> component.toJvmInspectionValue(false)
+                else -> component.toJvmInspectionValue(
+                    InspectedObject.Parent.Component(type),
+                    false
+                )
             }
         )
     } catch (e: Exception) {
@@ -165,14 +192,15 @@ fun Component.toInspectionData(type: ComponentType<out Component>): ComponentIns
 
 context(ctx: InspectionSerializationContext)
 fun <T : Any> T.appendSerializationContext(
-    target: ScriptInspectionTarget? = null,
-    transformer: context(InspectionSerializationContext) (T) -> InspectionObject
+    parent: InspectedObject.Parent,
+    identity: Any? = null,
+    transformer: context(InspectionSerializationContext) (T, Int) -> InspectionObject
 ): Int {
-    val identity = target?.identity ?: this
+    val identity = identity ?: this
     ctx.visited[identity.identityKey()]?.let { return it }
     val id = ctx.nextId()
-    ctx.registerObject(id, target ?: this, identity)
-    ctx.debugObjects[id] = transformer(this)
+    ctx.registerObject(id, this, parent, identity)
+    ctx.debugObjects[id] = transformer(this, id)
     return id
 }
 

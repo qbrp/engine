@@ -29,9 +29,9 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<Savable>()
 
     registerComponent<Networked>()
-    registerComponent<PersistentIdComponent>()
+    registerComponent<PersistentIdComponent>(id = "persistent_id")
     registerComponent<EntityRpcReceiver>(isNetworking = true, isSavable = true, replicationClass = null)
-    registerComponent<DebugName>(isNetworking = true, isSavable = true)
+    registerComponent<DebugName>(id = "debug_name", isNetworking = true, isSavable = true)
 
     // Containers
     registerComponent<Entries>()

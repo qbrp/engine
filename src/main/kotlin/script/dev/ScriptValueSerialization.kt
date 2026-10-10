@@ -1,5 +1,6 @@
 package org.lain.engine.script.dev
 
+import org.lain.engine.player.gradientText
 import org.lain.engine.script.SBool
 import org.lain.engine.script.SEntityRef
 import org.lain.engine.script.SId
@@ -23,50 +24,75 @@ import org.lain.engine.script.dev.InspectionValue.Reference
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.collections.component1
-import kotlin.collections.component2
 
 context(ctx: InspectionSerializationContext)
-fun ScriptValue.toScriptInspectionValue(
-    readonly: Boolean,
-    target: ScriptInspectionTarget? = null
+fun ScriptInspectionValue.toScriptInspectionValue(
+    parent: InspectedObject.Parent,
 ): InspectionValue {
     return when (this) {
-        SNil -> Null
-        is STable -> Reference(appendSerializationContext(target) { toScriptInspectionObject(target) })
-        is SString -> Primitive(readonly, Str(value))
-        is SNumber -> Primitive(readonly, Double(value))
-        is SBool -> Primitive(readonly, Bool(value))
-        is SInt -> Primitive(readonly, Int(value))
-        is SList -> Reference(appendSerializationContext(target) { toScriptInspectionObject(target) })
-        is SEntityRef -> Primitive(readonly, Int(id))
-        is SInstant -> Primitive(
-            readonly, Str(
-                LocalDateTime.ofInstant(instant, ZoneId.systemDefault()).format(
-                    DateTimeFormatter.ISO_LOCAL_DATE_TIME
+        is ScriptInspectionValue.Primitive -> {
+            when (val primitive = value) {
+                is SEntityRef -> Primitive(false, Int(primitive.id))
+                is SId -> Primitive(false, Id(primitive.id))
+                is SInstant -> Primitive(
+                    false, Str(
+                        LocalDateTime.ofInstant(primitive.instant, ZoneId.systemDefault()).format(
+                            DateTimeFormatter.ISO_LOCAL_DATE_TIME
+                        )
+                    )
                 )
-            )
-        )
-        is SId -> Primitive(readonly, Id(id))
-        is SJvm -> {
-            Reference(appendSerializationContext(null) { value.toJvmInspectionObject() })
+
+                is SString -> Primitive(false, Str(primitive.value))
+                is SNumber -> Primitive(false, Double(primitive.value))
+                is SBool -> Primitive(false, Bool(primitive.value))
+                is SInt -> Primitive(false, Int(primitive.value))
+                SNil -> Null
+            }
         }
+
+        is ScriptInspectionValue.Table -> {
+            Reference(appendSerializationContext(parent, identity) { element, id ->
+                element.toScriptInspectionObject(id)
+            })
+        }
+
+        is ScriptInspectionValue.List -> {
+            Reference(
+                appendSerializationContext(parent, identity) { element, id ->
+                    element.toScriptInspectionObject(id)
+                }
+            )
+        }
+
+        is ScriptInspectionValue.Jvm -> {
+            Reference(
+                appendSerializationContext(parent, identity) { jvmElement, id ->
+                    jvmElement.toJvmInspectionObject(id)
+                }
+            )
+        }
+
+        else -> error("Unsupported script inspection value class: $this")
     }
 }
 
 context(ctx: InspectionSerializationContext)
-private fun STable.toScriptInspectionObject(target: ScriptInspectionTarget?) = InspectionObject.Table(
-    values.entries.associate { (key, value) ->
-        val childTarget = if (value is STable || value is SList) target?.child(key) else null
-        key.toInspectionKey() to value.toScriptInspectionValue(target == null, childTarget)
+private fun ScriptInspectionValue.Table.toScriptInspectionObject(id: kotlin.Int) = InspectionObject.Table(
+    value.values.keys.associate { key ->
+        val property = key.toInspectionKey()
+        val childValue = child(key).toScriptInspectionValue(
+            InspectedObject.Parent.Property(id, property),
+        )
+        property to childValue
     }
 )
 
 context(ctx: InspectionSerializationContext)
-private fun SList.toScriptInspectionObject(target: ScriptInspectionTarget?) = InspectionObject.Collection(
-    values.mapIndexed { idx, value ->
-        val childTarget = if (value is STable || value is SList) target?.indexedChild(idx + 1) else null
-        value.toScriptInspectionValue(target == null, childTarget)
+private fun ScriptInspectionValue.List.toScriptInspectionObject(id: kotlin.Int) = InspectionObject.Collection(
+    value.values.mapIndexed { idx, _ ->
+        child(idx + 1).toScriptInspectionValue(
+            InspectedObject.Parent.Index(id, idx + 1),
+        )
     }
 )
 

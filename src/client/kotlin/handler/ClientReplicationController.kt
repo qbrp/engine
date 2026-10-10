@@ -23,6 +23,7 @@ import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
 import org.lain.engine.util.ecs.ComponentTypeRegistry
 import org.lain.engine.util.ecs.EntityId
+import org.lain.engine.util.ecs.lookupComponentType
 import org.lain.engine.util.getDebugId
 import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.EngineChunkPos
@@ -373,12 +374,8 @@ class ClientReplicationController(
     }
 
     private fun World.replicatedComponentType(componentTypeId: String): ComponentType<out Component> =
-        ComponentTypeRegistry.get(componentTypeId)?.type
-            ?: ScriptComponentId(EngineId(componentTypeId)).let { scriptComponentId ->
-                componentReviveSettings.namespacedStorage.components[scriptComponentId]
-                    ?: CoreScriptComponents.get(scriptComponentId)
-                    ?: error("Тип компонента $componentTypeId не существует")
-            }
+         lookupComponentType(componentTypeId, componentReviveSettings.namespacedStorage.get())
+             ?: error("Тип компонента $componentTypeId не существует")
 
     private data class AcceptedEntityStateUpdate(
         val persistentId: PersistentId,

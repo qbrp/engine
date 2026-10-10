@@ -8,7 +8,9 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.lain.cyberia.ecs.componentTypeOf
@@ -29,8 +31,14 @@ import org.lain.engine.data.encode
 import org.lain.engine.data.loadEntity
 import org.lain.engine.data.saveEntity
 import org.lain.engine.data.serializeToComponentPayload
+import org.lain.engine.data.snapshot
 import org.lain.engine.data.toJsonComponentPayload
+import org.lain.engine.item.Barrel
 import org.lain.engine.item.Count
+import org.lain.engine.item.GunFireState
+import org.lain.engine.player.Narration
+import org.lain.engine.player.NarrationContent
+import org.lain.engine.player.NarrationMessage
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.SInt
 import org.lain.engine.script.SList
@@ -47,6 +55,34 @@ private data class LegacyWorldPersistentFixture(
 class ComponentPersistenceTest : EngineTest() {
     @field:TempDir
     lateinit var tempDir: Path
+
+    @Test
+    fun mutableComponentSnapshotsDoNotTrackLiveMutations() {
+        val barrel = Barrel(5, 10, null)
+        val fireState = GunFireState(triggerSoundPlayed = false, fired = true)
+        val narration = Narration(
+            mutableListOf(
+                NarrationMessage(NarrationContent("message", 40), time = 1, kick = false, id = 7),
+            )
+        )
+
+        val barrelSnapshot = (barrel.snapshot() as ComponentSnapshot.Kotlin<*>).component as Barrel
+        val fireStateSnapshot =
+            (fireState.snapshot() as ComponentSnapshot.Kotlin<*>).component as GunFireState
+        val narrationSnapshot =
+            (narration.snapshot() as ComponentSnapshot.Kotlin<*>).component as Narration
+
+        barrel.bullets = 2
+        fireState.triggerSoundPlayed = true
+        fireState.fired = false
+        narration.messages.single().time = 9
+        narration.messages.clear()
+
+        assertEquals(5, barrelSnapshot.bullets)
+        assertFalse(fireStateSnapshot.triggerSoundPlayed)
+        assertTrue(fireStateSnapshot.fired)
+        assertEquals(1, narrationSnapshot.messages.single().time)
+    }
 
     @Test
     fun kotlinComponentRoundTripsThroughDatabase() = runBlocking {

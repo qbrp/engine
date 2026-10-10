@@ -12,33 +12,36 @@ sealed interface ScriptValue {
 }
 
 @Serializable
-data class SNumber(val value: Double) : ScriptValue {
+sealed interface ScriptValuePrimitive : ScriptValue
+
+@Serializable
+data class SNumber(val value: Double) : ScriptValuePrimitive {
     override fun copy(): SNumber = SNumber(value)
 }
 
 @Serializable
-data class SInt(val value: Int) : ScriptValue {
+data class SInt(val value: Int) : ScriptValuePrimitive {
     override fun copy(): SInt = SInt(value)
 }
 
 @Serializable
-data class SString(val value: String) : ScriptValue {
+data class SString(val value: String) : ScriptValuePrimitive {
     override fun copy(): SString = SString(value)
 }
 
 @Serializable
-data class SBool(val value: Boolean) : ScriptValue {
+data class SBool(val value: Boolean) : ScriptValuePrimitive {
     override fun copy(): SBool = SBool(value)
 }
 
-data class SEntityRef(val id: EntityId) : ScriptValue {
+data class SEntityRef(val id: EntityId) : ScriptValuePrimitive {
     override fun copy(): ScriptValue {
         return SEntityRef(id)
     }
 }
 
 @Serializable
-data class SInstant(@Serializable(with = InstantSerializer::class) val instant: Instant) : ScriptValue {
+data class SInstant(@Serializable(with = InstantSerializer::class) val instant: Instant) : ScriptValuePrimitive {
     override fun copy(): SInstant = SInstant(instant)
 }
 
@@ -58,7 +61,7 @@ data class SList(val values: List<ScriptValue>) : ScriptValue {
 }
 
 @Serializable
-data class SId(val id: EngineId) : ScriptValue {
+data class SId(val id: EngineId) : ScriptValuePrimitive {
     override fun copy(): ScriptValue = SId(id.copy())
 }
 
@@ -67,6 +70,6 @@ data class SJvm(val value: Any) : ScriptValue {
 }
 
 @Serializable
-object SNil : ScriptValue {
+object SNil : ScriptValuePrimitive {
     override fun copy(): ScriptValue = SNil
 }

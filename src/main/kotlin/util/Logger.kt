@@ -76,6 +76,10 @@ fun LogDiagnosticContext.append(diagnostic: Map<String, String>) =
 fun LogDiagnosticContext.append(vararg values: Pair<String, String>) =
     append(mapOf(*values))
 
+interface LoggerOutputChannel {
+    fun write(log: Log)
+}
+
 object EngineLogger {
     private val messageWriteQueue: ConcurrentLinkedQueue<Log> = ConcurrentLinkedQueue()
     private val slf4jLoggerAdapter = LoggerFactory.getLogger("Engine")
@@ -84,6 +88,8 @@ object EngineLogger {
     private lateinit var file: File
     private var session = 0
     private val writeLock = Any()
+
+    var outputChannel: LoggerOutputChannel? = null
 
     init {
         newSession()
@@ -149,6 +155,7 @@ object EngineLogger {
             LogLevel.ERROR -> slf4jLoggerAdapter.error(msg, log.error)
             LogLevel.FATAL -> slf4jLoggerAdapter.error(msg, log.error)
         }
+        outputChannel?.write(log)
     }
 
     context(diagnosticContext: LogDiagnosticContext)

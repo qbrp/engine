@@ -13,7 +13,7 @@ import org.lain.engine.player.character.unloadCharacter
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.tickEntityDebugViewSnapshotSystem
+import org.lain.engine.script.dev.tickEntityDebugViewSnapshotSystem
 import org.lain.engine.data.*
 import org.lain.engine.player.interaction.tickTestAction
 import org.lain.engine.script.compilation.CompilationFailedException

@@ -11,7 +11,10 @@ sealed class InspectionValue {
 
     @Serializable
     @SerialName("primitive")
-    data class Primitive(val readonly: Boolean, val primitive: InspectionPrimitive) : InspectionValue()
+    data class Primitive(
+        val readonly: Boolean,
+        val primitive: InspectionPrimitive
+    ) : InspectionValue()
 
     @Serializable
     @SerialName("null")

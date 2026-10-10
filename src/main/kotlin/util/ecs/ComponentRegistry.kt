@@ -4,7 +4,11 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.ComponentTypeProvider
 import org.lain.cyberia.ecs.KClassComponentTypeProvider
+import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.EngineId
+import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ScriptComponent
+import org.lain.engine.script.ScriptComponentId
 import kotlin.reflect.KClass
 
 data class ComponentMeta(val savable: Boolean, val networking: Boolean)
@@ -74,7 +78,7 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
     ) {
         registerComponent(
             kClass,
-            EngineComponentType((id ?: kClass.simpleName!!).lowercase()),
+            EngineComponentType((id ?: kClass.simpleName!!).lowercase(), meta),
             meta,
             replicationClass
         )
@@ -116,3 +120,11 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
 }
 
 fun getKotlinComponentTypeEntries() = ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }
+
+fun lookupComponentType(id: String, namespacedStorage: NamespacedStorage): ComponentType<*>? {
+    return ComponentTypeRegistry.get(id)?.type
+        ?: ScriptComponentId(EngineId(id)).let { scriptComponentId ->
+            namespacedStorage.components[scriptComponentId]
+                ?: CoreScriptComponents.get(scriptComponentId)
+        }
+}

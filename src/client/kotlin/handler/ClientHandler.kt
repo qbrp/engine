@@ -38,6 +38,7 @@ import org.lain.engine.data.*
 import org.lain.engine.script.OperationActor
 import org.lain.engine.script.OperationId
 import org.lain.engine.script.OperationTarget
+import org.lain.engine.script.dev.InspectionPrimitive
 import org.lain.engine.script.execute
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
@@ -185,12 +186,22 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         SERVERBOUND_LOOK_APPLY_ENDPOINT.sendC2SPacket(LookApplyPacket(lookId, requestId))
     }
 
-    fun onEntityDebugView(persistentId: PersistentId, rate: Int) {
+    fun onEntityInspection(persistentId: PersistentId, rate: Int) {
         SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.sendC2SPacket(EntityInspectionPacket(persistentId, rate))
     }
 
-    fun onEntityDebugViewStop(persistentId: PersistentId) {
+    fun onEntityInspectionStop(persistentId: PersistentId) {
         SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.sendC2SPacket(EntityDebugViewStopPacket(persistentId))
+    }
+
+    fun onEntityInspectionEdit(persistentId: PersistentId, objectId: Int, key: String, value: InspectionPrimitive) {
+        SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT.sendC2SPacket(EntityInspectionValueEditPacket(persistentId, objectId, key, value))
+    }
+
+    fun onEntityInspectionMarkDirty(persistentId: PersistentId, componentType: String) {
+        SERVERBOUND_ENTITY_INSPECTION_MARK_DIRTY_ENDPOINT.sendC2SPacket(
+            EntityInspectionMarkDirtyPacket(persistentId, componentType)
+        )
     }
 
     fun onInteractionSelectionSelect(variantId: String?) {
@@ -347,7 +358,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         gameSession.replicationController.apply(packet)
 
     fun applyEntityDebugData(gameSession: GameSession, persistentId: PersistentId, data: EntityInspectionSnapshot.Dto) {
-        gameSession.entityInspections[persistentId]?.data = data
+        gameSession.entityInspections[persistentId]?.updateData(data)
+    }
+
+    fun applyInspectionAbort(gameSession: GameSession, persistentId: PersistentId, reason: String) {
+        gameSession.entityInspections[persistentId]?.abort(reason)
     }
 
     fun applyOperation(dto: OperationExecuteDto, operationId: OperationId) = with(gameSession!!) {

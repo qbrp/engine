@@ -81,6 +81,10 @@ fun ClientHandler.runEndpoints() {
          applyEntityDebugData(gameSession, persistentId, data)
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_ENTITY_INSPECTION_ABORT_ENDPOINT) { gameSession ->
+        applyInspectionAbort(gameSession, persistentId, reason)
+    }
+
     CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.registerClientReceiver {
         taskExecutor.add("character_apply_confirmation") { applyCharacterApplyConfirmation(requestId, errorMessage) }
     }

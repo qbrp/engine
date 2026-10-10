@@ -11,6 +11,8 @@ import org.lain.engine.transport.packet.SERVERBOUND_DEVELOPER_MODE_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_COMPONENT_RPC_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT
+import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT
+import org.lain.engine.transport.packet.SERVERBOUND_ENTITY_INSPECTION_MARK_DIRTY_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_REPLICATION_RESYNC_REQUEST_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_INPUT_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT
@@ -113,12 +115,30 @@ fun ServerHandler.registerEndpoints() {
     SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.registerReceiver { ctx ->
         onEntityDebugView(
             ctx.sender,
-            persistentId
+            persistentId,
+            rate
         )
     }
     SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.registerReceiver { ctx ->
         onEntityDebugViewStop(
-            ctx.sender
+            ctx.sender,
+            entity
+        )
+    }
+    SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT.registerReceiver { ctx ->
+        onEntityInspectionValueEdit(
+            ctx.sender,
+            persistentId,
+            id,
+            key,
+            value
+        )
+    }
+    SERVERBOUND_ENTITY_INSPECTION_MARK_DIRTY_ENDPOINT.registerReceiver { ctx ->
+        onEntityInspectionMarkDirty(
+            ctx.sender,
+            persistentId,
+            componentType
         )
     }
     SERVERBOUND_CHARACTER_APPLY_ENDPOINT.registerReceiver { ctx ->

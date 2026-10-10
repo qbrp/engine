@@ -20,21 +20,21 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("str")
-    class Str(val string: String) : InspectionPrimitive() {
+    data class Str(val string: String) : InspectionPrimitive() {
         override fun toScriptValue(): ScriptValue = SString(string)
         override fun toJvmValue(): Any = string
     }
 
     @Serializable
     @SerialName("char")
-    class Char(val char: kotlin.Char) : InspectionPrimitive() {
+    data class Char(val char: kotlin.Char) : InspectionPrimitive() {
         override fun toScriptValue(): ScriptValue = SString(char.toString())
         override fun toJvmValue(): Any = char
     }
 
     @Serializable
     @SerialName("bool")
-    class Bool(val bool: Boolean) : InspectionPrimitive() {
+    data class Bool(val bool: Boolean) : InspectionPrimitive() {
         val string = bool.toString()
         override fun toScriptValue(): ScriptValue = SBool(bool)
         override fun toJvmValue(): Any = bool
@@ -42,7 +42,7 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("int")
-    class Int(val int: kotlin.Int) : InspectionPrimitive() {
+    data class Int(val int: kotlin.Int) : InspectionPrimitive() {
         val string = int.toString()
         override fun toScriptValue(): ScriptValue = SNumber(int.toDouble())
         override fun toJvmValue(): Any = int
@@ -50,7 +50,7 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("double")
-    class Double(val double: kotlin.Double) : InspectionPrimitive() {
+    data class Double(val double: kotlin.Double) : InspectionPrimitive() {
         val string = double.toString()
         override fun toScriptValue(): ScriptValue = SNumber(double)
         override fun toJvmValue(): Any = double
@@ -58,7 +58,7 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("uuid")
-    class Uuid(val uuid: String) : InspectionPrimitive() {
+    data class Uuid(val uuid: String) : InspectionPrimitive() {
         val string = uuid
         override fun toScriptValue(): ScriptValue = SString(uuid)
         override fun toJvmValue(): Any = UUID.fromString(uuid)
@@ -66,7 +66,7 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("engine_id")
-    class Id(val id: EngineId) : InspectionPrimitive() {
+    data class Id(val id: EngineId) : InspectionPrimitive() {
         override fun toScriptValue(): ScriptValue = SId(id)
         override fun toJvmValue(): Any = id
     }
@@ -88,7 +88,7 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("other")
-    class Uneditable(val str: String) : InspectionPrimitive() {
+    data class Other(val str: String) : InspectionPrimitive() {
         override fun toJvmValue(): Any {
             throw OperationNotSupportedException()
         }

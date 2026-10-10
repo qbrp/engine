@@ -19,6 +19,6 @@ abstract class IndexedComponentType<T : Component>(
 }
 fun <T : Component> ComponentType<T>.castIndexed() = (this as? IndexedComponentType) ?: error("Component type must be indexed (subclass of IndexedComponentType)")
 
-class EngineComponentType<T : Component>(id: String) : IndexedComponentType<T>(id) {
+class EngineComponentType<T : Component>(id: String, val meta: ComponentMeta) : IndexedComponentType<T>(id) {
     override fun toString(): String = "KotlinComponentType($idx, $id)"
 }
