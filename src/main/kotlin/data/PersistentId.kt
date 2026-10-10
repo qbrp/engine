@@ -9,14 +9,20 @@ import kotlinx.serialization.encoding.Encoder
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.ReadComponentAccess
+import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.requireComponent
+import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.VoxelPos
 import org.lain.engine.world.WorldId
 import java.util.*
 
 @Serializable
-data class PersistentIdComponent(val id: PersistentId) : Component
+data class PersistentIdComponent(val id: PersistentId) : Component {
+    companion object {
+        val TYPE = componentType<PersistentIdComponent>()
+    }
+}
 
 context(read: ReadComponentAccess)
 fun EntityId.persistentId() = requireComponent<PersistentIdComponent>().id

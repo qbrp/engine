@@ -30,14 +30,13 @@ fun compileTickPhasesDraft(buildL: LuaTable): TickPhasesDraft {
             e.toDiagnostic(
                 CompilationPhase.COMPILATION,
                 severity = CompilationDiagnosticSeverity.FATAL,
-                target = CompilationDiagnosticTarget(SymbolKind.PHASE, "root_phase")
+                target = CompilationDiagnosticTarget(SymbolKind.PHASE, "phases")
             )
         )
     }
 }
 
 private fun LuaTable.toPhaseDraft(): SystemPhaseDraft {
-
     return SystemPhaseDraft(
         get("name").tojstring(),
         get("steps").checktable().toList { stepL ->

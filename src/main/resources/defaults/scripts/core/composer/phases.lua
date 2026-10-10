@@ -52,24 +52,6 @@ local function system_relations(context, systems)
     return all_relations
 end
 
----@param phase SystemPhase
----@return PhaseStep.Phase
-local function phase_step(phase)
-    return {
-        type = "phase",
-        phase = phase
-    }
-end
-
----@param system IdReference
----@return PhaseStep.System
-local function system_step(system)
-    return {
-        type = "system",
-        system = system
-    }
-end
-
 ---@param name string
 ---@param systems Id[]
 ---@return SystemPhase
@@ -149,7 +131,7 @@ local function sort_dag(context, relations)
             end
         end
 
-        table.insert(phases, { systems = ready })
+        table.insert(steps, { systems = ready })
 
         ready = next
     end
@@ -158,7 +140,7 @@ local function sort_dag(context, relations)
         context.reports:report_error(
             { phase = "linking", message = "Обнаружен цикл зависимостей систем" }
         )
-        phases = {}
+        steps = {}
     end
 
     return steps
@@ -174,11 +156,7 @@ local function compose_phase(name, context, systems)
     local subphases = {}
 
     for index, step in ipairs(steps) do
-        local system_steps = {}
-        for index, system in ipairs(step.systems) do
-            system_steps[index] = system_step(system)
-        end
-        table.insert(subphases, phase_step(systems_phase("Node " .. index, system_steps)))
+        table.insert(subphases, systems_phase("Node " .. index, step.systems))
     end
 
     return parent_phase(name, subphases)
@@ -206,7 +184,7 @@ function phases.compose(context, categorized_symbols)
 
     return {
         base = base_phase,
-        after_verb_lookup = verb_lookup_phase
+        verb_lookup = verb_lookup_phase
     }
 end
 

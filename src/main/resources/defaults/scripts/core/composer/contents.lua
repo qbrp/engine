@@ -112,7 +112,7 @@ function composer.build(context)
     return {
         namespaces = namespaces,
         listeners = listeners.merge(listeners_list),
-        root_phase = phases.compose_root(context, symbols),
+        phases = phases.compose(context, symbols),
         inventory_tab = {
             entries = inventory_tab_entries
         }

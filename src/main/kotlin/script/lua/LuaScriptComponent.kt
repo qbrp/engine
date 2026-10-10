@@ -3,7 +3,7 @@ package org.lain.engine.script.lua
 import org.lain.cyberia.ecs.*
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
-import org.lain.engine.script.ScriptDebugTarget
+import org.lain.engine.script.dev.ScriptInspectionTarget
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.util.ecs.EntityId
 import org.luaj.vm2.LuaTable
@@ -16,24 +16,32 @@ class LuaScriptComponent(
 ) : ScriptComponent {
     override val value: ScriptValue
         get() = with(lua) { luaValue.toScriptValue() }
-    override val debugTarget: ScriptDebugTarget?
-        get() = if (luaValue.istable()) LuaScriptDebugTarget(luaValue.checktable(), lua) else null
+    override val inspectionTarget: ScriptInspectionTarget?
+        get() = if (luaValue.istable()) LuaScriptInspectionTarget(luaValue.checktable(), lua) else null
 
     override fun toString(): String {
         return "${type.id}($value)"
     }
 }
 
-private class LuaScriptDebugTarget(
+private class LuaScriptInspectionTarget(
     private val table: LuaTable,
     private val lua: LuaScriptEngine
-) : ScriptDebugTarget {
+) : ScriptInspectionTarget {
     override val identity: Any
         get() = table
 
-    override fun child(key: ScriptValue): ScriptDebugTarget? = with(lua) {
-        val value = table.get(key.toLuaValue())
-        return if (value.istable()) LuaScriptDebugTarget(value.checktable(), lua) else null
+    override fun child(key: ScriptValue): ScriptInspectionTarget? = with(lua) {
+        childLua(key.toLuaValue())
+    }
+
+    private fun childLua(keyL: LuaValue): ScriptInspectionTarget? {
+        val value = table.get(keyL)
+        return if (value.istable()) LuaScriptInspectionTarget(value.checktable(), lua) else null
+    }
+
+    override fun indexedChild(idx: Int): ScriptInspectionTarget? {
+        return childLua(luaValue(idx))
     }
 
     override fun set(property: String, value: ScriptValue) = with(lua) {

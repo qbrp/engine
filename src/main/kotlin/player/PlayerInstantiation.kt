@@ -22,6 +22,7 @@ import org.lain.engine.player.character.getPhysical
 import org.lain.engine.player.character.setCharacterComponents
 import org.lain.engine.player.interaction.HandType
 import org.lain.engine.player.interaction.setupHandInteractorEntity
+import org.lain.engine.script.dev.EntityDebugViewComponent
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.server.replication.Networked
 import org.lain.engine.server.replication.Interests
@@ -143,6 +144,7 @@ fun serverPlayerInstance(
         //require<PlayerAttributes>().gravity.default = defaults.gravity
         setComponent(AcousticMessageQueue(LinkedList()))
         setComponent(UsedCharacters(persistent?.usedCharacters.orEmpty().toMutableSet()))
+        setComponent(EntityDebugViewComponent(mutableMapOf()))
         setComponent(Networked)
     }
     return player

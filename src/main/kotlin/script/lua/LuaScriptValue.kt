@@ -1,9 +1,12 @@
 package org.lain.engine.script.lua
 
+import org.lain.engine.script.EngineId
 import org.lain.engine.script.SBool
 import org.lain.engine.script.SEntityRef
+import org.lain.engine.script.SId
 import org.lain.engine.script.SInstant
 import org.lain.engine.script.SInt
+import org.lain.engine.script.SJvm
 import org.lain.engine.script.SList
 import org.lain.engine.script.SNil
 import org.lain.engine.script.SNumber
@@ -11,9 +14,12 @@ import org.lain.engine.script.SString
 import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.script.lua.library.LuaEntityRef
+import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.resolveIdReference
 import org.lain.engine.script.lua.library.toEntityRef
 import org.lain.engine.script.lua.library.toLuaInstant
 import org.luaj.vm2.LuaTable
+import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import java.time.Instant
 
@@ -67,16 +73,11 @@ fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
             )
         }
     }
-    LuaValue.TUSERDATA -> {
-        if (isuserdata(LuaEntityRef::class.java)) {
-            val ref = checkuserdata(LuaEntityRef::class.java) as LuaEntityRef
-            SEntityRef(ref.id.toint())
-        } else if (isuserdata(Instant::class.java)) {
-            val instant = checkuserdata(Instant::class.java) as Instant
-            SInstant(instant)
-        } else {
-            error("Unsupported userdata type: $this")
-        }
+    LuaValue.TUSERDATA -> when (val userdata = checkuserdata()) {
+        is LuaEntityRef -> SEntityRef(userdata.id.toint())
+        is Instant -> SInstant(userdata)
+        is EngineId -> SId(userdata)
+        else -> SJvm(userdata)
     }
     else -> error("Unsupported Lua type: ${typename()}")
 }
@@ -88,13 +89,15 @@ fun ScriptValue.toLuaValue(): LuaValue = when (this) {
     is SNumber -> value.luaNum()
     is SString -> value.luaStr()
     is STable -> LuaTable.tableOf(
-        map
+        values
             .toList()
             .flatMap { (k, v) -> listOf(k.toLuaValue(), v.toLuaValue()) }
             .toTypedArray()
     )
+    is SId -> id.coerceToLua()
     is SInt -> value.luaNum()
     is SEntityRef -> id.toEntityRef()
     is SInstant -> instant.toLuaInstant()
     is SList -> values.toLuaList { it.toLuaValue() }
+    is SJvm -> LuaUserdata(value)
 }

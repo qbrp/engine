@@ -5,23 +5,37 @@ import org.lain.engine.client.render.ui.EntityInspectorWindow
 import org.lain.engine.client.render.ui.ImGuiWindow
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.persistentId
-import org.lain.engine.script.EntityDebugData
+import org.lain.engine.script.dev.EntityInspectionSnapshot
 import org.lain.engine.util.ecs.EntityId
+import org.lain.engine.util.getEntityDebugNameId
 
-data class EntityInspection(
+class EntityInspection(
+    private val gameSession: GameSession,
     val entity: EntityId,
     val persistentId: PersistentId,
-    var data: EntityDebugData.Dto? = null
+    var data: EntityInspectionSnapshot.Dto? = null,
 ) {
+    var rate: Int = 20
+        private set
     lateinit var window: ImGuiWindow
+
+    fun updateRate(rate: Int) {
+        this.rate = rate
+        gameSession.handler.onEntityDebugView(persistentId, rate)
+    }
+
+    fun stop() {
+        gameSession.handler.onEntityDebugViewStop(persistentId)
+        gameSession.entityInspections.remove(persistentId)
+    }
 }
 
 fun GameSession.startInspection(entityId: EntityId): EntityInspection = with(world) {
     val persistentId = entityId.persistentId()
-    return EntityInspection(entityId, persistentId, null).also {
-        it.window = EntityInspectorWindow(it)
-        entityInspection = it
-        handler.onEntityDebugView(persistentId)
+    return EntityInspection(this@startInspection, entityId, persistentId, null).also {
+        it.window = EntityInspectorWindow(it, entityId.getEntityDebugNameId().name)
+        entityInspections[persistentId] = it
+        handler.onEntityDebugView(persistentId, it.rate)
         client.imGuiManager.addWindow(it.window)
     }
 }

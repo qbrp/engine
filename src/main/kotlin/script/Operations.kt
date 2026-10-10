@@ -105,9 +105,9 @@ internal fun ScriptValue.toSelectionEntries(): List<SelectionEntry> {
         list.values.mapIndexed { index, value ->
             val table = value as? STable
                 ?: error("Selection variant at index ${index + 1} must be a table")
-            val id = (table.map[SString("id")] as? SString)?.value
+            val id = (table.values[SString("id")] as? SString)?.value
                 ?: error("Selection variant at index ${index + 1} must contain a string id")
-            SelectionEntry(id, table.map[SString("value")] ?: SNil)
+            SelectionEntry(id, table.values[SString("value")] ?: SNil)
         }
     ).entries
 }

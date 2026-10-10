@@ -22,7 +22,7 @@ import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
 
-private data class LuaPlayerInventory(
+data class LuaPlayerInventory(
     val player: EnginePlayer,
     val inventory: PlayerInventory,
 )

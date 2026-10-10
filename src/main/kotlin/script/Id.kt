@@ -19,6 +19,8 @@ class EngineId private constructor(
         validate(namespace, local)
     }
 
+    fun copy() = EngineId(namespace, local)
+
     override fun equals(other: Any?): Boolean {
         return other is EngineId && other.namespace == namespace && other.local == local
     }

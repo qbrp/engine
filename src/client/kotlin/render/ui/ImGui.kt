@@ -6,6 +6,7 @@ import imgui.type.ImBoolean
 interface ImGuiWindow {
     val title: String
     fun render()
+    fun onClose() {}
 }
 
 class ImGuiManager {
@@ -21,7 +22,7 @@ class ImGuiManager {
     }
 
     fun closeAll() {
-        windows.clear()
+        windows.toList().forEachIndexed { index, _ -> closeWindow(index) }
     }
 
     fun render() {
@@ -35,6 +36,23 @@ class ImGuiManager {
             }
             ImGui.end()
         }
-        close.forEach { windows.removeAt(it) }
+        close.asReversed().forEach { closeWindow(it) }
+    }
+
+    private fun closeWindow(index: Int) {
+        windows.removeAt(index).window.onClose()
+    }
+}
+
+object ImGuiUtil {
+    fun child(name: String, builder: () -> Unit) {
+        ImGui.beginChild(name)
+        builder()
+        ImGui.endChild()
+    }
+    fun group(builder: () -> Unit) {
+        ImGui.beginGroup()
+        builder()
+        ImGui.endGroup()
     }
 }

@@ -83,7 +83,7 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field namespaces NamespaceDraft[]
 ---@field listeners EventListeners?
 ---@field inventory_tab InventoryTab?
----@field root_phase SystemPhase
+---@field phases TickPhasesDraft
 
 ---@class ContentsDraft
 ---@field items ItemPrefabDraft[]
@@ -140,6 +140,10 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@class SystemPhase
 ---@field name string
 ---@field steps PhaseStep[]
+
+---@class TickPhasesDraft
+---@field base SystemPhase
+---@field verb_lookup SystemPhase
 
 ---@class PhaseStep
 ---@field type string

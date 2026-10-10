@@ -3,7 +3,6 @@ package org.lain.engine.client
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerLoadSettings
-import org.lain.engine.script.EntityDebugData
 import org.lain.engine.script.InventoryTab
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.packet.FullPlayerData

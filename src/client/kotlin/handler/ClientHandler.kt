@@ -28,7 +28,7 @@ import org.lain.engine.player.*
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.script.EntityDebugData
+import org.lain.engine.script.dev.EntityInspectionSnapshot
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
@@ -185,12 +185,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         SERVERBOUND_LOOK_APPLY_ENDPOINT.sendC2SPacket(LookApplyPacket(lookId, requestId))
     }
 
-    fun onEntityDebugView(persistentId: PersistentId) {
-        SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.sendC2SPacket(EntityDebugViewPacket(persistentId))
+    fun onEntityDebugView(persistentId: PersistentId, rate: Int) {
+        SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT.sendC2SPacket(EntityInspectionPacket(persistentId, rate))
     }
 
-    fun onEntityDebugViewStop() {
-        SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.sendC2SPacket(EntityDebugViewStopPacket)
+    fun onEntityDebugViewStop(persistentId: PersistentId) {
+        SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.sendC2SPacket(EntityDebugViewStopPacket(persistentId))
     }
 
     fun onInteractionSelectionSelect(variantId: String?) {
@@ -346,8 +346,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     fun applyReplicationPacket(gameSession: GameSession, packet: ReplicationPacket) =
         gameSession.replicationController.apply(packet)
 
-    fun applyEntityDebugData(gameSession: GameSession, data: EntityDebugData.Dto) {
-        gameSession.entityInspection?.data = data
+    fun applyEntityDebugData(gameSession: GameSession, persistentId: PersistentId, data: EntityInspectionSnapshot.Dto) {
+        gameSession.entityInspections[persistentId]?.data = data
     }
 
     fun applyOperation(dto: OperationExecuteDto, operationId: OperationId) = with(gameSession!!) {

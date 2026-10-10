@@ -6,6 +6,7 @@ import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.script.compilation.CompilationDiagnostic
 import org.lain.engine.script.compilation.DiagnosticContext
 import org.lain.engine.script.compilation.DiagnosticException
+import org.lain.engine.script.dev.ScriptInspectionTarget
 import org.lain.engine.util.ecs.ComponentMeta
 import org.lain.engine.util.ecs.IndexedComponentType
 
@@ -19,7 +20,7 @@ value class ScriptComponentId(val id: EngineId) : Identifiable {
 interface ScriptComponent : Component {
     val value: ScriptValue
     val type: ScriptComponentType
-    val debugTarget: ScriptDebugTarget?
+    val inspectionTarget: ScriptInspectionTarget?
         get() = null
 }
 

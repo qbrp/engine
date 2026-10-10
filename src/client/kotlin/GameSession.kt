@@ -22,6 +22,7 @@ import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.EntityInspection
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
 import org.lain.engine.client.util.processWorldSounds
+import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.*
@@ -123,11 +124,11 @@ class GameSession(
             client.showInpectionModeToggleNotification(value)
             field = value
         }
-    val     inspection = InspectionMode()
+    val inspection = InspectionMode()
     var characterChange: CharacterChange? = null
         private set
 
-    var entityInspection: EntityInspection? = null
+    var entityInspections: MutableMap<PersistentId, EntityInspection> = mutableMapOf()
 
     init {
         applyCompilation(build)
