@@ -4,7 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.SBool
+import org.lain.engine.script.SEntityRef
 import org.lain.engine.script.SId
+import org.lain.engine.script.SInstant
 import org.lain.engine.script.SNumber
 import org.lain.engine.script.SString
 import org.lain.engine.script.ScriptValue
@@ -72,19 +74,27 @@ sealed class InspectionPrimitive {
     }
 
     @Serializable
-    @SerialName("enum")
-    data class Enum(val enumClass: String, val name: String) : InspectionPrimitive() {
-        val string = name
-        override fun toScriptValue(): ScriptValue = SString(name)
-
-        @Suppress("UNCHECKED_CAST")
-        override fun toJvmValue(): Any {
-            val clazz = Class.forName(enumClass)
-            val result = (clazz.enumConstants as Array<kotlin.Enum<*>>)
-                .firstOrNull { it.name == name }
-            return result!!
+    @SerialName("entity_ref")
+    data class EntityRef(val entityId: kotlin.Int) : InspectionPrimitive() {
+        override fun toScriptValue(): ScriptValue {
+            return SEntityRef(entityId)
         }
+        override fun toJvmValue(): Any = EntityRef(entityId)
     }
+
+    @Serializable
+    @SerialName("instant")
+    data class Instant(val epochMillis: Long) : InspectionPrimitive() {
+        override fun toScriptValue(): ScriptValue {
+            return SInstant(instant())
+        }
+        override fun toJvmValue(): Any {
+            return instant()
+        }
+
+        private fun instant() = java.time.Instant.ofEpochMilli(epochMillis)
+    }
+
 
     @Serializable
     @SerialName("other")

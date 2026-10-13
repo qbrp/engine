@@ -7,14 +7,11 @@ import kotlinx.serialization.Serializable
 sealed class InspectionValue {
     @Serializable
     @SerialName("ref")
-    data class Reference(val id: Int) : InspectionValue()
+    data class Reference(val objectId: Int) : InspectionValue()
 
     @Serializable
     @SerialName("primitive")
-    data class Primitive(
-        val readonly: Boolean,
-        val primitive: InspectionPrimitive
-    ) : InspectionValue()
+    data class Primitive(val primitive: InspectionPrimitive) : InspectionValue()
 
     @Serializable
     @SerialName("null")

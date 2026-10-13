@@ -1,120 +1,224 @@
 package org.lain.engine.script.dev
 
+import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.script.SString
+import org.lain.engine.script.ScriptComponent
 import org.lain.engine.world.World
-import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KParameter
-import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
-import kotlin.reflect.KClass
 import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.full.memberFunctions
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
 
-context(world: World)
-fun EntityInspection.applyEdit(objectId: Int, property: String, value: InspectionPrimitive) {
-    val inspection = lastSnapshot.debugObjects[objectId]!!
-    val inspected = lastSnapshot.gameObjects[objectId]!!
-    when (val live = inspected.value) {
-        is ScriptInspectionValue.List -> live.set(property.toInt(), value.toScriptValue())
-        is ScriptInspectionValue.Table -> live.set(SString(property), value.toScriptValue())
-        else -> {
-            inspected.tryMutateProperty(inspection, property, value.toJvmValue())
-        }
+data class InspectionEditTarget(
+    val path: InspectionPath,
+)
+
+data class InspectionPath(
+    val componentType: ComponentType<*>,
+    val segments: List<Segment>,
+) {
+    fun withSegment(segment: Segment): InspectionPath {
+        return copy(segments = segments + segment)
+    }
+
+    sealed interface Segment {
+        data class Field(val name: String) : Segment
+        data class Index(val index: Int) : Segment
+        data class TableEntry(val key: Any?) : Segment
     }
 }
 
-context(inspection: EntityInspection, world: World)
-fun InspectedObject.tryMutateProperty(
-    inspectionObject: InspectionObject,
-    property: String,
-    newValue: Any
+@Serializable
+data class InspectionPathDto(
+    val componentType: String,
+    val segments: List<Segment>,
 ) {
-    val inspectionProperty = inspectionObject.getValue(property)!!
-    require(inspectionProperty is InspectionValue.Primitive)
+    fun withSegment(segment: Segment): InspectionPathDto {
+        return copy(segments = segments + segment)
+    }
 
-    when(value) {
+    @Serializable
+    sealed interface Segment {
+        @Serializable
+        data class Field(val name: String) : Segment
+
+        @Serializable
+        data class Index(val index: Int) : Segment
+
+        @Serializable
+        data class TableKey(
+            val key: InspectionValue,
+        ) : Segment
+    }
+}
+
+data class InspectionLocation(
+    val live: InspectionPath,
+    val dto: InspectionPathDto,
+) {
+    fun field(name: String) = InspectionLocation(
+        live.withSegment(InspectionPath.Segment.Field(name)),
+        dto.withSegment(InspectionPathDto.Segment.Field(name)),
+    )
+
+    fun index(index: Int) = InspectionLocation(
+        live.withSegment(InspectionPath.Segment.Index(index)),
+        dto.withSegment(InspectionPathDto.Segment.Index(index)),
+    )
+
+    fun tableEntry(liveKey: Any?, inspectionKey: InspectionValue) = InspectionLocation(
+        live.withSegment(InspectionPath.Segment.TableEntry(liveKey)),
+        dto.withSegment(InspectionPathDto.Segment.TableKey(inspectionKey)),
+    )
+}
+
+interface InspectionEditNode {
+    val value: Any?
+    val mapLike: MapLike? get() = null
+    val collectionLike: CollectionLike? get() = null
+
+    fun segment(property: InspectionPrimitive): InspectionPath.Segment
+    fun child(segment: InspectionPath.Segment): InspectionEditNode
+
+    /**
+     * Возвращает актуальное значение контейнера:
+     * тот же объект после мутации либо его изменённую копию.
+     */
+    fun setChild(
+        segment: InspectionPath.Segment,
+        newValue: InputValue?,
+    ): InspectionEditResult
+
+    fun replaceChild(
+        segment: InspectionPath.Segment,
+        newValue: Any?,
+    ): InspectionEditResult
+
+    interface MapLike {
+        fun addEntry(key: InputValue, value: InputValue): InspectionEditResult
+    }
+
+    interface CollectionLike {
+        fun addEntry(value: InputValue): InspectionEditResult
+    }
+}
+
+sealed interface InspectionEditResult {
+    data object MutatedInPlace : InspectionEditResult
+    data class Replaced(val value: Any?) : InspectionEditResult
+}
+
+fun Any?.toInspectionEditNode(
+    declaredType: KType? = null,
+): InspectionEditNode {
+    return when (this) {
+        is ScriptInspectionValue.Table -> ScriptTableEditNode(this)
+        is ScriptInspectionValue.List -> ScriptListEditNode(this)
+        is ScriptInspectionValue.Jvm -> ScriptJvmEditNode(this)
+        is ScriptInspectionValue.Primitive -> error("Cannot descend into script primitive $value")
+        is ScriptComponent -> inspectionValueNode.toInspectionEditNode()
         is Map<*, *> -> {
-
+            val typeArguments = declaredType?.arguments
+            JvmMapEditNode(this, typeArguments?.get(0)?.type, typeArguments?.get(1)?.type)
         }
-        else -> {
-            val liveProperty = value::class.memberProperties
-                .find { it.name == property } as? KProperty1<Any, *>
-                ?: error("Property $property not found on ${value::class.qualifiedName}")
 
-            val adaptedValue = newValue.adaptTo(liveProperty.returnType)
+        is List<*> -> JvmListEditNode(this, declaredType?.listTypeArgument())
+        null -> error("Cannot descend into null")
+        else -> JvmObjectEditNode(this)
+    }
+}
 
-            if (!inspectionProperty.readonly) {
-                val mutableProperty = liveProperty as? KMutableProperty1<Any, Any?>
-                    ?: error("Mutable property $property not found on ${value::class.qualifiedName}")
-                mutableProperty.set(value, adaptedValue)
-            } else {
-                inspection.replaceAtParent(
-                    parent,
-                    value.copyWith(property, adaptedValue)
-                )
-            }
+@Serializable
+sealed interface EditOperation {
+    @Serializable
+    data class SetProperty(val value: InputValue) : EditOperation
+    @Serializable
+    data class AppendElement(val value: InputValue) : EditOperation
+    @Serializable
+    data class AppendEntry(val key: InputValue, val value: InputValue) : EditOperation
+}
+
+context(world: World)
+fun EntityInspection.performEditOperation(
+    editTargetId: Int, operation: EditOperation
+) {
+    val editTarget = lastSnapshot.editTargets[editTargetId]
+        ?: error("Inspection edit target $editTargetId not found")
+    applyEdit(editTarget.path, operation)
+}
+
+context(world: World)
+private fun EntityInspection.applyEdit(
+    path: InspectionPath,
+    operation: EditOperation,
+) {
+    @Suppress("UNCHECKED_CAST")
+    val componentType = path.componentType as ComponentType<Component>
+    val rootComponent = entity.getComponent<Component>(componentType)
+        ?: error("Component ${path.componentType.id} not found")
+    val rootNode = rootComponent.toInspectionEditNode()
+
+    when (val result = rootNode.editIn(path.segments, operation)) {
+        InspectionEditResult.MutatedInPlace -> Unit
+        is InspectionEditResult.Replaced -> {
+            @Suppress("UNCHECKED_CAST")
+            val componentType = path.componentType
+            val updatedRoot = result.value as? Component
+                ?: error("Root replacement is not a component: ${result.value}")
+            entity.setComponent(updatedRoot, componentType)
         }
     }
 }
 
-private fun Any?.adaptTo(type: KType): Any? {
-    if (this == null) return null
-    val valueClass = type.classifier as? KClass<*> ?: return this
-    if (!valueClass.isValue || valueClass.isInstance(this)) return this
+fun InspectionEditNode.editIn(
+    segments: List<InspectionPath.Segment>,
+    edit: EditOperation,
+): InspectionEditResult {
+    if (segments.isEmpty()) {
+        return performContainerEditOperation(edit)
+    }
 
-    val constructor = valueClass.primaryConstructor
-        ?: error("Value class ${valueClass.qualifiedName} has no primary constructor")
-    val parameter = constructor.parameters.single()
-    return constructor.call(adaptTo(parameter.type))
+    val segment = segments.first()
+    if (segments.size == 1) {
+        return performChildEditOperation(segment, edit)
+    }
+
+    return when (val childResult = child(segment).editIn(
+        segments.drop(1),
+        edit,
+    )) {
+        InspectionEditResult.MutatedInPlace -> InspectionEditResult.MutatedInPlace
+        is InspectionEditResult.Replaced -> replaceChild(segment, childResult.value)
+    }
 }
 
-context(world: World)
-private fun EntityInspection.replaceAtParent(
-    parent: InspectedObject.Parent,
-    newValue: Any,
-) {
-    when (parent) {
-        is InspectedObject.Parent.Component -> {
-            @Suppress("UNCHECKED_CAST")
-            entity.setComponent(
-                newValue as Component,
-                parent.type as ComponentType<Component>
-            )
-        }
+private fun InspectionEditNode.performChildEditOperation(
+    segment: InspectionPath.Segment,
+    edit: EditOperation
+): InspectionEditResult {
+    return when (edit) {
+        is EditOperation.SetProperty -> setChild(segment, edit.value)
+        is EditOperation.AppendElement,
+        is EditOperation.AppendEntry -> child(segment).performContainerEditOperation(edit)
+    }
+}
 
-        is InspectedObject.Parent.Property -> {
-            val parentObject = lastSnapshot.gameObjects[parent.objectId]
-                ?: error("Parent object ${parent.objectId} not found")
-            val parentInspection = lastSnapshot.debugObjects[parent.objectId]
-                ?: error("Parent inspection object ${parent.objectId} not found")
+private fun InspectionEditNode.performContainerEditOperation(
+    edit: EditOperation,
+): InspectionEditResult {
+    return when (edit) {
+        is EditOperation.AppendElement -> collectionLike
+            ?.addEntry(edit.value)
+            ?: error("Edit node $this is not CollectionLike")
 
-            parentObject.tryMutateProperty(
-                parentInspection,
-                parent.name,
-                newValue
-            )
-        }
+        is EditOperation.AppendEntry -> mapLike
+            ?.addEntry(edit.key, edit.value)
+            ?: error("Edit node $this is not MapLike")
 
-        is InspectedObject.Parent.Index -> {
-            val collectionObject = lastSnapshot.gameObjects[parent.objectId]
-                ?: error("Collection ${parent.objectId} not found")
-            val list = collectionObject.value as? List<*>
-                ?: error("${collectionObject.value::class.qualifiedName} is not a list")
-
-            require(parent.index in list.indices) {
-                "Index ${parent.index} is outside list bounds"
-            }
-
-            val listCopy = list.toMutableList()
-            listCopy[parent.index] = newValue
-
-            replaceAtParent(collectionObject.parent, listCopy)
-        }
+        is EditOperation.SetProperty -> error("SetProperty requires a target child")
     }
 }
 

@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.script.dev.EntityInspectionSnapshot
 import org.lain.engine.script.dev.InspectionPrimitive
 import org.lain.engine.data.PersistentId
+import org.lain.engine.script.dev.EditOperation
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.ImmutableVoxelPos
@@ -41,9 +42,8 @@ val SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT = Endpoint<EntityInspectionPacket>()
 @Serializable
 data class EntityInspectionValueEditPacket(
     val persistentId: PersistentId,
-    val id: Int,
-    val key: String,
-    val value: InspectionPrimitive
+    val editTargetId: Int,
+    val editOperation: EditOperation
 ) : Packet
 
 val SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT = Endpoint<EntityInspectionValueEditPacket>()

@@ -15,6 +15,7 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.easeInOutCubic
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.milliseconds
 
 // Майнкрафт доказал бесполезность самого себя. Изначально это был подкласс Overlay, с которым я очень долго ебался,
 // пытаясь обуздать его логику. В конце концов оказалось, что он не может рендерить одновременно себя с уже открытым экраном.
@@ -38,7 +39,7 @@ class CharacterApplyConfirmationWaitOverlay(
         fadeIn.deferred.await()
         client.execute { onFaded.invoke() }
         try {
-            withTimeout(5000L) {
+            withTimeout(5000L.milliseconds) {
                 state.set(State.Wait())
                 characterSelection.awaitConfirmation()
             }

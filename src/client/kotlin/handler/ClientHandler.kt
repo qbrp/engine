@@ -38,6 +38,7 @@ import org.lain.engine.data.*
 import org.lain.engine.script.OperationActor
 import org.lain.engine.script.OperationId
 import org.lain.engine.script.OperationTarget
+import org.lain.engine.script.dev.EditOperation
 import org.lain.engine.script.dev.InspectionPrimitive
 import org.lain.engine.script.execute
 import org.lain.engine.transport.packet.*
@@ -194,8 +195,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.sendC2SPacket(EntityDebugViewStopPacket(persistentId))
     }
 
-    fun onEntityInspectionEdit(persistentId: PersistentId, objectId: Int, key: String, value: InspectionPrimitive) {
-        SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT.sendC2SPacket(EntityInspectionValueEditPacket(persistentId, objectId, key, value))
+    fun onEntityInspectionEdit(persistentId: PersistentId, targetId: Int, editOperation: EditOperation) {
+        SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT.sendC2SPacket(EntityInspectionValueEditPacket(persistentId, targetId, editOperation))
     }
 
     fun onEntityInspectionMarkDirty(persistentId: PersistentId, componentType: String) {

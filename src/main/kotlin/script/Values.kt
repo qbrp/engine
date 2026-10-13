@@ -70,6 +70,6 @@ data class SJvm(val value: Any) : ScriptValue {
 }
 
 @Serializable
-object SNil : ScriptValuePrimitive {
+object SNil : ScriptValue {
     override fun copy(): ScriptValue = SNil
 }

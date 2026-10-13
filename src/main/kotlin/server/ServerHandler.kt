@@ -19,8 +19,9 @@ import org.lain.engine.data.backupBookContent
 import org.lain.engine.script.dev.EntityInspection
 import org.lain.engine.script.dev.EntityInspectionSnapshot
 import org.lain.engine.script.dev.EntityInspectionComponent
+import org.lain.engine.script.dev.EditOperation
 import org.lain.engine.script.dev.InspectionPrimitive
-import org.lain.engine.script.dev.applyEdit
+import org.lain.engine.script.dev.performEditOperation
 import org.lain.engine.script.dev.snapshotInspection
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.replication.PlayerReplicationState
@@ -198,12 +199,14 @@ class ServerHandler(
     internal fun onEntityInspectionValueEdit(
         playerId: PlayerId,
         persistentId: PersistentId,
-        objectId: Int,
-        key: String,
-        value: InspectionPrimitive
+        editTargetId: Int,
+        editOperation: EditOperation,
     ) = updatePlayer(playerId) {
         with(world) {
-            require<EntityInspectionComponent>().entities[persistentId]?.applyEdit(objectId, key, value)
+            require<EntityInspectionComponent>().entities[persistentId]?.performEditOperation(
+                editTargetId,
+                editOperation,
+            )
         }
     }
 

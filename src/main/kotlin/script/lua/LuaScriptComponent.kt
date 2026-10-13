@@ -29,6 +29,7 @@ private fun resolveLuaInspectionValue(luaValue: LuaValue): ScriptInspectionValue
         is SList -> LuaInspectionCollection(luaValue.checktable(), scriptValue, lua)
         is ScriptValuePrimitive  -> LuaInspectionPrimitive(luaValue, scriptValue)
         is SJvm -> LuaInspectionJvm(scriptValue.value)
+        SNil -> error("Nil does not have an inspectable value")
     }
 }
 
@@ -45,14 +46,25 @@ class LuaInspectionTable(
     override val value: STable,
     private val lua: LuaScriptEngine
 ) : LuaInspectionValue(luaValue, value), ScriptInspectionValue.Table {
-    override fun child(key: ScriptValue): ScriptInspectionValue = with(lua) {
-        luaValue.get(key.toLuaValue()).nullable()?.let {
-            resolveLuaInspectionValue(it)
-        } ?: error("Table $luaValue doesnt contains child value $key")
-    }
+    override val entries: List<ScriptInspectionValue.Table.Entry>
+        get() = with(lua) {
+            luaValue.keys().map { keyL ->
+                val valueL = luaValue[keyL]
+                val value = resolveLuaInspectionValue(valueL)
+                val key = resolveLuaInspectionValue(keyL)
+                ScriptInspectionValue.Table.Entry(key, value)
+            }
+        }
 
     override fun set(key: ScriptValue, value: ScriptValue) = with(lua) {
-        luaValue.set(key.toLuaValue(), value.toLuaValue())
+        val luaKey = key.toLuaValue()
+        luaValue.set(luaKey, value.toLuaValue())
+    }
+
+    override fun replace(entry: ScriptInspectionValue.Table.Entry, value: ScriptValue) = with(lua) {
+        val liveKey = (entry.key as? LuaInspectionValue)?.luaValue
+            ?: error("Entry does not contain a Lua key")
+        luaValue.set(liveKey, value.toLuaValue())
     }
 }
 
@@ -61,14 +73,19 @@ class LuaInspectionCollection(
     override val value: SList,
     private val lua: LuaScriptEngine
 ) : LuaInspectionValue(luaValue, value), ScriptInspectionValue.List {
-    override fun child(index: Int): ScriptInspectionValue = with(lua) {
-        luaValue.get(index).nullable()?.let {
-            resolveLuaInspectionValue(it)
-        } ?: error("Collection $luaValue doesnt contains child value at index $index")
-    }
+    override val values: List<ScriptInspectionValue>
+        get() = with(lua) {
+            List(value.values.size) { index ->
+                resolveLuaInspectionValue(luaValue[index + 1])
+            }
+        }
 
     override fun set(index: Int, value: ScriptValue) = with(lua) {
-        luaValue.set(index, value.toLuaValue())
+        luaValue.set(index + 1, value.toLuaValue())
+    }
+
+    override fun add(value: ScriptValue): Unit = with(lua) {
+        luaValue.set(luaValue.keyCount() + 1, value.toLuaValue())
     }
 }
 

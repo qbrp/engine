@@ -1,7 +1,5 @@
 package org.lain.engine.script.dev
 
-import org.lain.engine.script.SList
-import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.script.ScriptValuePrimitive
 
@@ -14,17 +12,22 @@ interface ScriptInspectionValue {
     }
 
     interface Table : ScriptInspectionValue {
-        val value: STable
+        val entries: kotlin.collections.List<Entry>
 
-        fun child(key: ScriptValue): ScriptInspectionValue
+        data class Entry(
+            val key: ScriptInspectionValue,
+            val value: ScriptInspectionValue
+        )
+
+        fun replace(entry: Entry, value: ScriptValue)
         fun set(key: ScriptValue, value: ScriptValue)
     }
 
     interface List : ScriptInspectionValue {
-        val value: SList
+        val values: kotlin.collections.List<ScriptInspectionValue>
 
-        fun child(index: Int): ScriptInspectionValue
         fun set(index: Int, value: ScriptValue)
+        fun add(value: ScriptValue)
     }
 
     interface Jvm : ScriptInspectionValue {

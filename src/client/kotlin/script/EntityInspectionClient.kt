@@ -1,9 +1,11 @@
 package org.lain.engine.client.script
 
 import org.lain.engine.client.GameSession
+import org.lain.engine.client.chat.LiteralSystemMessage
 import org.lain.engine.client.render.ui.EntityInspectorWindow
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.persistentId
+import org.lain.engine.script.dev.EditOperation
 import org.lain.engine.script.dev.EntityInspectionSnapshot
 import org.lain.engine.script.dev.InspectionPrimitive
 import org.lain.engine.util.ecs.EntityId
@@ -39,9 +41,9 @@ class EntityInspection(
         gameSession.handler.onEntityInspection(persistentId, rate)
     }
 
-    fun editValue(objectId: Int, key: String, value: InspectionPrimitive) {
+    fun editValue(targetId: Int, editOperation: EditOperation) {
         if (aborted) return
-        gameSession.handler.onEntityInspectionEdit(persistentId, objectId, key, value)
+        gameSession.handler.onEntityInspectionEdit(persistentId, targetId, editOperation)
     }
 
     fun markDirty(componentType: String) {
@@ -55,9 +57,9 @@ class EntityInspection(
     }
 }
 
-fun GameSession.startInspection(entityId: EntityId): EntityInspection = with(world) {
+fun GameSession.startInspection(entityId: EntityId): Unit = with(world) {
     val persistentId = entityId.persistentId()
-    return EntityInspection(this@startInspection, entityId, persistentId).also {
+    EntityInspection(this@startInspection, entityId, persistentId).also {
         it.window = EntityInspectorWindow(it, entityId.getEntityDebugNameId().name, namespacedStorage)
         entityInspections[persistentId] = it
         handler.onEntityInspection(persistentId, it.rate)

@@ -129,9 +129,8 @@ fun ServerHandler.registerEndpoints() {
         onEntityInspectionValueEdit(
             ctx.sender,
             persistentId,
-            id,
-            key,
-            value
+            editTargetId,
+            editOperation,
         )
     }
     SERVERBOUND_ENTITY_INSPECTION_MARK_DIRTY_ENDPOINT.registerReceiver { ctx ->

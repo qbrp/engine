@@ -68,13 +68,15 @@ abstract class AbstractSelectionScreen<T>(
         looksWheel.visible = !isFadingOut()
         overlay?.render(guiGraphics, mouseX, mouseY, deltaTicks)
         val minecraft = minecraft ?: return
-        guiGraphics.drawCenteredString(
-            minecraft.font,
-            "Нажмите на Enter, чтобы выбрать персонажа",
-            width / 2,
-            height - minecraft.font.lineHeight - 8,
-            Color.WHITE.integer
-        )
+        if (overlay == null) {
+            guiGraphics.drawCenteredString(
+                minecraft.font,
+                "Нажмите на Enter, чтобы выбрать персонажа",
+                width / 2,
+                height - minecraft.font.lineHeight - 8,
+                Color.WHITE.integer
+            )
+        }
     }
 
     override fun isPauseScreen(): Boolean = false

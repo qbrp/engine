@@ -5,7 +5,6 @@ import org.lain.engine.player.PlayerPhysics
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.dev.InspectionPrimitive.Bool
 import org.lain.engine.script.dev.InspectionPrimitive.Double
-import org.lain.engine.script.dev.InspectionPrimitive.Enum
 import org.lain.engine.script.dev.InspectionPrimitive.Id
 import org.lain.engine.script.dev.InspectionPrimitive.Int
 import org.lain.engine.script.dev.InspectionPrimitive.Str
@@ -13,89 +12,101 @@ import org.lain.engine.script.dev.InspectionPrimitive.Other
 import org.lain.engine.script.dev.InspectionPrimitive.Uuid
 import org.lain.engine.script.dev.InspectionValue.Null
 import org.lain.engine.script.dev.InspectionValue.Primitive
-import org.lain.engine.script.dev.InspectionValue.Reference
 import java.util.UUID
-import kotlin.reflect.KMutableProperty1
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
+import kotlin.reflect.KType
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
 context(ctx: InspectionSerializationContext)
-fun Any?.toJvmInspectionValue(parent: InspectedObject.Parent, readonly: Boolean): InspectionValue {
+fun Any?.toJvmInspectionValue(jvmType: KType?, location: InspectionLocation?): InspectionValue {
+    location?.live?.let { ctx.editTarget(it) }
     return when (this) {
-        is String -> Primitive(readonly, Str(this))
-        is kotlin.Int -> Primitive(readonly, Int(this))
-        is kotlin.Double -> Primitive(readonly, Double(this))
-        is Number -> Primitive(readonly, Double(this.toDouble()))
-        is Boolean -> Primitive(readonly, Bool(this))
-        is Char -> Primitive(readonly, InspectionPrimitive.Char(this))
-        is UUID -> Primitive(readonly, Uuid(this.toString()))
-        is kotlin.Enum<*> -> Primitive(readonly, Enum(this::class.qualifiedName!!, name))
-        is EnginePlayer -> Primitive(readonly, Other(this.toString()))
-        is EngineId -> Primitive(readonly, Id(this))
+        is String -> Primitive(Str(this))
+        is kotlin.Int -> Primitive(Int(this))
+        is kotlin.Double -> Primitive(Double(this))
+        is Number -> Primitive(Double(this.toDouble()))
+        is Boolean -> Primitive(Bool(this))
+        is Char -> Primitive(InspectionPrimitive.Char(this))
+        is UUID -> Primitive(Uuid(this.toString()))
+        is kotlin.Enum<*> -> Primitive(Str(name))
+        is EnginePlayer -> Primitive(Other(this.toString()))
+        is EngineId -> Primitive(Id(this))
         null -> Null
         else -> {
             val clazz = this::class
-            when (clazz.isValue) {
-                false -> Reference(appendSerializationContext(parent) { valueClass, id ->
-                    valueClass.toJvmInspectionObject(id)
-                })
-
-                true -> {
-                    val property = (clazz.memberProperties.first() as KProperty1<Any, *>)
-                    property.get(this).toJvmInspectionValue(parent, readonly)
-                }
+            if (clazz.isValue) {
+                @Suppress("UNCHECKED_CAST")
+                val property = (clazz.memberProperties.first() as KProperty1<Any, *>)
+                property.get(this).toJvmInspectionValue(jvmType, location)
+            } else {
+                this.toJvmInspectionObject(jvmType, location)
             }
         }
     }
 }
 
 context(ctx: InspectionSerializationContext)
-fun Any.toJvmInspectionObject(id: kotlin.Int): InspectionObject {
-    return when (this) {
-        is Collection<*> -> InspectionObject.Collection(
-            this.mapIndexed { index, element ->
-                element.toJvmInspectionValue(
-                    InspectedObject.Parent.Index(id, index),
-                    false
+fun Any.toJvmInspectionObject(jvmType: KType?, location: InspectionLocation?): InspectionValue.Reference =
+    reference(location, jvmType, this) { targetId ->
+        when (this) {
+            is Collection<*> -> {
+                val listType = jvmType?.listTypeArgument()
+                InspectionObject.Collection(
+                    this.mapIndexed { index, element ->
+                        val elementLocation = location?.index(index)
+                        element.toJvmInspectionValue(
+                            listType,
+                            elementLocation,
+                        ).asNode(targetId, elementLocation)
+                    }
                 )
             }
-        )
 
-        is Map<*, *> ->
-            InspectionObject.Table(
-                this.map { (k, v) ->
-                    val property = k.toString()
-                    property to v.toJvmInspectionValue(
-                        InspectedObject.Parent.Property(id, property),
-                        false
-                    )
-                }.toMap()
-            )
+            is Map<*, *> -> {
+                val types = jvmType?.mapTypeArguments()
+                InspectionObject.Table(
+                    this.map { (key, value) ->
+                        val keyI = key.toJvmInspectionValue(types?.first, null).asNode(null, null)
+                        val valueLocation = location?.tableEntry(key, keyI.value)
+                        InspectionObject.Table.Entry(
+                            keyI,
+                            value.toJvmInspectionValue(
+                                types?.second,
+                                valueLocation,
+                            ).asNode(targetId, valueLocation)
+                        )
+                    }
+                )
+            }
 
-        is PlayerPhysics -> InspectionObject.PlayerPhysics(noClip, collides.map { it.toString() })
+            is PlayerPhysics -> InspectionObject.PlayerPhysics(noClip, collides.map { it.toString() })
 
-        else -> {
-            val constructorPropertyNames = this::class.primaryConstructor
-                ?.parameters
-                ?.mapNotNull { it.name }
-                ?.toSet()
-                .orEmpty()
-
-            val properties = this::class.memberProperties
-                .filter { it.name in constructorPropertyNames }
-
-            InspectionObject.Table(
-                properties.associate { property ->
-                    val readonly = property !is KMutableProperty1<*, *>
-                    val propertyName = property.name
-                    property as KProperty1<Any, *>
-                    propertyName to property.get(this).toJvmInspectionValue(
-                        InspectedObject.Parent.Property(id, propertyName),
-                        readonly
-                    )
-                }
-            )
+            else -> {
+                val properties = this::class.constructorProperties()
+                InspectionObject.Record(
+                    properties.associate { property ->
+                        val propertyName = property.name
+                        val propertyLocation = location?.field(propertyName)
+                        propertyName to property.get(this).toJvmInspectionValue(
+                            property.returnType,
+                            propertyLocation,
+                        ).asNode(targetId, propertyLocation)
+                    }
+                )
+            }
         }
     }
+
+@Suppress("UNCHECKED_CAST")
+fun KClass<*>.constructorProperties(): List<KProperty1<Any, *>> {
+    val constructorPropertyNames = primaryConstructor
+        ?.parameters
+        ?.mapNotNull { it.name }
+        ?.toSet()
+        .orEmpty()
+
+    return memberProperties
+        .filter { it.name in constructorPropertyNames } as List<KProperty1<Any, *>>
 }

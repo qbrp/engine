@@ -6,34 +6,34 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed class InspectionObject {
     open val isEmpty: Boolean = false
-    abstract fun getValue(key: String): InspectionValue?
+
+    @Serializable
+    @SerialName("record")
+    data class Record(
+        val fields: Map<String, InspectionNode>,
+    ) : InspectionObject()
 
     @Serializable
     @SerialName("table")
-    data class Table(val values: Map<String, InspectionValue>) : InspectionObject() {
+    data class Table(val entries: List<Entry>) : InspectionObject() {
         override val isEmpty: Boolean
-            get() = values.isEmpty()
+            get() = entries.isEmpty()
 
-        override fun getValue(key: String): InspectionValue? {
-            return values[key]
-        }
+        @Serializable
+        data class Entry(
+            val key: InspectionNode,
+            val value: InspectionNode,
+        )
     }
 
     @Serializable
     @SerialName("player_physics")
-    data class PlayerPhysics(val noClip: Boolean, val collides: List<String>) : InspectionObject() {
-        override fun getValue(key: String): InspectionValue? {
-            return null
-        }
-    }
+    data class PlayerPhysics(val noClip: Boolean, val collides: List<String>) : InspectionObject()
 
     @Serializable
     @SerialName("collection")
-    data class Collection(val values: List<InspectionValue>) : InspectionObject() {
+    data class Collection(val values: List<InspectionNode>) : InspectionObject() {
         override val isEmpty: Boolean
             get() = values.isEmpty()
-        override fun getValue(key: String): InspectionValue? {
-            return values.getOrNull(key.toInt())
-        }
     }
 }
