@@ -30,3 +30,5 @@ class ReplicationSnapshotApplyException(
         "ревизия $baseRevision->$targetRevision",
     cause,
 )
+
+class ReplicationException(override val cause: Throwable?) : RuntimeException()

@@ -13,7 +13,7 @@ import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.resources.ResourceLocation
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.EngineOptions
+import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.engineId
 import org.lain.engine.server.account.HttpStatusException

@@ -76,25 +76,7 @@ class ClientReplicationController(
         try {
             applyPacket(packet)
         } catch (exception: Exception) {
-            LOGGER.error("Не удалось применить кадр репликации", exception)
-            val errorString = StringBuilder(
-                "<bold>Ошибка применения кадра репликации</bold><newline>"
-            )
-            errorString.append(
-                "Игровая сессия была прекращена из-за непредвиденного исключения. " +
-                    "Свяжитесь с разработчиком и сообщите о возникшем сбое.<newline>"
-            )
-            appendExceptionString(errorString, 0, exception)
-            gameSession.client.infrastructure.disconnect(errorString.toString())
-        }
-    }
-
-    private fun appendExceptionString(string: StringBuilder, indent: Int, exception: Exception) {
-        string.append("  ".repeat(indent))
-        string.append("- " + (exception.message ?: exception.toString()))
-        string.append("<newline>")
-        exception.cause?.let {
-            appendExceptionString(string, indent + 1, exception)
+            throw ReplicationException(exception)
         }
     }
 
@@ -306,7 +288,7 @@ class ClientReplicationController(
 
         with(replicationWorld) {
             accepted.updated.forEach {
-                val component = it.revive(EntityResolver.EMPTY, componentReviveSettings) ?: return@forEach
+                val component = it.revive(this@ClientReplicationController, componentReviveSettings) ?: return@forEach
                 state.setComponent(component, runtimeComponentType(component))
             }
             removeSnapshotComponents(state, accepted.removed)
@@ -324,7 +306,7 @@ class ClientReplicationController(
 
         updated.forEach {
             val component = try {
-                it.revive(EntityResolver.EMPTY, componentReviveSettings) ?: return@forEach
+                it.revive(this@ClientReplicationController, componentReviveSettings) ?: return@forEach
             } catch (e: Exception) {
                 throw ComponentReviveException(it.id, cause = e)
             }

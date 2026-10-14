@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRe
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.renderer.entity.player.PlayerRenderer
 import org.lain.engine.client.handler.GameSessionJoinFlow
+import org.lain.engine.client.handler.ReplicationException
 import org.lain.engine.client.handler.disconnectText
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
@@ -30,6 +31,7 @@ import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.world.registerWorldRenderEvents
 import org.lain.engine.client.resources.registerEngineModelLoading
 import org.lain.engine.client.transport.ClientTransportContext
+import org.lain.engine.client.util.postErrorReport
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.mc.*
 import org.lain.engine.server.account.EngineHttpClient
@@ -45,14 +47,14 @@ import org.lain.engine.script.compilation.CompilationFailedException
 import org.slf4j.LoggerFactory
 
 class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension {
-    private val client = MinecraftClient
+    val client = MinecraftClient
     private val dynamicLights by injectDynamicLightsContext()
     val fabricLoader = FabricLoader.getInstance()
 
     private val window = Window()
     private val audioManager = MinecraftAudioManager(client)
     internal val camera = MinecraftCamera(client)
-    val decalSystem: DecalSystem = DecalSystem()
+    val decalSystem: DecalSystem = DecalSystem(this)
     val platform = MinecraftEngineClientPlatform(this, client, decalSystem)
     internal lateinit var lightSystem: LightSystem
     private var config: EngineYamlConfig = EngineYamlConfig()
@@ -70,7 +72,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     private val renderer
         get() = engine.renderer
 
-    private val connectionLogger = LoggerFactory.getLogger("Engine Connection")
     private var inAuthorization = false
     var readyToAuthorize = false
     var server: IntegratedEngineMinecraftServer? = null
@@ -95,7 +96,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
 
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
             if (engine.gameSessionActive) {
-                connectionLogger.warn("Сброс активной игровой сессии. Это баг, который не должен возникать в обычных условиях")
+                LOGGER.warn("Сброс активной игровой сессии. Это баг, который не должен возникать в обычных условиях")
                 onDisconnect()
             }
 
@@ -117,6 +118,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
                         serverStartFail.log()
                         "${serverStartFail.message}.<newline>Проверьте консоль для подробной информации"
                     } else {
+                        postErrorReport(serverStartFail, "serverStart")
                         serverStartFail.message ?: "Не удалось запустить сервер"
                     }
                 )
@@ -179,12 +181,36 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             engine.tick()
             renderer.tick()
 
-        } catch (e: Throwable) {
-            connectionLogger.error("При тике Engine возникла ошибка: ", e)
-            disconnectWithReason(DisconnectText(e.message ?: "Неизвестная ошибка"))
+        } catch (e: Exception) {
+            LOGGER.error("При тике Engine возникла ошибка: ", e)
+
+            val errorString = StringBuilder()
+
+            if (e is ReplicationException) {
+                errorString.append("<bold>Ошибка применения кадра репликации</bold><newline>")
+                errorString.append(
+                    "Игровая сессия была прекращена из-за непредвиденного исключения. " +
+                            "Свяжитесь с разработчиком и сообщите о возникшем сбое.<newline>"
+                )
+                appendExceptionString(errorString, 0, e)
+            } else {
+                errorString.append(e.message ?: "Неизвестная ошибка")
+            }
+
+            disconnectWithReason(DisconnectText(errorString.toString()))
+            postErrorReport(e, "tickClient")
             onDisconnect()
         }
         profiler.pop()
+    }
+
+    private fun appendExceptionString(string: StringBuilder, indent: Int, exception: Throwable) {
+        string.append("  ".repeat(indent))
+        string.append("- " + (exception.message ?: exception.toString()))
+        string.append("<newline>")
+        exception.cause?.let {
+            appendExceptionString(string, indent + 1, it)
+        }
     }
 
     private fun onClientStarted() {
@@ -215,12 +241,12 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         MinecraftChat.clearChatData()
         readyToAuthorize = false
         inAuthorization = false
-        connectionLogger.info("Игрок отключен от сервера Engine")
+        LOGGER.info("Игрок отключен от сервера Engine")
     }
 
     fun disconnectWithReason(text: Text) {
         client.connection?.connection?.disconnect(text) ?: run {
-            connectionLogger.warn("Игрок отключен от несуществующего сервера")
+            LOGGER.warn("Игрок отключен от несуществующего сервера")
         }
     }
 
@@ -255,5 +281,9 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
                 camera.impulse(-translationYaw, -translationPitch)
             }
         }
+    }
+
+    companion object {
+        val LOGGER = LoggerFactory.getLogger("Engine Client")
     }
 }

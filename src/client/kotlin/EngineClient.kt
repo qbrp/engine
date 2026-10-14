@@ -1,10 +1,6 @@
 package org.lain.engine.client
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
 import org.lain.engine.client.account.SkinTextureManager
@@ -18,6 +14,7 @@ import org.lain.engine.client.render.*
 import org.lain.engine.client.render.ui.ImGuiManager
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.EngineAudioManager
+import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.developerMode
 import org.lain.engine.player.get

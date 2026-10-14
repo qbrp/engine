@@ -33,4 +33,9 @@ open class AuthorizedAccount(
         checkValid()
         httpClient.postJson<Unit, SessionTicketDto>("/auth/session-ticket", bearerToken = bearerToken)
     }
+
+    suspend fun postErrorReport(report: ErrorReportPost) = withContext(Dispatchers.IO) {
+        checkValid()
+        httpClient.postJson<ErrorReportPost, String>("/reports", body = report, bearerToken = bearerToken)
+    }
 }

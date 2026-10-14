@@ -1,4 +1,4 @@
-package org.lain.engine.client
+package org.lain.engine.client.util
 
 interface EngineOptions {
     val chatBubbleScale: Float

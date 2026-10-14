@@ -16,8 +16,11 @@ import org.lain.engine.server.account.HttpStatusException
 import org.lain.engine.server.account.RefreshToken
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.account.AccountResponse
+import org.lain.engine.server.account.ErrorReport
+import org.lain.engine.server.account.ErrorReportPost
 import java.time.Duration
 import java.time.Instant
+import kotlin.time.Duration.Companion.seconds
 
 sealed interface ConnectionState {
     data object Unauthorized : ConnectionState
@@ -166,7 +169,7 @@ class AccountManager(
                 throw e
             } catch (e: Exception) {
                 state = ConnectionState.Unauthorized
-                delay(Duration.ofSeconds(1).toMillis())
+                delay(1.seconds)
             }
         }
     }

@@ -16,7 +16,7 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.AcceptedMessage
-import org.lain.engine.client.getClientItem
+import org.lain.engine.client.util.getClientItem
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.client.render.getSkin
 import org.lain.engine.client.render.item.resolveTooltip

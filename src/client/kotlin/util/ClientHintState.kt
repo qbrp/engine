@@ -1,6 +1,7 @@
-package org.lain.engine.client
+package org.lain.engine.client.util
 
 import org.lain.cyberia.ecs.iterate
+import org.lain.engine.client.GameSession
 import org.lain.engine.data.Uuid
 import org.lain.engine.util.addIfNotNull
 import org.lain.engine.world.HintDestroyEvent

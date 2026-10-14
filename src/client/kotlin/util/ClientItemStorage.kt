@@ -1,5 +1,6 @@
-package org.lain.engine.client
+package org.lain.engine.client.util
 
+import org.lain.engine.client.GameSession
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.ecs.EngineItemReferenceComponent
 import org.lain.engine.data.PersistentId

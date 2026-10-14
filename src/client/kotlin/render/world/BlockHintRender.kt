@@ -3,14 +3,12 @@ package org.lain.engine.client.render.world
 import net.minecraft.ChatFormatting
 import net.minecraft.client.Camera
 import net.minecraft.client.renderer.LightTexture
-import org.lain.engine.client.ClientHintState
+import org.lain.engine.client.util.ClientHintState
 import org.lain.engine.client.control.InspectionMode
-import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.literalText
 import org.lain.engine.world.Hint
 import org.lain.engine.world.ImmutableVoxelPos
-import org.lain.engine.world.VoxelPos
 import kotlin.math.pow
 
 private val NOT_READ = literalText("?").withStyle(ChatFormatting.YELLOW).visualOrderText

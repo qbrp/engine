@@ -21,9 +21,10 @@ import org.lain.engine.client.render.*
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.EntityInspection
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
+import org.lain.engine.client.util.ClientHintState
+import org.lain.engine.client.util.handleHintEvents
 import org.lain.engine.client.util.processWorldSounds
 import org.lain.engine.data.PersistentId
-import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.item.ItemStorage
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
@@ -40,7 +41,6 @@ import org.lain.engine.transport.packet.*
 import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.WARNING_COLOR
-import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.*
 
 class GameSession(

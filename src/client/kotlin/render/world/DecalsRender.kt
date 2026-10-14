@@ -10,7 +10,9 @@ import net.minecraft.client.renderer.texture.TextureManager
 import net.minecraft.util.CommonColors
 import org.joml.Vector3f
 import org.lain.cyberia.ecs.iterate
+import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.render.ui.ColorMc
+import org.lain.engine.client.util.postErrorReport
 import org.lain.engine.mc.engineId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.isPowerOfTwo
@@ -24,7 +26,15 @@ data class BlockDecalImageData(
     val gameTexture: DecalsTexture
 )
 
-class DecalSystem {
+data class DecalsCompilationError(
+    val voxelPos: ImmutableVoxelPos,
+    val layers: List<String>,
+    override val cause: Throwable?
+) : Exception(
+    "Не удалось скомпилировать декали блока ${voxelPos.toShortString()} (${layers.joinToString()})"
+)
+
+class DecalSystem(private val client: EngineMinecraftClient) {
     lateinit var textureManager: TextureManager
     private val images: MutableMap<EngineChunkPos, MutableMap<ImmutableVoxelPos, BlockDecalImageData>> = mutableMapOf()
     private val logger = LoggerFactory.getLogger("Engine Decals")
@@ -45,7 +55,11 @@ class DecalSystem {
         updateTexture(decals, ImmutableVoxelPos(voxelPos), pos)
     }
 
-    fun updateTexture(decals: BlockDecals, voxelPos: ImmutableVoxelPos, chunk: EngineChunkPos = EngineChunkPos(voxelPos)) {
+    fun updateTexture(
+        decals: BlockDecals,
+        voxelPos: ImmutableVoxelPos,
+        chunk: EngineChunkPos = EngineChunkPos(voxelPos)
+    ) {
         val decalLayers = decals.layers
         try {
             var image = textures(chunk)[voxelPos]
@@ -59,8 +73,11 @@ class DecalSystem {
             }
 
             image.gameTexture.compile(decalLayers)
-        } catch (e: Throwable) {
-            logger.error("Не удалось скомпилировать декали блока ${voxelPos.toShortString()} (${decalLayers.map { it.key.name }})", e)
+        } catch (e: Exception) {
+            val layers = decalLayers.map { it.key.name }
+            val decalsError = DecalsCompilationError(voxelPos, layers, e)
+            logger.error("Ошибка компиляции декалей", decalsError)
+            client.postErrorReport(decalsError, "decalsCompilation")
         }
     }
 
@@ -166,7 +183,7 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
                                             y0 + py,
                                             ColorMc.color(contents.opacity, CommonColors.BLACK)
                                         )
-                                        depthArea.stretch(px, py,)
+                                        depthArea.stretch(px, py)
                                     }
                                 }
                             }
@@ -186,7 +203,7 @@ class DecalsTexture(val blockPos: VoxelPos, val resolution: Int) : AutoCloseable
     }
 }
 
-private fun EDirection.getStartPos(resolution: Int) = when(this) {
+private fun EDirection.getStartPos(resolution: Int) = when (this) {
     EDirection.DOWN -> 0 to 0
     EDirection.UP -> 0 to resolution
     EDirection.NORTH -> resolution to 0

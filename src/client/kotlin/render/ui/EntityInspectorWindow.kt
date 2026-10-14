@@ -33,6 +33,7 @@ class EntityInspectorWindow(
     val namespacedStorage: NamespacedStorageAccess,
 ) : ImGuiWindow {
     private val expandAll = ImBoolean(false)
+    private val shortDoubleFormatting = ImBoolean(true)
     private val openNodes = mutableSetOf<InspectionPathDto>()
     private val pendingRecursiveExpansions = mutableSetOf<InspectionPathDto>()
     private var abortReason: String? = null
@@ -90,6 +91,12 @@ class EntityInspectorWindow(
             ImGui.text("Идентификатор: ${inspection.persistentId}")
             ImGui.text("Компоненты: ${data.components.count()}")
             ImGui.text("Объекты: ${data.debugObjects.count()}")
+            if (ImGui.checkbox("Расширить всё", expandAll)) {
+                if (!expandAll.get()) {
+                    openNodes.clear()
+                }
+            }
+            ImGui.checkbox("Округлять нецелые числа", shortDoubleFormatting)
             val rateValue = intArrayOf(inspection.rate)
             if (ImGui.sliderInt("Частота обновления", rateValue, 1, 40)) {
                 inspection.updateRate(rateValue[0])
@@ -98,11 +105,6 @@ class EntityInspectorWindow(
         ImGui.separator()
         ImGui.textWrapped("Изменение данных некоторых компонентов может повлечь за собой неккоректную работу Engine")
         ImGui.separator()
-        if (ImGui.checkbox("Расширить всё", expandAll)) {
-            if (!expandAll.get()) {
-                openNodes.clear()
-            }
-        }
         ImGuiUtil.child("Компоненты") {
             data.components.forEach { component ->
                 val componentPath = InspectionPathDto(component.type, emptyList())
@@ -123,7 +125,7 @@ class EntityInspectorWindow(
 
                 val label = StringBuilder(component.type)
                 if (hasError) {
-                    label.append(" [⚠]")
+                    label.append(" [ERROR]")
                 }
                 if (meta?.savable == true) {
                     label.append(" [S]")
@@ -192,10 +194,10 @@ class EntityInspectorWindow(
         val isOpen = node.path in openNodes
 
         val tooltip = StringBuilder("")
-        if (isOpen && componentData != null) {
+        if (!isOpen && componentData != null) {
             val representation = componentData.stringRepresentation()
             if (!representation.isNullOrEmpty()) {
-                tooltip.append("($representation)")
+                tooltip.append(representation)
             }
         }
 
@@ -278,7 +280,13 @@ class EntityInspectorWindow(
     fun InspectionPrimitive.stringRepresentation(): String {
         return when (this) {
             is InspectionPrimitive.Bool -> bool.toString()
-            is InspectionPrimitive.Double -> string
+            is InspectionPrimitive.Double -> {
+                if (shortDoubleFormatting.get()) {
+                    "%.2f".format(double)
+                } else {
+                    double.toString()
+                }
+            }
             is InspectionPrimitive.Int -> string
             is InspectionPrimitive.Other -> string
             is InspectionPrimitive.Str -> string

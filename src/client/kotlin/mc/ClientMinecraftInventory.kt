@@ -2,7 +2,7 @@ package org.lain.engine.client.mc
 
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.getClientItem
+import org.lain.engine.client.util.getClientItem
 import org.lain.engine.mc.ecs.ENGINE_ITEM_REFERENCE_COMPONENT
 import org.lain.engine.mc.ecs.EngineItemStack
 import org.lain.engine.mc.ecs.MinecraftPlayer
