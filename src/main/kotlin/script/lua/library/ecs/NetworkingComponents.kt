@@ -11,8 +11,8 @@ import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.castedLuaValue
 import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.setLuaScriptComponent
 import org.lain.engine.script.lua.luaTable
-import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.script.lua.toScriptValue
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toLuaValue

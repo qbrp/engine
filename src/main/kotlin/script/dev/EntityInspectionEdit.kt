@@ -11,6 +11,7 @@ import kotlin.reflect.KParameter
 import kotlin.reflect.KType
 import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.full.memberFunctions
+import kotlin.reflect.full.primaryConstructor
 
 data class InspectionEditTarget(
     val path: InspectionPath,
@@ -143,35 +144,34 @@ sealed interface EditOperation {
 
 context(world: World)
 fun EntityInspection.performEditOperation(
-    editTargetId: Int, operation: EditOperation
+    editTargetId: Int,
+    operation: EditOperation
 ) {
-    val editTarget = lastSnapshot.editTargets[editTargetId]
-        ?: error("Inspection edit target $editTargetId not found")
-    applyEdit(editTarget.path, operation)
-}
+    try {
+        val editTarget = lastSnapshot.editTargets[editTargetId]
+            ?: error("Inspection edit target $editTargetId not found")
+        val path = editTarget.path
+        @Suppress("UNCHECKED_CAST")
+        val componentType = path.componentType as ComponentType<Component>
+        val rootComponent = entity.getComponent<Component>(componentType)
+            ?: error("Component ${path.componentType.id} not found")
+        val rootNode = rootComponent.toInspectionEditNode()
 
-context(world: World)
-private fun EntityInspection.applyEdit(
-    path: InspectionPath,
-    operation: EditOperation,
-) {
-    @Suppress("UNCHECKED_CAST")
-    val componentType = path.componentType as ComponentType<Component>
-    val rootComponent = entity.getComponent<Component>(componentType)
-        ?: error("Component ${path.componentType.id} not found")
-    val rootNode = rootComponent.toInspectionEditNode()
-
-    when (val result = rootNode.editIn(path.segments, operation)) {
-        InspectionEditResult.MutatedInPlace -> Unit
-        is InspectionEditResult.Replaced -> {
-            @Suppress("UNCHECKED_CAST")
-            val componentType = path.componentType
-            val updatedRoot = result.value as? Component
-                ?: error("Root replacement is not a component: ${result.value}")
-            entity.setComponent(updatedRoot, componentType)
+        when (val result = rootNode.editIn(path.segments, operation)) {
+            InspectionEditResult.MutatedInPlace -> Unit
+            is InspectionEditResult.Replaced -> {
+                @Suppress("UNCHECKED_CAST")
+                val componentType = path.componentType
+                val updatedRoot = result.value as? Component
+                    ?: error("Root replacement is not a component: ${result.value}")
+                entity.setComponent(updatedRoot, componentType)
+            }
         }
+    } catch (e: Exception) {
+
     }
 }
+
 
 fun InspectionEditNode.editIn(
     segments: List<InspectionPath.Segment>,
@@ -227,8 +227,18 @@ fun Any.copyWith(property: String, value: Any?): Any {
         "${this::class.qualifiedName} is not a data class"
     }
 
+    val constructorParameters = this::class.primaryConstructor
+        ?.parameters
+        ?: error("Primary constructor not found on ${this::class.qualifiedName}")
     val copyFunction = this::class.memberFunctions
-        .single { it.name == "copy" }
+        .singleOrNull { function ->
+            function.name == "copy" &&
+                function.parameters
+                    .filter { it.kind == KParameter.Kind.VALUE }
+                    .map { it.name to it.type } ==
+                constructorParameters.map { it.name to it.type }
+        }
+        ?: error("Generated copy function not found on ${this::class.qualifiedName}")
 
     val propertyParameter = copyFunction.parameters
         .singleOrNull {

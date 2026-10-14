@@ -9,7 +9,6 @@ import org.lain.engine.world.World
 
 fun World.pullEquippable() {
     projectLuaComponent<Equippable>(CoreScriptComponents.EQUIPPABLE) { value, current ->
-        //Equippable(current?.display ?: OutfitDisplay.Separated)
         Equippable(OutfitDisplay.Separated)
     }
 }

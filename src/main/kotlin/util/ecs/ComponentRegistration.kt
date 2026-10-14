@@ -51,6 +51,7 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
 
     // Items
     registerComponent<HeldBy>()
+    registerComponent<Equippable>(id = "core/equippable", isSavable = true, isNetworking = true)
 
     registerComponent<Item>(isSavable = true, isNetworking = true)
     registerComponent<ContainedIn>(isSavable = true, isNetworking = true, replicationClass = null)

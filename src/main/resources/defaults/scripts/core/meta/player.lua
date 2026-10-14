@@ -75,4 +75,4 @@ function player:sync_action(type, action) end
 ---@field main_hand_item Entity?
 ---@field off_hand_item Entity?
 ---@field selected_slot integer
----@field items Entity[]
+---@field items LuaList<Entity>

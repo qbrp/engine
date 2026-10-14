@@ -3,6 +3,7 @@ package org.lain.engine.script.lua
 import org.lain.cyberia.ecs.*
 import org.lain.engine.script.*
 import org.lain.engine.script.dev.ScriptInspectionValue
+import org.lain.engine.script.lua.library.LuaComponentAccess
 import org.lain.engine.util.ecs.EntityId
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
@@ -95,32 +96,6 @@ class LuaInspectionPrimitive(
 ) : LuaInspectionValue(luaValue, value), ScriptInspectionValue.Primitive
 
 class LuaInspectionJvm(override val value: Any) : ScriptInspectionValue.Jvm
-
-context(writeComponentAccess: WriteComponentAccess, lua: LuaScriptEngine)
-fun EntityId.setLuaScriptComponent(value: LuaValue, type: ScriptComponentType): LuaScriptComponent {
-    val component = LuaScriptComponent(value, type, lua)
-    setComponent(component, type)
-    return component
-}
-
-context(read: ReadComponentAccess)
-fun EntityId.hasLuaScriptComponent(componentType: ScriptComponentType): Boolean {
-    return hasComponent(componentType)
-}
-
-context(read: ReadComponentAccess)
-fun EntityId.getLuaScriptComponent(componentType: ScriptComponentType): LuaValue? {
-    val component = getComponent(componentType) ?: return null
-    component as? LuaScriptComponent ?: error("Компонент $component не принадлежит Lua")
-    return component.luaValue
-}
-
-context(world: WriteComponentAccess)
-fun EntityId.removeLuaScriptComponent(componentType: ScriptComponentType): LuaValue? {
-    val component = removeComponent(componentType) ?: return null
-    component as? LuaScriptComponent ?: error("Компонент $component не принадлежит Lua")
-    return component.luaValue
-}
 
 fun ScriptComponent.castLua() = this as LuaScriptComponent
 

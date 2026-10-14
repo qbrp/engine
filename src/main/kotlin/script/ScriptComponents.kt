@@ -3,6 +3,7 @@ package org.lain.engine.script
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
+import org.lain.engine.player.Equipment
 import org.lain.engine.script.compilation.CompilationDiagnostic
 import org.lain.engine.script.compilation.DiagnosticContext
 import org.lain.engine.script.compilation.DiagnosticException
@@ -37,7 +38,7 @@ class ScriptComponentType(
     val ecsType: ComponentType<ScriptComponent>,
     val meta: ComponentMeta,
     val version: Int = 0,
-    val migrations: List<Script<ScriptContext.ComponentMigration, ScriptValue>>
+    val migrations: List<Script<ScriptContext.ComponentMigration, ScriptValue>>,
 ) : IndexedComponentType<ScriptComponent>(ecsType.id) {
     init {
         if (migrations.size != version) throw MigrationDeclarationException(this)
@@ -61,8 +62,6 @@ object CoreScriptComponents {
     val PLAYER_MOVEMENT_STATUS = register("core/player/movement_status")
     val PLAYER_VELOCITY = register("core/player/velocity")
     val PLAYER_JUMP = register("core/player/jump")
-    val PLAYER_EQUIPMENT = register("core/player/equipment")
-    val LOCATION = register("core/location")
     val DYNAMIC_VOXEL = register("core/voxel/dynamic_voxel")
     val USE_RESTRICTION = register("core/voxel/use_restriction", savable = true, networking = true) // TODO: переместить в движок
     val EQUIPPABLE = register("core/equipment/equippable")
@@ -85,7 +84,7 @@ object CoreScriptComponents {
     private fun register(
         id: String,
         savable: Boolean = false,
-        networking: Boolean = false
+        networking: Boolean = false,
     ) = register(id, ComponentMeta(savable, networking))
 
     private fun register(

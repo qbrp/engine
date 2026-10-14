@@ -1,22 +1,22 @@
 package org.lain.engine.script.lua.library.ecs
 
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.iterate
-import org.lain.engine.script.CoreScriptComponents
+import org.lain.cyberia.ecs.EntityId
+import org.lain.engine.script.EngineId
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.castLua
+import org.lain.engine.script.lua.LuaUserdataType
+import org.lain.engine.script.lua.library.LuaComponentBinding
 import org.lain.engine.script.lua.library.coerceToLua
-import org.lain.engine.script.lua.setLuaScriptComponent
+import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
+import org.luaj.vm2.LuaValue
 
-context(luaScriptEngine: LuaScriptEngine)
-fun LuaLocationComponent(location: Location) = location.position.coerceToLua()
+object LocationBinding : LuaComponentBinding<Location> {
+    override val componentType = componentType<Location>()
+    override val id = EngineId("core/location")
 
-context(luaScriptEngine: LuaScriptEngine)
-fun World.pushLocationComponents() {
-    iterate<Location> { entity, location ->
-        entity.getComponent(CoreScriptComponents.LOCATION)?.castLua() ?: return@iterate
-        entity.setLuaScriptComponent(LuaLocationComponent(location), CoreScriptComponents.LOCATION)
+    context(lua: LuaScriptEngine)
+    override fun toLua(world: World?, entity: EntityId, component: Location): LuaValue {
+        return component.position.coerceToLua()
     }
 }

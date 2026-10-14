@@ -11,6 +11,7 @@ class InspectionSerializationContext(
     val visited: MutableMap<Int, Int> = mutableMapOf(),
     val debugObjects: MutableMap<Int, InspectionObject> = mutableMapOf(),
     val editTargets: MutableMap<Int, InspectionEditTarget> = mutableMapOf(),
+    val editTargetIds: MutableMap<InspectionPath, Int> = mutableMapOf(),
     val typeDescriptors: MutableMap<Int, InspectionTypeDescriptor> = mutableMapOf(),
     val kTypeDescriptors: MutableMap<KType, Int> = mutableMapOf(),
     val nodes: MutableMap<InspectionPathDto, InspectionNode> = mutableMapOf(),
@@ -48,25 +49,43 @@ fun InspectionValue.asNode(
     location: InspectionLocation?,
     typeDescriptorId: Int? = null,
 ): InspectionNode {
-    val node = InspectionNode(this, editTargetId, typeDescriptorId)
+    val actualEditTargetId = location?.live?.let { ctx.editTarget(it) } ?: editTargetId
+    val node = InspectionNode(this, actualEditTargetId, typeDescriptorId)
     location?.let { ctx.nodes[it.dto] = node }
     return node
 }
 
 fun InspectionSerializationContext.editTarget(path: InspectionPath): Int {
+    editTargetIds[path]?.let { return it }
     val id = lastEditTargetId++
+    editTargetIds[path] = id
     editTargets[id] = InspectionEditTarget(path)
     return id
 }
 
 fun InspectionSerializationContext.type(kType: KType): Int {
-    kTypeDescriptors[kType]?.let { id -> return id }
-    return type(kType.inspectionTypeDescriptor())
-}
+    kTypeDescriptors[kType]?.let { return it }
 
-fun InspectionSerializationContext.type(descriptor: InspectionTypeDescriptor): Int {
-    typeDescriptors[lastTypeDescriptorId++] = descriptor
-    return lastTypeDescriptorId
+    val id = lastTypeDescriptorId++
+    kTypeDescriptors[kType] = id
+    typeDescriptors[id] = InspectionTypeDescriptor.Unknown
+
+    try {
+        typeDescriptors[id] = kType.inspectionTypeDescriptor()
+    } catch (exception: Exception) {
+        kTypeDescriptors.remove(kType)
+        typeDescriptors.remove(id)
+        throw exception
+    }
+
+    return id
+}
+fun InspectionSerializationContext.type(
+    descriptor: InspectionTypeDescriptor,
+): Int {
+    val id = lastTypeDescriptorId++
+    typeDescriptors[id] = descriptor
+    return id
 }
 
 fun Any.identityKey(): Int = System.identityHashCode(this)

@@ -13,12 +13,13 @@ import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.LuaUserdataType
 import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.setLuaScriptComponent
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaStr
 import org.lain.engine.script.lua.luaTable
+import org.lain.engine.script.lua.luaTableOf
 import org.lain.engine.script.lua.nullable
-import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.script.lua.toScriptValue
@@ -142,10 +143,6 @@ fun EnginePlayer.setupLuaScriptComponents() {
     entity.setLuaScriptComponent(
         LuaPlayerComponent(this),
         CoreScriptComponents.PLAYER
-    )
-    entity.setLuaScriptComponent(
-        LuaLocationComponent(location),
-        CoreScriptComponents.LOCATION
     )
     entity.setLuaScriptComponent(
         LuaPlayerInventoryComponent(this),

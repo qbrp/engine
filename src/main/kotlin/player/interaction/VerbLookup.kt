@@ -6,6 +6,7 @@ import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.util.ecs.EntityId
+import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.World
 
 @Serializable
@@ -15,7 +16,11 @@ value class VerbId(val value: String)
 data class VerbLookup(
     val input: Set<InputAction>,
     val verbs: MutableSet<Verb> = mutableSetOf()
-) : Component
+) : Component {
+    companion object {
+        val TYPE = componentType<VerbLookup>()
+    }
+}
 
 fun World.tickVerbLookupStart() {
     iterate<PlayerInput, PlayerInventory>() { entity, input, inventory ->

@@ -9,16 +9,10 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.asUserdata
 import org.lain.engine.script.lua.asUserdataOrThrow
-import org.lain.engine.script.lua.getLuaScriptComponent
-import org.lain.engine.script.lua.hasLuaScriptComponent
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaUserdataTable
-import org.lain.engine.script.lua.nullable
-import org.lain.engine.script.lua.removeLuaScriptComponent
-import org.lain.engine.script.lua.setLuaScriptComponent
 import org.lain.engine.script.lua.toLuaTable
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
@@ -26,7 +20,6 @@ import org.luaj.vm2.LuaInteger
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
-import org.luaj.vm2.lib.jse.CoerceJavaToLua
 
 data class LuaEntity(
     val writeAccess: WriteComponentAccess,
@@ -56,61 +49,61 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
             entityId.exists().luaBool()
         }
     }
-    functionSelf2("get_component") { entity, type ->
+    functionSelf2("get_component") { entity, typeHolder ->
         val entityId = entity.id
         val world = entity.readAccess ?: error("entity hasn't read component access")
         with(world) {
-            entityId.getLuaScriptComponent(type.fetchComponentTypeFromHolder()) ?: NIL
+            entityId.getComponentLua(entity.world, typeHolder.fetchHolderLuaComponentAccess()) ?: NIL
         }
     }
     functionSelf2("has_component") { entity, type ->
         val entityId = entity.id
         val world = entity.readAccess ?: error("entity hasn't read component access")
         with(world) {
-            entityId.hasLuaScriptComponent(type.fetchComponentTypeFromHolder()).luaBool()
+            entityId.hasComponentLua(type.fetchHolderLuaComponentAccess()).luaBool()
         }
     }
-    functionSelf3("set_component") { entity, type, component ->
+    functionSelf3("set_component") { entity, accessL, component ->
         val entityId = entity.id
         val world = entity.writeAccess
-        val type = type.fetchComponentTypeFromHolder()
+        val access = accessL.fetchHolderLuaComponentAccess()
         with(world) {
-            entityId.setLuaScriptComponent(component, type)
+            entityId.setComponentLua(entity.world, component, access)
         }
-        debugScript("entity", "($entity) ${type.id} added")
+        debugScript("entity", "($entity) ${access.id} added")
         component
     }
     functionSelf2("remove_component") { entity, typeL ->
         val entityId = entity.id
         val world = entity.writeAccess
-        val type = typeL.fetchComponentTypeFromHolder()
+        val type = typeL.fetchHolderLuaComponentAccess()
         debugScript("entity", "($entity) ${type.id} removed")
         with(world) {
-            entityId.removeLuaScriptComponent(type) ?: NIL
+            entityId.removeComponentLua(entity.world, type) ?: NIL
         }
     }
     functionSelf2("mark_updated") { entity, typeL ->
         val entityId = entity.id
         val world = entity.world ?: error("entity hasn't write component access")
-        val type = typeL.fetchComponentTypeFromHolder()
+        val type = typeL.fetchHolderLuaComponentAccess()
         debugScript("entity", "($entity) ${type.id} marked for sync")
-        world.componentManager.markDirty(entityId, type)
+        world.componentManager.markDirty(
+            entityId,
+            when(val access = typeL.fetchHolderLuaComponentAccess()) {
+                is LuaComponentAccess.Native -> access.binding.componentType
+                is LuaComponentAccess.Script -> access.type
+            }
+        )
         NIL
     }
-    functionSelf2("list_components") { entity, queryL ->
+    functionSelf("list_components") { entity ->
         val entityId = entity.id
         val world = entity.world ?: error("entity hasn't read component access")
-        val query = queryL.nullable()?.toboolean() ?: false
         world.getComponents(entityId)
-            .filter { query || it is LuaScriptComponent }
-            .associate {
-                when(it) {
-                    is LuaScriptComponent -> it.type to it.luaValue
-                    else -> componentTypeOf(it::class) to CoerceJavaToLua.coerce(it)
-                }
-            }
+            .filterIsInstance<LuaScriptComponent>()
+            .associate { it.type to it.luaValue }
             .toLuaTable(
-                { lua.componentLibrary.coerceComponentType(it) },
+                { lua.componentLibrary.scriptComponentAccess(it) },
                 { it }
             )
     }

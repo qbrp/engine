@@ -1,8 +1,11 @@
 package org.lain.engine.script.lua.library
 
+import org.lain.cyberia.ecs.Component
+import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.castLua
+import org.lain.engine.script.lua.castedLuaValue
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaStr
 import org.lain.engine.script.lua.luaUserdataTable
@@ -74,7 +77,7 @@ fun WorldMetaTable() = luaUserdataTable<World> {
     }
 
     functionSelf4("emit") { world, typeL, event, networkedL ->
-        val type = typeL.fetchComponentTypeFromHolder()
+        val type = typeL.fetchHolderLuaComponentAccess().asScript()
         val networked = networkedL.toboolean()
         with(world) {
             world.emitEvent(
@@ -87,7 +90,8 @@ fun WorldMetaTable() = luaUserdataTable<World> {
 
     function3("iterate") { self, types, func ->
         val world = self.asEngineWorld()
-        val typesL = types.checktable().toList { it.fetchComponentTypeFromHolder() }
+        val accesses = types.checktable().toList { it.fetchHolderLuaComponentAccess() }
+        val types = accesses.map { it.componentType }
         val entityArray = world.componentManager.getComponentArray(LuaEntityComponent.TYPE)
         fun getOrCreateEntityComponent(entityId: EntityId): LuaEntityComponent {
             return entityArray.componentOf(entityId) ?: run {
@@ -96,84 +100,91 @@ fun WorldMetaTable() = luaUserdataTable<World> {
             }
         }
 
-        when (typesL.size) {
-            1 -> world.iterate1(typesL[0]) { entity, component ->
+        fun Component.luaPresentation(entity: EntityId, idx: Int): LuaValue {
+            return when (val access = accesses[idx]) {
+                is LuaComponentAccess.Native -> access.asGeneric().toLua(world, entity, this)
+                is LuaComponentAccess.Script -> (this as ScriptComponent).castedLuaValue
+            }
+        }
+
+        when (accesses.size) {
+            1 -> world.iterate1(types[0]) { entity, component ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
                     self,
                     luaEntity.coercedTable,
-                    component.castLua().luaValue
+                    component.luaPresentation(entity, 0)
                 )
             }
 
             2 -> world.iterate2(
-                typesL[0],
-                typesL[1]
+                types[0],
+                types[1]
             ) { entity, component1, component2 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
                     arrayOf(
                         self,
                         luaEntity.coercedTable,
-                        component1.castLua().luaValue,
-                        component2.castLua().luaValue
+                        component1.luaPresentation(entity, 0),
+                        component2.luaPresentation(entity, 1)
                     )
                 )
             }
 
             3 -> world.iterate3(
-                typesL[0],
-                typesL[1],
-                typesL[2]
+                types[0],
+                types[1],
+                types[2]
             ) { entity, component1, component2, component3 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
                     arrayOf(
                         self,
                         luaEntity.coercedTable,
-                        component1.castLua().luaValue,
-                        component2.castLua().luaValue,
-                        component3.castLua().luaValue
+                        component1.luaPresentation(entity, 0),
+                        component2.luaPresentation(entity, 1),
+                        component3.luaPresentation(entity, 2)
                     )
                 )
             }
 
             4 -> world.iterate4(
-                typesL[0],
-                typesL[1],
-                typesL[2],
-                typesL[3]
+                types[0],
+                types[1],
+                types[2],
+                types[3]
             ) { entity, component1, component2, component3, component4 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
                     arrayOf(
                         self,
                         luaEntity.coercedTable,
-                        component1.castLua().luaValue,
-                        component2.castLua().luaValue,
-                        component3.castLua().luaValue,
-                        component4.castLua().luaValue
+                        component1.luaPresentation(entity, 0),
+                        component2.luaPresentation(entity, 1),
+                        component3.luaPresentation(entity, 2),
+                        component4.luaPresentation(entity, 3)
                     )
                 )
             }
 
             5 -> world.iterate5(
-                typesL[0],
-                typesL[1],
-                typesL[2],
-                typesL[3],
-                typesL[4]
+                types[0],
+                types[1],
+                types[2],
+                types[3],
+                types[4]
             ) { entity, component1, component2, component3, component4, component5 ->
                 val luaEntity = getOrCreateEntityComponent(entity)
                 func.invoke(
                     arrayOf(
                         self,
                         luaEntity.coercedTable,
-                        component1.castLua().luaValue,
-                        component2.castLua().luaValue,
-                        component3.castLua().luaValue,
-                        component4.castLua().luaValue,
-                        component5.castLua().luaValue
+                        component1.luaPresentation(entity, 0),
+                        component2.luaPresentation(entity, 1),
+                        component3.luaPresentation(entity, 2),
+                        component4.luaPresentation(entity, 3),
+                        component5.luaPresentation(entity, 4)
                     )
                 )
             }

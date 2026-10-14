@@ -2,23 +2,10 @@ package org.lain.engine.script.lua
 
 import org.lain.engine.EngineSimulation
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.interaction.UsingItem
 import org.lain.engine.script.*
-import org.lain.engine.script.compilation.Build
-import org.lain.engine.script.compilation.BuildDraft
-import org.lain.engine.script.compilation.CompilationAbortException
-import org.lain.engine.script.compilation.CompilationContext
-import org.lain.engine.script.compilation.CompilationDiagnostic
-import org.lain.engine.script.compilation.CompilationDiagnosticSeverity
-import org.lain.engine.script.compilation.CompilationOutcome
-import org.lain.engine.script.compilation.CompilationPhase
-import org.lain.engine.script.compilation.compilationManifestOf
-import org.lain.engine.script.compilation.link
-import org.lain.engine.script.compilation.linkedNamespaces
-import org.lain.engine.script.compilation.validateNamespaces
-import org.lain.engine.script.compilation.writeTo
-import org.lain.engine.script.lua.compilation.LuaCompilationContext
+import org.lain.engine.script.compilation.*
 import org.lain.engine.script.lua.compilation.CompilationContextTable
+import org.lain.engine.script.lua.compilation.LuaCompilationContext
 import org.lain.engine.script.lua.compilation.ReportsCollectorUserdataType
 import org.lain.engine.script.lua.compilation.compileBuildDraft
 import org.lain.engine.script.lua.library.*
@@ -26,12 +13,7 @@ import org.lain.engine.script.lua.library.ecs.*
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.file.FileSystem
 import org.lain.engine.world.World
-import org.luaj.vm2.Globals
-import org.luaj.vm2.LuaError
-import org.luaj.vm2.LuaFunction
-import org.luaj.vm2.LuaTable
-import org.luaj.vm2.LuaUserdata
-import org.luaj.vm2.LuaValue
+import org.luaj.vm2.*
 import org.luaj.vm2.lib.jse.JsePlatform
 import java.io.File
 
@@ -55,7 +37,7 @@ open class LuaScriptEngine(
     val worldsList = LuaTable()
     val idLibrary = IdLibrary()
     val vec3Library = Vec3Library()
-    val componentLibrary = ComponentLibrary(dependencies.namespacesStorage)
+    val componentLibrary = ComponentLibrary(dependencies.namespacesStorage, false, this)
 
     val playerMetaTable: LuaTable = PlayerMetaTable()
     val worldMetaTable: LuaTable = WorldMetaTable()
@@ -148,7 +130,6 @@ open class LuaScriptEngine(
 
     override fun tickPush(world: World) {
         world.tickNetworkingLibrary()
-        world.pushLocationComponents()
         world.pushInteractionComponents()
     }
 
@@ -158,7 +139,6 @@ open class LuaScriptEngine(
         pullEquippable()
         pullLights()
         pullVoxelDoor()
-        pullEquipment()
     }
 
     override fun tickVerbLookup(world: World) {

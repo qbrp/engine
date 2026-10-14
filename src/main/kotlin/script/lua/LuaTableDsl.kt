@@ -142,6 +142,14 @@ open class LuaTableBuilder {
             }
         })
     }
+
+    fun length(fn: (LuaValue) -> Int) {
+        table.set("__len", object : OneArgFunction() {
+            override fun call(arg: LuaValue): LuaValue {
+                return LuaValue.valueOf(fn(arg))
+            }
+        })
+    }
 }
 
 private fun Any?.toLua(): LuaValue = when (this) {
@@ -194,6 +202,10 @@ class UserdataLuaTableBuilder<T> : LuaTableBuilder() {
         functionV(name) { varargs ->
             body(varargs.arg1().cast(), varargs.subargs(2))
         }
+    }
+
+    fun lengthSelf(body: (T) -> Int) {
+        length { self -> body(self.cast()) }
     }
 }
 

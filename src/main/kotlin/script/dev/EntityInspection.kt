@@ -141,9 +141,7 @@ fun Component.toInspectionData(type: ComponentType<out Component>): ComponentIns
         InspectionPath(type, emptyList()),
         InspectionPathDto(type.id, emptyList()),
     )
-    val rootTarget = InspectionEditTarget(location.live)
-    val rootTargetId = ctx.lastEditTargetId++
-    ctx.editTargets[rootTargetId] = rootTarget
+    val rootTargetId = ctx.editTarget(location.live)
     val data = try {
         ComponentInspectionResult.Value(
             when (type) {
