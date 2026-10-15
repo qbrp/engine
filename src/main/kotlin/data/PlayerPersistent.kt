@@ -45,6 +45,7 @@ private val JSON = Json {
     prettyPrint = true
     ignoreUnknownKeys = true
     serializersModule = SerializersModule { polymorphicComponentSerializer() }
+    allowStructuredMapKeys = true
 }
 
 @Serializable
