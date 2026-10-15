@@ -69,12 +69,13 @@ fun World.tickMinecraftPlayerInventorySystem() {
             inventory.items += item
             remainingPlayerInventoryItems -= item
 
-            val minecraftItem = item.getComponent<MinecraftItem>()
-            if (minecraftItem == null) {
-                item.setComponent(MinecraftItem(mutableListOf(itemStack)))
-            } else {
-                minecraftItem.itemStacks += itemStack
+            val minecraftItem = item.getComponent<MinecraftItem>() ?: run {
+                val component = MinecraftItem(mutableListOf())
+                item.setComponent(component)
+                component
             }
+
+            minecraftItem.itemStacks += itemStack
         }
 
         inventory.mainHandFree = mainItemStack.isEmpty

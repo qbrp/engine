@@ -26,7 +26,7 @@ class MinecraftSystem(private val minecraftServer: EngineMinecraftServer) {
         tickDataPrepareCommon(
             world,
             tickInventorySyncSystem = { tickMinecraftPlayerInventorySyncSystem() },
-            tickItemStackDuplicateSystem = { tickItemStackDuplicateSystem() }
+            tickItemStackDuplicateSystem = { tickItemStackDeduplicateSystem() }
         )
         world.applyServerMinecraftPlayerGameMode()
 
@@ -93,7 +93,7 @@ class MinecraftSystem(private val minecraftServer: EngineMinecraftServer) {
         return server.wrapItemStackCatching(ItemId(EngineId(itemId)), itemStack)
     }
 
-    private fun World.tickItemStackDuplicateSystem() {
+    private fun World.tickItemStackDeduplicateSystem() {
         iterate<MinecraftItem, Item> { entity, (itemStacks), item ->
             if (itemStacks.size > 1) {
                 itemStacks.drop(1).forEach { itemStack ->

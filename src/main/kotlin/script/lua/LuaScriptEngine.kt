@@ -136,7 +136,6 @@ open class LuaScriptEngine(
     override fun tickPull(world: World) = with(world) {
         clearEntityRpcMessages()
         pullUsingItem()
-        pullEquippable()
         pullLights()
         pullVoxelDoor()
     }
