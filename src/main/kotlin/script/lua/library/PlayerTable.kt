@@ -12,9 +12,26 @@ import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
 
 context(lua: LuaScriptEngine)
-fun PlayerMetaTable() = luaTable {
-    index { self, key ->
-        val player = self.asEnginePlayer()
+fun PlayerMetaTable() = luaUserdataTable<EnginePlayer> {
+    functionSelf2("has_permission") { player, permission ->
+        player.hasPermission(permission.tojstring()).luaBool()
+    }
+    functionSelf2("narration") { player, narration ->
+        player.narration(
+            narration.get("message").tojstring(),
+            narration.get("time").toint(),
+            narration.get("kick").nullable()?.toboolean() ?: false,
+        )
+        NIL
+    }
+    functionSelf3("invoke_command") { player, command, root ->
+        val commandStr = command.tojstring()
+        val rootBl = root.nullable()?.toboolean() ?: false
+        player.invokeCommand(commandStr, rootBl)
+        NIL
+    }
+
+    indexSelf { player, key ->
         when (key.tojstring()) {
             "uuid" -> player.id.value.toString().luaStr()
             "id" -> player.entity.luaNum()
@@ -37,27 +54,6 @@ fun PlayerMetaTable() = luaTable {
                 }
             }
         }
-    }
-
-    function2("has_permission") { self, permission ->
-        val player = self.asEnginePlayer()
-        player.hasPermission(permission.tojstring()).luaBool()
-    }
-    function2("narration") { self, narration ->
-        val player = self.asEnginePlayer()
-        player.narration(
-            narration.get("message").tojstring(),
-            narration.get("time").toint(),
-            narration.get("kick").nullable()?.toboolean() ?: false,
-        )
-        NIL
-    }
-    function3("invoke_command") { self, command, root ->
-        val player = self.asEnginePlayer()
-        val commandStr = command.tojstring()
-        val rootBl = root.nullable()?.toboolean() ?: false
-        player.invokeCommand(commandStr, rootBl)
-        NIL
     }
 }
 

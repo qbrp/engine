@@ -8,6 +8,7 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.script.CallbackType.Companion.type
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.lua.LuaScriptComponent
@@ -57,6 +58,7 @@ fun EntityId.setComponentLua(world: World?, value: LuaValue, componentAccess: Lu
             val binding = componentAccess.asGeneric()
             val component = binding.fromLua(this, value)
                 ?: error("$binding not supports setComponent operation")
+            setComponent(component, componentAccess.componentType)
             binding.toLua(world, this, component)
         }
         is LuaComponentAccess.Script -> {

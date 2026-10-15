@@ -4,7 +4,6 @@ import org.lain.cyberia.ecs.Component
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.castLua
 import org.lain.engine.script.lua.castedLuaValue
 import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaStr
@@ -76,13 +75,18 @@ fun WorldMetaTable() = luaUserdataTable<World> {
         }
     }
 
-    functionSelf4("emit") { world, typeL, event, networkedL ->
-        val type = typeL.fetchHolderLuaComponentAccess().asScript()
+    functionSelf4("emit") { world, accessL, event, networkedL ->
+        val access = accessL.fetchHolderLuaComponentAccess()
+        val component = when(access) {
+            is LuaComponentAccess.Native -> access.asGeneric().fromLua(world.state, event)
+                ?: error("could not create component ${access.componentType} for event as binding")
+            is LuaComponentAccess.Script -> LuaScriptComponent(event, access.type, lua)
+        }
         val networked = networkedL.toboolean()
         with(world) {
             world.emitEvent(
-                LuaScriptComponent(event, type, lua),
-                type,
+                component,
+                access.componentType,
                 networked
             ).luaEntity()
         }

@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.World
 
 /**

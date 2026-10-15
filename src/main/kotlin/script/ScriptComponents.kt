@@ -64,7 +64,6 @@ object CoreScriptComponents {
     val PLAYER_JUMP = register("core/player/jump")
     val DYNAMIC_VOXEL = register("core/voxel/dynamic_voxel")
     val USE_RESTRICTION = register("core/voxel/use_restriction", savable = true, networking = true) // TODO: переместить в движок
-    val EQUIPPABLE = register("core/equipment/equippable")
     val LIGHT_SOURCE = register("core/light/source", savable = true, networking = true)
     val LUMINANCE = register("core/light/luminance", savable = true, networking = true)
     val ENTITY_RPC_RECEIVER = register("core/networking/entity_rpc_receiver", savable = false, networking = false)

@@ -243,7 +243,7 @@ private fun compiledNamespacesList(
                 ) {
                     val id = EquipmentSlotId(equipmentSlot["id"].resolveIdReference())
                     val name = equipmentSlot["name"].tojstring()
-                    val part = PlayerPart.valueOf(equipmentSlot["part"].tojstring().lowercase())
+                    val part = PlayerPart.valueOf(equipmentSlot["part"].tojstring().uppercase())
                     id to EquipmentSlot(name, false, part)
                 }
             }

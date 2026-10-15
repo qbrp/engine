@@ -6,7 +6,11 @@ import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.player.Equipment
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.library.ecs.DecrementItemBinding
 import org.lain.engine.script.lua.library.ecs.EquipmentBinding
+import org.lain.engine.script.lua.library.ecs.EquippableBinding
+import org.lain.engine.script.lua.library.ecs.GiveItemBinding
+import org.lain.engine.script.lua.library.ecs.ItemNameBinding
 import org.lain.engine.script.lua.library.ecs.LocationBinding
 import org.lain.engine.util.ecs.EngineComponentType
 import org.lain.engine.world.World
@@ -35,6 +39,10 @@ object LuaComponentBindingRegistry {
     init {
         register(LocationBinding)
         register(EquipmentBinding)
+        register(ItemNameBinding)
+        register(EquippableBinding)
+        register(DecrementItemBinding)
+        register(GiveItemBinding)
     }
 
     fun get(id: LuaComponentBindingId): LuaComponentBinding<*> {
