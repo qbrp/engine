@@ -74,7 +74,7 @@
 
 ---@class OperationActor
 ---@field type "command"|"toolgun"
----@field player Player
+---@field player Player?
 ---@field entity integer
 
 

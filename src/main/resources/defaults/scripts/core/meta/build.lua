@@ -137,13 +137,13 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field name string
 ---@field count integer
 
+---@class TickPhasesDraft
+---@field base SystemPhase
+---@field after_verb_lookup SystemPhase
+
 ---@class SystemPhase
 ---@field name string
 ---@field steps PhaseStep[]
-
----@class TickPhasesDraft
----@field base SystemPhase
----@field verb_lookup SystemPhase
 
 ---@class PhaseStep
 ---@field type string

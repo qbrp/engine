@@ -1,0 +1,10 @@
+---@class MutableMap<K, V>
+---@field size integer
+---@field is_empty boolean
+---@field __index fun(self: MutableMap<K, V>, key: K): V?
+---@field __len fun(self: MutableMap<K, V>): integer
+---@field contains_key fun(self: MutableMap<K, V>, key: K): boolean
+---@field remove fun(self: MutableMap<K, V>, key: K): V
+---@field clear fun(self: MutableMap<K, V>)
+---@field to_table fun(self: MutableMap<K, V>): table<K, V>
+local mutable_map = {}

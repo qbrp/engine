@@ -27,12 +27,7 @@
 ---@alias GunFireMode "SAFETY"|"SINGLE"|"AUTO"
 
 ---@class GunFireStateComponentDraft
----@field cooldown integer
 ---@field mode GunFireMode
----@field clicked boolean
----@field trigger_pressed boolean
----@field trigger_sound_played boolean
----@field fired boolean
 
 ---@class BarrelComponentDraft
 ---@field bullets integer
@@ -51,3 +46,6 @@
 ---@field capacity integer
 ---@field bullets integer
 ---@field ammunition IdReference
+
+---@class ItemNameComponent : Component
+---@field text string

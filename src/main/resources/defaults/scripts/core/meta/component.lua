@@ -7,10 +7,15 @@
 component_library = {}
 
 ---@class ComponentTypeHolder<T>
----@field type ComponentType<T>
+---@field access LuaComponentAccess<T>?
+---@field id Id
 
----@generic T : Component
----@class ComponentType
+---@class LuaComponentAccess<T>
+
+---@class ComponentBinding<T> : LuaComponentAccess<T>
+---@field id Id
+
+---@class ComponentType<T> : LuaComponentAccess<T>
 ---@field id Id
 component_type = {}
 
@@ -23,10 +28,10 @@ component_type = {}
 function component_library.get_type(id) end
 
 ---@generic T : Component
----@param type ComponentTypeReference
----@return ComponentTypeHolder<T>? type
+---@param id ComponentTypeReference
+---@return ComponentBinding<T>? binding
 ---@return boolean ready  завершено ли разрешение типа
-function component_library.get_holder(type) end
+function component_library.get_binding(id) end
 
----@class Component
+---@class Component : any
 component = {}

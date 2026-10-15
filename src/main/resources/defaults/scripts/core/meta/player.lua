@@ -18,7 +18,7 @@ function player:has_permission(permission) end
 ---@class Narration
 ---@field message string
 ---@field time integer
----@field kick boolean
+---@field kick boolean?
 
 ---@param narr Narration
 function player:narration(narr) end
@@ -75,4 +75,8 @@ function player:sync_action(type, action) end
 ---@field main_hand_item Entity?
 ---@field off_hand_item Entity?
 ---@field selected_slot integer
----@field items LuaList<Entity>
+---@field items Entity[]
+
+---@class GiveItemEvent : Component
+---@field player Player
+---@field item Entity

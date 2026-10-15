@@ -32,7 +32,7 @@ function world:get_dynamic_voxel(position) end
 
 ---@param event Component
 ---@param type ComponentTypeHolder
----@param networked boolean false
+---@param networked boolean? false
 ---@return Entity
 function world:emit(type, event, networked) end
 
