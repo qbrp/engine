@@ -2,7 +2,6 @@ package org.lain.engine.player
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
@@ -35,7 +34,7 @@ import org.lain.engine.world.World
 import java.util.*
 import kotlin.apply
 
-data class PlayerComponent(val obj: EnginePlayer) : Component
+data class PlayerComponent(val player: EnginePlayer) : Component
 
 data class PlayerInstantiateSettings(
     val world: World,

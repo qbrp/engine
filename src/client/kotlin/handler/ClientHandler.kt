@@ -39,7 +39,6 @@ import org.lain.engine.script.OperationActor
 import org.lain.engine.script.OperationId
 import org.lain.engine.script.OperationTarget
 import org.lain.engine.script.dev.EditOperation
-import org.lain.engine.script.dev.InspectionPrimitive
 import org.lain.engine.script.execute
 import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
@@ -55,13 +54,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     private val showedNotifications = mutableSetOf<Notification>()
 
     internal val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
-    private val coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
+    private var coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
 
     fun applyCharacterApplyConfirmation(requestId: Long, errorMessage: String?) {
         gameSession?.characterChange?.confirm(requestId, errorMessage)
     }
 
     fun run() {
+        coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
         runEndpoints()
         CLIENTBOUND_VERIFICATION_ENDPOINT.registerClientReceiver { ctx ->
             client.joinFlow?.verificationStateStartCompletableDeferred?.complete(server)
@@ -93,9 +93,10 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         )
     }
 
-    fun disable() {
+    fun close() {
         injectValue<ClientTransportContext>().unregisterAll()
         showedNotifications.clear()
+        coroutineScope.cancel()
     }
 
     fun tick() {
@@ -265,14 +266,18 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     }
 
     fun applyFullPlayerData(gameSession: GameSession, player: EnginePlayer, data: FullPlayerData) = coroutineScope.launch {
-        while (!data.referencedItems.isPresent()) {
-            waitNextTick()
+        try {
+            while (!data.referencedItems.isPresent()) {
+                waitNextTick()
+            }
+            player.set(data.movementStatus)
+            player.set(data.attributes)
+            player.get<EnginePlayerModel>()?.skinEyeY = data.skinEyeY
+            player.isLowDetailed = false
+            client.infrastructure.onFullPlayerData(gameSession, player, data)
+        } catch (e: CancellationException) {
+
         }
-        player.set(data.movementStatus)
-        player.set(data.attributes)
-        player.get<EnginePlayerModel>()?.skinEyeY = data.skinEyeY
-        player.isLowDetailed = false
-        client.infrastructure.onFullPlayerData(gameSession, player, data)
     }
 
     private fun PlayerReferencedItems.isPresent() =
@@ -335,10 +340,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     }
 
     fun applyChunkPacket(chunkDto: EngineChunkDto) = coroutineScope.launch {
-        while (gameSession == null) {
-            waitNextTick()
+        try {
+            while (gameSession == null) {
+                waitNextTick()
+            }
+            gameSession!!.loadChunk(chunkDto)
+        } catch (e: CancellationException) {
+
         }
-        gameSession!!.loadChunk(chunkDto)
     }
 
     private fun GameSession.loadChunk(chunkDto: EngineChunkDto) = with(gameSession!!.world) {

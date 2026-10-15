@@ -75,6 +75,7 @@ class EngineServer(
     fun stop() {
         stopped = true
         handler.invalidate()
+        chat.close()
     }
 
     fun recompileEngineContents(player: EnginePlayer?) {

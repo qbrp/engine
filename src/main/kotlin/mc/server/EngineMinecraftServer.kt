@@ -172,7 +172,9 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         }
         engine.stop()
         MinecraftAccessRegistry.invalidate()
-        Injector.unregister<EngineMinecraftServer>()
+        disconnectDatabase(database)
+        Injector.server = null
+        Injector.unregister<ServerTransportContext>()
     }
 
     open fun onJoinPlayer(entity: ServerPlayer) {
@@ -259,9 +261,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         acousticSimulator.unloadChunkAsync(world.engineId, chunk)
         val engineWorld = engine.getWorld(world)
         val engineChunk = engineWorld.chunkStorage.getChunk(pos) ?: return
-        if (!engineChunk.isEmpty()) {
-            engine.chunkPersistence.saveChunk(engineWorld, pos, engineChunk)
-        }
+        engine.chunkPersistence.saveChunk(engineWorld, pos, engineChunk)
     }
 
     fun onWorldUnload(world: Level) {

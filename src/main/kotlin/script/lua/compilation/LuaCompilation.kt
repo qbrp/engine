@@ -78,7 +78,7 @@ private fun compiledNamespacesList(
     }
 
     return try {
-        val itemsArray = namespace.get("items").nullable()?.checktable()
+        val itemsArray = namespace.get("item_prefabs").nullable()?.checktable()
         val scriptsArray = namespace.get("scripts").nullable()?.checktable()
         val componentsArray = namespace.get("components").nullable()?.checktable()
         val operationsArray = namespace.get("operations").nullable()?.checktable()

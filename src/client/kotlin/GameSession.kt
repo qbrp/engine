@@ -230,7 +230,7 @@ class GameSession(
         if (player.destroyed) return
 
         val entityOwner = with(world) {
-            player.entity.getComponent<PlayerComponent>()?.obj
+            player.entity.getComponent<PlayerComponent>()?.player
         }
         if (entityOwner === player) {
             simulation.preparePlayerDestroy(player)
@@ -298,7 +298,7 @@ class GameSession(
         replicationController.close()
         sessionScope.cancel()
         client.renderer.invalidate()
-        handler.disable()
+        handler.close()
         client.skinTextureManager.close()
     }
 

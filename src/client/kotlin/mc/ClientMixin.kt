@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.client.model.loading.v1.FabricBakedModelManager
 import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.client.player.LocalPlayer
+import net.minecraft.client.player.RemotePlayer
 import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.client.resources.model.BakedModel
@@ -212,7 +213,7 @@ object ClientMixin {
 
     fun isHotbarIndicatorsVisible() = client.options.crosshairIndicatorVisible
 
-    fun onClientPlayerEntityInitialized(entity: LocalPlayer) {
+    fun onClientPlayerEntityInitialized(entity: RemotePlayer) {
         replacePlayerMinecraftState(entity)
     }
 

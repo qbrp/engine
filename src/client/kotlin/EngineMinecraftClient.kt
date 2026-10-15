@@ -58,6 +58,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     val platform = MinecraftEngineClientPlatform(this, client, decalSystem)
     internal lateinit var lightSystem: LightSystem
     private var config: EngineYamlConfig = EngineYamlConfig()
+    private val itemGroup = ItemGroup()
     val engine = EngineClient(
         window,
         camera,
@@ -84,7 +85,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.options = config
         engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
-        registerEngineItemGroupEvent(engine)
+        itemGroup.register()
         ClientMixin.createResourceList(engine)
         registerEngineModelLoading()
         registerEngineLightComponents()
@@ -175,7 +176,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             }
 
             if (engine.ticks % 20L == 0L) {
-                updateRandomEngineItemGroupIcon(MinecraftClient)
+                itemGroup.updateIcon()
             }
 
             engine.tick()
@@ -231,14 +232,15 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         IntegratedEngineMinecraftServer.serverStartFail = null
         engine.stopJoinFlow()
         if (engine.gameSession == null) return
-        engine.skinTextureManager.cancelDownloadTasks()
+
+        engine.leaveGameSession()
         decalSystem.unload()
         lightSystem.invalidate()
 
-        if (engine.gameSessionActive) {
-            engine.leaveGameSession()
-        }
         MinecraftChat.clearChatData()
+        MinecraftAccessRegistry.invalidate()
+        itemGroup.invalidate()
+
         readyToAuthorize = false
         inAuthorization = false
         LOGGER.info("Игрок отключен от сервера Engine")

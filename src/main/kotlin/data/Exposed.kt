@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.statements.api.ExposedBlob
 import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.lain.engine.script.EngineId
@@ -34,6 +35,10 @@ fun connectDatabase(path: String): Database {
         )
     }
     return database
+}
+
+fun disconnectDatabase(database: Database) {
+    TransactionManager.closeAndUnregister(database)
 }
 
 object EntityTable : Table() {

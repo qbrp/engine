@@ -374,7 +374,7 @@ class ServerHandler(
             if (it.id == player.id) return@forEach
             CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.sendS2C(packet, it.id)
         }
-        CHAT_LOGGER.info("Удалено сообщение игроком $player: $outcomingMessage")
+        CHAT_LOGGER.info("Удалено сообщение игроком ${player.id}: $outcomingMessage")
     }
 
     fun processHandlerTasks() {

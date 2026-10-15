@@ -104,14 +104,14 @@ fun World.tickGunActionSystem() {
     iterate<ToggleGunModeCommand, Hand> { interactor, _, hand ->
         interactor.removeComponent<ToggleGunModeCommand>()
         val gunItem = hand.item?.takeIf { it.isGun() } ?: return@iterate
-        val owner = hand.owner.getComponent<PlayerComponent>()?.obj ?: return@iterate
+        val owner = hand.owner.getComponent<PlayerComponent>()?.player ?: return@iterate
         gunItem.setComponent(GunModeToggle(owner))
     }
 
     iterate<TakeOffMagazineCommand, Hand> { interactor, _, hand ->
         interactor.removeComponent<TakeOffMagazineCommand>()
         val gunItem = hand.item?.takeIf { it.isGun() } ?: return@iterate
-        val owner = hand.owner.getComponent<PlayerComponent>()?.obj ?: return@iterate
+        val owner = hand.owner.getComponent<PlayerComponent>()?.player ?: return@iterate
         gunItem.setComponent(GunMagazineTakeOff(owner))
     }
 
@@ -120,7 +120,7 @@ fun World.tickGunActionSystem() {
         val gunItem = hand.item ?: return@iterate
         val itemToLoad = hand.opposite.requireComponent<Hand>().item
         val itemToLoadId = itemToLoad?.requireComponent<Item>()?.id ?: return@iterate
-        val player = hand.owner.requireComponent<PlayerComponent>().obj
+        val player = hand.owner.requireComponent<PlayerComponent>().player
 
         val isMagazine =
             itemToLoad.hasComponent<Magazine>() && itemToLoadId == gunItem.getComponent<GunMagazines>()?.supports

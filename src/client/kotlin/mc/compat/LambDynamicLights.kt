@@ -1,18 +1,10 @@
 package org.lain.engine.client.mc.compat
 
-import com.mojang.serialization.Codec
-import com.mojang.serialization.MapCodec
 import dev.lambdaurora.lambdynlights.api.DynamicLightsContext
 import dev.lambdaurora.lambdynlights.api.DynamicLightsInitializer
 import dev.lambdaurora.lambdynlights.api.behavior.DynamicLightBehavior
-import dev.lambdaurora.lambdynlights.api.entity.luminance.EntityLuminance
 import dev.lambdaurora.lambdynlights.api.item.ItemLightSourceManager
 import net.minecraft.core.BlockPos
-import net.minecraft.core.Registry
-import net.minecraft.core.component.DataComponentType
-import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.core.registries.Registries
-import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.HitResult
@@ -28,7 +20,6 @@ import org.lain.engine.item.getOwner
 import org.lain.engine.mc.MathMc
 import org.lain.engine.mc.MutableBlockPos
 import org.lain.engine.mc.ecs.MinecraftEntity
-import org.lain.engine.mc.engineId
 import org.lain.engine.mc.toMinecraft
 import org.lain.engine.player.Orientation
 import org.lain.engine.player.PlayerComponent
@@ -41,7 +32,6 @@ import org.lain.engine.util.math.Pos
 import org.lain.engine.util.math.smoothstepSDF
 import org.lain.engine.world.*
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.*
 
 fun injectDynamicLightsContext() = inject<DynamicLightsContext>()
@@ -125,7 +115,7 @@ class LightSystem(private val context: DynamicLightsContext) {
         location: Location
     ): EngineDynamicLightBehavior? = when (behaviour) {
         is LightBehaviour.Cone -> {
-            val owner = entity.getComponent<PlayerComponent>()?.obj ?: entity.getOwner() ?: return null
+            val owner = entity.getComponent<PlayerComponent>()?.player ?: entity.getOwner() ?: return null
             val orientation = owner.get<Orientation>() ?: return null
             val location = owner.location
             val mcWorld = MinecraftClient.level ?: return null

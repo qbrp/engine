@@ -28,7 +28,9 @@ data class ChunkPersistent(
     val decals: Map<ImmutableVoxelPos, BlockDecals> = mapOf(),
     val hints: Map<ImmutableVoxelPos, Hint> = mapOf(),
     val voxels: Map<ImmutableVoxelPos, PersistentId> = mapOf(),
-)
+) {
+    fun isEmpty() = decals.isEmpty() && hints.isEmpty() && voxels.isEmpty()
+}
 
 private data class ChunkEntitySnapshot(
     val uuid: PersistentId,
@@ -76,6 +78,8 @@ class ChunkPersistence(
         val snapshot = createSaveSnapshot(world, chunk)
 
         world.chunkStorage.removeChunk(pos)
+        if (snapshot.isEmpty()) return
+
         snapshot.entitiesToUnload.forEach { (entity, _) ->
             with(world) { entity.destroy() }
         }
@@ -321,7 +325,9 @@ class ChunkPersistence(
         val chunk: ChunkPersistent,
         val entities: List<ChunkEntitySnapshot>,
         val entitiesToUnload: List<Pair<EntityId, EntityUnload>>,
-    )
+    ) {
+        fun isEmpty() = entities.isEmpty() && entitiesToUnload.isEmpty() && chunk.isEmpty()
+    }
 
     private data class PreparedChunkLoad(
         val transaction: TransactionContext,

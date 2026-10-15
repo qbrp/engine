@@ -163,6 +163,7 @@ class EngineClient(
         imGuiManager.closeAll()
         runBlocking { ServerPlayState(characterId).save(serverId) }
         gameSession.destroy()
+        skinTextureManager.cancelDownloadTasks()
         this.gameSession = null
     }
 }
