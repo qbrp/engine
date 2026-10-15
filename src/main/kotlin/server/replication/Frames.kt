@@ -38,26 +38,33 @@ fun World.sendReplicationPackets(
     iterate<PlayerComponent, PlayerReplicationState>() { _, (player), state ->
         if (!state.confirmed) return@iterate
         val trackState = state.entities
-        val entities = mutableMapOf<PersistentId, EntityStateUpdate>()
+
+        val updates = mutableMapOf<PersistentId, EntityStateUpdate>()
         val out = trackState.previousTickResident - trackState.resident
 
-        state.freshPlayers.forEach { (playerToSync) ->
+        state.newlyTrackedPlayers.forEach { playerToSync ->
             handler.sendFullPlayerState(player, playerToSync)
         }
 
         val requestedEntityResyncs = state.requestedResyncs
             .filterIsInstance<ReplicationTarget.Entity>()
             .mapTo(mutableSetOf()) { it.persistentId }
-        val resyncEntities = requestedEntityResyncs.filterTo(mutableSetOf()) { it in trackState.synced }
+        // можно ресинкать только сущности, которые в данный момент видны игроку
+        // в противном случае выпонять запрос нет смысла
+        val resyncEntities = requestedEntityResyncs.filterTo(mutableSetOf()) {
+            it in trackState.synced
+        }
+
         val fullEntities = trackState.fresh + resyncEntities
         fullEntities.forEach {
             val entity = persistentIdToEntity[it] ?: return@forEach
             val state = fullSnapshotCache.getOrPut(it) { entity.fullReplicationUpdate() }
-            entities[it] = state
+            updates[it] = state
         }
+
         (trackState.synced - fullEntities).forEach {
             val snapshot = entitiesFrame[it] ?: return@forEach
-            entities[it] = snapshot.toReplicationUpdate()
+            updates[it] = snapshot.toReplicationUpdate()
         }
 
         val worldResyncRequested = ReplicationTarget.World in state.requestedResyncs
@@ -73,7 +80,7 @@ fun World.sendReplicationPackets(
 
         val frame = ReplicationFrame(
             world = worldSnapshot,
-            entities = entities,
+            entities = updates,
             out = out,
             processedInputTick = acknowledgedInputTick,
         )

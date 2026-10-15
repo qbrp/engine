@@ -1,7 +1,6 @@
 package org.lain.engine.server.replication
 
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.iterate
@@ -12,10 +11,12 @@ import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.data.PersistentId
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ReplayViewer
+import org.lain.engine.util.replaceWith
 import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
+import org.lain.engine.world.location
 import java.util.TreeMap
 
 data class TrackingState(
@@ -25,8 +26,8 @@ data class TrackingState(
     val fresh: MutableSet<PersistentId> = mutableSetOf()
 ) {
     fun update(
-        activeEntities: Set<PersistentId>,
-        residentEntities: Set<PersistentId> = activeEntities,
+        activeEntities: Set<PersistentId>, // активные сущности
+        residentEntities: Set<PersistentId> = activeEntities, // активные + удерживаемые
     ) {
         require(residentEntities.containsAll(activeEntities)) {
             "Active replication entities must also be resident"
@@ -35,13 +36,8 @@ data class TrackingState(
         previousTickResident.clear()
         previousTickResident.addAll(resident)
 
-        fresh.clear()
-        synced.retainAll(activeEntities)
-        activeEntities.forEach { entity ->
-            if (synced.add(entity)) {
-                fresh.add(entity)
-            }
-        }
+        fresh.replaceWith(activeEntities - synced)
+        synced.replaceWith(activeEntities)
 
         resident.clear()
         resident.addAll(residentEntities)
@@ -60,8 +56,8 @@ data class QueuedPlayerInput(
 )
 
 data class PlayerReplicationState(
-    val trackingPlayers: MutableMap<EntityId, LocationedPlayer> = mutableMapOf(),
-    val freshPlayers: MutableSet<LocationedPlayer> = mutableSetOf(),
+    val trackedPlayers: MutableSet<EnginePlayer> = mutableSetOf(),
+    val newlyTrackedPlayers: MutableSet<EnginePlayer> = mutableSetOf(),
     val entities: TrackingState = TrackingState(),
     var isWorldSynced: Boolean = false,
     var confirmed: Boolean = false,
@@ -117,59 +113,49 @@ fun World.confirmProcessedPlayerInputsSystem() {
 
 fun World.tickPlayerTrackingSystem(server: EngineServer, desynchronizationRadius: Int) {
     val squaredDesynchronizationRadius = desynchronizationRadius * desynchronizationRadius
-    val replicationEntitiesByPlayer = players
-        .asSequence()
-        .filterNot { it.destroyed }
-        .associate { it.entity to it.replicationPersistentIds() }
-    val onlinePlayerReplicationEntities = replicationEntitiesByPlayer.values
-        .flatten()
-        .toSet()
+    val replicationEntitiesByPlayer =
+        players.asSequence().filterNot { it.destroyed }.associate { it.entity to it.replicationPersistentIds() }
+    val onlinePlayerReplicationEntities = replicationEntitiesByPlayer.values.flatten().toSet()
 
-    iterate<Location, Interests, PlayerReplicationState>()
-        { player, (position), interests, syncState ->
-            val trackingPlayers = syncState.trackingPlayers
-            val freshPlayers = syncState.freshPlayers
-            val entities = syncState.entities
-            if ((server.isReplay && !player.hasComponent<ReplayViewer>()) || player.hasComponent<PlayerInstantiationConfirmation>()) {
-                syncState.confirmed = false
-                return@iterate
-            }
-            syncState.confirmed = true
+    iterate<Location, Interests, PlayerReplicationState>() { player, (position), interests, syncState ->
+        // состояние на момент прошлого тика - кто считался отслеживаемым и свежим
+        val trackedPlayers = syncState.trackedPlayers
+        val freshPlayers = syncState.newlyTrackedPlayers
 
-            freshPlayers.clear()
-
-            val playersOutRadius = trackingPlayers.values.toMutableList()
-            val frame = interests.frame
-            frame.interestPlayers.forEach { locationedInterestPlayer ->
-                val (interestPlayer, _) = locationedInterestPlayer
-                playersOutRadius -= locationedInterestPlayer
-                trackingPlayers.getOrPut(interestPlayer.entity) {
-                    freshPlayers += locationedInterestPlayer
-                    locationedInterestPlayer
-                }
-            }
-            playersOutRadius.forEach { (player, outRadiusLocation) ->
-                if (player.destroyed || outRadiusLocation.position.squaredDistanceTo(position) > squaredDesynchronizationRadius) {
-                    trackingPlayers.remove(player.entity)
-                }
-            }
-
-            val availableInterestsVoxels = frame.interestVoxels
-                .filter { syncState.sentChunks.contains(it.chunkPos) }
-                .map { it.id }
-
-            val activePlayerReplicationEntities = buildSet {
-                replicationEntitiesByPlayer[player]?.let(::addAll)
-                frame.interestPlayers.forEach { (interestPlayer) ->
-                    replicationEntitiesByPlayer[interestPlayer.entity]?.let(::addAll)
-                }
-            }
-            val activeEntities =
-                frame.interestEntities + availableInterestsVoxels + activePlayerReplicationEntities
-
-            entities.update(
-                activeEntities = activeEntities,
-                residentEntities = activeEntities + onlinePlayerReplicationEntities,
-            )
+        val entities = syncState.entities
+        if ((server.isReplay && !player.hasComponent<ReplayViewer>()) || player.hasComponent<PlayerInstantiationConfirmation>()) {
+            syncState.confirmed = false
+            return@iterate
         }
+        syncState.confirmed = true
+
+        val frame = interests.frame
+
+        // считаем свежих игроков - тех, кого нет в trackingPlayers
+        freshPlayers.replaceWith(frame.interestPlayers - trackedPlayers)
+
+        val trackedPlayersOutsideInterest = (trackedPlayers - frame.interestPlayers)
+            .filterTo(mutableSetOf()) { player ->
+                player.destroyed || player.location.position.squaredDistanceTo(position) > squaredDesynchronizationRadius
+            }
+
+        trackedPlayers.addAll(freshPlayers)
+        trackedPlayers.removeAll(trackedPlayersOutsideInterest)
+
+        val availableInterestsVoxels =
+            frame.interestVoxels.filter { syncState.sentChunks.contains(it.chunkPos) }.map { it.id }
+
+        // подхватываем зависимые сущности у игроков
+        val activePlayers = trackedPlayers.map { it.entity } + player
+        val activePlayerReplicationEntities = activePlayers.flatMapTo(mutableSetOf()) {
+            replicationEntitiesByPlayer[it].orEmpty()
+        }
+
+        val activeEntities = frame.interestEntities + availableInterestsVoxels + activePlayerReplicationEntities
+
+        entities.update(
+            activeEntities = activeEntities,
+            residentEntities = activeEntities + onlinePlayerReplicationEntities,
+        )
+    }
 }

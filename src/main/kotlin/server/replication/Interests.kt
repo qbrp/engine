@@ -16,15 +16,13 @@ import org.lain.engine.world.Location
 import org.lain.engine.world.World
 import org.lain.engine.world.location
 
-data class LocationedPlayer(val player: EnginePlayer, val location: Location)
-
 data class LocationedVoxel(val id: PersistentId, val chunkPos: EngineChunkPos)
 
 data class Interests(var frame: Frame = Frame()) : Component {
     data class Frame(
         val interestEntities: Set<PersistentId> = setOf(),
         val interestVoxels: Set<LocationedVoxel> = setOf(),
-        val interestPlayers: Set<LocationedPlayer> = setOf(),
+        val interestPlayers: Set<EnginePlayer> = setOf(),
     )
 }
 
@@ -36,7 +34,7 @@ fun World.tickPlayerInterestsSystem(
     iterate<PlayerComponent, Interests, Location>() { _, (player), interests, location ->
         val position = location.position
         val playersInRadius = filterNearestPlayers(world, position, synchronizationRadius, players)
-            .filter { it != player }
+            .filterTo(mutableSetOf()) { it != player }
         val entitiesInRadius = mutableSetOf<PersistentId>()
         val voxelsInRadius = mutableSetOf<LocationedVoxel>()
 
@@ -56,9 +54,7 @@ fun World.tickPlayerInterestsSystem(
         interests.frame = Interests.Frame(
             entitiesInRadius,
             voxelsInRadius,
-            playersInRadius.map {
-                LocationedPlayer(it, it.location)
-            }.toSet()
+            playersInRadius
         )
     }
 }

@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
 import kotlin.math.log10
 
 object Constants {
-    const val DEBUG_PACKETS = true
+    const val DEBUG_PACKETS = false
     const val SIMULATE_LATENCY = false
     const val DEBUG_ALL = false
     const val LOAD_LUA_LIBRARIES = true
