@@ -1,23 +1,20 @@
 local namespaces = {}
 
 ---@param namespaces_list NamespaceDraft[]
----@param categories table<string, Category>
 ---@param symbols CategorizedSymbols
 ---@return NamespaceDraft[]
-function namespaces.sort(namespaces_list, categories, symbols)
+function namespaces.sort(namespaces_list, symbols)
     table.sort(namespaces_list, function (a, b)
         return a.id < b.id
     end)
     namespaces_list = table.map(namespaces_list, function (namespace)
         local sorted_namespace = table.shallow_copy(namespace)
-        for category_id, category in pairs(categories) do
+        for category_id, symbols in pairs(symbols) do
             local drafts = namespace[category_id] or {}
             local sorted_drafts = table.shallow_copy(drafts)
-            local symbol_category_id = category.draft_id or category.id
-            local symbol_category = symbols[symbol_category_id]
             table.sort(sorted_drafts, function(a, b)
-                local symbol_a = assert(symbol_category[a.id])
-                local symbol_b = assert(symbol_category[b.id])
+                local symbol_a = assert(symbols[a.id])
+                local symbol_b = assert(symbols[b.id])
 
                 if symbol_a.ordinal ~= symbol_b.ordinal then
                     return symbol_a.ordinal < symbol_b.ordinal

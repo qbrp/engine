@@ -20,7 +20,7 @@ local categories = {
         id = "items",
         type = "ItemPrefabDraft",
         kind = "item",
-        draft_id = "item_prefabs",
+        draft_id = "items",
         script_target = "item_prefabs",
         document_target = "item_documents",
         template_name = "items"
@@ -30,6 +30,7 @@ local categories = {
         id = "item_prefabs",
         type = "ItemPrefabDraft",
         kind = "item",
+        draft_id = "items",
         target = "item_prefabs",
         template_name = "items"
     },
@@ -46,7 +47,8 @@ local categories = {
         id = "item_prefab_addons",
         type = "ItemPrefabAddon",
         kind = "item_prefab_addon",
-        target = "item_prefab_addons"
+        target = "item_prefab_addons",
+        template_name = "item_prefab_addons"
     },
     
     templates = {
@@ -61,6 +63,7 @@ local categories = {
         id = "components",
         type = "ComponentTypeSettings",
         kind = "component",
+        draft_id = "components",
         target = "components",
         template_name = "components"
     },
@@ -69,6 +72,7 @@ local categories = {
         id = "systems",
         type = "SystemDraft",
         kind = "system",
+        draft_id = "systems",
         target = "systems",
         template_name = "systems"
     },
@@ -77,6 +81,7 @@ local categories = {
         id = "scripts",
         type = "Script",
         kind = "script",
+        draft_id = "scripts",
         target = "scripts"
     },
 
@@ -85,6 +90,7 @@ local categories = {
         type = "OperationDraft",
         kind = "operation",
         target = "operations",
+        draft_id = "operations",
         template_name = "operations"
     },
 
@@ -93,6 +99,7 @@ local categories = {
         type = "EquipmentSlotDraft",
         kind = "equipment_slot",
         target = "equipment_slots",
+        draft_id = "equipment_slots",
         template_name = "equipment_slots"
     },
 
@@ -101,6 +108,7 @@ local categories = {
         type = "SoundEventDraft",
         kind = "sound_event",
         target = "sound_events",
+        draft_id = "sound_events",
         template_name = "sound_events"
     },
 
@@ -109,6 +117,7 @@ local categories = {
         type = "ProgressionAnimationDraft",
         kind = "other",
         target = "progression_animations",
+        draft_id = "progression_animations",
         template_name = "progression_animations"
     },
 

@@ -18,26 +18,18 @@ local components = require("core.composer.components")
 
 local composer = {}
 
----@param symbols CategorizedSymbols
+---@param categorized_symbols CategorizedSymbols
+---@param categories Categories
 ---@return NamespaceDraft[]
-function composer.group_namespaces(symbols)
+function composer.group_namespaces(categorized_symbols, categories)
     ---@type NamespaceDraft[]
     local result = {}
     ---@type table<string, NamespaceDraft>
     local namespaces = {}
 
-    local content_fields = {
-        item_prefabs = "items",
-        scripts = "scripts",
-        operations = "operations",
-        components = "components",
-        systems = "systems",
-        sound_events = "sound_events",
-        progression_animations = "progression_animations"
-    }
-
-    for category, field in pairs(content_fields) do
-        for _, symbol in pairs(symbols[category] or {}) do
+    for category_id, symbols in pairs(categorized_symbols) do
+        local category = assert(categories[category_id]) ---@type Category
+        for _, symbol in pairs(symbols) do
             local namespace_id = symbol.id.namespace
             local namespace = namespaces[namespace_id]
             if not namespace then
@@ -46,7 +38,12 @@ function composer.group_namespaces(symbols)
                 table.insert(result, namespace)
             end
 
-            table.insert(namespace[field], symbol.value)
+            local namespace_category_id = category.draft_id
+            if namespace_category_id then
+                local namespace_category = namespace[namespace_category_id]
+                assert(namespace_category, "namespace " .. namespace_id .. "does not contains " .. namespace_category_id)
+                table.insert(namespace_category, symbol.value)
+            end
         end
     end
 
@@ -91,14 +88,13 @@ function composer.build(context)
     components.setup_definitions(symbols.components)
     items.lower_item_documents(context, symbols, categories)
 
-    local namespaces = composer.group_namespaces(symbols)
+    local namespaces = composer.group_namespaces(symbols, categories)
     local inventory_tab_entries = {
         { prefab_id = "core/error/item" }
     }
 
     local sorted_namespaces = namespaces_util.sort(
         table.shallow_copy(namespaces),
-        categories,
         symbols
     )
     for _, namespace in ipairs(sorted_namespaces) do

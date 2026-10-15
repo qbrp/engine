@@ -3,8 +3,7 @@ local categories = drafts.categories
 
 local resolver = {}
 
----@generic T
----@class Symbol
+---@class Symbol<T>
 ---@field id Id
 ---@field value T
 ---@field module Module
@@ -13,7 +12,7 @@ local resolver = {}
 ---@field ordinal integer
 ---@field template Symbol<Template>?
 
----@class CategorizedSymbols
+---@class CategorizedSymbols : table<CategoryId, table<Id, Symbol>>
 ---@field item_documents table<Id, Symbol<ItemDocument>>
 ---@field item_prefabs table<Id, Symbol<ItemPrefabDraft>>
 ---@field templates table<Id, Symbol<Template>>
@@ -21,6 +20,7 @@ local resolver = {}
 ---@field systems table<Id, Symbol<SystemDraft>>
 ---@field scripts table<Id, Symbol<Script>>
 ---@field operations table<Id, Symbol<OperationDraft>>
+---@field equipment_slots table<Id, Symbol<EquipmentSlotDraft>>
 
 ---@param module Module
 ---@param context CompilationContext
