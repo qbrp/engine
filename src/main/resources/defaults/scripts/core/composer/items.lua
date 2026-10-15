@@ -2,8 +2,19 @@ local items = {}
 
 ---@alias ItemDocument table
 
+---@class TypedComponent<T>
+---@field value T
+---@field type ComponentTypeHolder<T>
+
+---@class ItemPrefabAddonContext
+---@field module Module
+---@field compilation CompilationContext
+---@field report_error fun(message: string)
+---@field report_warn fun(message: string)
+
 ---@class ItemPrefabAddon
----@field handle fun(module: Module, document: ItemDocument, components: table)
+---@field handle fun(context: ItemPrefabAddonContext, document: ItemDocument, components: TypedComponent[])
+---@field validate (fun(context: ItemPrefabAddonContext, prefab: ItemPrefabDraft, components: table<Id, Component>))?
 
 ---@param module Module
 ---@param reference IdReference
@@ -60,14 +71,7 @@ end
 ---@return GunFireStateComponentDraft?
 local function lower_gun_fire_state_component(config, component)
     if not component and config then
-        component = {
-            cooldown = 0,
-            mode = "SAFETY",
-            clicked = false,
-            trigger_pressed = false,
-            trigger_sound_played = false,
-            fired = false
-        }
+        component = { mode = "SAFETY" }
     end
 
     if component then
@@ -192,37 +196,73 @@ function items.lower_item_documents(context, symbols, categories)
             assets[key] = module:resolve_id(value)
         end
 
+        ---@param report_function fun(report: ReportDraft)
+        ---@param message string
+        ---@param phase CompilationPhase
+        local report = function(report_function, message, phase)
+            report_function {
+                message = message,
+                phase = phase,
+                namespace = id.namespace,
+                location = {
+                    source = item_document_symbol.file.path,
+                    path = item_document_symbol.path
+                },
+                target = {
+                    kind = categories.items.kind,
+                    local_id = engine.id.fetch_local(id)
+                }
+            }
+        end
+        ---@param message string
+        ---@param phase CompilationPhase
+        local report_error = function(message, phase)
+            report(function(draft) context.reports:report_error(draft) end, message, phase)
+        end
+        ---@param message string
+        ---@param phase CompilationPhase
+        local report_warn = function(message, phase)
+            report(function(draft) context.reports:report_warn(draft) end, message, phase)
+        end
+
         local sound_events = item_document.sounds or {}
         local sound_events_resolved = {}
         for key, sound_event_id in pairs(sound_events) do
             local resolved_id, error = module:resolve_id(sound_event_id)
             if not error then
-               sound_events_resolved[key] = resolved_id 
+                sound_events_resolved[key] = resolved_id
             else
-                context.reports:report_error {
-                    message = "Invalid sound event id in `sounds." .. tostring(key) .. "`: " .. error,
-                    phase = "validation",
-                    namespace = id.namespace,
-                    location = {
-                        source = item_document_symbol.file.path,
-                        path = item_document_symbol.path .. ".sounds." .. tostring(key)
-                    },
-                    target = {
-                        kind = categories.items.kind,
-                        local_id = engine.id.fetch_local(id)
-                    }
-                }
+                report_error("Указан неправильный идентификатор звукового события " .. tostring(key) .. ": " .. error, "validation")
             end
         end
-        
-        local components = {}
 
-        ---@type table<Id, Symbol<ItemPrefabAddon>>
-        local addons = assert(symbols[categories.item_prefab_addons.id], "item_prefab_addons category not found")
-        for _, addon_symbol in pairs(addons) do
-            local addon = addon_symbol.value ---@type ItemPrefabAddon
-            addon.handle(module, item_document, components)
+        local typed_components = {} ---@type TypedComponent[]
+        ---@type ItemPrefabAddonContext
+        local item_prefab_addon_context = {
+            module = module,
+            compilation = context,
+            report_error = function (message) report_error(message, "compilation") end,
+            report_warn = function (message) report_warn(message, "compilation") end
+        }
+
+        local item_prefab_addons = symbols["item_prefab_addons"] ---@type table<Id, Symbol<ItemPrefabAddon>>
+        for _, addon_symbol in pairs(item_prefab_addons) do
+            addon_symbol.value.handle(item_prefab_addon_context, item_document, typed_components)
         end
+
+        local components_by_id = {}
+        for _, typed_component in ipairs(typed_components) do
+            local component_type_id = typed_component.type.id
+            local entry = components_by_id[component_type_id]
+            if entry then
+                report_error("Префаб содержит дубликат компонентов типа " .. component_type_id, "validation")
+            else
+                components_by_id[component_type_id] = typed_component.value
+            end
+        end
+
+        item_prefab_addon_context.report_error = function (message) report_error(message, "validation") end
+        item_prefab_addon_context.report_warn = function (message) report_warn(message, "validation") end
 
         local item_prefab = {
             id = id,
@@ -232,14 +272,20 @@ function items.lower_item_documents(context, symbols, categories)
             max_count = item_document.max_count or 1,
             built_in_components = lower_built_in_components(module, item_document),
             on_load = function(world, entity)
-                for _, component in ipairs(components) do
+                for _, component in ipairs(typed_components) do
+                    local value = table.deep_copy(component.value)
+
                     entity:set_component(
                         component.type,
-                        component.value
+                        value
                     )
                 end
             end
         }
+
+        for _, addon_symbol in pairs(item_prefab_addons) do
+            addon_symbol.value.validate(item_prefab_addon_context, item_prefab, components_by_id)
+        end
 
         symbols[categories.item_prefabs.id][id] = {
             id = id,
