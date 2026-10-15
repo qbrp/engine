@@ -1,27 +1,28 @@
 package org.lain.engine.script.dev
 
 import kotlinx.serialization.Serializable
+import org.lain.engine.data.Uuid as EngineUuid
+import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.PlayerPhysics
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.SBool
 import org.lain.engine.script.SEntityRef
 import org.lain.engine.script.SId
 import org.lain.engine.script.SInstant
 import org.lain.engine.script.SInt
-import org.lain.engine.script.SJvm
-import org.lain.engine.script.SList
-import org.lain.engine.script.SNil
 import org.lain.engine.script.SNumber
 import org.lain.engine.script.SString
-import org.lain.engine.script.STable
-import org.lain.engine.script.ScriptValue
-import org.lain.engine.script.ScriptValuePrimitive
-import org.lain.engine.script.dev.InspectionTypeDescriptor.*
+import org.lain.engine.script.dev.InspectionTypeDescriptor.Collection
+import org.lain.engine.script.dev.InspectionTypeDescriptor.Enum
+import org.lain.engine.script.dev.InspectionTypeDescriptor.Map
+import org.lain.engine.script.dev.InspectionTypeDescriptor.Nullable
+import org.lain.engine.script.dev.InspectionTypeDescriptor.Scalar
+import org.lain.engine.script.dev.InspectionTypeDescriptor.Unknown
 import java.time.Instant
 import java.util.UUID
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubclassOf
-import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.full.withNullability
@@ -77,49 +78,55 @@ sealed interface InspectionTypeDescriptor {
 
 context(ctx: InspectionSerializationContext)
 fun KType.inspectionTypeDescriptor(): InspectionTypeDescriptor {
-    if (isMarkedNullable) {
-        val innerType = withNullability(false)
-        return InspectionTypeDescriptor.Nullable(
-            valueTypeId = ctx.type(innerType),
-        )
+    require(!isMarkedNullable) {
+        "Nullable types must be registered through InspectionSerializationContext.type: $this"
     }
 
-    val classifier = classifier as? KClass<*> ?: error("Classifier not found")
+    val typeClass = classifier as? KClass<*> ?: return Unknown
 
     return when {
-        classifier.isSubclassOf(List::class) -> {
-            InspectionTypeDescriptor.Collection(
-                ctx.type(listTypeArgument())
+        typeClass.isValue -> {
+            val valueClassPropertyType = typeClass.valueClassProperty().returnType
+            if (valueClassPropertyType.isMarkedNullable) {
+                Nullable(ctx.type(valueClassPropertyType.withNullability(false)))
+            } else {
+                valueClassPropertyType.inspectionTypeDescriptor()
+            }
+        }
+
+        typeClass.isSubclassOf(kotlin.collections.Map::class) -> {
+            val (keyType, valueType) = mapTypeArgumentsOrNull() ?: (null to null)
+            Map(
+                keyTypeId = keyType?.let { ctx.type(it) } ?: ctx.type(Unknown),
+                valueTypeId = valueType?.let { ctx.type(it) } ?: ctx.type(Unknown),
             )
         }
 
-        classifier.isSubclassOf(Map::class) -> {
-            val (keyType, valueType) = mapTypeArguments()
-            InspectionTypeDescriptor.Map(
-                ctx.type(keyType),
-                ctx.type(valueType),
+        typeClass.isSubclassOf(kotlin.collections.Collection::class) -> {
+            val elementType = collectionTypeArgumentOrNull()
+            Collection(
+                elementTypeId = elementType?.let { ctx.type(it) } ?: ctx.type(Unknown),
             )
         }
 
-        classifier.java.isEnum -> {
-            InspectionTypeDescriptor.Enum(
-                classifier.java.enumConstants
-                    .map { (it as kotlin.Enum<*>).name }
-            )
-        }
+        typeClass.java.isEnum -> Enum(
+            typeClass.java.enumConstants.map { (it as kotlin.Enum<*>).name }
+        )
 
-        classifier == Int::class -> InspectionTypeDescriptor.Scalar(ScalarKind.INT)
-        classifier == String::class -> InspectionTypeDescriptor.Scalar(ScalarKind.STRING)
-        classifier == Char::class -> InspectionTypeDescriptor.Scalar(ScalarKind.CHAR)
-        classifier == Boolean::class -> InspectionTypeDescriptor.Scalar(ScalarKind.BOOL)
-        classifier == Double::class -> InspectionTypeDescriptor.Scalar(ScalarKind.DOUBLE)
-        classifier == UUID::class -> InspectionTypeDescriptor.Scalar(ScalarKind.UUID)
-        classifier == EngineId::class -> InspectionTypeDescriptor.Scalar(ScalarKind.ID)
-        classifier == Instant::class -> InspectionTypeDescriptor.Scalar(ScalarKind.INSTANT)
+        typeClass == String::class -> Scalar(ScalarKind.STRING)
+        typeClass == Char::class -> Scalar(ScalarKind.CHAR)
+        typeClass == Boolean::class -> Scalar(ScalarKind.BOOL)
+        typeClass == Int::class -> Scalar(ScalarKind.INT)
+        typeClass.isSubclassOf(Number::class) -> Scalar(ScalarKind.DOUBLE)
+        typeClass == UUID::class || typeClass == EngineUuid::class -> Scalar(ScalarKind.UUID)
+        typeClass == EngineId::class -> Scalar(ScalarKind.ID)
+        typeClass == Instant::class -> Scalar(ScalarKind.INSTANT)
+        typeClass == EnginePlayer::class || typeClass == PlayerPhysics::class -> Unknown
 
-        else -> classifier.recordDescriptor()
+        else -> typeClass.recordDescriptor()
     }
 }
+
 context(ctx: InspectionSerializationContext)
 private fun KClass<*>.recordDescriptor(): InspectionTypeDescriptor.Record {
     val parameters = primaryConstructor
@@ -140,24 +147,31 @@ private fun KClass<*>.recordDescriptor(): InspectionTypeDescriptor.Record {
 }
 
 context(ctx: InspectionSerializationContext)
-fun ScriptInspectionValue.inspectionTypeDescriptor() {
-    when(this) {
-        is ScriptInspectionValue.Table -> Map(
-            ctx.type(Unknown),
-            ctx.type(Unknown)
-        )
-        is ScriptInspectionValue.List -> Collection(
-            ctx.type(Unknown)
-        )
-        is ScriptInspectionValue.Primitive -> when (this.value) {
-            is SBool -> ctx.type(Scalar(ScalarKind.BOOL))
-            is SEntityRef -> ctx.type(Scalar(ScalarKind.ENTITY_REF))
-            is SId -> ctx.type(Scalar(ScalarKind.ID))
-            is SInstant -> ctx.type(Scalar(ScalarKind.INSTANT))
-            is SInt -> ctx.type(Scalar(ScalarKind.INT))
-            is SNumber -> ctx.type(Scalar(ScalarKind.DOUBLE))
-            is SString -> ctx.type(Scalar(ScalarKind.STRING))
+fun ScriptInspectionValue.inspectionTypeDescriptorId(): Int {
+    return when (this) {
+        is ScriptInspectionValue.Table -> {
+            val unknownTypeId = ctx.type(Unknown)
+            ctx.type(Map(unknownTypeId, unknownTypeId))
         }
+
+        is ScriptInspectionValue.List -> ctx.type(
+            Collection(ctx.type(Unknown))
+        )
+
+        is ScriptInspectionValue.Primitive -> ctx.type(
+            Scalar(
+                when (value) {
+                    is SBool -> ScalarKind.BOOL
+                    is SEntityRef -> ScalarKind.ENTITY_REF
+                    is SId -> ScalarKind.ID
+                    is SInstant -> ScalarKind.INSTANT
+                    is SInt -> ScalarKind.INT
+                    is SNumber -> ScalarKind.DOUBLE
+                    is SString -> ScalarKind.STRING
+                }
+            )
+        )
+
         is ScriptInspectionValue.Jvm -> ctx.type(value::class.starProjectedType)
         else -> ctx.type(Unknown)
     }

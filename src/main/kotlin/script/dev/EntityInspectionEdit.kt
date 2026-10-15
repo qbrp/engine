@@ -126,7 +126,7 @@ fun Any?.toInspectionEditNode(
             JvmMapEditNode(this, typeArguments?.get(0)?.type, typeArguments?.get(1)?.type)
         }
 
-        is List<*> -> JvmListEditNode(this, declaredType?.listTypeArgument())
+        is List<*> -> JvmListEditNode(this, declaredType?.collectionTypeArgumentOrNull())
         null -> error("Cannot descend into null")
         else -> JvmObjectEditNode(this)
     }

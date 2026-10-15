@@ -247,8 +247,8 @@ class EntityInspectorWindow(
 
     private fun InspectionPathDto.isDescendantOf(parent: InspectionPathDto): Boolean {
         return componentType == parent.componentType &&
-            segments.size > parent.segments.size &&
-            segments.take(parent.segments.size) == parent.segments
+                segments.size > parent.segments.size &&
+                segments.take(parent.segments.size) == parent.segments
     }
 
     fun InspectionObject.stringRepresentation(): String? {
@@ -287,12 +287,14 @@ class EntityInspectorWindow(
                     double.toString()
                 }
             }
+
             is InspectionPrimitive.Int -> string
             is InspectionPrimitive.Other -> string
             is InspectionPrimitive.Str -> string
             is InspectionPrimitive.Uuid -> string
             is InspectionPrimitive.Id -> id.full
             is InspectionPrimitive.Char -> char.toString()
+            is InspectionPrimitive.Enum -> name
             is InspectionPrimitive.EntityRef -> entityId.toString()
             is InspectionPrimitive.Instant -> LocalDateTime.ofInstant(
                 Instant.ofEpochMilli(epochMillis), ZoneId.systemDefault()
@@ -361,9 +363,13 @@ class EntityInspectorWindow(
         expandDescendants: Boolean = false
     ) {
         val edit = propertyEdits[node.path]
+        val descriptor = inspection.data?.typeDescriptors?.get(node.editTargetId)
 
         when (val value = value) {
-            InspectionValue.Null -> ImGui.textColored(CommonColors.GRAY, "null")
+            InspectionValue.Null -> {
+                ImGui.textColored(CommonColors.GRAY, "null")
+            }
+
             is InspectionValue.Primitive -> value.primitive.render(node, edit)
             is InspectionValue.Reference -> {
                 treeNode(value.objectId, node, ancestors, expandDescendants)
@@ -424,17 +430,27 @@ class EntityInspectorWindow(
                     maxOf(256, currentId.full.toByteArray().size + 64)
                 )
                 if (editableProperty(node, 600f) { ImGui.inputText(it, textValue) }) {
-                    tryEditPrimitiveValue(
-                        InspectionPrimitive.Id(
-                            EngineId(textValue.get())
-                        ),
-                        node,
-                        this
-                    )
+                    runCatching { EngineId(textValue.get()) }
+                        .getOrNull()
+                        ?.let {
+                            tryEditPrimitiveValue(
+                                InspectionPrimitive.Id(it),
+                                node,
+                                this
+                            )
+                        }
                 }
             }
 
             is InspectionPrimitive.Char -> ImGui.text(char.toString())
+            is InspectionPrimitive.Enum -> {
+                val currentName = customValueAs<InspectionPrimitive.Enum>()?.name ?: name
+                val textValue = ImString(currentName, maxOf(256, currentName.toByteArray().size + 64))
+                if (editableProperty(node, 600f) { ImGui.inputText(it, textValue) }) {
+                    tryEditPrimitiveValue(InspectionPrimitive.Enum(textValue.get()), node, this)
+                }
+            }
+
             is InspectionPrimitive.Instant -> ImGui.text(stringRepresentation())
             is InspectionPrimitive.EntityRef -> ImGui.text(stringRepresentation())
         }

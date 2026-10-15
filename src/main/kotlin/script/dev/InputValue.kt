@@ -57,20 +57,9 @@ fun InputValue?.toScriptValue(): ScriptValue {
 }
 
 fun InputValue.toJvmValue(expectedType: KType): Any {
-    return when(this) {
+    val converted = when(this) {
         is InputValue.Primitive -> {
-            val expectedClass = expectedType.classifier as? KClass<*>
-            if (expectedClass?.java?.isEnum == true) {
-                val name = (primitive as? InspectionPrimitive.Str)?.string
-                    ?: error("Enum value must be a string")
-
-                expectedClass.java.enumConstants
-                    .map { it as kotlin.Enum<*> }
-                    .firstOrNull { it.name == name }
-                    ?: error("Enum constant $name not found in ${expectedClass.qualifiedName}")
-            } else {
-                primitive.toJvmValue()
-            }
+            primitive.toJvmValue(expectedType.unwrapValueClassType())
         }
         is InputValue.Record -> {
             val kclass = expectedType.classifier as? KClass<*>
@@ -85,9 +74,10 @@ fun InputValue.toJvmValue(expectedType: KType): Any {
             )
         }
         is InputValue.Collection -> {
-            val listType = expectedType.listTypeArgument()
+            val elementType = expectedType.collectionTypeArgumentOrNull()
+                ?: error("$expectedType is not a collection with a concrete element type")
             val values = elements.map {
-                it.toJvmValue(listType)
+                it.toJvmValue(elementType)
             }
             when (expectedType.classifier) {
                 MutableList::class,
@@ -98,7 +88,12 @@ fun InputValue.toJvmValue(expectedType: KType): Any {
             }
         }
         is InputValue.Map -> {
-            val (keyType, valueType) = expectedType.mapTypeArguments()
+            val typeArguments = expectedType.mapTypeArgumentsOrNull()
+                ?: error("$expectedType is not a map")
+            val keyType = typeArguments.first
+                ?: error("$expectedType does not have a concrete key type")
+            val valueType = typeArguments.second
+                ?: error("$expectedType does not have a concrete value type")
             val entriesJvm = entries.associate { entry ->
                 entry.key.toJvmValue(keyType) to entry.value.toJvmValue(valueType)
             }
@@ -109,4 +104,6 @@ fun InputValue.toJvmValue(expectedType: KType): Any {
             }
         }
     }
+    return converted.wrapValueClasses(expectedType)
+        ?: error("Input value unexpectedly converted to null for $expectedType")
 }

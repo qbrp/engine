@@ -1,80 +1,85 @@
 package org.lain.engine.script.dev
 
-import org.lain.engine.script.*
-import org.lain.engine.script.dev.InspectionPrimitive.*
+import org.lain.engine.script.SBool
+import org.lain.engine.script.SEntityRef
+import org.lain.engine.script.SId
+import org.lain.engine.script.SInstant
+import org.lain.engine.script.SInt
+import org.lain.engine.script.SNumber
+import org.lain.engine.script.SString
+import org.lain.engine.script.ScriptValuePrimitive
+import org.lain.engine.script.dev.InspectionPrimitive.Bool
 import org.lain.engine.script.dev.InspectionPrimitive.Double
+import org.lain.engine.script.dev.InspectionPrimitive.EntityRef
+import org.lain.engine.script.dev.InspectionPrimitive.Id
+import org.lain.engine.script.dev.InspectionPrimitive.Instant
 import org.lain.engine.script.dev.InspectionPrimitive.Int
-import org.lain.engine.script.dev.InspectionValue.*
+import org.lain.engine.script.dev.InspectionPrimitive.Str
+import org.lain.engine.script.dev.InspectionValue.Primitive
 import kotlin.reflect.full.starProjectedType
 
-fun ScriptValuePrimitive.toScriptInspectionValue() =
-    Primitive(
-        when (val primitive = this) {
-            is SEntityRef -> EntityRef(primitive.id)
-            is SId -> Id(primitive.id)
-            is SInstant -> Instant(primitive.instant.toEpochMilli())
-            is SString -> Str(primitive.value)
-            is SNumber -> Double(primitive.value)
-            is SBool -> Bool(primitive.value)
-            is SInt -> Int(primitive.value)
-        }
-    )
+fun ScriptValuePrimitive.toScriptInspectionValue() = Primitive(
+    when (this) {
+        is SEntityRef -> EntityRef(id)
+        is SId -> Id(id)
+        is SInstant -> Instant(instant.toEpochMilli())
+        is SString -> Str(value)
+        is SNumber -> Double(value)
+        is SBool -> Bool(value)
+        is SInt -> Int(value)
+    }
+)
 
 context(ctx: InspectionSerializationContext)
-fun ScriptInspectionValue.toScriptInspectionNode(
-    targetId: kotlin.Int?,
+fun ScriptInspectionValue.inspectScriptValue(
     location: InspectionLocation?,
 ): InspectionNode {
-    location?.live?.let { ctx.editTarget(it) }
-    inspectionTypeDescriptor()
+    if (this is ScriptInspectionValue.Jvm) {
+        return JvmTypedValue(value::class.starProjectedType, value)
+            .inspectJvmValue(location)
+    }
+
+    val typeDescriptorId = inspectionTypeDescriptorId()
+    val inspectionValue = inspectScriptInspectionValue(location)
+    return inspectionValue.asNode(location, typeDescriptorId)
+}
+
+context(ctx: InspectionSerializationContext)
+private fun ScriptInspectionValue.inspectScriptInspectionValue(
+    location: InspectionLocation?,
+): InspectionValue {
     return when (this) {
-        is ScriptInspectionValue.Primitive -> value.toScriptInspectionValue().asNode(targetId, location)
-
-        is ScriptInspectionValue.Table -> {
-            toScriptInspectionObject(location).asNode(targetId, location)
-        }
-
-        is ScriptInspectionValue.List -> {
-            toScriptInspectionObject(location).asNode(targetId, location)
-        }
-
-        is ScriptInspectionValue.Jvm -> {
-            this.toJvmInspectionObject(value::class.starProjectedType, location).asNode(targetId, location)
-        }
-
+        is ScriptInspectionValue.Primitive -> value.toScriptInspectionValue()
+        is ScriptInspectionValue.Table -> inspectScriptTable(location)
+        is ScriptInspectionValue.List -> inspectScriptList(location)
+        is ScriptInspectionValue.Jvm -> error("JVM values are handled by inspectScriptValue")
         else -> error("Unsupported script inspection value class: $this")
     }
 }
 
-context (ctx: InspectionSerializationContext)
-private fun ScriptInspectionValue.Table.toScriptInspectionObject(
-    location: InspectionLocation?
-) = reference(location, null, identity) { targetId ->
+context(ctx: InspectionSerializationContext)
+private fun ScriptInspectionValue.Table.inspectScriptTable(
+    location: InspectionLocation?,
+): InspectionValue.Reference = reference(identity = identity) {
     InspectionObject.Table(
-        entries.map { (keyL, valueL) ->
-            val key = keyL.toScriptInspectionNode(
-                targetId,
-                null
+        entries.map { (scriptKey, scriptValue) ->
+            val keyNode = scriptKey.inspectScriptValue(null)
+            val valueLocation = location?.tableEntry(scriptKey, keyNode.value)
+            InspectionObject.Table.Entry(
+                key = keyNode,
+                value = scriptValue.inspectScriptValue(valueLocation),
             )
-            val valueLocation = location?.tableEntry(keyL, key.value)
-            val value = valueL.toScriptInspectionNode(
-                targetId,
-                valueLocation
-            )
-            InspectionObject.Table.Entry(key, value)
         }
     )
 }
 
 context(ctx: InspectionSerializationContext)
-private fun ScriptInspectionValue.List.toScriptInspectionObject(location: InspectionLocation?) =
-    reference(location, null, identity) { targetId ->
-        InspectionObject.Collection(
-            values.mapIndexed { index, value ->
-                value.toScriptInspectionNode(
-                    targetId,
-                    location?.index(index)
-                )
-            }
-        )
-    }
+private fun ScriptInspectionValue.List.inspectScriptList(
+    location: InspectionLocation?,
+): InspectionValue.Reference = reference(identity = identity) {
+    InspectionObject.Collection(
+        values.mapIndexed { index, value ->
+            value.inspectScriptValue(location?.index(index))
+        }
+    )
+}

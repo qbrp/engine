@@ -141,17 +141,15 @@ fun Component.toInspectionData(type: ComponentType<out Component>): ComponentIns
         InspectionPath(type, emptyList()),
         InspectionPathDto(type.id, emptyList()),
     )
-    val rootTargetId = ctx.editTarget(location.live)
     val data = try {
         ComponentInspectionResult.Value(
             when (type) {
                 is ScriptComponentType -> {
                     component as ScriptComponent
-                    component.inspectionValueNode.toScriptInspectionNode(rootTargetId, location)
+                    component.inspectionValueNode.inspectScriptValue(location)
                 }
 
-                else -> component.toJvmInspectionValue(this::class.starProjectedType, location)
-                    .asNode(rootTargetId, location)
+                else -> component.inspectJvmValue(this::class.starProjectedType, location)
             }
         )
     } catch (e: Exception) {

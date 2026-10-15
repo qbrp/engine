@@ -1,8 +1,8 @@
 package org.lain.engine.script.dev
 
-import org.lain.engine.util.ecs.componentType
 import kotlin.collections.set
 import kotlin.reflect.KType
+import kotlin.reflect.full.withNullability
 
 class InspectionSerializationContext(
     var lastId: Int = 0,
@@ -23,34 +23,28 @@ class InspectionSerializationContext(
 
 context(ctx: InspectionSerializationContext)
 fun <T : Any> T.reference(
-    location: InspectionLocation?,
-    jvmType: KType?,
     identity: Any? = null,
-    transformer: context(InspectionSerializationContext) (editTargetId: kotlin.Int?) -> InspectionObject
+    transformer: context(InspectionSerializationContext) () -> InspectionObject
 ): InspectionValue.Reference {
     val identity = identity ?: this
-    val editTargetId = location?.live?.let { ctx.editTarget(it) }
 
     val objectId = ctx.visited[identity.identityKey()] ?: run {
         val id = ctx.lastId++
         ctx.registerObject(id, this, identity)
-        ctx.debugObjects[id] = transformer(editTargetId)
+        ctx.debugObjects[id] = transformer()
         id
     }
-
-    if (jvmType != null) ctx.type(jvmType)
 
     return InspectionValue.Reference(objectId)
 }
 
 context(ctx: InspectionSerializationContext)
 fun InspectionValue.asNode(
-    editTargetId: Int?,
     location: InspectionLocation?,
     typeDescriptorId: Int? = null,
 ): InspectionNode {
-    val actualEditTargetId = location?.live?.let { ctx.editTarget(it) } ?: editTargetId
-    val node = InspectionNode(this, actualEditTargetId, typeDescriptorId)
+    val editTargetId = location?.live?.let { ctx.editTarget(it) }
+    val node = InspectionNode(this, editTargetId, typeDescriptorId)
     location?.let { ctx.nodes[it.dto] = node }
     return node
 }
@@ -63,7 +57,7 @@ fun InspectionSerializationContext.editTarget(path: InspectionPath): Int {
     return id
 }
 
-fun InspectionSerializationContext.type(kType: KType): Int {
+fun InspectionSerializationContext.type(kType: KType, createNonNullDescriptor: () -> InspectionTypeDescriptor): Int {
     kTypeDescriptors[kType]?.let { return it }
 
     val id = lastTypeDescriptorId++
@@ -71,7 +65,14 @@ fun InspectionSerializationContext.type(kType: KType): Int {
     typeDescriptors[id] = InspectionTypeDescriptor.Unknown
 
     try {
-        typeDescriptors[id] = kType.inspectionTypeDescriptor()
+        typeDescriptors[id] = if (kType.isMarkedNullable) {
+            val innerType = kType.withNullability(false)
+            InspectionTypeDescriptor.Nullable(
+                valueTypeId = type(innerType, createNonNullDescriptor),
+            )
+        } else {
+            createNonNullDescriptor()
+        }
     } catch (exception: Exception) {
         kTypeDescriptors.remove(kType)
         typeDescriptors.remove(id)
@@ -80,6 +81,17 @@ fun InspectionSerializationContext.type(kType: KType): Int {
 
     return id
 }
+
+fun InspectionSerializationContext.type(kType: KType): Int {
+    val context = this
+    val nonNullType = kType.withNullability(false)
+    return type(kType) {
+        with(context) {
+            nonNullType.inspectionTypeDescriptor()
+        }
+    }
+}
+
 fun InspectionSerializationContext.type(
     descriptor: InspectionTypeDescriptor,
 ): Int {
