@@ -70,7 +70,8 @@ internal fun NamespaceDraft.linkedNamespace(
         scripts = ContentHolder(scripts),
         components = ContentHolder(components),
         operations = ContentHolder(operations),
-        systems = ContentHolder(systems)
+        systems = ContentHolder(systems),
+        equipmentSlots = ContentHolder(equipmentSlots)
     )
 }
 

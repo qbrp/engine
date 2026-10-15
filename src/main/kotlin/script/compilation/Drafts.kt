@@ -35,7 +35,7 @@ data class NamespaceDraft(
     val equipmentSlots: Map<EquipmentSlotId, EquipmentSlot> = mapOf()
 ) {
     val holders: List<Map<out Identifiable, Any>> =
-        listOf(items, sounds, scripts, progressionAnimations, components, operations, systems)
+        listOf(items, sounds, scripts, progressionAnimations, components, operations, systems, equipmentSlots)
 
     data class ScriptSystem(
         val queryComponents: List<ScriptComponentId>,

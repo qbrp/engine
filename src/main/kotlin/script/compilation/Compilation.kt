@@ -41,7 +41,8 @@ fun NamespacedStorageAccess.loadResult(result: Build) {
             namespaces.collect { it.scripts },
             namespaces.collect { it.components },
             namespaces.collect { it.operations },
-            namespaces.collect { it.systems }
+            namespaces.collect { it.systems },
+            namespaces.collect { it.equipmentSlots }
         )
     )
 }

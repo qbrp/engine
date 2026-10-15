@@ -326,7 +326,7 @@ class PlayerLoader(
         equipmentItems: Map<EquipmentSlotId, PersistentId>,
         itemLoadContext: ItemLoadContext.PreparingPlayer
     ): InventoryItemsLoadResult = coroutineScope {
-        val inventoryJobs = inventoryItems.map { uuid ->
+        val itemsJobs = (inventoryItems + equipmentItems.values).associateWith { uuid ->
             async(Dispatchers.IO) {
                 transactionContext.withChild { childContext ->
                     itemLoader.loadWorldItem(
@@ -337,21 +337,9 @@ class PlayerLoader(
                 }
             }
         }
-
-        val equipmentJobs = equipmentItems.map { (slot, uuid) ->
-            async(Dispatchers.IO) {
-                transactionContext.withChild { childContext ->
-                    slot to itemLoader.loadWorldItem(
-                        uuid,
-                        itemLoadContext,
-                        childContext,
-                    )
-                }
-            }
-        }
-
-        val inventory = inventoryJobs.awaitAll()
-        val equipment = equipmentJobs.awaitAll().toMap()
+        val items = itemsJobs.mapValues { (_, job) -> job.await() }
+        val inventory = inventoryItems.mapNotNull { items[it] }
+        val equipment = equipmentItems.mapValues { (_, uuid) -> items[uuid]!! }
         transactionContext.awaitChildren()
 
         InventoryItemsLoadResult(inventory, equipment)
