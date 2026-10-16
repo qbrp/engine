@@ -70,14 +70,14 @@ class EngineSimulation(
         // Фаза подготовки данных
         tickDaraPreparation()
         resetItemOwnershipState()
-        tickItemOwnershipSystem()
+        tickItemOwnershipSystem(extension)
         tickInteractorLocations()
         tickPlayerHandSystem()
         tickPlayerModelSystem()
 
         // Симуляция
         beforeInteractions()
-        tickInteractionPhase(callbacks)
+        tickInteractionPhase(callbacks, extension)
         afterInput()
 
         scriptEngine.tickPush(this@tick)
@@ -168,6 +168,7 @@ class EngineSimulation(
         fun World.afterOperations() {}
         fun World.beforeEventCleanup() {}
         fun afterTick(simulation: EngineSimulation) {}
+        fun shouldSimulate(player: EnginePlayer): Boolean = true
 
         companion object {
             val DUMMY = object : SimulationTickExtension {}

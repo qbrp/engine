@@ -10,6 +10,7 @@ class EntityCommandBuffer(
     private val world: MutableComponentAccess,
     private val commands: MutableList<(WriteComponentAccess) -> Unit> = mutableListOf(),
 ) : WriteComponentAccess {
+    private val createdEntities = mutableSetOf<EntityId>()
 
     fun clear() {
         commands.clear()
@@ -17,6 +18,9 @@ class EntityCommandBuffer(
 
     fun merge(other: EntityCommandBuffer) {
         commands.addAll(other.commands)
+        createdEntities.addAll(other.createdEntities)
+        other.commands.clear()
+        other.createdEntities.clear()
     }
 
     fun schedule(server: EngineServer, statement: (WriteComponentAccess.() -> Unit)? = null) {
@@ -61,6 +65,7 @@ class EntityCommandBuffer(
         builder: context(WriteComponentAccess) EntityId.() -> Unit
     ): EntityId {
         val entity = world.addEntity()
+        createdEntities += entity
         commands += { world ->
             with(world) { builder(entity) }
         }
@@ -68,8 +73,21 @@ class EntityCommandBuffer(
     }
 
     fun apply() {
+        applyRetainingCreatedEntities()
+        commitCreatedEntities()
+    }
+
+    internal fun applyRetainingCreatedEntities() {
         commands.forEach { it(world) }
         commands.clear()
+    }
+
+    internal fun takeCreatedEntities(): Set<EntityId> = createdEntities.toSet().also {
+        createdEntities.clear()
+    }
+
+    internal fun commitCreatedEntities() {
+        createdEntities.clear()
     }
 
     fun isEmpty(): Boolean = commands.isEmpty()

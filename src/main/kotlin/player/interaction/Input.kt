@@ -2,6 +2,7 @@ package org.lain.engine.player.interaction
 
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
+import org.lain.engine.EngineSimulation
 import org.lain.engine.item.*
 import org.lain.engine.player.*
 import org.lain.engine.script.CallbackType
@@ -36,11 +37,17 @@ fun processLeftClickInteraction(player: EnginePlayer, handItem: EngineItem? = pl
     return handItem?.isGun() == true
 }
 
-fun World.tickPlayerInputSystem(callbacks: Callbacks) {
+fun World.tickPlayerInputSystem(callbacks: Callbacks, extension: EngineSimulation.SimulationTickExtension) {
     if (!isClient) {
         tickQueuedPlayerInputsSystem()
     }
     iterate<PlayerInput, PlayerComponent> { _, input, (player) ->
+        if (!extension.shouldSimulate(player)) {
+            input.lastActions.clear()
+            input.actions.clear()
+            return@iterate
+        }
+
         val (actions, lastActions) = input
         callbacks.of(CallbackType.PLAYER_INPUT_TICK)?.execute(ScriptContext.PlayerInputTick(player, input))
 

@@ -4,6 +4,8 @@ import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.*
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
+import org.lain.engine.player.PlayerMode
+import org.lain.engine.player.PlayerModeComponent
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.ecs.componentType
@@ -23,10 +25,10 @@ data class VerbLookup(
 }
 
 fun World.tickVerbLookupStart() {
-    iterate<PlayerInput, PlayerInventory>() { entity, input, inventory ->
+    iterate<PlayerInput, PlayerInventory, PlayerModeComponent>() { entity, input, inventory, (mode) ->
         val capturedAction = entity.getComponent<UsingInput>()?.input
         val lookupActions = input.actions.filter { it != capturedAction }.toSet()
-        if (lookupActions.isNotEmpty()) {
+        if (lookupActions.isNotEmpty() && mode != PlayerMode.SPECTATOR) {
             inventory.mainHandInteractor.setComponent(VerbLookup(lookupActions))
             entity.setComponent(VerbLookup(lookupActions))
         }

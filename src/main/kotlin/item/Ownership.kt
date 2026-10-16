@@ -4,10 +4,12 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.EngineSimulation
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.equipment
+import org.lain.engine.player.has
 import org.lain.engine.util.addIfNotNull
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -18,8 +20,10 @@ data class HeldBy(var owner: EnginePlayer?) : Component
 context(world: World)
 fun EngineItem.getOwner() = this.getComponent<HeldBy>()?.owner
 
-fun World.tickItemOwnershipSystem() {
-    iterate<PlayerComponent, PlayerInventory, Location> { entity, (player), inventory, location ->
+fun World.tickItemOwnershipSystem(extension: EngineSimulation.SimulationTickExtension) {
+    iterate<PlayerComponent, PlayerInventory> { entity, (player), inventory ->
+        if (!extension.shouldSimulate(player)) return@iterate
+
         val ownershipItems = player.equipment.values.toMutableList()
         ownershipItems.addIfNotNull(inventory.cursorItem)
         ownershipItems.addAll(inventory.items)

@@ -133,8 +133,4 @@ class MinecraftSystem(private val minecraftServer: EngineMinecraftServer) {
 
         val LOGGER = LoggerFactory.getLogger("Engine Minecraft Adapter")
     }
-
-    fun tickOperationsApplyCommon(world: World) = with(world) {
-
-    }
 }
