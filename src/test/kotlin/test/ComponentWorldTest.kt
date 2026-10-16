@@ -18,11 +18,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.lain.cyberia.ecs.componentTypeOf
-import org.lain.engine.listKotlinComponentTypeEntries
 import org.lain.engine.server.replication.Changes
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.persistentId
+import org.lain.engine.listKotlinComponentTypeEntries
+import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.ecs.castIndexed
 
 class ComponentWorldTest : EngineTest() {
