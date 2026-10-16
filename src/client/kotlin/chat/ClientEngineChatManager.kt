@@ -52,7 +52,8 @@ class ClientEngineChatManager(
                     description,
                     color = SPY_COLOR,
                     sprite = EXCLAMATION
-                )
+                ),
+                "spy"
             )
         }
 
@@ -75,7 +76,8 @@ class ClientEngineChatManager(
                     description,
                     color = SPY_COLOR,
                     sprite = VOICE_WARNING
-                )
+                ),
+                "allhear"
             )
         }
 
@@ -97,7 +99,8 @@ class ClientEngineChatManager(
                     description,
                     color = SPY_COLOR,
                     sprite = EXCLAMATION
-                )
+                ),
+                "type_indicator"
             )
         }
 

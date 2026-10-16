@@ -8,7 +8,6 @@ import net.minecraft.client.KeyMapping
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.control.*
-import org.lain.engine.client.render.ui.InteractionSelectionScreen
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lwjgl.glfw.GLFW
@@ -97,7 +96,7 @@ class KeybindManager(
             if (isPressed && wasPressed) {
                 settings.onHold(engineClient)
             }
-            if (!isPressed && wasPressed && MinecraftClient.screen !is InteractionSelectionScreen) {
+            if (!isPressed && wasPressed) {
                 settings.onRelease(engineClient)
             }
 

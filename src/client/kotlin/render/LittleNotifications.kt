@@ -17,10 +17,14 @@ data class LittleNotification(
     val sprite: EngineSprite,
     val lifeTime: Long = 120,
     val transitionTime: Long = 12,
-) {
-    companion object {
-        fun ofServer(type: Notification) : LittleNotification = when(type) {
-            Notification.COMPILATION_ERROR -> {
+)
+
+const val SPECTATOR_NOTIFICATION = "spectator"
+
+fun EngineClient.showServerNotification(type: Notification) {
+    when (type) {
+        Notification.COMPILATION_ERROR -> {
+            showNotification(
                 LittleNotification(
                     "Ошибка компиляции сервера",
                     "Проверьте консоль или логи для получения более подробной информации.",
@@ -28,9 +32,11 @@ data class LittleNotification(
                     WARNING,
                     lifeTime = 240
                 )
-            }
+            )
+        }
 
-            Notification.INVALID_SOURCE_POS ->
+        Notification.INVALID_SOURCE_POS ->
+            showNotification(
                 LittleNotification(
                     "Выход за пределы мира",
                     "Сообщение в этой зоне обрабатываются некорректно — используется упрощенная симуляция.",
@@ -38,8 +44,10 @@ data class LittleNotification(
                     sprite = WARNING,
                     lifeTime = 300
                 )
+            )
 
-            Notification.ACOUSTIC_ERROR -> {
+        Notification.ACOUSTIC_ERROR -> {
+            showNotification(
                 LittleNotification(
                     "Акустика сломалась",
                     "При обработке сообщения акустической системой возникла ошибка. Ваше сообщения не будет видно другим игрокам.",
@@ -47,8 +55,12 @@ data class LittleNotification(
                     sprite = WARNING,
                     lifeTime = 240
                 )
-            }
-            Notification.FREECAM ->
+            )
+        }
+
+
+        Notification.FREECAM -> {
+            showNotification(
                 LittleNotification(
                     "Вы используете мод Freecam",
                     "Его использование способствует получению мета-информации, для игры на сервере он запрещен.",
@@ -56,40 +68,58 @@ data class LittleNotification(
                     sprite = WARNING,
                     lifeTime = 300
                 )
+            )
+        }
 
-            Notification.SPECTATOR_GAMEMODE ->
+        Notification.SPECTATOR_GAMEMODE -> {
+            showNotification(
                 LittleNotification(
                     "Режим наблюдателя",
                     color = Color.AQUA,
                     sprite = QUESTION,
                     lifeTime = 60
-                )
+                ),
+                "gamemode"
+            )
+        }
 
-            Notification.CREATIVE_GAMEMODE ->
+        Notification.CREATIVE_GAMEMODE -> {
+            showNotification(
                 LittleNotification(
                     "Режим ГМа",
                     color = Color.AQUA,
                     sprite = QUESTION,
                     lifeTime = 60
-                )
+                ),
+                "gamemode"
+            )
+        }
 
-            Notification.SURVIVAL_GAMEMODE ->
+        Notification.SURVIVAL_GAMEMODE -> {
+            showNotification(
                 LittleNotification(
                     "Режим выживания",
                     color = Color.AQUA,
                     sprite = QUESTION,
                     lifeTime = 60
-                )
+                ),
+                "gamemode"
+            )
+        }
 
-            Notification.ADVENTURE_GAMEMODE ->
+        Notification.ADVENTURE_GAMEMODE ->
+            showNotification(
                 LittleNotification(
                     "Режим приключений",
                     color = Color.AQUA,
                     sprite = QUESTION,
                     lifeTime = 60
-                )
+                ),
+                "gamemode"
+            )
 
-            Notification.CHANGE_GAMEMODE_FORBIDDEN ->
+        Notification.CHANGE_GAMEMODE_FORBIDDEN ->
+            showNotification(
                 LittleNotification(
                     "Нет персонажа",
                     "Для игры требуется выбрать персонажа. Если у вас нет персонажа, создайте его и перезайдите в мир.",
@@ -97,8 +127,10 @@ data class LittleNotification(
                     EXCLAMATION_RED,
                     lifeTime = 160
                 )
+            )
 
-            Notification.BLOCKHINT_PERMISSION ->
+        Notification.BLOCKHINT_PERMISSION ->
+            showNotification(
                 LittleNotification(
                     "Недостаточно прав",
                     "",
@@ -106,11 +138,9 @@ data class LittleNotification(
                     WARNING,
                     lifeTime = 160
                 )
-        }
+            )
     }
 }
-
-const val SPECTATOR_NOTIFICATION = "spectator"
 
 fun EngineClient.showInpectionModeToggleNotification(value: Boolean) {
     val description = if (value) {
@@ -124,7 +154,8 @@ fun EngineClient.showInpectionModeToggleNotification(value: Boolean) {
             description = description,
             color = INSPECTION_MODE_COLOR,
             sprite = MAP
-        )
+        ),
+        "inspection"
     )
 }
 
@@ -149,6 +180,7 @@ fun EngineClient.showAcousticDebugNotification(enabled: Boolean) {
             text,
             DEV_MODE_COLOR,
             VOICE_WARNING
-        )
+        ),
+        "acoustic_debug"
     )
 }

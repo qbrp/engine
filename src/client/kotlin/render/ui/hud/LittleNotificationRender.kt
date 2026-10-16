@@ -33,17 +33,20 @@ private class LittleNotificationState(
     val layout: LittleNotificationLayout,
     var x: Float,
     var y: Float,
+    var lifetime: Float = 0f,
+    var slideOutProgress: Float = 0f,
+    var slideOut: Boolean = false,
+    var offscreen: Boolean = true
 ) {
-    var lifetime = 0f
-    var slideOutProgress = 0f
-    var slideOut = false
-    var offscreen = true
-
     private val isExpired
         get() = lifetime >= info.lifeTime
 
     val isReadyCleanup
         get() = offscreen && slideOut && slideOutProgress >= 1f
+
+    fun replace(notification: LittleNotification, layout: LittleNotificationLayout): LittleNotificationState {
+        return LittleNotificationState(notification, layout, x, y)
+    }
 
     fun startSlideOut() {
         lifetime = info.lifeTime.toFloat()
@@ -96,14 +99,21 @@ class LittleNotificationsRenderManager(
 
     fun create(notification: LittleNotification, slot: String? = null) {
         val key = slot ?: generateIndex()
-        val state = LittleNotificationState(
-            info = notification,
-            layout = createLayout(notification),
-            x = window.widthDp,
-            y = 0f,
-        )
-        slots[key] = state
-        state.y = targetY(state)
+        val layout = createLayout(notification)
+        slots.compute(key) { _, value ->
+            if (value != null && !value.slideOut && layout.height <= value.layout.height) {
+                value.replace(notification, layout.copy(height = value.layout.height))
+            } else {
+                LittleNotificationState(
+                    info = notification,
+                    layout = layout,
+                    x = window.widthDp,
+                    y = 0f,
+                ).apply {
+                    y = targetY(this)
+                }
+            }
+        }
     }
 
     fun invalidate() {

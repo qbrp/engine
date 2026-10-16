@@ -127,7 +127,8 @@ class EngineClient(
                 DEV_MODE_COLOR,
                 sprite = if (developerMode) QUESTION else EXCLAMATION,
                 lifeTime = 100
-            )
+            ),
+            "dev_mode"
         )
     }
 
