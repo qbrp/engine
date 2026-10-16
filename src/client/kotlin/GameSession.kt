@@ -18,6 +18,7 @@ import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.render.*
+import org.lain.engine.client.render.ui.TransformationEdit
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.EntityInspection
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
@@ -129,6 +130,7 @@ class GameSession(
         private set
 
     var entityInspections: MutableMap<PersistentId, EntityInspection> = mutableMapOf()
+    var transformationEdit: TransformationEdit? = null
 
     init {
         applyCompilation(build)

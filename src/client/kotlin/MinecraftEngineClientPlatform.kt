@@ -9,8 +9,8 @@ import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.blockHitResult
 import org.lain.engine.client.mc.chat.MinecraftChat
-import org.lain.engine.client.mc.updateEngineItemGroupEntries
 import org.lain.engine.client.render.EnginePlayerSkin
+import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.DisconnectText
@@ -89,6 +89,7 @@ class MinecraftEngineClientPlatform(
         gameSession: GameSession,
         player: EnginePlayer
     ) {
+        MovingWallpapers.loadNew()
         val level = minecraft.level!!
         player.setMinecraftPlayerComponent(minecraft.player!!)
         ClientMixin.onMainPlayerInstantiated(player)
@@ -107,7 +108,7 @@ class MinecraftEngineClientPlatform(
     }
 
     override fun onCompiled(gameSession: GameSession, inventoryTab: InventoryTab) {
-        updateEngineItemGroupEntries(gameSession)
+        engineMinecraftClient.itemGroup.update(gameSession)
     }
 
     override fun onChunkLoad(pos: EngineChunkPos, chunk: EngineChunk) {

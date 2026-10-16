@@ -36,6 +36,10 @@ object MovingWallpapers {
         manager.reload()
     }
 
+    fun loadNew() {
+        textureManager?.loadNew()
+    }
+
     fun close() {
         textureManager?.close()
         textureManager = null

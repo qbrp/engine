@@ -1,11 +1,13 @@
 package org.lain.engine.client.render.item
 
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.resources.model.BakedModel
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
+import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.resources.EngineItemModel
 import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
@@ -36,7 +38,14 @@ fun renderEngineItem(
             ?.outfit
             ?.minecraft()
             ?: engineModel?.outfitTransformation
+        ClientMixin.onBeforeRenderOutfit(
+            stack,
+            RenderSystem.getProjectionMatrix(),
+            RenderSystem.getModelViewMatrix(),
+            poseStack.last().pose(),
+        )
         transformation?.apply(false, poseStack)
+        ClientMixin.onAfterRenderOutfit(stack, poseStack.last().pose())
     }
     MinecraftClient.itemRenderer.render(
         stack,

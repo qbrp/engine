@@ -28,6 +28,7 @@ import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.EquipmentFeatureRenderer
 import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
+import org.lain.engine.client.render.world.LabelTextRenderTypes
 import org.lain.engine.client.render.world.registerWorldRenderEvents
 import org.lain.engine.client.resources.registerEngineModelLoading
 import org.lain.engine.client.transport.ClientTransportContext
@@ -58,7 +59,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     val platform = MinecraftEngineClientPlatform(this, client, decalSystem)
     internal lateinit var lightSystem: LightSystem
     private var config: EngineYamlConfig = EngineYamlConfig()
-    private val itemGroup = ItemGroup()
+    val itemGroup = ItemGroup()
     val engine = EngineClient(
         window,
         camera,
@@ -80,6 +81,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         get() = client.level
 
     override fun onInitializeClient() {
+        LabelTextRenderTypes.registerShaders()
         ComponentTypeRegistry.registerComponentsClient()
         ComponentTypeRegistry.registerAllClient()
         engine.options = config
@@ -128,6 +130,10 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
 
         ImGuiMCEvents.INSTANCE.preRenderImGuiEvent {
             engine.imGuiManager.render()
+        }
+
+        ImGuiMCEvents.INSTANCE.postRenderImGuiEvent {
+            engine.imGuiManager.postRender()
         }
 
         ClientLifecycleEvents.CLIENT_STARTED.register { onClientStarted() }

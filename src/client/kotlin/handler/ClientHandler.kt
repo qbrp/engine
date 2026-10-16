@@ -17,6 +17,7 @@ import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.render.showServerNotification
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.item.EngineItem
@@ -331,7 +332,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
 
     fun applyNotification(type: Notification, once: Boolean) {
         if (!showedNotifications.add(type) && once) return
-        client.showNotification(LittleNotification.ofServer(type))
+        client.showServerNotification(type)
     }
 
     fun applyAcousticDebugVolumePacket(volumes: List<Pair<VoxelPos, Float>>) = with(gameSession!!) {

@@ -10,7 +10,6 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mc.DeveloperModeActionsKt;
 import org.lain.engine.client.mc.KeybindManager;
-import org.lain.engine.client.render.ui.InteractionSelectionScreen;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -50,12 +49,6 @@ public class KeyboardMixin {
                     keybindManager.getAdjustChatVolume().getMinecraft(),
                     keybindManager.getDecreaseChatVolume().getMinecraft(),
                     keybindManager.getResetChatVolume().getMinecraft()
-            };
-        } else if (minecraft.screen instanceof InteractionSelectionScreen) {
-            keybindings = new KeyMapping[]{
-                    keybindManager.getBase().getMinecraft(),
-                    keybindManager.getAttack().getMinecraft(),
-                    keybindManager.getTakeOff().getMinecraft()
             };
         }
 

@@ -25,17 +25,17 @@ object AdditionalTransformationsBank {
     fun get(model: ResourceLocation) = modelToTransformations[model]?.copy()
 }
 
-enum class EngineItemDisplayContext(val minecraft: ItemDisplayContext) {
-    NONE(ItemDisplayContext.NONE),
-    THIRD_PERSON_LEFT_HAND(ItemDisplayContext.THIRD_PERSON_LEFT_HAND),
-    THIRD_PERSON_RIGHT_HAND(ItemDisplayContext.THIRD_PERSON_RIGHT_HAND),
-    FIRST_PERSON_LEFT_HAND(ItemDisplayContext.FIRST_PERSON_LEFT_HAND),
-    FIRST_PERSON_RIGHT_HAND(ItemDisplayContext.FIRST_PERSON_RIGHT_HAND),
-    HEAD(ItemDisplayContext.HEAD),
-    GUI(ItemDisplayContext.GUI),
-    GROUND(ItemDisplayContext.GROUND),
-    FIXED(ItemDisplayContext.FIXED),
-    OUTFIT(ItemDisplayContext.NONE)
+enum class EngineItemDisplayContext(val minecraft: ItemDisplayContext, val displayName: String) {
+    NONE(ItemDisplayContext.NONE, "NONE"),
+    THIRD_PERSON_LEFT_HAND(ItemDisplayContext.THIRD_PERSON_LEFT_HAND, "TP Left hand"),
+    THIRD_PERSON_RIGHT_HAND(ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, "TP Right hand"),
+    FIRST_PERSON_LEFT_HAND(ItemDisplayContext.FIRST_PERSON_LEFT_HAND, "FP Left hand"),
+    FIRST_PERSON_RIGHT_HAND(ItemDisplayContext.FIRST_PERSON_RIGHT_HAND, "FP Right hand"),
+    GUI(ItemDisplayContext.GUI, "GUI"),
+    GROUND(ItemDisplayContext.GROUND, "Ground"),
+    FIXED(ItemDisplayContext.FIXED, "Fixed"),
+    HEAD(ItemDisplayContext.HEAD, "Head"),
+    OUTFIT(ItemDisplayContext.NONE, "Outfit")
 }
 
 data class EngineTransformationsBundle(

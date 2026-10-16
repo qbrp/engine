@@ -79,16 +79,19 @@ class WallpaperTextureManager(
             return
         }
 
-        val expectedGeneration = generation
-        initialLoadJob = launchLoad(sources.shuffled(random), expectedGeneration) { loaded ->
-            currentLoaded = loaded
-            preloadNext()
-        }
+        loadNew()
     }
 
     fun beginFrame() {
         releasePending()
         if (currentLoaded != null && nextLoaded == null && preloadSource == null) {
+            preloadNext()
+        }
+    }
+
+    fun loadNew() {
+        initialLoadJob = launchLoad(candidates(), generation) { loaded ->
+            currentLoaded = loaded
             preloadNext()
         }
     }
@@ -123,9 +126,7 @@ class WallpaperTextureManager(
         val currentSource = currentLoaded?.wallpaper?.source ?: return
         if (sources.size < 2 || nextLoaded != null || preloadSource == currentSource) return
 
-        val candidates = sources
-            .filterNot { it == currentSource || it in showed }
-            .shuffled(random)
+        val candidates = candidates()
         preloadSource = currentSource
         val expectedGeneration = generation
         preloadJob = launchLoad(candidates, expectedGeneration) { loaded ->
@@ -136,6 +137,10 @@ class WallpaperTextureManager(
             }
         }
     }
+
+    private fun candidates() = sources
+        .filterNot { it == currentLoaded?.wallpaper?.source || it in showed }
+        .shuffled(random)
 
     private fun launchLoad(
         candidates: List<File>,

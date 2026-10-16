@@ -6,9 +6,10 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemMessage
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
-import org.lain.engine.client.render.ui.TransformationsEditorScreen
+import org.lain.engine.client.render.ui.TransformationsEditorWindow
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.render.ui.TransformationEdit
 import org.lain.engine.mc.commands.playerPositionsMessage
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.util.Timestamp
@@ -66,7 +67,10 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) 
                 val offHandItemStack = player.offhandItem
                 val itemStack = if (mainHandItemStack.isEmpty) offHandItemStack else mainHandItemStack
                 if (developerMode && !itemStack.isEmpty) {
-                    MinecraftClient.setScreen(TransformationsEditorScreen(itemStack))
+                    gameSession?.let {
+                        it.transformationEdit?.close()
+                        it.transformationEdit = TransformationEdit(it, itemStack)
+                    }
                 }
             } else if (key == GLFW.GLFW_KEY_3) {
                 val gameSession = gameSession ?: return@with true

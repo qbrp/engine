@@ -29,8 +29,7 @@ public class GuiMixin {
             int width,
             int height
     ) {
-        if (ClientMixin.INSTANCE.isCrosshairAttackIndicatorVisible()
-                || sprite.equals(GuiAccessor.engine$getCrosshairTexture())) {
+        if (ClientMixin.INSTANCE.isCrosshairAttackIndicatorVisible() || sprite.equals(GuiAccessor.engine$getCrosshairTexture())) {
             guiGraphics.blitSprite(sprite, x, y, width, height);
         }
     }

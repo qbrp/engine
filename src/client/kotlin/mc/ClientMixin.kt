@@ -3,6 +3,7 @@ package org.lain.engine.client.mc
 import net.fabricmc.fabric.api.client.model.loading.v1.FabricBakedModelManager
 import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.client.player.AbstractClientPlayer
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.client.player.RemotePlayer
 import net.minecraft.client.resources.DefaultPlayerSkin
@@ -12,7 +13,9 @@ import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemDisplayContext
 import net.minecraft.world.item.ItemStack
+import org.joml.Matrix4f
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.EngineClient
@@ -20,6 +23,7 @@ import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.util.getClientItem
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.client.render.getSkin
+import org.lain.engine.client.render.item.AdditionalTransformationsBank
 import org.lain.engine.client.render.item.resolveTooltip
 import org.lain.engine.client.render.player.RenderStateComponent
 import org.lain.engine.client.render.player.modelPartOf
@@ -87,6 +91,51 @@ object ClientMixin {
     }
 
     fun onSetWorldProjectionMatrix() {}
+
+    fun onBeforeRenderItem(
+        itemStack: ItemStack,
+        displayContext: ItemDisplayContext,
+        leftHand: Boolean,
+        projection: Matrix4f,
+        view: Matrix4f,
+        parent: Matrix4f,
+    ) {
+        client.gameSession?.transformationEdit?.beginItemRender(
+            itemStack,
+            displayContext,
+            leftHand,
+            projection,
+            view,
+            parent,
+        )
+    }
+
+    fun onAfterRenderItem(
+        itemStack: ItemStack,
+        displayContext: ItemDisplayContext,
+        leftHand: Boolean,
+        model: Matrix4f,
+    ) {
+        client.gameSession?.transformationEdit?.endItemRender(
+            itemStack,
+            displayContext,
+            leftHand,
+            model,
+        )
+    }
+
+    fun onBeforeRenderOutfit(
+        itemStack: ItemStack,
+        projection: Matrix4f,
+        view: Matrix4f,
+        parent: Matrix4f,
+    ) {
+        client.gameSession?.transformationEdit?.beginOutfitRender(itemStack, projection, view, parent)
+    }
+
+    fun onAfterRenderOutfit(itemStack: ItemStack, model: Matrix4f) {
+        client.gameSession?.transformationEdit?.endOutfitRender(itemStack, model)
+    }
 
     fun getTooltip(engineItem: EngineItem, advanced: Boolean): List<String> {
         with(client.gameSession?.world ?: return emptyList()) {
@@ -213,7 +262,7 @@ object ClientMixin {
 
     fun isHotbarIndicatorsVisible() = client.options.crosshairIndicatorVisible
 
-    fun onClientPlayerEntityInitialized(entity: RemotePlayer) {
+    fun onClientPlayerEntityInitialized(entity: AbstractClientPlayer) {
         replacePlayerMinecraftState(entity)
     }
 
