@@ -95,7 +95,6 @@ fun commonPlayerInstance(
             setComponent(Narration(mutableListOf()))
             setComponent(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
             setComponent(Hearing())
-            setComponent(ScriptBindings())
             setComponent(PlayerInput())
             setComponent(PlayerPhysics())
             setComponent(settings.displayName)
@@ -229,7 +228,7 @@ class PlayerLoader(
                     settings,
                     inventory,
                     persistentData,
-                    playerEntity ?: world.addEntity(),
+                    playerEntity ?: transaction.commands.addEntity(),
                 ).also {
                     it.prepareContainers(Location(settings.initialPosition))
                 }

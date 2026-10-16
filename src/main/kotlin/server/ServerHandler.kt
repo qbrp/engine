@@ -171,15 +171,6 @@ class ServerHandler(
         )
     }
 
-    internal fun onScriptBindings(player: PlayerId, bindings: ScriptBindings) =
-        updatePlayer(player) {
-            fun <C : ScriptContext> ScriptId.ensureExists() =
-                require(engineServer.namespacedStorage.getVoidScript<C>(this) != null)
-            bindings.base?.ensureExists<ScriptContext.Player>()
-            bindings.attack?.ensureExists<ScriptContext.Player>()
-            set(bindings)
-        }
-
     internal fun onEntityDebugView(player: PlayerId, persistentId: PersistentId, rate: Int) =
         updatePlayer(player) {
             if (!engineServer.platform.hasPermission(this, "entity_debug")) return@updatePlayer

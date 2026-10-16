@@ -1,9 +1,7 @@
 package org.lain.engine.player
 
-import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.require
-import org.lain.engine.script.*
 
 data class DeveloperMode(var enabled: Boolean, var acoustic: Boolean = false) : Component
 
@@ -18,9 +16,3 @@ var EnginePlayer.acousticDebug
     set(value) {
         this.require<DeveloperMode>().acoustic = value
     }
-
-@Serializable
-data class ScriptBindings(
-    var attack: ScriptId? = null,
-    var base: ScriptId? = null,
-) : Component

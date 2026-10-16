@@ -634,53 +634,6 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         return blockPos to chunk
     }
 
-    fun registerPlayerScriptCommand(
-        name: String,
-        successMessage: (scriptId: ScriptId) -> String,
-        setter: ScriptBindings.(ScriptId?) -> Unit
-    ) {
-        register(
-            literal(name)
-                .then(
-                    stringArgument("script")
-                        .suggests(NamespacedIdProvider(listOf("none")) { it.scripts.stringIds })
-                        .executeCatching { ctx ->
-                            val player = ctx.requirePlayer()
-
-                            val scriptArg = ctx.command.getString("script")
-                            if (scriptArg != "none") {
-                                val scriptId = EngineId(scriptArg
-                                    .replace("\"", ""))
-                                    .toScriptId()
-
-                                server.engine.namespacedStorage
-                                    .getVoidScript<ScriptContext.Player>(scriptId)
-                                    ?: friendlyError("Скрипт $scriptId не найден")
-
-                                player.require<ScriptBindings>().setter(scriptId)
-                                ctx.sendFeedback(successMessage(scriptId), true)
-                            } else {
-                                player.require<ScriptBindings>().setter(null)
-                            }
-                        }
-                )
-        )
-    }
-
-    registerPlayerScriptCommand(
-        name = "attackscript",
-        successMessage = { "Установлен скрипт атаки игрока на $it" }
-    ) {
-        attack = it
-    }
-
-    registerPlayerScriptCommand(
-        name = "basescript",
-        successMessage = { "Установлен скрипт взаимодействия игрока на $it" }
-    ) {
-        base = it
-    }
-
     registerServerCustomChatCommands()
 }
 

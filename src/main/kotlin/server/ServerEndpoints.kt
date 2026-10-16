@@ -17,7 +17,6 @@ import org.lain.engine.transport.packet.SERVERBOUND_REPLICATION_RESYNC_REQUEST_E
 import org.lain.engine.transport.packet.SERVERBOUND_INPUT_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_LOOK_APPLY_ENDPOINT
-import org.lain.engine.transport.packet.SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_SPEED_INTENTION_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_VOLUME_PACKET
 import org.lain.engine.transport.packet.SERVERBOUND_VOXEL_BLOCK_HINT_PACKET
@@ -92,12 +91,6 @@ fun ServerHandler.registerEndpoints() {
             ctx.sender,
             pos,
             action
-        )
-    }
-    SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT.registerReceiver { ctx ->
-        onScriptBindings(
-            ctx.sender,
-            bindings
         )
     }
     SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.registerReceiver { ctx ->

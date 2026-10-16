@@ -1,7 +1,6 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.ScriptBindings
 import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.InputAction
@@ -54,13 +53,6 @@ val SERVERBOUND_CURSOR_ITEM_ENDPOINT = Endpoint<CursorItemPacket>()
 data class ArmStatusPacket(val extend: Boolean) : Packet
 
 val SERVERBOUND_ARM_STATUS_ENDPOINT = Endpoint<ArmStatusPacket>()
-
-// Scripts
-
-@Serializable
-data class ScriptBindingsPacket(val bindings: ScriptBindings) : Packet
-
-val SERVERBOUND_SCRIPT_BINDINGS_ENDPOINT = Endpoint<ScriptBindingsPacket>()
 
 // Character
 

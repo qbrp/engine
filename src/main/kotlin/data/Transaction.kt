@@ -200,7 +200,7 @@ class TransactionContext internal constructor(
 
         var publishedLoadCount = 0
         try {
-            commands.apply()
+            commands.applyRetainingCreatedEntities()
 
             loads.forEach { (load, entity) ->
                 world.simulation.callbacks.of(CallbackType.ENTITY_MATERIALIZATION)?.execute(
@@ -208,7 +208,7 @@ class TransactionContext internal constructor(
                         entity,
                         world,
                         load.reservation.uuid,
-                        load.persistentData!!
+                        load.persistentData
                     )
                 )
             }
@@ -223,10 +223,15 @@ class TransactionContext internal constructor(
 
             val unfinishedLoads = loads.drop(publishedLoadCount).map { it.first }
             abortLoads(unfinishedLoads, cause)
-            destroyLoads(unfinishedLoads, cause)
+            destroyEntities(
+                commands.takeCreatedEntities() + unfinishedLoads.mapNotNull { it.entity },
+                cause,
+            )
             releaseLeases(leases, cause)
             throw cause
         }
+
+        commands.commitCreatedEntities()
 
         val releaseFailure = releaseLeases(leases)
         if (releaseFailure != null) {
@@ -242,6 +247,7 @@ class TransactionContext internal constructor(
     private fun rollback(cause: Throwable, allowCommitting: Boolean) {
         val leases = mutableListOf<EntityLease>()
         val loads = mutableListOf<PendingEntityLoad>()
+        val createdEntities = mutableSetOf<EntityId>()
 
         synchronized(tree.lock) {
             check(_state != TransactionState.MERGED) {
@@ -265,6 +271,7 @@ class TransactionContext internal constructor(
             }
 
             commands.clear()
+            createdEntities += commands.takeCreatedEntities()
             parent?.removeChildLocked(this)
             leases += entityLeases
             loads += entityLoads
@@ -273,7 +280,7 @@ class TransactionContext internal constructor(
         }
 
         abortLoads(loads, cause)
-        destroyLoads(loads, cause)
+        destroyEntities(createdEntities + loads.mapNotNull { it.entity }, cause)
         releaseLeases(leases, cause)
     }
 
@@ -294,13 +301,15 @@ class TransactionContext internal constructor(
         }
     }
 
-    private fun destroyLoads(loads: Iterable<PendingEntityLoad>, failure: Throwable) {
-        val snapshot = loads.toList()
+    private fun destroyEntities(entities: Iterable<EntityId>, failure: Throwable) {
+        val snapshot = entities.toSet()
         try {
             server.execute {
-                snapshot.forEach { load ->
+                snapshot.forEach { entity ->
                     try {
-                        with(world) { load.entity?.destroy() }
+                        if (world.componentManager.exists(entity)) {
+                            with(world) { entity.destroy() }
+                        }
                     } catch (destroyFailure: Throwable) {
                         failure.addCleanupFailure(destroyFailure)
                     }
