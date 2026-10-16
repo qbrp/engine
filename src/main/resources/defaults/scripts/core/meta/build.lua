@@ -69,7 +69,7 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field world_tick fun(world: World)?
 ---@field place_voxel fun(context: VoxelActionContext)?
 ---@field entity_materialization fun(context: EntityMaterializationContext)?
----@field show_item_tooltip fun(context: ItemTooltipContext): string[]?
+---@field show_item_tooltip (fun(context: ItemTooltipContext): string[]?)?
 ---@field player_input_tick fun(context: PlayerInputTickContext)?
 
 ---@class InventoryTab
@@ -85,8 +85,8 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field inventory_tab InventoryTab?
 ---@field phases TickPhasesDraft
 
----@class ContentsDraft
----@field items ItemPrefabDraft[]
+---@class ContentsDraft : table<CategoryId, Category>
+---@field item_prefabs ItemPrefabDraft[]
 ---@field scripts Script[]
 ---@field operations OperationDraft[]
 ---@field components ComponentTypeSettings[]

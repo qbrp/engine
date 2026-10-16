@@ -25,7 +25,7 @@ interface ScriptContext {
         val entity: EntityId,
         val world: EngineWorld,
         val persistentId: PersistentId,
-        val persistentData: EntityPersistenceData,
+        val persistentData: EntityPersistenceData?,
     ) : ScriptContext
     data class PlayerInputTick(val player: EnginePlayer, val input: PlayerInput) : ScriptContext
     data class VoxelAction(

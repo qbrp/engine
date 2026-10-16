@@ -49,3 +49,7 @@
 
 ---@class ItemNameComponent : Component
 ---@field text string
+
+---@class ItemComponent : Component
+---@field uuid string
+---@field prefab_id Id

@@ -98,7 +98,7 @@ function composer.build(context)
         symbols
     )
     for _, namespace in ipairs(sorted_namespaces) do
-        for _, item_prefab in ipairs(namespace.items) do
+        for _, item_prefab in ipairs(namespace.item_prefabs) do
             table.insert(inventory_tab_entries, {
                 prefab_id = item_prefab.id
             })

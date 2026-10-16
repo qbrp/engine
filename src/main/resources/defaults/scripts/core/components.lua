@@ -39,5 +39,6 @@ return {
     item_name = binding("core/item/name"), ---@type of<ItemNameComponent>
     equippable = binding("core/item/equippable"), ---@type of<EquippableComponent>
     decrement = binding("core/item/decrement"), ---@type of<number>
+    item = binding("core/item"), ---@type of<ItemComponent>
     equipment = binding("core/player/equipment"), ---@type of<EquipmentComponent>
 }

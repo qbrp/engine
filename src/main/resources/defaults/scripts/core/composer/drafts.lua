@@ -20,7 +20,7 @@ local categories = {
         id = "items",
         type = "ItemPrefabDraft",
         kind = "item",
-        draft_id = "items",
+        draft_id = "item_prefabs",
         script_target = "item_prefabs",
         document_target = "item_documents",
         template_name = "items"
@@ -30,7 +30,7 @@ local categories = {
         id = "item_prefabs",
         type = "ItemPrefabDraft",
         kind = "item",
-        draft_id = "items",
+        draft_id = "item_prefabs",
         target = "item_prefabs",
         template_name = "items"
     },
@@ -126,6 +126,12 @@ local categories = {
         type = "EventListeners",
         keyed = true
     },
+
+    migrations = {
+        id = "migrations",
+        type = "Migrations",
+        keyed = true
+    },
 }
 
 drafts.categories = categories
@@ -145,7 +151,7 @@ drafts.categories = categories
 ---@return ContentsDraft
 function drafts.contents()
     return {
-        items = {},
+        item_prefabs = {},
         components = {},
         systems = {},
         scripts = {},

@@ -255,7 +255,7 @@ function items.lower_item_documents(context, symbols, categories)
             local component_type_id = typed_component.type.id
             local entry = components_by_id[component_type_id]
             if entry then
-                report_error("Префаб содержит дубликат компонентов типа " .. component_type_id, "validation")
+                report_error("Префаб содержит дубликат компонентов типа " .. component_type_id.full, "validation")
             else
                 components_by_id[component_type_id] = typed_component.value
             end

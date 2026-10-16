@@ -10,6 +10,7 @@ import org.lain.engine.script.lua.library.ecs.DecrementItemBinding
 import org.lain.engine.script.lua.library.ecs.EquipmentBinding
 import org.lain.engine.script.lua.library.ecs.EquippableBinding
 import org.lain.engine.script.lua.library.ecs.GiveItemBinding
+import org.lain.engine.script.lua.library.ecs.ItemBinding
 import org.lain.engine.script.lua.library.ecs.ItemNameBinding
 import org.lain.engine.script.lua.library.ecs.LocationBinding
 import org.lain.engine.util.ecs.EngineComponentType
@@ -43,6 +44,7 @@ object LuaComponentBindingRegistry {
         register(EquippableBinding)
         register(DecrementItemBinding)
         register(GiveItemBinding)
+        register(ItemBinding)
     }
 
     fun get(id: LuaComponentBindingId): LuaComponentBinding<*> {

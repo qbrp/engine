@@ -37,7 +37,7 @@ function player:sync_action(type, action) end
 ---| "game_master"
 
 ---@class PlayerComponent : Component
----@field player Player
+---@field object Player
 
 ---@class PlayerModeComponent : Component
 ---@field mode PlayerMode

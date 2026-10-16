@@ -78,7 +78,7 @@ function files.scan(modules, categories)
     for _, module in ipairs(modules) do
         local files = {
             yaml = {},
-            lua = {}
+            lua = {},
         }
 
         scan_entries(module.dir:files(), files)

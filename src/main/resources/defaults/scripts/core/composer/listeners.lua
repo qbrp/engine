@@ -58,7 +58,7 @@ function listeners.merge(listeners_list)
     order_function("world_tick")
     order_function("world_tick_20")
     order_function("place_voxel")
-    order_function("item_load")
+    order_function("entity_materialization")
     order_function("show_item_tooltip")
 
     return result
