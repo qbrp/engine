@@ -559,7 +559,8 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         player.world.emitEvent(
             SoundEmission(id,
                 SoundEmissionParameters(pos, volume, 1f, ignorePhysics = ignorePhysics)
-            )
+            ),
+            true
         )
         ctx.sendFeedback(
             "Воспроизведено звуковое событие ${id} на координатах ${pos.x}, ${pos.y}, ${pos.z} громкостью $volume",
