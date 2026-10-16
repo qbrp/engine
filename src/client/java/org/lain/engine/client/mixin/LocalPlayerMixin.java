@@ -1,6 +1,7 @@
 package org.lain.engine.client.mixin;
 
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.player.RemotePlayer;
 import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
