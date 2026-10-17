@@ -29,9 +29,9 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<Savable>()
 
     registerComponent<Networked>()
-    registerComponent<PersistentIdComponent>(id = "persistent_id")
+    registerComponent<PersistentIdComponent>()
     registerComponent<EntityRpcReceiver>(isNetworking = true, isSavable = true, replicationClass = null)
-    registerComponent<DebugName>(id = "debug_name", isNetworking = true, isSavable = true)
+    registerComponent<DebugName>(isNetworking = true, isSavable = true)
 
     // Containers
     registerComponent<Entries>()
@@ -56,14 +56,14 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<Item>(isSavable = true, isNetworking = true)
     registerComponent<ContainedIn>(isSavable = true, isNetworking = true, replicationClass = null)
     registerComponent<AssignedSlot>(isSavable = true, isNetworking = true)
-    registerComponent<ItemName>(id = "core/item/name", isSavable = true, isNetworking = true)
-    registerComponent<ItemTooltip>(id = "core/item/tooltip", isSavable = true, isNetworking = true)
-    registerComponent<ItemSounds>(id = "core/item/sounds", isSavable = true, isNetworking = true)
-    registerComponent<Count>(id = "core/item/count", isSavable = true, isNetworking = true)
-    registerComponent<Mass>(id = "core/item/mass", isSavable = true, isNetworking = true)
-    registerComponent<Writable>(id = "core/item/writable", isSavable = true, isNetworking = true)
-    registerComponent<ItemAssets>(id = "core/item/assets", isSavable = true, isNetworking = true)
-    registerComponent<ItemProgressionAnimations>(id = "core/item/progression_animations", isSavable = true, isNetworking = true)
+    registerComponent<ItemName>(isSavable = true, isNetworking = true)
+    registerComponent<ItemTooltip>(isSavable = true, isNetworking = true)
+    registerComponent<ItemSounds>(isSavable = true, isNetworking = true)
+    registerComponent<Count>(isSavable = true, isNetworking = true)
+    registerComponent<Mass>(isSavable = true, isNetworking = true)
+    registerComponent<Writable>(isSavable = true, isNetworking = true)
+    registerComponent<ItemAssets>(isSavable = true, isNetworking = true)
+    registerComponent<ItemProgressionAnimations>(isSavable = true, isNetworking = true)
 
     // Weapons
     registerComponent<Gun>(isSavable = true, isNetworking = true)
