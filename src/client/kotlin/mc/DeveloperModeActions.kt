@@ -1,11 +1,9 @@
 package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
-import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.InteractionResult
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemMessage
-import org.lain.engine.client.mixin.render.GameRendererAccessor
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.render.world.DecalSystem
@@ -98,10 +96,10 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) 
                     gameSession.chatManager.addMessage(LiteralSystemMessage(gameSession, message))
                 }
             } else if (key == GLFW.GLFW_KEY_6) {
-                val gameRenderer = MinecraftClient.gameRenderer as GameRendererAccessor
-                gameRenderer.`engine$loadEffect`(
-                    ResourceLocation.withDefaultNamespace("shaders/post/nvg_green.json")
-                )
+//                val gameRenderer = MinecraftClient.gameRenderer as GameRendererAccessor
+//                gameRenderer.`engine$loadEffect`(
+//                    ResourceLocation.withDefaultNamespace("shaders/post/nvg_green.json")
+//                )
             } else {
                 return@with false
             }
