@@ -65,6 +65,7 @@ class HeadEquipmentFeatureRenderer(
         netHeadYaw: Float,
         headPitch: Float
     ) {
+        if (entity.isSpectator) return
         val renderState = entity.getEngineRenderState() ?: return
         for (equipment in renderState.detachedEquipment) {
             if (equipment.playerModelPart !== parentModel.head) continue
