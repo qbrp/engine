@@ -39,7 +39,7 @@ object FileSystem {
     const val DEFAULT_RESOURCES_PATH = "defaults"
 
     val root: File = ensureDirectory(File(ROOT_PATH))
-    val serverPlayStates = ensureDirectory(root.resolve(SERVER_PLAY_STATES_NAME))
+    val serverPlayStates by lazy { ensureDirectory(root.resolve(SERVER_PLAY_STATES_NAME)) }
     val modules = ensureDirectory(root.resolve(MODULES_PATH))
     val moduleSet = modules.resolve(MODULE_SET_NAME)
         .apply {
@@ -59,10 +59,10 @@ object FileSystem {
 
     val bookBackups: File = ensureDirectory(storage.resolve(BOOK_BACKUPS_PATH))
 
-    val skins: File = ensureDirectory(root.resolve(SKINS_PATH))
-    val wallpapers: File = ensureDirectory(root.resolve(WALLPAPERS_PATH))
+    val skins: File by lazy { ensureDirectory(root.resolve(SKINS_PATH)) }
+    val wallpapers: File by lazy { ensureDirectory(root.resolve(WALLPAPERS_PATH)) }
 
-    val accountCache: File = root.resolve(ACCOUNT_CACHE_NAME)
+    val accountCache: File by lazy { root.resolve(ACCOUNT_CACHE_NAME) }
 
     val preferences: Preferences = Preferences.userRoot().node(ROOT_PATH)
 
