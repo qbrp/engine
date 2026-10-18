@@ -41,7 +41,6 @@
     "render.ScreenAccessor",
     "resource.BlockElementDeserializerMixin",
     "resource.JsonUnbakedModelAccessor",
-    "resource.SimpleReloadInstanceMixin",
     "resource.SpriteSourceListAccessor",
     "resource.SpriteSourceListMixin",
     "resource.TransformationDeserializerMixin",
@@ -65,7 +64,5 @@
   "overwrites": {
     "requireAnnotations": true
   },
-  "mixins": [
-    "wildfire.WildfireEventHandlerMixin"
-  ]
+  "mixins": ["resource.ReloadableResourceManagerMixin", "wildfire.WildfireEventHandlerMixin"]
 }

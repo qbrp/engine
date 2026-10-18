@@ -14,6 +14,7 @@ import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.file.FileSystem
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.FileInputStream
 import java.io.Reader
 import java.util.concurrent.atomic.AtomicReference
 
@@ -23,7 +24,7 @@ value class SourceFile(val file: File) {
         return Yaml.default.decodeFromStream<T>(file.inputStream())
     }
 
-    fun openInputStream() = file.inputStream()
+    fun openInputStream(): FileInputStream = file.inputStream()
 
     fun <R> read(use: (Reader) -> R) = openInputStream().use {
         it.reader().use(use)

@@ -16,10 +16,6 @@ public class TransformationDeserializerMixin {
             )
     )
     public float engine$removeClamping(float value, float min, float max) {
-        if (value < min || value > max) {
-            float clamped = Mth.clamp(value, min, max);
-            ModelLoaderPluginKt.getMC_LOGGER().warn("Skipped value clamping: {} -> {}", value, clamped);
-        }
         return value;
     }
 }

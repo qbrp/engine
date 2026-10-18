@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation
 import org.lain.engine.client.mc.missingSpriteId
 import org.lain.engine.mc.engineId
 import org.lain.engine.script.EngineId
+import org.lain.engine.script.EngineIdentifierException
 import org.lain.engine.script.Module
 import org.lain.engine.script.resolveId
 import org.slf4j.LoggerFactory
@@ -14,21 +15,36 @@ class AssetCatalog(
     val source: SourceFile,
     val module: Module
 ) {
-    val directory = source.file
+    val directory = source.file.resolve("assets")
     val spriteAtlases =
         source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules()
 
     fun browse(block: (Asset) -> Unit) {
+        if (!directory.isDirectory) return
+
         directory.walk().forEach { file ->
             if (!file.isFile) return@forEach
-            val relativeParent = file.parentFile.relativeTo(directory)
-            val relativeParentPath = relativeParent.path.normalizeSlashes()
-                .let { if (it.startsWith("assets/")) it.drop(7) else it }
+            val relative = file.relativeTo(directory)
+            val relativeParentPath = relative.parentFile
+                ?.path
+                ?.normalizeSlashes()
+                .orEmpty()
 
-            val namespace = module.namespace.append(relativeParentPath)
+            val namespace = if (relativeParentPath.isEmpty()) {
+                module.namespace
+            } else {
+                module.namespace.append(relativeParentPath)
+            }
             val local = file.nameWithoutExtension
 
-            val asset = Asset(EngineId.of(namespace, local), module, file, file.toSourceFile())
+            val engineId = try {
+                EngineId.of(namespace, local)
+            } catch (e: EngineIdentifierException) {
+                LOGGER.error("Ассет ${file.path} имеет неправильное название: ${e.message}")
+                return@forEach
+            }
+
+            val asset = Asset(engineId, module, relative, file.toSourceFile())
             block(asset)
         }
     }

@@ -102,9 +102,9 @@ fun Asset.parseLegacyObjGeometry(
     val isObj = modelJson.has("obj") && modelJson.getAsJsonPrimitive("obj").asBoolean
     val flipV = JsonMc.getAsBoolean(modelJson, "flip_v", false)
     return if (isObj) {
-        val path = JsonMc.getAsString(modelJson, "model")
+        val path = resolve(JsonMc.getAsString(modelJson, "model"))
         PropModelProperties.Geometry.Obj(
-            linkedObjs[resolve(path)] ?: error("Геометрия не найдена: $path"),
+            linkedObjs[path] ?: error("Геометрия не найдена: $path"),
             flipV,
         )
     } else {

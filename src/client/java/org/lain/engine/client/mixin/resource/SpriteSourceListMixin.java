@@ -33,7 +33,7 @@ public class SpriteSourceListMixin {
             ResourceLocation atlasId,
             CallbackInfoReturnable<SpriteSourceList> cir
     ) {
-        Assets indexedAssets = ClientMixin.INSTANCE.getIndexedAssets();
+        Assets indexedAssets = ClientMixin.INSTANCE.requireAssetsCompilation().getIndexedAssetsFuture().join();
         Map<EngineId, Asset> atlasTextures = indexedAssets.getTextureAssets().get(atlasId.getPath());
         if (atlasTextures == null || atlasTextures.isEmpty()) {
             return;

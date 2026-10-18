@@ -53,7 +53,6 @@ object ClientMixin {
     private val minecraftClient by injectMinecraftClient()
     private val mainPlayer get() = client.gameSession?.mainPlayer
     private var mainPlayerHearing: Hearing? = null
-    var indexedAssets: Assets = Assets()
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
@@ -272,12 +271,10 @@ object ClientMixin {
 
     fun getCamera() = client.camera
 
-    fun indexAssets(client: EngineClient): Assets =
-        client.moduleManager.composeModules().compileAssets()
-            .also { indexedAssets = it }
+    fun requireAssetsCompilation() = client.assetCompilation ?: error("Компиляция ассетов не начата")
 
     fun onResourceReload() {
-        indexAssets(client)
+        client.startAssetCompilation()
     }
 
     fun getKeybindManager(): KeybindManager = injectValue()

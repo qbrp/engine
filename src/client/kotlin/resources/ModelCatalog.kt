@@ -48,7 +48,7 @@ fun Assets.catalogizeModels(): ModelCatalog {
                     )
                 )
             } catch (e: Exception) {
-                LOGGER.error("Не удалось слинковать obj-модель: ${e.message}")
+                LOGGER.error("Не удалось слинковать obj-модель $id: ${e.message}")
             }
         }
     }

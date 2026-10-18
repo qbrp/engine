@@ -20,9 +20,6 @@ public class BlockElementDeserializerMixin {
     )
     public void engine$removeAssertion(JsonObject jsonObject, CallbackInfoReturnable<Float> cir) {
         float f = GsonHelper.getAsFloat(jsonObject, "angle");
-        if (f != 0.0f && Mth.abs(f) != 22.5f && Mth.abs(f) != 45.0f && Mth.abs(f) != 90f) {
-            ModelLoaderPluginKt.getMC_LOGGER().warn("Invalid rotation {} found, only -45/-22.5/0/22.5/45 allowed", f);
-        }
         cir.setReturnValue(f);
         cir.cancel();
     }

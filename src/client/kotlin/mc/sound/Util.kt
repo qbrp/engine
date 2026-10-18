@@ -1,19 +1,19 @@
 package org.lain.engine.client.mc.sound
 
 import com.mojang.blaze3d.audio.SoundBuffer
-import net.minecraft.Util
+import kotlinx.coroutines.async
+import kotlinx.coroutines.future.asCompletableFuture
 import net.minecraft.client.sounds.JOrbisAudioStream
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
-import org.lain.engine.client.resources.Assets
+import org.lain.engine.client.EngineClient
 import org.lain.engine.script.EngineId
 import org.lain.engine.world.EngineSoundCategory
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
-import java.util.concurrent.Executor
 
-fun EngineSoundCategory.toMinecraft() = when(this) {
+fun EngineSoundCategory.toMinecraft() = when (this) {
     EngineSoundCategory.MASTER -> SoundSource.MASTER
     EngineSoundCategory.WEATHER -> SoundSource.WEATHER
     EngineSoundCategory.BLOCKS -> SoundSource.BLOCKS
@@ -25,27 +25,25 @@ fun EngineSoundCategory.toMinecraft() = when(this) {
 }
 
 fun loadEngineStaticSound(
-    assets: Assets,
+    client: EngineClient,
     loadedSounds: MutableMap<ResourceLocation, CompletableFuture<SoundBuffer>>,
     id: ResourceLocation
 ): CompletableFuture<SoundBuffer> {
+    val compilation = client.assetCompilation ?: error("Компиляция ассетов не начата")
     return loadedSounds.computeIfAbsent(id) {
-        CompletableFuture.supplyAsync(
-            {
-                try {
-                    assets.sounds[EngineId(id.path)]?.source?.openInputStream().use { inputStream ->
-                        val staticSound: SoundBuffer?
-                        JOrbisAudioStream(inputStream!!).use { nonRepeatingAudioStream ->
-                            val byteBuffer = nonRepeatingAudioStream.readAll()
-                            staticSound = SoundBuffer(byteBuffer, nonRepeatingAudioStream.format)
-                        }
-                        return@supplyAsync staticSound
+        compilation.scope.async {
+            try {
+                val assets = compilation.indexedAssets.await()
+                val soundAsset = assets.sounds[EngineId(id.path)] ?: error("Ассет звука $id не найден")
+                soundAsset.source.openInputStream().use { inputStream ->
+                    JOrbisAudioStream(inputStream).use { nonRepeatingAudioStream ->
+                        val byteBuffer = nonRepeatingAudioStream.readAll()
+                        SoundBuffer(byteBuffer, nonRepeatingAudioStream.format)
                     }
-                } catch (iOException: IOException) {
-                    throw CompletionException(iOException)
                 }
-            },
-            Util.nonCriticalIoPool() as Executor
-        )
+            } catch (iOException: IOException) {
+                throw CompletionException(iOException)
+            }
+        }.asCompletableFuture()
     }
 }

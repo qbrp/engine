@@ -1,5 +1,9 @@
 package org.lain.engine.client
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
@@ -12,6 +16,7 @@ import org.lain.engine.client.handler.ServerPlayState
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.*
 import org.lain.engine.client.render.ui.ImGuiManager
+import org.lain.engine.client.resources.AssetCompilation
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
@@ -61,6 +66,9 @@ class EngineClient(
             field = value
         }
 
+    var assetCompilation: AssetCompilation? = null
+        private set
+
     var gameSession: GameSession? = null
     val gameSessionActive
         get() = gameSession != null
@@ -78,6 +86,14 @@ class EngineClient(
 
     init {
         accountManager.autoLoginAsync()
+    }
+
+    fun startAssetCompilation() {
+        assetCompilation?.scope?.cancel()
+        assetCompilation = AssetCompilation(
+            moduleManager,
+            CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        )
     }
 
     fun onOptionsUpdate() {
