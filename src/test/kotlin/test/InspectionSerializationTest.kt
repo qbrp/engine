@@ -17,6 +17,7 @@ import org.lain.engine.script.dev.ScriptInspectionValue
 import org.lain.engine.script.dev.inspectJvmValue
 import org.lain.engine.script.dev.inspectScriptValue
 import org.lain.engine.script.dev.toJvmValue
+import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.typeOf
 
 class InspectionSerializationTest {
@@ -151,6 +152,17 @@ class InspectionSerializationTest {
         )
     }
 
+    @Test
+    fun sealedClassesSerializes() {
+        val context = InspectionSerializationContext()
+        val node = with(context) {
+            TestHierarchy.Second(10).inspectJvmValue(
+                TestHierarchy::class.starProjectedType,
+                null
+            )
+        }
+    }
+
     private fun InspectionSerializationContext.descriptor(node: org.lain.engine.script.dev.InspectionNode) =
         descriptor(node.typeDescriptorId ?: error("Node does not have a type descriptor"))
 
@@ -179,6 +191,11 @@ class InspectionSerializationTest {
     enum class TestMode {
         ENABLED,
         DISABLED,
+    }
+
+    sealed class TestHierarchy {
+        data class First(val value: Int) : TestHierarchy()
+        data class Second(val value: Int) : TestHierarchy()
     }
 
     private data class TestScriptPrimitive(

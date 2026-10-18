@@ -6,6 +6,7 @@ import net.minecraft.client.sounds.JOrbisAudioStream
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
 import org.lain.engine.client.resources.Assets
+import org.lain.engine.script.EngineId
 import org.lain.engine.world.EngineSoundCategory
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
@@ -28,11 +29,11 @@ fun loadEngineStaticSound(
     loadedSounds: MutableMap<ResourceLocation, CompletableFuture<SoundBuffer>>,
     id: ResourceLocation
 ): CompletableFuture<SoundBuffer> {
-    return loadedSounds.computeIfAbsent(id) { id2 ->
+    return loadedSounds.computeIfAbsent(id) {
         CompletableFuture.supplyAsync(
             {
                 try {
-                    assets.getAsset(id2.path)?.source?.openInputStream().use { inputStream ->
+                    assets.sounds[EngineId(id.path)]?.source?.openInputStream().use { inputStream ->
                         val staticSound: SoundBuffer?
                         JOrbisAudioStream(inputStream!!).use { nonRepeatingAudioStream ->
                             val byteBuffer = nonRepeatingAudioStream.readAll()

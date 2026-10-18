@@ -119,7 +119,7 @@ fun compilationManifestOf(
 
     return CompilationManifest(
         success = outcome is CompilationOutcome.Success,
-        modules = modules.files.entries
+        modules = modules.locationed.entries
             .sortedWith(
                 compareBy(
                     { it.value.namespace.value },

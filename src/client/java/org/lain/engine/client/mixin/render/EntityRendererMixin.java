@@ -7,7 +7,7 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import org.lain.engine.client.render.item.ModelPipelineKt;
-import org.lain.engine.client.resources.EngineModelMetadata;
+import org.lain.engine.client.resources.MeshModel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -29,7 +29,7 @@ public abstract class EntityRendererMixin {
         }
 
         BakedModel model = ModelPipelineKt.getEngineItemModel(itemFrame.getItem());
-        if (model instanceof EngineModelMetadata metadata && metadata.getDisableCulling()) {
+        if (model instanceof MeshModel metadata && metadata.getProperties().getDisableCulling()) {
             cir.setReturnValue(true);
         }
     }

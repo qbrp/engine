@@ -31,6 +31,7 @@
     "render.AvatarRendererMixin",
     "render.CameraMixin",
     "render.EntityRendererMixin",
+    "render.GameRendererAccessor",
     "render.GameRendererMixin",
     "render.GlyphRenderTypesMixin",
     "render.HumanoidModelMixin",

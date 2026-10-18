@@ -106,7 +106,7 @@ fun ModuleUserdataType() = LuaUserdataType<LuaFileModule> {
 context(lua: LuaScriptEngine)
 fun ModulesTable(moduleManager: ModuleManager) = luaTable {
     "enabled"(
-        moduleManager.modules.files.toList().toLuaList { (file, module) ->
+        moduleManager.modules.locationed.toList().toLuaList { (file, module) ->
             lua.moduleUserdataType.newInstance(
                 LuaFileModule(
                     module,

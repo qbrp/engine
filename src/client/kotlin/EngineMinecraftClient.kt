@@ -1,6 +1,5 @@
 package org.lain.engine.client
 
-import foundry.imgui.api.ImGuiMC
 import foundry.imgui.api.ImGuiMCEvents
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
@@ -12,7 +11,6 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.renderer.entity.player.PlayerRenderer
 import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.handler.ReplicationException
-import org.lain.engine.client.handler.disconnectText
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.mc.compat.LightSystem
@@ -43,7 +41,6 @@ import org.lain.engine.util.ecs.registerAllClient
 import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.ecs.MinecraftSystem
 import org.lain.engine.mc.ecs.tickGiveItemSystem
-import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.slf4j.LoggerFactory
 
@@ -88,7 +85,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
         itemGroup.register()
-        ClientMixin.createResourceList(engine)
+        ClientMixin.indexAssets(engine)
         registerEngineModelLoading()
         registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)

@@ -1,41 +1,37 @@
 package org.lain.engine.client.resources
 
 import com.google.gson.*
-import net.minecraft.client.renderer.block.model.ItemTransform
-import org.joml.Vector3f
 import org.lain.engine.client.mc.JsonMc
 import org.lain.engine.client.render.item.EngineTransformation
 import org.lain.engine.client.render.item.EngineTransformationsBundle
 import org.lain.engine.mc.MathMc
 import org.lain.engine.util.math.MutableEVec3
-import java.io.File
 
-val DEFAULT_ROTATION = Vector3f(0.0f, 0.0f, 0.0f)
-val DEFAULT_TRANSLATION = Vector3f(0.0f, 0.0f, 0.0f)
-val DEFAULT_SCALE = Vector3f(1.0f, 1.0f, 1.0f)
+val DEFAULT_ROTATION = MutableEVec3(0.0f, 0.0f, 0.0f)
+val DEFAULT_TRANSLATION = MutableEVec3(0.0f, 0.0f, 0.0f)
+val DEFAULT_SCALE = MutableEVec3(1.0f, 1.0f, 1.0f)
 
-fun parseTransformation(jsonElement: JsonElement): ItemTransform {
+fun parseTransformation(jsonElement: JsonElement): EngineTransformation {
     val jsonObject = jsonElement.getAsJsonObject()
-    val vector3f: Vector3f = parseVector3f(jsonObject, "rotation", DEFAULT_ROTATION)
-    val vector3f2: Vector3f = parseVector3f(jsonObject, "translation", DEFAULT_TRANSLATION)
-    vector3f2.mul(0.0625f)
-    vector3f2.set(
-        MathMc.clamp(vector3f2.x, -5.0f, 5.0f),
-        MathMc.clamp(vector3f2.y, -5.0f, 5.0f),
-        MathMc.clamp(vector3f2.z, -5.0f, 5.0f)
+    val rotation = parseEngineVector(jsonObject, "rotation", DEFAULT_ROTATION)
+    val translation = parseEngineVector(jsonObject, "translation", DEFAULT_TRANSLATION)
+    translation.set(
+        MathMc.clamp(translation.x * 0.0625f, -5.0f, 5.0f),
+        MathMc.clamp(translation.y * 0.0625f, -5.0f, 5.0f),
+        MathMc.clamp(translation.z * 0.0625f, -5.0f, 5.0f)
     )
-    val vector3f3: Vector3f = parseVector3f(jsonObject, "scale", DEFAULT_SCALE)
-    vector3f3.set(
-        MathMc.clamp(vector3f3.x, -4.0f, 4.0f),
-        MathMc.clamp(vector3f3.y, -4.0f, 4.0f),
-        MathMc.clamp(vector3f3.z, -4.0f, 4.0f)
+    val scale = parseEngineVector(jsonObject, "scale", DEFAULT_SCALE)
+    scale.set(
+        MathMc.clamp(scale.x, -4.0f, 4.0f),
+        MathMc.clamp(scale.y, -4.0f, 4.0f),
+        MathMc.clamp(scale.z, -4.0f, 4.0f)
     )
-    return ItemTransform(vector3f, vector3f2, vector3f3)
+    return EngineTransformation(translation, rotation, scale)
 }
 
-fun parseVector3f(json: JsonObject, key: String, fallback: Vector3f): Vector3f {
+fun parseEngineVector(json: JsonObject, key: String, fallback: MutableEVec3): MutableEVec3 {
     if (!json.has(key)) {
-        return fallback
+        return MutableEVec3(fallback)
     }
     val jsonArray = JsonMc.getAsJsonArray(json, key)
     if (jsonArray.size() != 3) {
@@ -45,7 +41,7 @@ fun parseVector3f(json: JsonObject, key: String, fallback: Vector3f): Vector3f {
     for (i in fs.indices) {
         fs[i] = jsonArray.get(i).asFloat
     }
-    return Vector3f(fs[0], fs[1], fs[2])
+    return MutableEVec3(fs[0], fs[1], fs[2])
 }
 
 fun EngineTransformation.toJson(): JsonObject {
@@ -91,38 +87,21 @@ fun EngineTransformationsBundle.toDisplayJson(): JsonObject {
     display.addIfNotIdentity("gui", gui)
     display.addIfNotIdentity("ground", ground)
     display.addIfNotIdentity("fixed", fixed)
+    display.addIfNotIdentity("outfit", outfit)
 
     return display
 }
 
-fun EngineTransformationsBundle.toAssetJson(jsonObject: JsonObject) {
-    jsonObject.addIfNotIdentity("transformation_outfit", outfit)
-}
+fun exportEngineModelTransformations(model: MeshModel, transformations: EngineTransformationsBundle) {
+    val modelSource = model.properties.asset.source
 
-private fun File.withExtension(newExt: String): File {
-    val nameWithoutExt = this.nameWithoutExtension.replace(".asset", "")
-    val parentDir = this.parentFile
-    val cleanExt = newExt.removePrefix(".")
-    return File(parentDir, "$nameWithoutExt.$cleanExt")
-}
-
-fun exportEngineModelTransformations(model: EngineItemModel, transformations: EngineTransformationsBundle) {
-    val assetSource = model.asset.source
-    val modelSource = assetSource.file
-        .withExtension("json")
-
-    modelSource.reader().use { reader ->
+    val json = modelSource.read { reader ->
         val json = JsonMc.parse(reader).asJsonObject
         json.add(
             "display",
             transformations.toDisplayJson()
         )
-        modelSource.writeText(Gson().toJson(json))
     }
 
-    assetSource.file.reader().use { reader ->
-        val json = JsonMc.parse(reader).asJsonObject
-        transformations.toAssetJson(json)
-        assetSource.file.writeText(Gson().toJson(json))
-    }
+    modelSource.file.writeText(Gson().toJson(json))
 }

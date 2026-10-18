@@ -4,8 +4,6 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.decodeFromStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.ChatBarConfiguration
 import org.lain.engine.client.chat.ChatFormatSettings
@@ -16,6 +14,7 @@ import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.file.FileSystem
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.Reader
 import java.util.concurrent.atomic.AtomicReference
 
 @JvmInline
@@ -25,6 +24,10 @@ value class SourceFile(val file: File) {
     }
 
     fun openInputStream() = file.inputStream()
+
+    fun <R> read(use: (Reader) -> R) = openInputStream().use {
+        it.reader().use(use)
+    }
 
     fun resolve(child: String) = nullable(file.resolve(child))
 
@@ -68,67 +71,13 @@ data class OverridableResource(
     }
 }
 
-typealias AssetPacker = () -> Asset
-
-class Assets(val source: SourceFile) {
-    val directory = source.file
-    val spriteAtlases =
-        source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules()
-    val autogenerationItemAssets =
-        source.resolve("autogenerate.yml")?.yaml<AutoGenerationList>() ?: AutoGenerationList()
-
-    fun getAsset(relative: String): Asset? {
-        val relative = File(relative)
-        val file = directory.resolve(relative)
-        return Asset(relative, SourceFile.nullable(file) ?: return null)
-    }
-
-    fun browseAssets(block: (String, File, AssetPacker) -> Unit) {
-        directory.walk().forEach { file ->
-            if (!file.isFile) return@forEach
-            val relative = file.relativeTo(directory)
-            val relativePath = relative.path.normalizeSlashes()
-            val packer: AssetPacker = { Asset(relative, SourceFile(file)) }
-            block(relativePath, file, packer)
-        }
-    }
-}
-
-data class Asset(
-    val relative: File,
-    val source: SourceFile
-) {
-    val relativeString: String = relative.path
-    val relativeParent: File
-        get() = File(relative.parent)
-
-}
-
 data class ResourceContext(
-    val assets: Assets,
     val chatBarConfiguration: ChatBarConfiguration?,
     val formatConfiguration: ChatFormatSettings,
-    val autogenerationItemAssets: AutoGenerationList = assets.autogenerationItemAssets
 )
 
-@Serializable
-data class AutoGenerationList(
-    val autogen: List<Entry> = emptyList()
-) {
-    @Serializable
-    data class Entry(
-        @SerialName("texture") val assetPath: String,
-        val type: String
-    )
-}
-
 private fun bakeResourceContext(serverId: ServerId?): ResourceContext {
-    val assetsSource = ASSETS.fetch(serverId).getOrThrow()
-    val assets = Assets(assetsSource)
-
-
     return ResourceContext(
-        assets,
         CHAT_BAR_CONFIG.fetch(serverId)?.yaml(),
         FORMAT_CONFIG.fetch(serverId).getOrThrow().yaml(),
     )
@@ -136,7 +85,6 @@ private fun bakeResourceContext(serverId: ServerId?): ResourceContext {
 
 private val CHAT_BAR_CONFIG = OverridableResource(FileSystem.CHAT_BAR_CONFIG_NAME)
 private val FORMAT_CONFIG = OverridableResource(FileSystem.FORMAT_CONFIG_NAME)
-private val ASSETS = OverridableResource(FileSystem.ASSETS_PATH, true)
 
 class ResourceManager(
     private val client: EngineClient

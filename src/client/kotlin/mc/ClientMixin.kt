@@ -4,8 +4,6 @@ import net.fabricmc.fabric.api.client.model.loading.v1.FabricBakedModelManager
 import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.client.player.AbstractClientPlayer
-import net.minecraft.client.player.LocalPlayer
-import net.minecraft.client.player.RemotePlayer
 import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.client.resources.model.BakedModel
@@ -20,18 +18,16 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.AcceptedMessage
-import org.lain.engine.client.util.getClientItem
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.client.render.getSkin
-import org.lain.engine.client.render.item.AdditionalTransformationsBank
 import org.lain.engine.client.render.item.resolveTooltip
 import org.lain.engine.client.render.player.RenderStateComponent
 import org.lain.engine.client.render.player.modelPartOf
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.EngineTitleMenu
 import org.lain.engine.client.resources.Assets
-import org.lain.engine.client.resources.ResourceList
-import org.lain.engine.client.resources.findAssets
+import org.lain.engine.client.resources.compileAssets
+import org.lain.engine.client.util.getClientItem
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.UNDEFINED_MODEL_ID
@@ -49,7 +45,6 @@ import org.lain.engine.player.character.CharacterModelType
 import org.lain.engine.player.get
 import org.lain.engine.player.interaction.processLeftClickInteraction
 import org.lain.engine.player.require
-import org.lain.engine.util.Injector
 import org.lain.engine.util.injectValue
 import java.util.*
 
@@ -58,7 +53,7 @@ object ClientMixin {
     private val minecraftClient by injectMinecraftClient()
     private val mainPlayer get() = client.gameSession?.mainPlayer
     private var mainPlayerHearing: Hearing? = null
-    private var resources: ResourceList? = null
+    var indexedAssets: Assets = Assets()
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
 
@@ -271,28 +266,18 @@ object ClientMixin {
         gameSession.chatManager.sendMessage(content)
     }
 
-    fun getResourceList(): ResourceList? {
-        return resources
-    }
-
     fun getChatWidth() = client.options.chatFieldWidth
 
     fun getChatSize() = client.options.chatFieldSize
 
-    fun getAssets(): Assets {
-        return client.resources.assets
-    }
-
     fun getCamera() = client.camera
 
-    fun createResourceList(client: EngineClient): ResourceList =
-        findAssets(client).also { resources = it }
+    fun indexAssets(client: EngineClient): Assets =
+        client.moduleManager.composeModules().compileAssets()
+            .also { indexedAssets = it }
 
     fun onResourceReload() {
-        val client = Injector.resolveOrNull(EngineClient::class)
-        if (client != null) {
-            createResourceList(client)
-        }
+        indexAssets(client)
     }
 
     fun getKeybindManager(): KeybindManager = injectValue()
