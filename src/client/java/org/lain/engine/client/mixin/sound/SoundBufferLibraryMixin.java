@@ -22,6 +22,7 @@ import static org.lain.engine.client.mc.sound.UtilKt.loadEngineStaticSound;
 public class SoundBufferLibraryMixin {
     @Shadow @Final private Map<ResourceLocation, CompletableFuture<SoundBuffer>> cache;
 
+    // поддержки потокового аудио сейчас нет
     @Inject(
             method = "getCompleteBuffer",
             at = @At("HEAD"),
@@ -33,7 +34,12 @@ public class SoundBufferLibraryMixin {
                 loadEngineStaticSound(
                     ClientMixin.INSTANCE.getEngineClient(),
                     this.cache,
-                    ResourceLocation.fromNamespaceAndPath(id.getNamespace(), id.getPath().replaceFirst("sounds/", ""))
+                    ResourceLocation.fromNamespaceAndPath(
+                            id.getNamespace(),
+                            id.getPath()
+                                    .replaceFirst("sounds/", "")
+                                    .replace(".ogg", "")
+                    )
                 )
             );
             cir.cancel();

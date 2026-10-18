@@ -1,5 +1,6 @@
 package org.lain.engine.client.mixin.render;
 
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.ItemFrameRenderer;
@@ -24,13 +25,14 @@ public abstract class EntityRendererMixin {
             double cameraZ,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        if (!((Object)this instanceof ItemFrameRenderer<?>) || !(entity instanceof ItemFrame itemFrame)) {
-            return;
+        if (entity instanceof ItemFrame itemFrame) {
+            BakedModel model = ModelPipelineKt.getEngineItemModel(itemFrame.getItem());
+            if (model instanceof MeshModel metadata && metadata.getProperties().getDisableCulling()) {
+                cir.setReturnValue(true);
+            }
         }
+        if (entity instanceof AbstractClientPlayer) {
 
-        BakedModel model = ModelPipelineKt.getEngineItemModel(itemFrame.getItem());
-        if (model instanceof MeshModel metadata && metadata.getProperties().getDisableCulling()) {
-            cir.setReturnValue(true);
         }
     }
 }
