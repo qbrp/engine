@@ -1,7 +1,7 @@
 package org.lain.engine.client.mixin.resource;
 
 import net.minecraft.util.Mth;
-import org.lain.engine.client.resources.ModelLoaderKt;
+import org.lain.engine.client.resources.ModelLoaderPluginKt;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -16,10 +16,6 @@ public class TransformationDeserializerMixin {
             )
     )
     public float engine$removeClamping(float value, float min, float max) {
-        if (value < min || value > max) {
-            float clamped = Mth.clamp(value, min, max);
-            ModelLoaderKt.getMC_LOGGER().warn("Skipped value clamping: {} -> {}", value, clamped);
-        }
         return value;
     }
 }

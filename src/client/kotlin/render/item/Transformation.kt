@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.block.model.ItemTransforms
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemDisplayContext
 import org.joml.Vector3f
+import org.lain.engine.client.render.item.engine
 import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engine
 import org.lain.engine.mc.minecraft
@@ -70,7 +71,10 @@ data class EngineTransformation(
     val rotation: MutableEVec3,
     val scale: MutableEVec3
 ) {
-    val isIdentity get() = translation.isZero() && rotation.isZero() && scale.isZero()
+    val isIdentity
+        get() = translation.isZero() &&
+                rotation.isZero() &&
+                scale.x == 1f && scale.y == 1f && scale.z == 1f
 
     companion object {
         fun Identity() = EngineTransformation(
@@ -104,4 +108,18 @@ fun EngineTransformationsBundle.minecraft() = ItemTransforms(
     gui.minecraft(),
     ground.minecraft(),
     fixed.minecraft(),
+)
+
+fun ItemTransforms.engine(
+    outfit: EngineTransformation?
+) = EngineTransformationsBundle(
+    firstPersonRightHand.engine(),
+    firstPersonLeftHand.engine(),
+    thirdPersonRightHand.engine(),
+    thirdPersonLeftHand.engine(),
+    head.engine(),
+    gui.engine(),
+    ground.engine(),
+    fixed.engine(),
+    outfit ?: EngineTransformation.Identity(),
 )

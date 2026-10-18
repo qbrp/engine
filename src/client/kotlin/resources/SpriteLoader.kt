@@ -6,22 +6,12 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.renderer.texture.SpriteContents
 import net.minecraft.client.renderer.texture.atlas.SpriteSource
 import net.minecraft.client.renderer.texture.atlas.SpriteSourceType
-import net.minecraft.client.resources.metadata.animation.FrameSize
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceMetadata
 import net.minecraft.server.packs.resources.ResourceManager
 import org.lain.engine.util.Timestamp
 import java.io.File
-
-/**
- * Гарантируется, что текстура из ассета загружена и существует по `textureId`
- * */
-data class EngineTexture(val asset: Asset) {
-    val registrationId = asset
-        .prepareIdentifier()
-        .toEngineIdentifier()
-}
 
 /**
  * Правила загрузки атласов - по каким директорием в какие атласы загружать текстуры.
@@ -32,7 +22,7 @@ data class SpriteAtlasRules(
     val directories: Map<String, String> = mapOf()
 )
 
-class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
+class EngineAtlasSource(val textures: Collection<Asset>) : SpriteSource {
     override fun run(
         resourceManager: ResourceManager,
         output: SpriteSource.Output
@@ -40,9 +30,9 @@ class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
         val start = Timestamp()
         textures.forEach { texture ->
             val id = texture.registrationId
-            output.add(id) { openSprite(id, texture.asset) }
+            output.add(id) { openSprite(id, texture) }
         }
-        LOGGER.info("Ассеты загружены за {} мл.", start.timeElapsed())
+        LOGGER.info("Текстуры загружены за {} мл.", start.timeElapsed())
     }
 
     override fun type(): SpriteSourceType = TYPE
@@ -50,17 +40,17 @@ class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
     companion object {
         // Этот источник создаётся непосредственно в рантайме и нужен только для кастомных текстур Engine
         // Не поддерживает JSON
-        val CODEC = MapCodec.unit { throw NotImplementedError() }
+        val CODEC: MapCodec<Nothing> = MapCodec.unit { throw NotImplementedError() }
         val TYPE = SpriteSourceType(CODEC)
 
-        fun openSprite(id: ResourceLocation, path: Asset): SpriteContents? {
-            val imageFile = path.source.file
+        fun openSprite(id: ResourceLocation, asset: Asset): SpriteContents? {
+            val imageFile = asset.source.file
             if (!imageFile.isFile) return null
 
             val metadata = loadMetadata(imageFile)
             val animationMetadata = metadata
                 .getSection(AnimationMetadataSection.SERIALIZER)
-                .orElse(AnimationMetadataSection.EMPTY)
+                .orElse(AnimationMetadataSection.EMPTY)!!
             val nativeImage = imageFile.inputStream().use(NativeImage::read)
             val spriteDimensions = animationMetadata.calculateFrameSize(nativeImage.width, nativeImage.height)
 
@@ -87,3 +77,5 @@ class EngineAtlasSource(val textures: List<EngineTexture>) : SpriteSource {
         }
     }
 }
+
+fun legacyAtlasName(name: String): String = if (name == "items") "blocks" else name

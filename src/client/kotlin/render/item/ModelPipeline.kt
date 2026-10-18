@@ -9,7 +9,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.resources.EngineItemModel
+import org.lain.engine.client.resources.MeshModel
 import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
 
 fun getEngineItemModel(stack: ItemStack): BakedModel? {
@@ -31,20 +31,19 @@ fun renderEngineItem(
     val model = getEngineItemModel(stack) ?: return
     poseStack.pushPose()
     if (displayContext == EngineItemDisplayContext.OUTFIT) {
-        val engineModel = model as? EngineItemModel
+        val engineModel = model as? MeshModel
         val modelId = stack.get(ENGINE_ITEM_MODEL_COMPONENT)
         val transformation = modelId
             ?.let(AdditionalTransformationsBank::get)
             ?.outfit
-            ?.minecraft()
-            ?: engineModel?.outfitTransformation
+            ?: engineModel?.engineTransform?.outfit
         ClientMixin.onBeforeRenderOutfit(
             stack,
             RenderSystem.getProjectionMatrix(),
             RenderSystem.getModelViewMatrix(),
             poseStack.last().pose(),
         )
-        transformation?.apply(false, poseStack)
+        transformation?.minecraft()?.apply(false, poseStack)
         ClientMixin.onAfterRenderOutfit(stack, poseStack.last().pose())
     }
     MinecraftClient.itemRenderer.render(

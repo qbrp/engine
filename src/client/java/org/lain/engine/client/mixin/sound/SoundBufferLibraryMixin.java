@@ -31,7 +31,7 @@ public class SoundBufferLibraryMixin {
         if (Objects.equals(id.getNamespace(), CommonEngineMod.MOD_ID) && !id.getPath().startsWith("sounds/builtin")) {
             cir.setReturnValue(
                 loadEngineStaticSound(
-                    ClientMixin.INSTANCE.getAssets(),
+                    ClientMixin.INSTANCE.getEngineClient(),
                     this.cache,
                     ResourceLocation.fromNamespaceAndPath(id.getNamespace(), id.getPath().replaceFirst("sounds/", ""))
                 )

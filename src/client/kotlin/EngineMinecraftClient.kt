@@ -1,6 +1,5 @@
 package org.lain.engine.client
 
-import foundry.imgui.api.ImGuiMC
 import foundry.imgui.api.ImGuiMCEvents
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
@@ -8,43 +7,36 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.renderer.entity.player.PlayerRenderer
 import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.handler.ReplicationException
-import org.lain.engine.client.handler.disconnectText
 import org.lain.engine.client.mc.*
 import org.lain.engine.client.mc.chat.MinecraftChat
-import org.lain.engine.client.mc.compat.LightSystem
-import org.lain.engine.client.mc.compat.registerEngineLightComponents
-import org.lain.engine.client.mc.compat.injectDynamicLightsContext
-import org.lain.engine.client.mc.compat.registerLamdDynLightEvents
-import org.lain.engine.client.mc.compat.tickGenderSystem
+import org.lain.engine.client.mc.compat.*
 import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
-import org.lain.engine.client.render.world.DecalSystem
-import org.lain.engine.client.render.world.EquipmentFeatureRenderer
-import org.lain.engine.client.render.world.HeadEquipmentFeatureRenderer
-import org.lain.engine.client.render.world.LabelTextRenderTypes
-import org.lain.engine.client.render.world.registerWorldRenderEvents
+import org.lain.engine.client.render.world.*
 import org.lain.engine.client.resources.registerEngineModelLoading
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.postErrorReport
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.mc.*
-import org.lain.engine.server.account.EngineHttpClient
-import org.lain.engine.player.*
-import org.lain.engine.util.Injector
-import org.lain.engine.util.ecs.ComponentTypeRegistry
-import org.lain.engine.util.ecs.registerAllClient
 import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.ecs.MinecraftSystem
 import org.lain.engine.mc.ecs.tickGiveItemSystem
-import org.lain.engine.mc.server.EngineMinecraftServer
+import org.lain.engine.player.Orientation
+import org.lain.engine.player.RaycastProvider
+import org.lain.engine.player.apply
 import org.lain.engine.script.compilation.CompilationFailedException
+import org.lain.engine.server.account.EngineHttpClient
+import org.lain.engine.util.Injector
+import org.lain.engine.util.ecs.ComponentTypeRegistry
+import org.lain.engine.util.ecs.registerAllClient
 import org.slf4j.LoggerFactory
 
 class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension {
@@ -88,8 +80,8 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)
         itemGroup.register()
-        ClientMixin.createResourceList(engine)
-        registerEngineModelLoading()
+
+        registerEngineModelLoading(engine)
         registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)
         registerClientEngineCommands(engine)

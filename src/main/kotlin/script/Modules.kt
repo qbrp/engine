@@ -1,7 +1,6 @@
 package org.lain.engine.script
 
 import com.charleskorn.kaml.Yaml
-import dev.architectury.platform.Mod
 import kotlinx.serialization.Serializable
 import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.file.readFile
@@ -37,7 +36,7 @@ value class ModuleDependency(
 )
 
 data class Modules(
-    val files: Map<ModuleLocation, Module>
+    val locationed: Map<ModuleLocation, Module>
 )
 
 class ModuleNamespaceOverlapException(
@@ -99,7 +98,7 @@ private fun Modules.withSet(
     enabled: Set<NamespaceId>
 ): Modules {
     return Modules(
-        files.filterValues { module ->
+        locationed.filterValues { module ->
             module.namespace in enabled
         }
     )
@@ -108,7 +107,7 @@ private fun Modules.withSet(
 private fun Modules.validated(): Modules {
     val ownersByNamespace = mutableMapOf<NamespaceId, MutableList<ModuleLocation>>()
 
-    files.forEach { (file, module) ->
+    locationed.forEach { (file, module) ->
         val ownedNamespaces = module.namespaces + module.namespace
         ownedNamespaces.forEach { namespace ->
             ownersByNamespace

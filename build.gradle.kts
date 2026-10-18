@@ -96,6 +96,7 @@ dependencies {
     compileOnly(libs.obj)
     compileOnly(libs.kaml)
     shaded(libs.protobuf)
+    shaded(libs.gltf)
     compileOnly(libs.credential.secure.storage)
     modImplementation("org.lain.cyberia:fabric:1.13")
     testImplementation(libs.fabric.loader.junit)

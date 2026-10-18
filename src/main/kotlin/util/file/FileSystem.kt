@@ -31,7 +31,6 @@ object FileSystem {
     const val BOOK_BACKUPS_PATH = "books"
     const val SKINS_PATH = "skins"
     const val ACCOUNT_CACHE_NAME = "account.json"
-    const val ASSETS_PATH = "assets"
     const val WALLPAPERS_PATH = "wallpapers"
     const val SERVER_PLAY_STATES_NAME = "servers"
     const val CHAT_BAR_CONFIG_NAME = "chat-bar.yml"

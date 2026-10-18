@@ -15,6 +15,8 @@ import org.lain.engine.world.SoundEventId
 value class NamespaceId(val value: String) {
     init { require(!value.contains(" ")) { "Идентификатор содержит пробелы" } }
 
+    fun append(part: String) = NamespaceId("$value/$part")
+
     override fun toString(): String {
         return value
     }

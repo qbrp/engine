@@ -78,6 +78,21 @@ class TransactionContextTest : EngineTest() {
         }
         pendingLoad.bind(loadedEntity, null)
 
+        var materializationContext: ScriptContext.EntityMaterialization? = null
+        server.simulation.callbacks = Callbacks(
+            mapOf<CallbackType<*, *>, Script<*, *>>(
+                CallbackType.ENTITY_MATERIALIZATION to object :
+                    Script<ScriptContext.EntityMaterialization, SNil> {
+                    override fun execute(
+                        context: ScriptContext.EntityMaterialization,
+                    ): ExecutionResult<SNil> {
+                        materializationContext = context
+                        return ExecutionResult.Success(SNil)
+                    }
+                }
+            )
+        )
+
         val loading = assertInstanceOf(
             AcquireResult.Loading::class.java,
             coordinator.acquire(world, loadedId),
@@ -93,6 +108,8 @@ class TransactionContextTest : EngineTest() {
 
         assertTrue(loadWasPublished)
         assertNull(unloadWhilePublishing)
+        assertNotNull(materializationContext)
+        assertNull(materializationContext!!.persistentData)
         assertSame(TransactionState.COMMITTED, transaction.state)
 
         val loadedLease = assertInstanceOf(
@@ -129,6 +146,7 @@ class TransactionContextTest : EngineTest() {
         val loadedEntity = transaction.commands.addEntity {
             setComponent(PersistentIdComponent(loadedId))
         }
+        val preparedEntity = transaction.commands.addEntity()
         pendingLoad.bind(
             loadedEntity,
             EntityPersistenceData.Item("test/item".asRawEngineId(), 1, 1),
@@ -153,6 +171,7 @@ class TransactionContextTest : EngineTest() {
         assertSame(expectedFailure, actualFailure)
         assertSame(TransactionState.COMMIT_FAILED, transaction.state)
         assertFalse(world.componentManager.exists(loadedEntity))
+        assertFalse(world.componentManager.exists(preparedEntity))
         assertNull(world.persistentIdToEntity[loadedId])
 
         val retry = assertInstanceOf(

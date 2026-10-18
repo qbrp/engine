@@ -15,7 +15,7 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.item.*
-import org.lain.engine.client.resources.EngineItemModel
+import org.lain.engine.client.resources.MeshModel
 import org.lain.engine.client.resources.exportEngineModelTransformations
 import kotlin.math.abs
 
@@ -186,19 +186,9 @@ class TransformationsEditorWindow(
     private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)
 
     private fun computeTransformations(model: BakedModel): EngineTransformationsBundle {
-        val engineModel = model as? EngineItemModel
-        val transforms = engineModel?.baseTransforms ?: model.transforms
-        return EngineTransformationsBundle(
-            transforms.firstPersonRightHand.engine(),
-            transforms.firstPersonLeftHand.engine(),
-            transforms.thirdPersonRightHand.engine(),
-            transforms.thirdPersonLeftHand.engine(),
-            transforms.head.engine(),
-            transforms.gui.engine(),
-            transforms.ground.engine(),
-            transforms.fixed.engine(),
-            engineModel?.outfitTransformation?.engine() ?: EngineTransformation.Identity(),
-        )
+        val engineModel = model as? MeshModel
+        val transforms = model.transforms
+        return engineModel?.properties?.transform ?: transforms.engine(EngineTransformation.Identity())
     }
 
     private var context: EngineItemDisplayContext
@@ -227,7 +217,7 @@ class TransformationsEditorWindow(
             }
             ImGui.sameLine()
 
-            if (model is EngineItemModel) {
+            if (model is MeshModel) {
                 if (ImGui.button("Export")) {
                     exportEngineModelTransformations(model, transformations)
                     AdditionalTransformationsBank.remove(modelId)
