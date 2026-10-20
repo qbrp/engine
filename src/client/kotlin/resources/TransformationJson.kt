@@ -101,6 +101,7 @@ fun exportEngineModelTransformations(model: MeshModel, transformations: EngineTr
             "display",
             transformations.toDisplayJson()
         )
+        json
     }
 
     modelSource.file.writeText(Gson().toJson(json))
