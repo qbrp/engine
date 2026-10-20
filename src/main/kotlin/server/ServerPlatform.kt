@@ -1,24 +1,19 @@
 package org.lain.engine.server
 
-import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.data.SerializedInventory
-import org.lain.engine.player.character.CharacterId
+import org.lain.engine.player.character.CharacterChangeRequest
+import org.lain.engine.player.character.EngineBackend
 import org.lain.engine.world.World
 
 interface ServerPlatform {
-    context(world: World)
-    fun onPlayerInstantiated(player: EnginePlayer) {}
+    val backend: EngineBackend
+
+    fun beforePlayerInstantiation(player: EnginePlayer) {}
     fun onCompiled(contents: NamespacedStorage) {}
-    fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter) {}
-    suspend fun validateCharacter(
-        player: EnginePlayer,
-        characterId: CharacterId,
-        character: EngineCharacter?,
-        sessionTicket: SessionTicket?
-    ): EngineCharacter = character!!
+    fun onCharacterApplied(player: EnginePlayer, character: BackendCharacter) {}
     fun serializeInventory(player: EnginePlayer): SerializedInventory = SerializedInventory()
     fun clearInventory(player: EnginePlayer) {}
     fun openInventory(player: EnginePlayer, inventory: SerializedInventory) {}
@@ -29,6 +24,14 @@ interface ServerPlatform {
     fun World.tickDataApply() {}
 
     companion object {
-        val DUMMY = object : ServerPlatform {}
+        val DUMMY = object : ServerPlatform {
+            override val backend: EngineBackend
+                get() = object : EngineBackend {
+                    override suspend fun validateCharacterChange(
+                        player: EnginePlayer,
+                        request: CharacterChangeRequest
+                    ): BackendCharacter = TODO()
+                }
+        }
     }
 }

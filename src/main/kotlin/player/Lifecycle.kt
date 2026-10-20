@@ -21,6 +21,7 @@ fun World.cleanupDisconnectedPlayers(server: EngineServer) {
             server.handler.onPlayerDestroy(player)
             server.playerPersistence.save(player.snapshotPersistent())
         } finally {
+            server.characterManager.release(player)
             simulation.destroyPlayer(player)
         }
     }

@@ -60,7 +60,7 @@ data class CharacterGradientName(
         get() = gradientText(name, firstColor, secondColor ?: firstColor)
 }
 
-fun EngineCharacter.getDisplay(): CharacterDisplay {
+fun BackendCharacter.getDisplay(): CharacterDisplay {
     return CharacterDisplay(
         profile.id,
         profile.name,

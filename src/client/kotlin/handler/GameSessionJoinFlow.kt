@@ -131,10 +131,11 @@ class GameSessionJoinFlow(
         }
     }
 
-    private fun compileResources(verificationNamespaceHashMap: NamespaceHashMap?): ResourceCompilationResult {
-        val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
-        val luaContext = createLuaContext(namespacedStorage)
-        val compilation = ClientCompilation(luaContext, client)
+    private suspend fun compileResources(verificationNamespaceHashMap: NamespaceHashMap?): ResourceCompilationResult =
+        withContext(Dispatchers.Default) {
+            val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
+            val luaContext = createLuaContext(namespacedStorage)
+            val compilation = ClientCompilation(luaContext, client)
 
         val compilationResult = compilation.compileScriptsOrThrow()
         namespacedStorage.loadResult(compilationResult)
@@ -147,8 +148,8 @@ class GameSessionJoinFlow(
             }
         }
 
-        return ResourceCompilationResult(namespaceHashMap, compilationResult, compilation)
-    }
+            ResourceCompilationResult(namespaceHashMap, compilationResult, compilation)
+        }
 
     private val job = CoroutineScope(Dispatchers.IO).launch {
         try {

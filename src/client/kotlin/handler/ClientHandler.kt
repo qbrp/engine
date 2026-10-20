@@ -16,7 +16,6 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.client.transport.sendC2SPacket
-import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.client.render.showServerNotification
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.client.util.withClientContext
@@ -26,7 +25,7 @@ import org.lain.engine.mc.server.AuthPacket
 import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.*
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.dev.EntityInspectionSnapshot
@@ -36,6 +35,7 @@ import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
 import org.lain.engine.server.protocolError
 import org.lain.engine.data.*
+import org.lain.engine.player.character.CharacterChangeRequest
 import org.lain.engine.script.OperationActor
 import org.lain.engine.script.OperationId
 import org.lain.engine.script.OperationTarget
@@ -81,7 +81,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
 
     suspend fun sendVerificationPacket(
         namespaceHashMap: NamespaceHashMap,
-        selectedCharacter: EngineCharacter?,
+        selectedCharacter: BackendCharacter?,
         sessionTicket: SessionTicket,
     ) = withClientContext {
         SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
@@ -169,19 +169,27 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         )
     }
 
-    fun onCharacterSelectedSingleplayer(character: EngineCharacter, requestId: Long) {
+    fun onCharacterSelectedSingleplayer(character: BackendCharacter, requestId: Long) {
         SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
-            CharacterApplyPacket(character.profile.id, character, requestId = requestId)
+            CharacterApplyPacket(
+                character.profile.id,
+                CharacterChangeRequest.Provided(character),
+                requestId = requestId
+            )
         )
     }
 
     fun onCharacterSelectedMultiplayer(
-        character: EngineCharacter,
+        character: BackendCharacter,
         sessionTicket: SessionTicket,
         requestId: Long,
     ) {
         SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
-            CharacterApplyPacket(character.profile.id, null, sessionTicket.toDto(), requestId)
+            CharacterApplyPacket(
+                character.profile.id,
+                CharacterChangeRequest.ResolveByTicket(character.id, sessionTicket.toDto()),
+                requestId
+            )
         )
     }
 
@@ -198,7 +206,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     }
 
     fun onEntityInspectionEdit(persistentId: PersistentId, targetId: Int, editOperation: EditOperation) {
-        SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT.sendC2SPacket(EntityInspectionValueEditPacket(persistentId, targetId, editOperation))
+        SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT.sendC2SPacket(
+            EntityInspectionValueEditPacket(
+                persistentId,
+                targetId,
+                editOperation
+            )
+        )
     }
 
     fun onEntityInspectionMarkDirty(persistentId: PersistentId, componentType: String) {

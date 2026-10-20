@@ -5,7 +5,7 @@ import org.lain.engine.player.character.BiologicalCategory
 import org.lain.engine.player.character.BiologicalSex
 import org.lain.engine.player.character.BodyType
 import org.lain.engine.player.character.CharacterHeight
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.player.character.CharacterGradientName
 import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.CharacterProfile
@@ -39,7 +39,7 @@ data class CharacterDataResponse(
     val profile: CharacterProfileResponse,
     val looks: List<Look>,
 ) {
-    fun map() = EngineCharacter(
+    fun map() = BackendCharacter(
         profile.map(),
         looks,
         looks.firstOrNull { it.base } ?: looks.firstOrNull() ?: error("Невалидный ответ сервера: персонаж не имеет обликов")

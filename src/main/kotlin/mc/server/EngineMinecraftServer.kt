@@ -32,7 +32,7 @@ import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.compat.syncPlayerGenderConfig
 import org.lain.engine.mc.ecs.*
 import org.lain.engine.player.*
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
@@ -194,8 +194,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         timers.items.activate()
     }
 
-    context(world: World)
-    override fun onPlayerInstantiated(player: EnginePlayer) {
+    override fun beforePlayerInstantiation(player: EnginePlayer) {
         val entity = minecraftServer.getPlayer(player.id) ?: return
         player.set(MinecraftPlayer(entity))
     }
@@ -231,7 +230,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         minecraftServer.players.forEach { commandManager.sendCommands(it) }
     }
 
-    override fun onCharacterApplied(player: EnginePlayer, character: EngineCharacter) {
+    override fun onCharacterApplied(player: EnginePlayer, character: BackendCharacter) {
         engine.execute {
             if (GENDER_MOD_AVAILABLE) {
                 syncPlayerGenderConfig(

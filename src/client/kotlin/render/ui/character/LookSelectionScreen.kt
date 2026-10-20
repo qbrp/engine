@@ -7,12 +7,12 @@ import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.player.character.Look
 
 class LookSelectionScreen(
     characterSelection: CharacterSelection,
-    character: EngineCharacter,
+    character: BackendCharacter,
     look: Look,
     skinTextureManager: SkinTextureManager = characterSelection.client.skinTextureManager,
     looks: List<Look> = character.looks,
@@ -57,9 +57,9 @@ class LookSelectionScreen(
          */
         suspend fun awaitGeneralSelection(
             characterSelection: CharacterSelection,
-            character: EngineCharacter,
+            character: BackendCharacter,
             look: Look,
-            characters: List<EngineCharacter>,
+            characters: List<BackendCharacter>,
         ): CharacterSelection.Selection? {
             if (character.looks.size == 1) {
                 return CharacterSelectionScreen.awaitCharacterSelection(characterSelection, character, characters)

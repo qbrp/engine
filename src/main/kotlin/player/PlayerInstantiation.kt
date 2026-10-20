@@ -8,15 +8,13 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.createContainer
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.character.UsedCharacters
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.CharacterManager
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.server.*
 import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
-import org.lain.engine.player.character.Look
-import org.lain.engine.player.character.getDisplay
-import org.lain.engine.player.character.getPhysical
-import org.lain.engine.player.character.setCharacterComponents
+import org.lain.engine.player.character.PlayCharacterId
 import org.lain.engine.player.interaction.HandType
 import org.lain.engine.player.interaction.setupHandInteractorEntity
 import org.lain.engine.script.dev.EntityInspectionComponent
@@ -160,13 +158,15 @@ data class PlayerLoadSettings(
     val isReplayViewer: Boolean = false,
     val playerMode: PlayerMode,
 ) {
-    data class Account(val character: EngineCharacter?) // название Account может слегка путать, ибо выбор не привязан к аккаунту
+    data class Account(val character: BackendCharacter?) // название Account может слегка путать, ибо выбор не привязан к аккаунту
 }
 
 class PlayerLoader(
     private val server: EngineServer,
     private val itemLoader: ItemLoader,
+    private val characterManager: CharacterManager,
 ) {
+    private val platform = server.platform
     private val persistence = server.playerPersistence
 
     suspend fun loadPreparing(
@@ -197,20 +197,19 @@ class PlayerLoader(
             }
 
             val character = account.character
-            val characterId = character?.profile?.id
-
-            val loadedCharacter = if (
-                characterId != null &&
-                characterId in persistentData?.usedCharacters.orEmpty()
-            ) {
-                persistence.loadPersistentCharacter(
-                    transaction,
-                    world.componentReviveSettings,
-                    playerId,
-                    characterId,
-                )
-            } else {
-                null
+            val preparedCharacter = character?.let {
+                val characterId = PlayCharacterId.player(playerId, character.profile.id)
+                val persistentData = if (characterId in persistentData?.usedCharacters.orEmpty()) {
+                    persistence.loadPersistentCharacter(
+                        transaction,
+                        world.componentReviveSettings,
+                        playerId,
+                        characterId,
+                    )
+                } else {
+                    null
+                }
+                PreparedCharacter(character, persistentData, characterId)
             }
 
             val player = with(transaction.commands) {
@@ -218,16 +217,16 @@ class PlayerLoader(
                     world,
                     settings,
                     persistentData,
-                    loadedCharacter?.items ?: emptySet(),
+                    preparedCharacter?.persistentData?.items.orEmpty(),
                     playerEntity ?: transaction.commands.addEntity(),
                 ).also {
                     it.prepareContainers(Location(settings.initialPosition))
                 }
             }
 
-            PreparedPlayer(player, character, loadedCharacter)
+            PreparedPlayer(player, preparedCharacter)
         } catch (exception: Throwable) {
-            transaction.rollback(exception)
+            transaction.rollbackIfActive(exception)
             throw exception
         }
 
@@ -238,13 +237,24 @@ class PlayerLoader(
                     friendlyError("Игрок уже авторизован")
                 }
 
+                val player = prepared.player
+                platform.beforePlayerInstantiation(player)
+                prepared.character?.let { character ->
+                    transaction.withChild { childContext ->
+                        characterManager.apply(
+                            childContext,
+                            player,
+                            character.backend,
+                            character.persistentData,
+                            character.id,
+                            Location(settings.initialPosition)
+                        )
+                    }
+                }
                 transaction.commit()
-
                 server.instantiatePlayer(
-                    prepared.player,
+                    player,
                     settings.notifications,
-                    prepared.character,
-                    prepared.persistentCharacter,
                 )
 
                 onCreated(prepared.player)
@@ -252,21 +262,20 @@ class PlayerLoader(
                 prepared.player
             }
         } catch (exception: Throwable) {
-            if (transaction.state == TransactionState.ACTIVE || transaction.state == TransactionState.CLOSING) {
-                try {
-                    transaction.rollback(exception)
-                } catch (rollbackFailure: Throwable) {
-                    exception.addSuppressed(rollbackFailure)
-                }
-            }
+            transaction.rollbackIfActive(exception)
             throw exception
         }
     }
 
     private data class PreparedPlayer(
         val player: EnginePlayer,
-        val character: EngineCharacter?,
-        val persistentCharacter: CharacterData?,
+        val character: PreparedCharacter?
+    )
+
+    private data class PreparedCharacter(
+        val backend: BackendCharacter,
+        val persistentData: PlayCharacterData?,
+        val id: PlayCharacterId
     )
 
     context(write: WriteComponentAccess)

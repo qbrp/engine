@@ -59,6 +59,8 @@ class TransactionContext internal constructor(
     private val children = mutableSetOf<TransactionContext>()
     private val entityLoads = mutableListOf<PendingEntityLoad>()
     private val entityLeases = mutableListOf<EntityLease>()
+    private val afterCommitHooks = mutableListOf<() -> Unit>()
+    private val afterRollbackHooks = mutableListOf<() -> Unit>()
 
     private var _state = TransactionState.ACTIVE
 
@@ -105,6 +107,20 @@ class TransactionContext internal constructor(
                 cause.addCleanupFailure(releaseFailure)
             }
             throw cause
+        }
+    }
+
+    fun afterCommit(hook: () -> Unit) {
+        synchronized(tree.lock) {
+            checkActive()
+            afterCommitHooks += hook
+        }
+    }
+
+    fun afterRollback(hook: () -> Unit) {
+        synchronized(tree.lock) {
+            checkActive()
+            afterRollbackHooks += hook
         }
     }
 
@@ -163,6 +179,10 @@ class TransactionContext internal constructor(
                 parent.commands.merge(commands)
                 parent.entityLoads.addAll(entityLoads)
                 parent.entityLeases.addAll(entityLeases)
+                parent.afterCommitHooks.addAll(afterCommitHooks)
+                parent.afterRollbackHooks.addAll(afterRollbackHooks)
+                afterCommitHooks.clear()
+                afterRollbackHooks.clear()
                 parent.removeChildLocked(this)
 
                 _state = TransactionState.MERGED
@@ -190,11 +210,7 @@ class TransactionContext internal constructor(
                 load.migrations?.forEach(PlannedMigration::migrate)
             }
         } catch (cause: Throwable) {
-            try {
-                rollback(cause, allowCommitting = true)
-            } catch (rollbackFailure: Throwable) {
-                cause.addSuppressed(rollbackFailure)
-            }
+            rollbackSafely(cause, allowCommitting = true)
             throw cause
         }
 
@@ -218,16 +234,20 @@ class TransactionContext internal constructor(
                 publishedLoadCount++
             }
         } catch (cause: Throwable) {
-            setCommitState(TransactionState.COMMIT_FAILED)
+            val rollbackHooks = failCommit()
             commands.clear()
 
-            val unfinishedLoads = loads.drop(publishedLoadCount).map { it.first }
-            abortLoads(unfinishedLoads, cause)
-            destroyEntities(
-                commands.takeCreatedEntities() + unfinishedLoads.mapNotNull { it.entity },
-                cause,
-            )
-            releaseLeases(leases, cause)
+            try {
+                val unfinishedLoads = loads.drop(publishedLoadCount).map { it.first }
+                abortLoads(unfinishedLoads, cause)
+                destroyEntities(
+                    commands.takeCreatedEntities() + unfinishedLoads.mapNotNull { it.entity },
+                    cause,
+                )
+                releaseLeases(leases, cause)
+            } finally {
+                runRollbackHooks(rollbackHooks, cause)
+            }
             throw cause
         }
 
@@ -235,21 +255,49 @@ class TransactionContext internal constructor(
 
         val releaseFailure = releaseLeases(leases)
         if (releaseFailure != null) {
-            setCommitState(TransactionState.COMMIT_FAILED)
+            val rollbackHooks = failCommit()
+            runRollbackHooks(rollbackHooks, releaseFailure)
             throw releaseFailure
         }
 
-        setCommitState(TransactionState.COMMITTED)
+        runCommitHooks(completeCommit())
     }
 
     fun rollback(cause: Throwable) = rollback(cause, allowCommitting = false)
 
-    private fun rollback(cause: Throwable, allowCommitting: Boolean) {
+    fun rollbackIfActive(cause: Throwable) = rollbackSafely(
+        cause,
+        allowCommitting = false,
+        ignoreInactive = true,
+    )
+
+    private fun rollbackSafely(
+        cause: Throwable,
+        allowCommitting: Boolean,
+        ignoreInactive: Boolean = false,
+    ) {
+        try {
+            rollback(cause, allowCommitting, ignoreInactive)
+        } catch (rollbackFailure: Throwable) {
+            cause.addCleanupFailure(rollbackFailure)
+        }
+    }
+
+    private fun rollback(
+        cause: Throwable,
+        allowCommitting: Boolean,
+        ignoreInactive: Boolean = false,
+    ) {
         val leases = mutableListOf<EntityLease>()
         val loads = mutableListOf<PendingEntityLoad>()
         val createdEntities = mutableSetOf<EntityId>()
+        val rollbackHooks = mutableListOf<() -> Unit>()
 
         synchronized(tree.lock) {
+            if (ignoreInactive && _state != TransactionState.ACTIVE && _state != TransactionState.CLOSING) {
+                return
+            }
+
             check(_state != TransactionState.MERGED) {
                 "Merged transaction cannot be rolled back independently"
             }
@@ -275,20 +323,71 @@ class TransactionContext internal constructor(
             parent?.removeChildLocked(this)
             leases += entityLeases
             loads += entityLoads
+            rollbackHooks += takeRollbackHooksLocked()
 
             _state = TransactionState.ROLLED_BACK
         }
 
-        abortLoads(loads, cause)
-        destroyEntities(createdEntities + loads.mapNotNull { it.entity }, cause)
-        releaseLeases(leases, cause)
+        try {
+            abortLoads(loads, cause)
+            destroyEntities(createdEntities + loads.mapNotNull { it.entity }, cause)
+            releaseLeases(leases, cause)
+        } finally {
+            runRollbackHooks(rollbackHooks, cause)
+        }
     }
 
-    private fun setCommitState(state: TransactionState) = synchronized(tree.lock) {
+    private fun completeCommit(): List<() -> Unit> = synchronized(tree.lock) {
         check(_state == TransactionState.COMMITTING) {
             "Transaction state changed while committing: $_state"
         }
-        _state = state
+
+        _state = TransactionState.COMMITTED
+        afterRollbackHooks.clear()
+        afterCommitHooks.toList().also {
+            afterCommitHooks.clear()
+        }
+    }
+
+    private fun failCommit(): List<() -> Unit> = synchronized(tree.lock) {
+        check(_state == TransactionState.COMMITTING) {
+            "Transaction state changed while committing: $_state"
+        }
+
+        _state = TransactionState.COMMIT_FAILED
+        takeRollbackHooksLocked()
+    }
+
+    private fun takeRollbackHooksLocked(): List<() -> Unit> {
+        check(Thread.holdsLock(tree.lock))
+        afterCommitHooks.clear()
+        return afterRollbackHooks.asReversed().toList().also {
+            afterRollbackHooks.clear()
+        }
+    }
+
+    private fun runCommitHooks(hooks: Iterable<() -> Unit>) {
+        var failure: Throwable? = null
+        hooks.forEach { hook ->
+            try {
+                hook()
+            } catch (hookFailure: Throwable) {
+                failure = failure?.also {
+                    it.addCleanupFailure(hookFailure)
+                } ?: hookFailure
+            }
+        }
+        failure?.let { throw it }
+    }
+
+    private fun runRollbackHooks(hooks: Iterable<() -> Unit>, cause: Throwable) {
+        hooks.forEach { hook ->
+            try {
+                hook()
+            } catch (hookFailure: Throwable) {
+                cause.addCleanupFailure(hookFailure)
+            }
+        }
     }
 
     private fun abortLoads(loads: Iterable<PendingEntityLoad>, failure: Throwable) {
@@ -377,20 +476,7 @@ suspend inline fun <T> TransactionContext.rollbackOnFailure(
             this.commit()
         }
     } catch (e: Throwable) {
-        when (state) {
-            TransactionState.ACTIVE,
-            TransactionState.CLOSING -> try {
-                rollback(e)
-            } catch (rollbackFailure: Throwable) {
-                e.addSuppressed(rollbackFailure)
-            }
-
-            TransactionState.ROLLED_BACK,
-            TransactionState.COMMITTING,
-            TransactionState.COMMIT_FAILED -> Unit
-
-            else -> error("Cannot rollback transaction while transaction is $state")
-        }
+        rollbackIfActive(e)
         throw e
     }
 }

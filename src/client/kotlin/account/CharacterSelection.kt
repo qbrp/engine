@@ -4,7 +4,7 @@ import kotlinx.coroutines.CompletableDeferred
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.render.ui.character.CharacterSelectionScreen
 import org.lain.engine.client.render.ui.character.LookSelectionScreen
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.player.character.Look
 
 class CharacterSelection(
@@ -27,7 +27,7 @@ class CharacterSelection(
 
     suspend fun awaitSelection(
         current: CurrentCharacter?,
-        characters: List<EngineCharacter>,
+        characters: List<BackendCharacter>,
     ): Selection? {
         return if (current != null) {
             LookSelectionScreen.awaitGeneralSelection(
@@ -42,8 +42,8 @@ class CharacterSelection(
     }
 
     suspend fun awaitCharacterSelection(
-        current: EngineCharacter?,
-        characters: List<EngineCharacter>,
+        current: BackendCharacter?,
+        characters: List<BackendCharacter>,
     ) = CharacterSelectionScreen.awaitCharacterSelection(
         this,
         current,
@@ -51,12 +51,12 @@ class CharacterSelection(
     )
 
     data class CurrentCharacter(
-        val character: EngineCharacter,
+        val character: BackendCharacter,
         val look: Look,
     )
 
     sealed interface Selection {
-        data class Character(val character: EngineCharacter) : Selection
+        data class Character(val character: BackendCharacter) : Selection
         data class Look(val look: org.lain.engine.player.character.Look) : Selection
     }
 }

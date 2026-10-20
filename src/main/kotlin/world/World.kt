@@ -74,8 +74,10 @@ class World(
     inline fun <reified T : Component> emitEvent(
         event: T,
         type: ComponentType<T>,
-        networked: Boolean = false
-    ): EntityId {
+        networked: Boolean = false,
+        crossinline builder: context(WriteComponentAccess) EntityId.() -> Unit = {},
+        write: WriteComponentAccess = this
+    ): EntityId = with(write) {
         return componentManager.addEntity {
             setComponent(event, type)
             setComponent(Event)
@@ -83,15 +85,10 @@ class World(
                 setComponent(Networked)
                 setComponent(
                     PersistentIdComponent(
-                        persistentId(
-                            "event-${
-                                System.identityHashCode(
-                                    event
-                                )
-                            }"
-                        )
+                        persistentId("event-${System.identityHashCode(event)}")
                     )
                 )
+                this.builder()
             }
         }
     }
@@ -104,8 +101,13 @@ class World(
         componentManager.registerComponentArrays(kotlinTypeEntries + luaTypeEntries)
     }
 
-    inline fun <reified T : Component> emitEvent(event: T, networked: Boolean = false): EntityId {
-        return emitEvent(event, componentTypeOf(T::class), networked)
+    inline fun <reified T : Component> emitEvent(
+        event: T,
+        networked: Boolean = false,
+        write: WriteComponentAccess = this,
+        crossinline builder: context(WriteComponentAccess) EntityId.() -> Unit = {},
+    ): EntityId {
+        return emitEvent(event, componentTypeOf(T::class), networked, builder)
     }
 
     fun clearEvents() {

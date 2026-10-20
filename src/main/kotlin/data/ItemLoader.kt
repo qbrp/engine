@@ -8,6 +8,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.createInvalidItem
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.CharacterId
+import org.lain.engine.player.character.PlayCharacterId
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.LogDiagnosticContext
 import org.lain.engine.util.append
@@ -25,11 +26,11 @@ sealed class ItemLoadContext {
         )
     }
 
-    data class PreparingCharacter(val playerId: PlayerId, val characterId: CharacterId) : ItemLoadContext() {
+    data class PreparingCharacter(val playerId: PlayerId, val character: PlayCharacterId) : ItemLoadContext() {
         override fun logContext(context: LogDiagnosticContext): LogDiagnosticContext = context.append(
             "context" to "preparing_character",
             "player_id" to playerId.toString(),
-            "character_id" to characterId.toString()
+            "character_id" to character.toString()
         )
     }
 }

@@ -5,8 +5,6 @@ import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.container.tickContainerOperationsSystem
 import org.lain.engine.item.*
 import org.lain.engine.player.*
-import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.player.character.applyCharacter
 import org.lain.engine.player.interaction.*
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.Callbacks
@@ -16,9 +14,7 @@ import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ScriptSystemDispatcher
 import org.lain.engine.script.compilation.loadResult
 import org.lain.engine.script.scriptContext
-import org.lain.engine.server.ServerPlatform
 import org.lain.engine.server.replication.confirmProcessedPlayerInputsSystem
-import org.lain.engine.data.CharacterData
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.tickRecoilSystem
@@ -117,20 +113,11 @@ class EngineSimulation(
         ticks++
     }
 
-    fun instantiatePlayer(
-        player: EnginePlayer,
-        engineCharacter: EngineCharacter? = null,
-        characterPersistentCharacter: CharacterData? = null,
-        platform: ServerPlatform? = null,
-    ) = with(player.world) {
+    fun instantiatePlayer(player: EnginePlayer) = with(player.world) {
         this@EngineSimulation.players.add(player)
         players += player
-        platform?.onPlayerInstantiated(player)
 
         scriptEngine.setupPlayer(player)
-        engineCharacter?.let {
-            player.applyCharacter(engineCharacter, characterPersistentCharacter, platform!!)
-        }
         callbacks.of(CallbackType.PLAYER_INSTANTIATE)?.execute(player.scriptContext)
     }
 

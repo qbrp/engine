@@ -1,7 +1,6 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.server.Notification
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet

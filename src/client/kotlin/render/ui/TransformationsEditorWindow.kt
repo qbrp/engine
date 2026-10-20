@@ -21,6 +21,7 @@ import kotlin.math.abs
 
 private data class PendingTransformationRender(
     val itemStack: ItemStack,
+    val renderInstance: TransformationRenderInstance,
     val context: EngineItemDisplayContext,
     val displayContext: ItemDisplayContext?,
     val leftHand: Boolean,
@@ -44,6 +45,9 @@ class TransformationEdit(
     private val gameSession: GameSession,
     val itemStack: ItemStack,
 ) {
+    val modelId = ClientMixin.getEngineItemModelId(itemStack)
+        ?: error("Transformation editor requires an Engine item model")
+
     var context = AdditionalTransformationsBank.lastDisplayContext
         ?.takeUnless { it == EngineItemDisplayContext.NONE }
         ?: EngineItemDisplayContext.FIRST_PERSON_RIGHT_HAND
@@ -51,10 +55,12 @@ class TransformationEdit(
             field = value
             pendingRender = null
             renderSnapshot = null
+            selectedRenderInstance = null
         }
 
     private var pendingRender: PendingTransformationRender? = null
     private var renderSnapshot: TransformationRenderSnapshot? = null
+    private var selectedRenderInstance: TransformationRenderInstance? = null
     private val window = TransformationsEditorWindow(this)
 
     init {
@@ -64,6 +70,7 @@ class TransformationEdit(
     fun close() {
         pendingRender = null
         renderSnapshot = null
+        selectedRenderInstance = null
         if (gameSession.transformationEdit === this) {
             gameSession.transformationEdit = null
         }
@@ -77,19 +84,22 @@ class TransformationEdit(
         projection: Matrix4f,
         view: Matrix4f,
         parent: Matrix4f,
+        renderInstance: TransformationRenderInstance,
     ) {
         pendingRender = null
         if (
-            renderedStack !== itemStack ||
+            ClientMixin.getEngineItemModelId(renderedStack) != modelId ||
             context == EngineItemDisplayContext.NONE ||
             context == EngineItemDisplayContext.OUTFIT ||
             context.minecraft != displayContext
         ) {
             return
         }
+        if (renderSnapshot != null || !selectRenderInstance(renderInstance)) return
 
         pendingRender = PendingTransformationRender(
             renderedStack,
+            renderInstance,
             context,
             displayContext,
             leftHand,
@@ -105,8 +115,9 @@ class TransformationEdit(
         displayContext: ItemDisplayContext,
         leftHand: Boolean,
         model: Matrix4f,
+        renderInstance: TransformationRenderInstance,
     ) {
-        finishRender(renderedStack, context, displayContext, leftHand, model)
+        finishRender(renderedStack, renderInstance, context, displayContext, leftHand, model)
     }
 
     fun beginOutfitRender(
@@ -114,14 +125,20 @@ class TransformationEdit(
         projection: Matrix4f,
         view: Matrix4f,
         parent: Matrix4f,
+        renderInstance: TransformationRenderInstance,
     ) {
         pendingRender = null
-        if (renderedStack !== itemStack || context != EngineItemDisplayContext.OUTFIT) {
+        if (
+            ClientMixin.getEngineItemModelId(renderedStack) != modelId ||
+            context != EngineItemDisplayContext.OUTFIT
+        ) {
             return
         }
+        if (renderSnapshot != null || !selectRenderInstance(renderInstance)) return
 
         pendingRender = PendingTransformationRender(
             renderedStack,
+            renderInstance,
             context,
             null,
             false,
@@ -132,18 +149,41 @@ class TransformationEdit(
         )
     }
 
-    fun endOutfitRender(renderedStack: ItemStack, model: Matrix4f) {
-        finishRender(renderedStack, EngineItemDisplayContext.OUTFIT, null, false, model)
+    fun endOutfitRender(
+        renderedStack: ItemStack,
+        model: Matrix4f,
+        renderInstance: TransformationRenderInstance,
+    ) {
+        finishRender(
+            renderedStack,
+            renderInstance,
+            EngineItemDisplayContext.OUTFIT,
+            null,
+            false,
+            model,
+        )
     }
 
     internal fun consumeRenderSnapshot(): TransformationRenderSnapshot? {
         val snapshot = renderSnapshot
         renderSnapshot = null
-        return snapshot?.takeIf { it.context == context }
+        val matchingSnapshot = snapshot?.takeIf { it.context == context }
+        if (matchingSnapshot == null) {
+            selectedRenderInstance = null
+        }
+        return matchingSnapshot
+    }
+
+    private fun selectRenderInstance(renderInstance: TransformationRenderInstance): Boolean {
+        val selected = selectedRenderInstance
+        if (selected != null) return selected == renderInstance
+        selectedRenderInstance = renderInstance
+        return true
     }
 
     private fun finishRender(
         renderedStack: ItemStack,
+        renderInstance: TransformationRenderInstance,
         capturedContext: EngineItemDisplayContext,
         displayContext: ItemDisplayContext?,
         leftHand: Boolean,
@@ -152,7 +192,8 @@ class TransformationEdit(
         val pending = pendingRender ?: return
         pendingRender = null
         if (
-            pending.itemStack !== renderedStack ||
+            pending.itemStack != renderedStack ||
+            pending.renderInstance != renderInstance ||
             pending.context != capturedContext ||
             pending.context != context ||
             pending.displayContext != displayContext ||
@@ -176,11 +217,10 @@ class TransformationEdit(
 class TransformationsEditorWindow(
     private val edit: TransformationEdit
 ) : ImGuiWindow {
-    override val title: String
-        get() = "Редактор трансформаций"
+    private val modelId = edit.modelId
 
-    private val modelId = ClientMixin.getEngineItemModelId(edit.itemStack)
-        ?: error("Transformation editor requires an Engine item model")
+    override val title: String
+        get() = "Редактор трансформаций ${modelId.path}"
 
     private val model = MinecraftClient.modelManager.getModel(modelId)
     private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)
@@ -290,8 +330,8 @@ class TransformationsEditorWindow(
     }
 
     override fun postRender() {
-        if (hideGizmo) return
         val snapshot = edit.consumeRenderSnapshot() ?: return
+        if (hideGizmo) return
         val view = snapshot.view.get(FloatArray(16))
         val projection = snapshot.projection.get(FloatArray(16))
         val model = snapshot.model.get(FloatArray(16))

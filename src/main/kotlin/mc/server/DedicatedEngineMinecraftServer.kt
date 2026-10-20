@@ -1,14 +1,14 @@
 package org.lain.engine.mc.server
 
 import net.minecraft.server.level.ServerPlayer
-import org.lain.engine.data.tickUnloadSystem
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Username
 import org.lain.engine.player.character.CharacterId
-import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.player.cleanupDisconnectedPlayers
+import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.CharacterChangeRequest
+import org.lain.engine.player.character.EngineBackend
 import org.lain.engine.player.get
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.account.DedicatedEngineAccountService
@@ -26,13 +26,16 @@ class DedicatedEngineMinecraftServer(
         dependencies.minecraftServer,
         connectionManager
     ),
-) : EngineMinecraftServer(dependencies) {
+) : EngineMinecraftServer(dependencies), EngineBackend {
     private val accountService = DedicatedEngineAccountService()
     val authorizationListener = AuthorizationListener(
         connectionManager,
         this,
         accountService
     )
+
+    override val backend: EngineBackend
+        get() = this
 
     override fun tick() {
         for (player in engine.playerStorage.all) {
@@ -83,15 +86,17 @@ class DedicatedEngineMinecraftServer(
         super.onLeavePlayer(entity)
     }
 
-    override suspend fun validateCharacter(
+    override suspend fun validateCharacterChange(
         player: EnginePlayer,
-        characterId: CharacterId,
-        character: EngineCharacter?,
-        sessionTicket: SessionTicket?
-    ): EngineCharacter {
+        request: CharacterChangeRequest
+    ): BackendCharacter {
+        require(request is CharacterChangeRequest.ResolveByTicket) {
+            "Access denied"
+        }
+
         return accountService
-            .getAuthorized(sessionTicket ?: error("Не указан сессионный тикет"))
-            .getCharacter(characterId)
+            .getAuthorized(request.ticket.map())
+            .getCharacter(request.characterId)
             .map()
     }
 }

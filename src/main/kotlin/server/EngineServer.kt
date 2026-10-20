@@ -8,7 +8,7 @@ import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.trySendJoinMessage
 import org.lain.engine.data.*
 import org.lain.engine.player.*
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.CharacterManager
 import org.lain.engine.player.interaction.tickTestAction
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorageAccess
@@ -38,14 +38,14 @@ class EngineServer(
     val database: Database,
     val luaScriptEngine: LuaScriptEngine,
     val saveTimers: SaveTimers,
-): Executor, EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
+) : Executor, EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
     private val taskQueue = ConcurrentLinkedQueue<Runnable>()
 
     val handler = ServerHandler(this)
     val dataPrepareDispatcher = this.asCoroutineDispatcher()
 
     @Volatile
-    var globals: ServerGlobals = ServerGlobals(id, savePath=savePath)
+    var globals: ServerGlobals = ServerGlobals(id, savePath = savePath)
         private set
 
     var stopped = false
@@ -53,7 +53,8 @@ class EngineServer(
     val chat: EngineChat = EngineChat(acousticSimulator, this)
     val itemLoader = ItemLoader(this, database)
     val playerPersistence = PlayerPersistence(this)
-    val playerLoader = PlayerLoader(this, itemLoader)
+    val characterManager = CharacterManager(this, platform.backend)
+    val playerLoader = PlayerLoader(this, itemLoader, characterManager)
     val chunkPersistence = ChunkPersistence(this, database)
     val entityCoordinator = EntityCoordinator()
     val simulation = EngineSimulation(
@@ -140,21 +141,17 @@ class EngineServer(
         playerStorage.all.forEach { player -> player.set(globals.defaultPlayerAttributes) }
     }
 
-    fun instantiatePlayer(
-        player: EnginePlayer,
-        notifications: List<Notification> = listOf(),
-        engineCharacter: EngineCharacter? = null,
-        characterPersistentRecord: CharacterData? = null,
-    ) = with(player.world) {
-        simulation.instantiatePlayer(player, engineCharacter, characterPersistentRecord, platform)
+    fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) =
+        with(player.world) {
+            simulation.instantiatePlayer(player)
 
-        if (!globals.spectateOnJoin) {
-            player.stopSpectating()
+            if (!globals.spectateOnJoin) {
+                player.stopSpectating()
+            }
+
+            handler.onPlayerInstantiation(player, notifications)
+            chat.trySendJoinMessage(player)
         }
-
-        handler.onPlayerInstantiation(player, notifications)
-        chat.trySendJoinMessage(player)
-    }
 
     override fun execute(r: Runnable) {
         taskQueue += r

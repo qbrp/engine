@@ -2,9 +2,10 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.account.SessionTicketDto
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.data.PersistentId
+import org.lain.engine.player.character.CharacterChangeRequest
 import org.lain.engine.player.character.CharacterId
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
@@ -59,8 +60,7 @@ val SERVERBOUND_ARM_STATUS_ENDPOINT = Endpoint<ArmStatusPacket>()
 @Serializable
 data class CharacterApplyPacket(
     val characterId: CharacterId,
-    val character: EngineCharacter? = null,
-    val sessionTicket: SessionTicketDto? = null,
+    val request: CharacterChangeRequest,
     val requestId: Long,
 ) : Packet
 

@@ -113,63 +113,25 @@ class ServerHandler(
     internal fun onLookApply(playerId: PlayerId, lookId: String, requestId: Long) =
         updatePlayer(playerId) {
             val character = require<AppliedCharacter>().character
-            val look =
-                character.looks.find { it.id == lookId } ?: protocolError("Образ $lookId не существует")
+            val look = character.looks.find { it.id == lookId } ?: protocolError("Образ $lookId не существует")
             set(SelectedLook(look))
             confirmCharacterApply(this@updatePlayer, requestId)
         }
 
+    // вызывается колесом выбора персонажей, привязанному к бэкендовым персонажам
     internal fun onCharacterApply(
         playerId: PlayerId,
-        characterId: CharacterId,
-        character: EngineCharacter?,
-        sessionTicket: SessionTicket?,
+        request: CharacterChangeRequest,
         requestId: Long,
-    ) {
-        val persistence = engineServer.playerPersistence
+    ) = updatePlayer(playerId) {
         val player = getPlayer(playerId) ?: protocolError("Игрок не существует")
-        val world = player.world
-        val platform = engineServer.platform
-
-        val context = engineServer.createTransactionContext(world)
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val validatedCharacter = platform.validateCharacter(
-                    player,
-                    characterId,
-                    character,
-                    sessionTicket
-                )
-                val characterRecord =
-                    persistence.loadPersistentCharacter(
-                        context, world.componentReviveSettings, playerId, characterId
-                    )
-                // Пока что вполне логично относить применение персонажа к DataPrepare
-                // Во многом это не побочный эффект других механик, а именно источник данных
-                withContext(engineServer.dataPrepareDispatcher) {
-                    val serializedInventory = platform.serializeInventory(player)
-                    try {
-                        player.unloadCharacter(platform, persistence, serializedInventory)
-                        player.applyCharacter(validatedCharacter, characterRecord, platform)
-                        confirmCharacterApply(player, requestId)
-                        context.commit()
-                    } catch (e: Exception) {
-                        platform.openInventory(player, serializedInventory)
-                        throw e
-                    }
-                }
-            } catch (e: CancellationException) {
-                context.rollback(e)
-                throw e
-            } catch (e: Exception) {
-                context.rollback(e)
-                val message = e.message ?: "Не удалось применить персонажа"
-                withContext(engineServer.dataPrepareDispatcher) {
-                    confirmCharacterApply(player, requestId, message)
-                }
-                e.printStackTrace()
-            }
-        }
+        val characterManager = engineServer.characterManager
+        characterManager.change(
+            player,
+            request,
+            PlayCharacterId(CharacterOwner.Player(playerId), request.id),
+            requestId
+        )
     }
 
     internal fun onEntityComponentRpcPacket(
@@ -424,7 +386,7 @@ class ServerHandler(
         )
     }
 
-    private fun confirmCharacterApply(
+    fun confirmCharacterApply(
         player: EnginePlayer,
         requestId: Long,
         errorMessage: String? = null
