@@ -15,6 +15,7 @@ import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.MinecraftAccessRegistry
+import org.lain.engine.mc.bindMinecraftEntity
 import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.server.EngineMinecraftServer
@@ -23,7 +24,6 @@ import org.lain.engine.player.*
 import org.lain.engine.script.InventoryTab
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.packet.DeveloperModeStatus
-import org.lain.engine.transport.packet.FullPlayerData
 import org.lain.engine.world.EngineChunk
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.VoxelPos
@@ -61,20 +61,12 @@ class MinecraftEngineClientPlatform(
         )
     }
 
-    override suspend fun onFullPlayerData(
-        gameSession: GameSession,
-        player: EnginePlayer,
-        data: FullPlayerData
-    ) = withClientContext {
-        while (true) {
-            val entity = minecraft.level?.players()?.firstOrNull { it.uuid == player.id.value }
-            if (entity == null) {
-                it.waitNextTick()
-            } else {
-                player.setMinecraftPlayerComponent(entity)
-                return@withClientContext
-            }
-        }
+    override fun onPlayerBecameDetailed(player: EnginePlayer) {
+        player.getOrSet { EnginePlayerSkin() }
+
+        minecraft.level?.players()
+            ?.firstOrNull { it.uuid == player.id.value }
+            ?.let { player.bindMinecraftEntity(it) }
     }
 
     override fun onPlayerDestroy(

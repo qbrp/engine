@@ -42,10 +42,6 @@ fun World.sendReplicationPackets(
         val updates = mutableMapOf<PersistentId, EntityStateUpdate>()
         val out = trackState.previousTickResident - trackState.resident
 
-        state.newlyTrackedPlayers.forEach { playerToSync ->
-            handler.sendFullPlayerState(player, playerToSync)
-        }
-
         val requestedEntityResyncs = state.requestedResyncs
             .filterIsInstance<ReplicationTarget.Entity>()
             .mapTo(mutableSetOf()) { it.persistentId }

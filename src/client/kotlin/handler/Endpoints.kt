@@ -9,12 +9,6 @@ fun ClientHandler.runEndpoints() {
         taskExecutor.add("join_game") { applyJoinGame(this) }
     }
 
-    // Players
-
-    registerGameSessionReceiver(CLIENTBOUND_FULL_PLAYER_ENDPOINT) { gameSession ->
-        updatePlayer(id) { applyFullPlayerData(gameSession, it, data) }
-    }
-
     // Join / Destroy
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_JOIN_ENDPOINT) { gameSession ->

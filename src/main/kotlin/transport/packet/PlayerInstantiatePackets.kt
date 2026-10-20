@@ -52,25 +52,6 @@ data class ClientboundSetupData(
     }
 }
 
-// References
-
-@Serializable
-data class PlayerReferencedItems(
-    val inventory: List<PersistentId>,
-    val equipment: List<PersistentId>
-) {
-    val all by lazy { inventory + equipment }
-
-    companion object {
-        context(world: World)
-        fun of(player: EnginePlayer) = PlayerReferencedItems(
-            player.items.map { it.requireComponent<PersistentIdComponent>().id },
-            player.equipment.values
-                .map { it.persistentId() }
-        )
-    }
-}
-
 
 @ConsistentCopyVisibility
 @Serializable
@@ -107,8 +88,6 @@ data class ServerPlayerData(
     val baseVolume: Float,
     val replicationSnapshot: InitialReplicationState,
     val skinEyeY: Float,
-    val character: EngineCharacter?,
-    val look: Look?,
 ) {
     val id
         get() = general.playerId
@@ -129,8 +108,6 @@ data class ServerPlayerData(
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
                 composeInitialReplicationState(player),
                 player.skinEyeY,
-                player.get<AppliedCharacter>()?.character,
-                player.get<SelectedLook>()?.look
             )
         }
 
@@ -163,36 +140,6 @@ val CLIENTBOUND_JOIN_GAME_ENDPOINT = Endpoint<JoinGamePacket>()
 object ConfirmationPacket : Packet
 
 val SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT = Endpoint<ConfirmationPacket>()
-
-// Full player data (for synchronization)
-
-@Serializable
-data class FullPlayerPacket(
-    val id: PlayerId,
-    val data: FullPlayerData
-) : Packet
-
-@Serializable
-data class FullPlayerData(
-    val movementStatus: MovementStatus,
-    val attributes: PlayerAttributes,
-    //val armStatus: ArmStatus,
-    val skinEyeY: Float,
-    val referencedItems: PlayerReferencedItems,
-) {
-    companion object {
-        context(world: World)
-        fun of(player: EnginePlayer) = FullPlayerData(
-            player.require<MovementStatus>().copy(),
-            player.require<PlayerAttributes>().copy(),
-            //      player.require<ArmStatus>().copy(),
-            player.skinEyeY,
-            PlayerReferencedItems.of(player)
-        )
-    }
-}
-
-val CLIENTBOUND_FULL_PLAYER_ENDPOINT = Endpoint<FullPlayerPacket>()
 
 // General player data
 

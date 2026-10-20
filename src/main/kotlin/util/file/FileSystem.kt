@@ -26,7 +26,8 @@ object FileSystem {
     const val SCRIPTS_PATH = "scripts"
     const val SERVER_CONFIG_NAME = "server-config.yml"
     const val DEBUG_PATH = "debug"
-    const val COMPILATION_MANIFEST_NAME = "compilation-manifest.json"
+    const val COMPILATION_MANIFEST_NAME = "compilation-manifest-server.json"
+    const val CLIENT_COMPILATION_MANIFEST_NAME = "compilation-manifest-client.json"
     const val STORAGE_PATH = "data"
     const val BOOK_BACKUPS_PATH = "books"
     const val SKINS_PATH = "skins"
@@ -76,9 +77,15 @@ object FileSystem {
     fun compilationEntrypoint(directory: File): File =
         directory.resolve(SCRIPTS_PATH).resolve(COMPILATION_ENTRYPOINT_NAME)
 
-    fun compilationManifestFile(scriptsDirectory: File): File {
+    fun compilationManifestFile(scriptsDirectory: File): File =
+        compilationManifestFile(scriptsDirectory, COMPILATION_MANIFEST_NAME)
+
+    fun clientCompilationManifestFile(scriptsDirectory: File): File =
+        compilationManifestFile(scriptsDirectory, CLIENT_COMPILATION_MANIFEST_NAME)
+
+    private fun compilationManifestFile(scriptsDirectory: File, fileName: String): File {
         val engineDirectory = scriptsDirectory.parentFile ?: root
-        return engineDirectory.resolve(DEBUG_PATH).resolve(COMPILATION_MANIFEST_NAME)
+        return engineDirectory.resolve(DEBUG_PATH).resolve(fileName)
     }
 
     fun ensureFile(file: File): File {

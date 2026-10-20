@@ -46,11 +46,8 @@ fun lowDetailedClientPlayerInstance(
                 LOD_POS,
                 data.displayName,
                 developerModeStatus = DeveloperModeStatus(),
-                equipment = emptyMap()
             ),
             id,
-            character = null,
-            look = null,
         ).also {
             it.set(LowDetail(true))
         }
@@ -77,11 +74,8 @@ fun mainClientPlayerInstance(
                 data.attributes,
                 developerModeStatus = developerModeStatus,
                 skinEyeY = data.skinEyeY,
-                equipment = emptyMap() // получается как ReplicationSnapshot
             ),
-            id,
-            character = data.character,
-            look = data.look
+            id
         ).also { it.isLowDetailed = false }
     }
 }
@@ -95,8 +89,6 @@ fun World.tickPlayerLowDetailedSystem(
         if (location.position.squaredDistanceTo(mainPlayer.location.position) > syncRadiusSqr) {
             lowDetailed.enabled = true
             return@iterate
-        } else {
-            lowDetailed.enabled = false
         }
     }
 }

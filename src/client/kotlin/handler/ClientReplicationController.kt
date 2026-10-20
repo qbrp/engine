@@ -7,9 +7,7 @@ import org.lain.engine.data.EntityResolver
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.VoxelPosId
-import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.EngineId
-import org.lain.engine.script.ScriptComponentId
+import org.lain.engine.player.PlayerComponent
 import org.lain.engine.server.protocolError
 import org.lain.engine.server.replication.*
 import org.lain.engine.transport.packet.InitialReplicationState
@@ -21,7 +19,6 @@ import org.lain.engine.util.EntityDebugNameId
 import org.lain.engine.util.Log
 import org.lain.engine.util.LogLevel
 import org.lain.engine.util.LogMessages
-import org.lain.engine.util.ecs.ComponentTypeRegistry
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.ecs.lookupComponentType
 import org.lain.engine.util.getDebugId
@@ -29,6 +26,8 @@ import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
+import kotlin.collections.component1
+import kotlin.collections.component2
 
 class ClientReplicationController(
     private val gameSession: GameSession,
@@ -55,10 +54,16 @@ class ClientReplicationController(
                 ReplicationTarget.World,
                 initialReplicationState.world
             )
+        }
+    }
 
-            initialReplicationState.snapshots.forEach { (persistentId, snapshot) ->
-                authoritativeState.seed(ReplicationTarget.Entity(persistentId), snapshot)
-            }
+    fun seed(replicationState: InitialReplicationState) {
+        replicationState.snapshots.forEach { (persistentId, _) ->
+            ensureEntity(persistentId)
+        }
+        replicationState.snapshots.forEach { (persistentId, snapshot) ->
+            authoritativeState.seed(ReplicationTarget.Entity(persistentId), snapshot)
+            applyEntityComponents(persistentId, snapshot.components, emptyList())
         }
     }
 
@@ -174,7 +179,8 @@ class ClientReplicationController(
         metadata: ReplicationEntityMetadata,
         snapshot: EntityStateUpdate,
     ): AcceptedEntityStateUpdate? {
-        if (snapshot is EntityStateUpdate.Delta && replicationWorld.persistentIdToEntity[persistentId] == null) {
+        val entity = replicationWorld.persistentIdToEntity[persistentId]
+        if (snapshot is EntityStateUpdate.Delta && entity == null) {
             protocolError("Получен частичный снапшот отсутствующей сущности $persistentId")
         }
 
@@ -318,6 +324,12 @@ class ClientReplicationController(
         }
 
         removeSnapshotComponents(existing, removed)
+
+        val player = with(gameSession.world) { existing.getComponent<PlayerComponent>()?.player }
+        if (player != null) {
+            player.isLowDetailed = false
+            gameSession.client.platform.onPlayerBecameDetailed(player)
+        }
 
         existing
     }

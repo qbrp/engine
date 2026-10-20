@@ -266,24 +266,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.sendC2SPacket(WriteableUpdatePacket(item, contents))
     }
 
-    fun applyFullPlayerData(gameSession: GameSession, player: EnginePlayer, data: FullPlayerData) = coroutineScope.launch {
-        try {
-            while (!data.referencedItems.isPresent()) {
-                waitNextTick()
-            }
-            player.set(data.movementStatus)
-            player.set(data.attributes)
-            player.get<EnginePlayerModel>()?.skinEyeY = data.skinEyeY
-            player.isLowDetailed = false
-            client.infrastructure.onFullPlayerData(gameSession, player, data)
-        } catch (e: CancellationException) {
-
-        }
-    }
-
-    private fun PlayerReferencedItems.isPresent() =
-        all.none { gameSession?.itemStorage?.get(it) == null }
-
     fun applyPlayerJoined(data: GeneralPlayerData, gameSession: GameSession) {
         val persistentId = CustomPersistentId(data.playerId.toString())
         gameSession.replicationController.removeEntity(persistentId)

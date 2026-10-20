@@ -80,10 +80,12 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
 
     registerComponent<Equipment>(isNetworking = true, replicationClass = null)
 
+    registerComponent<MovementStatus>(isNetworking = true)
     registerComponent<ArmStatus>(isNetworking = true)
     registerComponent<Narration>(isNetworking = true)
 
     registerComponent<CustomPlayerAttributes>(isNetworking = true)
+    registerComponent<PlayerAttributes>(isNetworking = true)
 
     registerComponent<CharacterDisplay>(isNetworking = true)
     registerComponent<CharacterPhysical>(isNetworking = true)

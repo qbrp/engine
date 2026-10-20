@@ -16,11 +16,11 @@ import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.backupBookContent
+import org.lain.engine.data.createTransactionContext
 import org.lain.engine.script.dev.EntityInspection
 import org.lain.engine.script.dev.EntityInspectionSnapshot
 import org.lain.engine.script.dev.EntityInspectionComponent
 import org.lain.engine.script.dev.EditOperation
-import org.lain.engine.script.dev.InspectionPrimitive
 import org.lain.engine.script.dev.performEditOperation
 import org.lain.engine.script.dev.snapshotInspection
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
@@ -116,7 +116,7 @@ class ServerHandler(
             val look =
                 character.looks.find { it.id == lookId } ?: protocolError("Образ $lookId не существует")
             set(SelectedLook(look))
-            onCharacterApplyConfirmation(this@updatePlayer, requestId)
+            confirmCharacterApply(this@updatePlayer, requestId)
         }
 
     internal fun onCharacterApply(
@@ -171,6 +171,10 @@ class ServerHandler(
         )
     }
 
+    /*
+    TODO: при конкуррентной работе с инспекциями сущностей проводится больше одинаковой и лишней работы,
+     также значения могут легко перезаписаться
+     */
     internal fun onEntityDebugView(player: PlayerId, persistentId: PersistentId, rate: Int) =
         updatePlayer(player) {
             if (!engineServer.platform.hasPermission(this, "entity_debug")) return@updatePlayer
@@ -187,6 +191,12 @@ class ServerHandler(
         require<EntityInspectionComponent>().entities.remove(persistentId)
     }
 
+    /*
+    TODO: имеет смысл добавить возможность отложенного применения изменений, например, чтобы посмотреть,
+     как поведёт себя та или иная система. Сейчас всё происходит в фазе DataPrepare, поэтому некоторые данные перезаписываются
+     более поздними системами
+     Или же сделать проще - принимать все изменения InspectionValue в самом конце фазы DataPrepare
+    */
     internal fun onEntityInspectionValueEdit(
         playerId: PlayerId,
         persistentId: PersistentId,
@@ -218,6 +228,7 @@ class ServerHandler(
         world.componentManager.markDirty(entity, type)
     }
 
+    //TODO: стоит переименовать эти ивенты в операции, потому-что весь смысл как раз в этом
     internal fun onVoxelBlockHint(
         player: PlayerId,
         pos: VoxelPos,
@@ -259,6 +270,7 @@ class ServerHandler(
             state.requestedResyncs += target
         }
 
+    //TODO: кандидат на отдельную операцию
     internal fun onWriteableContentsUpdate(
         playerId: PlayerId,
         persistentId: PersistentId,
@@ -285,6 +297,7 @@ class ServerHandler(
             entity.markUpdated<ArmStatus>()
         }
 
+    //TODO: Формально организовано правильно, но всё это лучше вообще вынести в отдельную подсистему
     internal fun onPlayerChatTypingStart(player: PlayerId, channelId: ChannelId) =
         updatePlayer(player) {
             val player = this
@@ -326,6 +339,7 @@ class ServerHandler(
         intentSpeed(value.coerceIn(0f, 1f))
     }
 
+    // буквально просто эмитит компонент с намерением игрока что-то сказать, укладывается
     internal fun onChatMessage(player: PlayerId, content: String, channelId: ChannelId) =
         updatePlayer(player) {
             val content = content.trim()
@@ -340,6 +354,10 @@ class ServerHandler(
         }
 
     // FIXME: Искать предметы по инвентарю игрока, а не глобально
+    /*
+     TODO: стоит проверить эту систему, поскольку, очевидно, возможны расхождения с 60-фпсным клиента
+      и 20-тпсным сервером. Например, взятие айтемстака, который клиент еще не считает предметом Engine
+     */
     internal fun onPlayerCursorItem(playerId: PlayerId, itemId: PersistentId?) =
         updatePlayerWithContext(playerId) {
             val itemStorage = it.itemStorage
@@ -446,7 +464,7 @@ class ServerHandler(
         )
     }
 
-    fun onEntityInspectionAbort(player: EnginePlayer, persistentId: PersistentId,  reason: String) {
+    fun onEntityInspectionAbort(player: EnginePlayer, persistentId: PersistentId, reason: String) {
         CLIENTBOUND_ENTITY_INSPECTION_ABORT_ENDPOINT.sendS2C(
             EntityInspectionAbortPacket(persistentId, reason),
             player.id

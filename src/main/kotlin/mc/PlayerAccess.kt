@@ -20,7 +20,7 @@ fun Player.getEngineState(): EnginePlayer? {
     return MinecraftAccessRegistry.getEnginePlayer(this)
 }
 
-internal fun EnginePlayer.bindMinecraftEntity(entity: Player): Boolean {
+fun EnginePlayer.bindMinecraftEntity(entity: Player): Boolean {
     val minecraftPlayer = get<MinecraftPlayer>()
     if (minecraftPlayer == null) {
         set(MinecraftPlayer(entity))

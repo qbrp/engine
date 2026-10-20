@@ -78,13 +78,12 @@ class GameSession(
     val itemStorage: ItemStorage = this.world.itemStorage
     val chatEventBus = client.chatEventBus
 
-    private val sessionScope = CoroutineScope(handler.coroutineDispatcher + SupervisorJob())
+    var synchronizationRadius: Int = setup.settings.synchronizationRadius
+    var playerDesynchronizationThreshold: Int = setup.settings.playerDesynchronizationThreshold
     val replicationController = ClientReplicationController(
         gameSession = this,
         initialReplicationState = player.replicationSnapshot,
     )
-    var synchronizationRadius: Int = setup.settings.synchronizationRadius
-    var playerDesynchronizationThreshold: Int = setup.settings.playerDesynchronizationThreshold
 
     var extendArm = false
         set(value) {
@@ -125,12 +124,14 @@ class GameSession(
             client.showInpectionModeToggleNotification(value)
             field = value
         }
+
     val inspection = InspectionMode()
     var characterChange: CharacterChange? = null
         private set
 
     var entityInspections: MutableMap<PersistentId, EntityInspection> = mutableMapOf()
     var transformationEdit: TransformationEdit? = null
+
 
     init {
         applyCompilation(build)
