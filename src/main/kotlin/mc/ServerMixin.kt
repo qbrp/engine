@@ -17,10 +17,6 @@ object ServerMixin {
     private val chatSettings get() = chat?.settings
     var vanillaDamageEnabled = false
 
-    fun onProcessPackets() {
-        serverHandler?.processHandlerTasks()
-    }
-
     fun notifyPlayerGameModeChange(player: ServerPlayer, gameMode: GameType) {
         val enginePlayer = player.getEngineState() ?: return
         serverHandler?.onServerNotification(

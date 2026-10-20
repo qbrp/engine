@@ -1,71 +1,78 @@
 package org.lain.engine.transport.network
 
-import net.minecraft.server.MinecraftServer
-import net.minecraft.server.level.ServerPlayer
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
 import net.minecraft.server.network.ServerGamePacketListenerImpl
 import org.lain.engine.mc.DisconnectText
-import org.lain.engine.mc.commands.FriendlyException
-import org.lain.engine.mc.getPlayer
-import org.lain.engine.mc.ecs.minecraftEntity
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.player.PlayerNotFoundException
 import org.lain.engine.player.Username
 import org.lain.engine.server.NetworkProtocolException
-import java.util.*
-import java.util.concurrent.ConcurrentHashMap
+import org.lain.engine.transport.packet.VerificationResponsePacket
 
-@JvmInline
-value class SessionId(val id: UUID)
+internal class ConnectionAuthorization(
+    private val response: CompletableDeferred<VerificationResponsePacket>,
+    private val job: Job,
+) {
+    fun complete(packet: VerificationResponsePacket): Boolean = response.complete(packet)
+
+    fun cancel() {
+        job.cancel()
+    }
+}
 
 data class ConnectionSession(
-    val uuid: SessionId,
     val username: Username,
     val playerId: PlayerId,
-    val isOp: Boolean,
     val connection: ServerGamePacketListenerImpl,
-    var mods: Set<String> = emptySet(),
     var player: EnginePlayer? = null
-)
-
-class ServerConnectionManager(
-    private val minecraftServer: MinecraftServer,
 ) {
-    private val sessions: ConcurrentHashMap<PlayerId, ConnectionSession> = ConcurrentHashMap()
+    internal var authorization: ConnectionAuthorization? = null
+}
 
-    fun iterateSessions(): Iterable<ConnectionSession> = sessions.values
+typealias MinecraftConnection = ServerGamePacketListenerImpl
 
-    fun addConnectionSession(session: ConnectionSession) {
-        sessions[session.playerId] = session
+class ServerConnectionManager {
+    private val byConnection: MutableMap<MinecraftConnection, ConnectionSession> = mutableMapOf()
+    private val byId: MutableMap<PlayerId, ConnectionSession> = mutableMapOf()
+
+    fun iterateSessions(): Iterable<ConnectionSession> = byConnection.values
+
+    // возвращает, нужно ли принять игрока
+    fun addConnectionSession(session: ConnectionSession): Boolean {
+        val confirmed = byId.putIfAbsent(session.playerId, session) == null
+        if (confirmed) {
+            byConnection[session.connection] = session
+        }
+        return confirmed
     }
 
-    fun removeConnectionSession(playerId: PlayerId) {
-        sessions.remove(playerId)
+    fun removeConnectionSession(connection: MinecraftConnection): ConnectionSession? {
+        val session = byConnection.remove(connection) ?: return null
+        check(byId.remove(session.playerId) === session) {
+            "Connection indexes are inconsistent for player ${session.playerId}"
+        }
+        return session
     }
 
     fun getSession(playerId: PlayerId): ConnectionSession {
-        return sessions[playerId] ?: error("Session $playerId not found")
+        return byId[playerId] ?: error("Session $playerId not found")
     }
 
-    fun getSessionOrNull(playerId: PlayerId): ConnectionSession? = sessions[playerId]
+    fun getSessionOrNull(playerId: PlayerId): ConnectionSession? = byId[playerId]
 
-    fun disconnect(connectionSession: ConnectionSession, reason: String)  {
-        val playerId = connectionSession.playerId
-        val entity = connectionSession.player?.minecraftEntity as? ServerPlayer
-            ?: minecraftServer.getPlayer(playerId)
-            ?: throw PlayerNotFoundException(playerId)
-        val networkHandler = entity.connection
-        networkHandler.disconnect(DisconnectText(reason))
+    fun getSessionOrNull(connection: MinecraftConnection): ConnectionSession? = byConnection[connection]
+
+    fun disconnect(connectionSession: ConnectionSession, reason: String) {
+        connectionSession.connection.disconnect(DisconnectText(reason))
     }
 
-    fun disconnect(playerId: PlayerId, exception: Throwable) {
-        val message = when(exception) {
-            is NetworkProtocolException -> "Рассинхронизация: ${exception.message!!}.<newline>Перезайдите в игру. В случае, если ошибка продолжает появляться, свяжитесь с администраторами"
-            else -> exception.message ?: "Неизвестная ошибка"
-        }
-        disconnect(getSession(playerId), message)
-        if (exception !is FriendlyException) {
-            exception.printStackTrace()
-        }
+    fun disconnect(connectionSession: ConnectionSession, exception: Throwable) {
+        disconnect(connectionSession, exception.disconnectMessage())
+    }
+
+    private fun Throwable.disconnectMessage() = when (this) {
+        is NetworkProtocolException -> "Рассинхронизация: ${message!!}.<newline>Перезайдите в игру. В случае, если ошибка продолжает появляться, свяжитесь с администраторами"
+        else -> message ?: "Неизвестная ошибка"
     }
 }

@@ -6,28 +6,26 @@ import net.minecraft.network.RegistryFriendlyByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.MinecraftServer
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.transport.deserializePacket
-import org.lain.engine.transport.network.ConnectionSession
-import org.lain.engine.transport.network.ServerConnectionManager
+import org.lain.engine.transport.network.MinecraftConnection
 import org.lain.engine.transport.serializePacket
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executor
 
-typealias ServerPacketHandlerInternal<P> = (ConnectionSession, Executor, P) -> Unit
+typealias ServerPacketHandlerInternal<P> = (MinecraftConnection, MinecraftServer, P) -> Unit
 
 fun <P : Packet> registerServerReceiverInternal(
     channel: Endpoint<P>,
-    connectionManager: ServerConnectionManager,
     handler: ServerPacketHandlerInternal<P>,
 ) {
     val payloadId = PayloadRegistry.payloadOf(channel)
 
     ServerPlayNetworking.registerGlobalReceiver(payloadId) { payload, context ->
-        val session = connectionManager.getSession(context.player().engineId)
         val packet = payload.packet
-        handler(session, context.player().server, packet)
+        val player = context.player()
+        handler(player.connection, player.server, packet)
     }
 }
 

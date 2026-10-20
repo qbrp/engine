@@ -2,14 +2,13 @@ package org.lain.engine.transport.network
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.mc.EnginePayload
 import org.lain.engine.mc.PayloadRegistry
+import org.lain.engine.mc.commands.FriendlyException
 import org.lain.engine.mc.registerServerReceiverInternal
 import org.lain.engine.mc.unregisterServerReceiverInternal
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
-import org.lain.engine.player.PlayerStorage
 import org.lain.engine.transport.*
 
 class ServerNetworkTransport(
@@ -61,20 +60,19 @@ class ServerNetworkTransport(
         handler: ServerPacketHandler<P>
     ) {
         endpoints += endpoint
-        registerServerReceiverInternal(
-            endpoint,
-            connectionManager
-        ) { session, server, packet ->
+        registerServerReceiverInternal(endpoint) { minecraftConnection, server, packet ->
             server.execute {
-                var fail: Throwable? = null
+                val connection = connectionManager.getSessionOrNull(minecraftConnection)
+                    ?: return@execute
+                try {
+                    packet.handler(ServerPacketContext(connection.playerId))
+                } catch (e: Exception) {
+                    // немедленно кикаем игрока
+                    connectionManager.disconnect(connection, e)
 
-                with(ServerPacketContext(session.playerId)) {
-                    val result = runCatching { packet.handler(this) }
-                    result.onFailure { error -> fail = error }
-                }
-
-                if (fail != null) {
-                    connectionManager.disconnect(session.playerId, fail)
+                    if (e !is FriendlyException) {
+                        e.printStackTrace()
+                    }
                 }
             }
         }

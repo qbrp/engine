@@ -82,7 +82,10 @@ class CommonEngineMod : ModInitializer {
         }
 
         ServerPlayConnectionEvents.DISCONNECT.register { handler, server ->
-            server.execute { engineServer?.onLeavePlayer(handler.player) }
+            // потому-что это блять Netty IO Thread
+            server.execute {
+                engineServer?.onLeavePlayer(handler.player)
+            }
         }
 
         ServerPlayerEvents.AFTER_RESPAWN.register { _, newPlayer, _ ->

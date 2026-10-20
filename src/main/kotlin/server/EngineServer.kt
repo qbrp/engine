@@ -6,18 +6,16 @@ import org.lain.engine.EngineSimulation
 import org.lain.engine.chat.EngineChat
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.chat.trySendJoinMessage
-import org.lain.engine.chat.trySendLeaveMessage
+import org.lain.engine.data.*
 import org.lain.engine.player.*
 import org.lain.engine.player.character.EngineCharacter
-import org.lain.engine.player.character.unloadCharacter
+import org.lain.engine.player.interaction.tickTestAction
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorageAccess
-import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.dev.tickEntityDebugViewSnapshotSystem
-import org.lain.engine.data.*
-import org.lain.engine.player.interaction.tickTestAction
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.script.compilation.loadBuild
+import org.lain.engine.script.dev.tickEntityDebugViewSnapshotSystem
+import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.server.replication.tickReplicationSystem
 import org.lain.engine.util.*
 import org.lain.engine.world.World
@@ -41,14 +39,14 @@ class EngineServer(
     val luaScriptEngine: LuaScriptEngine,
     val saveTimers: SaveTimers,
 ): Executor, EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
+    private val taskQueue = ConcurrentLinkedQueue<Runnable>()
+
     val handler = ServerHandler(this)
-    val dispatcher = asCoroutineDispatcher()
+    val dataPrepareDispatcher = this.asCoroutineDispatcher()
 
     @Volatile
     var globals: ServerGlobals = ServerGlobals(id, savePath=savePath)
         private set
-
-    private val taskQueue = ConcurrentLinkedQueue<Runnable>()
 
     var stopped = false
     val tickTimes = FixedSizeList<Int>(20)
@@ -95,6 +93,8 @@ class EngineServer(
     }
 
     override fun World.tickDaraPreparation() = with(platform) {
+        handler.processHandlerTasks()
+        taskQueue.flush { it.run() }
         tickDataPreparation()
     }
 
@@ -115,15 +115,15 @@ class EngineServer(
     }
 
     override fun World.beforeEventCleanup() = with(platform) {
+        cleanupDisconnectedPlayers(this@EngineServer)
         tickReplicationSystem(this@EngineServer)
         tickUnloadSystem(entityCoordinator, saveTimers)
         tickSaveSystem()
     }
 
     fun update(): Unit = with(namespacedStorage) {
-        if (stopped) return
+        if (stopped) return@with
         val start = Timestamp()
-        taskQueue.flush { it.run() }
         simulation.tick()
 
         saveTimers.items.tick()
@@ -132,6 +132,7 @@ class EngineServer(
         tickTimes.add(start.timeElapsed().toInt())
     }
 
+    // dataPrepare
     fun updateGlobals(update: (ServerGlobals) -> ServerGlobals) = execute {
         globals = update(globals)
         chat.onSettingsUpdated(globals.chatSettings)
@@ -143,7 +144,7 @@ class EngineServer(
         player: EnginePlayer,
         notifications: List<Notification> = listOf(),
         engineCharacter: EngineCharacter? = null,
-        characterPersistentRecord: PersistentCharacterRecord? = null,
+        characterPersistentRecord: CharacterData? = null,
     ) = with(player.world) {
         simulation.instantiatePlayer(player, engineCharacter, characterPersistentRecord, platform)
 
@@ -155,24 +156,8 @@ class EngineServer(
         chat.trySendJoinMessage(player)
     }
 
-    fun destroyPlayer(player: EnginePlayer) = with(player.world) {
-        try {
-            simulation.preparePlayerDestroy(player)
-            player.unloadCharacter(platform, playerPersistence)
-            chat.trySendLeaveMessage(player)
-            handler.onPlayerDestroy(player)
-            playerPersistence.save(player.snapshotPersistent())
-        } finally {
-            simulation.destroyPlayer(player)
-        }
-    }
-
     override fun execute(r: Runnable) {
-        if (isOnThread()) {
-            r.run()
-        } else {
-            taskQueue += r
-        }
+        taskQueue += r
     }
 
     fun isOnThread() = Thread.currentThread() == thread

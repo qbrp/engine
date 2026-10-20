@@ -20,6 +20,7 @@ import net.minecraft.world.phys.Vec3
 import org.lain.engine.Constants.GENDER_MOD_AVAILABLE
 import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.Item
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.createItem
 import org.lain.engine.mc.*
@@ -45,6 +46,7 @@ import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.util.Injector
+import org.lain.engine.util.ecs.componentType
 import org.lain.engine.util.file.ServerConfig
 import org.lain.engine.util.file.applyConfigCatching
 import org.lain.engine.util.file.loadOrCreateServerConfig
@@ -167,8 +169,9 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         LOGGER.info("Сохранение чанков")
         engine.chunkPersistence.close()
         LOGGER.info("Сохранение миров")
-        engine.allWorlds().forEach {
-            database.saveWorldSnapshot(it.createSaveSnapshot())
+        engine.allWorlds().forEach { world ->
+            world.cleanupDisconnectedPlayers(engine)
+            database.saveWorldSnapshot(world.createSaveSnapshot(listOf(componentType<Item>())))
         }
         engine.stop()
         MinecraftAccessRegistry.invalidate()
@@ -183,8 +186,10 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
 
     open fun onLeavePlayer(entity: ServerPlayer) {
         engine.handler.closeConnection(entity.engineId)
+
+        // удаление сущности переносится в конец тика
         val player = entity.getEngineState() ?: return
-        engine.destroyPlayer(player)
+        player.world.emitEvent(PlayerDisconnectEvent(player))
         timers.items.activate()
     }
 

@@ -1,13 +1,14 @@
 package org.lain.engine.mc.server
 
 import net.minecraft.server.level.ServerPlayer
+import org.lain.engine.data.tickUnloadSystem
+import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.engineId
-import org.lain.engine.mc.isOp
-import org.lain.engine.mc.ecs.minecraftEntityNullable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Username
 import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.cleanupDisconnectedPlayers
 import org.lain.engine.player.get
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.account.DedicatedEngineAccountService
@@ -16,13 +17,11 @@ import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
 import org.lain.engine.transport.network.ServerNetworkTransport
-import org.lain.engine.transport.network.SessionId
-import java.util.UUID
 
 
 class DedicatedEngineMinecraftServer(
     dependencies: Dependencies,
-    override val connectionManager: ServerConnectionManager = ServerConnectionManager(dependencies.minecraftServer),
+    override val connectionManager: ServerConnectionManager = ServerConnectionManager(),
     override val transportContext: ServerTransportContext = ServerNetworkTransport(
         dependencies.minecraftServer,
         connectionManager
@@ -41,12 +40,12 @@ class DedicatedEngineMinecraftServer(
             if (instantiationConfirmation != null) {
                 instantiationConfirmation.timeout -= 1
                 if (instantiationConfirmation.timeout <= 0) {
-                    val entity = player.minecraftEntityNullable as? ServerPlayer ?: continue
-                    connectionManager.disconnect(
-                        connectionManager.getSession(player.id),
-                        "Время ожидания подтверждения входа в игру истекло"
-                    )
-                    onLeavePlayer(entity)
+                    engine.execute {
+                        connectionManager.disconnect(
+                            connectionManager.getSession(player.id),
+                            "Время ожидания подтверждения входа в игру истекло"
+                        )
+                    }
                 }
             }
         }
@@ -64,24 +63,24 @@ class DedicatedEngineMinecraftServer(
     }
 
     override fun onJoinPlayer(entity: ServerPlayer) {
-        connectionManager.addConnectionSession(
-            ConnectionSession(
-                SessionId(UUID.randomUUID()),
-                Username(entity.name.string),
-                entity.engineId,
-                entity.isOp,
-                entity.connection
+        if (!connectionManager.addConnectionSession(
+                ConnectionSession(
+                    Username(entity.name.string),
+                    entity.engineId,
+                    entity.connection
+                )
             )
-        )
+        ) {
+            entity.connection.disconnect(DisconnectText("Чет дохуя ты разошелся"))
+            return
+        }
         super.onJoinPlayer(entity)
     }
 
     override fun onLeavePlayer(entity: ServerPlayer) {
-        val engineId = entity.engineId
-        connectionManager.getSessionOrNull(engineId)
-            ?.let { authorizationListener.onDisconnect(it.uuid) }
+        val connection = connectionManager.removeConnectionSession(entity.connection) ?: return
+        authorizationListener.onDisconnect(connection)
         super.onLeavePlayer(entity)
-        connectionManager.removeConnectionSession(engineId)
     }
 
     override suspend fun validateCharacter(
