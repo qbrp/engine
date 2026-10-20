@@ -173,6 +173,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             world.cleanupDisconnectedPlayers(engine)
             database.saveWorldSnapshot(world.createSaveSnapshot(listOf(componentType<Item>())))
         }
+        engine.playerPersistence.close()
         engine.stop()
         MinecraftAccessRegistry.invalidate()
         disconnectDatabase(database)
@@ -306,7 +307,6 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
                 entity.enginePlayerMode,
                 developerModeStatus,
                 notifications,
-                entity.ownedItems,
                 entity.position()
             )
         }
@@ -320,21 +320,12 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             playerMode: PlayerMode = PlayerMode.DEFAULT,
             developerModeStatus: DeveloperModeStatus = DeveloperModeStatus(),
             notifications: List<Notification> = mutableListOf(),
-            ownedItems: List<ItemStack> = listOf(),
             position: Vec3 = Vec3(0.0, 0.0, 0.0),
         ): PlayerLoadSettings {
             server.simulation.assertOnThread()
 
             return PlayerLoadSettings(
                 playerId,
-                ownedItems.mapNotNull {
-                    val reference = it.engine()
-                    if (reference?.version != CURRENT_ITEM_VERSION) {
-                        null
-                    } else {
-                        reference.uuid
-                    }
-                },
                 notifications,
                 position.engine(),
                 username.string,

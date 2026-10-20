@@ -1,29 +1,18 @@
 package org.lain.engine.data
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.container.ContainerEntity
-import org.lain.engine.container.OccupiedSlots
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.UsedCharacters
-import org.lain.engine.player.chatHeadsEnabled
-import org.lain.engine.player.customName
-import org.lain.engine.player.get
-import org.lain.engine.player.require
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.Color
 import org.lain.engine.util.LogDiagnosticContext
@@ -33,7 +22,6 @@ import org.lain.engine.util.file.writeTextAtomically
 import org.lain.engine.world.World
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.io.resolve
 
 //TODO: Persistence jobs неупорядочены и не дожидаются shutdown. Player/chunk/world saves пишут напрямую в конечный файл без temp+atomic move; более старый job способен завершиться последним. Shutdown ждёт только отдельный blocking item save. Возможны torn JSON/CBOR и потеря последних изменений. PlayerPersistent.kt:81, ChunksPersistent.kt:52, EngineMinecraftServer.kt:183
 
@@ -74,7 +62,6 @@ data class PersistentPlayerData(
     val voiceApparatus: VoiceApparatus,
     val voiceLoose: VoiceLoose?,
     @SerialName("chat_heads") val chatHeads: Boolean = true,
-    val equipment: Map<EquipmentSlotId, PersistentId> = mapOf(),
     val skinEyeY: Float = 2f,
     val appliedCharacter: CharacterId? = null,
     val usedCharacters: Set<CharacterId>
@@ -84,6 +71,7 @@ data class PersistentCharacterSnapshot(
     val id: CharacterId,
     val look: String,
     val items: SerializedInventory,
+    val equipment: Map<EquipmentSlotId, PersistentId> = mapOf(),
     val components: List<SavingComponentSnapshot>
 )
 
@@ -99,11 +87,13 @@ data class PersistentPlayerRecord(
     val data: PersistentPlayerData,
 )
 
-data class PersistentCharacterRecord(
+data class CharacterData(
     val id: CharacterId,
     val components: MaterializedComponents,
-    val items: SerializedInventory,
+    val inventory: SerializedInventory,
+    val items: Set<EntityId>,
     val look: String,
+    val equipment: Map<EquipmentSlotId, EntityId> = emptyMap(),
 )
 
 fun CharacterDatabasePersistentId(playerId: PlayerId, characterId: CharacterId): PersistentId {
@@ -127,7 +117,6 @@ fun EnginePlayer.snapshotPersistent(): PersistentPlayerSnapshot = with(world) {
             voiceApparatus = require<VoiceApparatus>().copy(),
             voiceLoose = get<VoiceLoose>()?.copy(),
             chatHeads = chatHeadsEnabled,
-            equipment = equipment.mapValues { (_, entity) -> entity.persistentId() },
             skinEyeY = require<EnginePlayerModel>().skinEyeY,
             appliedCharacter = get<AppliedCharacter>()
                 ?.character
@@ -141,13 +130,22 @@ fun EnginePlayer.snapshotPersistent(): PersistentPlayerSnapshot = with(world) {
 
 class PlayerPersistence(server: EngineServer) {
     private val database = server.database
+    private val itemLoader = server.itemLoader
     private val directory = server.globals.savePath.playerData
 
     private val playerMutexes = ConcurrentHashMap<PlayerId, Mutex>()
     private val characterMutexes = ConcurrentHashMap<PersistentId, Mutex>()
 
-    private val job = SupervisorJob()
-    private val scope = CoroutineScope(job + Dispatchers.IO)
+    private val supervisor = SupervisorJob()
+    private val scope = CoroutineScope(supervisor + Dispatchers.IO)
+
+
+    suspend fun close() {
+        withContext(NonCancellable) {
+            supervisor.complete()
+            supervisor.join()
+        }
+    }
 
     fun save(snapshot: PersistentPlayerSnapshot) {
         scope.launch {
@@ -218,34 +216,57 @@ class PlayerPersistence(server: EngineServer) {
     ): EntityId = loadPersistentEntity(playerId, context, diagnostic)
 
     suspend fun loadPersistentCharacter(
+        transactionContext: TransactionContext,
         settings: ComponentReviveSettings,
         playerId: PlayerId,
         characterId: CharacterId,
-    ): PersistentCharacterRecord? = characterMutex(playerId, characterId).withLock {
+    ): CharacterData? = characterMutex(playerId, characterId).withLock {
         val entity = database.loadEntity(CharacterDatabasePersistentId(playerId, characterId)) ?: return null
         val data = entity.data as? EntityPersistenceData.Character ?: run {
             LOGGER.warn(
-                "У персонажа $characterId игрока $playerId отсутствуют сохранённые данные; " +
-                    "персонаж будет создан заново"
+                "У персонажа $characterId игрока $playerId отсутствуют сохранённые данные, " +
+                        "персонаж будет создан заново"
             )
             return null
         }
+
+        val referencedItemIds = data.equipment.values + data.items
+        val referencedItemIdsSet = referencedItemIds.toSet()
+        if (referencedItemIds.size != referencedItemIdsSet.size) {
+            error("Полный набор предметов персонажа $characterId содержит дубликаты")
+        }
+
+        val itemLoadContext = ItemLoadContext.PreparingCharacter(playerId, characterId)
+        val equipment = transactionContext.withChild {
+            data.equipment.mapValues { (_, persistentId) ->
+                itemLoader.loadWorldItem(persistentId, itemLoadContext, it)
+            }
+        }
+        val items = transactionContext.withChild {
+            data.items.mapTo(mutableSetOf()) { persistentId ->
+                itemLoader.loadWorldItem(persistentId, itemLoadContext, it)
+            }
+        }
+
         val components = entity.materialize(settings, EntityResolver.EMPTY)
-        return PersistentCharacterRecord(
+
+        return CharacterData(
             characterId,
             components,
-            data.items,
-            data.look
+            data.inventory,
+            items,
+            data.look,
+            equipment
         )
     }
 
     fun saveCharacter(
-        player: PlayerId,
+        player: EnginePlayer,
         character: PersistentCharacterSnapshot
     ) {
         scope.launch {
-            characterMutex(player, character.id).withLock {
-                saveCharacterSuspend(player, character)
+            characterMutex(player.id, character.id).withLock {
+                saveCharacterSuspend(player.id, character)
             }
         }
     }
@@ -254,18 +275,21 @@ class PlayerPersistence(server: EngineServer) {
         player: PlayerId,
         character: PersistentCharacterSnapshot
     ) {
-        database.saveEntity(
-            EntityDatabaseKind.CHARACTER,
-            EntityPersistentRecord(
-                CharacterDatabasePersistentId(player, character.id),
-                EntityPersistenceData.Character(
-                    character.look,
-                    character.items
-                ),
-                character.components.map { it.serializeToRecord() },
-                emptyList()
+        suspendTransaction {
+            database.saveEntity(
+                EntityDatabaseKind.CHARACTER,
+                EntityPersistentRecord(
+                    CharacterDatabasePersistentId(player, character.id),
+                    EntityPersistenceData.Character(
+                        character.look,
+                        character.items,
+                        character.equipment
+                    ),
+                    character.components.map { it.serializeToRecord() },
+                    emptyList()
+                )
             )
-        )
+        }
     }
 
     private fun playerMutex(playerId: PlayerId) = playerMutexes.computeIfAbsent(playerId) { Mutex() }

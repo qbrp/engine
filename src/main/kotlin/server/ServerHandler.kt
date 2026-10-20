@@ -129,29 +129,43 @@ class ServerHandler(
         val persistence = engineServer.playerPersistence
         val player = getPlayer(playerId) ?: protocolError("Игрок не существует")
         val world = player.world
-        with(world) { player.unloadCharacter(engineServer.platform, persistence) }
+        val platform = engineServer.platform
+
+        val context = engineServer.createTransactionContext(world)
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val eventListener = engineServer.platform
-                val validatedCharacter = eventListener.validateCharacter(
+                val validatedCharacter = platform.validateCharacter(
                     player,
                     characterId,
                     character,
                     sessionTicket
                 )
                 val characterRecord =
-                    persistence.loadPersistentCharacter(world.componentReviveSettings, playerId, characterId)
-                withContext(engineServer.dispatcher) {
-                    engineServer.platform.clearInventory(player)
-                    player.applyCharacter(validatedCharacter, characterRecord, eventListener)
-                    onCharacterApplyConfirmation(player, requestId)
+                    persistence.loadPersistentCharacter(
+                        context, world.componentReviveSettings, playerId, characterId
+                    )
+                // Пока что вполне логично относить применение персонажа к DataPrepare
+                // Во многом это не побочный эффект других механик, а именно источник данных
+                withContext(engineServer.dataPrepareDispatcher) {
+                    val serializedInventory = platform.serializeInventory(player)
+                    try {
+                        player.unloadCharacter(platform, persistence, serializedInventory)
+                        player.applyCharacter(validatedCharacter, characterRecord, platform)
+                        confirmCharacterApply(player, requestId)
+                        context.commit()
+                    } catch (e: Exception) {
+                        platform.openInventory(player, serializedInventory)
+                        throw e
+                    }
                 }
             } catch (e: CancellationException) {
+                context.rollback(e)
                 throw e
             } catch (e: Exception) {
+                context.rollback(e)
                 val message = e.message ?: "Не удалось применить персонажа"
-                withContext(engineServer.dispatcher) {
-                    onCharacterApplyConfirmation(player, requestId, message)
+                withContext(engineServer.dataPrepareDispatcher) {
+                    confirmCharacterApply(player, requestId, message)
                 }
                 e.printStackTrace()
             }
@@ -410,19 +424,7 @@ class ServerHandler(
         )
     }
 
-    context(world: World)
-    fun sendFullPlayerState(player: EnginePlayer, playerToSync: EnginePlayer) {
-        CLIENTBOUND_FULL_PLAYER_ENDPOINT
-            .sendS2C(
-                FullPlayerPacket(
-                    playerToSync.id,
-                    FullPlayerData.of(playerToSync)
-                ),
-                player.id
-            )
-    }
-
-    fun onCharacterApplyConfirmation(
+    private fun confirmCharacterApply(
         player: EnginePlayer,
         requestId: Long,
         errorMessage: String? = null

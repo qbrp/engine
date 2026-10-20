@@ -18,7 +18,7 @@ import org.lain.engine.script.compilation.loadResult
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.ServerPlatform
 import org.lain.engine.server.replication.confirmProcessedPlayerInputsSystem
-import org.lain.engine.data.PersistentCharacterRecord
+import org.lain.engine.data.CharacterData
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.tickRecoilSystem
@@ -120,7 +120,7 @@ class EngineSimulation(
     fun instantiatePlayer(
         player: EnginePlayer,
         engineCharacter: EngineCharacter? = null,
-        characterPersistentCharacter: PersistentCharacterRecord? = null,
+        characterPersistentCharacter: CharacterData? = null,
         platform: ServerPlatform? = null,
     ) = with(player.world) {
         this@EngineSimulation.players.add(player)

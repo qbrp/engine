@@ -1,20 +1,18 @@
 package org.lain.engine.player
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.createContainer
-import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.character.UsedCharacters
 import org.lain.engine.player.character.EngineCharacter
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.server.*
 import org.lain.engine.data.*
+import org.lain.engine.item.EngineItem
 import org.lain.engine.player.character.Look
 import org.lain.engine.player.character.getDisplay
 import org.lain.engine.player.character.getPhysical
@@ -44,10 +42,9 @@ data class PlayerInstantiateSettings(
     val movementStatus: MovementStatus = MovementStatus(),
     val attributes: PlayerAttributes = PlayerAttributes(),
     val developerModeStatus: DeveloperModeStatus,
-    val items: Set<EngineItem> = setOf(),
     val skinEyeY: Float = 0f,
     val replayViewer: Boolean = false,
-    val equipment: Map<EquipmentSlotId, EngineItem>
+    val items: Set<EngineItem> = emptySet()
 )
 
 data class DefaultPlayerAttributes(
@@ -63,8 +60,6 @@ fun commonPlayerInstance(
     settings: PlayerInstantiateSettings,
     id: PlayerId,
     entity: EntityId = settings.world.addEntity(),
-    character: EngineCharacter?,
-    look: Look?
 ): EnginePlayer {
     val pos = settings.pos
     entity
@@ -102,15 +97,6 @@ fun commonPlayerInstance(
             setComponent(settings.mode)
             setComponent(settings.attributes)
             setComponent(CustomPlayerAttributes())
-            character?.let {
-                setCharacterComponents(
-                    character.getPhysical(),
-                    character.getDisplay(),
-                    look ?: character.baseLook,
-                    character
-                )
-            }
-            setComponent(Equipment(settings.equipment.toMutableMap()))
             if (settings.replayViewer) {
                 setComponent(ReplayViewer)
             }
@@ -129,7 +115,7 @@ fun serverPlayerInstance(
     entity: EntityId,
 ): EnginePlayer {
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
-    val player = commonPlayerInstance(settings, id, entity, null, null)
+    val player = commonPlayerInstance(settings, id, entity)
     player.entity.apply {
         setComponent(MessageQueue())
         setComponent(voiceApparatus)
@@ -166,7 +152,6 @@ fun EnginePlayer.prepareContainers(
 
 data class PlayerLoadSettings(
     val playerId: PlayerId,
-    val inventoryItems: List<PersistentId>,
     val notifications: List<Notification>,
     val initialPosition: Pos,
     val username: String,
@@ -187,6 +172,7 @@ class PlayerLoader(
     suspend fun loadPreparing(
         settings: PlayerLoadSettings,
         account: PlayerLoadSettings.Account,
+        beforeCommit: () -> Unit = {},
         onCreated: (EnginePlayer) -> Unit = {},
     ): EnginePlayer = withContext(Dispatchers.IO) {
         if (server.playerStorage.get(settings.playerId) != null) {
@@ -210,38 +196,15 @@ class PlayerLoader(
                 }
             }
 
-            val inventory = transaction.withChild { child ->
-                loadInventoryItems(
-                    child,
-                    settings.inventoryItems,
-                    persistentData?.equipment.orEmpty(),
-                    ItemLoadContext.PreparingPlayer(
-                        playerId,
-                        settings.username,
-                    ),
-                )
-            }
-
-            val player = with(transaction.commands) {
-                serverPlayerInstance(
-                    world,
-                    settings,
-                    inventory,
-                    persistentData,
-                    playerEntity ?: transaction.commands.addEntity(),
-                ).also {
-                    it.prepareContainers(Location(settings.initialPosition))
-                }
-            }
-
             val character = account.character
             val characterId = character?.profile?.id
 
-            val persistentCharacter = if (
+            val loadedCharacter = if (
                 characterId != null &&
                 characterId in persistentData?.usedCharacters.orEmpty()
             ) {
                 persistence.loadPersistentCharacter(
+                    transaction,
                     world.componentReviveSettings,
                     playerId,
                     characterId,
@@ -250,40 +213,68 @@ class PlayerLoader(
                 null
             }
 
-            PreparedPlayer(player, character, persistentCharacter)
+            val player = with(transaction.commands) {
+                serverPlayerInstance(
+                    world,
+                    settings,
+                    persistentData,
+                    loadedCharacter?.items ?: emptySet(),
+                    playerEntity ?: transaction.commands.addEntity(),
+                ).also {
+                    it.prepareContainers(Location(settings.initialPosition))
+                }
+            }
+
+            PreparedPlayer(player, character, loadedCharacter)
         } catch (exception: Throwable) {
             transaction.rollback(exception)
             throw exception
         }
 
-        withContext(server.dispatcher) {
-            transaction.commit()
+        try {
+            withContext(server.dataPrepareDispatcher) {
+                beforeCommit()
+                if (server.playerStorage.get(playerId) != null) {
+                    friendlyError("Игрок уже авторизован")
+                }
 
-            server.instantiatePlayer(
-                prepared.player,
-                settings.notifications,
-                prepared.character,
-                prepared.persistentCharacter,
-            )
+                transaction.commit()
 
-            onCreated(prepared.player)
+                server.instantiatePlayer(
+                    prepared.player,
+                    settings.notifications,
+                    prepared.character,
+                    prepared.persistentCharacter,
+                )
 
-            prepared.player
+                onCreated(prepared.player)
+
+                prepared.player
+            }
+        } catch (exception: Throwable) {
+            if (transaction.state == TransactionState.ACTIVE || transaction.state == TransactionState.CLOSING) {
+                try {
+                    transaction.rollback(exception)
+                } catch (rollbackFailure: Throwable) {
+                    exception.addSuppressed(rollbackFailure)
+                }
+            }
+            throw exception
         }
     }
 
     private data class PreparedPlayer(
         val player: EnginePlayer,
         val character: EngineCharacter?,
-        val persistentCharacter: PersistentCharacterRecord?,
+        val persistentCharacter: CharacterData?,
     )
 
     context(write: WriteComponentAccess)
     private fun serverPlayerInstance(
         world: World,
         settings: PlayerLoadSettings,
-        inventoryItemsLoadResult: InventoryItemsLoadResult,
         persistentPlayerData: PersistentPlayerData?,
+        items: Set<EngineItem>,
         entity: EntityId,
     ): EnginePlayer {
         return serverPlayerInstance(
@@ -301,45 +292,14 @@ class PlayerLoader(
                 ),
                 PlayerAttributes(),
                 settings.developerModeStatus,
-                inventoryItemsLoadResult.inventoryItems.toSet(),
                 persistentPlayerData?.skinEyeY ?: 0f,
                 settings.isReplayViewer,
-                inventoryItemsLoadResult.equipmentItems
+                items
             ),
             persistentPlayerData,
             server.globals.defaultPlayerAttributes,
             settings.playerId,
             entity
         )
-    }
-
-    data class InventoryItemsLoadResult(
-        val inventoryItems: List<EngineItem>,
-        val equipmentItems: Map<EquipmentSlotId, EngineItem>
-    )
-
-    private suspend fun loadInventoryItems(
-        transactionContext: TransactionContext,
-        inventoryItems: List<PersistentId>,
-        equipmentItems: Map<EquipmentSlotId, PersistentId>,
-        itemLoadContext: ItemLoadContext.PreparingPlayer
-    ): InventoryItemsLoadResult = coroutineScope {
-        val itemsJobs = (inventoryItems + equipmentItems.values).associateWith { uuid ->
-            async(Dispatchers.IO) {
-                transactionContext.withChild { childContext ->
-                    itemLoader.loadWorldItem(
-                        uuid,
-                        itemLoadContext,
-                        childContext,
-                    )
-                }
-            }
-        }
-        val items = itemsJobs.mapValues { (_, job) -> job.await() }
-        val inventory = inventoryItems.mapNotNull { items[it] }
-        val equipment = equipmentItems.mapValues { (_, uuid) -> items[uuid]!! }
-        transactionContext.awaitChildren()
-
-        InventoryItemsLoadResult(inventory, equipment)
     }
 }

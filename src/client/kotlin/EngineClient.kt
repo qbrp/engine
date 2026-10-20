@@ -33,12 +33,12 @@ class EngineClient(
     val camera: Camera,
     val chatEventBus: ChatEventBus,
     val audioManager: EngineAudioManager,
-    val infrastructure: ClientPlatform,
+    val platform: ClientPlatform,
     httpClient: EngineHttpClient,
 ) {
     lateinit var options: EngineOptions
     lateinit var thread: Thread
-    val handler = ClientHandler(this, infrastructure)
+    val handler = ClientHandler(this, platform)
     val renderer = ScreenRenderer(this)
     val moduleManager = ModuleManager()
     val resourceManager = ResourceManager(this)

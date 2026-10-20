@@ -11,35 +11,39 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.server.ServerPlatform
-import org.lain.engine.data.PersistentCharacterRecord
+import org.lain.engine.data.CharacterData
 import org.lain.engine.data.PersistentCharacterSnapshot
 import org.lain.engine.data.PlayerPersistence
 import org.lain.engine.data.SavingComponentSnapshot
+import org.lain.engine.data.SerializedInventory
+import org.lain.engine.data.persistentId
 import org.lain.engine.data.snapshot
+import org.lain.engine.player.Equipment
+import org.lain.engine.player.equipment
 import org.lain.engine.player.require
 import org.lain.engine.player.set
-import org.lain.engine.world.World
 import org.lain.engine.world.location
 
 @Serializable
 data class CharacterApplyEvent(val character: EngineCharacter, val playerId: PlayerId) : Component
 
-context(world: World)
 fun EnginePlayer.unloadCharacter(
     platform: ServerPlatform,
     persistence: PlayerPersistence,
-) {
-    val character = entity.getComponent<AppliedCharacter>()?.character ?: return
+    serializedInventory: SerializedInventory? = null
+) = with(world) {
+    val character = entity.getComponent<AppliedCharacter>()?.character ?: return@with
     val snapshot = PersistentCharacterSnapshot(
         character.id,
         entity.requireComponent<SelectedLook>().look.id,
-        platform.serializeInventory(this),
+        serializedInventory ?: platform.serializeInventory(this@unloadCharacter),
+        equipment.mapValues { (_, entity) -> entity.persistentId() },
         listOfNotNull(
             entity.getComponent<CharacterPhysical>()
         )
             .map { SavingComponentSnapshot(it.snapshot(), componentTypeOf(it)) },
     )
-    persistence.saveCharacter(id, snapshot)
+    persistence.saveCharacter(this@unloadCharacter, snapshot)
 }
 
 context(write: WriteComponentAccess)
@@ -47,17 +51,19 @@ fun EntityId.setCharacterComponents(
     physical: CharacterPhysical?,
     display: CharacterDisplay,
     look: Look,
-    character: EngineCharacter
+    character: EngineCharacter,
+    equipment: Equipment
 ) {
     physical?.let { setComponent(it) }
     setComponent(display)
     setComponent(SelectedLook(look))
     setComponent(AppliedCharacter(character))
+    setComponent(equipment)
 }
 
 fun EnginePlayer.applyCharacter(
     character: EngineCharacter,
-    persistent: PersistentCharacterRecord?,
+    persistent: CharacterData?,
     platform: ServerPlatform
 ) {
     val lastLook = persistent?.look?.let { lookId ->
@@ -69,12 +75,14 @@ fun EnginePlayer.applyCharacter(
             if (persistent == null) character.getPhysical() else null,
             character.getDisplay(),
             lastLook ?: character.baseLook,
-            character
+            character,
+            Equipment(persistent?.equipment?.toMutableMap() ?: mutableMapOf())
         )
         persistent?.components?.applyResolved(entity)
     }
 
-    persistent?.items?.let {
+    platform.clearInventory(this)
+    persistent?.inventory?.let {
         platform.openInventory(this, it)
     }
 

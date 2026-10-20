@@ -2,6 +2,7 @@ package org.lain.engine.data
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.util.ecs.EntityRelation
@@ -30,7 +31,9 @@ sealed interface EntityPersistenceData {
     ) : EntityPersistenceData
     data class Character(
         val look: String,
-        val items: SerializedInventory
+        val inventory: SerializedInventory,
+        val equipment: Map<EquipmentSlotId, PersistentId> = emptyMap(),
+        val items: List<PersistentId> = listOf()
     ) : EntityPersistenceData
 }
 

@@ -2,6 +2,7 @@ package org.lain.engine.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.storage.LevelResource
 import org.jetbrains.exposed.v1.core.Table
@@ -13,6 +14,7 @@ import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.lain.engine.player.toEquipmentSlotId
 import org.lain.engine.script.EngineId
 import org.lain.engine.util.ecs.RelationTypeId
 import org.lain.engine.util.ecs.toRelationTypeId
@@ -25,7 +27,7 @@ fun connectDatabase(server: MinecraftServer): Database {
 
 fun connectDatabase(path: String): Database {
     val database = Database.connect("jdbc:sqlite:$path/engine.db")
-    transaction {
+    transaction(database) {
         SchemaUtils.create(
             EntityTable,
             ComponentsTable,
@@ -33,6 +35,9 @@ fun connectDatabase(path: String): Database {
             ItemsTable,
             CharactersTable,
         )
+        SchemaUtils.addMissingColumnsStatements(CharactersTable).forEach { statement ->
+            exec(statement)
+        }
     }
     return database
 }
@@ -85,6 +90,7 @@ object CharactersTable : Table() {
     val uuid = reference("uuid", EntityTable.uuid)
     val look = text("look")
     val items = text("items")
+    val equipment = text("equipment").default("{}")
 
     override val primaryKey = PrimaryKey(uuid)
 }
@@ -162,7 +168,10 @@ suspend fun Database.saveEntitiesBatch(
                 val (entityId, character) = it
                 this[CharactersTable.uuid] = entityId.toString()
                 this[CharactersTable.look] = character.look
-                this[CharactersTable.items] = character.items
+                this[CharactersTable.items] = character.inventory
+                this[CharactersTable.equipment] = Json.encodeToString(
+                    character.equipment.mapKeys { (key, _) -> key.value.full }
+                )
             }
         }
 
@@ -257,6 +266,8 @@ suspend fun Database.loadEntity(id: PersistentId): EntityPersistentRecord? {
                     EntityPersistenceData.Character(
                         it[CharactersTable.look],
                         it[CharactersTable.items],
+                        Json.decodeFromString<Map<String, PersistentId>>(it[CharactersTable.equipment])
+                            .mapKeys { (slotIdRaw, _) -> EngineId(slotIdRaw).toEquipmentSlotId() }
                     )
                 }
             }

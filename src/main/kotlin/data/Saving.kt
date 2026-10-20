@@ -8,12 +8,16 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.cyberia.ecs.*
 import org.lain.engine.container.ContainedIn
 import org.lain.engine.item.Count
+import org.lain.engine.item.EngineItem
 import org.lain.engine.item.HeldBy
 import org.lain.engine.item.Item
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.script.ScriptComponentType
+import org.lain.engine.util.ecs.ComponentState
+import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.World
 import org.slf4j.LoggerFactory
+import kotlin.reflect.KClass
 
 val StorageCoroutineScope = CoroutineScope(Dispatchers.IO.limitedParallelism(4) + SupervisorJob())
 
@@ -91,31 +95,37 @@ data class WorldSaveSnapshot(
     fun isEmpty() = items.isEmpty()
 }
 
-fun World.createSaveSnapshot(): WorldSaveSnapshot {
+context(world: World)
+fun EngineItem.saveSnapshot(
+    state: ComponentState = ComponentState(world.componentManager.getComponents(this)),
+    item: Item = requireComponent(),
+    count: Count = requireComponent()
+) =
+    EntitySnapshot(
+        persistentId(),
+        EntityPersistenceData.Item(
+            item.id.toString().asRawEngineId(),
+            count.value,
+            count.max
+        ),
+        state.entries.map { (type, component) ->
+            SavingComponentSnapshot(
+                component.snapshot(),
+                type
+            )
+        }
+    )
+
+fun World.createSaveSnapshot(
+    filter: List<ComponentType<out Component>> = listOf(componentType<SaveTag>())
+): WorldSaveSnapshot {
     val itemSnapshots = mutableListOf<EntitySnapshot>()
 
-    val filter = listOf(
-        componentTypeOf(SaveTag::class),
-    )
     val entitiesToSave = componentManager.collect(filter) { component -> component.meta.savable }
     entitiesToSave.forEach { (entity, state) ->
         val item = entity.getComponent<Item>()
         if (item != null) {
-            val count = entity.requireComponent<Count>()
-            itemSnapshots += EntitySnapshot(
-                entity.requireComponent<PersistentIdComponent>().id,
-                EntityPersistenceData.Item(
-                    item.id.toString().asRawEngineId(),
-                    count.value,
-                    count.max
-                ),
-                state.entries.map { (type, component) ->
-                    SavingComponentSnapshot(
-                        component.snapshot(),
-                        type
-                    )
-                }
-            )
+            itemSnapshots += entity.saveSnapshot(state, item)
         }
     }
 
@@ -144,11 +154,14 @@ suspend fun Database.saveWorldSnapshot(snapshot: WorldSaveSnapshot) {
             else -> error("Обобщенное сохранение не поддерживается для $data")
         }
     }
-    saveEntitiesBatch(
-        itemEntities,
-        EntityPersistenceDataBatchDto(itemPersistenceData),
-        itemComponentDtos, emptyList()
-    )
+    if (itemEntities.isNotEmpty()) {
+        saveEntitiesBatch(
+            itemEntities,
+            EntityPersistenceDataBatchDto(itemPersistenceData),
+            itemComponentDtos, emptyList()
+        )
+        LOGGER.info("Сохранено ${snapshot.size} сущностей")
+    }
 }
 
 //TODO: сделать разделение для разных миров
@@ -173,7 +186,7 @@ fun tickSaveSystem(server: EngineMinecraftServer) {
                     server.engine.entityCoordinator.finishEntityUnload(handle)
                     destroyed++
                 }
-                LOGGER.info("Сохранено ${snapshot.size} сущностей. Выгружено $destroyed сущностей")
+                LOGGER.info("Выгружено $destroyed сущностей")
             }
         }
     }

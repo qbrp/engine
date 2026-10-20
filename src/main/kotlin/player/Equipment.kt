@@ -34,7 +34,7 @@ data class Equipment(val slots: MutableMap<EquipmentSlotId, EntityId>) : Compone
 }
 
 val EnginePlayer.equipment
-    get() = require<Equipment>().slots
+    get() = get<Equipment>()?.slots ?: emptyMap()
 
 
 @Serializable

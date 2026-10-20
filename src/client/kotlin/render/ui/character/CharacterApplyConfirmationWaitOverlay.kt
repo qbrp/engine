@@ -12,6 +12,9 @@ import kotlinx.coroutines.withTimeout
 import net.minecraft.client.gui.GuiGraphics
 import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.render.WARNING
+import org.lain.engine.player.narration
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.easeInOutCubic
 import java.util.concurrent.atomic.AtomicReference
@@ -50,9 +53,17 @@ class CharacterApplyConfirmationWaitOverlay(
             throw e
         } catch (e: Exception) {
             close()
+            characterSelection.client.showNotification(
+                LittleNotification(
+                    "Не удалось применить персонажа",
+                    "Свяжитесь с администратором",
+                    Color.RED,
+                    WARNING,
+                )
+            )
             return@launch
         }
-        delay(250)
+        delay(250.milliseconds)
         val fadeOut = State.FadeOut()
         state.set(fadeOut)
         fadeOut.deferred.await()

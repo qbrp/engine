@@ -7,6 +7,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.createInvalidItem
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.character.CharacterId
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.LogDiagnosticContext
 import org.lain.engine.util.append
@@ -16,19 +17,19 @@ import org.lain.engine.util.math.Pos
 sealed class ItemLoadContext {
     abstract fun logContext(context: LogDiagnosticContext = LogDiagnosticContext()): LogDiagnosticContext
 
-    data class PreparingPlayer(val playerId: PlayerId, val name: String) : ItemLoadContext() {
-        override fun logContext(context: LogDiagnosticContext) = context.append(
-            "context" to "preparing_player",
-            "player_id" to playerId.toString(),
-            "player_name" to name
-        )
-    }
-
     data class FromInventory(val player: PlayerId?, val voxelPos: Pos?) : ItemLoadContext() {
         override fun logContext(context: LogDiagnosticContext) = context.append(
             "context" to "from_inventory",
             "player_id" to player.toString(),
             "voxel_pos" to voxelPos.toString()
+        )
+    }
+
+    data class PreparingCharacter(val playerId: PlayerId, val characterId: CharacterId) : ItemLoadContext() {
+        override fun logContext(context: LogDiagnosticContext): LogDiagnosticContext = context.append(
+            "context" to "preparing_character",
+            "player_id" to playerId.toString(),
+            "character_id" to characterId.toString()
         )
     }
 }

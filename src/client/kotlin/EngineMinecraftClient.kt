@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.renderer.entity.player.PlayerRenderer
 import org.lain.engine.client.handler.GameSessionJoinFlow
@@ -229,14 +228,16 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     fun onDisconnect() {
         IntegratedEngineMinecraftServer.serverStartFail = null
         engine.stopJoinFlow()
-        if (engine.gameSession == null) return
+        val gameSession = engine.gameSession ?: return
 
         engine.leaveGameSession()
         decalSystem.unload()
         lightSystem.invalidate()
 
         MinecraftChat.clearChatData()
-        MinecraftAccessRegistry.invalidate()
+        if (gameSession.joinType == GameSessionJoinFlow.JoinType.Multiplayer) {
+            MinecraftAccessRegistry.invalidate()
+        }
         itemGroup.invalidate()
 
         readyToAuthorize = false

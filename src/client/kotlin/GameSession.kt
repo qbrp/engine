@@ -1,7 +1,5 @@
 package org.lain.engine.client
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
@@ -54,9 +52,10 @@ class GameSession(
     val client: EngineClient,
     val compilation: ClientCompilation,
     build: Build,
+    val joinType: GameSessionJoinFlow.JoinType,
     val hintState: ClientHintState = ClientHintState(),
 ) : EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
-    private val systems: ClientPlatform.TickExtension = client.infrastructure.tickExtension
+    private val systems: ClientPlatform.TickExtension = client.platform.tickExtension
     val luaContext = compilation.luaContext
     val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
     val playerStorage = PlayerStorage()
@@ -139,7 +138,7 @@ class GameSession(
 
         instantiatePlayer(mainPlayer)
 
-        client.infrastructure.onMainPlayerInstantiated(client, this, mainPlayer)
+        client.platform.onMainPlayerInstantiated(client, this, mainPlayer)
         setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
         chatManager.updateSettings(setup.settings.chat)
 
@@ -147,7 +146,10 @@ class GameSession(
             client.showSpectatingNotification()
         }
 
-        player.character?.let { this.world.emitEvent(CharacterApplyEvent(it, mainPlayer.id)) }
+        replicationController.seed(player.replicationSnapshot)
+
+        // в ServerPlayerData
+        this.world.emitEvent(CharacterApplyEvent(mainPlayer.require<AppliedCharacter>().character, mainPlayer.id))
     }
 
     fun logInMainThread(loggerGetter: context(World) GameSession.(tick: Long) -> Log) {
@@ -170,7 +172,7 @@ class GameSession(
         luaContext.setupClientGameSession(this)
         client.audioManager.invalidateCache()
         inventoryTab = build.inventoryTab
-        client.infrastructure.onCompiled(this, build.inventoryTab)
+        client.platform.onCompiled(this, build.inventoryTab)
     }
 
     fun recompile() {
@@ -221,7 +223,7 @@ class GameSession(
 
         updateVoxelEvents(null)
         handleHintEvents()
-        client.infrastructure.getHitResultVoxelPos()?.let {
+        client.platform.getHitResultVoxelPos()?.let {
             updateInspectionMode(inspection, inspectionMode, it)
         }
 
@@ -238,13 +240,13 @@ class GameSession(
         if (entityOwner === player) {
             simulation.preparePlayerDestroy(player)
             simulation.destroyPlayer(player)
-        } else {
+        } else { // эта ветка особо не нужна
             playerStorage.remove(player)
             world.players -= player
             player.destroyed = true
             LOGGER.warn("Player ${player.id} ECS entity was already destroyed before PlayerDestroyPacket")
         }
-        client.infrastructure.onPlayerDestroy(client, player.id)
+        client.platform.onPlayerDestroy(client, player.id)
         skinSystem.removePlayerFromCache(player.id)
     }
 
@@ -257,13 +259,12 @@ class GameSession(
         }
 
         simulation.tick()
-
         endTickTaskExecutor.flush()
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
         world.chunkStorage.setChunk(pos, chunk)
-        client.infrastructure.onChunkLoad(pos, chunk)
+        client.platform.onChunkLoad(pos, chunk)
     }
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {
@@ -299,7 +300,6 @@ class GameSession(
         characterChange?.cancel()
         characterChange = null
         replicationController.close()
-        sessionScope.cancel()
         client.renderer.invalidate()
         handler.close()
         client.skinTextureManager.close()

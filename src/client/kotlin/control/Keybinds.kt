@@ -152,5 +152,5 @@ val OPEN_WORKSPACE = KeybindSettings(
     name = "Открыть рабочий стол",
     id = KeybindId("open_workspace"),
     key = InputConstants.KEY_APOSTROPHE,
-    onPress = { client -> client.gameSession?.let { client.infrastructure.onWorkspaceMenuOpen(it) } }
+    onPress = { client -> client.gameSession?.let { client.platform.onWorkspaceMenuOpen(it) } }
 )
