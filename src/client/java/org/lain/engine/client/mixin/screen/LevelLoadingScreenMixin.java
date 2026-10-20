@@ -26,6 +26,9 @@ public abstract class LevelLoadingScreenMixin {
     private static final Component ENGINE_COMPILATION_TEXT = Component.literal("Компиляция ресурсов...");
 
     @Unique
+    private static final Component ENGINE_GAME_LOADING_TEXT = Component.literal("Создание игровой сессии...");
+
+    @Unique
     private static final Component ENGINE_CHARACTER_LOAD_TEXT = Component.literal("Загрузка персонажей...");
 
     @Shadow
@@ -74,6 +77,7 @@ public abstract class LevelLoadingScreenMixin {
             case AUTHORIZATION -> ENGINE_AUTHORIZATION_TEXT;
             case CHARACTER_LOAD -> ENGINE_CHARACTER_LOAD_TEXT;
             case COMPILATION -> ENGINE_COMPILATION_TEXT;
+            case GAME_LOADING -> ENGINE_GAME_LOADING_TEXT;
             default -> Component.literal("Загрузка...");
         };
         guiGraphics.drawCenteredString(font, stateText, x, y, color);

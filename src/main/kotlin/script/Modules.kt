@@ -59,7 +59,7 @@ class ModuleManager {
     var modules: Modules = Modules(emptyMap())
         private set
 
-    fun composeModules(): Modules {
+    fun composeModules(): Modules = synchronized(modules) {
         return findModuleFiles()
             .withSet(
                 Yaml.default

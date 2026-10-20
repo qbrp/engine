@@ -19,7 +19,7 @@ import java.io.File
 
 open class LuaScriptEngine(
     val dependencies: Dependencies,
-    val entrypoint: ScriptSource
+    val entrypoint: ScriptSource,
 ) : ScriptEngine {
     init {
         require(entrypoint.exists()) { "Входной скрипт сервера по директроии $entrypoint не найден" }

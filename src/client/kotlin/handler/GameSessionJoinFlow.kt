@@ -10,22 +10,16 @@ import org.lain.engine.client.script.ClientLuaScriptEngine
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.commands.friendlyError
-import org.lain.engine.server.account.HttpStatusException
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.script.*
 import org.lain.engine.script.compilation.Build
-import org.lain.engine.script.FileScriptSource
-import org.lain.engine.script.NamespaceHashMap
-import org.lain.engine.script.NamespaceHashMapValidationResult
-import org.lain.engine.script.NamespacedStorage
-import org.lain.engine.script.NamespacedStorageAccess
-import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.script.compilation.loadResult
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
+import org.lain.engine.server.account.HttpStatusException
 import org.lain.engine.transport.packet.ConfirmationPacket
 import org.lain.engine.transport.packet.GeneralServerData
 import org.lain.engine.transport.packet.JoinGamePacket
@@ -38,7 +32,7 @@ class GameSessionJoinFlow(
     private val handler: ClientHandler
 ) {
     private val accountManager = client.accountManager
-    private val platform = client.infrastructure
+    private val platform = client.platform
     private val characterSelection = CharacterSelection(client)
     private val joinGamePacketConfirmation = CompletableDeferred<JoinGamePacket>()
 
@@ -51,12 +45,12 @@ class GameSessionJoinFlow(
         private set
 
     val canCloseLevelLoadingScreen
-        get() = state == State.CHARACTER_SELECTION || state == State.DONE
+        get() = state == State.CHARACTER_SELECTION || (state == State.DONE && client.gameSession?.ticks?.let { it > 2 } == true)
 
     private suspend fun handshake(): ServerData = when (joinType) {
         is JoinType.Multiplayer -> {
             val deferred = deferVerificationState()
-            handler.sendAuthPacket(client.infrastructure.modIds)
+            handler.sendAuthPacket(client.platform.modIds)
             deferred.await()
                 .let { packet ->
                     ServerData(
@@ -137,15 +131,13 @@ class GameSessionJoinFlow(
         }
     }
 
-    private suspend fun compileResources(verificationNamespaceHashMap: NamespaceHashMap?): ResourceCompilationResult {
+    private fun compileResources(verificationNamespaceHashMap: NamespaceHashMap?): ResourceCompilationResult {
         val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
         val luaContext = createLuaContext(namespacedStorage)
         val compilation = ClientCompilation(luaContext, client)
-        val compilationResult = withClientContext {
-            val build = compilation.compileScriptsOrThrow()
-            namespacedStorage.loadResult(build)
-            build
-        }
+
+        val compilationResult = compilation.compileScriptsOrThrow()
+        namespacedStorage.loadResult(compilationResult)
 
         val namespaceHashMap = namespacedStorage.get().namespaceHashMap
         if (verificationNamespaceHashMap != null) {
@@ -178,12 +170,11 @@ class GameSessionJoinFlow(
 
             val selectedCharacter = computePlayCharacter(server.id)
 
-            state = State.AUTHORIZATION
+            state = State.GAME_LOADING
             val (serverPlayerData, worldData, setupData, notifications) = acknowledge(
                 namespaceHashMap,
                 selectedCharacter
             )
-            state = State.DONE
             withClientContext {
                 val gameSession = GameSession(
                     joinType == JoinType.Multiplayer,
@@ -195,6 +186,7 @@ class GameSessionJoinFlow(
                     client,
                     compilation,
                     compilationResult,
+                    joinType,
                 )
 
                 client.joinGameSession(gameSession)
@@ -215,7 +207,7 @@ class GameSessionJoinFlow(
             characterSelection.cancel()
             joinGamePacketConfirmation.cancel()
             withClientContext {
-                client.infrastructure.disconnect(
+                client.platform.disconnect(
                     if (exception is HttpStatusException) {
                         "${exception.statusCode}: ${exception.serializeApiError().message}"
                     } else if (exception is CompilationFailedException) {
@@ -240,7 +232,9 @@ class GameSessionJoinFlow(
                 namespacedStorage,
                 client.luaDataStorage,
                 client.moduleManager,
-                FileSystem.scripts.path,
+                scriptsPath = FileSystem.scripts.path,
+                compilationManifestFile =
+                    FileSystem.clientCompilationManifestFile(FileSystem.scripts),
             )
         ).also { it.setup() }
     }
@@ -263,7 +257,7 @@ class GameSessionJoinFlow(
     }
 
     enum class State {
-        AUTHORIZATION, COMPILATION, CHARACTER_LOAD, CHARACTER_SELECTION, DONE
+        AUTHORIZATION, COMPILATION, CHARACTER_LOAD, CHARACTER_SELECTION, GAME_LOADING, DONE
     }
 
     sealed class JoinType(val isReplay: Boolean) {
