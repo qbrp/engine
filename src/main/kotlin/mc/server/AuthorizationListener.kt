@@ -1,13 +1,15 @@
 package org.lain.engine.mc.server
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.Constants
+import org.lain.engine.mc.commands.FriendlyException
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.mc.getPlayer
 import org.lain.engine.mc.hasPermission
@@ -21,9 +23,9 @@ import org.lain.engine.script.NamespaceHashMapValidationResult
 import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.Notification
 import org.lain.engine.server.account.DedicatedEngineAccountService
+import org.lain.engine.transport.network.ConnectionAuthorization
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
-import org.lain.engine.transport.network.SessionId
 import org.lain.engine.transport.packet.CLIENTBOUND_VERIFICATION_ENDPOINT
 import org.lain.engine.transport.packet.GeneralServerData
 import org.lain.engine.transport.packet.SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT
@@ -36,8 +38,7 @@ class AuthorizationListener(
     private val accountService: DedicatedEngineAccountService
 ) {
     private val supervisorJob = SupervisorJob()
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + supervisorJob)
-    private val authorizationJobs = AwaitingResponseJobs<SessionId, VerificationResponsePacket>(coroutineScope)
+    private val coroutineScope = CoroutineScope(server.engine.dataPrepareDispatcher + supervisorJob)
 
     fun run() {
         SERVERBOUND_AUTH_ENDPOINT.registerReceiver { ctx ->
@@ -52,18 +53,18 @@ class AuthorizationListener(
         }
     }
 
-    fun onDisconnect(sessionId: SessionId) {
-        authorizationJobs.cancel(sessionId)
+    fun onDisconnect(connection: ConnectionSession) {
+        connection.cancelAuthorization()
     }
 
     fun stop() {
-        authorizationJobs.cancelAll()
+        connectionManager.iterateSessions().forEach { it.cancelAuthorization() }
         supervisorJob.cancel()
     }
 
     private fun onAuth(packet: AuthPacket, entity: ServerPlayer, id: PlayerId) {
         val connection = connectionManager.getSession(id)
-        if (authorizationJobs.isPending(connection.uuid)) {
+        if (connection.authorization != null) {
             friendlyError("Авторизация игрока уже выполняется")
         }
         if (server.engine.playerStorage.get(id) != null) {
@@ -91,22 +92,29 @@ class AuthorizationListener(
                 "<bold>Вы были исключены с сервера из-за мода на мини-карту</bold><newline>$MINIMAP_WARNING"
             )
         }
-        connection.mods = mods.toSet()
 
         val verificationData = GeneralServerData(
             engine.globals.serverId,
             engine.globals.requireIdenticalNamespaces,
             engine.namespacedStorage.get().namespaceHashMap,
         )
-        val job = authorizationJobs.start(connection.uuid) { verificationResponse ->
-            runAuthorization(connection, verificationData, verificationResponse)
+        val verificationResponse = CompletableDeferred<VerificationResponsePacket>()
+        val job = coroutineScope.launch(start = CoroutineStart.LAZY) {
+            runAuthorization(connection, verificationData, mods.toSet(), verificationResponse)
         }
-        if (job == null) friendlyError("Авторизация игрока уже выполняется")
+        val authorization = ConnectionAuthorization(verificationResponse, job)
+        connection.authorization = authorization
+        job.invokeOnCompletion {
+            if (connection.authorization === authorization) {
+                connection.authorization = null
+            }
+        }
+        job.start()
     }
 
     private fun onVerificationResponse(packet: VerificationResponsePacket, playerId: PlayerId) {
         val connection = connectionManager.getSession(playerId)
-        if (!authorizationJobs.complete(connection.uuid, packet)) {
+        if (connection.authorization?.complete(packet) != true) {
             friendlyError("Ответ верификации получен до начала авторизации или повторно")
         }
     }
@@ -114,6 +122,7 @@ class AuthorizationListener(
     private suspend fun runAuthorization(
         connection: ConnectionSession,
         verificationData: GeneralServerData,
+        mods: Set<String>,
         verificationResponse: Deferred<VerificationResponsePacket>,
     ) {
         try {
@@ -121,14 +130,15 @@ class AuthorizationListener(
                 VerificationDataPacket(verificationData),
                 connection.playerId,
             )
-            finishAuthorization(connection, verificationData, verificationResponse.await())
+            finishAuthorization(connection, verificationData, mods, verificationResponse.await())
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Throwable) {
-            withContext(server.engine.dispatcher) {
-                val currentSession = connectionManager.getSessionOrNull(connection.playerId)
-                if (currentSession?.uuid == connection.uuid) {
-                    connectionManager.disconnect(connection.playerId, e)
+        } catch (e: Exception) {
+            val currentSession = connectionManager.getSessionOrNull(connection.playerId)
+            if (currentSession === connection) {
+                connectionManager.disconnect(connection, e)
+                if (e !is FriendlyException) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -137,38 +147,37 @@ class AuthorizationListener(
     private suspend fun finishAuthorization(
         connection: ConnectionSession,
         verificationData: GeneralServerData,
+        mods: Set<String>,
         response: VerificationResponsePacket,
     ) {
         val engine = server.engine
-        val settings = withContext(engine.dispatcher) {
-            requireCurrentSession(connection)
-            val entity = server.minecraftServer.getPlayer(connection.playerId)
-                ?: throw CancellationException("Игрок покинул сервер во время авторизации")
+        requireCurrentSession(connection)
+        val entity = server.minecraftServer.getPlayer(connection.playerId)
+            ?: throw CancellationException("Игрок покинул сервер во время авторизации")
 
-            if (verificationData.requireIdenticalNamespaces) {
-                val validationResult = validateNamespaceHashMap(
-                    response.namespaces,
-                    verificationData.namespaceHashMap,
-                )
-                if (validationResult is NamespaceHashMapValidationResult.Error) {
-                    friendlyError(validationResult.computeErrorMessage())
-                }
-            }
-
-            val notifications = mutableListOf<Notification>()
-            if (connection.mods.contains("freecam")) {
-                notifyOperators("Freecam", connection.username)
-                notifications += Notification.FREECAM
-            }
-
-            EngineMinecraftServer.serverMinecraftPlayerLoadSettings(
-                engine,
-                entity,
-                connection.playerId,
-                response.developerModeStatus,
-                notifications,
+        if (verificationData.requireIdenticalNamespaces) {
+            val validationResult = validateNamespaceHashMap(
+                response.namespaces,
+                verificationData.namespaceHashMap,
             )
+            if (validationResult is NamespaceHashMapValidationResult.Error) {
+                friendlyError(validationResult.computeErrorMessage())
+            }
         }
+
+        val notifications = mutableListOf<Notification>()
+        if (mods.contains("freecam")) {
+            notifyOperators("Freecam", connection.username)
+            notifications += Notification.FREECAM
+        }
+
+        val settings = EngineMinecraftServer.serverMinecraftPlayerLoadSettings(
+            engine,
+            entity,
+            connection.playerId,
+            response.developerModeStatus,
+            notifications,
+        )
 
         val account = accountService
             .getAuthorized(response.sessionTicket.map())
@@ -179,24 +188,24 @@ class AuthorizationListener(
             characterData.map()
         }
 
-        withContext(engine.dispatcher) {
-            requireCurrentSession(connection)
-            if (engine.playerStorage.get(connection.playerId) != null) {
-                friendlyError("Игрок уже авторизован")
-            }
-        }
         engine.playerLoader.loadPreparing(
             settings = settings,
             account = PlayerLoadSettings.Account(character),
+            beforeCommit = { requireCurrentSession(connection) },
             onCreated = { connection.player = it }
         )
     }
 
     private fun requireCurrentSession(connection: ConnectionSession) {
         val currentSession = connectionManager.getSessionOrNull(connection.playerId)
-        if (currentSession?.uuid != connection.uuid) {
+        if (currentSession !== connection) {
             throw CancellationException("Сессия игрока изменилась во время авторизации")
         }
+    }
+
+    private fun ConnectionSession.cancelAuthorization() {
+        authorization?.cancel()
+        authorization = null
     }
 
     internal fun notifyOperators(id: String, username: Username) {
