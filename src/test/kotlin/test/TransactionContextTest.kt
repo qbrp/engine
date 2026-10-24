@@ -2,6 +2,7 @@ package org.lain.engine.test
 
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -49,6 +50,89 @@ class TransactionContextTest : EngineTest() {
     fun teardown() {
         runBlocking { server.chunkPersistence.close() }
         server.chat.close()
+    }
+
+    @Test
+    fun commitAndRollbackRunOnlyTheirHooks() {
+        val committed = server.createTransactionContext(world)
+        val commitCalls = mutableListOf<String>()
+        committed.afterCommit { commitCalls += "first" }
+        committed.afterRollback { commitCalls += "rollback" }
+        committed.afterCommit { commitCalls += "second" }
+
+        committed.commit()
+
+        assertEquals(listOf("first", "second"), commitCalls)
+
+        val rolledBack = server.createTransactionContext(world)
+        val rollbackCalls = mutableListOf<String>()
+        rolledBack.afterRollback { rollbackCalls += "first" }
+        rolledBack.afterCommit { rollbackCalls += "commit" }
+        rolledBack.afterRollback { rollbackCalls += "second" }
+
+        rolledBack.rollback(RuntimeException("test rollback"))
+
+        assertEquals(listOf("second", "first"), rollbackCalls)
+    }
+
+    @Test
+    fun childHooksWaitForRootOutcome() {
+        val committed = server.createTransactionContext(world)
+        val commitCalls = mutableListOf<String>()
+        committed.child().apply {
+            afterCommit { commitCalls += "commit" }
+            afterRollback { commitCalls += "rollback" }
+            commit()
+        }
+
+        assertTrue(commitCalls.isEmpty())
+        committed.commit()
+        assertEquals(listOf("commit"), commitCalls)
+
+        val rolledBack = server.createTransactionContext(world)
+        val rollbackCalls = mutableListOf<String>()
+        rolledBack.child().apply {
+            afterCommit { rollbackCalls += "commit" }
+            afterRollback { rollbackCalls += "rollback" }
+            commit()
+        }
+
+        assertTrue(rollbackCalls.isEmpty())
+        rolledBack.rollback(RuntimeException("test rollback"))
+        assertEquals(listOf("rollback"), rollbackCalls)
+    }
+
+    @Test
+    fun commitHookFailureDoesNotSkipLaterHooks() {
+        val transaction = server.createTransactionContext(world)
+        val expectedFailure = RuntimeException("commit hook failed")
+        var laterHookRan = false
+        transaction.afterCommit { throw expectedFailure }
+        transaction.afterCommit { laterHookRan = true }
+
+        val actualFailure = assertThrows(RuntimeException::class.java) {
+            transaction.commit()
+        }
+
+        assertSame(expectedFailure, actualFailure)
+        assertTrue(laterHookRan)
+        assertSame(TransactionState.COMMITTED, transaction.state)
+    }
+
+    @Test
+    fun rollbackIfActivePreservesTheOriginalFailure() {
+        val transaction = server.createTransactionContext(world)
+        val originalFailure = RuntimeException("operation failed")
+        val rollbackFailure = RuntimeException("rollback hook failed")
+        transaction.afterRollback { throw rollbackFailure }
+
+        transaction.rollbackIfActive(originalFailure)
+
+        assertSame(TransactionState.ROLLED_BACK, transaction.state)
+        assertEquals(listOf(rollbackFailure), originalFailure.suppressed.toList())
+
+        transaction.rollbackIfActive(originalFailure)
+        assertEquals(listOf(rollbackFailure), originalFailure.suppressed.toList())
     }
 
     @Test
@@ -131,6 +215,8 @@ class TransactionContextTest : EngineTest() {
         coordinator.registerEntity(world, existingId, existingEntity)
 
         val transaction = server.createTransactionContext(world)
+        var rollbackHookRan = false
+        transaction.afterRollback { rollbackHookRan = true }
         val existingLease = assertInstanceOf(
             AcquireResult.Leased::class.java,
             coordinator.acquire(world, existingId),
@@ -170,9 +256,11 @@ class TransactionContextTest : EngineTest() {
 
         assertSame(expectedFailure, actualFailure)
         assertSame(TransactionState.COMMIT_FAILED, transaction.state)
+        server.update()
         assertFalse(world.componentManager.exists(loadedEntity))
         assertFalse(world.componentManager.exists(preparedEntity))
         assertNull(world.persistentIdToEntity[loadedId])
+        assertTrue(rollbackHookRan)
 
         val retry = assertInstanceOf(
             AcquireResult.Acquired::class.java,

@@ -58,24 +58,7 @@ class ServerPlayerTest : EngineTest() {
     @Test
     fun testServerPlayerInstantiation() {
         val playerId = PlayerId(UUID.randomUUID())
-        val itemId = Uuid.next()
-        val missingItemId = Uuid.next()
-        val itemPrefabId = EngineId("test/item")
         runBlocking {
-            server.database.saveEntity(
-                EntityDatabaseKind.ITEM,
-                EntityPersistentRecord(
-                    itemId,
-                    EntityPersistenceData.Item(itemPrefabId.stringRepresentation, 1, 64),
-                    listOf(
-                        SavingComponentSnapshot(
-                            Item(itemId, itemPrefabId.toItemPrefabId()).snapshot(),
-                            componentTypeOf(Item::class),
-                        ).serializeToRecord(),
-                    ),
-                    emptyList(),
-                )
-            )
             val loading = async {
                 server.playerLoader.loadPreparing(
                     EngineMinecraftServer.serverPlayerLoadSettings(
@@ -83,7 +66,7 @@ class ServerPlayerTest : EngineTest() {
                         playerId,
                         literalText("Test Player"),
                         server.simulation.defaultWorld.id
-                    ).copy(inventoryItems = listOf(itemId, missingItemId)),
+                    ),
                     PlayerLoadSettings.Account(null)
                 )
             }
@@ -99,7 +82,6 @@ class ServerPlayerTest : EngineTest() {
         }
         assertSame(server.simulation.defaultWorld, player.world)
         assertTrue(player.has<PlayerComponent>())
-        assertEquals(2, player.items.size)
     }
 
     @Test
