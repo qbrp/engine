@@ -35,6 +35,8 @@
     "render.GameRendererMixin",
     "render.GlyphRenderTypesMixin",
     "render.HumanoidModelMixin",
+    "render.ItemEntityRendererMixin",
+    "render.ItemFrameRendererMixin",
     "render.ItemModelManagerMixin",
     "render.ItemRendererMixin",
     "render.LivingEntityRendererMixin",

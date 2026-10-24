@@ -20,6 +20,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.client.render.getSkin
+import org.lain.engine.client.render.item.TransformationRenderInstance
 import org.lain.engine.client.render.item.resolveTooltip
 import org.lain.engine.client.render.player.RenderStateComponent
 import org.lain.engine.client.render.player.modelPartOf
@@ -52,6 +53,7 @@ object ClientMixin {
     private val client by injectClient()
     private val minecraftClient by injectMinecraftClient()
     private val mainPlayer get() = client.gameSession?.mainPlayer
+    private val transformationRenderInstances = ArrayDeque<TransformationRenderInstance>()
     private var mainPlayerHearing: Hearing? = null
     var chatClipboardCopyTicksElapsed = 0
     var takeOffEquipPressed = false
@@ -84,7 +86,24 @@ object ClientMixin {
         chatClipboardCopyTicksElapsed += 1
     }
 
-    fun onSetWorldProjectionMatrix() {}
+    fun onSetWorldProjectionMatrix() {
+        transformationRenderInstances.clear()
+    }
+
+    fun pushTransformationRenderInstance(instance: TransformationRenderInstance) {
+        transformationRenderInstances.addLast(instance)
+    }
+
+    fun pushEntityTransformationRenderInstance(entityId: UUID) {
+        pushTransformationRenderInstance(TransformationRenderInstance.Entity(entityId))
+    }
+
+    fun popTransformationRenderInstance() {
+        transformationRenderInstances.pollLast()
+    }
+
+    private fun transformationRenderInstance(itemStack: ItemStack): TransformationRenderInstance =
+        transformationRenderInstances.peekLast() ?: TransformationRenderInstance.Stack(itemStack)
 
     fun onBeforeRenderItem(
         itemStack: ItemStack,
@@ -101,6 +120,7 @@ object ClientMixin {
             projection,
             view,
             parent,
+            transformationRenderInstance(itemStack),
         )
     }
 
@@ -115,6 +135,7 @@ object ClientMixin {
             displayContext,
             leftHand,
             model,
+            transformationRenderInstance(itemStack),
         )
     }
 
@@ -124,11 +145,21 @@ object ClientMixin {
         view: Matrix4f,
         parent: Matrix4f,
     ) {
-        client.gameSession?.transformationEdit?.beginOutfitRender(itemStack, projection, view, parent)
+        client.gameSession?.transformationEdit?.beginOutfitRender(
+            itemStack,
+            projection,
+            view,
+            parent,
+            transformationRenderInstance(itemStack),
+        )
     }
 
     fun onAfterRenderOutfit(itemStack: ItemStack, model: Matrix4f) {
-        client.gameSession?.transformationEdit?.endOutfitRender(itemStack, model)
+        client.gameSession?.transformationEdit?.endOutfitRender(
+            itemStack,
+            model,
+            transformationRenderInstance(itemStack),
+        )
     }
 
     fun getTooltip(engineItem: EngineItem, advanced: Boolean): List<String> {

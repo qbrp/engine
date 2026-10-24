@@ -26,35 +26,45 @@ fun renderEngineItem(
     overlay: Int,
     level: Level? = null,
     entity: LivingEntity? = null,
-    seed: Int = 0
+    seed: Int = 0,
+    renderInstance: TransformationRenderInstance? = null,
 ) {
     val model = getEngineItemModel(stack) ?: return
-    poseStack.pushPose()
-    if (displayContext == EngineItemDisplayContext.OUTFIT) {
-        val engineModel = model as? MeshModel
-        val modelId = stack.get(ENGINE_ITEM_MODEL_COMPONENT)
-        val transformation = modelId
-            ?.let(AdditionalTransformationsBank::get)
-            ?.outfit
-            ?: engineModel?.engineTransform?.outfit
-        ClientMixin.onBeforeRenderOutfit(
-            stack,
-            RenderSystem.getProjectionMatrix(),
-            RenderSystem.getModelViewMatrix(),
-            poseStack.last().pose(),
-        )
-        transformation?.minecraft()?.apply(false, poseStack)
-        ClientMixin.onAfterRenderOutfit(stack, poseStack.last().pose())
+    if (renderInstance != null) {
+        ClientMixin.pushTransformationRenderInstance(renderInstance)
     }
-    MinecraftClient.itemRenderer.render(
-        stack,
-        displayContext.minecraft,
-        false,
-        poseStack,
-        buffers,
-        light,
-        overlay,
-        model
-    )
-    poseStack.popPose()
+    try {
+        poseStack.pushPose()
+        if (displayContext == EngineItemDisplayContext.OUTFIT) {
+            val engineModel = model as? MeshModel
+            val modelId = stack.get(ENGINE_ITEM_MODEL_COMPONENT)
+            val transformation = modelId
+                ?.let(AdditionalTransformationsBank::get)
+                ?.outfit
+                ?: engineModel?.engineTransform?.outfit
+            ClientMixin.onBeforeRenderOutfit(
+                stack,
+                RenderSystem.getProjectionMatrix(),
+                RenderSystem.getModelViewMatrix(),
+                poseStack.last().pose(),
+            )
+            transformation?.minecraft()?.apply(false, poseStack)
+            ClientMixin.onAfterRenderOutfit(stack, poseStack.last().pose())
+        }
+        MinecraftClient.itemRenderer.render(
+            stack,
+            displayContext.minecraft,
+            false,
+            poseStack,
+            buffers,
+            light,
+            overlay,
+            model
+        )
+        poseStack.popPose()
+    } finally {
+        if (renderInstance != null) {
+            ClientMixin.popTransformationRenderInstance()
+        }
+    }
 }
