@@ -16,11 +16,11 @@ import org.lain.engine.player.getOrSet
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.persistentId
 import org.lain.engine.player.EquipmentSlotId
-import org.lain.engine.player.Equippable
 import org.lain.engine.world.World
 
 data class DetachedEquipmentRenderState(
     val itemStack: ItemStack,
+    val slotId: EquipmentSlotId,
     val displayContext: EngineItemDisplayContext,
     val dependsEyeY: Boolean,
     val playerPart: PlayerPart,
@@ -47,10 +47,13 @@ fun createDetachedEquipmentRenderStates(
                 stack
             }
             DetachedEquipmentRenderState(
-                itemStack,
-                if (slot.part == PlayerPart.HEAD) EngineItemDisplayContext.HEAD else EngineItemDisplayContext.OUTFIT,
-                false,
-                slot.part
+                itemStack = itemStack,
+                slotId = slotId,
+                displayContext =
+                    if (slot.part == PlayerPart.HEAD) EngineItemDisplayContext.HEAD
+                    else EngineItemDisplayContext.OUTFIT,
+                dependsEyeY = false,
+                playerPart = slot.part,
             )
         }
 }

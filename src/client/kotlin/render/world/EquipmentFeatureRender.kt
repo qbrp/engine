@@ -8,12 +8,22 @@ import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.entity.RenderLayerParent
 import net.minecraft.client.renderer.entity.layers.RenderLayer
 import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.client.resources.PlayerSkin
+import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.render.item.renderEngineItem
+import org.lain.engine.client.render.item.TransformationRenderInstance
 import org.lain.engine.client.render.player.getEngineRenderState
+import org.lain.engine.player.PlayerPart
 
 class EquipmentFeatureRenderer(
     context: RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>,
+    private val upperPart: Boolean,
 ) : RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>(context) {
+    // PlayerAnimator adds IUpperPartHelper to RenderLayer at runtime and calls this method
+    // before rendering a layer. Keep its torso bend separate from the torso/leg attachments.
+    @Suppress("unused")
+    fun isUpperPart(): Boolean = upperPart
+
     override fun render(
         poseStack: PoseStack,
         buffers: MultiBufferSource,
@@ -28,9 +38,32 @@ class EquipmentFeatureRenderer(
     ) {
         val items = entity.getEngineRenderState()?.detachedEquipment ?: return
         for (equipment in items) {
-            if (equipment.playerModelPart === parentModel.head) continue
+            val equipmentIsUpperPart = when (equipment.playerPart) {
+                PlayerPart.HEAD -> continue
+                PlayerPart.LEFT_ARM, PlayerPart.RIGHT_ARM,
+                PlayerPart.LEFT_PALM, PlayerPart.RIGHT_PALM -> true
+                PlayerPart.BODY, PlayerPart.LEFT_LEG, PlayerPart.RIGHT_LEG,
+                PlayerPart.LEFT_FEET, PlayerPart.RIGHT_FEET -> false
+            }
+            if (equipmentIsUpperPart != upperPart) continue
             poseStack.pushPose()
+
             equipment.playerModelPart?.translateAndRotate(poseStack)
+
+            if (
+                equipment.playerPart == PlayerPart.LEFT_ARM ||
+                equipment.playerPart == PlayerPart.LEFT_PALM ||
+                equipment.playerPart == PlayerPart.LEFT_LEG ||
+                equipment.playerPart == PlayerPart.LEFT_FEET
+            ) {
+                poseStack.mulPose(Axis.YP.rotationDegrees(180f))
+            }
+
+            if (ClientMixin.getPlayerSkinThreadSafe(entity.uuid)?.model == PlayerSkin.Model.SLIM) {
+                // сдвигаем на один пиксель
+                poseStack.translate(0.0625f, 0f, 0f)
+            }
+
             poseStack.mulPose(Axis.YP.rotationDegrees(180.0f))
             renderEngineItem(
                 equipment.itemStack,
@@ -41,7 +74,8 @@ class EquipmentFeatureRenderer(
                 OverlayTexture.NO_OVERLAY,
                 entity.level(),
                 entity,
-                entity.id
+                entity.id,
+                TransformationRenderInstance.Equipment(entity.uuid, equipment.slotId),
             )
             poseStack.popPose()
         }
@@ -84,7 +118,8 @@ class HeadEquipmentFeatureRenderer(
                 OverlayTexture.NO_OVERLAY,
                 entity.level(),
                 entity,
-                entity.id
+                entity.id,
+                TransformationRenderInstance.Equipment(entity.uuid, equipment.slotId),
             )
             poseStack.popPose()
         }

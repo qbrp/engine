@@ -5,12 +5,13 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
-import org.lain.engine.client.handler.disconnectText
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.character.CharacterId
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.CharacterChangeRequest
+import org.lain.engine.player.character.EngineBackend
 import org.lain.engine.script.*
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.script.lua.LuaScriptEngine
@@ -24,16 +25,17 @@ import org.lain.engine.util.registerMinecraftServer
 class IntegratedEngineMinecraftServer(
     dependencies: Dependencies,
     client: EngineClient
-) : EngineMinecraftServer(dependencies) {
+) : EngineMinecraftServer(dependencies), EngineBackend {
     override val transportContext: ServerTransportContext = ServerSingleplayerTransport(client, engine)
+    override val backend: EngineBackend
+        get() = this
 
-    override suspend fun validateCharacter(
+    override suspend fun validateCharacterChange(
         player: EnginePlayer,
-        characterId: CharacterId,
-        character: EngineCharacter?,
-        sessionTicket: SessionTicket?
-    ): EngineCharacter {
-        return character ?: error("Не указаны данные персонажа с клиента")
+        request: CharacterChangeRequest
+    ): BackendCharacter {
+        require(request is CharacterChangeRequest.Provided)
+        return request.character
     }
 
     companion object {

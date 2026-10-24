@@ -142,7 +142,8 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
 
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register { _, renderer, helper, _ ->
             if (renderer is PlayerRenderer) {
-                helper.register(EquipmentFeatureRenderer(renderer))
+                helper.register(EquipmentFeatureRenderer(renderer, upperPart = false))
+                helper.register(EquipmentFeatureRenderer(renderer, upperPart = true))
                 helper.register(HeadEquipmentFeatureRenderer(renderer))
             }
         }
