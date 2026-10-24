@@ -2,7 +2,6 @@ package org.lain.engine.item
 
 import org.lain.cyberia.ecs.getComponent
 import org.lain.engine.mc.engineId
-import org.lain.engine.util.addIfNotNull
 import org.lain.engine.world.World
 
 const val UNDEFINED_MODEL = "core/error/undefined"

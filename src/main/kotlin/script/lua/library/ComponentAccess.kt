@@ -11,6 +11,7 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.CallbackType.Companion.type
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptComponentType
+import org.lain.engine.script.ScriptSystemComponentAccess
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.asUserdataOrThrow
@@ -20,9 +21,9 @@ import org.lain.engine.world.World
 import org.luaj.vm2.LuaValue
 
 @Suppress("UNCHECKED_CAST")
-sealed interface LuaComponentAccess {
-    val id: EngineId
-    val componentType: ComponentType<Component>
+sealed interface LuaComponentAccess : ScriptSystemComponentAccess {
+    override val id: EngineId
+    override val componentType: ComponentType<Component>
 
     data class Native(
         val binding: LuaComponentBinding<*>,
@@ -130,3 +131,15 @@ fun LuaValue.asLuaComponentAccess(): LuaComponentAccess {
 
 fun LuaComponentAccess.asScript() = (this as? LuaComponentAccess.Script)?.type
     ?: error("$this is not a script component type access")
+
+context(lua: LuaScriptEngine)
+fun LuaComponentAccess.toLua(
+    world: World,
+    entity: EntityId,
+    component: Component,
+): LuaValue {
+    return when (this) {
+        is LuaComponentAccess.Native -> asGeneric().toLua(world, entity, component)
+        is LuaComponentAccess.Script -> (component as LuaScriptComponent).castedLuaValue
+    }
+}

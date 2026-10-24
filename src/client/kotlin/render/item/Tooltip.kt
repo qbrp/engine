@@ -90,8 +90,9 @@ fun EngineItem.resolveTooltip(debug: Boolean): List<String> {
         }
     }
 
-    if (debug) {
-        val (uuid, id) = requireComponent<Item>()
+    val item = getComponent<Item>()
+    if (debug && item != null) {
+        val (uuid, id) = item
         lines.add("<dark_gray>$id</dark_gray>")
         lines.add("<dark_gray>$uuid</dark_gray>")
     }

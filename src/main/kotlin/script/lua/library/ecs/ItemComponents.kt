@@ -53,6 +53,35 @@ object ItemNameBinding : LuaComponentBinding<ItemName> {
     }
 }
 
+object AssetVariantsBinding : LuaComponentBinding<ItemAssets> {
+    override val componentType: ComponentType<ItemAssets>
+        get() = componentType<ItemAssets>()
+    override val id: EngineId
+        get() = EngineId("core/asset_variants")
+
+    context(lua: LuaScriptEngine)
+    override fun toLua(world: World?, entity: EntityId, component: ItemAssets): LuaValue {
+        return luaTable {
+            "default"(component.default?.coerceToLua())
+            "assets"(
+                component.assets.toLuaTable(
+                    keyTransform = { it.luaStr() },
+                    valueTransform = { it.coerceToLua() }
+                )
+            )
+        }
+    }
+
+    context(lua: LuaScriptEngine)
+    override fun fromLua(entity: EntityId, value: LuaValue): ItemAssets {
+        return ItemAssets(
+            value["assets"].checktable().toMap(
+                valueTransform = { it.asEngineId() }
+            )
+        )
+    }
+}
+
 object EquippableBinding : LuaComponentBinding<Equippable> {
     override val componentType: ComponentType<Equippable>
         get() = componentType<Equippable>()

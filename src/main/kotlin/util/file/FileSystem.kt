@@ -15,6 +15,7 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.util.prefs.Preferences
 import kotlin.io.path.copyTo
+import kotlin.io.path.toPath
 
 object FileSystem {
     val LOGGER = LoggerFactory.getLogger("Engine Files")
@@ -133,6 +134,13 @@ object FileSystem {
         if (Constants.DEVELOPER_TEST_ENVIRONMENT) return
 
         LOGGER.info("Загрузка стандартной библиотеки Lua")
+
+        if (!compilationEntrypoint.exists()) {
+            builtinResource(COMPILATION_ENTRYPOINT_NAME)?.toURI()?.toPath()?.copyTo(
+                compilationEntrypoint.toPath()
+            )
+        }
+
         builtinResources(SCRIPTS_PATH).forEach { source ->
             val relative = source.toString()
                 .replace("\\", "/")
