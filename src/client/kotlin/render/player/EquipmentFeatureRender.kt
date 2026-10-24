@@ -1,4 +1,4 @@
-package org.lain.engine.client.render.world
+package org.lain.engine.client.render.player
 
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Axis
@@ -12,15 +12,13 @@ import net.minecraft.client.resources.PlayerSkin
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.render.item.renderEngineItem
 import org.lain.engine.client.render.item.TransformationRenderInstance
-import org.lain.engine.client.render.player.getEngineRenderState
 import org.lain.engine.player.PlayerPart
 
 class EquipmentFeatureRenderer(
     context: RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>,
     private val upperPart: Boolean,
 ) : RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>(context) {
-    // PlayerAnimator adds IUpperPartHelper to RenderLayer at runtime and calls this method
-    // before rendering a layer. Keep its torso bend separate from the torso/leg attachments.
+    // совместимость с Emotecraft
     @Suppress("unused")
     fun isUpperPart(): Boolean = upperPart
 

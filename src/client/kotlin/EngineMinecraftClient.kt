@@ -17,6 +17,8 @@ import org.lain.engine.client.mc.compat.*
 import org.lain.engine.client.mc.sound.MinecraftAudioManager
 import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
+import org.lain.engine.client.render.player.EquipmentFeatureRenderer
+import org.lain.engine.client.render.player.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.*
