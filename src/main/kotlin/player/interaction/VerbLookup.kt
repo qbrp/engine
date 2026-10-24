@@ -30,6 +30,9 @@ fun World.tickVerbLookupStart() {
         val lookupActions = input.actions.filter { it != capturedAction }.toSet()
         if (lookupActions.isNotEmpty() && mode != PlayerMode.SPECTATOR) {
             inventory.mainHandInteractor.setComponent(VerbLookup(lookupActions))
+            if (inventory.offHandItem != null) {
+                inventory.offHandInteractor.setComponent(VerbLookup(lookupActions))
+            }
             entity.setComponent(VerbLookup(lookupActions))
         }
     }
@@ -47,9 +50,10 @@ private fun EntityId.interactionVerb(): InteractorVerb? {
 fun World.tickVerbLookupApply() {
     iterate<PlayerComponent, PlayerInventory, PlayerInput>() { _, (player), inventory, input ->
         val handVerb = inventory.mainHandInteractor.interactionVerb()
+        val offHandVerb = inventory.offHandInteractor.interactionVerb()
         val playerVerb = player.entity.interactionVerb()
 
-        val (entity, verb) = listOfNotNull(handVerb, playerVerb)
+        val (entity, verb) = listOfNotNull(handVerb, offHandVerb, playerVerb)
             .minByOrNull { it.verb.priority }
             ?: return@iterate
         val command = verb.createCommand()
