@@ -9,6 +9,7 @@ interface ScriptEngine {
     fun reloadScript(moduleName: String)
 
     fun updateModules(modules: Modules)
+    fun onCompiled(contents: Contents)
 
     fun tickPush(world: World)
     fun tickPull(world: World)
@@ -28,6 +29,7 @@ interface ScriptEngine {
 
         override fun reloadScript(moduleName: String) {}
         override fun updateModules(modules: Modules) {}
+        override fun onCompiled(contents: Contents) {}
 
         override fun tickPush(world: World) {}
         override fun tickPull(world: World) {}

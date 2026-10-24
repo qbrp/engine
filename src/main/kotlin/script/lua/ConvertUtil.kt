@@ -60,6 +60,7 @@ fun <K, V> Map<K, V>.toLuaTable(
     }
     return table
 }
+
 fun LuaTable.toStringMap(): Map<String, String> {
     return toMap { it.tojstring() }
 }

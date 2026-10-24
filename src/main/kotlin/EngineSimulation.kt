@@ -58,6 +58,7 @@ class EngineSimulation(
         namespacedStorage.loadResult(result)
         worldsList.forEach { it.registerComponentTypes(namespacedStorage) }
         scriptSystemDispatcher.phases = result.phases
+        scriptEngine.onCompiled(namespacedStorage)
     }
 
     fun World.tick(): Unit = with(extension) {
@@ -99,7 +100,6 @@ class EngineSimulation(
 
         afterInteractions()
 
-        tickNarrationSystem()
         tickContainerOperationsSystem() // Когда чтение данных контейнеров точно не будет, вызываем систему операций
 
         afterOperations()

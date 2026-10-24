@@ -89,17 +89,16 @@ open class LuaScriptEngine(
         globals[ENGINE_TABLE] = engineTable
     }
 
-    open fun setupGlobalsRuntime() {
-        engineTable["worlds"] = worldsList
-        componentLibrary.setupSimulation()
-    }
-
     open fun mapScriptContext(context: ScriptContext): LuaValue =
         context.toLuaValue()
 
     open fun setup() {
         if (initialized) error("Контекст Lua уже инициализирован")
         globals.setupScriptPackageSearcher()
+        globals["string"]["lowercase_first"] = oneArgFunction { string ->
+            string.tojstring().replaceFirstChar { it.lowercase() }.luaStr()
+        }
+
         setupTables()
         initialized = true
     }
@@ -125,7 +124,12 @@ open class LuaScriptEngine(
 
     open fun setupGame(dependencies: RuntimeDependencies) {
         runtimeDependencies = dependencies
-        setupGlobalsRuntime()
+        engineTable["worlds"] = worldsList
+        componentLibrary.setupSimulation()
+    }
+
+    override fun onCompiled(contents: Contents) {
+        engineTable["contents"] = ContentsTable(contents)
     }
 
     override fun tickPush(world: World) {
