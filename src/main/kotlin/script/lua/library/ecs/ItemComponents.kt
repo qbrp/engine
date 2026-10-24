@@ -2,9 +2,11 @@ package org.lain.engine.script.lua.library.ecs
 
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.EntityId
+import org.lain.engine.data.Uuid
 import org.lain.engine.item.Item
+import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemName
-import org.lain.engine.mc.engineId
+import org.lain.engine.item.toItemPrefabId
 import org.lain.engine.player.DecrementItem
 import org.lain.engine.player.Equippable
 import org.lain.engine.player.GiveItemEvent
@@ -12,6 +14,7 @@ import org.lain.engine.player.OutfitDisplay
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.lua.*
 import org.lain.engine.script.lua.library.LuaComponentBinding
+import org.lain.engine.script.lua.library.asEngineId
 import org.lain.engine.script.lua.library.asEnginePlayer
 import org.lain.engine.script.lua.library.checkLuaEntity
 import org.lain.engine.script.lua.library.coerceToLua
@@ -19,7 +22,6 @@ import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaValue
-import org.luaj.vm2.compiler.LuaC
 
 object ItemNameBinding : LuaComponentBinding<ItemName> {
     override val componentType: ComponentType<ItemName>
@@ -133,7 +135,15 @@ object ItemBinding : LuaComponentBinding<Item> {
     ): LuaValue {
         return luaTable {
             "uuid"(component.uuid.toString())
-            "prefab_id"(component.id.engineId)
+            "prefab_id"(component.id.engineId.coerceToLua())
         }
+    }
+
+    context(lua: LuaScriptEngine)
+    override fun fromLua(entity: EntityId, value: LuaValue): Item {
+        return Item(
+            Uuid.from(value["uuid"].tojstring()),
+            value["prefab_id"].asEngineId().toItemPrefabId()
+        )
     }
 }

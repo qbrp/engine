@@ -1,11 +1,23 @@
 package org.lain.engine.script.compilation
 
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.library.LuaComponentAccess
+import org.lain.engine.script.lua.library.LuaComponentBindingId
+import org.lain.engine.script.lua.library.LuaComponentBindingRegistry
 
 internal data class LinkingSymbols(
     val scripts: Map<ScriptId, Script<*, *>>,
     val components: Map<ScriptComponentId, ScriptComponentType>,
 )
+
+private fun LinkingSymbols.resolveComponentAccess(id: EngineId): LuaComponentAccess? {
+    LuaComponentBindingRegistry.getOrNull(LuaComponentBindingId(id))?.let {
+        return LuaComponentAccess.Native(it)
+    }
+    val scriptComponentId = id.toScriptComponentId()
+    return (components[scriptComponentId] ?: CoreScriptComponents.get(scriptComponentId))
+        ?.let { LuaComponentAccess.Script(it) }
+}
 
 internal fun CompilationReportBuilder.reportLinkingError(
     message: String,
@@ -38,8 +50,7 @@ internal fun NamespaceDraft.linkedNamespace(
 ): Namespace = with(id) {
     val systems = systems.mapNotNull { (systemId, system) ->
         val query = system.queryComponents.mapNotNull { componentId ->
-            symbols.components[componentId]
-                ?: CoreScriptComponents.get(componentId)
+            symbols.resolveComponentAccess(componentId)
                 ?: run {
                     context.exceptions.reportLinkingError(
                         "Используемый системой компонент $componentId не найден",

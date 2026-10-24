@@ -1,5 +1,7 @@
 package org.lain.engine.script.lua.library.ecs
 
+import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.player.CustomPlayerAttributes
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.MovementStatus
@@ -10,8 +12,10 @@ import org.lain.engine.player.Velocity
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.player.require
 import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.EngineId
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.LuaUserdataType
+import org.lain.engine.script.lua.library.LuaComponentBinding
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.setLuaScriptComponent
 import org.lain.engine.script.lua.luaBool
@@ -23,6 +27,7 @@ import org.lain.engine.script.lua.nullable
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toLuaValue
 import org.lain.engine.script.lua.toScriptValue
+import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.World
 import org.lain.engine.world.location
 import org.luaj.vm2.LuaValue.NIL
@@ -122,6 +127,36 @@ fun MovementStatusMetaTable() = LuaUserdataType<MovementStatus>() {
     }
 }
 
+object PlayerAttributesBinding : LuaComponentBinding<PlayerAttributes> {
+    override val componentType: ComponentType<PlayerAttributes>
+        get() = componentType<PlayerAttributes>()
+    override val id = EngineId("core/player/attributes")
+
+    context(lua: LuaScriptEngine)
+    override fun toLua(world: World?, entity: EntityId, component: PlayerAttributes) =
+        lua.playerAttributesMetaTable.newInstance(component)
+}
+
+object PlayerCustomAttributesBinding : LuaComponentBinding<CustomPlayerAttributes> {
+    override val componentType: ComponentType<CustomPlayerAttributes>
+        get() = componentType<CustomPlayerAttributes>()
+    override val id = EngineId("core/player/custom_attributes")
+
+    context(lua: LuaScriptEngine)
+    override fun toLua(world: World?, entity: EntityId, component: CustomPlayerAttributes) =
+        lua.playerCustomAttributesMetaTable.newInstance(component)
+}
+
+object MovementStatusBinding : LuaComponentBinding<MovementStatus> {
+    override val componentType: ComponentType<MovementStatus>
+        get() = componentType<MovementStatus>()
+    override val id = EngineId("core/player/movement_status")
+
+    context(lua: LuaScriptEngine)
+    override fun toLua(world: World?, entity: EntityId, component: MovementStatus) =
+        lua.playerMovementStatusMetaTable.newInstance(component)
+}
+
 context(luaScriptEngine: LuaScriptEngine)
 fun PlayerVelocityMetaTable() = LuaUserdataType<Velocity>() {
     indexSelf { self, key ->
@@ -159,18 +194,6 @@ fun EnginePlayer.setupLuaScriptComponents() {
     entity.setLuaScriptComponent(
         lua.playerInputMetaTable.newInstance(require()),
         CoreScriptComponents.PLAYER_INPUT
-    )
-    entity.setLuaScriptComponent(
-        lua.playerAttributesMetaTable.newInstance(require()),
-        CoreScriptComponents.PLAYER_ATTRIBUTES
-    )
-    entity.setLuaScriptComponent(
-        lua.playerCustomAttributesMetaTable.newInstance(require()),
-        CoreScriptComponents.PLAYER_CUSTOM_ATTRIBUTES
-    )
-    entity.setLuaScriptComponent(
-        lua.playerMovementStatusMetaTable.newInstance(require()),
-        CoreScriptComponents.PLAYER_MOVEMENT_STATUS
     )
     entity.setLuaScriptComponent(
         lua.playerVelocityMetaTable.newInstance(require()),

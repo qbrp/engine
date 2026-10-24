@@ -178,7 +178,7 @@ private fun compiledNamespacesList(
                     )
                     val side = SystemSide.valueOf(systemL["side"].checkjstring().uppercase())
                     val query = systemL["query"].checktable()
-                        .toList { it.resolveIdReference().toScriptComponentId() }
+                        .toList { it.resolveIdReference() }
                     id to NamespaceDraft.ScriptSystem(query, side, script)
                 }
             }

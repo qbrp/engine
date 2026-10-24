@@ -1,6 +1,7 @@
 package org.lain.engine.script
 
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.engine.data.EntityPersistenceData
@@ -47,7 +48,8 @@ interface ScriptContext {
         val inputValues: List<InputValue>,
     ) : ScriptContext
     interface SystemEntityHandle : ScriptContext {
-        val components: Collection<ScriptComponent>
+        val componentAccesses: List<ScriptSystemComponentAccess>
+        val components: Collection<Component>
         val world: EngineWorld
         val entity: EntityId
     }

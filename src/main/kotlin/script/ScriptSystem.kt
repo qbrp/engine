@@ -1,5 +1,7 @@
 package org.lain.engine.script
 
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.world.World
 
@@ -39,20 +41,27 @@ enum class SystemSide {
     SERVER, CLIENT, BOTH
 }
 
+interface ScriptSystemComponentAccess {
+    val id: EngineId
+    val componentType: ComponentType<Component>
+}
+
 data class ScriptSystem(
     val id: ScriptSystemId,
-    val query: List<ScriptComponentType>,
+    val query: List<ScriptSystemComponentAccess>,
     val side: SystemSide,
     val entityHandleScript: Script<ScriptContext.SystemEntityHandle, *>,
-)
+) {
+    val componentTypes = query.map { it.componentType }
+}
 
 fun ScriptSystem.tick(world: World) {
     if (side == SystemSide.CLIENT && !world.isClient) return
     if (side == SystemSide.SERVER && world.isClient) return
     var handle: MutableEntityHandle? = null
-    world.componentManager.iterate(query) { mutableComponentsCollection, entity ->
+    world.componentManager.iterate(componentTypes) { mutableComponentsCollection, entity ->
         if (handle == null) {
-            handle = MutableEntityHandle(world, entity, mutableComponentsCollection)
+            handle = MutableEntityHandle(world, entity, query, mutableComponentsCollection)
         } else {
             handle.entity = entity
             handle.world = world
@@ -64,7 +73,8 @@ fun ScriptSystem.tick(world: World) {
 class MutableEntityHandle(
     override var world: World,
     override var entity: EntityId,
-    override val components: Collection<ScriptComponent>
+    override val componentAccesses: List<ScriptSystemComponentAccess>,
+    override val components: Collection<Component>,
 ) : ScriptContext.SystemEntityHandle
 
 class ScriptSystemDispatcher {

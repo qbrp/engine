@@ -1,8 +1,10 @@
 package org.lain.engine.script.lua
 
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.library.LuaComponentAccess
 import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.script.lua.library.luaWorld
+import org.lain.engine.script.lua.library.toLua
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaFunction
 import org.luaj.vm2.LuaValue
@@ -19,7 +21,9 @@ class LuaScript<C : ScriptContext, R : ScriptValue>(private val luaScriptEngine:
                 array[0] = context.world.luaWorld()
                 array[1] = context.entity.luaEntity()
                 context.components.forEachIndexed { index, component ->
-                    array[2 + index] = component.castLua().luaValue
+                    val access = context.componentAccesses[index] as? LuaComponentAccess
+                        ?: error("Unsupported Lua system component access: ${context.componentAccesses[index]}")
+                    array[2 + index] = access.toLua(context.world, context.entity, component)
                 }
                 array
             }

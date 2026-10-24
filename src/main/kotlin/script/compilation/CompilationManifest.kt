@@ -4,6 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.lain.engine.script.*
+import org.lain.engine.script.lua.library.LuaComponentBindingId
+import org.lain.engine.script.lua.library.LuaComponentBindingRegistry
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
@@ -155,10 +157,14 @@ fun compilationManifestOf(
                                 linked = id in linkedSystemIds,
                                 side = system.side.name.lowercase(),
                                 components = system.queryComponents.map { componentId ->
+                                    val scriptComponentId = componentId.toScriptComponentId()
                                     CompilationManifestReference(
-                                        id = componentId.engineId.full,
-                                        resolved = componentId in componentIds ||
-                                                CoreScriptComponents.get(componentId) != null,
+                                        id = componentId.full,
+                                        resolved = scriptComponentId in componentIds ||
+                                                CoreScriptComponents.get(scriptComponentId) != null ||
+                                                LuaComponentBindingRegistry.getOrNull(
+                                                    LuaComponentBindingId(componentId)
+                                                ) != null,
                                     )
                                 },
                             )

@@ -7,6 +7,7 @@ import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.player.interaction.ProgressionAnimation
 import org.lain.engine.player.interaction.ProgressionAnimationId
 import org.lain.engine.script.CallbackType
+import org.lain.engine.script.EngineId
 import org.lain.engine.script.Identifiable
 import org.lain.engine.script.InventoryTab
 import org.lain.engine.script.NamespaceId
@@ -38,7 +39,7 @@ data class NamespaceDraft(
         listOf(items, sounds, scripts, progressionAnimations, components, operations, systems, equipmentSlots)
 
     data class ScriptSystem(
-        val queryComponents: List<ScriptComponentId>,
+        val queryComponents: List<EngineId>,
         val side: SystemSide,
         val entityHandleScript: Script<ScriptContext.SystemEntityHandle, *>,
     )
