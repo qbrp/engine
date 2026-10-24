@@ -52,10 +52,11 @@ fun renderMovementStatus(
 
     val targetOpacity = if (shouldRenderHud && renderState.unchangedTicks <= MOVEMENT_STATUS_HIDE_DELAY_TICKS) 1f else 0f
     renderState.opacity = lerp(renderState.opacity, targetOpacity, 1f - 0.7f.pow(dt))
-    if (renderState.opacity <= 0.01f) return
 
-    renderState.speedWidth = lerp(renderState.speedWidth, BAR_WIDTH * intention, 0.5f)
-    renderState.staminaWidth = lerp(renderState.staminaWidth, BAR_WIDTH * stamina, 0.5f)
+    val widthStep = 1f - 0.5f.pow(dt.coerceAtLeast(0f))
+    renderState.speedWidth = lerp(renderState.speedWidth, BAR_WIDTH * intention, widthStep)
+    renderState.staminaWidth = lerp(renderState.staminaWidth, BAR_WIDTH * stamina, widthStep)
+    if (renderState.opacity <= 0.01f) return
 
     val bottom = context.guiHeight() - BAR_BOTTOM_PADDING
     renderBar(
