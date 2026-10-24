@@ -1,14 +1,14 @@
 package org.lain.engine.client.render
 
-import net.minecraft.client.gui.GuiGraphics
+import org.lain.cyberia.ecs.iterate
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.InteractionProgressionRenderState
 import org.lain.engine.client.render.ui.hud.MovementStatusRenderState
-import org.lain.engine.client.render.ui.NarrationMessageRenderState
+import org.lain.engine.client.render.ui.hud.NarrationMessageRenderState
 import org.lain.engine.client.render.ui.hud.LittleNotificationsRenderManager
 import org.lain.engine.client.render.world.BlockHintInspectionRenderState
-import org.lain.engine.player.Narration
-import org.lain.engine.player.require
+import org.lain.engine.player.NarrationEvent
 
 class ScreenRenderer(private val client: EngineClient) {
     private val window = client.window
@@ -23,29 +23,30 @@ class ScreenRenderer(private val client: EngineClient) {
     var chatOpen = false
     var blockHintInspectionRenderState: BlockHintInspectionRenderState? = null
 
+    fun tick(gameSession: GameSession) {
+        ticks++
+        gameSession.world.iterate<NarrationEvent> { _, (playerId, narration) ->
+            if (gameSession.mainPlayer.id != playerId) return@iterate
+            val existingNarration = narrations.find { it.message.text == narration.text }
+            if (existingNarration != null) {
+                existingNarration.time = (existingNarration.time - narration.duration).coerceAtLeast(0f)
+            } else {
+                narrations += NarrationMessageRenderState(narration)
+            }
+            if (narration.kick) client.audioManager.playKickSound()
+        }
+        narrations.removeIf { it.time > it.message.duration }
+        littleNotificationsRenderer.tick()
+    }
+
     fun renderScreen(tickDelta: Float) {
-        val gameSession = client.gameSession
         if (!hudHidden) {
             littleNotificationsRenderer.update(tickDelta)
-            if (gameSession != null) {
-                val narrationMessages = gameSession.mainPlayer.require<Narration>()
-                narrationMessages.messages.forEach { message ->
-                    if (narrations.none { message.id == it.id }) {
-                        narrations += NarrationMessageRenderState(message.id)
-                        if (message.kick) client.audioManager.playKickSound()
-                    }
-                }
-                narrations.removeIf { narrationMessages.get(it.id) == null }
-            }
         }
     }
 
     fun invalidate() {
         littleNotificationsRenderer.invalidate()
-    }
-
-    fun tick() {
-        ticks++
-        littleNotificationsRenderer.tick()
+        narrations.clear()
     }
 }

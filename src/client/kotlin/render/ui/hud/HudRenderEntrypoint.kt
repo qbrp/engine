@@ -1,7 +1,5 @@
 package org.lain.engine.client.render.ui.hud
 
-import foundry.imgui.api.ImGuiMC
-import foundry.imgui.api.ImGuiMCEvents
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
@@ -9,8 +7,6 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.render.ScreenRenderer
 import org.lain.engine.client.render.ui.renderInteractionProgression
-import org.lain.engine.client.render.ui.renderNarrations
-import org.lain.engine.player.Narration
 import org.lain.engine.player.handle
 import org.lain.engine.player.interaction.Progression
 
@@ -28,14 +24,7 @@ fun registerHudRenderEvent(
         val mainPlayer = gameSession?.mainPlayer
         screenRenderer.renderScreen(deltaTick)
         if (gameSession != null && mainPlayer != null) {
-            mainPlayer.handle<Narration> {
-                renderNarrations(
-                    context,
-                    screenRenderer.narrations,
-                    this,
-                    deltaTick
-                )
-            }
+            renderNarrations(context, screenRenderer.narrations, deltaTick)
             renderInteractionProgression(
                 context,
                 screenRenderer.interactionProgression,

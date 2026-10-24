@@ -85,7 +85,6 @@ fun commonPlayerInstance(
                 )
             )
             setComponent(ArmStatus(false))
-            setComponent(Narration(mutableListOf()))
             setComponent(DeveloperMode(settings.developerModeStatus.enabled, settings.developerModeStatus.acoustic))
             setComponent(Hearing())
             setComponent(PlayerInput())

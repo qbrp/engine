@@ -186,7 +186,7 @@ fun tickSaveSystem(server: EngineMinecraftServer) {
                     server.engine.entityCoordinator.finishEntityUnload(handle)
                     destroyed++
                 }
-                LOGGER.info("Выгружено $destroyed сущностей")
+                if (destroyed > 0) LOGGER.info("Выгружено $destroyed сущностей")
             }
         }
     }

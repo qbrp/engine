@@ -17,6 +17,7 @@ fun PlayerMetaTable() = luaUserdataTable<EnginePlayer> {
         player.hasPermission(permission.tojstring()).luaBool()
     }
     functionSelf2("narration") { player, narration ->
+        if (!player.world.isClient) return@functionSelf2 NIL
         player.narration(
             narration.get("message").tojstring(),
             narration.get("time").toint(),

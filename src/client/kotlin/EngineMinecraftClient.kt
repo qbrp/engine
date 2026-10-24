@@ -180,7 +180,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             }
 
             engine.tick()
-            renderer.tick()
 
         } catch (e: Exception) {
             LOGGER.error("При тике Engine возникла ошибка: ", e)

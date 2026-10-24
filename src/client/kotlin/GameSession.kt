@@ -228,6 +228,7 @@ class GameSession(
         }
 
         skinSystem.tick(this@afterOperations)
+        client.renderer.tick(this@GameSession)
         tickDataApplySystem()
     }
 
