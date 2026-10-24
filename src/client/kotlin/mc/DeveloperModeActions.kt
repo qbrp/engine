@@ -49,7 +49,7 @@ fun registerDeveloperModeDecalsDebug(decalsStorage: DecalSystem, engineClient: E
 
 fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) {
     if (isControlDown() && developerMode) {
-        if (ticks - developerModeKeyPressedTick > 20) {
+        if (ticks - developerModeKeyPressedTick > 10) {
             developerModeKeyPressedTick = ticks
             if (key == GLFW.GLFW_KEY_1) {
                 audioManager.playPigScreamSound()
