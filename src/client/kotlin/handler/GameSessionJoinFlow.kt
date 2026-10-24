@@ -11,7 +11,7 @@ import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.PlayerLoadSettings
-import org.lain.engine.player.character.EngineCharacter
+import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.script.*
 import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.compilation.CompilationFailedException
@@ -65,7 +65,7 @@ class GameSessionJoinFlow(
         }
     }
 
-    private suspend fun listAccountCharacters(): List<EngineCharacter> {
+    private suspend fun listAccountCharacters(): List<BackendCharacter> {
         val response = when (joinType) {
             is JoinType.Multiplayer -> {
                 accountManager.fetchAccountResponse() ?: accountManager.requireAccountResponse()
@@ -80,7 +80,7 @@ class GameSessionJoinFlow(
 
     private suspend fun acknowledge(
         namespaceHashMap: NamespaceHashMap,
-        selectedCharacter: EngineCharacter?
+        selectedCharacter: BackendCharacter?
     ): JoinGamePacket {
         return when (joinType) {
             is JoinType.Multiplayer -> {
@@ -111,7 +111,7 @@ class GameSessionJoinFlow(
         }
     }
 
-    private suspend fun computePlayCharacter(serverId: ServerId): EngineCharacter? {
+    private suspend fun computePlayCharacter(serverId: ServerId): BackendCharacter? {
         if (joinType.isReplay) return null
         return coroutineScope {
             state = State.CHARACTER_LOAD
@@ -137,16 +137,16 @@ class GameSessionJoinFlow(
             val luaContext = createLuaContext(namespacedStorage)
             val compilation = ClientCompilation(luaContext, client)
 
-        val compilationResult = compilation.compileScriptsOrThrow()
-        namespacedStorage.loadResult(compilationResult)
+            val compilationResult = compilation.compileScriptsOrThrow()
+            namespacedStorage.loadResult(compilationResult)
 
-        val namespaceHashMap = namespacedStorage.get().namespaceHashMap
-        if (verificationNamespaceHashMap != null) {
-            val result = validateNamespaceHashMap(namespaceHashMap, verificationNamespaceHashMap)
-            if (result is NamespaceHashMapValidationResult.Error) {
-                friendlyError(result.computeErrorMessage())
+            val namespaceHashMap = namespacedStorage.get().namespaceHashMap
+            if (verificationNamespaceHashMap != null) {
+                val result = validateNamespaceHashMap(namespaceHashMap, verificationNamespaceHashMap)
+                if (result is NamespaceHashMapValidationResult.Error) {
+                    friendlyError(result.computeErrorMessage())
+                }
             }
-        }
 
             ResourceCompilationResult(namespaceHashMap, compilationResult, compilation)
         }

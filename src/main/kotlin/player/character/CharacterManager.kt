@@ -145,10 +145,9 @@ class CharacterManager(
         data?.components?.applyResolved(player.entity)
 
         world.emitEvent(
-            CharacterApplyEvent(character, player.id), true, context.commands
-        ) {
-            setComponent(location)
-        }
+            CharacterApplyEvent(character, player.id),
+            position = location.position
+        )
 
         if (previousCharacterId != null && previousCharacterId != id) {
             context.afterCommit { occupiedCharacters.remove(previousCharacterId, player.id) }

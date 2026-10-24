@@ -556,12 +556,15 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         val player = ctx.requirePlayer()
         storage.sounds[id] ?: friendlyError("Звуковое событие по идентификатору $id не найдено")
         val pos = pos?.engine()?.snapshot() ?: ImmutableEVec3(player.location.position)
-        player.world.emitEvent(
-            SoundEmission(id,
-                SoundEmissionParameters(pos, volume, 1f, ignorePhysics = ignorePhysics)
-            ),
-            true
-        )
+        server.engine.execute {
+            player.world.emitEvent(
+                SoundEmission(id,
+                    SoundEmissionParameters(pos, volume, 1f, ignorePhysics = ignorePhysics)
+                ),
+                position = player.pos,
+                networked = true
+            )
+        }
         ctx.sendFeedback(
             "Воспроизведено звуковое событие ${id} на координатах ${pos.x}, ${pos.y}, ${pos.z} громкостью $volume",
             true

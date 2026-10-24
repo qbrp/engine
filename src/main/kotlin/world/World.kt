@@ -20,6 +20,7 @@ import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.server.replication.Networked
 import org.lain.engine.data.loadWorldComponents
 import org.lain.engine.util.ecs.getKotlinComponentTypeEntries
+import org.lain.engine.util.math.Pos
 import java.util.concurrent.ConcurrentHashMap
 
 @Serializable
@@ -75,13 +76,15 @@ class World(
         event: T,
         type: ComponentType<T>,
         networked: Boolean = false,
+        position: Pos? = null,
+        write: WriteComponentAccess = this,
         crossinline builder: context(WriteComponentAccess) EntityId.() -> Unit = {},
-        write: WriteComponentAccess = this
     ): EntityId = with(write) {
         return componentManager.addEntity {
             setComponent(event, type)
             setComponent(Event)
             if (networked) {
+                position?.let { setComponent(Location(it)) }
                 setComponent(Networked)
                 setComponent(
                     PersistentIdComponent(
@@ -104,10 +107,10 @@ class World(
     inline fun <reified T : Component> emitEvent(
         event: T,
         networked: Boolean = false,
-        write: WriteComponentAccess = this,
+        position: Pos? = null,
         crossinline builder: context(WriteComponentAccess) EntityId.() -> Unit = {},
     ): EntityId {
-        return emitEvent(event, componentTypeOf(T::class), networked, builder)
+        return emitEvent(event, componentTypeOf(T::class), networked, position, builder = builder)
     }
 
     fun clearEvents() {
