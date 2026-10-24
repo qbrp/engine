@@ -17,7 +17,8 @@ class AssetCatalog(
 ) {
     val directory = source.file.resolve("assets")
     val spriteAtlases =
-        source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules()
+        source.resolve("atlases.yml")?.yaml<SpriteAtlasRules>() ?: SpriteAtlasRules.empty()
+    val assetsModule = AssetModule(module, spriteAtlases)
 
     fun browse(block: (Asset) -> Unit) {
         if (!directory.isDirectory) return
@@ -44,7 +45,7 @@ class AssetCatalog(
                 return@forEach
             }
 
-            val asset = Asset(engineId, module, relative, file.toSourceFile())
+            val asset = Asset(engineId, assetsModule, relative, file.toSourceFile())
             block(asset)
         }
     }
@@ -52,7 +53,7 @@ class AssetCatalog(
 
 data class Asset(
     val id: EngineId,
-    val module: Module,
+    val assetsModule: AssetModule,
     val fileRelative: File,
     val source: SourceFile
 ) {
@@ -64,7 +65,7 @@ data class Asset(
                 }/${reference.removePrefix("~/")}"
             )
         } else {
-            module.resolveId(reference)
+            assetsModule.module.resolveId(reference)
         }
 }
 

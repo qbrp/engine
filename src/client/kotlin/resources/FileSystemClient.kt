@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 @JvmInline
 value class SourceFile(val file: File) {
+    fun toPath() = file.toPath()
+
     inline fun <reified T : Any> yaml(): T {
         return Yaml.default.decodeFromStream<T>(file.inputStream())
     }

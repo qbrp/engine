@@ -7,5 +7,6 @@ data class Assets(
     val propModels: Map<EngineId, Asset> = mapOf(),
     val objModels: Map<EngineId, Asset> = mapOf(),
     val mtlFiles: Map<EngineId, Asset> = mapOf(),
-    val sounds: Map<EngineId, Asset> = mapOf()
+    val sounds: Map<EngineId, Asset> = mapOf(),
+    val glbBundles: Map<EngineId, Asset> = mapOf(),
 )

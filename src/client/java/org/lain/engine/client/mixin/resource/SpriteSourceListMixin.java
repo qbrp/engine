@@ -5,9 +5,7 @@ import net.minecraft.client.renderer.texture.atlas.SpriteSourceList;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.lain.engine.client.mc.ClientMixin;
-import org.lain.engine.client.resources.Asset;
-import org.lain.engine.client.resources.Assets;
-import org.lain.engine.client.resources.EngineAtlasSource;
+import org.lain.engine.client.resources.*;
 import org.lain.engine.script.EngineId;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
@@ -33,8 +31,8 @@ public class SpriteSourceListMixin {
             ResourceLocation atlasId,
             CallbackInfoReturnable<SpriteSourceList> cir
     ) {
-        Assets indexedAssets = ClientMixin.INSTANCE.requireAssetsCompilation().getIndexedAssetsFuture().join();
-        Map<EngineId, Asset> atlasTextures = indexedAssets.getTextureAssets().get(atlasId.getPath());
+        ModelCatalog modelCatalog = ClientMixin.INSTANCE.requireAssetsCompilation().getModelCatalogFuture().join();
+        List<TextureView> atlasTextures = modelCatalog.getTextureViews().get(atlasId.getPath());
         if (atlasTextures == null || atlasTextures.isEmpty()) {
             return;
         }
@@ -42,7 +40,7 @@ public class SpriteSourceListMixin {
         List<SpriteSource> sources = new ArrayList<>(
                 ((SpriteSourceListAccessor) (Object) cir.getReturnValue()).engine$getSources()
         );
-        sources.add(new EngineAtlasSource(atlasTextures.values()));
+        sources.add(new EngineAtlasSource(atlasTextures));
         cir.setReturnValue(SpriteSourceListAccessor.newAtlasLoader(sources));
         LOGGER.info("Atlas {} extended with {} Engine textures", atlasId, atlasTextures.size());
     }

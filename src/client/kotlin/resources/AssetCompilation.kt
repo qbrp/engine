@@ -11,5 +11,5 @@ class AssetCompilation(
 ) {
     val indexedAssets = scope.async { moduleManager.composeModules().compileAssets() }
     val modelCatalog = scope.async { indexedAssets.await().catalogizeModels() }
-    val indexedAssetsFuture = indexedAssets.asCompletableFuture()
+    val modelCatalogFuture = modelCatalog.asCompletableFuture()
 }
