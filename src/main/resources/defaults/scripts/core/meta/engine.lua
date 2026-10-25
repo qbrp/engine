@@ -7,6 +7,7 @@
 ---@field SCRIPTS_PATH string абсолютный путь к папке скриптов (engine/scripts)
 ---@field MODULES_PATH string абсолютный путь к папке модулей (engine/modules)
 ---@field game_session GameSession?
+---@field contents Contents скомпилированный контент
 ---@field worlds table<WorldId, World>
 ---@field player Player метатаблица игрока
 ---@field logger Logger

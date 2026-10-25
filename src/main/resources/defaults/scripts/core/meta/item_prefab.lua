@@ -50,6 +50,10 @@
 ---@class ItemNameComponent : Component
 ---@field text string
 
+---@class AssetVariants : Component
+---@field assets table<string, Id>
+---@field default Id? геттер, берётся из assets["default"]
+
 ---@class ItemComponent : Component
 ---@field uuid string
 ---@field prefab_id Id

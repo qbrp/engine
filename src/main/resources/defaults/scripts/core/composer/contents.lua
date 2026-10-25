@@ -50,9 +50,15 @@ function composer.group_namespaces(categorized_symbols, categories)
     return result
 end
 
+---@class ComposerPlugin
+---@field name string
+---@field append_listeners (fun(context: CompilationContext): EventListeners[])?
+
 ---@param context CompilationContext
+---@param plugins ComposerPlugin[]?
 ---@return Build
-function composer.build(context)
+function composer.build(context, plugins)
+    local plugins = plugins or {}
     local modules = engine.modules.enabled
     local modules_names = table.map(
         modules,
@@ -66,13 +72,20 @@ function composer.build(context)
         tostring(#modules_names),
         table.concat(modules_names, ", ")
     )
+    engine.logger.info(
+        "using {} plugins: {}",
+        tostring(#plugins),
+        table.concat(table.map(plugins, function(plugin)
+            return plugin.name
+        end))
+    )
 
     local module_files = files.scan(modules, categories)
     -- Compilation mutates declaration drafts, so every build gets a fresh require generation.
     declarations.begin_build(module_files)
     local symbols = drafts.categorized_symbols(categories)
     local module_drafts = {} ---@type ModuleSymbolsDraft[]
-    local listeners_list = {}
+    local listeners_list = {} ---@type EventListeners[]
 
     for _, module in ipairs(modules) do
         local files = module_files[module.namespace]
@@ -80,6 +93,20 @@ function composer.build(context)
         local symbols_draft = symbolization.module_draft(module, categories, categorized_declarations)
         table.insert(module_drafts, symbols_draft)
         listeners.collect(listeners_list, categorized_declarations)
+    end
+
+    for _, plugin in ipairs(plugins) do
+        if plugin.append_listeners then
+            local success, err = pcall(function()
+                table.insert_all(listeners_list, plugin.append_listeners(context))
+            end)
+            if not success then
+                context.reports:report_error {
+                    phase = "compilation",
+                    message = "Не удалось применить плагин компоновщика " .. plugin.name .. ": " .. tostring(err)
+                }
+            end
+        end
     end
 
     resolving.resolve_symbols(context, module_drafts, symbols)

@@ -14,19 +14,6 @@
 ---| "validation"
 ---| "linking" # связь сущностей через идентификаторы
 
----@alias BuiltinContentKind
----| "item"
----| "sound"
----| "script"
----| "component"
----| "operation"
----| "system"
----| "phase"
----| "equipment_slot"
----| "other"
-
----@alias ContentKind BuiltinContentKind|string
-
 ---@class ReportLocation
 ---@field source string
 ---@field line integer?
@@ -84,16 +71,6 @@ function reports:report_invalid_namespace(namespace, id, kind) end
 ---@field listeners EventListeners?
 ---@field inventory_tab InventoryTab?
 ---@field phases TickPhasesDraft
-
----@class ContentsDraft : table<CategoryId, Category>
----@field item_prefabs ItemPrefabDraft[]
----@field scripts Script[]
----@field operations OperationDraft[]
----@field components ComponentTypeSettings[]
----@field systems SystemDraft[]
----@field sound_events SoundEventDraft[]
----@field progression_animations ProgressionAnimationDraft[]
----@field equipment_slots EquipmentSlotDraft[]
 
 ---@class NamespaceDraft : ContentsDraft
 ---@field id string

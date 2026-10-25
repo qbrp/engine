@@ -1,3 +1,4 @@
+--- Хэш-мапа на JVM
 ---@class MutableMap<K, V>
 ---@field size integer
 ---@field is_empty boolean

@@ -147,6 +147,18 @@ function table.filter(list, statement)
 end
 
 ---@generic T
+---@param list T[]
+---@param values T[]
+---@return T[]
+function table.insert_all(list, values)
+    local list_len = #list
+    for i = 1, #values do
+        list[list_len + i] = values[i]
+    end
+    return list
+end
+
+---@generic T
 ---@return T[]
 function table.empty()
     return {}

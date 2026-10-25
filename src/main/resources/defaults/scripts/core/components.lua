@@ -37,6 +37,7 @@ return {
     give_item = binding("core/player/inventory/give"), ---@type of<GiveItemEvent>
     interaction_interrupt = type("core/interaction/interrupt"), ---@type of<InteractionInterruptComponent>
     item_name = binding("core/item/name"), ---@type of<ItemNameComponent>
+    asset_variants = binding("core/asset_variants"), ---@type of<AssetVariants>
     equippable = binding("core/item/equippable"), ---@type of<EquippableComponent>
     decrement = binding("core/item/decrement"), ---@type of<number>
     item = binding("core/item"), ---@type of<ItemComponent>
