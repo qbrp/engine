@@ -12,7 +12,6 @@ import org.lain.engine.player.interaction.Progression
 
 fun registerHudRenderEvent(
     client: Minecraft,
-    engineClient: EngineClient,
     screenRenderer: ScreenRenderer,
 ) {
     HudRenderCallback.EVENT.register { context, tickCounter ->
@@ -20,26 +19,7 @@ fun registerHudRenderEvent(
         context.pose().pushPose()
         screenRenderer.isFirstPerson = !client.gameRenderer.mainCamera.isDetached
         screenRenderer.chatOpen = client.screen is ChatScreen
-        val gameSession = engineClient.gameSession
-        val mainPlayer = gameSession?.mainPlayer
-        screenRenderer.renderScreen(deltaTick)
-        if (gameSession != null && mainPlayer != null) {
-            renderNarrations(context, screenRenderer.narrations, deltaTick)
-            renderInteractionProgression(
-                context,
-                screenRenderer.interactionProgression,
-                with(mainPlayer.world) { mainPlayer.entity.getComponent<Progression>() },
-                deltaTick
-            )
-            renderMovementStatus(
-                context,
-                screenRenderer.movementStatus,
-                gameSession,
-                deltaTick
-            )
-        }
-        screenRenderer.littleNotificationsRenderer.render(context)
-
+        screenRenderer.renderScreen(context, deltaTick)
         context.pose().popPose()
     }
 }

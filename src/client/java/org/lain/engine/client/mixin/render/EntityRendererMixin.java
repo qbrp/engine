@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.entity.ItemFrameRenderer;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ItemFrame;
+import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.render.item.ModelPipelineKt;
 import org.lain.engine.client.resources.MeshModel;
 import org.spongepowered.asm.mixin.Mixin;
@@ -31,8 +32,13 @@ public abstract class EntityRendererMixin {
                 cir.setReturnValue(true);
             }
         }
-        if (entity instanceof AbstractClientPlayer) {
-
+        if (
+                entity instanceof AbstractClientPlayer
+                        && (entity.isSpectator() || entity.isControlledByLocalInstance())
+                        && !ClientMixin.INSTANCE.renderSpectatorPlayers()
+        ) {
+            cir.setReturnValue(false);
+            cir.cancel();
         }
     }
 }

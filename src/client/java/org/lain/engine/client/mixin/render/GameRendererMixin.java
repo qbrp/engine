@@ -1,5 +1,6 @@
 package org.lain.engine.client.mixin.render;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.DeltaTracker;
 import org.lain.engine.client.mc.ClientMixin;
@@ -19,5 +20,14 @@ public class GameRendererMixin {
     )
     public void engine$onSetProjectionMatrix(DeltaTracker deltaTracker, CallbackInfo ci) {
         ClientMixin.INSTANCE.onSetWorldProjectionMatrix();
+    }
+
+    @ModifyReturnValue(
+            method = "getFov",
+            at = @At("RETURN")
+    )
+    private double engine$applyPhotoModeZoom(double original) {
+        double zoom = ClientMixin.INSTANCE.getZoom();
+        return original / zoom;
     }
 }

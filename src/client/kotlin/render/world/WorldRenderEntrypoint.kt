@@ -64,7 +64,7 @@ fun registerWorldRenderEvents(
 
             val options = engineClient.options
 
-            if ((!engineClient.renderer.hudHidden || !options.hideChatBubblesWithUi) && options.chatBubbles) {
+            if ((!engineClient.renderer.hudHidden || gameSession.photoMode?.showChatBubbles != false) && options.chatBubbles) {
                 renderChatBubbles(
                     camera,
                     options.labelEasingDistance.toFloat(),

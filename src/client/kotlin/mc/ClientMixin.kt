@@ -16,7 +16,6 @@ import net.minecraft.world.item.ItemStack
 import org.joml.Matrix4f
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.client.render.getSkin
@@ -26,8 +25,6 @@ import org.lain.engine.client.render.player.RenderStateComponent
 import org.lain.engine.client.render.player.modelPartOf
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.EngineTitleMenu
-import org.lain.engine.client.resources.Assets
-import org.lain.engine.client.resources.compileAssets
 import org.lain.engine.client.util.getClientItem
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.item.EngineItem
@@ -63,6 +60,8 @@ object ClientMixin {
     fun canCloseLevelLoadingScreen() = client.joinFlow?.canCloseLevelLoadingScreen ?: false
 
     fun multiplayerConnectionState() = client.joinFlow?.state
+
+    fun renderSpectatorPlayers() = client.gameSession?.photoMode?.showChatBubbles != false
 
     fun openEngineTitleMenu(fading: Boolean) {
         MinecraftClient.setScreen(EngineTitleMenu(fading, client))
@@ -223,10 +222,11 @@ object ClientMixin {
 
     fun getEngineItemModel(
         itemStack: ItemStack,
-        itemModelManager: FabricBakedModelManager
+        itemModelManager: FabricBakedModelManager,
+        ignoreVanillaItems: Boolean = true
     ): BakedModel? {
         // если это не engine-предмет, забиваем на него
-        if (!itemStack.has(ENGINE_ITEM_COMPONENT)) {
+        if (!itemStack.has(ENGINE_ITEM_COMPONENT) && ignoreVanillaItems) {
             return null
         }
         val engineModel = itemStack.get(ENGINE_ITEM_MODEL_COMPONENT)?.let { itemModelManager.getModel(it) }
@@ -301,6 +301,8 @@ object ClientMixin {
     fun getChatSize() = client.options.chatFieldSize
 
     fun getCamera() = client.camera
+
+    fun getZoom() = client.renderer.zoom
 
     fun requireAssetsCompilation() = client.assetCompilation ?: error("Компиляция ассетов не начата")
 

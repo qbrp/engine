@@ -32,7 +32,7 @@ public abstract class ItemModelManagerMixin {
             CallbackInfoReturnable<BakedModel> cir
     ) {
         FabricBakedModelManager modelManager = (FabricBakedModelManager) this.itemModelShaper.getModelManager();
-        BakedModel model = ClientMixin.INSTANCE.getEngineItemModel(stack, modelManager);
+        BakedModel model = ClientMixin.INSTANCE.getEngineItemModel(stack, modelManager, true);
         if (model != null) {
             cir.setReturnValue(model);
         }

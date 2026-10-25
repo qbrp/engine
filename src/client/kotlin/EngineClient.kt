@@ -14,6 +14,8 @@ import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.handler.GameSessionJoinFlow
 import org.lain.engine.client.handler.ServerPlayState
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.mc.isAltDown
+import org.lain.engine.client.mc.isControlDown
 import org.lain.engine.client.render.*
 import org.lain.engine.client.render.ui.ImGuiManager
 import org.lain.engine.client.resources.AssetCompilation
@@ -126,8 +128,10 @@ class EngineClient(
         handler.taskExecutor.add("Unnamed task", r)
     }
 
-    fun toggleHudHiding() {
-        renderer.hudHidden = !renderer.hudHidden
+    fun setHudHiding(value: Boolean) {
+        val options = MinecraftClient.options
+        options.hideGui = value
+        renderer.hudHidden = options.hideGui
     }
 
     fun toggleDeveloperMode() {
@@ -152,7 +156,12 @@ class EngineClient(
         if (MinecraftClient.screen != null) return
         gameSession?.let { gameSession ->
             val inspection = gameSession.inspection
-            if (inspection.concentration) {
+            val photoMode = gameSession.photoMode
+            if (photoMode != null) {
+                val controlDown = isControlDown()
+                val altDown = isAltDown()
+                if (controlDown || altDown) photoMode.zoom(delta, altDown)
+            } else if (inspection.concentration) {
                 onScrollInspection(inspection, delta)
             } else {
                 gameSession.movementManager.roll(delta)

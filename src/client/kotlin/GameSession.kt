@@ -132,7 +132,7 @@ class GameSession(
 
     var entityInspections: MutableMap<PersistentId, EntityInspection> = mutableMapOf()
     var transformationEdit: TransformationEdit? = null
-
+    var photoMode: PhotoMode? = null
 
     init {
         applyCompilation(build)

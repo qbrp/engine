@@ -17,6 +17,7 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.item.*
 import org.lain.engine.client.resources.MeshModel
 import org.lain.engine.client.resources.exportEngineModelTransformations
+import org.lain.engine.util.math.Vec2
 import kotlin.math.abs
 
 private data class PendingTransformationRender(
@@ -221,6 +222,8 @@ class TransformationsEditorWindow(
 
     override val title: String
         get() = "Редактор трансформаций ${modelId.path}"
+    override val size: Vec2
+        get() = Vec2(1650f, 800f)
 
     private val model = MinecraftClient.modelManager.getModel(modelId)
     private var transformations = AdditionalTransformationsBank.get(modelId) ?: computeTransformations(model)

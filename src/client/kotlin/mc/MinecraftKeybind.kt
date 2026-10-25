@@ -14,6 +14,8 @@ import org.lwjgl.glfw.GLFW
 
 fun isControlDown() = InputConstants.isKeyDown(MinecraftClient.window.window, GLFW.GLFW_KEY_LEFT_CONTROL)
 
+fun isAltDown() = InputConstants.isKeyDown(MinecraftClient.window.window, GLFW.GLFW_KEY_LEFT_ALT)
+
 fun isShiftDown() = InputConstants.isKeyDown(MinecraftClient.window.window, GLFW.GLFW_KEY_LEFT_SHIFT)
 
 class KeybindManager(
@@ -33,8 +35,8 @@ class KeybindManager(
 
     init {
         registerKeybinding(DEVELOPER_MODE, utilCategory)
-        registerKeybinding(OPEN_WORKSPACE, utilCategory)
-        registerKeybinding(HIDE_INTERFACE, utilCategory)
+        registerKeybinding(TOGGLE_PHOTO_MODE, utilCategory)
+        registerKeybinding(PHOTO_MODE_CHAT_BUBBLE_VISIBILITY, utilCategory)
         registerKeybinding(ALLOW_SPEED_INTENTION_CHANGE)
         registerKeybinding(TOGGLE_CHAT_SPY)
         registerKeybinding(EXTEND_HAND, gameplayCategory)

@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Camera.class)
@@ -38,5 +39,16 @@ public abstract class CameraMixin {
                 },
                 tickProgress
         );
+    }
+
+    @Redirect(
+            method = "getNearPlane",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Ljava/lang/Integer;intValue()I"
+            )
+    )
+    public int engine$zoom(Integer instance) {
+        return (int) (instance / ClientMixin.INSTANCE.getZoom());
     }
 }

@@ -223,7 +223,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         decalSystem.textureManager = client.textureManager
         engine.thread = (client as MinecraftClientAccessor).`engine$getThread`()
         registerWorldRenderEvents(client, engine, platform, decalSystem)
-        registerHudRenderEvent(client, engine, renderer)
+        registerHudRenderEvent(client, renderer)
         MovingWallpapers.loadWallpapers(client)
     }
 

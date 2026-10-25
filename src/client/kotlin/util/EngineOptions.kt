@@ -1,5 +1,12 @@
 package org.lain.engine.client.util
 
+interface Option<T> {
+    fun get(): T
+    fun set(value: T)
+}
+
+class ValidationException(message: String) : RuntimeException(message)
+
 interface EngineOptions {
     val chatBubbleScale: Float
     val chatBubbleHeight: Float
@@ -8,7 +15,6 @@ interface EngineOptions {
     val chatBubbleBackgroundOpacity: Float
     val chatBubbleIgnoreLightLevel: Boolean
     val chatBubbles: Boolean
-    val hideChatBubblesWithUi: Boolean
     val chatInputShakingForce: Float
     val chatInputShakingThreshold: Float
     val chatInputSendClosesChat: Boolean

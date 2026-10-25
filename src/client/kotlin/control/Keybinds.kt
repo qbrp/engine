@@ -43,17 +43,6 @@ val DEVELOPER_MODE = KeybindSettings(
     }
 )
 
-val HIDE_INTERFACE = KeybindSettings(
-    name = "Скрыть интерфейс",
-    id = KeybindId("hide_hud"),
-    GLFW.GLFW_KEY_F1,
-    onPress = { client ->
-        val options = MinecraftClient.options
-        options.hideGui = !options.hideGui
-        client.toggleHudHiding()
-    },
-)
-
 val TOGGLE_INSPECTION = KeybindSettings(
     name = "Режим изучения",
     id = KeybindId("toggle_inspection"),
@@ -148,9 +137,16 @@ val SELECT_CHARACTER = KeybindSettings(
     onPress = { client -> client.gameSession?.openCharacterSelectionMenu() }
 )
 
-val OPEN_WORKSPACE = KeybindSettings(
-    name = "Открыть рабочий стол",
-    id = KeybindId("open_workspace"),
-    key = InputConstants.KEY_APOSTROPHE,
-    onPress = { client -> client.gameSession?.let { client.platform.onWorkspaceMenuOpen(it) } }
+val TOGGLE_PHOTO_MODE = KeybindSettings(
+    name = "Фоторежим",
+    id = KeybindId("toggle_photo_mode"),
+    key = InputConstants.KEY_F1,
+    onPress = { client -> client.gameSession?.togglePhotoMode() },
+)
+
+val PHOTO_MODE_CHAT_BUBBLE_VISIBILITY = KeybindSettings(
+    name = "Видимость чат-баблов",
+    id = KeybindId("photo_mode_chat_bubble_visibility"),
+    key = InputConstants.KEY_1,
+    onPress = { client -> client.gameSession?.photoMode?.let { it.showChatBubbles = !it.showChatBubbles } }
 )
