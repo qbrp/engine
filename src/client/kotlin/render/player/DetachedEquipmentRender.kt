@@ -89,7 +89,7 @@ class EquipmentFeatureRenderer(
             }
 
             val isLeg = playerPart == PlayerPart.LEFT_LEG || playerPart == PlayerPart.LEFT_FEET || playerPart == PlayerPart.RIGHT_LEG || playerPart == PlayerPart.RIGHT_FEET
-            if (ClientMixin.getPlayerSkinThreadSafe(entity.uuid)?.model == PlayerSkin.Model.SLIM && !isLeg) {
+            if (ClientMixin.getPlayerSkinThreadSafe(entity.uuid)?.model == PlayerSkin.Model.SLIM && !isLeg && playerPart != PlayerPart.BODY) {
                 // сдвигаем на один пиксель
                 val mirrorXMultiplier = if (equipment.mirrorX && playerPart.left) -1 else 1
                 poseStack.translate(0.0625f * mirrorXMultiplier, 0f, 0f)

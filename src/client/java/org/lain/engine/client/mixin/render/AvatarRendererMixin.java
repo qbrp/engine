@@ -1,6 +1,7 @@
 package org.lain.engine.client.mixin.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
@@ -12,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(PlayerRenderer.class)
 public class AvatarRendererMixin {
-    @Inject(method = "render", at = @At("HEAD"))
-    private void engine$updateRenderState(
+    @Inject(method = "render", at = @At("HEAD"), cancellable = true)
+    private void engine$beforeRender(
             AbstractClientPlayer player,
             float entityYaw,
             float partialTick,
@@ -22,6 +23,14 @@ public class AvatarRendererMixin {
             int light,
             CallbackInfo ci
     ) {
+        Minecraft minecraft = Minecraft.getInstance();
+        // Detached-camera mods can use a LocalPlayer as the camera. FirstPerson may try to
+        // render that synthetic player at the camera origin when its compatibility hook is absent.
+        if (player == minecraft.getCameraEntity() && player != minecraft.player) {
+            ci.cancel();
+            return;
+        }
+
         PlayerRenderer renderer = (PlayerRenderer) (Object) this;
         ClientMixin.INSTANCE.updatePlayerRenderState(player, renderer.getModel());
     }
