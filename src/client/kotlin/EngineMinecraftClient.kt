@@ -19,6 +19,7 @@ import org.lain.engine.client.mixin.MinecraftClientAccessor
 import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.player.EquipmentFeatureRenderer
 import org.lain.engine.client.render.player.HeadEquipmentFeatureRenderer
+import org.lain.engine.client.render.player.registerArmPoseAnimation
 import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.*
@@ -86,6 +87,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)
         registerClientEngineCommands(engine)
+        registerArmPoseAnimation()
 
         Injector.register(keybindManager)
         Injector.register(this)

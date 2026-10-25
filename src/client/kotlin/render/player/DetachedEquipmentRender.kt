@@ -22,6 +22,9 @@ import org.lain.engine.player.PlayerPart
 import kotlin.math.cos
 import kotlin.math.sin
 
+private const val ARM_BEND_PIVOT_Y = 4f / 16f
+private const val LEG_BEND_PIVOT_Y = 6f / 16f
+
 @Suppress("UnstableApiUsage")
 class EquipmentFeatureRenderer(
     context: RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>,
@@ -70,10 +73,14 @@ class EquipmentFeatureRenderer(
                     val axisf: Float = -data.getX()
                     val axis = Vector3f(cos(axisf), 0f, sin(axisf))
 
-                    val elbowY = 4f / 16f
-                    poseStack.translate(0f, elbowY, 0f)
+                    val bendPivotY = when (playerPart) {
+                        PlayerPart.LEFT_PALM, PlayerPart.RIGHT_PALM -> ARM_BEND_PIVOT_Y
+                        PlayerPart.LEFT_FEET, PlayerPart.RIGHT_FEET -> LEG_BEND_PIVOT_Y
+                        else -> error("Bend pivot is not defined for $playerPart")
+                    }
+                    poseStack.translate(0f, bendPivotY, 0f)
                     poseStack.mulPose(Quaternionf().rotateAxis(bend, axis))
-                    poseStack.translate(0f, -elbowY, 0f)
+                    poseStack.translate(0f, -bendPivotY, 0f)
                 }
             }
 

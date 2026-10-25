@@ -1,6 +1,5 @@
 package org.lain.engine.client
 
-import kotlinx.coroutines.cancel
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.EngineSimulation
@@ -10,6 +9,7 @@ import org.lain.engine.client.chat.ChatBubbleList
 import org.lain.engine.client.chat.ClientEngineChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
+import org.lain.engine.client.control.Guide
 import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
 import org.lain.engine.client.control.PhotoMode
@@ -133,6 +133,7 @@ class GameSession(
     var entityInspections: MutableMap<PersistentId, EntityInspection> = mutableMapOf()
     var transformationEdit: TransformationEdit? = null
     var photoMode: PhotoMode? = null
+    val guide = Guide(this)
 
     init {
         applyCompilation(build)
@@ -318,6 +319,7 @@ class GameSession(
         client.renderer.invalidate()
         handler.close()
         client.skinTextureManager.close()
+        guide.save()
     }
 
     fun getPlayer(id: PlayerId) = playerStorage.get(id)

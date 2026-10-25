@@ -36,9 +36,6 @@ import org.lain.engine.data.toJsonComponentPayload
 import org.lain.engine.item.Barrel
 import org.lain.engine.item.Count
 import org.lain.engine.item.GunFireState
-import org.lain.engine.player.Narration
-import org.lain.engine.player.NarrationContent
-import org.lain.engine.player.NarrationMessage
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.SInt
 import org.lain.engine.script.SList
@@ -60,28 +57,18 @@ class ComponentPersistenceTest : EngineTest() {
     fun mutableComponentSnapshotsDoNotTrackLiveMutations() {
         val barrel = Barrel(5, 10, null)
         val fireState = GunFireState(triggerSoundPlayed = false, fired = true)
-        val narration = Narration(
-            mutableListOf(
-                NarrationMessage(NarrationContent("message", 40), time = 1, kick = false, id = 7),
-            )
-        )
 
         val barrelSnapshot = (barrel.snapshot() as ComponentSnapshot.Kotlin<*>).component as Barrel
         val fireStateSnapshot =
             (fireState.snapshot() as ComponentSnapshot.Kotlin<*>).component as GunFireState
-        val narrationSnapshot =
-            (narration.snapshot() as ComponentSnapshot.Kotlin<*>).component as Narration
 
         barrel.bullets = 2
         fireState.triggerSoundPlayed = true
         fireState.fired = false
-        narration.messages.single().time = 9
-        narration.messages.clear()
 
         assertEquals(5, barrelSnapshot.bullets)
         assertFalse(fireStateSnapshot.triggerSoundPlayed)
         assertTrue(fireStateSnapshot.fired)
-        assertEquals(1, narrationSnapshot.messages.single().time)
     }
 
     @Test

@@ -6,7 +6,7 @@ import org.lain.engine.bootstrap
 import org.lain.engine.chat.acoustic.AcousticSimulator
 import org.lain.engine.data.SaveTimers
 import org.lain.engine.data.connectDatabase
-import org.lain.engine.item.AssetVariants
+import org.lain.engine.item.ItemAssets
 import org.lain.engine.item.ItemId
 import org.lain.engine.item.ItemPrefab
 import org.lain.engine.item.ItemProgressionAnimations
@@ -45,6 +45,7 @@ fun TestEngineSimulation(
     namespacedStorage,
     ScriptEngine.Dummy,
     Thread.currentThread(),
+    useAdventureMode = false
 )
 
 fun TestComponentWorld(
@@ -62,7 +63,7 @@ fun DummyItemPrefab() = ItemPrefab(
     ItemId(EngineId("dummy")),
     1,
     "Dummy Item Name",
-    AssetVariants.withDefaultAsset(EngineId("dummy")),
+    ItemAssets.withDefaultAsset(EngineId("dummy")),
     ItemProgressionAnimations(mapOf()),
     { world, entity -> }
 )

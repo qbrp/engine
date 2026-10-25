@@ -58,6 +58,7 @@ class ScriptSystemBindingTest : EngineTest() {
             namespacedStorage = namespaces,
             scriptEngine = lua,
             thread = Thread.currentThread(),
+            useAdventureMode = false
         )
         val world = World(WorldId("binding-test"), simulation)
         simulation.loadWorld(world)

@@ -1,6 +1,7 @@
 package org.lain.engine.server.account
 
 import kotlinx.serialization.json.Json
+import org.lain.engine.Constants
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -8,7 +9,7 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 class EngineHttpClient(
-    val uri: URI = URI("https://engine.qbrp.fun"),
+    val uri: URI = URI(Constants.BACKEND_URL),
     private val requestTimeout: Duration = Duration.ofSeconds(3)
 ) {
     val rest = HttpClient
