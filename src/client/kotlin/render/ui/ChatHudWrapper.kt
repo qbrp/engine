@@ -167,8 +167,10 @@ class ChatHudWrapper(chatHud: ChatComponent) {
 
         var textX = 0
         typingPlayers.forEachIndexed { index, player ->
-            drawFace(guiGraphics, player.skinTextures, textX + 1, state.chatBottomY + 1, 0xFF505050.toInt())
-            drawFace(guiGraphics, player.skinTextures, textX, state.chatBottomY, CommonColors.WHITE)
+            player.skinTextures?.let { skin ->
+                drawFace(guiGraphics, skin, textX + 1, state.chatBottomY + 1, 0xFF505050.toInt())
+                drawFace(guiGraphics, skin, textX, state.chatBottomY, CommonColors.WHITE)
+            }
             textX += 10
             guiGraphics.drawString(minecraft.font, player.name, textX, state.chatBottomY + 1, CommonColors.WHITE)
             textX += minecraft.font.width(player.name)

@@ -11,6 +11,7 @@ import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
+import org.lain.engine.client.render.getSkin
 import org.lain.engine.client.render.ui.hud.ChatChannelsBar
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.mc.Text
@@ -59,7 +60,7 @@ object MinecraftChat : ChatEventBus {
     var isWritingCommand = false
     val typingPlayers = mutableSetOf<TypingPlayer>()
 
-    data class TypingPlayer(val id: PlayerId, val skinTextures: PlayerSkin, val name: Text) {
+    data class TypingPlayer(val id: PlayerId, val skinTextures: PlayerSkin?, val name: Text) {
         override fun equals(other: Any?): Boolean {
             return other is TypingPlayer && id == other.id
         }
@@ -76,7 +77,7 @@ object MinecraftChat : ChatEventBus {
                 typingPlayers.add(
                     TypingPlayer(
                         player,
-                        ClientMixin.getPlayerSkin(enginePlayer),
+                        enginePlayer.getSkin(),
                         enginePlayer.displayNameText
                     )
                 )
