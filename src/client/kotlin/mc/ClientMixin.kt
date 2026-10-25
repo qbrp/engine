@@ -201,7 +201,7 @@ object ClientMixin {
         val renderState = enginePlayer?.get<RenderStateComponent>()?.renderState
         if (enginePlayer != null && renderState != null) {
             renderState.detachedEquipment.forEach {
-                it.playerModelPart = modelPartOf(it.playerPart, model)
+                it.playerModelPart = modelPartOf(it.slot.part, model)
             }
         }
     }

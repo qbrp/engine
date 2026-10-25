@@ -73,7 +73,6 @@ fun mainClientPlayerInstance(
                 ),
                 data.attributes,
                 developerModeStatus = developerModeStatus,
-                skinEyeY = data.skinEyeY,
             ),
             id
         ).also { it.isLowDetailed = false }

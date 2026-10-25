@@ -236,7 +236,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
                 syncPlayerGenderConfig(
                     player.minecraftEntity as ServerPlayer,
                     character.profile.biologicalSex,
-                    character.profile.genderParams
+                    character.profile.appearance
                 )
             }
         }

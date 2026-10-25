@@ -5,7 +5,10 @@ import net.minecraft.client.model.PlayerModel
 import net.minecraft.world.item.ItemStack
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.requireComponent
+import org.lain.engine.client.mc.ClientMixin
+import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.item.EngineItemDisplayContext
+import org.lain.engine.client.resources.MeshModel
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.ItemAssets
 import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
@@ -15,15 +18,16 @@ import org.lain.engine.player.PlayerPart
 import org.lain.engine.player.getOrSet
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.persistentId
+import org.lain.engine.mc.ecs.MinecraftPlayer
+import org.lain.engine.player.EquipmentSlot
 import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.world.World
 
 data class DetachedEquipmentRenderState(
     val itemStack: ItemStack,
-    val slotId: EquipmentSlotId,
+    val slot: EquipmentSlot,
     val displayContext: EngineItemDisplayContext,
-    val dependsEyeY: Boolean,
-    val playerPart: PlayerPart,
+    val rotateLeftSide: Boolean,
     var playerModelPart: ModelPart? = null,
 )
 
@@ -46,14 +50,18 @@ fun createDetachedEquipmentRenderStates(
                 stack.setPreviewItemModel(assets)
                 stack
             }
+            val model = ClientMixin.getEngineItemModel(
+                itemStack,
+                MinecraftClient.modelManager,
+                ignoreVanillaItems = false
+            ) as? MeshModel ?: return@mapNotNull null
             DetachedEquipmentRenderState(
                 itemStack = itemStack,
-                slotId = slotId,
+                slot = slot,
                 displayContext =
                     if (slot.part == PlayerPart.HEAD) EngineItemDisplayContext.HEAD
                     else EngineItemDisplayContext.OUTFIT,
-                dependsEyeY = false,
-                playerPart = slot.part,
+                model.properties.rotateLeftSide
             )
         }
 }

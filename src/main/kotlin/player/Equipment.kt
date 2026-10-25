@@ -17,8 +17,9 @@ fun EngineId.toEquipmentSlotId() = EquipmentSlotId(this)
 
 @Serializable
 data class EquipmentSlot(
+    val id: EquipmentSlotId,
     val name: String,
-    val dependsEyeY: Boolean = false,
+    val followsEyeHeight: Boolean = false,
     val part: PlayerPart
 )
 

@@ -14,11 +14,11 @@ return {
     player_inventory = type("core/player/inventory"), ---@type of<PlayerInventoryComponent>
     player_mode = type("core/player/game_mode"), ---@type of<PlayerModeComponent>
     player_physics = type("core/player/physics"), ---@type of<PlayerPhysicsComponent>
-    player_attributes = type("core/player/attributes"), ---@type of<PlayerAttributesComponent>
-    player_custom_attributes = type("core/player/custom_attributes"), ---@type of<PlayerCustomAttributesComponent>
+    player_attributes = binding("core/player/attributes"), ---@type of<PlayerAttributesComponent>
+    player_custom_attributes = binding("core/player/custom_attributes"), ---@type of<PlayerCustomAttributesComponent>
     player = type("core/player/component"), ---@type of<PlayerComponent>
     player_input = type("core/player/input"), ---@type of<PlayerInputComponent>
-    movement_status = type("core/player/movement_status"), ---@type of<MovementStatusComponent>
+    movement_status = binding("core/player/movement_status"), ---@type of<MovementStatusComponent>
     player_velocity = type("core/player/velocity"), ---@type of<PlayerVelocityComponent>
     jump = type("core/player/jump"), ---@type of<JumpComponent>
     location = binding("core/location"), ---@type of<LocationComponent>

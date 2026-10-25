@@ -5,11 +5,9 @@ import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.script.Contents
 import org.lain.engine.script.Identifiable
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaStr
 import org.lain.engine.script.lua.luaTable
-import org.lain.engine.script.lua.luaValue
-import org.lain.engine.script.lua.toLuaTable
-import org.lain.engine.script.lua.toMap
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 

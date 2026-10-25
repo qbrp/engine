@@ -10,6 +10,6 @@ fun GameSession.tickGenderSystem() = world.iterate<CharacterApplyEvent> { _, (ch
     val profile = character.profile
     val player = playerStorage.get(playerId) ?: return@iterate
     if (GENDER_MOD_AVAILABLE) {
-        applyGenderConfig(player.id, profile.biologicalSex, profile.genderParams)
+        applyGenderConfig(player.id, profile.biologicalSex, profile.appearance)
     }
 }

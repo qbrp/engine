@@ -16,19 +16,19 @@ data class EnginePlayerModel(
     var scale: Float = 1f,
     var standingEyeHeight: Float = 0.8f,
     var height: Float = 1f,
-    var skinEyeY: Float = 0f,
+    var eyeLevel: Int = 0,
 ) : Component
 
-enum class PlayerPart {
+enum class PlayerPart(val left: Boolean = false) {
     HEAD,
-    LEFT_ARM,
+    LEFT_ARM(true),
     RIGHT_ARM,
-    LEFT_PALM,
+    LEFT_PALM(true),
     RIGHT_PALM,
     BODY,
-    LEFT_LEG,
+    LEFT_LEG(true),
     RIGHT_LEG,
-    LEFT_FEET,
+    LEFT_FEET(true),
     RIGHT_FEET
 }
 
@@ -38,9 +38,6 @@ val EnginePlayer.eyePos: EVec3
         val standingEyeHeight = require<EnginePlayerModel>().standingEyeHeight
         return Vec3(location.x, location.y + standingEyeHeight, location.z)
     }
-
-val EnginePlayer.skinEyeY: Float
-    get() = this.require<EnginePlayerModel>().skinEyeY
 
 val EnginePlayer.height
     get() = require<EnginePlayerModel>().height
@@ -88,4 +85,5 @@ val CharacterHeight.scale
 
 fun World.tickPlayerModelSystem() = iterate<EnginePlayerModel, CharacterDisplay>() { _, model, display ->
     model.scale = display.height.scale
+    model.eyeLevel = display.appearance.eyeLevel
 }

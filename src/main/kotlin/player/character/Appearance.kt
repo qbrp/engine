@@ -7,8 +7,9 @@ import org.lain.engine.player.gradientText
 import org.lain.engine.util.Color
 
 @Serializable
-data class GenderParams(
+data class CharacterAppearance(
     val breastSize: Float,
+    val eyeLevel: Int,
 )
 
 @Serializable
@@ -43,7 +44,7 @@ data class CharacterDisplay(
     val biologicalCategory: BiologicalCategory,
     val appearanceDescription: String,
     val height: CharacterHeight,
-    val genderParams: GenderParams,
+    val appearance: CharacterAppearance,
 ) : Component
 
 @Serializable
@@ -67,7 +68,7 @@ fun BackendCharacter.getDisplay(): CharacterDisplay {
         profile.biologicalCategory,
         profile.appearanceDescription,
         profile.height,
-        profile.genderParams
+        profile.appearance
     )
 }
 

@@ -6,10 +6,10 @@ import org.lain.engine.player.character.BiologicalSex
 import org.lain.engine.player.character.BodyType
 import org.lain.engine.player.character.CharacterHeight
 import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.CharacterAppearance
 import org.lain.engine.player.character.CharacterGradientName
 import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.CharacterProfile
-import org.lain.engine.player.character.GenderParams
 import org.lain.engine.player.character.Look
 import org.lain.engine.util.Color
 import org.lain.engine.util.math.parseHexColor
@@ -28,10 +28,11 @@ data class CharacterNameDto(
 }
 
 @Serializable
-data class GenderParamsDto(
+data class CharacterAppearanceDto(
     val breastSize: Float? = null,
+    val eyeLevel: Int? = null
 ) {
-    fun map(): GenderParams = GenderParams(breastSize ?: 0f)
+    fun map(): CharacterAppearance = CharacterAppearance(breastSize ?: 0f, eyeLevel ?: 2)
 }
 
 @Serializable
@@ -56,7 +57,7 @@ data class CharacterProfileResponse(
     val appearanceDescription: String,
     val height: Double,
     val bodyType: BodyType,
-    val genderParams: GenderParamsDto,
+    val appearance: CharacterAppearanceDto,
 ) {
     fun map() = CharacterProfile(
         id,
@@ -67,6 +68,6 @@ data class CharacterProfileResponse(
         appearanceDescription,
         CharacterHeight(height.toFloat()),
         bodyType,
-        genderParams.map()
+        appearance.map()
     )
 }

@@ -8,26 +8,26 @@ import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.mc.engineId
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.BiologicalSex
+import org.lain.engine.player.character.CharacterAppearance
 import org.lain.engine.player.character.CharacterProfile
-import org.lain.engine.player.character.GenderParams
 import java.util.UUID
 
-fun syncPlayerGenderConfig(serverPlayer: ServerPlayer, sex: BiologicalSex, genderParams: GenderParams?) {
-    val config = applyGenderConfig(serverPlayer.engineId, sex, genderParams)
+fun syncPlayerGenderConfig(serverPlayer: ServerPlayer, sex: BiologicalSex, appearance: CharacterAppearance?) {
+    val config = applyGenderConfig(serverPlayer.engineId, sex, appearance)
     WildfireSync.sendToAllClients(serverPlayer, config)
 }
 
-fun applyGenderConfig(playerId: PlayerId, sex: BiologicalSex, genderParams: GenderParams?): PlayerConfig {
+fun applyGenderConfig(playerId: PlayerId, sex: BiologicalSex, appearance: CharacterAppearance?): PlayerConfig {
     val config = WildfireGender.getOrAddPlayerById(playerId.value)
     config.updateGender(sex.wildfireGender)
-    genderParams?.let { config.updateBustSize(it.breastSize) }
+    appearance?.let { config.updateBustSize(it.breastSize) }
     return config
 }
 
 fun updateCharacterEntity(character: CharacterProfile, uuid: UUID) {
     WildfireGender.getOrAddPlayerById(uuid).apply {
         updateGender(character.biologicalSex.wildfireGender)
-        updateBustSize(character.genderParams.breastSize)
+        updateBustSize(character.appearance.breastSize)
     }
 }
 

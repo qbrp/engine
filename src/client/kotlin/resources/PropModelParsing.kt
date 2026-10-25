@@ -19,7 +19,8 @@ data class PropModelProperties(
     val disableCulling: Boolean,
     val flatLight: Boolean,
     val transform: EngineTransformationsBundle,
-    val geometry: Geometry
+    val geometry: Geometry,
+    val rotateLeftSide: Boolean
 ) {
     sealed class Geometry {
         data class Json(val blockModel: BlockModel) : Geometry() // геометрия описывается в самом Json-файле квадами
@@ -83,6 +84,8 @@ fun Asset.parsePropModel(linkedObjs: Map<EngineId, LinkedObj>): PropModelPropert
         } ?: PropModelProperties.Geometry.Json(parseBlockModel(modelJson))
     }
 
+    val rotateLeftSide = JsonMc.getAsBoolean(modelJson, "rotate_left_side", false)
+
     return PropModelProperties(
         this,
         registrationId,
@@ -91,7 +94,8 @@ fun Asset.parsePropModel(linkedObjs: Map<EngineId, LinkedObj>): PropModelPropert
         disableCulling,
         flatLight,
         transform ?: EngineTransformationsBundle(),
-        geometry
+        geometry,
+        rotateLeftSide
     )
 }
 

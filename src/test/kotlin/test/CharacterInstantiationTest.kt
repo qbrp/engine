@@ -23,7 +23,7 @@ import org.lain.engine.player.character.CharacterId
 import org.lain.engine.player.character.CharacterPhysical
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.BackendCharacter
-import org.lain.engine.player.character.GenderParams
+import org.lain.engine.player.character.CharacterAppearance
 import org.lain.engine.player.character.Look
 import org.lain.engine.player.character.PlayCharacterId
 import org.lain.engine.player.character.Skin
@@ -71,7 +71,7 @@ class CharacterInstantiationTest : EngineTest() {
                     appearanceDescription = "",
                     height = CharacterHeight(1.7f),
                     bodyType = BodyType.NORMAL,
-                    genderParams = GenderParams(0f),
+                    appearance = CharacterAppearance(0f, 2)
                 ),
                 looks = listOf(look),
                 baseLook = look,

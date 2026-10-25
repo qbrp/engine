@@ -64,7 +64,6 @@ data class PersistentPlayerData(
     val voiceApparatus: VoiceApparatus,
     val voiceLoose: VoiceLoose?,
     @SerialName("chat_heads") val chatHeads: Boolean = true,
-    val skinEyeY: Float = 2f,
     val appliedCharacter: CharacterId? = null,
     @SerialName("usedCharacters") val usedCharactersLegacy: Set<CharacterId> = emptySet(),
     @SerialName("used_characters") val usedCharacters: Set<PlayCharacterId> = emptySet()
@@ -125,7 +124,6 @@ fun EnginePlayer.snapshotPersistent(): PersistentPlayerSnapshot = with(world) {
             voiceApparatus = require<VoiceApparatus>().copy(),
             voiceLoose = get<VoiceLoose>()?.copy(),
             chatHeads = chatHeadsEnabled,
-            skinEyeY = require<EnginePlayerModel>().skinEyeY,
             appliedCharacter = get<AppliedCharacter>()
                 ?.character
                 ?.profile

@@ -87,7 +87,6 @@ data class ServerPlayerData(
     val maxVolume: Float,
     val baseVolume: Float,
     val replicationSnapshot: InitialReplicationState,
-    val skinEyeY: Float,
 ) {
     val id
         get() = general.playerId
@@ -107,7 +106,6 @@ data class ServerPlayerData(
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
                 composeInitialReplicationState(player),
-                player.skinEyeY,
             )
         }
 

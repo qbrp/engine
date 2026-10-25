@@ -30,7 +30,7 @@ data class CharacterProfile(
     val appearanceDescription: String,
     val height: CharacterHeight,
     val bodyType: BodyType,
-    val genderParams: GenderParams,
+    val appearance: CharacterAppearance,
 )
 
 @Serializable

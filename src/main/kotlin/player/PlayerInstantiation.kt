@@ -40,7 +40,6 @@ data class PlayerInstantiateSettings(
     val movementStatus: MovementStatus = MovementStatus(),
     val attributes: PlayerAttributes = PlayerAttributes(),
     val developerModeStatus: DeveloperModeStatus,
-    val skinEyeY: Float = 0f,
     val replayViewer: Boolean = false,
     val items: Set<EngineItem> = emptySet()
 )
@@ -66,7 +65,7 @@ fun commonPlayerInstance(
             setComponent(Location(pos))
             setComponent(Velocity())
             setComponent(Orientation())
-            setComponent(EnginePlayerModel(skinEyeY = settings.skinEyeY))
+            setComponent(EnginePlayerModel())
             val mainHand = write.addEntity().apply {
                 setComponent(PersistentIdComponent(CustomPersistentId("player/$id/hand/main")))
             }
@@ -300,7 +299,6 @@ class PlayerLoader(
                 ),
                 PlayerAttributes(),
                 settings.developerModeStatus,
-                persistentPlayerData?.skinEyeY ?: 0f,
                 settings.isReplayViewer,
                 items
             ),

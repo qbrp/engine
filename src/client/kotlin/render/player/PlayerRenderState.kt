@@ -4,14 +4,12 @@ import net.minecraft.world.entity.player.Player
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.LowDetail
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.FireMode
 import org.lain.engine.item.GunFireState
-import org.lain.engine.item.isGun
 import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.mc.getEngineState
 import org.lain.engine.player.ArmPose
@@ -31,7 +29,7 @@ data class EnginePlayerRenderState(
     var mainArmPose: ArmPose = ArmPose.NEUTRAL,
     var minorArmPose: ArmPose = ArmPose.NEUTRAL,
     var detachedEquipment: List<DetachedEquipmentRenderState> = emptyList(),
-    var skinEyeY: Float = 0f
+    var eyeLevel: Int = 0
 )
 
 data class RenderStateComponent(val renderState: EnginePlayerRenderState) : Component
@@ -80,7 +78,7 @@ fun GameSession.updatePlayerEntityRenderStates() = with(world) {
     }
 
     iterate<RenderStateComponent, EnginePlayerModel>() { _, (renderState), model ->
-        renderState.skinEyeY = model.skinEyeY
+        renderState.eyeLevel = model.eyeLevel
     }
 }
 

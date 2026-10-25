@@ -18,7 +18,7 @@ class EquipmentFeatureRenderer(
     context: RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>,
     private val upperPart: Boolean,
 ) : RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>(context) {
-    // совместимость с Emotecraft
+    // совместимость с EmoteCraft
     @Suppress("unused")
     fun isUpperPart(): Boolean = upperPart
 
@@ -36,7 +36,8 @@ class EquipmentFeatureRenderer(
     ) {
         val items = entity.getEngineRenderState()?.detachedEquipment ?: return
         for (equipment in items) {
-            val equipmentIsUpperPart = when (equipment.playerPart) {
+            val playerPart = equipment.slot.part
+            val equipmentIsUpperPart = when (playerPart) {
                 PlayerPart.HEAD -> continue
                 PlayerPart.LEFT_ARM, PlayerPart.RIGHT_ARM,
                 PlayerPart.LEFT_PALM, PlayerPart.RIGHT_PALM -> true
@@ -48,12 +49,7 @@ class EquipmentFeatureRenderer(
 
             equipment.playerModelPart?.translateAndRotate(poseStack)
 
-            if (
-                equipment.playerPart == PlayerPart.LEFT_ARM ||
-                equipment.playerPart == PlayerPart.LEFT_PALM ||
-                equipment.playerPart == PlayerPart.LEFT_LEG ||
-                equipment.playerPart == PlayerPart.LEFT_FEET
-            ) {
+            if (equipment.rotateLeftSide && playerPart.left) {
                 poseStack.mulPose(Axis.YP.rotationDegrees(180f))
             }
 
@@ -73,7 +69,7 @@ class EquipmentFeatureRenderer(
                 entity.level(),
                 entity,
                 entity.id,
-                TransformationRenderInstance.Equipment(entity.uuid, equipment.slotId),
+                TransformationRenderInstance.Equipment(entity.uuid, equipment.slot.id),
             )
             poseStack.popPose()
         }
@@ -103,8 +99,9 @@ class HeadEquipmentFeatureRenderer(
             if (equipment.playerModelPart !== parentModel.head) continue
             poseStack.pushPose()
             parentModel.head.translateAndRotate(poseStack)
-            if (equipment.dependsEyeY) {
-                poseStack.translate(0f, -renderState.skinEyeY, 0f)
+            if (equipment.slot.followsEyeHeight) {
+                // базовое значение - 2 пикселя
+                poseStack.translate(0f, -(renderState.eyeLevel * 0.0625f - 0.125f), 0f)
             }
             translate(poseStack, headTransformation)
             renderEngineItem(
@@ -117,7 +114,7 @@ class HeadEquipmentFeatureRenderer(
                 entity.level(),
                 entity,
                 entity.id,
-                TransformationRenderInstance.Equipment(entity.uuid, equipment.slotId),
+                TransformationRenderInstance.Equipment(entity.uuid, equipment.slot.id),
             )
             poseStack.popPose()
         }
