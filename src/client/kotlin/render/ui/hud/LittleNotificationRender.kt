@@ -18,17 +18,18 @@ import kotlin.math.max
 private const val NOTIFICATION_WIDTH = 175
 private const val ICON_SIZE = 16
 private const val CONTENT_GAP = 4
-private const val TEXT_WIDTH = NOTIFICATION_WIDTH - ICON_SIZE - CONTENT_GAP
+private const val TEXT_RIGHT_PADDING = 4
+private const val TEXT_WIDTH = NOTIFICATION_WIDTH - ICON_SIZE - CONTENT_GAP - TEXT_RIGHT_PADDING
 private const val TEXT_GAP = 2
 private const val DESCRIPTION_SCALE = 0.7f
 
-private data class LittleNotificationLayout(
+data class LittleNotificationLayout(
     val title: List<FormattedCharSequence>,
     val description: List<FormattedCharSequence>,
     val height: Int,
 )
 
-private class LittleNotificationState(
+class LittleNotificationState(
     val info: LittleNotification,
     val layout: LittleNotificationLayout,
     var x: Float,
@@ -38,8 +39,10 @@ private class LittleNotificationState(
     var slideOut: Boolean = false,
     var offscreen: Boolean = true
 ) {
-    private val isExpired
-        get() = lifetime >= info.lifeTime
+    private val isExpired: Boolean
+        get() {
+            return lifetime >= (info.lifeTime ?: return false)
+        }
 
     val isReadyCleanup
         get() = offscreen && slideOut && slideOutProgress >= 1f
@@ -49,7 +52,7 @@ private class LittleNotificationState(
     }
 
     fun startSlideOut() {
-        lifetime = info.lifeTime.toFloat()
+        lifetime = info.lifeTime?.toFloat() ?: 0f
     }
 
     fun update(windowWidth: Float, targetY: Float, deltaTick: Float) {
@@ -94,13 +97,20 @@ class LittleNotificationsRenderManager(
     }
 
     fun removeNotification(slot: String) {
-        slots[slot]?.startSlideOut()
+        slots[slot]?.let {
+            val state = if (it.info.lifeTime == null) {
+                create(it.info.copy(lifeTime = 0), slot)
+            } else {
+                it
+            }
+            state?.startSlideOut()
+        }
     }
 
-    fun create(notification: LittleNotification, slot: String? = null) {
+    fun create(notification: LittleNotification, slot: String? = null): LittleNotificationState? {
         val key = slot ?: generateIndex()
         val layout = createLayout(notification)
-        slots.compute(key) { _, value ->
+        return slots.compute(key) { _, value ->
             if (value != null && !value.slideOut && layout.height <= value.layout.height) {
                 value.replace(notification, layout.copy(height = value.layout.height))
             } else {

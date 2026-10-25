@@ -14,12 +14,14 @@ import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.resources.ResourceLocation
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.render.EngineSprite
 import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.ecs.ITEM_STACK_MATERIAL
 import org.lain.engine.mc.engineId
 import org.lain.engine.mc.literalText
+import org.lain.engine.mc.parseMiniMessage
 import org.lain.engine.util.Color
 
 object ColorMc {
@@ -46,7 +48,7 @@ val LittleNotification.titleText: Text
     get() = literalText(title).withColor(color.integer)
 
 val LittleNotification.descriptionText: Text?
-    get() = description?.let { literalText(it) }
+    get() = description?.parseMiniMessageClient()
 
 fun GuiGraphics.drawEngineSprite(
     sprite: EngineSprite,

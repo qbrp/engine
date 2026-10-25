@@ -15,7 +15,7 @@ data class LittleNotification(
     val description: String? = null,
     val color: Color = DEFAULT_TEXT_COLOR,
     val sprite: EngineSprite,
-    val lifeTime: Long = 120,
+    val lifeTime: Long? = 120,
     val transitionTime: Long = 12,
 )
 

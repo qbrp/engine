@@ -39,11 +39,13 @@ object FileSystem {
     const val SERVER_CHARACTERS_NAME = "characters.json"
     const val FORMAT_CONFIG_NAME = "format.yml"
     const val CLIENT_OPTIONS_NAME = "options.yml"
+    const val CLIENT_GUIDE_NAME = "guide.json"
 
     const val DEFAULT_RESOURCES_PATH = "defaults"
 
     val root: File = ensureDirectory(File(ROOT_PATH))
     val clientOptions by lazy { ensureFile(root.resolve(CLIENT_OPTIONS_NAME)) }
+    val clientGuide by lazy { ensureFile(root.resolve(CLIENT_GUIDE_NAME)) }
     val serverPlayStates by lazy { ensureDirectory(root.resolve(SERVER_PLAY_STATES_NAME)) }
     val modules = ensureDirectory(root.resolve(MODULES_PATH))
     val moduleSet = modules.resolve(MODULE_SET_NAME)

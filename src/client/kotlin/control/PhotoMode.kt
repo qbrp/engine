@@ -8,8 +8,11 @@ class PhotoMode(private val gameSession: GameSession) {
         set(value) {
             field = value
             client.renderer.emitPhotoModeChatBubbleCaption(value)
+            guide?.toggledChatBubbles = true
         }
     var zoom: Float = 1f
+
+    private val guide = gameSession.guide.startPhotoMode()
 
     init {
         client.setHudHiding(true)
@@ -19,12 +22,14 @@ class PhotoMode(private val gameSession: GameSession) {
     fun disable() {
         client.setHudHiding(false)
         client.renderer.emitPhotoModeOnCaption(false)
+        gameSession.guide.stopGuide<PhotoModeGuide>()
     }
 
     fun zoom(value: Float, control: Boolean) {
-        val adjustValue = if (control) 0.4f else 0.05f
+        val adjustValue = if (control) 0.05f else 0.4f
         val highZoomMultiplier = zoom / MAX_ZOOM * 5f
         zoom = (zoom + (value * adjustValue * highZoomMultiplier)).coerceIn(MIN_ZOOM, MAX_ZOOM)
+        guide?.zoomed = true
     }
 
     companion object {

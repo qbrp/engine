@@ -8,6 +8,7 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
+import org.lain.engine.client.control.PhotoModeGuide
 import org.lain.engine.client.control.togglePhotoMode
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.ui.ColorMc
@@ -88,8 +89,11 @@ class ScreenRenderer(private val client: EngineClient) {
                     with(mainPlayer.world) { mainPlayer.entity.getComponent<Progression>() },
                     dt
                 )
+            }
+            if (!hudHidden || gameSession.guide.mode is PhotoModeGuide) {
                 littleNotificationsRenderer.render(context)
             }
+            gameSession.guide.tick()
             renderMovementStatus(
                 context,
                 movementStatus,

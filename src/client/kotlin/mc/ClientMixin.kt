@@ -280,7 +280,8 @@ object ClientMixin {
         val gameSession = client.gameSession ?: return true
         val changingSpeed = !gameSession.movementManager.locked
         val concentration = gameSession.inspection.concentration && gameSession.inspectionMode
-        return !changingSpeed && !concentration
+        val changingPhotoModeZoom = gameSession.photoMode != null && (isControlDown() || isAltDown())
+        return !changingSpeed && !concentration && !changingPhotoModeZoom
     }
 
     fun isCrosshairAttackIndicatorVisible() = client.options.crosshairIndicatorVisible
