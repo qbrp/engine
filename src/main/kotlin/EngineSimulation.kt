@@ -28,6 +28,7 @@ class EngineSimulation(
     val namespacedStorage: NamespacedStorageAccess,
     val scriptEngine: ScriptEngine,
     val thread: Thread,
+    var useAdventureMode: Boolean,
 ) {
     @Volatile
     var ticks = 0L
@@ -41,7 +42,6 @@ class EngineSimulation(
         get() = worlds.values.first()
     val worldsList
         get() = worlds.values
-
 
     fun loadWorld(world: World) {
         world.registerComponentTypes(namespacedStorage)

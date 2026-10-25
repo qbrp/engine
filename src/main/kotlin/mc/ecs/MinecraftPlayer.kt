@@ -85,7 +85,11 @@ fun World.synchronizeMinecraftPlayerGameMode() {
         if (spawnMark != null) {
             player.setGameMode =
                 previousGameMode ?: when (player.entity.isOp) {
-                    false -> McGameModes.SURVIVAL
+                    false -> if (simulation.useAdventureMode) {
+                        McGameModes.ADVENTURE
+                    } else {
+                        McGameModes.SURVIVAL
+                    }
                     true -> McGameModes.CREATIVE
                 }
         }

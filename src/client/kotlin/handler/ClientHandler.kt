@@ -297,15 +297,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         }
     }
 
-    fun applyServerSettingsUpdate(settings: ClientboundServerSettings) = with(gameSession!!) {
-        val defaultAttributes = settings.defaultAttributes
-        vocalRegulator.volume.apply {
-            max = defaultAttributes.maxVolume
-            base = defaultAttributes.baseVolume
-        }
-        synchronizationRadius = settings.synchronizationRadius
-        playerDesynchronizationThreshold = settings.playerDesynchronizationThreshold
-        chatManager.updateSettings(settings.chat)
+    fun applyServerSettingsUpdate(settings: ClientboundServerSettings) {
+        gameSession?.updateServerSettings(settings)
     }
 
     fun applyChatMessage(gameSession: GameSession, message: OutcomingMessage) {

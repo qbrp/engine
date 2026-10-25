@@ -36,11 +36,14 @@ object FileSystem {
     const val WALLPAPERS_PATH = "wallpapers"
     const val SERVER_PLAY_STATES_NAME = "servers"
     const val CHAT_BAR_CONFIG_NAME = "chat-bar.yml"
+    const val SERVER_CHARACTERS_NAME = "characters.json"
     const val FORMAT_CONFIG_NAME = "format.yml"
+    const val CLIENT_OPTIONS_NAME = "options.yml"
 
     const val DEFAULT_RESOURCES_PATH = "defaults"
 
     val root: File = ensureDirectory(File(ROOT_PATH))
+    val clientOptions by lazy { ensureFile(root.resolve(CLIENT_OPTIONS_NAME)) }
     val serverPlayStates by lazy { ensureDirectory(root.resolve(SERVER_PLAY_STATES_NAME)) }
     val modules = ensureDirectory(root.resolve(MODULES_PATH))
     val moduleSet = modules.resolve(MODULE_SET_NAME)
@@ -56,6 +59,7 @@ object FileSystem {
     val builtinScripts: File = scripts
 
     val serverConfig: File = root.resolve(SERVER_CONFIG_NAME)
+    val serverCharacters: File by lazy { root.resolve(SERVER_CHARACTERS_NAME) }
 
     val storage: File = ensureDirectory(root.resolve(STORAGE_PATH))
 

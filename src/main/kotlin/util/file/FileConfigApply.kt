@@ -169,7 +169,8 @@ fun EngineMinecraftServer.applyConfig(config: ServerConfig) {
             ),
             chatSettings,
             config.requireIdenticalNamespaces,
-            config.player.spectateOnJoin
+            config.player.spectateOnJoin,
+            config.player.adventure
         )
     }
 

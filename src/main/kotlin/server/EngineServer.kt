@@ -65,6 +65,7 @@ class EngineServer(
         namespacedStorage,
         luaScriptEngine,
         thread,
+        globals.useAdventureMode
     )
 
     fun run() {
@@ -139,6 +140,7 @@ class EngineServer(
         chat.onSettingsUpdated(globals.chatSettings)
         handler.onServerSettingsUpdate()
         playerStorage.all.forEach { player -> player.set(globals.defaultPlayerAttributes) }
+        simulation.useAdventureMode = globals.useAdventureMode
     }
 
     fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) =

@@ -91,5 +91,6 @@ fun DummyWorld() = World(
         ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage()),
         ScriptEngine.Dummy,
         Thread.currentThread(),
+        false
     )
 )

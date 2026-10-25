@@ -143,6 +143,7 @@ data class PlayerConfig(
     val volume: VocalVolumeConfig,
     val damage: Boolean,
     @SerialName("spectate_on_join") val spectateOnJoin: Boolean = true,
+    val adventure: Boolean = false
 )
 
 @Serializable

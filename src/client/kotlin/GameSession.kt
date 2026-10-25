@@ -12,6 +12,7 @@ import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
 import org.lain.engine.client.control.InspectionMode
 import org.lain.engine.client.control.MovementManager
+import org.lain.engine.client.control.PhotoMode
 import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
@@ -69,6 +70,7 @@ class GameSession(
         namespacedStorage,
         luaContext,
         client.thread,
+        setup.settings.useAdventureMode
     )
     val world = World(
         world.id,
@@ -161,6 +163,18 @@ class GameSession(
                 }
             }
         }
+    }
+
+    fun updateServerSettings(settings: ClientboundServerSettings) {
+        val defaultAttributes = settings.defaultAttributes
+        vocalRegulator.volume.apply {
+            max = defaultAttributes.maxVolume
+            base = defaultAttributes.baseVolume
+        }
+        synchronizationRadius = settings.synchronizationRadius
+        playerDesynchronizationThreshold = settings.playerDesynchronizationThreshold
+        chatManager.updateSettings(settings.chat)
+        simulation.useAdventureMode = settings.useAdventureMode
     }
 
     fun toggleInspectionMode() {

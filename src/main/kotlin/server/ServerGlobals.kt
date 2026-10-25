@@ -16,4 +16,5 @@ data class ServerGlobals(
     val chatSettings: EngineChatSettings = EngineChatSettings(),
     val requireIdenticalNamespaces: Boolean = false,
     val spectateOnJoin: Boolean = false,
+    val useAdventureMode: Boolean = false,
 )

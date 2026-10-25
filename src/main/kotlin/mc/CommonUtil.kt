@@ -133,6 +133,7 @@ val ServerPlayer.previousGameMode
 object McGameModes {
     val CREATIVE = GameType.CREATIVE
     val SPECTATOR = GameType.SPECTATOR
+    val ADVENTURE = GameType.ADVENTURE
     val SURVIVAL = GameType.SURVIVAL
 }
 
