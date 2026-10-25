@@ -39,6 +39,10 @@ repositories {
             password = providers.gradleProperty("gpr.key").orNull
         }
     }
+    maven {
+        name = "KosmX's maven"
+        url = uri("https://maven.kosmx.dev/")
+    }
     maven("https://maven.logandark.net")
     maven("https://maven.gegy.dev")
     maven("https://maven.enginehub.org/repo/")
@@ -97,6 +101,7 @@ dependencies {
     compileOnly(libs.kaml)
     shaded(libs.protobuf)
     shaded(libs.gltf)
+    modImplementation(libs.playerAnimator)
     compileOnly(libs.credential.secure.storage)
     modImplementation("org.lain.cyberia:fabric:1.13")
     testImplementation(libs.fabric.loader.junit)

@@ -28,6 +28,7 @@ fun renderEngineItem(
     entity: LivingEntity? = null,
     seed: Int = 0,
     renderInstance: TransformationRenderInstance? = null,
+    mirrorX: Boolean = false
 ) {
     val model = getEngineItemModel(stack) ?: return
     if (renderInstance != null) {
@@ -40,15 +41,16 @@ fun renderEngineItem(
             val modelId = stack.get(ENGINE_ITEM_MODEL_COMPONENT)
             val transformation = modelId
                 ?.let(AdditionalTransformationsBank::get)
-                ?.outfit
-                ?: engineModel?.engineTransform?.outfit
+                ?.outfit?.minecraft()
+                ?: engineModel?.outfitTransform
             ClientMixin.onBeforeRenderOutfit(
                 stack,
                 RenderSystem.getProjectionMatrix(),
                 RenderSystem.getModelViewMatrix(),
                 poseStack.last().pose(),
             )
-            transformation?.minecraft()?.apply(false, poseStack)
+
+            transformation?.apply(mirrorX, poseStack)
             ClientMixin.onAfterRenderOutfit(stack, poseStack.last().pose())
         }
         MinecraftClient.itemRenderer.render(

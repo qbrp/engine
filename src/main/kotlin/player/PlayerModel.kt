@@ -19,17 +19,28 @@ data class EnginePlayerModel(
     var eyeLevel: Int = 0,
 ) : Component
 
-enum class PlayerPart(val left: Boolean = false) {
-    HEAD,
-    LEFT_ARM(true),
-    RIGHT_ARM,
-    LEFT_PALM(true),
-    RIGHT_PALM,
-    BODY,
-    LEFT_LEG(true),
-    RIGHT_LEG,
-    LEFT_FEET(true),
-    RIGHT_FEET
+/**
+ * @param upper Верхняя часть тела (совместимость с EmoteCraft)
+ * @param left Левая часть тела (отражение предметов рук и ног)
+ * @param arm Рука (применение бендов)
+ * @param bend Применять ли поворот бенда (для нижних частей конечностей)
+ * */
+enum class PlayerPart(
+    val modelName: String,
+    val upper: Boolean,
+    val left: Boolean = false,
+    val bend: Boolean = false
+) {
+    HEAD("head", true),
+    LEFT_ARM("leftArm", true, left = true),
+    RIGHT_ARM("rightArm", true, left = false),
+    LEFT_PALM("leftArm", true, left = true, bend = true),
+    RIGHT_PALM("rightArm", true, left = false, bend = true),
+    BODY("torso", false),
+    LEFT_LEG("leftLeg", false, true),
+    RIGHT_LEG("rightLeg", false),
+    LEFT_FEET("leftLeg", false, true, bend = true),
+    RIGHT_FEET("rightLeg", false, bend = true)
 }
 
 val EnginePlayer.eyePos: EVec3

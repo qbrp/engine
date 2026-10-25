@@ -28,6 +28,7 @@ data class DetachedEquipmentRenderState(
     val slot: EquipmentSlot,
     val displayContext: EngineItemDisplayContext,
     val rotateLeftSide: Boolean,
+    val mirrorX: Boolean,
     var playerModelPart: ModelPart? = null,
 )
 
@@ -61,7 +62,8 @@ fun createDetachedEquipmentRenderStates(
                 displayContext =
                     if (slot.part == PlayerPart.HEAD) EngineItemDisplayContext.HEAD
                     else EngineItemDisplayContext.OUTFIT,
-                model.properties.rotateLeftSide
+                model.properties.rotateLeftSide,
+                model.properties.mirrorX
             )
         }
 }

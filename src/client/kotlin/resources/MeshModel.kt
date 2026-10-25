@@ -29,6 +29,7 @@ class MeshModel(
     val disableCulling
         get() = properties.disableCulling
     val itemTransform = properties.transform.minecraft()
+    val outfitTransform = engineTransform.outfit.minecraft()
 
     override fun isVanillaAdapter(): Boolean = false
 

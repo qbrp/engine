@@ -29,7 +29,7 @@ data class EnginePlayerRenderState(
     var mainArmPose: ArmPose = ArmPose.NEUTRAL,
     var minorArmPose: ArmPose = ArmPose.NEUTRAL,
     var detachedEquipment: List<DetachedEquipmentRenderState> = emptyList(),
-    var eyeLevel: Int = 0
+    var eyeLevel: Int = 2
 )
 
 data class RenderStateComponent(val renderState: EnginePlayerRenderState) : Component

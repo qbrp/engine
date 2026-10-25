@@ -20,7 +20,8 @@ data class PropModelProperties(
     val flatLight: Boolean,
     val transform: EngineTransformationsBundle,
     val geometry: Geometry,
-    val rotateLeftSide: Boolean
+    val rotateLeftSide: Boolean,
+    val mirrorX: Boolean
 ) {
     sealed class Geometry {
         data class Json(val blockModel: BlockModel) : Geometry() // геометрия описывается в самом Json-файле квадами
@@ -85,6 +86,7 @@ fun Asset.parsePropModel(linkedObjs: Map<EngineId, LinkedObj>): PropModelPropert
     }
 
     val rotateLeftSide = JsonMc.getAsBoolean(modelJson, "rotate_left_side", false)
+    val mirrorX = JsonMc.getAsBoolean(modelJson, "mirror_x", false)
 
     return PropModelProperties(
         this,
@@ -95,7 +97,8 @@ fun Asset.parsePropModel(linkedObjs: Map<EngineId, LinkedObj>): PropModelPropert
         flatLight,
         transform ?: EngineTransformationsBundle(),
         geometry,
-        rotateLeftSide
+        rotateLeftSide,
+        mirrorX
     )
 }
 
