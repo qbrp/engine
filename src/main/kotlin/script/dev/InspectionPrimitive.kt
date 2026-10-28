@@ -23,7 +23,7 @@ sealed class InspectionPrimitive {
     abstract fun toJvmValue(kType: KType?): Any
 
     @Serializable
-    @SerialName("str")
+    @SerialName("name")
     data class Str(val string: String) : InspectionPrimitive() {
         override fun toScriptValue(): ScriptValue = SString(string)
         override fun toJvmValue(kType: KType?): Any = string

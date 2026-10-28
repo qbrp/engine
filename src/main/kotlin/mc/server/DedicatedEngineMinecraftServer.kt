@@ -3,16 +3,14 @@ package org.lain.engine.mc.server
 import net.minecraft.server.level.ServerPlayer
 import org.lain.engine.mc.DisconnectText
 import org.lain.engine.mc.engineId
-import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Username
-import org.lain.engine.player.character.CharacterId
-import org.lain.engine.player.character.BackendCharacter
-import org.lain.engine.player.character.CharacterChangeRequest
+import org.lain.engine.player.character.CharacterData
+import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.character.EngineBackend
+import org.lain.engine.player.character.ServerCharacterData
 import org.lain.engine.player.get
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.account.DedicatedEngineAccountService
-import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
@@ -86,17 +84,21 @@ class DedicatedEngineMinecraftServer(
         super.onLeavePlayer(entity)
     }
 
-    override suspend fun validateCharacterChange(
-        player: EnginePlayer,
-        request: CharacterChangeRequest
-    ): BackendCharacter {
-        require(request is CharacterChangeRequest.ResolveByTicket) {
-            "Access denied"
+    override suspend fun validateCharacter(
+        canProvideCharacters: Boolean,
+        request: ServerboundSelectedCharacter
+    ): CharacterData {
+        return when(request) {
+            is ServerboundSelectedCharacter.Provided -> {
+                if (!canProvideCharacters) error("Access denied")
+                request.character
+            }
+            is ServerboundSelectedCharacter.ResolveByTicket -> accountService
+                .getAuthorized(request.ticket.map())
+                .getCharacter(request.characterId)
+                .map()
+                .data
+            is ServerboundSelectedCharacter.ResolveServer -> TODO("Серверные персонажи ещё не завезены")
         }
-
-        return accountService
-            .getAuthorized(request.ticket.map())
-            .getCharacter(request.characterId)
-            .map()
     }
 }

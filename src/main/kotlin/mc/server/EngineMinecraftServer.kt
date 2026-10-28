@@ -32,7 +32,7 @@ import org.lain.engine.mc.compat.isReplayViewer
 import org.lain.engine.mc.compat.syncPlayerGenderConfig
 import org.lain.engine.mc.ecs.*
 import org.lain.engine.player.*
-import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.ServerCharacterData
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
@@ -230,13 +230,13 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         minecraftServer.players.forEach { commandManager.sendCommands(it) }
     }
 
-    override fun onCharacterApplied(player: EnginePlayer, character: BackendCharacter) {
+    override fun onCharacterApplied(player: EnginePlayer, character: ServerCharacterData) {
         engine.execute {
             if (GENDER_MOD_AVAILABLE) {
                 syncPlayerGenderConfig(
                     player.minecraftEntity as ServerPlayer,
-                    character.profile.biologicalSex,
-                    character.profile.appearance
+                    character.data.profile.biologicalSex,
+                    character.data.profile.appearance
                 )
             }
         }
@@ -295,6 +295,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             playerId: PlayerId,
             developerModeStatus: DeveloperModeStatus = DeveloperModeStatus(),
             notifications: List<Notification> = mutableListOf(),
+            canProvideCharacters: Boolean = false,
         ): PlayerLoadSettings {
             server.simulation.assertOnThread()
             return serverPlayerLoadSettings(
@@ -306,7 +307,8 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
                 entity.enginePlayerMode,
                 developerModeStatus,
                 notifications,
-                entity.position()
+                entity.position(),
+                canProvideCharacters
             )
         }
 
@@ -320,6 +322,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
             developerModeStatus: DeveloperModeStatus = DeveloperModeStatus(),
             notifications: List<Notification> = mutableListOf(),
             position: Vec3 = Vec3(0.0, 0.0, 0.0),
+            canProvideCharacters: Boolean = false,
         ): PlayerLoadSettings {
             server.simulation.assertOnThread()
 
@@ -332,6 +335,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
                 server.getWorld(worldId),
                 isReplayViewer,
                 playerMode,
+                canProvideCharacters
             )
         }
     }

@@ -10,9 +10,10 @@ interface CompilationContext {
     val exceptions: CompilationReportBuilder
 }
 
-class CompilationFailedException(val report: CompilationReport) : Exception(
-    "При компиляции ресурсов возникло ${report.errors.size} ошибок"
-) {
+class CompilationFailedException(
+    val report: CompilationReport,
+    override val message: String = "При компиляции ресурсов возникло ${report.errors.size} ошибок"
+) : Exception() {
     fun log() {
         val level = when(report.hasErrors) {
             true -> Level.ERROR
@@ -30,7 +31,7 @@ class CompilationFailedException(val report: CompilationReport) : Exception(
 fun <T : Component> ComponentType(engineId: EngineId): ComponentType<T> =
     ComponentType(engineId.full)
 
-fun NamespacedStorageAccess.loadResult(result: Build) {
+fun NamespacedStorageAccess.loadBuild(result: Build) {
     val namespaces = result.namespaces + BuiltinNamespaces.all
     update(
         NamespacedStorage(

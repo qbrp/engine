@@ -50,7 +50,7 @@ class SkinSystem(
                 _, (player), component, (look), (character) ->
             val texture = skinTextureManager.getOrDownloadTextureNullable(look) ?: component.skin.texture
 
-            val profile = character.profile
+            val profile = character.data.profile
             val model = computeCharacterModel(
                 profile.bodyType,
                 profile.biologicalCategory,

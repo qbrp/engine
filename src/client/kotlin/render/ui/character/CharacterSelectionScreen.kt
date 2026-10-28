@@ -2,30 +2,31 @@ package org.lain.engine.client.render.ui.character
 
 import kotlinx.coroutines.withContext
 import org.lain.engine.client.account.CharacterSelection
+import org.lain.engine.client.account.CharacterSelection.Variant
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
-import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.CharacterData
 
 class CharacterSelectionScreen(
-    character: BackendCharacter?,
-    characters: List<BackendCharacter>,
+    initialVariant: Variant?,
+    characters: List<Variant>,
     characterSelection: CharacterSelection,
 ) : AbstractSelectionScreen<CharacterSelection.Selection.Character>(characterSelection) {
     override val looksWheel: LooksWheel<CharacterSelection.Selection.Character> = run {
-        val entries = characters.map {
+        val entries = characters.map { variant ->
+            val isInitial = variant == initialVariant
+            val character = variant.character
             LooksWheel.Entry(
-                it.baseLook,
-                it.profile.name.gradientChars.getText(),
-                it.profile,
-                CharacterSelection.Selection.Character(it),
-                it.profile.id.toString()
+                character.baseLook,
+                character.profile.name.gradientChars.getText(),
+                character.profile,
+                CharacterSelection.Selection.Character(variant),
+                isInitial,
             )
         }
-        val initial = entries.find { it.profile.id == character?.profile?.id }
         LooksWheel(
             characterSelection.client.skinTextureManager,
-            initial,
             entries,
             onSelectLook = ::selectEntry
         )
@@ -37,12 +38,11 @@ class CharacterSelectionScreen(
          */
         suspend fun awaitCharacterSelection(
             characterSelection: CharacterSelection,
-            character: BackendCharacter?,
-            characters: List<BackendCharacter>,
+            initialVariant: Variant?,
+            characters: List<Variant>,
         ): CharacterSelection.Selection.Character? {
             val screen = withContext(MinecraftClientDispatcher) {
-                val screen =
-                    CharacterSelectionScreen(character, characters, characterSelection)
+                val screen = CharacterSelectionScreen(initialVariant, characters, characterSelection)
                 MinecraftClient.setScreen(screen)
                 screen
             }

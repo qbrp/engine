@@ -1,10 +1,11 @@
 package org.lain.engine.server
 
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.ServerCharacterData
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.data.SerializedInventory
-import org.lain.engine.player.character.CharacterChangeRequest
+import org.lain.engine.player.character.CharacterData
+import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.character.EngineBackend
 import org.lain.engine.world.World
 
@@ -13,7 +14,7 @@ interface ServerPlatform {
 
     fun beforePlayerInstantiation(player: EnginePlayer) {}
     fun onCompiled(contents: NamespacedStorage) {}
-    fun onCharacterApplied(player: EnginePlayer, character: BackendCharacter) {}
+    fun onCharacterApplied(player: EnginePlayer, character: ServerCharacterData) {}
     fun serializeInventory(player: EnginePlayer): SerializedInventory = SerializedInventory()
     fun clearInventory(player: EnginePlayer) {}
     fun openInventory(player: EnginePlayer, inventory: SerializedInventory) {}
@@ -27,10 +28,10 @@ interface ServerPlatform {
         val DUMMY = object : ServerPlatform {
             override val backend: EngineBackend
                 get() = object : EngineBackend {
-                    override suspend fun validateCharacterChange(
-                        player: EnginePlayer,
-                        request: CharacterChangeRequest
-                    ): BackendCharacter = TODO()
+                    override suspend fun validateCharacter(
+                        canProvideCharacters: Boolean,
+                        request: ServerboundSelectedCharacter
+                    ): CharacterData = TODO()
                 }
         }
     }

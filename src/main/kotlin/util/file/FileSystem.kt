@@ -1,5 +1,8 @@
 package org.lain.engine.util.file
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.lain.engine.Constants
 import org.lain.engine.server.ServerId
 import org.slf4j.LoggerFactory
@@ -7,12 +10,7 @@ import java.io.File
 import java.net.URL
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
-import java.nio.file.FileSystems
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.util.prefs.Preferences
 import kotlin.io.path.copyTo
 import kotlin.io.path.toPath
@@ -36,7 +34,7 @@ object FileSystem {
     const val WALLPAPERS_PATH = "wallpapers"
     const val SERVER_PLAY_STATES_NAME = "servers"
     const val CHAT_BAR_CONFIG_NAME = "chat-bar.yml"
-    const val SERVER_CHARACTERS_NAME = "characters.json"
+    const val CHARACTERS_NAME = "characters"
     const val FORMAT_CONFIG_NAME = "format.yml"
     const val CLIENT_OPTIONS_NAME = "options.yml"
     const val CLIENT_GUIDE_NAME = "guide.json"
@@ -61,7 +59,7 @@ object FileSystem {
     val builtinScripts: File = scripts
 
     val serverConfig: File = root.resolve(SERVER_CONFIG_NAME)
-    val serverCharacters: File by lazy { root.resolve(SERVER_CHARACTERS_NAME) }
+    val characters: File by lazy { root.resolve(CHARACTERS_NAME) }
 
     val storage: File = ensureDirectory(root.resolve(STORAGE_PATH))
 
@@ -93,6 +91,21 @@ object FileSystem {
     private fun compilationManifestFile(scriptsDirectory: File, fileName: String): File {
         val engineDirectory = scriptsDirectory.parentFile ?: root
         return engineDirectory.resolve(DEBUG_PATH).resolve(fileName)
+    }
+
+    suspend fun readCharacters() = withContext(Dispatchers.IO) {
+        buildMap {
+            characters.listFiles().forEach { file ->
+                try {
+                    put(
+                        file.nameWithoutExtension,
+                        Json.decodeFromString<FileProvidedCharacter>(file.readText()).map()
+                    )
+                } catch (e: Exception) {
+                    LOGGER.error("Error while reading characters from $file", e)
+                }
+            }
+        }
     }
 
     fun ensureFile(file: File): File {

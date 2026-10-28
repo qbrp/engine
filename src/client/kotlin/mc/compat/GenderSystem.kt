@@ -7,7 +7,7 @@ import org.lain.engine.mc.compat.applyGenderConfig
 import org.lain.engine.player.character.CharacterApplyEvent
 
 fun GameSession.tickGenderSystem() = world.iterate<CharacterApplyEvent> { _, (character, playerId) ->
-    val profile = character.profile
+    val profile = character.data.profile
     val player = playerStorage.get(playerId) ?: return@iterate
     if (GENDER_MOD_AVAILABLE) {
         applyGenderConfig(player.id, profile.biologicalSex, profile.appearance)

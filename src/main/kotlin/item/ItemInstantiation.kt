@@ -59,7 +59,7 @@ fun createItemCommon(
     coordinator: EntityCoordinator?,
     uuid: PersistentId = Uuid.next(),
 ): EngineItem {
-    val item = world.addEntity()
+    val item = write.addEntity()
     item.setComponent(PersistentIdComponent(uuid))
     item.setComponent(Item(uuid, prefab.id))
     item.setComponent(ItemName(prefab.name))

@@ -8,13 +8,15 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.container.createContainer
 import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.player.character.UsedCharacters
-import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.ServerCharacterData
 import org.lain.engine.player.character.CharacterManager
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.server.*
 import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
-import org.lain.engine.player.character.PlayCharacterId
+import org.lain.engine.player.character.OwnedCharacterId
+import org.lain.engine.player.character.ServerCharacterId
+import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.interaction.HandType
 import org.lain.engine.player.interaction.setupHandInteractorEntity
 import org.lain.engine.script.dev.EntityInspectionComponent
@@ -155,8 +157,9 @@ data class PlayerLoadSettings(
     val world: World,
     val isReplayViewer: Boolean = false,
     val playerMode: PlayerMode,
+    val canProvideCharacters: Boolean,
 ) {
-    data class Account(val character: BackendCharacter?) // название Account может слегка путать, ибо выбор не привязан к аккаунту
+    data class Account(val character: ServerboundSelectedCharacter?) // название Account может слегка путать, ибо выбор не привязан к аккаунту
 }
 
 class PlayerLoader(
@@ -196,7 +199,8 @@ class PlayerLoader(
 
             val character = account.character
             val preparedCharacter = character?.let {
-                val characterId = PlayCharacterId.player(playerId, character.profile.id)
+                val serverCharacterId = character.resolveServerId(playerId)
+                val characterId = OwnedCharacterId.player(playerId, serverCharacterId)
                 val persistentData = if (characterId in persistentData?.usedCharacters.orEmpty()) {
                     persistence.loadPersistentCharacter(
                         transaction,
@@ -207,7 +211,16 @@ class PlayerLoader(
                 } else {
                     null
                 }
-                PreparedCharacter(character, persistentData, characterId)
+
+                val serverCharacterData = platform.backend.validateCharacter(
+                    settings.canProvideCharacters,
+                    character
+                )
+                PreparedCharacter(
+                    ServerCharacterData(serverCharacterId, serverCharacterData),
+                    persistentData,
+                    characterId
+                )
             }
 
             val player = with(transaction.commands) {
@@ -250,10 +263,7 @@ class PlayerLoader(
                     }
                 }
                 transaction.commit()
-                server.instantiatePlayer(
-                    player,
-                    settings.notifications,
-                )
+                server.instantiatePlayer(player, settings.notifications)
 
                 onCreated(prepared.player)
 
@@ -271,9 +281,9 @@ class PlayerLoader(
     )
 
     private data class PreparedCharacter(
-        val backend: BackendCharacter,
+        val backend: ServerCharacterData,
         val persistentData: PlayCharacterData?,
-        val id: PlayCharacterId
+        val id: OwnedCharacterId
     )
 
     context(write: WriteComponentAccess)

@@ -49,6 +49,7 @@ class GameSession(
     setup: ClientboundSetupData,
     world: ClientboundWorldData,
     player: ServerPlayerData,
+    var character: LocalCharacter?,
     val handler: ClientHandler,
     val client: EngineClient,
     val compilation: ClientCompilation,
@@ -115,6 +116,7 @@ class GameSession(
         player,
         DeveloperModeStatus(client.developerMode, client.acousticDebug),
     )
+
     val ticks
         get() = simulation.ticks
 
@@ -151,8 +153,9 @@ class GameSession(
 
         replicationController.seed(player.replicationSnapshot)
 
-        // в ServerPlayerData
-        this.world.emitEvent(CharacterApplyEvent(mainPlayer.require<AppliedCharacter>().character, mainPlayer.id))
+        player.character?.let {
+            this.world.emitEvent(CharacterApplyEvent(it, mainPlayer.id))
+        }
     }
 
     fun logInMainThread(loggerGetter: context(World) GameSession.(tick: Long) -> Log) {
@@ -298,13 +301,14 @@ class GameSession(
         simulation.assertOnThread()
         if (characterChange != null) return
 
-        val appliedCharacter = mainPlayer.get<AppliedCharacter>()?.character
-        val selectedLook = mainPlayer.get<SelectedLook>()?.look
-        val currentPlayerCharacter = if (appliedCharacter != null && selectedLook != null) {
-            CharacterSelection.CurrentCharacter(appliedCharacter, selectedLook)
-        } else {
-            null
+        val currentPlayerCharacter = run {
+            CharacterSelection.CurrentCharacter(
+                mainPlayer.get<AppliedCharacter>()?.character?.data ?: return@run null,
+                character?.source ?: return@run null,
+                mainPlayer.get<SelectedLook>()?.look ?: return@run null
+            )
         }
+
         val change = CharacterChange(this, currentPlayerCharacter)
         characterChange = change
         change.start().invokeOnCompletion {

@@ -7,12 +7,12 @@ import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
-import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.CharacterData
 import org.lain.engine.player.character.Look
 
 class LookSelectionScreen(
     characterSelection: CharacterSelection,
-    character: BackendCharacter,
+    character: CharacterData,
     look: Look,
     skinTextureManager: SkinTextureManager = characterSelection.client.skinTextureManager,
     looks: List<Look> = character.looks,
@@ -30,13 +30,12 @@ class LookSelectionScreen(
                 it,
                 profile.name.copy(name = it.title).gradientChars.getText(),
                 profile,
-                Result.Selected(it)
+                Result.Selected(it),
+                it.id == look.id
             )
         }
-        val initial = entries.find { it.look.id == look.id }
         LooksWheel(
             skinTextureManager,
-            initial,
             entries,
             onSelectLook = ::selectEntry
         )
@@ -52,21 +51,22 @@ class LookSelectionScreen(
     }
 
     companion object {
-        /**
-         * @return null если экран выбора образов был закрыт
-         */
         suspend fun awaitGeneralSelection(
             characterSelection: CharacterSelection,
-            character: BackendCharacter,
+            selectedCharacterVariant: CharacterSelection.Variant,
             look: Look,
-            characters: List<BackendCharacter>,
+            variants: List<CharacterSelection.Variant>,
         ): CharacterSelection.Selection? {
-            if (character.looks.size == 1) {
-                return CharacterSelectionScreen.awaitCharacterSelection(characterSelection, character, characters)
+            if (selectedCharacterVariant.character.looks.size == 1) {
+                return CharacterSelectionScreen.awaitCharacterSelection(
+                    characterSelection,
+                    selectedCharacterVariant,
+                    variants
+                )
             }
 
             val screen = withContext(MinecraftClientDispatcher) {
-                val screen = LookSelectionScreen(characterSelection, character, look)
+                val screen = LookSelectionScreen(characterSelection, selectedCharacterVariant.character, look)
                 MinecraftClient.setScreen(screen)
                 screen
             }
@@ -74,9 +74,10 @@ class LookSelectionScreen(
                 null -> null
                 Result.Switch -> CharacterSelectionScreen.awaitCharacterSelection(
                     characterSelection,
-                    character,
-                    characters,
+                    selectedCharacterVariant,
+                    variants,
                 )
+
                 is Result.Selected -> CharacterSelection.Selection.Look(result.look)
             }
         }

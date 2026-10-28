@@ -15,9 +15,11 @@ import org.lain.engine.data.SerializedInventory
 import org.lain.engine.data.persistentId
 import org.lain.engine.data.snapshot
 import org.lain.engine.player.equipment
+import org.lain.engine.player.items
+import org.lain.engine.player.require
 
 @Serializable
-data class CharacterApplyEvent(val character: BackendCharacter, val playerId: PlayerId) : Component
+data class CharacterApplyEvent(val character: ServerCharacterData, val playerId: PlayerId) : Component
 
 fun EnginePlayer.unloadCharacter(
     platform: ServerPlatform,
@@ -29,6 +31,7 @@ fun EnginePlayer.unloadCharacter(
         applied.character.id,
         entity.requireComponent<SelectedLook>().look.id,
         serializedInventory ?: platform.serializeInventory(this@unloadCharacter),
+        items.map { it.persistentId() },
         equipment.mapValues { (_, entity) -> entity.persistentId() },
         listOfNotNull(
             entity.getComponent<CharacterPhysical>()

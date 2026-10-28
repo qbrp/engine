@@ -11,9 +11,9 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
-import org.lain.engine.player.character.CharacterId
-import org.lain.engine.player.character.CharacterOwner
-import org.lain.engine.player.character.PlayCharacterId
+import org.lain.engine.player.character.BackendCharacterId
+import org.lain.engine.player.character.OwnedCharacterId
+import org.lain.engine.player.character.ServerCharacterId
 import org.lain.engine.player.character.UsedCharacters
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.Color
@@ -64,15 +64,16 @@ data class PersistentPlayerData(
     val voiceApparatus: VoiceApparatus,
     val voiceLoose: VoiceLoose?,
     @SerialName("chat_heads") val chatHeads: Boolean = true,
-    val appliedCharacter: CharacterId? = null,
-    @SerialName("usedCharacters") val usedCharactersLegacy: Set<CharacterId> = emptySet(),
-    @SerialName("used_characters") val usedCharacters: Set<PlayCharacterId> = emptySet()
+    val appliedCharacter: ServerCharacterId? = null,
+    @SerialName("usedCharacters") val usedCharactersLegacy: Set<BackendCharacterId> = emptySet(),
+    @SerialName("used_characters") val usedCharacters: Set<OwnedCharacterId> = emptySet()
 )
 
 data class PersistentCharacterSnapshot(
-    val id: CharacterId,
+    val id: ServerCharacterId,
     val look: String,
-    val items: SerializedInventory,
+    val inventory: SerializedInventory,
+    val items: List<PersistentId>,
     val equipment: Map<EquipmentSlotId, PersistentId> = mapOf(),
     val components: List<SavingComponentSnapshot>
 )
@@ -90,7 +91,7 @@ data class PersistentPlayerRecord(
 )
 
 data class PlayCharacterData(
-    val id: PlayCharacterId,
+    val id: OwnedCharacterId,
     val components: MaterializedComponents,
     val inventory: SerializedInventory,
     val items: Set<EntityId>,
@@ -98,13 +99,8 @@ data class PlayCharacterData(
     val equipment: Map<EquipmentSlotId, EntityId> = emptyMap(),
 )
 
-fun PlayCharacterId.databasePersistentId(): PersistentId {
-    val ownerStr = when (owner) {
-        is CharacterOwner.Player -> owner.id.toString()
-        CharacterOwner.Server -> "server"
-    }
-    val characterStr = character.value
-    return CustomPersistentId("$ownerStr-$characterStr")
+fun OwnedCharacterId.databasePersistentId(): PersistentId {
+    return CustomPersistentId(stringRepresentation())
 }
 
 context(world: World)
@@ -124,10 +120,7 @@ fun EnginePlayer.snapshotPersistent(): PersistentPlayerSnapshot = with(world) {
             voiceApparatus = require<VoiceApparatus>().copy(),
             voiceLoose = get<VoiceLoose>()?.copy(),
             chatHeads = chatHeadsEnabled,
-            appliedCharacter = get<AppliedCharacter>()
-                ?.character
-                ?.profile
-                ?.id,
+            appliedCharacter = get<AppliedCharacter>()?.id?.character,
             usedCharacters = get<UsedCharacters>()?.characters.orEmpty()
         ),
         components = entity.savingSnapshot(),
@@ -140,7 +133,7 @@ class PlayerPersistence(server: EngineServer) {
     private val directory = server.globals.savePath.playerData
 
     private val playerMutexes = ConcurrentHashMap<PlayerId, Mutex>()
-    private val characterMutexes = ConcurrentHashMap<PlayCharacterId, Mutex>()
+    private val characterMutexes = ConcurrentHashMap<OwnedCharacterId, Mutex>()
 
     private val supervisor = SupervisorJob()
     private val scope = CoroutineScope(supervisor + Dispatchers.IO)
@@ -197,7 +190,7 @@ class PlayerPersistence(server: EngineServer) {
                 if (file.exists()) {
                     val record = JSON.decodeFromString<PersistentPlayerRecord>(file.readText())
                     val legacyCharacters = record.data.usedCharactersLegacy.mapTo(mutableSetOf()) {
-                        PlayCharacterId.player(playerId, it)
+                        OwnedCharacterId.player(playerId, it.asServer())
                     }
                     record.copy(
                         data = record.data.copy(
@@ -234,7 +227,7 @@ class PlayerPersistence(server: EngineServer) {
         transactionContext: TransactionContext,
         settings: ComponentReviveSettings,
         playerId: PlayerId,
-        characterId: PlayCharacterId,
+        characterId: OwnedCharacterId,
     ): PlayCharacterData? {
         return characterMutex(characterId).withLock {
             val entity = database.loadEntity(characterId.databasePersistentId()) ?: return null
@@ -272,7 +265,7 @@ class PlayerPersistence(server: EngineServer) {
     }
 
     fun saveCharacter(
-        id: PlayCharacterId,
+        id: OwnedCharacterId,
         character: PersistentCharacterSnapshot
     ) {
         launchSave(characterMutex(id)) {
@@ -281,7 +274,7 @@ class PlayerPersistence(server: EngineServer) {
     }
 
     private suspend fun saveCharacterSuspend(
-        id: PlayCharacterId,
+        id: OwnedCharacterId,
         character: PersistentCharacterSnapshot
     ) {
         suspendTransaction {
@@ -291,8 +284,9 @@ class PlayerPersistence(server: EngineServer) {
                     id.databasePersistentId(),
                     EntityPersistenceData.Character(
                         character.look,
-                        character.items,
-                        character.equipment
+                        character.inventory,
+                        character.equipment,
+                        character.items
                     ),
                     character.components.map { it.serializeToRecord() },
                     emptyList()
@@ -314,5 +308,5 @@ class PlayerPersistence(server: EngineServer) {
     }
 
     private fun playerMutex(playerId: PlayerId) = playerMutexes.computeIfAbsent(playerId) { Mutex() }
-    private fun characterMutex(id: PlayCharacterId) = characterMutexes.computeIfAbsent(id) { Mutex() }
+    private fun characterMutex(id: OwnedCharacterId) = characterMutexes.computeIfAbsent(id) { Mutex() }
 }

@@ -25,7 +25,6 @@ import org.lain.engine.mc.server.AuthPacket
 import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.*
-import org.lain.engine.player.character.BackendCharacter
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.dev.EntityInspectionSnapshot
@@ -35,7 +34,8 @@ import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
 import org.lain.engine.server.protocolError
 import org.lain.engine.data.*
-import org.lain.engine.player.character.CharacterChangeRequest
+import org.lain.engine.player.character.CharacterData
+import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.script.OperationActor
 import org.lain.engine.script.OperationId
 import org.lain.engine.script.OperationTarget
@@ -81,15 +81,13 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
 
     suspend fun sendVerificationPacket(
         namespaceHashMap: NamespaceHashMap,
-        selectedCharacter: BackendCharacter?,
-        sessionTicket: SessionTicket,
+        selectedCharacter: ServerboundSelectedCharacter?,
     ) = withClientContext {
         SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
             VerificationResponsePacket(
                 developerModeStatus = DeveloperModeStatus(client.developerMode, client.acousticDebug),
                 namespaces = namespaceHashMap,
-                characterId = selectedCharacter?.profile?.id,
-                sessionTicket = sessionTicket.toDto(),
+                character = selectedCharacter,
             )
         )
     }
@@ -169,27 +167,12 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         )
     }
 
-    fun onCharacterSelectedSingleplayer(character: BackendCharacter, requestId: Long) {
-        SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
-            CharacterApplyPacket(
-                character.profile.id,
-                CharacterChangeRequest.Provided(character),
-                requestId = requestId
-            )
-        )
-    }
-
-    fun onCharacterSelectedMultiplayer(
-        character: BackendCharacter,
-        sessionTicket: SessionTicket,
+    fun requestCharacterSelection(
+        request: ServerboundSelectedCharacter,
         requestId: Long,
     ) {
         SERVERBOUND_CHARACTER_APPLY_ENDPOINT.sendC2SPacket(
-            CharacterApplyPacket(
-                character.profile.id,
-                CharacterChangeRequest.ResolveByTicket(character.id, sessionTicket.toDto()),
-                requestId
-            )
+            CharacterApplyPacket(request, requestId)
         )
     }
 

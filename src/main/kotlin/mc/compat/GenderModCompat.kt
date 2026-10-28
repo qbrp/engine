@@ -31,6 +31,10 @@ fun updateCharacterEntity(character: CharacterProfile, uuid: UUID) {
     }
 }
 
+fun removeGenderCacheEntry(uuid: UUID) {
+    WildfireGender.PLAYER_CACHE.remove(uuid)
+}
+
 private val BiologicalSex.wildfireGender
     get() = when(this) {
         BiologicalSex.MALE -> Gender.MALE

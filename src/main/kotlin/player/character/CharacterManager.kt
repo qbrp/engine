@@ -3,6 +3,7 @@ package org.lain.engine.player.character
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.chat.hasPermission
 import org.lain.engine.data.PlayCharacterData
 import org.lain.engine.data.TransactionContext
 import org.lain.engine.data.createTransactionContext
@@ -18,33 +19,62 @@ import org.lain.engine.world.location
 import java.util.concurrent.ConcurrentHashMap
 
 @Serializable
-sealed interface CharacterChangeRequest {
-    val id: CharacterId
+sealed interface CharacterSource {
+    @Serializable
+    data class Local(val filename: String) : CharacterSource
+    @Serializable
+    data class Backend(val id: BackendCharacterId) : CharacterSource
+    @Serializable
+    data class Server(val id: ServerCharacterId) : CharacterSource
+}
+
+@Serializable
+sealed interface ServerboundSelectedCharacter {
+    val sessionTicket
+        get() = if (this is ResolveByTicket) this.ticket else null
+
+    fun resolveServerId(sender: PlayerId): ServerCharacterId
 
     @Serializable
     data class Provided(
-        val character: BackendCharacter
-    ) : CharacterChangeRequest {
-        override val id: CharacterId
-            get() = character.id
+        val source: CharacterSource,
+        val character: CharacterData
+    ) : ServerboundSelectedCharacter {
+        override fun resolveServerId(sender: PlayerId): ServerCharacterId {
+            return when(source) {
+                is CharacterSource.Backend -> source.id.asServer()
+                is CharacterSource.Server -> source.id
+                is CharacterSource.Local -> ServerCharacterId("provided:$sender-${source.filename}")
+            }
+        }
+    }
+
+    @Serializable
+    data class ResolveServer(val characterId: ServerCharacterId) : ServerboundSelectedCharacter {
+        override fun resolveServerId(sender: PlayerId): ServerCharacterId = characterId
     }
 
     @Serializable
     data class ResolveByTicket(
-        val characterId: CharacterId, val ticket: SessionTicketDto
-    ) : CharacterChangeRequest {
-        override val id: CharacterId
-            get() = characterId
+        val characterId: BackendCharacterId,
+        val ticket: SessionTicketDto
+    ) : ServerboundSelectedCharacter {
+        override fun resolveServerId(sender: PlayerId): ServerCharacterId {
+            return characterId.asServer()
+        }
     }
 }
 
+const val CHARACTER_PROVIDING_PERMISSION = "provide-characters"
+
 interface EngineBackend {
-    suspend fun validateCharacterChange(
-        player: EnginePlayer, request: CharacterChangeRequest
-    ): BackendCharacter
+    suspend fun validateCharacter(
+        canProvideCharacters: Boolean,
+        request: ServerboundSelectedCharacter
+    ): CharacterData
 }
 
-class CharacterOccupiedException(val player: PlayerId, val id: PlayCharacterId) : RuntimeException(
+class CharacterOccupiedException(val player: PlayerId, val id: OwnedCharacterId) : RuntimeException(
     "Failed to occupy character $id by $player: already occupied"
 )
 
@@ -54,10 +84,10 @@ class CharacterManager(
     private val platform = server.platform
     private val persistence = server.playerPersistence
     private val handler = server.handler
-    private val occupiedCharacters = ConcurrentHashMap<PlayCharacterId, PlayerId>()
-    val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val occupiedCharacters = ConcurrentHashMap<OwnedCharacterId, PlayerId>()
+    val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private fun occupy(context: TransactionContext, player: EnginePlayer, id: PlayCharacterId) {
+    private fun occupy(context: TransactionContext, player: EnginePlayer, id: OwnedCharacterId) {
         val occupiedBy = occupiedCharacters.putIfAbsent(id, player.id)
         if (occupiedBy != null) {
             if (occupiedBy != player.id || player.get<AppliedCharacter>()?.id != id) {
@@ -81,16 +111,20 @@ class CharacterManager(
 
     fun change(
         player: EnginePlayer,
-        request: CharacterChangeRequest,
-        id: PlayCharacterId,
+        request: ServerboundSelectedCharacter,
+        id: OwnedCharacterId,
         requestId: Long,
     ) {
         val componentReviveSettings = player.world.componentReviveSettings
         val world = player.world
         val context = server.createTransactionContext(world)
+        val canProvideCharacters = player.hasPermission(CHARACTER_PROVIDING_PERMISSION)
         coroutineScope.launch {
             try {
-                val validatedCharacter = backend.validateCharacterChange(player, request)
+                val validatedCharacter = ServerCharacterData(
+                    request.resolveServerId(player.id),
+                    backend.validateCharacter(canProvideCharacters, request),
+                )
                 val characterRecord = persistence.loadPersistentCharacter(
                     context, componentReviveSettings, player.id, id
                 )
@@ -122,12 +156,13 @@ class CharacterManager(
     fun apply(
         context: TransactionContext,
         player: EnginePlayer,
-        character: BackendCharacter,
+        serverCharacter: ServerCharacterData,
         data: PlayCharacterData?,
-        id: PlayCharacterId,
+        id: OwnedCharacterId,
         location: Location = player.location,
     ) = with(context.commands) {
         occupy(context, player, id)
+        val character = serverCharacter.data
 
         val world = player.world
         val entity = player.entity
@@ -140,13 +175,14 @@ class CharacterManager(
 
         entity.setComponent(character.getDisplay())
         entity.setComponent(SelectedLook(lastLook ?: character.baseLook))
-        entity.setComponent(AppliedCharacter(character, id))
+        entity.setComponent(AppliedCharacter(serverCharacter, id))
         entity.setComponent(Equipment(data?.equipment?.toMutableMap() ?: mutableMapOf()))
         data?.components?.applyResolved(player.entity)
 
         world.emitEvent(
-            CharacterApplyEvent(character, player.id),
-            position = location.position
+            CharacterApplyEvent(serverCharacter, player.id),
+            position = location.position,
+            write = context.commands
         )
 
         if (previousCharacterId != null && previousCharacterId != id) {
@@ -158,7 +194,7 @@ class CharacterManager(
                 platform.openInventory(player, it)
             }
             player.require<UsedCharacters>().characters += id
-            platform.onCharacterApplied(player, character)
+            platform.onCharacterApplied(player, serverCharacter)
         }
     }
 }

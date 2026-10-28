@@ -4,12 +4,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.lain.engine.player.character.CharacterId
+import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.server.ServerId
 import org.lain.engine.util.file.FileSystem
 
+data class LocalCharacter(val source: CharacterSource)
+
 @Serializable
-data class ServerPlayState(val character: CharacterId?) {
+data class ServerPlayState(
+    val character: CharacterSource?
+) {
     suspend fun save(server: ServerId) = withContext(Dispatchers.IO) {
         val file = resolveFile(server)
         if (!file.exists()) {

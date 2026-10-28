@@ -7,7 +7,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.lain.engine.client.GameSession
+import org.lain.engine.client.handler.LocalCharacter
 import org.lain.engine.client.util.withClientContext
+import org.lain.engine.player.character.ServerboundSelectedCharacter
+import org.lain.engine.server.account.SessionTicket
+import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.nextIdFast
 
 class CharacterChange(
@@ -49,39 +53,37 @@ class CharacterChange(
     private suspend fun execute() {
         val accountManager = client.accountManager
         val account = accountManager.getAccountResponseUpdateLaunching()
-        val characters = account.characters.map { it.map() }
-        val selected = selection.awaitSelection(currentCharacter, characters) ?: return
+
+        val variants = CharacterSelection.variants(
+            account.characters.associate { it.id to it.map() },
+            FileSystem.readCharacters()
+        )
+        val selected = selection.awaitSelection(currentCharacter, variants.values.toList()) ?: return
 
         when (selected) {
             is CharacterSelection.Selection.Character -> {
-                if (gameSession.isMultiPlayer) {
-                    accountManager.sessionTicketOperation(
-                        accountManager.getAuthorized() ?: throw NotAuthorizedException()
-                    ) { sessionTicket ->
-                        withClientContext {
-                            handler.onCharacterSelectedMultiplayer(
-                                selected.character,
-                                sessionTicket,
-                                requestId,
-                            )
+                withClientContext {
+                    var ticket: SessionTicket? = null
+                    try {
+                        val request = selected.toServerboundDto(client, gameSession.isMultiPlayer)
+
+                        if (request is ServerboundSelectedCharacter.ResolveByTicket) {
+                            ticket = request.ticket.map()
                         }
+
+                        handler.requestCharacterSelection(request, requestId)
                         selection.awaitConfirmation()
+
+                        gameSession.character = LocalCharacter(selected.variant.source)
+                    } finally {
+                        ticket?.let {
+                            accountManager.requireAuthorized().revokeSessionTicket(ticket.hash)
+                        }
                     }
-                } else {
-                    withClientContext {
-                        handler.onCharacterSelectedSingleplayer(
-                            selected.character,
-                            requestId,
-                        )
-                    }
-                    selection.awaitConfirmation()
                 }
             }
-
-            is CharacterSelection.Selection.Look -> {
-                withClientContext {
-                    handler.onLookSelected(selected.look.id, requestId)
-                }
+            is CharacterSelection.Selection.Look -> withClientContext {
+                handler.onLookSelected(selected.look.id, requestId)
                 selection.awaitConfirmation()
             }
         }

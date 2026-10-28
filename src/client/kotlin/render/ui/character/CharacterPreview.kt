@@ -30,9 +30,9 @@ internal class CharacterPreviewPlayer(
 internal fun createCharacterPreviewPlayer(
     level: ClientLevel,
     character: CharacterProfile,
+    uuid: UUID,
     skinGetter: () -> PlayerSkin
 ): CharacterPreviewPlayer {
-    val uuid = UUID.nameUUIDFromBytes(character.id.value.toByteArray(Charsets.UTF_8))
     if (GENDER_MOD_AVAILABLE) {
         updateCharacterEntity(character, uuid)
     }

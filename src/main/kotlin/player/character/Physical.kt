@@ -25,7 +25,7 @@ enum class BodyType(val displayName: String) {
     SLIM("Узкое"),
 }
 
-fun BackendCharacter.getPhysical(): CharacterPhysical {
+fun CharacterData.getPhysical(): CharacterPhysical {
     return CharacterPhysical(
         profile.bodyType,
         profile.biologicalSex

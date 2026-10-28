@@ -134,7 +134,7 @@ fun ServerHandler.registerEndpoints() {
         )
     }
     SERVERBOUND_CHARACTER_APPLY_ENDPOINT.registerReceiver { ctx ->
-        onCharacterApply(ctx.sender, request, requestId)
+        onCharacterChangeRequest(ctx.sender, request, requestId)
     }
     SERVERBOUND_LOOK_APPLY_ENDPOINT.registerReceiver { ctx ->
         onLookApply(

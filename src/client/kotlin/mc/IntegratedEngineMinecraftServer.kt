@@ -6,11 +6,8 @@ import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
 import org.lain.engine.client.transport.ClientTransportContext
-import org.lain.engine.server.account.SessionTicket
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.character.CharacterId
-import org.lain.engine.player.character.BackendCharacter
-import org.lain.engine.player.character.CharacterChangeRequest
+import org.lain.engine.player.character.CharacterData
+import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.character.EngineBackend
 import org.lain.engine.script.*
 import org.lain.engine.script.compilation.CompilationFailedException
@@ -30,11 +27,11 @@ class IntegratedEngineMinecraftServer(
     override val backend: EngineBackend
         get() = this
 
-    override suspend fun validateCharacterChange(
-        player: EnginePlayer,
-        request: CharacterChangeRequest
-    ): BackendCharacter {
-        require(request is CharacterChangeRequest.Provided)
+    override suspend fun validateCharacter(
+        canProvideCharacters: Boolean,
+        request: ServerboundSelectedCharacter
+    ): CharacterData {
+        require(request is ServerboundSelectedCharacter.Provided)
         return request.character
     }
 

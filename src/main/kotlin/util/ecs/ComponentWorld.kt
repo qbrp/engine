@@ -347,7 +347,7 @@ class ComponentWorld(
         val arr1 = getComponentArray(kclass1)
         for (i in arr1.denseEntities.indices.reversed()) {
             val entity = arr1.denseEntities[i]
-            val componentA = arr1.componentOf(entity) ?: continue
+            val componentA = arr1.components[i]
             action(entity, componentA)
         }
     }
@@ -360,13 +360,10 @@ class ComponentWorld(
         checkOnThread()
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
-        val smallerArr = listOf(arr1, arr2).minBy { it.components.size }
-
-        for (i in smallerArr.denseEntities.indices.reversed()) {
-            val entity = smallerArr.denseEntities[i]
-            val componentA = arr1.componentOf(entity) ?: continue
-            val componentB = arr2.componentOf(entity) ?: continue
-            action(entity, componentA, componentB)
+        if (arr1.components.size <= arr2.components.size) {
+            iterateFrom(arr1, arr2) { entity, a, b -> action(entity, a, b) }
+        } else {
+            iterateFrom(arr2, arr1) { entity, b, a -> action(entity, a, b) }
         }
     }
 
@@ -380,14 +377,20 @@ class ComponentWorld(
         val arr1 = getComponentArray(kclass1)
         val arr2 = getComponentArray(kclass2)
         val arr3 = getComponentArray(kclass3)
-        val smallerArr = listOf(arr1, arr2, arr3).minBy { it.components.size }
+        var smallerArr: ComponentArray<*> = arr1
+        if (arr2.components.size < smallerArr.components.size) smallerArr = arr2
+        if (arr3.components.size < smallerArr.components.size) smallerArr = arr3
 
-        for (i in smallerArr.denseEntities.indices.reversed()) {
-            val entity = smallerArr.denseEntities[i]
-            val componentA = arr1.componentOf(entity) ?: continue
-            val componentB = arr2.componentOf(entity) ?: continue
-            val componentC = arr3.componentOf(entity) ?: continue
-            action(entity, componentA, componentB, componentC)
+        when {
+            smallerArr === arr1 -> iterateFrom(arr1, arr2, arr3) { entity, a, b, c ->
+                action(entity, a, b, c)
+            }
+            smallerArr === arr2 -> iterateFrom(arr2, arr1, arr3) { entity, b, a, c ->
+                action(entity, a, b, c)
+            }
+            else -> iterateFrom(arr3, arr1, arr2) { entity, c, a, b ->
+                action(entity, a, b, c)
+            }
         }
     }
 
@@ -403,15 +406,24 @@ class ComponentWorld(
         val arr2 = getComponentArray(kclass2)
         val arr3 = getComponentArray(kclass3)
         val arr4 = getComponentArray(kclass4)
-        val smallerArr = listOf(arr1, arr2, arr3, arr4).minBy { it.components.size }
+        var smallerArr: ComponentArray<*> = arr1
+        if (arr2.components.size < smallerArr.components.size) smallerArr = arr2
+        if (arr3.components.size < smallerArr.components.size) smallerArr = arr3
+        if (arr4.components.size < smallerArr.components.size) smallerArr = arr4
 
-        for (i in smallerArr.denseEntities.indices.reversed()) {
-            val entity = smallerArr.denseEntities[i]
-            val componentA = arr1.componentOf(entity) ?: continue
-            val componentB = arr2.componentOf(entity) ?: continue
-            val componentC = arr3.componentOf(entity) ?: continue
-            val componentD = arr4.componentOf(entity) ?: continue
-            action(entity, componentA, componentB, componentC, componentD)
+        when {
+            smallerArr === arr1 -> iterateFrom(arr1, arr2, arr3, arr4) { entity, a, b, c, d ->
+                action(entity, a, b, c, d)
+            }
+            smallerArr === arr2 -> iterateFrom(arr2, arr1, arr3, arr4) { entity, b, a, c, d ->
+                action(entity, a, b, c, d)
+            }
+            smallerArr === arr3 -> iterateFrom(arr3, arr1, arr2, arr4) { entity, c, a, b, d ->
+                action(entity, a, b, c, d)
+            }
+            else -> iterateFrom(arr4, arr1, arr2, arr3) { entity, d, a, b, c ->
+                action(entity, a, b, c, d)
+            }
         }
     }
 
@@ -429,15 +441,91 @@ class ComponentWorld(
         val arr3 = getComponentArray(kclass3)
         val arr4 = getComponentArray(kclass4)
         val arr5 = getComponentArray(kclass5)
-        val smallerArr = listOf(arr1, arr2, arr3, arr4, arr5).minBy { it.components.size }
+        var smallerArr: ComponentArray<*> = arr1
+        if (arr2.components.size < smallerArr.components.size) smallerArr = arr2
+        if (arr3.components.size < smallerArr.components.size) smallerArr = arr3
+        if (arr4.components.size < smallerArr.components.size) smallerArr = arr4
+        if (arr5.components.size < smallerArr.components.size) smallerArr = arr5
 
-        for (i in smallerArr.denseEntities.indices.reversed()) {
-            val entity = smallerArr.denseEntities[i]
-            val componentA = arr1.componentOf(entity) ?: continue
-            val componentB = arr2.componentOf(entity) ?: continue
-            val componentC = arr3.componentOf(entity) ?: continue
-            val componentD = arr4.componentOf(entity) ?: continue
-            val componentE = arr5.componentOf(entity) ?: continue
+        when {
+            smallerArr === arr1 -> iterateFrom(arr1, arr2, arr3, arr4, arr5) { entity, a, b, c, d, e ->
+                action(entity, a, b, c, d, e)
+            }
+            smallerArr === arr2 -> iterateFrom(arr2, arr1, arr3, arr4, arr5) { entity, b, a, c, d, e ->
+                action(entity, a, b, c, d, e)
+            }
+            smallerArr === arr3 -> iterateFrom(arr3, arr1, arr2, arr4, arr5) { entity, c, a, b, d, e ->
+                action(entity, a, b, c, d, e)
+            }
+            smallerArr === arr4 -> iterateFrom(arr4, arr1, arr2, arr3, arr5) { entity, d, a, b, c, e ->
+                action(entity, a, b, c, d, e)
+            }
+            else -> iterateFrom(arr5, arr1, arr2, arr3, arr4) { entity, e, a, b, c, d ->
+                action(entity, a, b, c, d, e)
+            }
+        }
+    }
+
+    private inline fun <A : Component, B : Component> iterateFrom(
+        smallest: ComponentArray<A>,
+        second: ComponentArray<B>,
+        action: (EntityId, A, B) -> Unit,
+    ) {
+        for (i in smallest.denseEntities.indices.reversed()) {
+            val entity = smallest.denseEntities[i]
+            val componentA = smallest.components[i]
+            val componentB = second.componentOf(entity) ?: continue
+            action(entity, componentA, componentB)
+        }
+    }
+
+    private inline fun <A : Component, B : Component, C : Component> iterateFrom(
+        smallest: ComponentArray<A>,
+        second: ComponentArray<B>,
+        third: ComponentArray<C>,
+        action: (EntityId, A, B, C) -> Unit,
+    ) {
+        for (i in smallest.denseEntities.indices.reversed()) {
+            val entity = smallest.denseEntities[i]
+            val componentA = smallest.components[i]
+            val componentB = second.componentOf(entity) ?: continue
+            val componentC = third.componentOf(entity) ?: continue
+            action(entity, componentA, componentB, componentC)
+        }
+    }
+
+    private inline fun <A : Component, B : Component, C : Component, D : Component> iterateFrom(
+        smallest: ComponentArray<A>,
+        second: ComponentArray<B>,
+        third: ComponentArray<C>,
+        fourth: ComponentArray<D>,
+        action: (EntityId, A, B, C, D) -> Unit,
+    ) {
+        for (i in smallest.denseEntities.indices.reversed()) {
+            val entity = smallest.denseEntities[i]
+            val componentA = smallest.components[i]
+            val componentB = second.componentOf(entity) ?: continue
+            val componentC = third.componentOf(entity) ?: continue
+            val componentD = fourth.componentOf(entity) ?: continue
+            action(entity, componentA, componentB, componentC, componentD)
+        }
+    }
+
+    private inline fun <A : Component, B : Component, C : Component, D : Component, E : Component> iterateFrom(
+        smallest: ComponentArray<A>,
+        second: ComponentArray<B>,
+        third: ComponentArray<C>,
+        fourth: ComponentArray<D>,
+        fifth: ComponentArray<E>,
+        action: (EntityId, A, B, C, D, E) -> Unit,
+    ) {
+        for (i in smallest.denseEntities.indices.reversed()) {
+            val entity = smallest.denseEntities[i]
+            val componentA = smallest.components[i]
+            val componentB = second.componentOf(entity) ?: continue
+            val componentC = third.componentOf(entity) ?: continue
+            val componentD = fourth.componentOf(entity) ?: continue
+            val componentE = fifth.componentOf(entity) ?: continue
             action(entity, componentA, componentB, componentC, componentD, componentE)
         }
     }

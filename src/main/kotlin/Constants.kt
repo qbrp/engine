@@ -14,7 +14,7 @@ object Constants {
     const val LOAD_LUA_LIBRARIES = true
     //https://engine.qbrp.fun
     //http://localhost:8080
-    const val BACKEND_URL = "https://engine.qbrp.fun"
+    const val BACKEND_URL = "http://localhost:8080"
     val DEVELOPER_TEST_ENVIRONMENT = System.getenv("ENGINE_DEV").toBoolean()
     val ALLOWED_VERSIONS = listOf(ENGINE_MOD_VERSION)
     val ENGINE_MOD_VERSION: String

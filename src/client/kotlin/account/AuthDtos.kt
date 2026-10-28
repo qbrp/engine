@@ -19,7 +19,6 @@ data class RevokeSessionTicketRequest(
     val sessionTicket: String,
 )
 
-
 @Serializable
 data class TokenResponse(
     val accessToken: String,

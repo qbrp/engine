@@ -12,7 +12,7 @@ import org.lain.engine.script.compilation.Build
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptEngine
 import org.lain.engine.script.ScriptSystemDispatcher
-import org.lain.engine.script.compilation.loadResult
+import org.lain.engine.script.compilation.loadBuild
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.replication.confirmProcessedPlayerInputsSystem
 import org.lain.engine.world.World
@@ -55,7 +55,7 @@ class EngineSimulation(
 
     fun applyCompilationResult(result: Build) {
         result.callbacks?.let { callbacks = it }
-        namespacedStorage.loadResult(result)
+        namespacedStorage.loadBuild(result)
         worldsList.forEach { it.registerComponentTypes(namespacedStorage) }
         scriptSystemDispatcher.phases = result.phases
         scriptEngine.onCompiled(namespacedStorage)

@@ -1,6 +1,5 @@
 package org.lain.engine.server
 
-import kotlinx.coroutines.*
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.markDirty
 import org.lain.cyberia.ecs.requireComponent
@@ -12,11 +11,9 @@ import org.lain.engine.player.*
 import org.lain.engine.player.character.*
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.script.*
-import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.backupBookContent
-import org.lain.engine.data.createTransactionContext
 import org.lain.engine.script.dev.EntityInspection
 import org.lain.engine.script.dev.EntityInspectionSnapshot
 import org.lain.engine.script.dev.EntityInspectionComponent
@@ -113,15 +110,15 @@ class ServerHandler(
     internal fun onLookApply(playerId: PlayerId, lookId: String, requestId: Long) =
         updatePlayer(playerId) {
             val character = require<AppliedCharacter>().character
-            val look = character.looks.find { it.id == lookId } ?: protocolError("Образ $lookId не существует")
+            val look = character.data.looks.find { it.id == lookId } ?: protocolError("Образ $lookId не существует")
             set(SelectedLook(look))
             confirmCharacterApply(this@updatePlayer, requestId)
         }
 
     // вызывается колесом выбора персонажей, привязанному к бэкендовым персонажам
-    internal fun onCharacterApply(
+    internal fun onCharacterChangeRequest(
         playerId: PlayerId,
-        request: CharacterChangeRequest,
+        request: ServerboundSelectedCharacter,
         requestId: Long,
     ) = updatePlayer(playerId) {
         val player = getPlayer(playerId) ?: protocolError("Игрок не существует")
@@ -129,7 +126,7 @@ class ServerHandler(
         characterManager.change(
             player,
             request,
-            PlayCharacterId(CharacterOwner.Player(playerId), request.id),
+            OwnedCharacterId.player(playerId, request.resolveServerId(playerId)),
             requestId
         )
     }

@@ -87,7 +87,7 @@ class SkinTextureManager(
             if (Files.exists(file)) {
                 runCatching { validateSkinBytes(Files.readAllBytes(file)) }
                     .onFailure {
-                        logger.warn("Dropping invalid cached character skin ${look.id}: ${it.message}")
+                        logger.warn("Dropping invalid cached variant skin ${look.id}: ${it.message}")
                         Files.deleteIfExists(file)
                     }
             }

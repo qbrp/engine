@@ -89,7 +89,8 @@ object ItemsTable : Table() {
 object CharactersTable : Table() {
     val uuid = reference("uuid", EntityTable.uuid)
     val look = text("look")
-    val items = text("items")
+    val inventory = text("inventory").default("{}")
+    val items = text("items").default("{}")
     val equipment = text("equipment").default("{}")
 
     override val primaryKey = PrimaryKey(uuid)
@@ -168,7 +169,9 @@ suspend fun Database.saveEntitiesBatch(
                 val (entityId, character) = it
                 this[CharactersTable.uuid] = entityId.toString()
                 this[CharactersTable.look] = character.look
-                this[CharactersTable.items] = character.inventory
+                //TODO: вынести сериализацию
+                this[CharactersTable.inventory] = character.inventory
+                this[CharactersTable.items] = Json.encodeToString(character.items)
                 this[CharactersTable.equipment] = Json.encodeToString(
                     character.equipment.mapKeys { (key, _) -> key.value.full }
                 )
@@ -265,9 +268,10 @@ suspend fun Database.loadEntity(id: PersistentId): EntityPersistentRecord? {
                 row?.let {
                     EntityPersistenceData.Character(
                         it[CharactersTable.look],
-                        it[CharactersTable.items],
+                        it[CharactersTable.inventory],
                         Json.decodeFromString<Map<String, PersistentId>>(it[CharactersTable.equipment])
-                            .mapKeys { (slotIdRaw, _) -> EngineId(slotIdRaw).toEquipmentSlotId() }
+                            .mapKeys { (slotIdRaw, _) -> EngineId(slotIdRaw).toEquipmentSlotId() },
+                        Json.decodeFromString(it[CharactersTable.items])
                     )
                 }
             }

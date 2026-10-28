@@ -76,7 +76,6 @@ fun World.tickSocialActionSystem() {
                 emitEvent(
                     TransferItemEvent(player, toPlayer, handItem, toPlayer.selectedSlot)
                 )
-                println("Передан предмет $handItem")
                 toPlayer.narration("$playerName передал вам $itemName", 60)
             } else {
                 player.narration("$raycastPlayerName не может принять предмет, так как его руки заняты", 160)

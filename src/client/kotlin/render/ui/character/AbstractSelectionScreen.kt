@@ -57,6 +57,7 @@ abstract class AbstractSelectionScreen<T>(
             selection.complete(null)
         }
         overlay?.job?.cancel()
+        looksWheel.close()
         super.onClose()
     }
 

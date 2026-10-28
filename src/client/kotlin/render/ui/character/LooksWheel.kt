@@ -9,30 +9,34 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.player.AbstractClientPlayer
 import org.joml.Quaternionf
 import org.joml.Vector3f
+import org.lain.engine.Constants
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.CharacterSkin
 import org.lain.engine.mc.Text
+import org.lain.engine.mc.compat.removeGenderCacheEntry
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.Look
 import org.lain.engine.player.character.computeCharacterModel
 import org.lain.engine.player.scale
+import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class LooksWheel<T>(
     private val skinTextureManager: SkinTextureManager,
-    private val initialLook: Entry<T>?,
     looks: List<Entry<T>>,
     val onSelectLook: (Entry<T>?) -> Unit,
 ) : AbstractWidget(0, 0, 0, 0, literalText("Character wheel")) {
+    private val initial = looks.find { it.isInitial }
     data class Entry<T>(
         val look: Look,
         val text: Text,
         val profile: CharacterProfile,
         val result: T,
-        val key: String = look.id
+        val isInitial: Boolean,
+        val uuid: UUID = UUID.randomUUID(),
     )
 
     internal inner class Item(
@@ -46,9 +50,9 @@ class LooksWheel<T>(
 
     private fun initItems(looks: List<Entry<T>>): List<Item> {
         val list = looks.toMutableList()
-        if (initialLook != null) {
-            list.removeIf { it.key == initialLook.key }
-            list.addFirst(initialLook)
+        if (initial != null) {
+            list.remove(initial)
+            list.addFirst(initial)
         }
         val level = MinecraftClient.level ?: return emptyList()
         return list
@@ -63,6 +67,7 @@ class LooksWheel<T>(
                     createCharacterPreviewPlayer(
                         level,
                         it.profile,
+                        uuid = it.uuid,
                         { CharacterSkin(skinTextureManager.getOrDownloadTexture(it.look), model) }
                     )
                 )
@@ -84,9 +89,21 @@ class LooksWheel<T>(
         items.forEach { it.previewPlayer.tick() }
     }
 
+    fun close() {
+        if (Constants.GENDER_MOD_AVAILABLE) {
+            items.forEach { removeGenderCacheEntry(it.entry.uuid) }
+        }
+    }
+
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         return if (keyCode == InputConstants.KEY_RETURN) {
             onSelectLook(items.getOrNull(selectedIndex)?.entry)
+            true
+        } else if (keyCode == InputConstants.KEY_RIGHT) {
+            selectedIndex = (selectedIndex + 1).coerceIn(items.indices)
+            true
+        } else if (keyCode == InputConstants.KEY_LEFT) {
+            selectedIndex = (selectedIndex - 1).coerceIn(items.indices)
             true
         } else {
             super.keyPressed(keyCode, scanCode, modifiers)

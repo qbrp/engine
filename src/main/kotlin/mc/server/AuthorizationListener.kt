@@ -19,6 +19,7 @@ import org.lain.engine.mc.sendMessage
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.Username
+import org.lain.engine.player.character.CHARACTER_PROVIDING_PERMISSION
 import org.lain.engine.script.NamespaceHashMapValidationResult
 import org.lain.engine.script.validateNamespaceHashMap
 import org.lain.engine.server.Notification
@@ -96,6 +97,7 @@ class AuthorizationListener(
         val verificationData = GeneralServerData(
             engine.globals.serverId,
             engine.globals.requireIdenticalNamespaces,
+            entity.hasPermission(CHARACTER_PROVIDING_PERMISSION),
             engine.namespacedStorage.get().namespaceHashMap,
         )
         val verificationResponse = CompletableDeferred<VerificationResponsePacket>()
@@ -177,20 +179,12 @@ class AuthorizationListener(
             connection.playerId,
             response.developerModeStatus,
             notifications,
+            verificationData.canProvideCharacters
         )
-
-        val account = accountService
-            .getAuthorized(response.sessionTicket.map())
-            .getAccount()
-        val character = response.characterId?.let { characterId ->
-            val characterData = account.characters.firstOrNull { it.profile.id == characterId }
-                ?: friendlyError("Персонаж $characterId не принадлежит авторизованному аккаунту")
-            characterData.map()
-        }
 
         engine.playerLoader.loadPreparing(
             settings = settings,
-            account = PlayerLoadSettings.Account(character),
+            account = PlayerLoadSettings.Account(response.character),
             beforeCommit = { requireCurrentSession(connection) },
             onCreated = { connection.player = it }
         )

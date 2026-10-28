@@ -47,6 +47,10 @@ class EngineTitleMenu(
     private var authorizationButton: ColoredPlainTextButton? = null
 
     override fun init() {
+        EngineDuplicateScreen.scan()?.let {
+            MinecraftClient.setScreen(EngineDuplicateScreen(it))
+        }
+
         val menuX = MENU_PADDING.coerceAtMost(
             (width - BUTTON_WIDTH - MENU_PADDING).coerceAtLeast(MENU_PADDING)
         )

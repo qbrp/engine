@@ -4,8 +4,13 @@ import kotlinx.coroutines.CompletableDeferred
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.render.ui.character.CharacterSelectionScreen
 import org.lain.engine.client.render.ui.character.LookSelectionScreen
-import org.lain.engine.player.character.BackendCharacter
+import org.lain.engine.player.character.BackendCharacterData
+import org.lain.engine.player.character.CharacterData
+import org.lain.engine.player.character.BackendCharacterId
+import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.player.character.Look
+import org.lain.engine.player.character.ServerCharacterData
+import org.lain.engine.player.character.ServerboundSelectedCharacter
 
 class CharacterSelection(
     val client: EngineClient,
@@ -27,12 +32,12 @@ class CharacterSelection(
 
     suspend fun awaitSelection(
         current: CurrentCharacter?,
-        characters: List<BackendCharacter>,
+        characters: List<Variant>,
     ): Selection? {
         return if (current != null) {
             LookSelectionScreen.awaitGeneralSelection(
                 this,
-                current.character,
+                Variant(current.data, current.source),
                 current.look,
                 characters,
             )
@@ -42,21 +47,60 @@ class CharacterSelection(
     }
 
     suspend fun awaitCharacterSelection(
-        current: BackendCharacter?,
-        characters: List<BackendCharacter>,
-    ) = CharacterSelectionScreen.awaitCharacterSelection(
-        this,
-        current,
-        characters,
-    )
+        current: Variant?,
+        characters: List<Variant>,
+    ) = CharacterSelectionScreen.awaitCharacterSelection(this, current, characters)
 
     data class CurrentCharacter(
-        val character: BackendCharacter,
+        val data: CharacterData,
+        val source: CharacterSource,
         val look: Look,
     )
 
     sealed interface Selection {
-        data class Character(val character: BackendCharacter) : Selection
+        data class Character(val variant: Variant) : Selection {
+            suspend fun toServerboundDto(client: EngineClient, isMultiPlayer: Boolean): ServerboundSelectedCharacter {
+                val (character, source) = variant
+                val accountManager = client.accountManager
+
+                return if (!isMultiPlayer || source is CharacterSource.Local) {
+                    ServerboundSelectedCharacter.Provided(source, character)
+                } else {
+                    when(source) {
+                        is CharacterSource.Backend -> {
+                            val account = accountManager.getAuthorized() ?: throw NotAuthorizedException()
+                            val ticketDto = account.getSessionTicket()
+                            ServerboundSelectedCharacter.ResolveByTicket(source.id, ticketDto)
+                        }
+                        is CharacterSource.Server -> {
+                            ServerboundSelectedCharacter.ResolveServer(source.id)
+                        }
+                    }
+                }
+            }
+        }
         data class Look(val look: org.lain.engine.player.character.Look) : Selection
+    }
+
+    data class Variant(
+        val character: CharacterData,
+        val source: CharacterSource,
+    )
+
+    companion object {
+        fun variants(
+            backendCharacters: Map<BackendCharacterId, BackendCharacterData>,
+            clientCharacters: Map<String, CharacterData>
+        ): Map<CharacterSource, Variant> {
+            val backendVariants = backendCharacters.map { (id, character) ->
+                val source = CharacterSource.Backend(id)
+                source to Variant(character.data, source)
+            }.toMap()
+            val clientVariants = clientCharacters.map { (filename, characterData) ->
+                val source = CharacterSource.Local(filename)
+                source to Variant(characterData, source)
+            }.toMap()
+            return backendVariants + clientVariants
+        }
     }
 }

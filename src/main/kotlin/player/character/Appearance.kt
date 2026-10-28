@@ -39,7 +39,6 @@ enum class CharacterModelType {
  */
 @Serializable
 data class CharacterDisplay(
-    val id: CharacterId,
     val name: CharacterGradientName,
     val biologicalCategory: BiologicalCategory,
     val appearanceDescription: String,
@@ -61,9 +60,8 @@ data class CharacterGradientName(
         get() = gradientText(name, firstColor, secondColor ?: firstColor)
 }
 
-fun BackendCharacter.getDisplay(): CharacterDisplay {
+fun CharacterData.getDisplay(): CharacterDisplay {
     return CharacterDisplay(
-        profile.id,
         profile.name,
         profile.biologicalCategory,
         profile.appearanceDescription,

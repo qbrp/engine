@@ -80,7 +80,7 @@ class World(
         write: WriteComponentAccess = this,
         crossinline builder: context(WriteComponentAccess) EntityId.() -> Unit = {},
     ): EntityId = with(write) {
-        return componentManager.addEntity {
+        return write.addEntity {
             setComponent(event, type)
             setComponent(Event)
             if (networked) {
@@ -109,8 +109,9 @@ class World(
         networked: Boolean = false,
         position: Pos? = null,
         crossinline builder: context(WriteComponentAccess) EntityId.() -> Unit = {},
+        write: WriteComponentAccess = this,
     ): EntityId {
-        return emitEvent(event, componentTypeOf(T::class), networked, position, builder = builder)
+        return emitEvent(event, componentTypeOf(T::class), networked, position, builder = builder, write = write)
     }
 
     fun clearEvents() {

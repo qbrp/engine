@@ -2,10 +2,7 @@ package org.lain.engine.transport.packet
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.data.ComponentSnapshot
 import org.lain.engine.data.PersistentId
-import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.persistentId
 import org.lain.engine.player.*
 import org.lain.engine.player.account.SessionTicketDto
@@ -15,10 +12,8 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.Notification
 import org.lain.engine.server.ServerId
 import org.lain.engine.server.replication.EntityStateUpdate
-import org.lain.engine.server.replication.ReplicationSnapshot
 import org.lain.engine.server.replication.collectReplicationEntities
 import org.lain.engine.server.replication.fullReplicationUpdate
-import org.lain.engine.server.replication.replicationSnapshot
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 import org.lain.engine.world.World
@@ -87,6 +82,7 @@ data class ServerPlayerData(
     val maxVolume: Float,
     val baseVolume: Float,
     val replicationSnapshot: InitialReplicationState,
+    val character: ServerCharacterData?
 ) {
     val id
         get() = general.playerId
@@ -106,6 +102,7 @@ data class ServerPlayerData(
                 voiceApparatus.maxVolume ?: defaults.maxVolume,
                 voiceApparatus.baseVolume ?: defaults.playerBaseInputVolume,
                 composeInitialReplicationState(player),
+                player.get<AppliedCharacter>()?.character
             )
         }
 
@@ -178,8 +175,7 @@ val CLIENTBOUND_PLAYER_DESTROY_ENDPOINT = Endpoint<PlayerDestroyPacket>()
 data class VerificationResponsePacket(
     val developerModeStatus: DeveloperModeStatus,
     val namespaces: NamespaceHashMap,
-    val characterId: CharacterId?,
-    val sessionTicket: SessionTicketDto,
+    val character: ServerboundSelectedCharacter?,
 ) : Packet {
     override val requireAuthorized: Boolean = false
 }
@@ -190,6 +186,7 @@ val SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT = Endpoint<VerificationResponsePa
 data class GeneralServerData(
     val serverId: ServerId,
     val requireIdenticalNamespaces: Boolean,
+    val canProvideCharacters: Boolean,
     val namespaceHashMap: NamespaceHashMap
 )
 
