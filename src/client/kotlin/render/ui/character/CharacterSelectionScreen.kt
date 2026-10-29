@@ -6,30 +6,37 @@ import org.lain.engine.client.account.CharacterSelection.Variant
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
+import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.CharacterData
 
 class CharacterSelectionScreen(
-    initialVariant: Variant?,
+    val initialVariant: Variant?,
     characters: List<Variant>,
     characterSelection: CharacterSelection,
 ) : AbstractSelectionScreen<CharacterSelection.Selection.Character>(characterSelection) {
     override val looksWheel: LooksWheel<CharacterSelection.Selection.Character> = run {
-        val entries = characters.map { variant ->
-            val isInitial = variant == initialVariant
-            val character = variant.character
-            LooksWheel.Entry(
-                character.baseLook,
-                character.profile.name.gradientChars.getText(),
-                character.profile,
-                CharacterSelection.Selection.Character(variant),
-                isInitial,
-            )
-        }
+        val entries = entries(characters, initialVariant)
         LooksWheel(
             characterSelection.client.skinTextureManager,
             entries,
             onSelectLook = ::selectEntry
         )
+    }
+
+    private fun entries(variants: List<Variant>, initial: Variant?) = variants.map { variant ->
+        val isInitial = variant == initial
+        val character = variant.character
+        LooksWheel.Entry(
+            character.baseLook,
+            character.profile.name.gradientChars.getText(),
+            character.profile,
+            CharacterSelection.Selection.Character(variant),
+            isInitial,
+        )
+    }
+
+    override suspend fun onReload(account: AccountResponse) {
+        looksWheel.reloadItems(entries(CharacterSelection.variants(account), initialVariant))
     }
 
     companion object {

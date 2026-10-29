@@ -63,7 +63,7 @@ class CharacterApplyConfirmationWaitOverlay(
             )
             return@launch
         }
-        delay(250.milliseconds)
+        delay(50.milliseconds)
         val fadeOut = State.FadeOut()
         state.set(fadeOut)
         fadeOut.deferred.await()

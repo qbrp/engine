@@ -5,21 +5,16 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.client.player.AbstractClientPlayer
-import org.joml.Quaternionf
-import org.joml.Vector3f
 import org.lain.engine.Constants
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.CharacterSkin
+import org.lain.engine.client.render.player.EnginePlayerRenderState
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.compat.removeGenderCacheEntry
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.Look
-import org.lain.engine.player.character.computeCharacterModel
-import org.lain.engine.player.scale
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -29,7 +24,7 @@ class LooksWheel<T>(
     looks: List<Entry<T>>,
     val onSelectLook: (Entry<T>?) -> Unit,
 ) : AbstractWidget(0, 0, 0, 0, literalText("Character wheel")) {
-    private val initial = looks.find { it.isInitial }
+    private var initial = looks.find { it.isInitial }
     data class Entry<T>(
         val look: Look,
         val text: Text,
@@ -39,45 +34,51 @@ class LooksWheel<T>(
         val uuid: UUID = UUID.randomUUID(),
     )
 
-    internal inner class Item(
+    inner class Item(
         val entry: Entry<T>,
         val previewPlayer: CharacterPreviewPlayer
     )
 
     private var selectedIndex = 0
+    private var items = initItems(looks)
+    val selectedItem
+        get() = items.getOrNull(selectedIndex.coerceIn(items.indices))
 
-    private val items = initItems(looks)
+    fun reloadItems(looks: List<Entry<T>>) {
+        clearGenderCaches()
+        items = initItems(looks)
+    }
 
     private fun initItems(looks: List<Entry<T>>): List<Item> {
         val list = looks.toMutableList()
+        val initial = looks.find { it.isInitial }
+            .also { this.initial = it }
+
         if (initial != null) {
             list.remove(initial)
             list.addFirst(initial)
         }
         val level = MinecraftClient.level ?: return emptyList()
+
+        if (looks.isNotEmpty()) {
+            selectedIndex = selectedIndex.coerceIn(looks.indices)
+        }
+
         return list
             .map {
-                val model = computeCharacterModel(
-                    it.profile.bodyType,
-                    it.profile.biologicalCategory,
-                    it.profile.biologicalSex
-                )
+                val profile = it.profile
                 Item(
                     it,
                     createCharacterPreviewPlayer(
                         level,
-                        it.profile,
+                        profile,
                         uuid = it.uuid,
-                        { CharacterSkin(skinTextureManager.getOrDownloadTexture(it.look), model) }
-                    )
+                        EnginePlayerRenderState(
+                            eyeLevel = profile.appearance.eyeLevel
+                        ),
+                    ) { skinTextureManager.getOrDownloadTexture(it.look) }
                 )
             }
-    }
-
-    init {
-        if (looks.isNotEmpty()) {
-            selectedIndex = selectedIndex.coerceIn(looks.indices)
-        }
     }
 
     fun init(screen: Screen) {
@@ -90,6 +91,10 @@ class LooksWheel<T>(
     }
 
     fun close() {
+        clearGenderCaches()
+    }
+
+    private fun clearGenderCaches() {
         if (Constants.GENDER_MOD_AVAILABLE) {
             items.forEach { removeGenderCacheEntry(it.entry.uuid) }
         }
@@ -161,7 +166,7 @@ class LooksWheel<T>(
             return
         }
         val centerX = width / 2
-        val baseY = (height * 0.5f).roundToInt() + 64
+        val centerY = (height * 0.5f).roundToInt() + 64
         val spacing = (width / 4).coerceIn(MIN_SPACING, MAX_SPACING)
 
         val visibleCharacters = items
@@ -171,56 +176,32 @@ class LooksWheel<T>(
 
         visibleCharacters.forEach character@{ (index, item) ->
             val entry = item.entry
+            val entity = item.previewPlayer
+
             val offset = index - selectedIndex
 
             val itemX = centerX + offset * spacing
             val distance = abs(itemX - centerX).toFloat() / centerX.coerceAtLeast(1)
             val visualScale = (1f - distance * 0.55f).coerceIn(MIN_VISUAL_SCALE, 1f)
-            val heightScale = entry.profile.height.scale
-            val entityScale = BASE_ENTITY_SCALE * visualScale * heightScale
 
-            val entity = item.previewPlayer
+            val widget = CharacterPreviewWidget(entity, entry.profile)
 
             if (index == selectedIndex) {
-                applyCursorLook(entity, itemX, baseY, mouseX, mouseY)
+                entity.setOnGround(true)
+                widget.applyCursorLook(itemX, mouseX)
             } else {
+                entity.setOnGround(false)
                 val yaw = -offset * SIDE_CHARACTER_ROTATION
-                applyRotation(entity, 180f + yaw, yaw)
+                widget.applyRotation(180f + yaw, yaw)
             }
-            entity.yBodyRotO = entity.yBodyRot
-            entity.yRotO = entity.yRot
-            entity.yHeadRotO = entity.yHeadRot
 
-            val headRotation = Quaternionf().rotateX(entity.xRot * DEGREES_TO_RADIANS)
-            val entityRotation = Quaternionf()
-                .rotateZ(Math.PI.toFloat())
-                .mul(headRotation)
-            val boundsWidth = (entity.bbWidth * entityScale * 2.4f)
-                .roundToInt()
-                .coerceAtLeast(MIN_ITEM_BOUNDS)
-            val boundsHeight = (entity.bbHeight * entityScale + BOUNDS_VERTICAL_PADDING)
-                .roundToInt()
-                .coerceAtLeast(MIN_ITEM_BOUNDS)
+            widget.computeScale(visualScale)
+            widget.computePosition(itemX.toFloat(), centerY.toFloat())
+            widget.y -= PREVIEW_VERTICAL_PADDING
+            widget.y = widget.y.coerceAtLeast(MIN_PREVIEW_HEIGHT.toFloat())
+            widget.render(guiGraphics)
 
-            guiGraphics.enableScissor(
-                itemX - boundsWidth / 2,
-                baseY - boundsHeight,
-                itemX + boundsWidth / 2,
-                baseY
-            )
-            InventoryScreen.renderEntityInInventory(
-                guiGraphics,
-                itemX.toFloat(),
-                baseY - boundsHeight / 2f,
-                entityScale,
-                Vector3f(0f, entity.bbHeight / 2f + ENTITY_Y_OFFSET, 0f),
-                entityRotation,
-                headRotation,
-                entity
-            )
-            guiGraphics.disableScissor()
-
-            val textY = baseY + (14 * visualScale).roundToInt()
+            val textY = centerY + (14 * visualScale).roundToInt()
             guiGraphics.drawCenteredString(font, entry.text, itemX, textY, 0xFFFFFFFF.toInt())
         }
     }
@@ -232,16 +213,12 @@ class LooksWheel<T>(
     }
 
     companion object {
-        private const val VISIBLE_SIDE_CHARACTERS = 3
+        private const val VISIBLE_SIDE_CHARACTERS = 5
         private const val MIN_SPACING = 72
-        private const val MAX_SPACING = 140
-        private const val ITEM_BOUNDS = 112
-        private const val MIN_ITEM_BOUNDS = 112
-        private const val BOUNDS_VERTICAL_PADDING = 24
-        private const val BASE_ENTITY_SCALE = 60f
+        private const val MAX_SPACING = 110
+        private const val MIN_PREVIEW_HEIGHT = 112
+        private const val PREVIEW_VERTICAL_PADDING = 12
         private const val MIN_VISUAL_SCALE = 0.45f
         private const val SIDE_CHARACTER_ROTATION = 14f
-        private const val DEGREES_TO_RADIANS = 0.017453292f
-        private const val ENTITY_Y_OFFSET = 0.0625f
     }
 }

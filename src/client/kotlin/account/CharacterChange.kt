@@ -52,13 +52,10 @@ class CharacterChange(
 
     private suspend fun execute() {
         val accountManager = client.accountManager
-        val account = accountManager.getAccountResponseUpdateLaunching()
+        val account = accountManager.requireAccountResponse()
 
-        val variants = CharacterSelection.variants(
-            account.characters.associate { it.id to it.map() },
-            FileSystem.readCharacters()
-        )
-        val selected = selection.awaitSelection(currentCharacter, variants.values.toList()) ?: return
+        val variants = CharacterSelection.variants(account)
+        val selected = selection.awaitSelection(currentCharacter, variants) ?: return
 
         when (selected) {
             is CharacterSelection.Selection.Character -> {

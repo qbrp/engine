@@ -4,6 +4,7 @@ import kotlinx.coroutines.CompletableDeferred
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.render.ui.character.CharacterSelectionScreen
 import org.lain.engine.client.render.ui.character.LookSelectionScreen
+import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.BackendCharacterData
 import org.lain.engine.player.character.CharacterData
 import org.lain.engine.player.character.BackendCharacterId
@@ -11,6 +12,7 @@ import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.player.character.Look
 import org.lain.engine.player.character.ServerCharacterData
 import org.lain.engine.player.character.ServerboundSelectedCharacter
+import org.lain.engine.util.file.FileSystem
 
 class CharacterSelection(
     val client: EngineClient,
@@ -101,6 +103,13 @@ class CharacterSelection(
                 source to Variant(characterData, source)
             }.toMap()
             return backendVariants + clientVariants
+        }
+
+        suspend fun variants(account: AccountResponse): List<Variant> {
+            return variants(
+                account.characters.associate { it.id to it.map() },
+                FileSystem.readCharacters()
+            ).values.toList()
         }
     }
 }
