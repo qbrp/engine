@@ -265,6 +265,126 @@ class ComponentWorldTest : EngineTest() {
     }
 
     @Test
+    fun iterationMatchesComponentsByEntityForEverySmallestArray() {
+        for (componentCount in 2..5) {
+            for (smallestArray in 0 until componentCount) {
+                val matching = populateIterationWorld(componentCount, smallestArray).take(2)
+                val expected = matching.map { entity ->
+                    entity to iterationComponents(entity).take(componentCount)
+                }
+
+                assertEquals(
+                    expected,
+                    collectIteration(componentCount).sortedBy { it.first },
+                    "componentCount=$componentCount, smallestArray=$smallestArray",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun iterationUsesFirstArrayInReverseWhenSizesAreEqual() {
+        for (componentCount in 2..5) {
+            val matching = populateIterationWorld(componentCount, smallestArray = null).take(2)
+            val expected = matching.reversed().map { entity ->
+                entity to iterationComponents(entity).take(componentCount)
+            }
+
+            assertEquals(expected, collectIteration(componentCount), "componentCount=$componentCount")
+        }
+    }
+
+    @Test
+    fun iterationSkipsQueriesWithAnyEmptyArray() {
+        for (componentCount in 2..5) {
+            for (emptyArray in 0 until componentCount) {
+                val entities = populateIterationWorld(componentCount, emptyArray)
+                for (entity in entities) {
+                    componentWorld.removeComponent(entity, iterationTypes[emptyArray])
+                }
+
+                assertTrue(
+                    collectIteration(componentCount).isEmpty(),
+                    "componentCount=$componentCount, emptyArray=$emptyArray",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun iterationAllowsDestroyingCurrentEntityForEverySmallestArray() {
+        for (componentCount in 2..5) {
+            for (smallestArray in 0 until componentCount) {
+                val matching = populateIterationWorld(componentCount, smallestArray).take(2)
+                val expected = collectIteration(componentCount)
+
+                assertEquals(
+                    expected,
+                    collectIteration(componentCount, destroyVisited = true),
+                    "componentCount=$componentCount, smallestArray=$smallestArray",
+                )
+                matching.forEach { assertFalse(componentWorld.exists(it)) }
+            }
+        }
+    }
+
+    private fun populateIterationWorld(componentCount: Int, smallestArray: Int?): List<EntityId> {
+        componentWorld = TestComponentWorld()
+        componentWorld.registerComponentArrays(testEntries + listKotlinComponentTypeEntries())
+        val entities = List(componentCount + 3) { componentWorld.addEntity() }
+        for (componentIndex in 0 until componentCount) {
+            val order = mutableListOf(entities[0], entities[componentIndex + 2], entities[1])
+            if (smallestArray != null && componentIndex != smallestArray) order += entities.last()
+            val rotation = componentIndex % order.size
+            for (entity in order.drop(rotation) + order.take(rotation)) {
+                when (componentIndex) {
+                    0 -> componentWorld.setComponentWithType(entity, TestPosition(entity), positionType)
+                    1 -> componentWorld.setComponentWithType(entity, TestVelocity(entity * 10), velocityType)
+                    2 -> componentWorld.setComponentWithType(entity, TestName("entity-$entity"), nameType)
+                    3 -> componentWorld.setComponentWithType(entity, TestFourth(entity * 100), fourthType)
+                    4 -> componentWorld.setComponentWithType(entity, TestFifth(entity * 1000), fifthType)
+                }
+            }
+        }
+        return entities
+    }
+
+    private fun iterationComponents(entity: EntityId): List<Component> = listOf(
+        TestPosition(entity),
+        TestVelocity(entity * 10),
+        TestName("entity-$entity"),
+        TestFourth(entity * 100),
+        TestFifth(entity * 1000),
+    )
+
+    private fun collectIteration(
+        componentCount: Int,
+        destroyVisited: Boolean = false,
+    ): List<Pair<EntityId, List<Component>>> {
+        val visited = mutableListOf<Pair<EntityId, List<Component>>>()
+        fun record(entity: EntityId, vararg components: Component) {
+            visited += entity to components.toList()
+            if (destroyVisited) componentWorld.destroy(entity)
+        }
+        when (componentCount) {
+            2 -> componentWorld.iterate2(positionType, velocityType) { entity, a, b ->
+                record(entity, a, b)
+            }
+            3 -> componentWorld.iterate3(positionType, velocityType, nameType) { entity, a, b, c ->
+                record(entity, a, b, c)
+            }
+            4 -> componentWorld.iterate4(positionType, velocityType, nameType, fourthType) { entity, a, b, c, d ->
+                record(entity, a, b, c, d)
+            }
+            5 -> componentWorld.iterate5(positionType, velocityType, nameType, fourthType, fifthType) { entity, a, b, c, d, e ->
+                record(entity, a, b, c, d, e)
+            }
+            else -> error("Unsupported component count: $componentCount")
+        }
+        return visited
+    }
+
+    @Test
     fun componentWorldRejectsComponentOperationsFromAnotherThread() {
         val entity = componentWorld.addEntity()
         var failure: Throwable? = null
@@ -300,11 +420,16 @@ class ComponentWorldTest : EngineTest() {
     private data class TestPosition(val x: Int) : Component
     private data class TestVelocity(val x: Int) : Component
     private data class TestName(val value: String) : Component
+    private data class TestFourth(val value: Int) : Component
+    private data class TestFifth(val value: Int) : Component
 
     private companion object {
         val positionType = componentTypeOf(TestPosition::class).castIndexed()
         val velocityType = componentTypeOf(TestVelocity::class).castIndexed()
         val nameType = componentTypeOf(TestName::class).castIndexed()
+        val fourthType = componentTypeOf(TestFourth::class).castIndexed()
+        val fifthType = componentTypeOf(TestFifth::class).castIndexed()
+        val iterationTypes = listOf(positionType, velocityType, nameType, fourthType, fifthType)
 
         val basicMeta = ComponentMeta(savable = false, networking = false)
         val networkingMeta = ComponentMeta(savable = false, networking = true)
@@ -313,7 +438,9 @@ class ComponentWorldTest : EngineTest() {
         val testEntries = listOf(
             positionType to basicMeta,
             velocityType to networkingMeta,
-            nameType to savableMeta
+            nameType to savableMeta,
+            fourthType to basicMeta,
+            fifthType to basicMeta,
         )
     }
 }

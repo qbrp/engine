@@ -65,14 +65,14 @@ import org.lain.engine.world.WorldId
 //
 //        assertTrue(ordinary.getContainerItems().isEmpty())
 //        assertEquals(mapOf(slotA to item), slotted.entity.requireComponent<OccupiedSlots>().slots)
-//        assertEquals(setOf(item), slotted.entity.requireComponent<Entries>().items)
+//        assertEquals(setOf(item), slotted.entity.requireComponent<Entries>().inventory)
 //        assertEquals(slotA, item.requireComponent<AssignedSlot>().slot)
 //        assertEquals(slotted.entity, item.requireComponent<ContainedIn>().container)
 //
 //        move(slotted, item, slotB)
 //
 //        assertEquals(mapOf(slotB to item), slotted.entity.requireComponent<OccupiedSlots>().slots)
-//        assertEquals(setOf(item), slotted.entity.requireComponent<Entries>().items)
+//        assertEquals(setOf(item), slotted.entity.requireComponent<Entries>().inventory)
 //        assertEquals(slotB, item.requireComponent<AssignedSlot>().slot)
 //
 //        move(ordinary, item)

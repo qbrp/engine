@@ -27,7 +27,7 @@ class DatabasePersistenceTest {
     @Test
     fun characterDataRoundTrips() = runBlocking {
         val database = connectDatabase(tempDir.toString())
-        val persistentId = CustomPersistentId("player-character")
+        val persistentId = CustomPersistentId("player-variant")
         val expected = EntityPersistenceData.Character(
             look = "test-look",
             inventory = "serialized-inventory",
@@ -48,7 +48,7 @@ class DatabasePersistenceTest {
 
     @Test
     fun existingCharacterTableGetsEquipmentColumn() = runBlocking {
-        val persistentId = CustomPersistentId("legacy-player-character")
+        val persistentId = CustomPersistentId("legacy-player-variant")
         val legacyDatabase = Database.connect("jdbc:sqlite:${tempDir.resolve("engine.db")}")
         transaction(legacyDatabase) {
             SchemaUtils.create(EntityTable, LegacyCharactersTable)
@@ -75,7 +75,7 @@ class DatabasePersistenceTest {
     private object LegacyCharactersTable : Table("Characters") {
         val uuid = reference("uuid", EntityTable.uuid)
         val look = text("look")
-        val items = text("items")
+        val items = text("inventory")
 
         override val primaryKey = PrimaryKey(uuid)
     }

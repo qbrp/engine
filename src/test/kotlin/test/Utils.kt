@@ -68,7 +68,10 @@ fun DummyItemPrefab() = ItemPrefab(
     { world, entity -> }
 )
 
-fun setupTestEngineServer(tempDir: Path): EngineServer {
+fun setupTestEngineServer(
+    tempDir: Path,
+    platform: ServerPlatform = ServerPlatform.DUMMY,
+): EngineServer {
     val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
     val scriptsPath = tempDir.resolve("scripts").toFile()
     scriptsPath.mkdirs()
@@ -79,7 +82,7 @@ fun setupTestEngineServer(tempDir: Path): EngineServer {
         ServerId("test"),
         PlayerStorage(),
         AcousticSimulator.DUMMY,
-        ServerPlatform.DUMMY,
+        platform,
         namespacedStorage,
         moduleManager,
         Thread.currentThread(),

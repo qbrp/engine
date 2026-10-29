@@ -8,8 +8,9 @@ import org.lain.engine.data.PersistentPlayerData
 import org.lain.engine.data.PersistentPlayerSnapshot
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.VoiceApparatus
-import org.lain.engine.player.character.CharacterId
-import org.lain.engine.player.character.PlayCharacterId
+import org.lain.engine.player.character.BackendCharacterId
+import org.lain.engine.player.character.OwnedCharacterId
+import org.lain.engine.player.character.ServerCharacterId
 import java.nio.file.Path
 import java.util.UUID
 
@@ -22,7 +23,7 @@ class PlayerPersistenceTest : EngineTest() {
         val server = setupTestEngineServer(tempDir)
         try {
             val playerId = PlayerId(UUID.randomUUID())
-            val characterId = PlayCharacterId.player(playerId, CharacterId("character"))
+            val characterId = OwnedCharacterId.player(playerId, ServerCharacterId("variant"))
             server.playerPersistence.save(
                 PersistentPlayerSnapshot(
                     playerId,
