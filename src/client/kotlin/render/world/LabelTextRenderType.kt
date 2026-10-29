@@ -1,9 +1,11 @@
 package org.lain.engine.client.render.world
 
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.VertexConsumer
 import com.mojang.blaze3d.vertex.VertexFormat
 import net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback
+import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.RenderStateShard
 import net.minecraft.client.renderer.RenderType
@@ -17,6 +19,53 @@ private val LABEL_TEXT_SHADER_ID = engineId("label_text")
 private val LABEL_TEXT_INTENSITY_SHADER_ID = engineId("label_text_intensity")
 
 object LabelTextRenderTypes {
+    // Coplanar mask and glyph triangles can round to different depth values.
+    // Bias only the mask away, independently of label scale and camera zoom.
+    private val depthMaskLayering = RenderStateShard.LayeringStateShard(
+        "engine_label_depth_mask_offset",
+        {
+            RenderSystem.polygonOffset(1f, 4f)
+            RenderSystem.enablePolygonOffset()
+        },
+        {
+            RenderSystem.polygonOffset(0f, 0f)
+            RenderSystem.disablePolygonOffset()
+        },
+    )
+
+    internal val depthMask: RenderType = RenderType.create(
+        "engine_label_depth_mask",
+        DefaultVertexFormat.POSITION,
+        VertexFormat.Mode.QUADS,
+        LABEL_TEXT_BUFFER_SIZE,
+        false,
+        false,
+        RenderType.CompositeState.builder()
+            .setShaderState(RenderStateShard.ShaderStateShard(GameRenderer::getPositionShader))
+            .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
+            .setWriteMaskState(RenderStateShard.DEPTH_WRITE)
+            .setLayeringState(depthMaskLayering)
+            .setCullState(RenderStateShard.NO_CULL)
+            .createCompositeState(false)
+    )
+
+    internal val background: RenderType = RenderType.create(
+        "engine_label_background",
+        DefaultVertexFormat.POSITION_COLOR_LIGHTMAP,
+        VertexFormat.Mode.QUADS,
+        LABEL_TEXT_BUFFER_SIZE,
+        false,
+        false,
+        RenderType.CompositeState.builder()
+            .setShaderState(RenderStateShard.RENDERTYPE_TEXT_BACKGROUND_SEE_THROUGH_SHADER)
+            .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+            .setLightmapState(RenderStateShard.LIGHTMAP)
+            .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
+            .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+            .setCullState(RenderStateShard.NO_CULL)
+            .createCompositeState(false)
+    )
+
     @Volatile
     private var colorShader: ShaderInstance? = null
 
@@ -80,7 +129,7 @@ object LabelTextRenderTypes {
                 .setTextureState(RenderStateShard.TextureStateShard(texture, false, false))
                 .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
                 .setLightmapState(RenderStateShard.LIGHTMAP)
-                .setDepthTestState(RenderStateShard.NO_DEPTH_TEST)
+                .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
                 .setWriteMaskState(RenderStateShard.COLOR_WRITE)
                 .createCompositeState(false)
         )

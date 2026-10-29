@@ -101,4 +101,4 @@ class EngineAtlasSource(
     }
 }
 
-fun legacyAtlasName(name: String): String = if (name == "items") "blocks" else name
+fun legacyAtlasName(name: String): String = if (name == "inventory") "blocks" else name

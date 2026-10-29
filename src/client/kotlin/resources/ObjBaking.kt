@@ -7,16 +7,19 @@ import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial
 import net.fabricmc.fabric.api.renderer.v1.mesh.MeshBuilder
 import net.fabricmc.fabric.api.renderer.v1.mesh.MutableQuadView
 import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter
+import net.minecraft.client.renderer.block.model.BakedQuad
 import net.minecraft.client.renderer.texture.TextureAtlasSprite
 import net.minecraft.client.resources.model.Material
 import org.joml.Vector3f
+import org.lain.engine.client.mc.compat.emitWithVanillaQuad
 import java.util.function.Function
 
 fun MeshBuilder.buildObj(
     renderer: Renderer,
     textureGetter: Function<Material, TextureAtlasSprite>,
     obj: LinkedObj,
-    flipV: Boolean
+    flipV: Boolean,
+    bakedQuads: MutableList<BakedQuad>? = null,
 ) {
     obj.groups.forEach { group ->
         val mtl = group.material.source
@@ -37,7 +40,8 @@ fun MeshBuilder.buildObj(
                 mesh.getFace(faceIndex),
                 sprite,
                 renderMaterial,
-                flipV
+                flipV,
+                bakedQuads,
             )
         }
     }
@@ -49,7 +53,8 @@ private fun emitFace(
     face: ObjFace,
     sprite: TextureAtlasSprite,
     material: RenderMaterial,
-    flipV: Boolean
+    flipV: Boolean,
+    bakedQuads: MutableList<BakedQuad>?,
 ) {
     for (vertexIndex in 0 until face.numVertices) {
         emitVertex(vertexIndex, vertexIndex, emitter, model, face)
@@ -66,7 +71,7 @@ private fun emitFace(
                     (if (flipV) MutableQuadView.BAKE_FLIP_V else 0)
         )
         .color(-1, -1, -1, -1)
-        .emit()
+    emitter.emitWithVanillaQuad(sprite, bakedQuads)
 }
 
 private fun emitVertex(

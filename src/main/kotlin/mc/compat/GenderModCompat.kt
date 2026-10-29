@@ -12,15 +12,15 @@ import org.lain.engine.player.character.CharacterAppearance
 import org.lain.engine.player.character.CharacterProfile
 import java.util.UUID
 
-fun syncPlayerGenderConfig(serverPlayer: ServerPlayer, sex: BiologicalSex, appearance: CharacterAppearance?) {
+fun syncPlayerGenderConfig(serverPlayer: ServerPlayer, sex: BiologicalSex, appearance: CharacterAppearance) {
     val config = applyGenderConfig(serverPlayer.engineId, sex, appearance)
     WildfireSync.sendToAllClients(serverPlayer, config)
 }
 
-fun applyGenderConfig(playerId: PlayerId, sex: BiologicalSex, appearance: CharacterAppearance?): PlayerConfig {
+fun applyGenderConfig(playerId: PlayerId, sex: BiologicalSex, appearance: CharacterAppearance): PlayerConfig {
     val config = WildfireGender.getOrAddPlayerById(playerId.value)
     config.updateGender(sex.wildfireGender)
-    appearance?.let { config.updateBustSize(it.breastSize) }
+    config.updateBustSize(appearance.breastSize)
     return config
 }
 

@@ -7,12 +7,12 @@ import net.minecraft.client.renderer.block.model.ItemOverrides
 import net.minecraft.client.renderer.block.model.ItemTransforms
 import net.minecraft.client.renderer.texture.TextureAtlas
 import net.minecraft.client.renderer.texture.TextureAtlasSprite
-import net.minecraft.client.resources.model.BakedModel
+import net.minecraft.client.resources.model.SimpleBakedModel
 import net.minecraft.core.Direction
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.RandomSource
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.level.block.state.BlockState
+import org.lain.engine.client.mc.compat.AcceleratedMeshModels
 import org.lain.engine.client.render.item.AdditionalTransformationsBank
 import org.lain.engine.client.render.item.minecraft
 import java.util.function.Supplier
@@ -23,7 +23,17 @@ class MeshModel(
     private val mesh: Mesh,
     private val particle: TextureAtlasSprite,
     val properties: PropModelProperties,
-) : BakedModel {
+    bakedQuads: List<BakedQuad> = emptyList(),
+) : SimpleBakedModel(
+    bakedQuads,
+    Direction.entries.associateWith { emptyList() },
+    properties.useAmbientOcclusion,
+    !properties.flatLight,
+    true,
+    particle,
+    properties.transform.minecraft(),
+    ItemOverrides.EMPTY,
+) {
     val engineTransform
         get() = properties.transform
     val disableCulling
@@ -31,13 +41,9 @@ class MeshModel(
     val itemTransform = properties.transform.minecraft()
     val outfitTransform = engineTransform.outfit.minecraft()
 
-    override fun isVanillaAdapter(): Boolean = false
-
-    override fun getQuads(
-        state: BlockState?,
-        direction: Direction?,
-        random: RandomSource
-    ): List<BakedQuad> = emptyList()
+    // AR's SimpleBakedModel mixin caches these quads as one mesh per tint layer.
+    // The vanilla adapter path lets ItemRenderer reach AR instead of Fabric's emitter.
+    override fun isVanillaAdapter(): Boolean = AcceleratedMeshModels.enabled
 
     // майнкрафт не использует AO для предметов
     override fun useAmbientOcclusion(): Boolean = properties.useAmbientOcclusion
