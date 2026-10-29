@@ -32,6 +32,7 @@ public abstract class EntityRendererMixin {
                 cir.setReturnValue(true);
             }
         }
+
         if (
                 entity instanceof AbstractClientPlayer
                         && (entity.isSpectator() || entity.isControlledByLocalInstance())

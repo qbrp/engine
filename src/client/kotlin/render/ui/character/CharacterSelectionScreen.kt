@@ -36,7 +36,7 @@ class CharacterSelectionScreen(
     }
 
     override suspend fun onReload(account: AccountResponse) {
-        looksWheel.reloadItems(entries(CharacterSelection.variants(account), initialVariant))
+        looksWheel.reloadItems(entries(CharacterSelection.variantsList(account), initialVariant))
     }
 
     companion object {

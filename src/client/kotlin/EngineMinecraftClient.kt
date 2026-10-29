@@ -22,6 +22,7 @@ import org.lain.engine.client.render.player.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.player.registerArmPoseAnimation
 import org.lain.engine.client.render.ui.EngineDuplicateScreen
 import org.lain.engine.client.render.ui.MovingWallpapers
+import org.lain.engine.client.render.ui.character.CharacterAnimations
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
 import org.lain.engine.client.render.world.*
 import org.lain.engine.client.resources.registerEngineModelLoading

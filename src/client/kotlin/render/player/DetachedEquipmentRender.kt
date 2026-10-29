@@ -46,6 +46,7 @@ class EquipmentFeatureRenderer(
         netHeadYaw: Float,
         headPitch: Float
     ) {
+        if (entity.isSpectator) return
         val items = entity.getEngineRenderState()?.detachedEquipment ?: return
         for (equipment in items) {
             val playerPart = equipment.slot.part

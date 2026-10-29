@@ -158,7 +158,7 @@ class GameSessionJoinFlow(
             result?.let {
                 UsedCharacter(
                     it.variant.source,
-                    t.toServerboundDto(client, joinType == JoinType.Multiplayer)
+                    it.toServerboundDto(client, joinType == JoinType.Multiplayer)
                 )
             }
         }

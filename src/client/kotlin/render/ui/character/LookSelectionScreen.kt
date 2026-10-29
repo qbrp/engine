@@ -7,13 +7,16 @@ import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
+import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.CharacterData
+import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.player.character.Look
 
 class LookSelectionScreen(
     characterSelection: CharacterSelection,
+    val source: CharacterSource,
     character: CharacterData,
-    look: Look,
+    val look: Look,
     skinTextureManager: SkinTextureManager = characterSelection.client.skinTextureManager,
     looks: List<Look> = character.looks,
 ) : AbstractSelectionScreen<LookSelectionScreen.Result>(characterSelection) {
@@ -24,22 +27,38 @@ class LookSelectionScreen(
     }
 
     override val looksWheel: LooksWheel<Result> = run {
-        val profile = character.profile
-        val entries: List<LooksWheel.Entry<Result>> = looks.map {
-            LooksWheel.Entry(
-                it,
-                profile.name.copy(name = it.title).gradientChars.getText(),
-                profile,
-                Result.Selected(it),
-                it.id == look.id
-            )
-        }
+        val entries = entries(character, look, looks)
         LooksWheel(
             skinTextureManager,
             entries,
             onSelectLook = ::selectEntry
         )
     }
+
+    override suspend fun onReload(account: AccountResponse) {
+        val variants = CharacterSelection.variants(account)
+        val variant = variants[source] ?: return
+        val look = variant.character.looks.find { it.id == looksWheel.selectedItem?.entry?.look?.id } ?: look
+        looksWheel.reloadItems(
+            entries(
+                variant.character,
+                look,
+                variant.character.looks,
+            )
+        )
+    }
+
+    private fun entries(character: CharacterData, initial: Look, looks: List<Look>): List<LooksWheel.Entry<Result>> =
+        looks.map {
+            val profile = character.profile
+            LooksWheel.Entry(
+                it,
+                profile.name.copy(name = it.title).gradientChars.getText(),
+                profile,
+                Result.Selected(it),
+                it.id == initial.id
+            )
+        }
 
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         return if (keyCode == InputConstants.KEY_O && overlay == null) {
@@ -66,7 +85,12 @@ class LookSelectionScreen(
             }
 
             val screen = withContext(MinecraftClientDispatcher) {
-                val screen = LookSelectionScreen(characterSelection, selectedCharacterVariant.character, look)
+                val screen = LookSelectionScreen(
+                    characterSelection,
+                    selectedCharacterVariant.source,
+                    selectedCharacterVariant.character,
+                    look
+                )
                 MinecraftClient.setScreen(screen)
                 screen
             }

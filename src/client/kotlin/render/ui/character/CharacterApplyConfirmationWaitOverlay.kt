@@ -31,19 +31,20 @@ class CharacterApplyConfirmationWaitOverlay(
     private val client = MinecraftClient
     sealed class State(var tick: Float = 0f) {
         class FadeIn(val deferred: CompletableDeferred<Unit> = CompletableDeferred()) : State()
-        class Wait : State()
+        class Wait(val darken: Boolean) : State()
         class FadeOut(val deferred: CompletableDeferred<Unit> = CompletableDeferred()) : State()
     }
-    private val fadeIn = State.FadeIn()
-    var state = AtomicReference<State>(fadeIn)
-        private set
+    val state = AtomicReference<State>(State.Wait(false))
 
     var job: Job = CoroutineScope(Dispatchers.Default).launch {
+        delay(600.milliseconds)
+        val fadeIn = State.FadeIn()
+        state.set(fadeIn)
         fadeIn.deferred.await()
         client.execute { onFaded.invoke() }
         try {
             withTimeout(5000L.milliseconds) {
-                state.set(State.Wait())
+                state.set(State.Wait(true))
                 characterSelection.awaitConfirmation()
             }
         } catch (e: TimeoutCancellationException) {
@@ -91,7 +92,7 @@ class CharacterApplyConfirmationWaitOverlay(
                         state.deferred.complete(Unit)
                     }
                 }
-            is State.Wait -> 1f
+            is State.Wait -> if (state.darken) 1f else 0f
             is State.FadeOut -> (1f - progress)
                 .also {
                     if (tick >= FADE_TIME) {

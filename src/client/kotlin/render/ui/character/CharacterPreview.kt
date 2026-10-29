@@ -68,7 +68,7 @@ internal fun createCharacterPreviewPlayer(
     }
 }
 
-internal class CharacterPreviewWidget(
+class CharacterPreviewWidget(
     val entity: CharacterPreviewPlayer,
     val profile: CharacterProfile
 ) {

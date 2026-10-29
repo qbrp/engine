@@ -31,6 +31,10 @@ public class AvatarRendererMixin {
             return;
         }
 
+        if (player.isSpectator() && !ClientMixin.INSTANCE.renderSpectatorPlayers()) {
+            ci.cancel();
+        }
+
         PlayerRenderer renderer = (PlayerRenderer) (Object) this;
         ClientMixin.INSTANCE.updatePlayerRenderState(player, renderer.getModel());
     }

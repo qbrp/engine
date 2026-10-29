@@ -54,7 +54,7 @@ class CharacterChange(
         val accountManager = client.accountManager
         val account = accountManager.requireAccountResponse()
 
-        val variants = CharacterSelection.variants(account)
+        val variants = CharacterSelection.variantsList(account)
         val selected = selection.awaitSelection(currentCharacter, variants) ?: return
 
         when (selected) {

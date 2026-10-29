@@ -105,11 +105,15 @@ class CharacterSelection(
             return backendVariants + clientVariants
         }
 
-        suspend fun variants(account: AccountResponse): List<Variant> {
+        suspend fun variants(account: AccountResponse): Map<CharacterSource, Variant> {
             return variants(
                 account.characters.associate { it.id to it.map() },
                 FileSystem.readCharacters()
-            ).values.toList()
+            )
+        }
+
+        suspend fun variantsList(account: AccountResponse): List<Variant> {
+            return variants(account).values.toList()
         }
     }
 }

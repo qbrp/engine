@@ -5,7 +5,6 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.player.AbstractClientPlayer
 import org.lain.engine.Constants
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
@@ -15,8 +14,10 @@ import org.lain.engine.mc.compat.removeGenderCacheEntry
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.Look
-import java.util.UUID
+import org.lain.engine.util.math.lerp
+import java.util.*
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 class LooksWheel<T>(
@@ -36,7 +37,9 @@ class LooksWheel<T>(
 
     inner class Item(
         val entry: Entry<T>,
-        val previewPlayer: CharacterPreviewPlayer
+        val previewPlayer: CharacterPreviewPlayer,
+        val widget: CharacterPreviewWidget = CharacterPreviewWidget(previewPlayer, entry.profile),
+        var y: Float? = null
     )
 
     private var selectedIndex = 0
@@ -102,7 +105,9 @@ class LooksWheel<T>(
 
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
         return if (keyCode == InputConstants.KEY_RETURN) {
-            onSelectLook(items.getOrNull(selectedIndex)?.entry)
+            val item = selectedItem ?: return false
+            item.previewPlayer.playAnimation(CharacterAnimations.all.next())
+            onSelectLook(item.entry)
             true
         } else if (keyCode == InputConstants.KEY_RIGHT) {
             selectedIndex = (selectedIndex + 1).coerceIn(items.indices)
@@ -124,28 +129,6 @@ class LooksWheel<T>(
         if (items.isEmpty()) return false
         selectedIndex = (selectedIndex - verticalAmount.sign()).coerceIn(items.indices)
         return true
-    }
-
-    private fun applyCursorLook(
-        entity: AbstractClientPlayer,
-        entityX: Int,
-        entityY: Int,
-        mouseX: Int,
-        mouseY: Int,
-    ) {
-        val yaw = ((mouseX - entityX) / 8f).coerceIn(-35f, 35f)
-        applyRotation(entity, 180f - yaw * 0.35f, -yaw)
-    }
-
-    private fun applyRotation(
-        entity: AbstractClientPlayer,
-        bodyYaw: Float,
-        relativeHeadYaw: Float,
-    ) {
-        val headYaw = bodyYaw + relativeHeadYaw
-        entity.yBodyRot = bodyYaw
-        entity.setYRot(headYaw)
-        entity.yHeadRot = headYaw
     }
 
     override fun renderWidget(
@@ -176,6 +159,7 @@ class LooksWheel<T>(
 
         visibleCharacters.forEach character@{ (index, item) ->
             val entry = item.entry
+            val widget = item.widget
             val entity = item.previewPlayer
 
             val offset = index - selectedIndex
@@ -183,8 +167,6 @@ class LooksWheel<T>(
             val itemX = centerX + offset * spacing
             val distance = abs(itemX - centerX).toFloat() / centerX.coerceAtLeast(1)
             val visualScale = (1f - distance * 0.55f).coerceIn(MIN_VISUAL_SCALE, 1f)
-
-            val widget = CharacterPreviewWidget(entity, entry.profile)
 
             if (index == selectedIndex) {
                 entity.setOnGround(true)
@@ -195,14 +177,26 @@ class LooksWheel<T>(
                 widget.applyRotation(180f + yaw, yaw)
             }
 
+            val targetX = itemX.toFloat()
+            val targetY = (centerY.toFloat() - PREVIEW_VERTICAL_PADDING).coerceAtLeast(MIN_PREVIEW_HEIGHT)
+
+            item.y = lerp(item.y ?: targetY, targetY, 1f - 0.2f.pow(f))
+            if (widget.x == 0f) {
+                widget.x = targetX
+            }
+
             widget.computeScale(visualScale)
-            widget.computePosition(itemX.toFloat(), centerY.toFloat())
-            widget.y -= PREVIEW_VERTICAL_PADDING
-            widget.y = widget.y.coerceAtLeast(MIN_PREVIEW_HEIGHT.toFloat())
+            widget.computePosition(
+                lerp(widget.x, targetX, 1f - 0.2f.pow(f)),
+                item.y ?: targetY
+            )
             widget.render(guiGraphics)
 
-            val textY = centerY + (14 * visualScale).roundToInt()
-            guiGraphics.drawCenteredString(font, entry.text, itemX, textY, 0xFFFFFFFF.toInt())
+            val textY = (item.y ?: targetY) + (14 * visualScale)
+            guiGraphics.pose().pushPose()
+            guiGraphics.pose().translate(widget.x, textY, 0f)
+            guiGraphics.drawCenteredString(font, entry.text, 0, 0, 0xFFFFFFFF.toInt())
+            guiGraphics.pose().popPose()
         }
     }
 
@@ -213,10 +207,10 @@ class LooksWheel<T>(
     }
 
     companion object {
-        private const val VISIBLE_SIDE_CHARACTERS = 5
+        private const val VISIBLE_SIDE_CHARACTERS = 5f
         private const val MIN_SPACING = 72
         private const val MAX_SPACING = 110
-        private const val MIN_PREVIEW_HEIGHT = 112
+        private const val MIN_PREVIEW_HEIGHT = 112f
         private const val PREVIEW_VERTICAL_PADDING = 12
         private const val MIN_VISUAL_SCALE = 0.45f
         private const val SIDE_CHARACTER_ROTATION = 14f
