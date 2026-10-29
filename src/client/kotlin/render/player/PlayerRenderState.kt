@@ -4,7 +4,9 @@ import net.minecraft.world.entity.player.Player
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
+import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
+import org.lain.engine.EnginePlayerRenderStateHolder
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.LowDetail
 import org.lain.engine.item.EngineItem
@@ -25,22 +27,28 @@ import org.lain.engine.player.get
 import org.lain.engine.world.World
 
 data class EnginePlayerRenderState(
-    val entity: Player,
     var mainArmPose: ArmPose = ArmPose.NEUTRAL,
     var minorArmPose: ArmPose = ArmPose.NEUTRAL,
     var detachedEquipment: List<DetachedEquipmentRenderState> = emptyList(),
     var eyeLevel: Int = 2
-)
+) {
+    companion object {
+        val EMPTY = EnginePlayerRenderState()
+    }
+}
 
 data class RenderStateComponent(val renderState: EnginePlayerRenderState) : Component
 
 fun Player.getEngineRenderState(): EnginePlayerRenderState? =
-    getEngineState()?.get<RenderStateComponent>()?.renderState
+    (this as? EnginePlayerRenderStateHolder)?.`engine$getPlayerRenderState`()
+
+fun Player.setEngineRenderState(state: EnginePlayerRenderState) =
+    (this as? EnginePlayerRenderStateHolder)?.`engine$setPlayerRenderState`(state)
 
 fun GameSession.updatePlayerEntityRenderStates() = with(world) {
-    iterate<LowDetail, MinecraftPlayer> { player, (isLowDetailed), (entity) ->
+    iterate<LowDetail, MinecraftPlayer> { player, (isLowDetailed), _ ->
         if (!isLowDetailed) {
-            player.setComponent(RenderStateComponent(EnginePlayerRenderState(entity)))
+            player.setComponent(RenderStateComponent(EnginePlayerRenderState()))
         }
     }
 
@@ -79,6 +87,11 @@ fun GameSession.updatePlayerEntityRenderStates() = with(world) {
 
     iterate<RenderStateComponent, EnginePlayerModel>() { _, (renderState), model ->
         renderState.eyeLevel = model.eyeLevel
+    }
+
+    iterate<MinecraftPlayer, RenderStateComponent> { player, (entity), (renderState) ->
+        entity.setEngineRenderState(renderState)
+        player.removeComponent<RenderStateComponent>()
     }
 }
 
