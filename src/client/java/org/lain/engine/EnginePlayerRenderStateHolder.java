@@ -1,9 +1,8 @@
 package org.lain.engine;
 
-import org.lain.engine.client.render.player.EnginePlayerRenderState;
-import org.lain.engine.client.render.player.RenderStateComponent;
+import org.lain.engine.client.render.player.PlayerRenderNode;
 
 public interface EnginePlayerRenderStateHolder {
-    EnginePlayerRenderState engine$getPlayerRenderState();
-    void engine$setPlayerRenderState(EnginePlayerRenderState renderState);
+    PlayerRenderNode engine$getRenderNode();
+    void engine$setRenderNode(PlayerRenderNode node);
 }

@@ -17,6 +17,10 @@ import org.lain.engine.client.control.updateInspectionMode
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.render.*
+import org.lain.engine.client.render.player.SkinSystem
+import org.lain.engine.client.render.player.extractPlayerRenderState
+import org.lain.engine.client.render.player.snapshotCharacterRenderState
+import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.client.render.ui.TransformationEdit
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.EntityInspection
@@ -42,6 +46,7 @@ import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.world.*
+import kotlin.let
 
 class GameSession(
     val isMultiPlayer: Boolean,
@@ -55,6 +60,7 @@ class GameSession(
     val compilation: ClientCompilation,
     build: Build,
     val joinType: GameSessionJoinFlow.JoinType,
+    var serverPlayState: ServerPlayState,
     val hintState: ClientHintState = ClientHintState(),
 ) : EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
     private val systems: ClientPlatform.TickExtension = client.platform.tickExtension
@@ -73,10 +79,8 @@ class GameSession(
         client.thread,
         setup.settings.useAdventureMode
     )
-    val world = World(
-        world.id,
-        simulation,
-    )
+    val world = World(world.id, simulation)
+    val renderScene = RenderScene(namespacedStorage)
     val itemStorage: ItemStorage = this.world.itemStorage
     val chatEventBus = client.chatEventBus
 
@@ -279,6 +283,8 @@ class GameSession(
 
         simulation.tick()
         endTickTaskExecutor.flush()
+
+        extractPlayerRenderState(renderScene)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
@@ -307,6 +313,12 @@ class GameSession(
                 character?.source ?: return@run null,
                 mainPlayer.get<SelectedLook>()?.look ?: return@run null
             )
+        }
+
+        // сохраняем рендер состояние
+        character?.let {
+            it.renderState = snapshotCharacterRenderState()
+            serverPlayState = serverPlayState.update(it)
         }
 
         val change = CharacterChange(this, currentPlayerCharacter)

@@ -1,5 +1,6 @@
 package org.lain.engine.client.mixin.render;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -8,7 +9,6 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import org.lain.engine.client.mc.ClientMixin;
-import org.lain.engine.client.render.item.ModelPipelineKt;
 import org.lain.engine.client.resources.MeshModel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,7 +27,11 @@ public abstract class EntityRendererMixin {
             CallbackInfoReturnable<Boolean> cir
     ) {
         if (entity instanceof ItemFrame itemFrame) {
-            BakedModel model = ModelPipelineKt.getEngineItemModel(itemFrame.getItem());
+            BakedModel model = ClientMixin.INSTANCE.getEngineItemModel(
+                    itemFrame.getItem(),
+                    Minecraft.getInstance().getModelManager(),
+                    true
+            );
             if (model instanceof MeshModel metadata && metadata.getProperties().getDisableCulling()) {
                 cir.setReturnValue(true);
             }

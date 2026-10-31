@@ -6,6 +6,7 @@ import imgui.extension.imguizmo.flag.Mode
 import imgui.extension.imguizmo.flag.Operation
 import imgui.type.ImFloat
 import net.minecraft.client.resources.model.BakedModel
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemDisplayContext
 import net.minecraft.world.item.ItemStack
 import org.joml.Matrix4f
@@ -21,7 +22,7 @@ import org.lain.engine.util.math.Vec2
 import kotlin.math.abs
 
 private data class PendingTransformationRender(
-    val itemStack: ItemStack,
+    val modelId: ResourceLocation,
     val renderInstance: TransformationRenderInstance,
     val context: EngineItemDisplayContext,
     val displayContext: ItemDisplayContext?,
@@ -79,7 +80,7 @@ class TransformationEdit(
     }
 
     fun beginItemRender(
-        renderedStack: ItemStack,
+        renderedModelId: ResourceLocation?,
         displayContext: ItemDisplayContext,
         leftHand: Boolean,
         projection: Matrix4f,
@@ -89,7 +90,7 @@ class TransformationEdit(
     ) {
         pendingRender = null
         if (
-            ClientMixin.getEngineItemModelId(renderedStack) != modelId ||
+            renderedModelId != modelId ||
             context == EngineItemDisplayContext.NONE ||
             context == EngineItemDisplayContext.OUTFIT ||
             context.minecraft != displayContext
@@ -99,7 +100,7 @@ class TransformationEdit(
         if (renderSnapshot != null || !selectRenderInstance(renderInstance)) return
 
         pendingRender = PendingTransformationRender(
-            renderedStack,
+            modelId,
             renderInstance,
             context,
             displayContext,
@@ -112,25 +113,33 @@ class TransformationEdit(
     }
 
     fun endItemRender(
-        renderedStack: ItemStack,
+        renderedModelId: ResourceLocation?,
         displayContext: ItemDisplayContext,
         leftHand: Boolean,
         model: Matrix4f,
         renderInstance: TransformationRenderInstance,
     ) {
-        finishRender(renderedStack, renderInstance, context, displayContext, leftHand, model)
+        finishRender(
+            renderedModelId,
+            renderInstance,
+            context,
+            displayContext,
+            leftHand,
+            model,
+        )
     }
 
     fun beginOutfitRender(
-        renderedStack: ItemStack,
+        renderedModelId: ResourceLocation,
         projection: Matrix4f,
         view: Matrix4f,
         parent: Matrix4f,
         renderInstance: TransformationRenderInstance,
+        mirrorX: Boolean,
     ) {
         pendingRender = null
         if (
-            ClientMixin.getEngineItemModelId(renderedStack) != modelId ||
+            renderedModelId != modelId ||
             context != EngineItemDisplayContext.OUTFIT
         ) {
             return
@@ -138,11 +147,11 @@ class TransformationEdit(
         if (renderSnapshot != null || !selectRenderInstance(renderInstance)) return
 
         pendingRender = PendingTransformationRender(
-            renderedStack,
+            renderedModelId,
             renderInstance,
             context,
             null,
-            false,
+            mirrorX,
             false,
             Matrix4f(projection),
             Matrix4f(view),
@@ -151,16 +160,17 @@ class TransformationEdit(
     }
 
     fun endOutfitRender(
-        renderedStack: ItemStack,
+        renderedModelId: ResourceLocation,
         model: Matrix4f,
         renderInstance: TransformationRenderInstance,
+        mirrorX: Boolean,
     ) {
         finishRender(
-            renderedStack,
+            renderedModelId,
             renderInstance,
             EngineItemDisplayContext.OUTFIT,
             null,
-            false,
+            mirrorX,
             model,
         )
     }
@@ -183,7 +193,7 @@ class TransformationEdit(
     }
 
     private fun finishRender(
-        renderedStack: ItemStack,
+        renderedModelId: ResourceLocation?,
         renderInstance: TransformationRenderInstance,
         capturedContext: EngineItemDisplayContext,
         displayContext: ItemDisplayContext?,
@@ -193,7 +203,7 @@ class TransformationEdit(
         val pending = pendingRender ?: return
         pendingRender = null
         if (
-            pending.itemStack != renderedStack ||
+            pending.modelId != renderedModelId ||
             pending.renderInstance != renderInstance ||
             pending.context != capturedContext ||
             pending.context != context ||

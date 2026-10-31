@@ -5,6 +5,9 @@ import dev.kosmx.playerAnim.api.layered.IAnimation
 import dev.kosmx.playerAnim.core.util.Vec3f
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess
 import net.minecraft.client.player.AbstractClientPlayer
+import org.lain.cyberia.ecs.getComponent
+import org.lain.engine.client.EngineClient
+import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.player.ArmPose
 import org.lain.engine.util.math.easeOutQuadratic
 import org.lain.engine.util.math.lerp
@@ -16,31 +19,38 @@ private const val ARM_SPREAD = 0.05f
 private const val ARM_PITCH_OFFSET = 0.1f
 private const val HALF_PI = 1.5707964f
 
-fun registerArmPoseAnimation() {
+fun registerArmPoseAnimation(client: EngineClient) {
     PlayerAnimationAccess.REGISTER_ANIMATION_EVENT.register { player, animationStack ->
-        animationStack.addAnimLayer(ARM_POSE_ANIMATION_PRIORITY, ArmPoseAnimation(player))
+        animationStack.addAnimLayer(ARM_POSE_ANIMATION_PRIORITY, ArmPoseAnimation(player, client))
     }
 }
 
 private class ArmPoseAnimation(
     private val player: AbstractClientPlayer,
+    private val client: EngineClient,
 ) : IAnimation {
     private var headRotation = Vec3f.ZERO
     private val rightArmTransition = ArmTransition()
     private val leftArmTransition = ArmTransition()
 
     override fun isActive(): Boolean {
-        val renderState = player.getEngineRenderState()
-        return renderState?.mainArmPose == ArmPose.EXPOSE ||
-                renderState?.minorArmPose == ArmPose.EXPOSE ||
-                rightArmTransition.isActive ||
-                leftArmTransition.isActive
+        val renderNode = player.getRenderNode() ?: return false
+        with(renderNode.scene) {
+            val armPoses = renderNode.node.getComponent<ArmPoses>()
+            return armPoses?.main == ArmPose.EXPOSE ||
+                    armPoses?.off == ArmPose.EXPOSE ||
+                    rightArmTransition.isActive ||
+                    leftArmTransition.isActive
+        }
     }
 
     override fun tick() {
-        val renderState = player.getEngineRenderState()
-        rightArmTransition.tick(renderState?.mainArmPose == ArmPose.EXPOSE)
-        leftArmTransition.tick(renderState?.minorArmPose == ArmPose.EXPOSE)
+        val renderNode = player.getRenderNode() ?: return
+        with(renderNode.scene) {
+            val armPoses = renderNode.node.getComponent<ArmPoses>()
+            rightArmTransition.tick(armPoses?.main == ArmPose.EXPOSE)
+            leftArmTransition.tick(armPoses?.off == ArmPose.EXPOSE)
+        }
     }
 
     override fun setupAnim(tickDelta: Float) {

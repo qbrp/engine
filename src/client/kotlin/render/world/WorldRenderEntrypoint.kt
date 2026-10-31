@@ -7,7 +7,7 @@ import org.lain.engine.client.EngineClient
 import org.lain.engine.client.MinecraftEngineClientPlatform
 import org.lain.engine.client.mc.ImmediateVertexConsumers
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.player.updatePlayerEntityRenderStates
+import org.lain.engine.client.render.player.extractPlayerRenderState
 import org.lain.engine.mc.square
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.world.EngineChunkPos
@@ -23,10 +23,6 @@ fun registerWorldRenderEvents(
 ) {
     val labels = WorldLabelRenderPass()
     ClientLifecycleEvents.CLIENT_STOPPING.register { labels.close() }
-
-    WorldRenderEvents.BEFORE_ENTITIES.register {
-        engineClient.gameSession?.updatePlayerEntityRenderStates()
-    }
 
     WorldRenderEvents.AFTER_ENTITIES.register { renderContext ->
         val gameSession = engineClient.gameSession ?: return@register

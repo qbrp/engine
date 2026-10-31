@@ -25,6 +25,7 @@ public class ItemRendererMixin {
     private void engine$beforeItemTransform(ItemStack itemStack, ItemDisplayContext itemDisplayContext, boolean bl, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, int j, BakedModel bakedModel, CallbackInfo ci) {
         ClientMixin.INSTANCE.onBeforeRenderItem(
                 itemStack,
+                bakedModel,
                 itemDisplayContext,
                 bl,
                 RenderSystem.getProjectionMatrix(),
@@ -44,6 +45,7 @@ public class ItemRendererMixin {
     private void engine$afterItemTransform(ItemStack itemStack, ItemDisplayContext itemDisplayContext, boolean bl, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, int j, BakedModel bakedModel, CallbackInfo ci) {
         ClientMixin.INSTANCE.onAfterRenderItem(
                 itemStack,
+                bakedModel,
                 itemDisplayContext,
                 bl,
                 poseStack.last().pose()

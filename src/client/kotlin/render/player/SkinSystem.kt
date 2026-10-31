@@ -1,4 +1,4 @@
-package org.lain.engine.client.render
+package org.lain.engine.client.render.player
 
 import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.client.resources.PlayerSkin

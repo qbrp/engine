@@ -11,7 +11,7 @@
     "chat.ChatScreenMixin", "chat.GuiMessageLineMixin", "chat.GuiMessageMixin", "hud.GuiAccessor", "hud.GuiMixin",
     "hud.PlayerMenuItemMixin", "render.AvatarRendererMixin", "render.CameraMixin", "render.EntityRendererMixin",
     "render.GameRendererAccessor", "render.GameRendererMixin", "render.GlyphRenderTypesMixin",
-    "render.HumanoidModelMixin", "render.ItemEntityRendererMixin", "render.ItemFrameRendererMixin",
+    "render.ItemEntityRendererMixin", "render.ItemFrameRendererMixin",
     "render.ItemModelManagerMixin", "render.ItemRendererMixin", "render.LivingEntityRendererMixin",
     "render.ScreenAccessor", "resource.BlockElementDeserializerMixin", "resource.JsonUnbakedModelAccessor",
     "resource.SpriteSourceListAccessor", "resource.SpriteSourceListMixin", "resource.TransformationDeserializerMixin",

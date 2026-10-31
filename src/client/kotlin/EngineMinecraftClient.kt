@@ -20,11 +20,11 @@ import org.lain.engine.client.render.Window
 import org.lain.engine.client.render.player.EquipmentFeatureRenderer
 import org.lain.engine.client.render.player.HeadEquipmentFeatureRenderer
 import org.lain.engine.client.render.player.registerArmPoseAnimation
-import org.lain.engine.client.render.ui.EngineDuplicateScreen
 import org.lain.engine.client.render.ui.MovingWallpapers
-import org.lain.engine.client.render.ui.character.CharacterAnimations
 import org.lain.engine.client.render.ui.hud.registerHudRenderEvent
-import org.lain.engine.client.render.world.*
+import org.lain.engine.client.render.world.DecalSystem
+import org.lain.engine.client.render.world.LabelTextRenderTypes
+import org.lain.engine.client.render.world.registerWorldRenderEvents
 import org.lain.engine.client.resources.registerEngineModelLoading
 import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.postErrorReport
@@ -89,7 +89,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         registerEngineLightComponents()
         registerDeveloperModeDecalsDebug(decalSystem, engine)
         registerClientEngineCommands(engine)
-        registerArmPoseAnimation()
+        registerArmPoseAnimation(engine)
 
         Injector.register(keybindManager)
         Injector.register(this)
@@ -148,9 +148,9 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
 
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register { _, renderer, helper, _ ->
             if (renderer is PlayerRenderer) {
-                helper.register(EquipmentFeatureRenderer(renderer, upperPart = false))
-                helper.register(EquipmentFeatureRenderer(renderer, upperPart = true))
-                helper.register(HeadEquipmentFeatureRenderer(renderer))
+                helper.register(EquipmentFeatureRenderer(renderer, engine, upperPart = false))
+                helper.register(EquipmentFeatureRenderer(renderer, engine, upperPart = true))
+                helper.register(HeadEquipmentFeatureRenderer(renderer, engine))
             }
         }
     }
