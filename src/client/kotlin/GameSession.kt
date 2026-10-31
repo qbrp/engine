@@ -220,6 +220,8 @@ class GameSession(
         }
     }
 
+    override fun shouldSimulate(player: EnginePlayer): Boolean = !player.destroyed && !player.isLowDetailed
+
     override fun World.tickDaraPreparation() = with(systems) {
         tickDataPrepareSystem()
         tickPlayerLowDetailedSystem(mainPlayer, synchronizationRadius)

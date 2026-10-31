@@ -1,17 +1,11 @@
 package org.lain.engine.client.account
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.LocalCharacter
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.server.account.SessionTicket
-import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.nextIdFast
 
 class CharacterChange(
@@ -19,9 +13,14 @@ class CharacterChange(
     private val currentCharacter: CharacterSelection.CurrentCharacter?,
 ) {
     private val client = gameSession.client
+    private val serverPlayState = gameSession.serverPlayState
     private val handler = client.handler
     private val requestId = nextIdFast()
-    private val selection = CharacterSelection(client)
+    private val selection = CharacterSelection(
+        client,
+        gameSession.namespacedStorage,
+        serverPlayState
+    )
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var job: Job? = null
 
@@ -79,6 +78,7 @@ class CharacterChange(
                     }
                 }
             }
+
             is CharacterSelection.Selection.Look -> withClientContext {
                 handler.onLookSelected(selected.look.id, requestId)
                 selection.awaitConfirmation()

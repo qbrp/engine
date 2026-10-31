@@ -1,30 +1,24 @@
 package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.client.model.loading.v1.FabricBakedModelManager
-import net.minecraft.client.model.PlayerModel
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.client.player.AbstractClientPlayer
-import net.minecraft.client.resources.DefaultPlayerSkin
 import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.client.resources.model.BakedModel
 import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundSource
-import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemDisplayContext
 import net.minecraft.world.item.ItemStack
 import org.joml.Matrix4f
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.chat.AcceptedMessage
-import org.lain.engine.client.render.CharacterSkin
-import org.lain.engine.client.render.getSkin
 import org.lain.engine.client.render.item.TransformationRenderInstance
 import org.lain.engine.client.render.item.resolveTooltip
-import org.lain.engine.client.render.player.RenderStateComponent
-import org.lain.engine.client.render.player.modelPartOf
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.EngineTitleMenu
+import org.lain.engine.client.resources.MeshModel
 import org.lain.engine.client.util.getClientItem
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.item.EngineItem
@@ -35,12 +29,9 @@ import org.lain.engine.mc.ecs.ENGINE_ITEM_COMPONENT
 import org.lain.engine.mc.ecs.ENGINE_ITEM_MODEL_COMPONENT
 import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.engineId
-import org.lain.engine.mc.getEngineState
 import org.lain.engine.mc.replacePlayerMinecraftState
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
-import org.lain.engine.player.character.CharacterModelType
-import org.lain.engine.player.get
 import org.lain.engine.player.interaction.processLeftClickInteraction
 import org.lain.engine.player.require
 import org.lain.engine.util.injectValue
@@ -104,8 +95,13 @@ object ClientMixin {
     private fun transformationRenderInstance(itemStack: ItemStack): TransformationRenderInstance =
         transformationRenderInstances.peekLast() ?: TransformationRenderInstance.Stack(itemStack)
 
+    private fun renderedModelId(itemStack: ItemStack, bakedModel: BakedModel): ResourceLocation? =
+        // Scene props use a shared material stack without an Engine model id.
+        (bakedModel as? MeshModel)?.properties?.model ?: getEngineItemModelId(itemStack)
+
     fun onBeforeRenderItem(
         itemStack: ItemStack,
+        bakedModel: BakedModel,
         displayContext: ItemDisplayContext,
         leftHand: Boolean,
         projection: Matrix4f,
@@ -113,7 +109,7 @@ object ClientMixin {
         parent: Matrix4f,
     ) {
         client.gameSession?.transformationEdit?.beginItemRender(
-            itemStack,
+            renderedModelId(itemStack, bakedModel),
             displayContext,
             leftHand,
             projection,
@@ -125,12 +121,13 @@ object ClientMixin {
 
     fun onAfterRenderItem(
         itemStack: ItemStack,
+        bakedModel: BakedModel,
         displayContext: ItemDisplayContext,
         leftHand: Boolean,
         model: Matrix4f,
     ) {
         client.gameSession?.transformationEdit?.endItemRender(
-            itemStack,
+            renderedModelId(itemStack, bakedModel),
             displayContext,
             leftHand,
             model,
@@ -139,25 +136,34 @@ object ClientMixin {
     }
 
     fun onBeforeRenderOutfit(
-        itemStack: ItemStack,
+        modelId: ResourceLocation,
         projection: Matrix4f,
         view: Matrix4f,
         parent: Matrix4f,
+        renderInstance: TransformationRenderInstance,
+        mirrorX: Boolean,
     ) {
         client.gameSession?.transformationEdit?.beginOutfitRender(
-            itemStack,
+            modelId,
             projection,
             view,
             parent,
-            transformationRenderInstance(itemStack),
+            renderInstance,
+            mirrorX,
         )
     }
 
-    fun onAfterRenderOutfit(itemStack: ItemStack, model: Matrix4f) {
+    fun onAfterRenderOutfit(
+        modelId: ResourceLocation,
+        model: Matrix4f,
+        renderInstance: TransformationRenderInstance,
+        mirrorX: Boolean,
+    ) {
         client.gameSession?.transformationEdit?.endOutfitRender(
-            itemStack,
+            modelId,
             model,
-            transformationRenderInstance(itemStack),
+            renderInstance,
+            mirrorX,
         )
     }
 
@@ -193,23 +199,6 @@ object ClientMixin {
 
     fun onMainPlayerInstantiated(mainPlayer: EnginePlayer) {
         mainPlayerHearing = mainPlayer.require<Hearing>()
-    }
-
-    fun updatePlayerRenderState(player: Player, model: PlayerModel<*>) {
-        val enginePlayer = player.getEngineState()
-        val renderState = enginePlayer?.get<RenderStateComponent>()?.renderState
-        if (enginePlayer != null && renderState != null) {
-            renderState.detachedEquipment.forEach {
-                it.playerModelPart = modelPartOf(it.slot.part, model)
-            }
-        }
-    }
-
-    fun getPlayerSkin(enginePlayer: EnginePlayer): PlayerSkin {
-        return enginePlayer.getSkin() ?: CharacterSkin(
-            DefaultPlayerSkin.getDefaultTexture(),
-            CharacterModelType.SLIM
-        )
     }
 
     fun getPlayerSkinThreadSafe(player: PlayerInfo): PlayerSkin? {

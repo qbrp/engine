@@ -7,11 +7,9 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.network.chat.Component
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.render.CharacterSkin
-import org.lain.engine.client.render.ui.ImGuiManager
 import org.lain.engine.client.render.ui.ImGuiWindow
 import org.lain.engine.player.character.CharacterData
-import java.util.UUID
+import java.util.*
 
 class CharacterEditorScreen(
     private val gameSession: GameSession,
@@ -32,7 +30,6 @@ class CharacterEditorScreen(
             level,
             character.profile,
             UUID.nameUUIDFromBytes("edit-character".toByteArray()),
-            null
         ) { gameSession.client.skinTextureManager.getOrDownloadTexture(look) },
         character.profile
     )

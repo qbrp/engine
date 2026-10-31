@@ -99,7 +99,7 @@ object FileSystem {
                 try {
                     put(
                         file.nameWithoutExtension,
-                        Json.decodeFromString<FileProvidedCharacter>(file.readText()).map()
+                        Json.decodeFromString<FileProvidedCharacter>(file.readText()).map(file.nameWithoutExtension)
                     )
                 } catch (e: Exception) {
                     LOGGER.error("Error while reading characters from $file", e)

@@ -12,9 +12,7 @@ import net.minecraft.world.entity.player.PlayerModelPart
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import org.lain.engine.Constants.GENDER_MOD_AVAILABLE
-import org.lain.engine.client.render.CharacterSkin
-import org.lain.engine.client.render.player.EnginePlayerRenderState
-import org.lain.engine.client.render.player.setEngineRenderState
+import org.lain.engine.client.render.player.CharacterSkin
 import org.lain.engine.mc.compat.updateCharacterEntity
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.computeCharacterModel
@@ -42,7 +40,6 @@ internal fun createCharacterPreviewPlayer(
     level: ClientLevel,
     character: CharacterProfile,
     uuid: UUID,
-    renderState: EnginePlayerRenderState? = null,
     skinGetter: () -> ResourceLocation
 ): CharacterPreviewPlayer {
     if (GENDER_MOD_AVAILABLE) {
@@ -64,7 +61,6 @@ internal fun createCharacterPreviewPlayer(
         }
     ).apply {
         pose = Pose.STANDING
-        renderState?.let { setEngineRenderState(it) }
     }
 }
 

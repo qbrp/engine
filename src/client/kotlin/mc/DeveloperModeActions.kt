@@ -1,21 +1,28 @@
 package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.InteractionResult
+import org.jetbrains.exposed.v1.core.Key
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.LiteralSystemMessage
+import org.lain.engine.client.mixin.render.GameRendererAccessor
 import org.lain.engine.client.render.CD
 import org.lain.engine.client.render.VOICE_WARNING
 import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.LittleNotification
 import org.lain.engine.client.render.ui.TransformationEdit
+import org.lain.engine.client.render.ui.character.CharacterEditorScreen
 import org.lain.engine.mc.commands.playerPositionsMessage
 import org.lain.engine.mc.voxelPos
+import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.player.get
 import org.lain.engine.util.Timestamp
 import org.lain.engine.util.math.randomInteger
 import org.lain.engine.util.math.roundToInt
 import org.lain.engine.world.*
 import org.lwjgl.glfw.GLFW
+import org.lwjgl.opengl.GL
 
 
 private var developerModeKeyPressedTick = 0L
@@ -96,10 +103,21 @@ fun onKeyDeveloperMode(key: Int): Boolean = with(ClientMixin.getEngineClient()) 
                     gameSession.chatManager.addMessage(LiteralSystemMessage(gameSession, message))
                 }
             } else if (key == GLFW.GLFW_KEY_6) {
-//                val gameRenderer = MinecraftClient.gameRenderer as GameRendererAccessor
-//                gameRenderer.`engine$loadEffect`(
-//                    ResourceLocation.withDefaultNamespace("shaders/post/nvg_green.json")
-//                )
+                val gameRenderer = MinecraftClient.gameRenderer as GameRendererAccessor
+                gameRenderer.`engine$loadEffect`(
+                    ResourceLocation.withDefaultNamespace("shaders/post/nvg_green.json")
+                )
+            } else if (key == GLFW.GLFW_KEY_7) {
+                val gameSession = gameSession ?: return@with true
+                val character = gameSession.mainPlayer.get<AppliedCharacter>()?.character?.data ?: return@with true
+                val world = MinecraftClient.level ?: return@with true
+                MinecraftClient.setScreen(
+                    CharacterEditorScreen(
+                        gameSession,
+                        world,
+                        character
+                    )
+                )
             } else {
                 return@with false
             }

@@ -4,22 +4,26 @@ import com.mojang.blaze3d.platform.InputConstants
 import kotlinx.coroutines.withContext
 import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.client.account.SkinTextureManager
+import org.lain.engine.client.handler.ServerPlayState
 import org.lain.engine.client.mc.MinecraftClient
+import org.lain.engine.client.render.player.CharacterSceneSnapshot
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
 import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.CharacterData
 import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.player.character.Look
+import org.lain.engine.script.NamespacedStorageAccess
 
 class LookSelectionScreen(
     characterSelection: CharacterSelection,
     val source: CharacterSource,
     character: CharacterData,
     val look: Look,
-    skinTextureManager: SkinTextureManager = characterSelection.client.skinTextureManager,
     looks: List<Look> = character.looks,
 ) : AbstractSelectionScreen<LookSelectionScreen.Result>(characterSelection) {
+    private val client = characterSelection.client
+    private val skinTextureManager: SkinTextureManager = client.skinTextureManager
 
     sealed interface Result {
         data class Selected(val look: Look) : Result
@@ -29,6 +33,7 @@ class LookSelectionScreen(
     override val looksWheel: LooksWheel<Result> = run {
         val entries = entries(character, look, looks)
         LooksWheel(
+            characterSelection.namespacedStorageAccess,
             skinTextureManager,
             entries,
             onSelectLook = ::selectEntry
@@ -48,7 +53,11 @@ class LookSelectionScreen(
         )
     }
 
-    private fun entries(character: CharacterData, initial: Look, looks: List<Look>): List<LooksWheel.Entry<Result>> =
+    private fun entries(
+        character: CharacterData,
+        initial: Look,
+        looks: List<Look>
+    ): List<LooksWheel.Entry<Result>> =
         looks.map {
             val profile = character.profile
             LooksWheel.Entry(
@@ -56,6 +65,7 @@ class LookSelectionScreen(
                 profile.name.copy(name = it.title).gradientChars.getText(),
                 profile,
                 Result.Selected(it),
+                characterSelection.playState?.currentCharacter()?.renderState,
                 it.id == initial.id
             )
         }

@@ -35,8 +35,8 @@ data class FileProvidedCharacter(
         val appearance: CharacterAppearance,
     )
 
-    fun map(): CharacterData {
-        val baseLook = looks.base.map("base", true)
+    fun map(filename: String): CharacterData {
+        val baseLook = looks.base.map("$filename-base", true)
         return CharacterData(
             CharacterProfile(
                 profile.name.map(),
@@ -47,7 +47,7 @@ data class FileProvidedCharacter(
                 profile.bodyType,
                 profile.appearance,
             ),
-            looks.other.map { (lookId, look) -> look.map(lookId, false) } + baseLook,
+            looks.other.map { (lookId, look) -> look.map("$filename-$lookId", false) } + baseLook,
             baseLook
         )
     }

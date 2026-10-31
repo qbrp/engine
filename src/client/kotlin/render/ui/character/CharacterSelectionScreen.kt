@@ -8,6 +8,7 @@ import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
 import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.CharacterData
+import org.lain.engine.script.NamespacedStorageAccess
 
 class CharacterSelectionScreen(
     val initialVariant: Variant?,
@@ -17,6 +18,7 @@ class CharacterSelectionScreen(
     override val looksWheel: LooksWheel<CharacterSelection.Selection.Character> = run {
         val entries = entries(characters, initialVariant)
         LooksWheel(
+            characterSelection.namespacedStorageAccess,
             characterSelection.client.skinTextureManager,
             entries,
             onSelectLook = ::selectEntry
@@ -31,6 +33,7 @@ class CharacterSelectionScreen(
             character.profile.name.gradientChars.getText(),
             character.profile,
             CharacterSelection.Selection.Character(variant),
+            characterSelection.playState?.characters[variant.source]?.renderState,
             isInitial,
         )
     }
@@ -49,7 +52,11 @@ class CharacterSelectionScreen(
             characters: List<Variant>,
         ): CharacterSelection.Selection.Character? {
             val screen = withContext(MinecraftClientDispatcher) {
-                val screen = CharacterSelectionScreen(initialVariant, characters, characterSelection)
+                val screen = CharacterSelectionScreen(
+                    initialVariant,
+                    characters,
+                    characterSelection
+                )
                 MinecraftClient.setScreen(screen)
                 screen
             }

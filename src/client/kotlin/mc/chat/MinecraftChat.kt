@@ -11,7 +11,7 @@ import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mixin.chat.ChatHudAccessor
-import org.lain.engine.client.render.getSkin
+import org.lain.engine.client.render.player.getSkin
 import org.lain.engine.client.render.ui.hud.ChatChannelsBar
 import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.mc.Text

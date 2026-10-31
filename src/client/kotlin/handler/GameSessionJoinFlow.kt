@@ -39,7 +39,7 @@ class GameSessionJoinFlow(
 ) {
     private val accountManager = client.accountManager
     private val platform = client.platform
-    private val characterSelection = CharacterSelection(client)
+    private var characterSelection: CharacterSelection? = null
     private val joinGamePacketConfirmation = CompletableDeferred<JoinGamePacket>()
 
     @Volatile
@@ -136,18 +136,23 @@ class GameSessionJoinFlow(
         val request: ServerboundSelectedCharacter
     )
 
-    private suspend fun computePlayCharacter(server: ServerData): UsedCharacter? {
+    private suspend fun computePlayCharacter(
+        namespacedStorageAccess: NamespacedStorageAccess,
+        serverPlayState: ServerPlayState?,
+        server: ServerData
+    ): UsedCharacter? {
         if (joinType.isReplay) return null
         return coroutineScope {
             state = State.CHARACTER_LOAD
-            val playStateDeferred = async { ServerPlayState.open(server.id) }
             val characters = listCharacters(server.canProvideCharacters)
             val variants = CharacterSelection.variants(
                 characters.backend,
                 characters.file
             )
 
-            val previousCharacter = playStateDeferred.await()
+            val characterSelection = CharacterSelection(client, namespacedStorageAccess, serverPlayState)
+                .also { characterSelection = it }
+            val previousCharacter = serverPlayState
                 ?.let { variants[it.character] }
                 ?.let { CharacterSelection.Selection.Character(it) }
 
@@ -203,7 +208,10 @@ class GameSessionJoinFlow(
                 resourceCompilationResult.await()
             }
 
-            val selectedCharacter = computePlayCharacter(server)
+            val playState = ServerPlayState.open(server.id)
+            val selectedCharacter = computePlayCharacter(
+                compilation.luaContext.namespacedStorage, playState, server
+            )
             sessionTicket = selectedCharacter?.request?.sessionTicket?.map()
 
             state = State.GAME_LOADING
@@ -227,6 +235,8 @@ class GameSessionJoinFlow(
                     compilation,
                     compilationResult,
                     joinType,
+                    playState
+                        ?: ServerPlayState(selectedCharacter?.source, emptyMap()),
                 )
 
                 client.joinGameSession(gameSession)
@@ -240,14 +250,14 @@ class GameSessionJoinFlow(
             }
         } catch (e: CancellationException) {
             LOGGER.info("Отменен вход на сервер")
-            characterSelection.cancel()
+            characterSelection?.cancel()
             joinGamePacketConfirmation.cancel()
             sessionTicket?.let {
                 accountManager.getAuthorized()?.revokeSessionTicket(it.hash)
             }
             throw e
         } catch (exception: Exception) {
-            characterSelection.cancel()
+            characterSelection?.cancel()
             joinGamePacketConfirmation.cancel()
             withClientContext {
                 client.platform.disconnect(
@@ -287,12 +297,12 @@ class GameSessionJoinFlow(
     }
 
     fun confirmJoinGamePacket(packet: JoinGamePacket): Boolean {
-        characterSelection.confirm()
+        characterSelection?.confirm()
         return joinGamePacketConfirmation.complete(packet)
     }
 
     fun cancel() {
-        characterSelection.cancel()
+        characterSelection?.cancel()
         joinGamePacketConfirmation.cancel()
         job.cancel()
     }

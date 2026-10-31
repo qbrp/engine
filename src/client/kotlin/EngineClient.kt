@@ -186,9 +186,7 @@ class EngineClient(
         val gameSession = gameSession ?: error("Game session is not active")
         val serverId = gameSession.server
         imGuiManager.closeAll()
-        runBlocking {
-            ServerPlayState(gameSession.character?.source).save(serverId)
-        }
+        runBlocking { gameSession.serverPlayState.save(serverId) }
         gameSession.destroy()
         skinTextureManager.cancelDownloadTasks()
         this.gameSession = null

@@ -2,20 +2,18 @@ package org.lain.engine.client.account
 
 import kotlinx.coroutines.CompletableDeferred
 import org.lain.engine.client.EngineClient
+import org.lain.engine.client.handler.ServerPlayState
 import org.lain.engine.client.render.ui.character.CharacterSelectionScreen
 import org.lain.engine.client.render.ui.character.LookSelectionScreen
 import org.lain.engine.player.account.AccountResponse
-import org.lain.engine.player.character.BackendCharacterData
-import org.lain.engine.player.character.CharacterData
-import org.lain.engine.player.character.BackendCharacterId
-import org.lain.engine.player.character.CharacterSource
-import org.lain.engine.player.character.Look
-import org.lain.engine.player.character.ServerCharacterData
-import org.lain.engine.player.character.ServerboundSelectedCharacter
+import org.lain.engine.player.character.*
+import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.util.file.FileSystem
 
 class CharacterSelection(
     val client: EngineClient,
+    val namespacedStorageAccess: NamespacedStorageAccess,
+    val playState: ServerPlayState?
 ) {
     private val confirmation = CompletableDeferred<Unit>()
 

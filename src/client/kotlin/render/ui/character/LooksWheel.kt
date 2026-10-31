@@ -8,12 +8,15 @@ import net.minecraft.client.gui.screens.Screen
 import org.lain.engine.Constants
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.player.EnginePlayerRenderState
+import org.lain.engine.client.render.player.CharacterSceneSnapshot
+import org.lain.engine.client.render.player.setRenderNode
+import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.compat.removeGenderCacheEntry
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.Look
+import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.util.math.lerp
 import java.util.*
 import kotlin.math.abs
@@ -21,6 +24,7 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 class LooksWheel<T>(
+    private val namespacedStorageAccess: NamespacedStorageAccess,
     private val skinTextureManager: SkinTextureManager,
     looks: List<Entry<T>>,
     val onSelectLook: (Entry<T>?) -> Unit,
@@ -31,6 +35,7 @@ class LooksWheel<T>(
         val text: Text,
         val profile: CharacterProfile,
         val result: T,
+        val renderScene: CharacterSceneSnapshot?,
         val isInitial: Boolean,
         val uuid: UUID = UUID.randomUUID(),
     )
@@ -70,16 +75,22 @@ class LooksWheel<T>(
         return list
             .map {
                 val profile = it.profile
+
+                val previewPlayer = createCharacterPreviewPlayer(
+                    level,
+                    profile,
+                    uuid = it.uuid,
+                ) {
+                    skinTextureManager.getOrDownloadTexture(it.look)
+                }
+
+                it.renderScene?.let { renderSceneSnapshot ->
+                    previewPlayer.setRenderNode(renderSceneSnapshot.revive(namespacedStorageAccess))
+                }
+
                 Item(
                     it,
-                    createCharacterPreviewPlayer(
-                        level,
-                        profile,
-                        uuid = it.uuid,
-                        EnginePlayerRenderState(
-                            eyeLevel = profile.appearance.eyeLevel
-                        ),
-                    ) { skinTextureManager.getOrDownloadTexture(it.look) }
+                    previewPlayer
                 )
             }
     }
