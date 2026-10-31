@@ -318,9 +318,13 @@ class GameSession(
         }
 
         // сохраняем рендер состояние
-        character?.let {
-            it.renderState = snapshotCharacterRenderState()
-            serverPlayState = serverPlayState.update(it)
+        character?.let { character ->
+            runCatching { snapshotCharacterRenderState() }
+                .onFailure { e -> LOGGER.error("Failed to serialize player render state", e) }
+                .onSuccess { renderState ->
+                    character.renderState = renderState
+                    serverPlayState = serverPlayState.update(character)
+                }
         }
 
         val change = CharacterChange(this, currentPlayerCharacter)

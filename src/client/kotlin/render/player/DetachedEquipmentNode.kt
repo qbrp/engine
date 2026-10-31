@@ -26,6 +26,7 @@ data class DetachedEquipmentNode(
 
 @Serializable
 data class DetachedEquipment(val nodes: List<DetachedEquipmentNode>) : RenderEntityReferences {
+    override fun entityReferences(): List<EntityId> = nodes.map { it.node }
     override fun remapEntityReferences(remap: (EntityId) -> EntityId): DetachedEquipment =
         copy(nodes = nodes.map { it.copy(node = remap(it.node)) })
 }

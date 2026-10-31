@@ -33,7 +33,7 @@ class PropModelReference(val path: ResourcePath) {
 }
 
 interface RenderEntityReferences : Component {
-    /** Returns a component with every entity reference remapped, without changing this component. */
+    fun entityReferences(): List<EntityId> = emptyList()
     fun remapEntityReferences(remap: (EntityId) -> EntityId): Component
 }
 
