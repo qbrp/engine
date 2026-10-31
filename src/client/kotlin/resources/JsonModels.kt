@@ -19,7 +19,7 @@ private val FACE_BAKERY = FaceBakery()
 fun MeshBuilder.buildJson(
     renderer: Renderer,
     textureGetter: Function<Material, TextureAtlasSprite>,
-    geometry: PropModelProperties.Geometry.Json,
+    geometry: LinkedPropModel.Geometry.Json,
     state: ModelState,
     bakedQuads: MutableList<BakedQuad>? = null,
 ) {

@@ -12,8 +12,9 @@ fun registerEngineModelLoading(client: EngineClient) {
     ModelLoadingPlugin.register { context ->
         val modelCatalog = runBlocking { client.assetCompilation?.modelCatalog?.await() }
             ?: return@register
-        val models = modelCatalog.props.entries.associate { (_, propModelProperties) ->
-            propModelProperties.asset.registrationId to UnbakedMeshModel(propModelProperties)
+        val models = modelCatalog.props.entries.associate { (_, propModel) ->
+            val properties = propModel.properties
+            properties.asset.registrationId to UnbakedMeshModel(properties, propModel.geometry)
         }
         val modelIds = buildSet {
             add(UNDEFINED_MODEL_ID)

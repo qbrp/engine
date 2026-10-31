@@ -21,14 +21,12 @@ fun UnbakedMeshModel.bakeMeshModel(
         textureGetter.apply(Material(ITEMS_ATLAS, it))
     }
 
-    when (val geometry = properties.geometry) {
-        is PropModelProperties.Geometry.Obj ->
-            builder.buildObj(renderer, textureGetter, geometry.model, geometry.flipV, bakedQuads)
+    when (geometry) {
+        is LinkedPropModel.Geometry.Obj ->
+            builder.buildObj(renderer, textureGetter, geometry.linkedObj, geometry.flipV, bakedQuads)
 
-        is PropModelProperties.Geometry.Json ->
+        is LinkedPropModel.Geometry.Json ->
             builder.buildJson(renderer, textureGetter, geometry, state, bakedQuads)
-
-        is PropModelProperties.Geometry.Glb -> TODO()
     }
 
     return MeshModel(

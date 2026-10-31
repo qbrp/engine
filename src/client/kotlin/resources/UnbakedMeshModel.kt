@@ -9,7 +9,10 @@ import net.minecraft.client.resources.model.UnbakedModel
 import net.minecraft.resources.ResourceLocation
 import java.util.function.Function
 
-class UnbakedMeshModel(val properties: PropModelProperties) : UnbakedModel {
+class UnbakedMeshModel(
+    val properties: PropModelProperties,
+    val geometry: LinkedPropModel.Geometry
+) : UnbakedModel {
     // сохраняем совместимость - этот API нам не нужен
     override fun getDependencies(): Collection<ResourceLocation> = emptyList()
     override fun resolveParents(function: Function<ResourceLocation, UnbakedModel>) = Unit

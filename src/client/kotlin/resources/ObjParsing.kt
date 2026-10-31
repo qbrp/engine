@@ -8,8 +8,13 @@ import kotlin.collections.component2
 
 data class ParsedObj(
     val model: Obj,
-    val materialLibraries: List<EngineId>
-)
+    val materialLibrariesRefs: List<MtlRef>
+) {
+    sealed interface MtlRef {
+        data class Slot(val name: String) : MtlRef
+        data class Direct(val id: EngineId) : MtlRef
+    }
+}
 
 data class ParsedMtlLibrary(
     val materials: List<ParsedMtlMaterial>
@@ -23,7 +28,13 @@ data class ParsedMtlMaterial(
 fun Asset.parseObjModel(): ParsedObj {
     return source.read { reader ->
         val obj = ObjUtils.convertToRenderable(ObjReader.read(reader))
-        ParsedObj(obj, obj.mtlFileNames.map { resolve(it) })
+        ParsedObj(obj, obj.mtlFileNames.map {
+            if (it.startsWith("#")) {
+                ParsedObj.MtlRef.Slot(it.drop(1))
+            } else {
+                ParsedObj.MtlRef.Direct(resolve(it))
+            }
+        })
     }
 }
 

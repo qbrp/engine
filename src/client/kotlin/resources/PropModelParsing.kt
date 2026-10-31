@@ -19,18 +19,35 @@ data class PropModelProperties(
     val disableCulling: Boolean,
     val flatLight: Boolean,
     val transform: EngineTransformationsBundle,
-    val geometry: Geometry,
     val rotateLeftSide: Boolean,
     val mirrorX: Boolean
+)
+
+data class ParsedPropModel(
+    val properties: PropModelProperties,
+    val geometry: Geometry
 ) {
     sealed class Geometry {
         data class Json(val blockModel: BlockModel) : Geometry() // геометрия описывается в самом Json-файле квадами
-        data class Obj(val model: LinkedObj, val flipV: Boolean) : Geometry()
-        data class Glb(val path: LinkedObj) : Geometry()
+        data class Obj(
+            val model: EngineId,
+            val mtlOverride: Map<String, EngineId>,
+            val flipV: Boolean,
+        ) : Geometry()
     }
 }
 
-fun Asset.parsePropModel(linkedObjs: Map<EngineId, LinkedObj>): PropModelProperties {
+data class LinkedPropModel(
+    val properties: PropModelProperties,
+    val geometry: Geometry
+) {
+    sealed class Geometry {
+        data class Json(val blockModel: BlockModel) : Geometry() // геометрия описывается в самом Json-файле квадами
+        data class Obj(val linkedObj: LinkedObj, val flipV: Boolean) : Geometry()
+    }
+}
+
+fun Asset.parsePropModel(): ParsedPropModel {
     var transform: EngineTransformationsBundle? = null
 
     val modelJson = source.openInputStream().use {
@@ -57,38 +74,24 @@ fun Asset.parsePropModel(linkedObjs: Map<EngineId, LinkedObj>): PropModelPropert
     val useAmbientOcclusion = JsonMc.getAsBoolean(modelJson, "ambient_occlusion", true)
     val disableCulling = JsonMc.getAsBoolean(modelJson, "disable_culling", false)
 
-    val geometry = parseLegacyObjGeometry(modelJson, linkedObjs) ?: run {
+    val geometry = parseLegacyObjGeometry(modelJson) ?: run {
         JsonMc.getAsJsonObject(modelJson, "geometry", null)?.let { geometryJson ->
             val geometryType = JsonMc.getAsString(geometryJson, "type")
 
-            fun parseGeometryPath() = resolve(JsonMc.getAsString(geometryJson, "path"))
-
             when (geometryType) {
-                "json" -> PropModelProperties.Geometry.Json(parseBlockModel(modelJson))
-
-                "obj" -> {
-                    val flipV = JsonMc.getAsBoolean(geometryJson, "flip_v", false)
-                    val geometryId = parseGeometryPath()
-                    PropModelProperties.Geometry.Obj(
-                        linkedObjs[geometryId] ?: error("Геометрия не найдена: $geometryId"),
-                        flipV
-                    )
-                }
-
-                "glb" -> {
-                    val geometryId = parseGeometryPath()
-                    PropModelProperties.Geometry.Glb(TODO())
-                }
+                "json" -> ParsedPropModel.Geometry.Json(parseBlockModel(modelJson))
+                "obj" -> parseObjGeometry(geometryJson)
+                "glb" -> TODO()
 
                 else -> error("Unknown geometry type: $geometryType")
             }
-        } ?: PropModelProperties.Geometry.Json(parseBlockModel(modelJson))
+        } ?: ParsedPropModel.Geometry.Json(parseBlockModel(modelJson))
     }
 
     val rotateLeftSide = JsonMc.getAsBoolean(modelJson, "rotate_left_side", false)
     val mirrorX = JsonMc.getAsBoolean(modelJson, "mirror_x", false)
 
-    return PropModelProperties(
+    val properties = PropModelProperties(
         this,
         registrationId,
         particle,
@@ -96,25 +99,28 @@ fun Asset.parsePropModel(linkedObjs: Map<EngineId, LinkedObj>): PropModelPropert
         disableCulling,
         flatLight,
         transform ?: EngineTransformationsBundle(),
-        geometry,
         rotateLeftSide,
         mirrorX
     )
+    return ParsedPropModel(properties, geometry)
 }
 
-fun Asset.parseLegacyObjGeometry(
-    modelJson: JsonObject,
-    linkedObjs: Map<EngineId, LinkedObj>,
-): PropModelProperties.Geometry.Obj? {
+fun Asset.parseLegacyObjGeometry(modelJson: JsonObject): ParsedPropModel.Geometry.Obj? {
     val isObj = modelJson.has("obj") && modelJson.getAsJsonPrimitive("obj").asBoolean
-    val flipV = JsonMc.getAsBoolean(modelJson, "flip_v", false)
     return if (isObj) {
-        val path = resolve(JsonMc.getAsString(modelJson, "model"))
-        PropModelProperties.Geometry.Obj(
-            linkedObjs[path] ?: error("Геометрия не найдена: $path"),
-            flipV,
-        )
+        parseObjGeometry(modelJson)
     } else {
         null
     }
+}
+
+fun Asset.parseObjGeometry(modelJson: JsonObject): ParsedPropModel.Geometry.Obj {
+    val flipV = JsonMc.getAsBoolean(modelJson, "flip_v", false)
+    val mtlOverride =
+        JsonMc.getAsJsonObject(modelJson, "mtl_override", JsonObject())
+            ?.asMap()
+            ?.mapValues { resolve(it.value.asString) }
+            ?: emptyMap()
+    val path = resolve(JsonMc.getAsString(modelJson, "model"))
+    return ParsedPropModel.Geometry.Obj(path, mtlOverride, flipV)
 }
