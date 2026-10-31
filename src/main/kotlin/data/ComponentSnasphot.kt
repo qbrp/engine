@@ -10,10 +10,12 @@ import org.lain.engine.item.Count
 import org.lain.engine.item.GunFireState
 import org.lain.engine.item.GunMagazines
 import org.lain.engine.item.Magazine
+import org.lain.engine.item.Mass
 import org.lain.engine.item.Writable
 import org.lain.engine.player.ArmStatus
 import org.lain.engine.player.CustomPlayerAttributes
 import org.lain.engine.player.MovementStatus
+import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentId
@@ -72,6 +74,7 @@ fun Component.snapshot(): ComponentSnapshot = when (this) {
             is ArmStatus -> copy()
             is CustomPlayerAttributes -> copy()
             is MovementStatus -> copy()
+            is Mass -> copy()
             else -> this
         }
     )

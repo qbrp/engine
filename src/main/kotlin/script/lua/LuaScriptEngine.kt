@@ -29,6 +29,7 @@ open class LuaScriptEngine(
     private var reloadFunction: LuaFunction? = null
     var runtimeDependencies: RuntimeDependencies? = null
         private set
+    val namespacedStorage get() = dependencies.namespacesStorage
     val globals get() = dependencies.globals
     val scriptsPath get() = dependencies.scriptsPath
     var writeCompilationManifest = dependencies.writeCompilationManifest
@@ -37,7 +38,7 @@ open class LuaScriptEngine(
     val worldsList = LuaTable()
     val idLibrary = IdLibrary()
     val vec3Library = Vec3Library()
-    val componentLibrary = ComponentLibrary(dependencies.namespacesStorage, false, this)
+    val componentLibrary = ComponentLibrary(namespacedStorage, false, this)
 
     val playerMetaTable: LuaTable = PlayerMetaTable()
     val worldMetaTable: LuaTable = WorldMetaTable()

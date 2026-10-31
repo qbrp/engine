@@ -3,8 +3,12 @@ package org.lain.engine.script.lua.library
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.EntityId
+import org.lain.engine.item.Mass
+import org.lain.engine.mc.engineId
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.lua.LuaUserdataType
+import org.lain.engine.script.lua.NIL
 import org.lain.engine.script.lua.library.ecs.DecrementItemBinding
 import org.lain.engine.script.lua.library.ecs.EquipmentBinding
 import org.lain.engine.script.lua.library.ecs.EquippableBinding
@@ -16,6 +20,8 @@ import org.lain.engine.script.lua.library.ecs.LocationBinding
 import org.lain.engine.script.lua.library.ecs.MovementStatusBinding
 import org.lain.engine.script.lua.library.ecs.PlayerAttributesBinding
 import org.lain.engine.script.lua.library.ecs.PlayerCustomAttributesBinding
+import org.lain.engine.script.lua.luaNum
+import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaValue
 
@@ -51,6 +57,7 @@ object LuaComponentBindingRegistry {
         register(PlayerAttributesBinding)
         register(PlayerCustomAttributesBinding)
         register(MovementStatusBinding)
+        register(MassBinding)
     }
 
     fun get(id: LuaComponentBindingId): LuaComponentBinding<*> {
@@ -63,5 +70,41 @@ object LuaComponentBindingRegistry {
 
     fun register(binding: LuaComponentBinding<*>) {
         bindings[LuaComponentBindingId(binding.id)] = binding
+    }
+}
+
+object MassBinding : LuaComponentBinding<Mass> {
+    override val componentType: ComponentType<Mass>
+        get() = componentType<Mass>()
+    override val id: EngineId
+        get() = EngineId("core/mass")
+
+    private val userdataType = LuaUserdataType<Mass> {
+        indexSelf { self, key ->
+            if (key.tojstring() == "kg") {
+                self.mass.toDouble().luaNum()
+            } else {
+                NIL
+            }
+        }
+        newIndexSelf { self, key, value ->
+            if (key.tojstring() == "kg") {
+                self.mass = value.tofloat()
+            }
+        }
+    }
+
+    context(lua: LuaScriptEngine)
+    override fun toLua(
+        world: World?,
+        entity: EntityId,
+        component: Mass
+    ): LuaValue {
+        return userdataType.newInstance(component)
+    }
+
+    context(lua: LuaScriptEngine)
+    override fun fromLua(entity: EntityId, value: LuaValue): Mass? {
+        return Mass(value["kg"].tofloat())
     }
 }
