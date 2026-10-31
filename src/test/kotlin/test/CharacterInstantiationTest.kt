@@ -29,6 +29,7 @@ import org.lain.engine.data.PlayCharacterData
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.TransactionContext
 import org.lain.engine.data.TransactionState
+import org.lain.engine.data.Uuid
 import org.lain.engine.data.createTransactionContext
 import org.lain.engine.data.databasePersistentId
 import org.lain.engine.data.disconnectDatabase
@@ -194,6 +195,50 @@ class CharacterInstantiationTest : EngineTest() {
         savedEquipment.clear()
 
         assertEquals(mapOf(slot to equipmentEntity), player.require<Equipment>().slots)
+    }
+
+    @Test
+    fun reselectingCurrentCharacterPreservesCurrentEquipmentAndInventory() = runBlocking {
+        val player = createPlayerWithCharacter()
+        val character = player.require<AppliedCharacter>().character
+        val slot = EngineId("test/head").toEquipmentSlotId()
+        val itemId = Uuid.next()
+        val item = world.addEntity { setComponent(PersistentIdComponent(itemId)) }
+        server.entityCoordinator.registerEntity(world, itemId, item)
+        player.set(Equipment(mutableMapOf(slot to item)))
+
+        repeat(3) { attempt ->
+            change(player, character, requestId = attempt.toLong())
+            awaitCharacterChanges()
+
+            assertNull(confirmations().last().errorMessage)
+            assertEquals(mapOf(slot to item), player.require<Equipment>().slots)
+            assertEquals(TestPlayerInventory("original-inventory"), player.require<TestPlayerInventory>())
+        }
+    }
+
+    @Test
+    fun switchingBetweenCharactersRestoresEachCharactersEquipment() = runBlocking {
+        val player = createPlayerWithCharacter()
+        val original = player.require<AppliedCharacter>().character
+        val other = character("other")
+        val slot = EngineId("test/head").toEquipmentSlotId()
+        val itemId = Uuid.next()
+        val item = world.addEntity { setComponent(PersistentIdComponent(itemId)) }
+        server.entityCoordinator.registerEntity(world, itemId, item)
+        player.set(Equipment(mutableMapOf(slot to item)))
+
+        repeat(3) { attempt ->
+            change(player, other, requestId = attempt * 2L)
+            awaitCharacterChanges()
+            assertNull(confirmations().last().errorMessage)
+            assertTrue(player.require<Equipment>().slots.isEmpty())
+
+            change(player, original, requestId = attempt * 2L + 1)
+            awaitCharacterChanges()
+            assertNull(confirmations().last().errorMessage)
+            assertEquals(mapOf(slot to item), player.require<Equipment>().slots)
+        }
     }
 
     @Test
