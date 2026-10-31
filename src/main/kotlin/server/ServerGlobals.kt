@@ -17,4 +17,5 @@ data class ServerGlobals(
     val requireIdenticalNamespaces: Boolean = false,
     val spectateOnJoin: Boolean = false,
     val useAdventureMode: Boolean = false,
+    val spectateNewbies: Boolean = false,
 )

@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.ReadComponentAccess
 import org.lain.cyberia.ecs.getComponent
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
@@ -22,14 +23,16 @@ import kotlin.reflect.jvm.jvmName
 data class DebugName(val name: String) : Component
 
 @JvmInline
-value class EntityDebugId(val name: String)
+value class EntityDebugId(val name: String) {
+    override fun toString(): String { return name }
+}
 
 fun EntityDebugNameId(name: String, id: EntityId) = EntityDebugId("$name+$id")
 
 context(world: World)
 fun EntityId.getDebugName() = getComponent<DebugName>()?.name
 
-context(world: World)
+context(access: ReadComponentAccess)
 fun EntityId.getEntityDebugNameId() = getComponent<DebugName>()?.name
     ?.let { EntityDebugNameId(it, this) }
     ?: getDebugId()

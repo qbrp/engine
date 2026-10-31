@@ -9,7 +9,6 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.equipment
-import org.lain.engine.player.has
 import org.lain.engine.util.addIfNotNull
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -21,7 +20,7 @@ context(world: World)
 fun EngineItem.getOwner() = this.getComponent<HeldBy>()?.owner
 
 fun World.tickItemOwnershipSystem(extension: EngineSimulation.SimulationTickExtension) {
-    iterate<PlayerComponent, PlayerInventory> { entity, (player), inventory ->
+    iterate<PlayerComponent, PlayerInventory> { _, (player), inventory ->
         if (!extension.shouldSimulate(player)) return@iterate
 
         val ownershipItems = player.equipment.values.toMutableList()
@@ -41,6 +40,7 @@ fun World.tickItemOwnershipSystem(extension: EngineSimulation.SimulationTickExte
     iterate<Item, HeldBy> { item, _, holdsBy ->
         val owner = holdsBy.owner
         if (owner != null) {
+            if (!extension.shouldSimulate(owner)) return@iterate
             val pos = owner.pos
             val location = item.getComponent<Location>() ?: run {
                 val component = Location(pos)

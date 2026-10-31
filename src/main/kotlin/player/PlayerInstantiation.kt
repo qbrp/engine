@@ -14,6 +14,7 @@ import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.server.*
 import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
+import org.lain.engine.item.Mass
 import org.lain.engine.player.character.OwnedCharacterId
 import org.lain.engine.player.character.ServerCharacterId
 import org.lain.engine.player.character.ServerboundSelectedCharacter
@@ -90,6 +91,7 @@ fun commonPlayerInstance(
             setComponent(Hearing())
             setComponent(PlayerInput())
             setComponent(PlayerPhysics())
+            setComponent(Mass(65f))
             setComponent(settings.displayName)
             setComponent(settings.movementStatus)
             setComponent(settings.mode)

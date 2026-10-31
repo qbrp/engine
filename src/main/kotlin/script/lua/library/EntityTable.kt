@@ -15,6 +15,7 @@ import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaUserdataTable
 import org.lain.engine.script.lua.toLuaTable
 import org.lain.engine.util.ecs.EntityId
+import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaInteger
 import org.luaj.vm2.LuaUserdata
@@ -54,6 +55,15 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
         val world = entity.readAccess ?: error("entity hasn't read component access")
         with(world) {
             entityId.getComponentLua(entity.world, typeHolder.fetchHolderLuaComponentAccess()) ?: NIL
+        }
+    }
+    functionSelf2("require_component") { entity, typeHolder ->
+        val entityId = entity.id
+        val world = entity.readAccess ?: error("entity hasn't read component access")
+        val access = typeHolder.fetchHolderLuaComponentAccess()
+        with(world) {
+            entityId.getComponentLua(entity.world, access)
+                ?: error("Entity ${entity.id.getEntityDebugNameId()} does not contains component ${access.componentType.id}")
         }
     }
     functionSelf2("has_component") { entity, type ->

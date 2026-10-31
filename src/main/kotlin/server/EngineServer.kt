@@ -143,7 +143,10 @@ class EngineServer(
         simulation.useAdventureMode = globals.useAdventureMode
     }
 
-    fun instantiatePlayer(player: EnginePlayer, notifications: List<Notification> = listOf()) =
+    fun instantiatePlayer(
+        player: EnginePlayer,
+        notifications: List<Notification> = listOf(),
+    ) =
         with(player.world) {
             simulation.instantiatePlayer(player)
 

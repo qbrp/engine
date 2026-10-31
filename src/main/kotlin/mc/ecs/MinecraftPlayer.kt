@@ -117,12 +117,11 @@ private fun World.tickMinecraftPlayerMotionSyncSystem() {
 
         velocity.prev.set(velocity.motion)
         location.position.set(position)
-        velocity.motion.set(entity.deltaMovement)
+        velocity.motion.set(entity.knownMovement)
 
         val setVelocity = velocity.set
         if (setVelocity != null) {
-            entity.deltaMovement = setVelocity.toMinecraft()
-            velocity.set = null
+            TODO("не поддерживается ёпта")
         }
     }
 }

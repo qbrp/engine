@@ -125,15 +125,18 @@ class CharacterManager(
                     request.resolveServerId(player.id),
                     backend.validateCharacter(canProvideCharacters, request),
                 )
+                val serializedInventory = withContext(server.dataPrepareDispatcher) {
+                    val inventory = platform.serializeInventory(player)
+                    player.unloadCharacter(platform, persistence, inventory)
+                    inventory
+                }
                 val characterRecord = persistence.loadPersistentCharacter(
                     context, componentReviveSettings, player.id, id
                 )
                 // Пока что вполне логично относить применение персонажа к DataPrepare
                 // Во многом это не побочный эффект других механик, а именно источник данных
                 withContext(server.dataPrepareDispatcher) {
-                    val serializedInventory = platform.serializeInventory(player)
                     try {
-                        player.unloadCharacter(platform, persistence, serializedInventory)
                         apply(context, player, validatedCharacter, characterRecord, id)
                         context.commit()
                         handler.confirmCharacterApply(player, requestId)

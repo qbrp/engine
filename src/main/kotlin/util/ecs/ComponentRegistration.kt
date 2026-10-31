@@ -93,6 +93,7 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<AppliedCharacter>(isNetworking = true)
     registerComponent<SelectedLook>(isNetworking = true)
     registerComponent<CharacterApplyEvent>(isNetworking = true)
+    registerComponent<CharacterUnloadEvent>(isNetworking = true)
 
     registerComponent<GiveAction>(isNetworking = true)
     registerComponent<HailAction>(isNetworking = true)

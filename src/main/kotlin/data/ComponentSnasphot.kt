@@ -73,6 +73,7 @@ fun Component.snapshot(): ComponentSnapshot = when (this) {
             is Writable -> copy()
             is ArmStatus -> copy()
             is CustomPlayerAttributes -> copy()
+            is PlayerAttributes -> copy()
             is MovementStatus -> copy()
             is Mass -> copy()
             else -> this
