@@ -1,0 +1,33 @@
+package org.lain.engine.data
+
+fun RawEngineId.migrate(): RawEngineId = when (id) {
+    "detachedequipment" -> RawEngineId("core/client/player/detached_equipment")
+    "eyelevel" -> RawEngineId("core/client/player/eye_level")
+    "lightsample" -> RawEngineId("core/client/render/light_sample")
+    "propmodel" -> RawEngineId("core/client/render/prop_model")
+    "assignedslot" -> RawEngineId("core/item/assigned_slot")
+    "containedin" -> RawEngineId("core/item/contained_in")
+    "barrel" -> RawEngineId("core/item/gun/barrel")
+    "count" -> RawEngineId("core/item/count")
+    "gun" -> RawEngineId("core/item/gun/component")
+    "gundisplay" -> RawEngineId("core/item/gun/display")
+    "gunfirestate" -> RawEngineId("core/item/gun/fire_state")
+    "gunmagazines" -> RawEngineId("core/item/gun/magazines")
+    "item" -> RawEngineId("core/item/component")
+    "itemassets" -> RawEngineId("core/item/assets")
+    "itemname" -> RawEngineId("core/item/name")
+    "itemprogressionanimations" -> RawEngineId("core/item/progression_animations")
+    "itemsounds" -> RawEngineId("core/item/sounds")
+    "itemtooltip" -> RawEngineId("core/item/tooltip")
+    "magazine" -> RawEngineId("core/item/magazine/component")
+    "mass" -> RawEngineId("core/item/mass")
+    "writable" -> RawEngineId("core/item/writable")
+    "equippable", "core/equippable" -> RawEngineId("core/item/equippable")
+    "entityrpcreceiver" -> RawEngineId("core/networking/rpc_receiver")
+    "debugname" -> RawEngineId("core/entity/debug_name")
+    "lightsource" -> RawEngineId("core/world/light_source")
+    "luminance" -> RawEngineId("core/world/luminance")
+    "voxeldoor" -> RawEngineId("core/world/voxel_door")
+    "characterphysical" -> RawEngineId("core/character/physical")
+    else -> this
+}

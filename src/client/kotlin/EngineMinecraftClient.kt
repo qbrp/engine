@@ -40,7 +40,6 @@ import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.server.account.EngineHttpClient
 import org.lain.engine.util.Injector
 import org.lain.engine.util.ecs.ComponentTypeRegistry
-import org.lain.engine.util.ecs.registerAllClient
 import org.slf4j.LoggerFactory
 
 class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension {
@@ -79,7 +78,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     override fun onInitializeClient() {
         LabelTextRenderTypes.registerShaders()
         ComponentTypeRegistry.registerComponentsClient()
-        ComponentTypeRegistry.registerAllClient()
         engine.options = config
         engine.onOptionsUpdate()
         keybindManager = KeybindManager(config = config.config)

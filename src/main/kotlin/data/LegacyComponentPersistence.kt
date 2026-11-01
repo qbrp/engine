@@ -39,7 +39,11 @@ internal fun decodeLegacyComponentPayload(
     id: RawEngineId,
 ): ComponentPayload {
     val legacy = LEGACY_COMPONENT_CBOR.decodeFromByteArray<LegacyPersistentComponentDto>(array)
-    require(legacy.id == id.id) {
+    val matches = when (legacy) {
+        is LegacyPersistentComponentDto.Payload -> legacy.id.asRawEngineId().migrate() == id.migrate()
+        is LegacyPersistentComponentDto.Script -> legacy.id == id.id
+    }
+    require(matches) {
         "Component payload id ${legacy.id} does not match record id ${id.id}"
     }
     return legacy.toComponentPayload()

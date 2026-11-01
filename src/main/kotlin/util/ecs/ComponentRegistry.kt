@@ -57,10 +57,10 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
     }
 
     inline fun <reified T : Component> registerComponent(
+        id: String,
         isSavable: Boolean = false,
         isNetworking: Boolean = false,
         replicationClass: KClass<out Component>? = if (isSavable || isNetworking) T::class else null,
-        id: String? = null
     ) {
         registerComponent(
             T::class,
@@ -73,12 +73,13 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
     fun registerComponent(
         kClass: KClass<out Component>,
         meta: ComponentMeta,
-        id: String? = null,
+        id: String,
         replicationClass: KClass<out Component>? = if (meta.savable || meta.networking) kClass else null
     ) {
+        require(EngineId(id).full == id) { "Component id must include a namespace: $id" }
         registerComponent(
             kClass,
-            EngineComponentType((id ?: kClass.simpleName!!).lowercase(), meta),
+            EngineComponentType(id, meta),
             meta,
             replicationClass
         )

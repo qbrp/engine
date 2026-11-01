@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.statements.api.ExposedBlob
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
@@ -27,19 +28,52 @@ fun connectDatabase(server: MinecraftServer): Database {
 
 fun connectDatabase(path: String): Database {
     val database = Database.connect("jdbc:sqlite:$path/engine.db")
-    transaction(database) {
-        SchemaUtils.create(
-            EntityTable,
-            ComponentsTable,
-            RelationsTable,
-            ItemsTable,
-            CharactersTable,
-        )
-        SchemaUtils.addMissingColumnsStatements(CharactersTable).forEach { statement ->
-            exec(statement)
+    try {
+        transaction(database) {
+            val characterColumns = exec("""PRAGMA table_info("${CharactersTable.tableName}")""") { rows ->
+                buildSet { while (rows.next()) add(rows.getString("name")) }
+            }.orEmpty()
+            val inventoryStoredInItems = "items" in characterColumns && "inventory" !in characterColumns
+            SchemaUtils.create(
+                EntityTable,
+                ComponentsTable,
+                RelationsTable,
+                ItemsTable,
+                CharactersTable,
+            )
+            SchemaUtils.addMissingColumnsStatements(CharactersTable).forEach { statement ->
+                exec(statement)
+            }
+            migrateCharacterInventories(inventoryStoredInItems)
         }
+    } catch (failure: Throwable) {
+        disconnectDatabase(database)
+        throw failure
     }
     return database
+}
+
+private val LEGACY_INVENTORY_PREFIX = Regex("""^\{\s*(?:Inventory|"Inventory"|'Inventory')\s*:""")
+
+private fun migrateCharacterInventories(inventoryStoredInItems: Boolean) {
+    CharactersTable.selectAll().toList().forEach { row ->
+        val id = row[CharactersTable.uuid]
+        val items = row[CharactersTable.items]
+        val inventory = row[CharactersTable.inventory]
+        if (inventoryStoredInItems || LEGACY_INVENTORY_PREFIX.containsMatchIn(items.trimStart())) {
+            check(inventory.isBlank() || inventory.trim() == "{}" || inventory == items) {
+                "Character $id has conflicting inventories in columns items and inventory"
+            }
+            CharactersTable.update({ CharactersTable.uuid eq id }) {
+                it[CharactersTable.inventory] = items
+                it[CharactersTable.items] = "[]"
+            }
+        } else if (items.trim() == "{}") {
+            CharactersTable.update({ CharactersTable.uuid eq id }) {
+                it[CharactersTable.items] = "[]"
+            }
+        }
+    }
 }
 
 fun disconnectDatabase(database: Database) {
@@ -90,7 +124,7 @@ object CharactersTable : Table() {
     val uuid = reference("uuid", EntityTable.uuid)
     val look = text("look")
     val inventory = text("inventory").default("{}")
-    val items = text("items").default("{}")
+    val items = text("items").default("[]")
     val equipment = text("equipment").default("{}")
 
     override val primaryKey = PrimaryKey(uuid)
@@ -180,6 +214,21 @@ suspend fun Database.saveEntitiesBatch(
 
         ComponentsTable.deleteWhere {
             entity inList entitiesIds and (error eq null)
+        }
+        val resolvedKotlinIds = components.asSequence()
+            .filter { it.record.error == null && it.record.payload is ComponentPayload.Kotlin }
+            .map { it.entityId.toString() to it.record.id.id }
+            .toSet()
+        // A recovered component also replaces its previously failed record under a legacy id.
+        if (resolvedKotlinIds.isNotEmpty()) {
+            ComponentsTable.select(ComponentsTable.entity, ComponentsTable.id)
+                .where { (ComponentsTable.entity inList entitiesIds) and ComponentsTable.error.isNotNull() }
+                .filter { (it[ComponentsTable.entity] to it[ComponentsTable.id].asRawEngineId().migrate().id) in resolvedKotlinIds }
+                .forEach { row ->
+                    ComponentsTable.deleteWhere {
+                        (entity eq row[entity]) and (id eq row[id])
+                    }
+                }
         }
         RelationsTable.deleteWhere {
             (parent inList entitiesIds)

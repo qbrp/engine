@@ -29,7 +29,8 @@ fun decodeComponentPayload(array: ByteArray, id: RawEngineId): ComponentPayload 
 
 fun ComponentPayload.decode(id: RawEngineId): ComponentSnapshot = when (this) {
     is ComponentPayload.Kotlin -> {
-        val entry = SerializationRegistry.get(id.id)
+        val componentId = id.migrate()
+        val entry = SerializationRegistry.get(componentId.id)
             ?: error("Serialization entry for component type $id does not exist")
         val serializer = entry.serializer
             ?: error("Serializer for component type $id is not registered")

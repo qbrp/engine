@@ -92,18 +92,18 @@ dependencies {
     modCompileOnly(libs.bundles.compat)
 
     shaded(libs.cyberia.ecs.api)
+    shaded(libs.protobuf)
+
     compileOnly(libs.exposed.core)
     compileOnly(libs.exposed.jdbc)
     compileOnly(libs.sqlite.jdbc)
     compileOnly(libs.luaj)
-    compileOnly(libs.reflections)
     compileOnly(libs.obj)
     compileOnly(libs.kaml)
-    shaded(libs.protobuf)
-    shaded(libs.gltf)
+    compileOnly(libs.gltf)
     modImplementation(libs.playerAnimator)
     compileOnly(libs.credential.secure.storage)
-    modImplementation("org.lain.cyberia:fabric:1.13")
+    modImplementation("org.lain.cyberia:fabric:1.14")
     testImplementation(libs.fabric.loader.junit)
 }
 
