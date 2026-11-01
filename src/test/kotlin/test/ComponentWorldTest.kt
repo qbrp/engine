@@ -23,8 +23,10 @@ import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.persistentId
 import org.lain.engine.listKotlinComponentTypeEntries
+import org.lain.engine.bootstrap
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.util.ecs.castIndexed
+import org.lain.engine.util.ecs.ComponentTypeRegistry
 
 class ComponentWorldTest : EngineTest() {
     private lateinit var componentWorld: ComponentWorld
@@ -424,6 +426,15 @@ class ComponentWorldTest : EngineTest() {
     private data class TestFifth(val value: Int) : Component
 
     private companion object {
+        init {
+            bootstrap()
+            ComponentTypeRegistry.registerComponent<TestPosition>(id = "test/ecs/position")
+            ComponentTypeRegistry.registerComponent<TestVelocity>(id = "test/ecs/velocity")
+            ComponentTypeRegistry.registerComponent<TestName>(id = "test/ecs/name")
+            ComponentTypeRegistry.registerComponent<TestFourth>(id = "test/ecs/fourth")
+            ComponentTypeRegistry.registerComponent<TestFifth>(id = "test/ecs/fifth")
+        }
+
         val positionType = componentTypeOf(TestPosition::class).castIndexed()
         val velocityType = componentTypeOf(TestVelocity::class).castIndexed()
         val nameType = componentTypeOf(TestName::class).castIndexed()

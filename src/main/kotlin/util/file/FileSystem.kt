@@ -13,7 +13,6 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.*
 import java.util.prefs.Preferences
 import kotlin.io.path.copyTo
-import kotlin.io.path.toPath
 
 object FileSystem {
     val LOGGER = LoggerFactory.getLogger("Engine Files")
@@ -155,9 +154,9 @@ object FileSystem {
         LOGGER.info("Загрузка стандартной библиотеки Lua")
 
         if (!compilationEntrypoint.exists()) {
-            builtinResource(COMPILATION_ENTRYPOINT_NAME)?.toURI()?.toPath()?.copyTo(
-                compilationEntrypoint.toPath()
-            )
+            builtinResource(COMPILATION_ENTRYPOINT_NAME)?.openStream()?.use { source ->
+                Files.copy(source, compilationEntrypoint.toPath())
+            }
         }
 
         builtinResources(SCRIPTS_PATH).forEach { source ->

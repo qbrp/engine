@@ -18,12 +18,14 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.data.EntityPersistenceData
+import org.lain.engine.data.ComponentSnapshot
 import org.lain.engine.data.MaterializedComponents
 import org.lain.engine.data.PlayCharacterData
 import org.lain.engine.data.PersistentIdComponent
@@ -37,6 +39,7 @@ import org.lain.engine.data.persistentId
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Equipment
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.PlayerMode
@@ -74,11 +77,18 @@ import org.lain.engine.player.toEquipmentSlotId
 import org.lain.engine.script.EngineId
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerPlatform
+import org.lain.engine.server.replication.EntityStateUpdate
+import org.lain.engine.server.replication.Interests
+import org.lain.engine.server.replication.PlayerReplicationState
+import org.lain.engine.server.replication.ReplicationSnapshot
+import org.lain.engine.server.replication.tickReplicationSystem
 import org.lain.engine.transport.ServerTransportContext
 import org.lain.engine.transport.packet.CharacterApplyConfirmationPacket
 import org.lain.engine.transport.packet.DeveloperModeStatus
+import org.lain.engine.transport.packet.ReplicationPacket
 import org.lain.engine.util.Color
 import org.lain.engine.util.Injector
+import org.lain.engine.util.ecs.ComponentTypeRegistry
 import org.lain.engine.util.math.MutableEVec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -166,6 +176,38 @@ class CharacterInstantiationTest : EngineTest() {
         assertEquals(TestPlayerInventory(), player.require<TestPlayerInventory>())
         assertEquals(listOf(player.id to character), platform.appliedCharacters)
         assertEquals(listOf(CharacterApplyEvent(character, player.id)), events())
+    }
+
+    @Test
+    fun switchingFromFemaleToMaleReplicatesCharacterApplyEventToOwner() {
+        val player = createPlayer()
+        player.set(PlayerComponent(player))
+        player.set(Interests())
+        player.set(PlayerReplicationState())
+        val transport = Injector.resolve<ServerTransportContext>() as TestServerTransportContext
+        val female = character("female")
+        val male = character("male").let { character ->
+            character.copy(data = character.data.copy(
+                profile = character.data.profile.copy(biologicalSex = BiologicalSex.MALE),
+            ))
+        }
+
+        for (character in listOf(female, male)) {
+            apply(player, character)
+            transport.sentPackets.clear()
+
+            world.tickReplicationSystem(server)
+
+            val packet = transport.sentPackets.mapNotNull { it.packet as? ReplicationPacket }.single()
+            val replicatedEvents = packet.frame.entities.values
+                .filterIsInstance<EntityStateUpdate.Full>()
+                .flatMap { it.components }
+                .filterIsInstance<ReplicationSnapshot.Component>()
+                .mapNotNull { (it.component as? ComponentSnapshot.Kotlin<*>)?.component as? CharacterApplyEvent }
+            assertEquals(listOf(CharacterApplyEvent(character, player.id)), replicatedEvents)
+
+            world.clearEvents()
+        }
     }
 
     @Test
@@ -674,6 +716,14 @@ class CharacterInstantiationTest : EngineTest() {
             .mapNotNull { it.packet as? CharacterApplyConfirmationPacket }
 
     private data class TestPlayerInventory(val contents: String = "") : Component
+
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun registerTestComponents() {
+            ComponentTypeRegistry.registerComponent<TestPlayerInventory>(id = "test/player_inventory")
+        }
+    }
 
     private class CharacterTestPlatform : ServerPlatform {
         val serializedPlayers = mutableListOf<PlayerId>()
