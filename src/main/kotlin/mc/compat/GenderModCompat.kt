@@ -20,7 +20,9 @@ fun syncPlayerGenderConfig(serverPlayer: ServerPlayer, sex: BiologicalSex, appea
 fun applyGenderConfig(playerId: PlayerId, sex: BiologicalSex, appearance: CharacterAppearance): PlayerConfig {
     val config = WildfireGender.getOrAddPlayerById(playerId.value)
     config.updateGender(sex.wildfireGender)
-    config.updateBustSize(appearance.breastSize)
+    if (sex == BiologicalSex.OTHER || sex == BiologicalSex.FEMALE) {
+        config.updateBustSize(appearance.breastSize)
+    }
     return config
 }
 

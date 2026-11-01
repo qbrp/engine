@@ -184,6 +184,7 @@ class CharacterManager(
 
         world.emitEvent(
             CharacterApplyEvent(serverCharacter, player.id),
+            networked = true,
             position = location.position,
             write = context.commands
         )
