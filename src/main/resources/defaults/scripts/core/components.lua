@@ -42,4 +42,5 @@ return {
     decrement = binding("core/item/decrement"), ---@type of<number>
     item = binding("core/item"), ---@type of<ItemComponent>
     equipment = binding("core/player/equipment"), ---@type of<EquipmentComponent>
+    mass = binding("core/mass") ---@type of<MassComponent>
 }

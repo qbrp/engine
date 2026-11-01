@@ -11,6 +11,7 @@ local vec3_library = {}
 ---@param x number? 0
 ---@param y number? 0
 ---@param z number? 0
+---@return Vec3
 function vec3_library.new(x, y, z) end
 
 ---@class Vec3 : Vec3.Functions, Vec3.OperatorFunctions

@@ -163,3 +163,19 @@ end
 function table.empty()
     return {}
 end
+
+---@generic K, V
+---@param table table<K, V>
+---@param key K
+---@param default (fun(): V)?
+function table.get_or_put(table, key, default)
+    local default = default or function () return {} end
+
+    local value = table[key]
+    if value == nil then
+        value = default()
+        table[key] = value
+    end
+
+    return value
+end

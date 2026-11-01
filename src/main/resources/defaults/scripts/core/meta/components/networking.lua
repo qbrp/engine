@@ -29,6 +29,3 @@
 --- Если стоит на `Networked`-сущности, система отправляет её снимок на клиент через канал
 --- для динамических вокселей.
 ---@class DynamicVoxelInterestComponent : Component
-
----@alias JumpComponent boolean
----@alias LocationComponent Vec3

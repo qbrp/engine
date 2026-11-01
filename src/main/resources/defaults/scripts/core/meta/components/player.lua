@@ -39,6 +39,9 @@ function player:sync_action(type, action) end
 ---@class PlayerComponent : Component
 ---@field object Player
 
+---@class MassComponent : Component
+---@field kg number
+
 ---@class PlayerModeComponent : Component
 ---@field mode PlayerMode
 ---@field is_spectator boolean
@@ -75,8 +78,10 @@ function player:sync_action(type, action) end
 ---@field main_hand_item Entity?
 ---@field off_hand_item Entity?
 ---@field selected_slot integer
----@field items Entity[]
+---@field items MutableList<Entity>
 
 ---@class GiveItemEvent : Component
 ---@field player Player
 ---@field item Entity
+
+---@alias JumpComponent boolean

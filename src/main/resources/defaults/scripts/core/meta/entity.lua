@@ -26,6 +26,11 @@ function entity:exists() end
 ---@return T?
 function entity:get_component(type) end
 
+---@generic T : Component
+---@param type ComponentTypeHolder<T>
+---@return T
+function entity:require_component(type) end
+
 ---@param type ComponentTypeHolder
 ---@return boolean
 function entity:has_component(type) end

@@ -1,3 +1,4 @@
+local builtin_components = require("core.components")
 local items = {}
 
 ---@alias ItemDocument table
@@ -232,7 +233,8 @@ function items.lower_item_documents(context, symbols, categories)
             if not error then
                 sound_events_resolved[key] = resolved_id
             else
-                report_error("Указан неправильный идентификатор звукового события " .. tostring(key) .. ": " .. error, "validation")
+                report_error("Указан неправильный идентификатор звукового события " .. tostring(key) .. ": " .. error,
+                    "validation")
             end
         end
 
@@ -241,8 +243,8 @@ function items.lower_item_documents(context, symbols, categories)
         local item_prefab_addon_context = {
             module = module,
             compilation = context,
-            report_error = function (message) report_error(message, "compilation") end,
-            report_warn = function (message) report_warn(message, "compilation") end
+            report_error = function(message) report_error(message, "compilation") end,
+            report_warn = function(message) report_warn(message, "compilation") end
         }
 
         local item_prefab_addons = symbols["item_prefab_addons"] ---@type table<Id, Symbol<ItemPrefabAddon>>
@@ -261,8 +263,16 @@ function items.lower_item_documents(context, symbols, categories)
             end
         end
 
-        item_prefab_addon_context.report_error = function (message) report_error(message, "validation") end
-        item_prefab_addon_context.report_warn = function (message) report_warn(message, "validation") end
+        item_prefab_addon_context.report_error = function(message) report_error(message, "validation") end
+        item_prefab_addon_context.report_warn = function(message) report_warn(message, "validation") end
+
+        local mass = item_document.mass
+        if mass and type(mass) == "number" then
+            table.insert(
+                typed_components,
+                { type = builtin_components.mass, value = { kg = mass } }
+            )
+        end
 
         local item_prefab = {
             id = id,
@@ -284,7 +294,10 @@ function items.lower_item_documents(context, symbols, categories)
         }
 
         for _, addon_symbol in pairs(item_prefab_addons) do
-            addon_symbol.value.validate(item_prefab_addon_context, item_prefab, components_by_id)
+            local addon_validate = addon_symbol.value.validate
+            if addon_validate then
+                addon_validate(item_prefab_addon_context, item_prefab, components_by_id)
+            end
         end
 
         symbols[categories.item_prefabs.id][id] = {
