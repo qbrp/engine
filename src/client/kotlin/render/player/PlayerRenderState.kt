@@ -1,6 +1,5 @@
 package org.lain.engine.client.render.player
 
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import org.lain.cyberia.ecs.Component
@@ -10,7 +9,6 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.EnginePlayerRenderStateHolder
-import org.lain.engine.client.GameSession
 import org.lain.engine.client.handler.LowDetail
 import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.item.EngineItem
@@ -40,16 +38,30 @@ data class PlayerRenderNode(val node: EntityId, val scene: RenderScene) {
 fun Player.getRenderNode(): PlayerRenderNode? =
     (this as? EnginePlayerRenderStateHolder)?.`engine$getRenderNode`()
 
-fun Player.setRenderNode(node: PlayerRenderNode) =
+fun Player.setRenderNode(node: PlayerRenderNode?) =
     (this as? EnginePlayerRenderStateHolder)?.`engine$setRenderNode`(node)
 
 @Serializable
 data class EyeLevel(val value: Int) : Component
 
-fun GameSession.extractPlayerRenderState(scene: RenderScene) = with(world) {
-    iterate<PlayerExtraction> { _, (node) ->
-        with(scene) { node.destroy() }
+context(world: World)
+fun EntityId.clearPlayerRenderState(scene: RenderScene) {
+    val extraction = removeComponent<PlayerExtraction>() ?: return
+    getComponent<MinecraftPlayer>()?.entity?.setRenderNode(null)
+    with(scene) {
+        extraction.node.getComponent<DetachedEquipment>()?.nodes?.forEach { equipment ->
+            equipment.node.destroy()
+        }
+        extraction.node.destroy()
     }
+}
+
+fun World.clearPlayerRenderState(scene: RenderScene) {
+    iterate<PlayerExtraction> { player, _ -> player.clearPlayerRenderState(scene) }
+}
+
+fun World.extractPlayerRenderState(scene: RenderScene) {
+    clearPlayerRenderState(scene)
 
     iterate<LowDetail, MinecraftPlayer> { player, (isLowDetailed), _ ->
         if (!isLowDetailed) {
@@ -59,8 +71,8 @@ fun GameSession.extractPlayerRenderState(scene: RenderScene) = with(world) {
         }
     }
 
-    extractDetachedEquipmentRenderStates(renderScene)
-    extractPlayerArmPoses(renderScene)
+    extractDetachedEquipmentRenderStates(scene)
+    extractPlayerArmPoses(scene)
 
     iterate<PlayerExtraction, EnginePlayerModel>() { _, (node), model ->
         val eyeLevel = model.eyeLevel

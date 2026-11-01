@@ -18,6 +18,7 @@ import org.lain.engine.client.handler.*
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.render.*
 import org.lain.engine.client.render.player.SkinSystem
+import org.lain.engine.client.render.player.clearPlayerRenderState
 import org.lain.engine.client.render.player.extractPlayerRenderState
 import org.lain.engine.client.render.player.snapshotCharacterRenderState
 import org.lain.engine.client.render.scene.RenderScene
@@ -263,6 +264,7 @@ class GameSession(
             player.entity.getComponent<PlayerComponent>()?.player
         }
         if (entityOwner === player) {
+            with(world) { player.entity.clearPlayerRenderState(renderScene) }
             simulation.preparePlayerDestroy(player)
             simulation.destroyPlayer(player)
         } else { // эта ветка особо не нужна
@@ -286,7 +288,7 @@ class GameSession(
         simulation.tick()
         endTickTaskExecutor.flush()
 
-        extractPlayerRenderState(renderScene)
+        world.extractPlayerRenderState(renderScene)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
@@ -337,6 +339,7 @@ class GameSession(
     fun destroy() {
         characterChange?.cancel()
         characterChange = null
+        world.clearPlayerRenderState(renderScene)
         replicationController.close()
         client.renderer.invalidate()
         handler.close()
