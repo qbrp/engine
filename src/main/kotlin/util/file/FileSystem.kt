@@ -59,7 +59,7 @@ object FileSystem {
     val builtinScripts: File = scripts
 
     val serverConfig: File = root.resolve(SERVER_CONFIG_NAME)
-    val characters: File by lazy { root.resolve(CHARACTERS_NAME) }
+    val characters: File by lazy { ensureDirectory(root.resolve(CHARACTERS_NAME)) }
 
     val storage: File = ensureDirectory(root.resolve(STORAGE_PATH))
 
