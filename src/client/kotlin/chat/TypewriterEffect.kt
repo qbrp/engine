@@ -1,74 +1,146 @@
 package org.lain.engine.client.chat
 
 import net.minecraft.util.FormattedCharSequence
+import org.lain.engine.client.handler.ServerPlayState
+import kotlin.math.pow
 
-const val VOWELS = "аеёиоуыэюя"
+const val VOWELS = "аеёиоуыэюяaeiou"
 fun Char.isVowel() = lowercaseChar() in VOWELS
 
-fun FormattedCharSequence.toSyllables(
-    delay: Float,
+sealed interface TextSegment {
+    val text: String
+    val index: Int
+
+    data class Number(
+        override val text: String,
+        override val index: Int
+    ) : TextSegment
+
+    data class Syllable(
+        override val text: String,
+        override val index: Int
+    ) : TextSegment
+
+    data class Separator(
+        override val text: String,
+        override val index: Int
+    ) : TextSegment
+}
+
+fun FormattedCharSequence.toSegments(
     excludeStart: Int = 0
-): List<Syllable> = buildList {
+): List<TextSegment> = buildList {
     val chars = mutableListOf<String>()
 
     accept { _, _, codePoint ->
         chars += String(Character.toChars(codePoint))
         true
     }
-    
-    val excluded = excludeStart.coerceIn(0, chars.size)
-    if (excluded > 0) {
-        add(Syllable(chars.take(excluded).joinToString(""), 0, delay))
+
+    val buffer = StringBuilder()
+    var start = excludeStart.coerceIn(0, chars.size)
+    var hasVowel = false
+    var isSeparator = false
+    var isNumber = false
+    var separatorCodePoint = -1
+
+    fun flush() {
+        if (buffer.isEmpty()) return
+
+        val text = buffer.toString()
+
+        add(
+            if (isSeparator) {
+                TextSegment.Separator(text, start)
+            } else if (isNumber) {
+                TextSegment.Number(text, start)
+            } else {
+                TextSegment.Syllable(text, start)
+            }
+        )
+
+        buffer.clear()
+        hasVowel = false
+        isNumber = false
     }
 
-    // Изначально каждый слог содержит только гласную
-    val ranges = mutableListOf<IntRange>()
+    for (i in start until chars.size) {
+        val char = chars[i]
+        val codePoint = char.codePointAt(0)
 
-    for (i in excluded until chars.size) {
-        if (chars[i].singleOrNull()?.isVowel() == true) {
-            ranges += i..i
-        }
-    }
-
-    if (ranges.isEmpty()) {
-        if (excluded < chars.size) {
-            add(Syllable(chars.drop(excluded).joinToString(""), excluded, delay))
-        }
-        return@buildList
-    }
-
-    // Первый проход: расширяем каждый слог на один символ влево
-    for (i in ranges.indices) {
-        val range = ranges[i]
-        val leftBoundary = if (i == 0) excluded else ranges[i - 1].last + 1
-
-        if (range.first > leftBoundary) {
-            ranges[i] = (range.first - 1)..range.last
-        }
-    }
-
-    // Второй проход: распределяем оставшиеся символы
-    for (i in ranges.indices) {
-        val range = ranges[i]
-
-        val leftBoundary = if (i == 0) excluded else ranges[i - 1].last + 1
-
-        val rightBoundary = if (i == ranges.lastIndex) {
-            chars.lastIndex
-        } else {
-            ranges[i + 1].first - 1
+        if (Character.isDigit(codePoint)) {
+            buffer.append(char)
+            isNumber = true
+            isSeparator = false
+            flush()
+            start = i
+            continue
         }
 
-        // Сначала расширяемся влево, затем вправо
-        ranges[i] = leftBoundary..rightBoundary
+        val separator = !Character.isLetter(codePoint)
+        val vowel = char.singleOrNull()?.isVowel() == true
+
+        if (
+            buffer.isNotEmpty() && (
+                    buffer.count() > 4 ||
+                    separator != isSeparator ||
+                            (separator && codePoint != separatorCodePoint) ||
+                            (!separator && hasVowel && !vowel)
+                    )
+        ) {
+            flush()
+            start = i
+        }
+
+        isSeparator = separator
+        separatorCodePoint = if (separator) codePoint else -1
+
+        buffer.append(char)
+
+        if (vowel) hasVowel = true
     }
 
-    for (range in ranges) {
+    flush()
+}
+
+fun FormattedCharSequence.toSyllables(
+    delay: Float,
+    excludeStart: Int = 0
+): List<Syllable> = buildList {
+    if (excludeStart > 0) {
+        var i = 0
+        val startChars = mutableListOf<Char>()
+        accept { _, style, codePoint ->
+            Character.toChars(codePoint).forEach { startChars.add(it) }
+            i++
+            i < excludeStart
+        }
+        add(Syllable(startChars.joinToString(separator = ""), 0, TYPEWRITER_MIN_DELAY))
+    }
+
+    for (segment in toSegments(excludeStart)) {
+        val segmentDelay = when (segment) {
+            is TextSegment.Syllable -> delay
+
+            is TextSegment.Separator -> {
+                val text = segment.text
+
+                when {
+                    '.' in text -> delay * 3f * text.count()
+                    text.any { it in "!?" } -> delay * 3f
+                    text.any { it in ",;:" } -> delay * 2f
+                    else -> delay
+                }
+            }
+
+            is TextSegment.Number -> delay * 3f
+        }
+
         add(
             Syllable(
-                chars.subList(range.first, range.last + 1).joinToString(""),
-                range.first,
-                delay
+                segment.text,
+                segment.index,
+                segmentDelay
             )
         )
     }
@@ -133,5 +205,5 @@ data class TypewriterEffect(
 
 const val TYPEWRITER_MAX_DELAY = 3f // in delta ticks
 const val TYPEWRITER_MIN_DELAY = 0.2f
-const val CHAR_SHAKE_STOP_DELAY = -2f
-const val MAX_CHAR_SHAKE = 1f
+const val CHAR_SHAKE_STOP_DELAY = -1.5f
+const val MAX_CHAR_SHAKE = 0.8f
