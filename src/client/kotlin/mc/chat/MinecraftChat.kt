@@ -1,46 +1,19 @@
 package org.lain.engine.client.mc.chat
 
-import net.minecraft.client.GuiMessage
-import net.minecraft.client.resources.PlayerSkin
-import org.lain.engine.chat.MessageId
-import org.lain.engine.chat.MessageSource
 import org.lain.engine.client.chat.*
-import org.lain.engine.client.handler.ClientHandler
-import org.lain.engine.client.handler.registerGameSessionReceiver
 import org.lain.engine.client.mc.ClientMixin
-import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.injectClient
-import org.lain.engine.client.mixin.chat.ChatHudAccessor
-import org.lain.engine.client.render.player.getSkin
-import org.lain.engine.client.render.ui.hud.ChatChannelsBar
-import org.lain.engine.client.transport.registerClientReceiver
-import org.lain.engine.mc.Text
-import org.lain.engine.mc.displayNameText
-import org.lain.engine.player.PlayerId
-import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT
-import org.lain.engine.transport.packet.CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT
-import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.HIGH_VOLUME_COLOR
 import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.util.math.lerp
-import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.random.Random
 
 object MinecraftChat : ChatEventBus {
-    private val client by injectClient()
+    val client by injectClient()
 
-    val messages = mutableListOf<EngineChatHudMessage>()
-    val visibleMessages = mutableListOf<EngineChatHudLine>()
-
-    private val chatHud get() =  MinecraftClient.gui.chat
-    private val chatHudAccessor get() = chatHud as ChatHudAccessor
-    private val chatWidth get() = floor(chatHudAccessor.`engine$getWidth`() / chatHudAccessor.`engine$getScale`()).toInt()
-    private val spy get() = chatManager?.spy ?: false
     val chatManager get() = client.gameSession?.chatManager
-
-    var selectedMessage: EngineChatHudMessage? = null
-    val channelsBar = ChatChannelsBar()
+    val channelsBar get() = chatManager?.barUi
 
     private var textShakingBoost = 0f
     val chatInputTextShaking: Float get() {
@@ -58,131 +31,25 @@ object MinecraftChat : ChatEventBus {
         }
     }
     var isWritingCommand = false
-    val typingPlayers = mutableSetOf<TypingPlayer>()
 
-    data class TypingPlayer(val id: PlayerId, val skinTextures: PlayerSkin?, val name: Text) {
-        override fun equals(other: Any?): Boolean {
-            return other is TypingPlayer && id == other.id
-        }
-
-        override fun hashCode(): Int {
-            return id.hashCode()
-        }
+    fun clearMessages() {
+        chatManager?.clearMessages()
     }
 
-    fun registerEndpoints(handler: ClientHandler) = with(handler) {
-        registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT) { gameSession ->
-            val enginePlayer = gameSession.playerStorage.get(player) ?: return@registerGameSessionReceiver
-            if (enginePlayer != gameSession.mainPlayer || client.developerMode) {
-                typingPlayers.add(
-                    TypingPlayer(
-                        player,
-                        enginePlayer.getSkin(),
-                        enginePlayer.displayNameText
-                    )
-                )
-            }
-        }
+    fun deleteSelectedChatMessage() {
+        chatManager?.hud?.selectedMessage?.let { chatManager?.deleteMessage(it.id) }
+    }
 
-        registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT) {
-            if (client.gameSession?.playerStorage?.get(player) == null) {
-                typingPlayers.clear() // Если что-то сломалось
-                return@registerGameSessionReceiver
-            }
-            typingPlayers.removeIf { player == it.id }
-        }
+    fun onChatScreenClose() {
+        chatManager?.hud?.selectedMessage = null
+    }
+
+    fun selectedChatMessage(): AcceptedMessage? {
+        return chatManager?.hud?.selectedMessage
     }
 
     fun onCloseChatInput() {
         chatManager?.endTyping()
-    }
-
-    private fun createChatHudMessage(engineMessage: AcceptedMessage): EngineChatHudMessage {
-        val author = engineMessage.source.player
-        val authorEntity = author?.let { MinecraftClient.connection?.getPlayerInfo(it.id.value) }
-        return EngineChatHudMessage(
-            authorEntity,
-            engineMessage,
-            MinecraftClient.gui.guiTicks
-        )
-    }
-
-    fun storeVanillaGuiMessage(guiMessage: GuiMessage) {
-        val content = guiMessage.content.string
-        val engineMessage = AcceptedMessage(
-            content,
-            content,
-            content,
-            SYSTEM_CHANNEL,
-            MessageSource.getSystemClient(client.gameSession?.world ?: DummyWorld()),
-            id = MessageId.next(),
-            vanilla = guiMessage
-        )
-        val manager = chatManager
-        if (manager != null) {
-            manager.addMessage(engineMessage)
-        } else {
-            addToGui(engineMessage, true)
-        }
-    }
-
-    fun deleteMessage(chatMessage: AcceptedMessage) {
-        val deletedMessage = messages
-            .firstOrNull { it.engineMessage.id == chatMessage.id }
-
-        deletedMessage?.let {
-            messages.remove(it)
-            visibleMessages.removeIf { visible -> visible.message == it }
-            if (selectedMessage == it) selectedMessage = null
-        }
-    }
-
-    fun shouldRenderDebugInfo() = client.developerMode
-
-    fun clearChatData() {
-        messages.clear()
-        visibleMessages.clear()
-        selectedMessage = null
-        typingPlayers.clear()
-    }
-
-    override fun addToGui(message: AcceptedMessage, visible: Boolean) {
-        val messageData = createChatHudMessage(message)
-        messages.addFirst(messageData)
-        if (visible) {
-            chatHud.`engine$addMessage`(messageData, false)
-        }
-        while (messages.size > client.options.chatFieldSize) {
-            val removed = messages.removeLast()
-            visibleMessages.removeIf { it.message == removed }
-        }
-    }
-
-    override fun onMessageDelete(message: AcceptedMessage) {
-        deleteMessage(message)
-    }
-
-    override fun invalidateChatEntries() { restore() }
-
-    override fun onHideChatBarSection(section: ChatBarSection, state: ChatBarSectionState) {
-        if (!state.hide) chatManager?.chatBar?.markRead(section)
-        restore()
-    }
-
-    private fun restore() {
-        visibleMessages.clear()
-        val manager = chatManager
-        messages
-            .filter { message ->
-                val chatBar = manager?.chatBar
-                manager == null || chatBar == null || isMessageVisible(message.engineMessage, manager.spy, chatBar)
-            }
-            .reversed()
-            .forEach { chatHud.`engine$addMessage`(it, false) }
-    }
-
-    override fun onSettingsUpdate(settings: ClientChatSettings, chatBar: ChatBar) {
-        channelsBar.updateButtons(chatBar.sections)
     }
 
     fun updateChatInput(input: String) {

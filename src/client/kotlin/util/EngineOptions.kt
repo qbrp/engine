@@ -1,5 +1,7 @@
 package org.lain.engine.client.util
 
+import org.lain.engine.client.render.ui.chat.ChatOptions
+
 interface Option<T> {
     fun get(): T
     fun set(value: T)
@@ -7,7 +9,7 @@ interface Option<T> {
 
 class ValidationException(message: String) : RuntimeException(message)
 
-interface EngineOptions {
+interface EngineOptions : ChatOptions {
     val chatBubbleScale: Float
     val chatBubbleHeight: Float
     val chatBubbleLineWidth: Int
@@ -18,8 +20,7 @@ interface EngineOptions {
     val chatInputShakingForce: Float
     val chatInputShakingThreshold: Float
     val chatInputSendClosesChat: Boolean
-    val chatFieldWidth: Int
-    val chatFieldSize: Int
+
     val crosshairIndicatorVisible: Boolean
     val hotbarIndicatorsVisible: Boolean
     val labelEasingDistance: Int

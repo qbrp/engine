@@ -1,83 +1,28 @@
-package org.lain.engine.client.render.ui.hud
+package org.lain.engine.client.render.ui.chat
 
 import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.gui.components.AbstractWidget
-import net.minecraft.client.gui.narration.NarrationElementOutput
-import net.minecraft.util.CommonColors
-import org.lain.engine.client.EngineClient
 import org.lain.engine.client.chat.ChatBarSection
-import org.lain.engine.client.chat.ClientEngineChatManager
+import org.lain.engine.client.chat.ClientChatManager
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.injectClient
-import org.lain.engine.client.mixin.chat.ChatScreenAccessor
 import org.lain.engine.client.render.EXCLAMATION_RED
-import org.lain.engine.client.render.HAND
 import org.lain.engine.client.render.MENTION
 import org.lain.engine.client.render.Rect2
-import org.lain.engine.client.render.ui.ColorMc
 import org.lain.engine.client.render.ui.drawEngineSprite
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.literalText
-import org.lain.engine.player.extendArm
 import org.lain.engine.util.Color
-
-class HandStatusButtonWidget(val client: EngineClient, x: Int, y: Int, width: Int, height: Int, message: Text) : AbstractWidget(x, y, width, height, message) {
-    override fun renderWidget(
-        context: GuiGraphics,
-        mouseX: Int,
-        mouseY: Int,
-        deltaTicks: Float
-    ) {
-        var alpha = 0.5f
-        if (client.gameSession?.mainPlayer?.extendArm == true) {
-            alpha += 0.4f
-        }
-        if (isMouseOver(mouseX.toDouble(), mouseY.toDouble())) {
-            alpha += 0.1f
-        }
-        context.fill(x, y, width + x, height + y, MinecraftClient.options.getBackgroundColor(Int.MIN_VALUE))
-        context.drawEngineSprite(
-            HAND,
-            x.toFloat(),
-            y.toFloat(),
-            width.toFloat(),
-            height.toFloat(),
-            Color(ColorMc.color(alpha, CommonColors.WHITE))
-        )
-    }
-
-    override fun onClick(mouseX: Double, mouseY: Double) {
-        client.gameSession?.apply { extendArm = !extendArm }
-    }
-
-    override fun charTyped(codePoint: Char, modifiers: Int): Boolean {
-        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.charTyped(codePoint, modifiers) ?: false
-    }
-
-    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyPressed(keyCode, scanCode, modifiers) ?: false
-    }
-
-    override fun keyReleased(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        return (MinecraftClient.screen as? ChatScreenAccessor)?.`engine$getChatField`()?.keyReleased(keyCode, scanCode, modifiers) ?: false
-    }
-
-    override fun updateWidgetNarration(narrationElementOutput: NarrationElementOutput) {}
-}
 
 data class ChatChannelButton(val textWidth: Int, val rect: Rect2, val text: Text, val section: ChatBarSection)
 
-data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
-    private val client by injectClient()
+data class ChatBarUi(
+    private val chatManager: ClientChatManager,
+    var buttons: List<ChatChannelButton> = listOf()
+) {
     private val padding = 2f
     private val buttonSpacing = 2f
     private val iconReserve = 10f
 
-    private val chatManager: ClientEngineChatManager? get() = client.gameSession?.chatManager
     private var sections = listOf<ChatBarSection>()
-
-    private val chatHud
-        get() = MinecraftClient.gui.chat
 
     val height get() = MinecraftClient.font.lineHeight + (padding * 2)
     var width = 0f
@@ -124,15 +69,15 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
         buttons.forEach {
             val rect = it.rect
             if (mouseX in rect.x1..rect.x2 && mouseY in rect.y1..rect.y2) {
-                chatManager?.chatBar?.toggleHide(it.section, chatManager)
-                client.audioManager.playUiNotificationSound()
+                chatManager.chatBar?.toggleHide(it.section)
+                chatManager.client.audioManager.playUiNotificationSound()
             }
         }
     }
 
     fun renderChatChannelsBar(context: GuiGraphics, mouseX: Float, mouseY: Float) {
         val client = MinecraftClient
-        val chatBar = chatManager?.chatBar ?: return
+        val chatBar = chatManager.chatBar ?: return
 
         val textRenderer = client.font
         val background = client.options.getBackgroundColor(Int.MIN_VALUE)
@@ -150,7 +95,7 @@ data class ChatChannelsBar(var buttons: List<ChatChannelButton> = listOf()) {
                 } else {
                     Color.GRAY
                 }
-                if (chatManager?.chatBar?.isHidden(button.section) == true) {
+                if (chatManager.chatBar?.isHidden(button.section) == true) {
                     color = color.blend(Color.DARK_RED, 0.5f)
                 }
 

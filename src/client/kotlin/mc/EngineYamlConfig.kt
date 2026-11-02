@@ -6,6 +6,8 @@ import com.daqem.yamlconfig.api.config.IConfig
 import com.daqem.yamlconfig.impl.config.ConfigBuilder
 import org.lain.engine.mc.CommonEngineMod
 import org.lain.engine.client.util.EngineOptions
+import kotlin.Int
+import kotlin.math.ulp
 
 class EngineYamlConfig(
     builder: ConfigBuilder = ConfigBuilder(
@@ -31,6 +33,11 @@ class EngineYamlConfig(
 
     private val chatFieldWidthProperty = builder.defineInteger("width", 340, 0, 600)
     private val chatFieldSizeProperty = builder.defineInteger("size", 300, 0, 5000)
+    private val chatBackgroundOpacityProperty = builder.defineInteger("bg-opacity", 50, 0, 100)
+    private val chatTextOpacityProperty = builder.defineInteger("text-opacity", 100, 0, 100)
+    private val chatMessageIndentProperty = builder.defineFloat("message-indent", 0.5f, 0f, 4f)
+    private val activeChatPxProperty = builder.defineInteger("active", 180, 0, 180)
+    private val unactiveChatPxProperty = builder.defineInteger("active", 90, 0, 180)
 
     init { builder.pop() }
 
@@ -87,10 +94,22 @@ class EngineYamlConfig(
         get() = chatBubblesEnabledProperty.get()
     override val chatBubbleIgnoreLightLevel: Boolean
         get() = chatBubbleIgnoreLightLevelProperty.get()
-    override val chatFieldWidth: Int
+
+    override val chatWidth: Int
         get() = chatFieldWidthProperty.get()
-    override val chatFieldSize: Int
+    override val chatSize: Int
         get() = chatFieldSizeProperty.get()
+    override val activeChatPx: Int
+        get() = activeChatPxProperty.get()
+    override val unactiveChatPx: Int
+        get() = unactiveChatPxProperty.get()
+    override val chatBackgroundOpacity: Float
+        get() = chatBackgroundOpacityProperty.get() / 100f
+    override val chatTextOpacity: Float
+        get() = chatTextOpacityProperty.get() / 100f
+    override val chatMessageIndent: Float
+        get() = chatMessageIndentProperty.get()
+
     override val labelEasingDistance: Int
         get() = labelEasingDistanceProperty.get()
 

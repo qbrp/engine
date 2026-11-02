@@ -1,6 +1,7 @@
 package org.lain.engine.client.chat
 
 import org.lain.engine.chat.ChannelId
+import org.lain.engine.client.mc.chat.MinecraftChat.chatManager
 
 fun ChatBar(configuration: ChatBarConfiguration, old: ChatBar? = null) = ChatBar(configuration.sections, old)
 
@@ -32,14 +33,14 @@ class ChatBar(
 
     fun isHidden(section: ChatBarSection) = statesBySection[section]?.hide ?: false
 
-    fun toggleHide(channelId: ChannelId, chat: ClientEngineChatManager?) {
-        states[channelId]?.let { toggleHide(it.section, chat)}
+    fun toggleHide(channelId: ChannelId) {
+        states[channelId]?.let { toggleHide(it.section)}
     }
 
-    fun toggleHide(section: ChatBarSection, chat: ClientEngineChatManager?) {
+    fun toggleHide(section: ChatBarSection) {
         val channelState = statesBySection[section] ?: return
         channelState.hide = !channelState.hide
-        chat?.eventBus?.onHideChatBarSection(section, channelState)
+        if (!channelState.hide) markRead(section)
     }
 
     fun hasUnreadMessages(section: ChatBarSection): Boolean {

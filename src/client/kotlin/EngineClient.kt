@@ -12,7 +12,6 @@ import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.handler.GameSessionJoinFlow
-import org.lain.engine.client.handler.ServerPlayState
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.isAltDown
 import org.lain.engine.client.mc.isControlDown
@@ -22,9 +21,7 @@ import org.lain.engine.client.resources.AssetCompilation
 import org.lain.engine.client.resources.ResourceManager
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
-import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.developerMode
-import org.lain.engine.player.get
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.lua.LuaDataStorage
 import org.lain.engine.server.account.EngineHttpClient
@@ -100,6 +97,7 @@ class EngineClient(
 
     fun onOptionsUpdate() {
         skinTextureManager.onOptions(options)
+        gameSession?.chatManager?.updateOptions()
     }
 
     var joinFlow: GameSessionJoinFlow? = null

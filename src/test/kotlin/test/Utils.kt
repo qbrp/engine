@@ -114,6 +114,21 @@ fun setupTestEngineServer(
     }
 }
 
+fun DummyWorld() = World(
+    WorldId("dummy"),
+    EngineSimulation(
+        false,
+        EngineSimulation.SimulationTickExtension.DUMMY,
+        EngineSimulation.Settings.DUMMY,
+        PlayerStorage(),
+        ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage()),
+        ScriptEngine.Dummy,
+        Thread.currentThread(),
+        false
+    )
+)
+
+
 abstract class EngineTest {
     companion object {
         @JvmStatic

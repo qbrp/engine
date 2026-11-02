@@ -5,20 +5,23 @@ import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.chatChannelOf
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.render.EXCLAMATION
-import org.lain.engine.client.render.VOICE_WARNING
-import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.render.showAllhearNotification
+import org.lain.engine.client.render.showSpyNotification
+import org.lain.engine.client.render.showTrackMessageTypingNotification
+import org.lain.engine.client.render.ui.chat.ChatBarUi
+import org.lain.engine.client.render.ui.chat.ChatHud
+import org.lain.engine.client.render.ui.chat.ChatState
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
-import org.lain.engine.util.SPY_COLOR
 import org.slf4j.LoggerFactory
 
-class ClientEngineChatManager(
-    val eventBus: ChatEventBus,
-    private val client: EngineClient,
-    private val gameSession: GameSession,
+class ClientChatManager(
+    val gameSession: GameSession,
     settings: ClientChatSettings,
-) {
+): ChatState {
+    val client: EngineClient
+        get() = gameSession.client
+
     var settings = settings
         private set
     var defaultChannel = settings.channels[settings.default] ?: error("Invalid default channel")
@@ -26,83 +29,39 @@ class ClientEngineChatManager(
     private val logger = LoggerFactory.getLogger("Engine Chat Client")
     private var channels = mapOf<ChannelId, ClientChatChannel>()
     private var charTypeTimer = 0
-    private var typing: ClientChatChannel? = null
+    private var typingInChannel: ChannelId? = null
     var availableChannels = mapOf<ChannelId, ClientChatChannel>()
         private set
 
-    var chatBar: ChatBar? = null
+    override var chatBar: ChatBar? = null
         private set
 
-    var spy: Boolean = false
+    override var spy: Boolean = false
         set(value) {
             field = value
-            var status: String
-            var description: String? = null
-            if (value) {
-                status = "включена"
-                description = "Доступны сообщения, не дошедшие до вас. Повторное нажатие отключит слежку."
-            } else {
-                status = "выключена"
-            }
-            eventBus.invalidateChatEntries()
-
-            client.showNotification(
-                LittleNotification(
-                    "Прослушка $status",
-                    description,
-                    color = SPY_COLOR,
-                    sprite = EXCLAMATION
-                ),
-                "spy"
-            )
+            client.showSpyNotification(value)
         }
 
-    var allhear: Boolean = false
+    override var allhear: Boolean = false
         set(value) {
             field = value
-            var status: String
-            var description: String? = null
-            if (value) {
-                status = "включена"
-                description = "Поступающие сообщения отображаются с полной громкостью"
-            } else {
-                status = "выключена"
-            }
-            eventBus.invalidateChatEntries()
-
-            client.showNotification(
-                LittleNotification(
-                    "Полная громкость $status",
-                    description,
-                    color = SPY_COLOR,
-                    sprite = VOICE_WARNING
-                ),
-                "allhear"
-            )
+            hud.invalidateMessages()
+            client.showAllhearNotification(value)
         }
 
     var trackMessageTyping: Boolean = true
         set(value) {
             field = value
-            var status: String
-            var description: String? = null
-            if (value) {
-                status = "включен"
-                description = "Окружающие вас игроки будут знать, пишите ли вы сообщение"
-            } else {
-                endTyping()
-                status = "выключен"
-            }
-            client.showNotification(
-                LittleNotification(
-                    "Индикатор набора сообщения $status",
-                    description,
-                    color = SPY_COLOR,
-                    sprite = EXCLAMATION
-                ),
-                "type_indicator"
-            )
+            if (!value) endTyping()
+            client.showTrackMessageTypingNotification(value)
         }
+
+    override val tick: Long
+        get() = gameSession.ticks
+
+    val hud by lazy { ChatHud(gameSession) }
+    val barUi = ChatBarUi(this)
+    val typingPlayers = TypingPlayers(gameSession)
 
     fun toggleSpy() {
         spy = !spy
@@ -122,7 +81,7 @@ class ClientEngineChatManager(
 
     fun endTyping() {
         charTypeTimer = 0
-        typing = null
+        typingInChannel = null
         client.handler.onChatEndTyping()
     }
 
@@ -140,8 +99,8 @@ class ClientEngineChatManager(
         if (trackMessageTyping) {
             charTypeTimer = (charTypeTimer + 20).coerceAtMost(120)
             if (charTypeTimer > 20 && input.count() > 4) {
-                if (typing != channel) {
-                    typing = channel
+                if (typingInChannel != channel.id) {
+                    typingInChannel = channel.id
                     client.handler.onChatStartTyping(channel.id)
                 }
             }
@@ -151,8 +110,8 @@ class ClientEngineChatManager(
 
     fun tick() {
         charTypeTimer = (charTypeTimer - 1).coerceAtLeast(0)
-        if (typing != null && charTypeTimer <= 0) {
-            typing = null
+        if (typingInChannel != null && charTypeTimer <= 0) {
+            typingInChannel = null
             client.handler.onChatEndTyping()
         }
     }
@@ -161,6 +120,7 @@ class ClientEngineChatManager(
         val channels = availableChannels.values
         val (channel, content) = chatChannelOf(text, channels.toList(), defaultChannel)
         gameSession.handler.onChatMessageSend(content, channel.id)
+        hud.selectedMessage = null
     }
 
     private fun channelOf(text: String): ClientChatChannel {
@@ -200,14 +160,14 @@ class ClientEngineChatManager(
         val authorId = message.source.player?.id
         val mainPlayerId = gameSession.mainPlayer.id
 
+        hud.addMessage(message)
         val visible = isMessageVisible(message, spy, chatBar)
-        eventBus.addToGui(message, visible)
         if (visible) {
             val showSelf = authorId != mainPlayerId || client.developerMode
             if (authorId != null && message.isSpeech && showSelf && client.options.chatBubbles) {
                 val authorPlayer = gameSession.playerStorage.get(authorId)
                 if (authorPlayer != null) {
-                    gameSession.chatBubbleList.setChatBubble(authorPlayer, message.text)
+                    gameSession.chatBubbleList.setChatBubble(authorPlayer, message.displayText)
                 }
             }
             if (isMentioned || isNotify) {
@@ -225,7 +185,12 @@ class ClientEngineChatManager(
             deleteSelfMessage(toDelete)
         }
         messagesMap.remove(id)
-        eventBus.onMessageDelete(toDelete)
+        hud.removeMessage(id)
+    }
+
+    fun clearMessages() {
+        messagesMap.clear()
+        hud.clearMessages()
     }
 
     private fun deleteSelfMessage(message: AcceptedMessage) {
@@ -239,9 +204,13 @@ class ClientEngineChatManager(
         this.defaultChannel = result.defaultChannel
         this.chatBar = result.chatBar
         this.settings = new
-        eventBus.onSettingsUpdate(new, result.chatBar)
+        barUi.updateButtons(result.chatBar.sections)
         result.unavailableChannels.forEach { (channel, section) ->
             logger.warn("Канал $channel в секции панели чата ${section.name} не существует")
         }
+    }
+
+    fun updateOptions() {
+        hud.invalidateMessages()
     }
 }

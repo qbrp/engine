@@ -13,6 +13,7 @@ import org.lain.engine.client.control.togglePhotoMode
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.ui.ColorMc
 import org.lain.engine.client.render.ui.InteractionProgressionRenderState
+import org.lain.engine.client.render.ui.chat.ChatHud
 import org.lain.engine.client.render.ui.hud.MovementStatusRenderState
 import org.lain.engine.client.render.ui.hud.NarrationMessageRenderState
 import org.lain.engine.client.render.ui.hud.LittleNotificationsRenderManager

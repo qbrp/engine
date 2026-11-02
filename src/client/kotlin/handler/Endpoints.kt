@@ -45,6 +45,16 @@ fun ClientHandler.runEndpoints() {
         applyDeleteChatMessage(message)
     }
 
+    registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT) { gameSession ->
+        applyChatTypingStart(player, channel)
+    }
+
+    registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT) {
+        applyChatTypingStop(player)
+    }
+
+    // Other
+
     registerGameSessionReceiver(CLIENTBOUND_SCRIPT_RECOMPILE_ENDPOINT) { gameSession ->
         if (scope == null) {
             gameSession.recompile()

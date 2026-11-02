@@ -36,12 +36,9 @@ class ChatBubbleList(private val options: EngineOptions) {
     val bubbles: List<ChatBubble>
         get() = _bubbles
 
-    fun setChatBubble(player: EnginePlayer, text: String) {
+    fun setChatBubble(player: EnginePlayer, text: MessageText) {
         val font = MinecraftClient.font
-        val lines = font.split(
-            text.parseMiniMessageClient(),
-            options.chatBubbleLineWidth
-        )
+        val lines = text.lines(options.chatBubbleLineWidth)
         val height = lines.count() * font.lineHeight
 
         // Все прошлые чат-баблы сдвигаем вверх

@@ -106,7 +106,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             val serverStartFail = IntegratedEngineMinecraftServer.serverStartFail
             if (serverStartFail == null) {
                 engine.handler.run()
-                MinecraftChat.registerEndpoints(engine.handler)
 
                 inAuthorization = false
                 readyToAuthorize = true
@@ -159,7 +158,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         profiler.push("engineClientTick")
 
         ClientMixin.tick()
-        window.handleResize()
+        window.handleResize(engine)
 
         try {
             if (readyToAuthorize && mainPlayerEntity != null && !inAuthorization) {
@@ -238,7 +237,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         decalSystem.unload()
         lightSystem.invalidate()
 
-        MinecraftChat.clearChatData()
         if (gameSession.joinType == GameSessionJoinFlow.JoinType.Multiplayer) {
             MinecraftAccessRegistry.invalidate()
         }

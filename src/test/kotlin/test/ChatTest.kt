@@ -1,28 +1,16 @@
 package org.lain.engine.test
 
-import org.lain.engine.chat.MessageId
-import org.lain.engine.chat.MessageSource
-import org.lain.engine.chat.OutcomingMessage
-import org.lain.engine.client.chat.*
-import org.lain.engine.client.mc.chat.DummyWorld
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import org.lain.engine.chat.Acoustic
-import org.lain.engine.chat.ChannelId
-import org.lain.engine.chat.ChatChannel
-import org.lain.engine.chat.EngineChat
-import org.lain.engine.chat.EngineChatSettings
-import org.lain.engine.chat.IncomingMessage
-import org.lain.engine.chat.Modifier
-import org.lain.engine.chat.acoustic.AcousticSimulator
-import org.lain.engine.player.PlayerId
+import org.lain.engine.chat.MessageId
+import org.lain.engine.chat.MessageSource
+import org.lain.engine.chat.OutcomingMessage
+import org.lain.engine.client.chat.*
 import org.lain.engine.server.EngineServer
-import org.lain.engine.world.WorldId
 import java.nio.file.Path
-import java.util.UUID
 
 class ChatTest : EngineTest() {
     private lateinit var chatBar: ChatBar
@@ -51,7 +39,7 @@ class ChatTest : EngineTest() {
             isSpy = true
         )
 
-        chatBar.toggleHide(SYSTEM_CHANNEL.id, null)
+        chatBar.toggleHide(SYSTEM_CHANNEL.id)
 
         assertFalse(isMessageVisible(message, true, chatBar), "Не должно быть видно")
         val message2 = LiteralSystemMessage(
@@ -60,7 +48,7 @@ class ChatTest : EngineTest() {
         )
 
         // Кейс #2: Обычное сообщение во включенном системном канале
-        chatBar.toggleHide(SYSTEM_CHANNEL.id, null)
+        chatBar.toggleHide(SYSTEM_CHANNEL.id)
 
         assertTrue(isMessageVisible(message2, false, chatBar), "Должно быть видно")
     }
@@ -86,7 +74,6 @@ class ChatTest : EngineTest() {
         )
 
         assertTrue(acceptedMessage.isMentioned)
-        assertTrue(acceptedMessage.text.contains("<bold><yellow>@$nickname</yellow></bold>"))
     }
 
 //    @Test

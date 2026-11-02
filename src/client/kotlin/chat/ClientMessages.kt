@@ -1,6 +1,5 @@
 package org.lain.engine.client.chat
 
-import net.minecraft.client.GuiMessage
 import org.lain.engine.chat.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.transport.packet.ClientChatChannel
@@ -10,9 +9,8 @@ import org.lain.engine.util.Timestamp
 import org.lain.engine.world.World
 
 data class AcceptedMessage(
-    val text: String,
-    val displayText: String,
-    val undistortedDisplayText: String,
+    val displayText: MessageText,
+    val undistortedDisplayText: MessageText,
     val channel: ClientChatChannel,
     val source: MessageSource,
     val isMentioned: Boolean = false,
@@ -24,7 +22,6 @@ data class AcceptedMessage(
     val background: Color? = null,
     val id: MessageId,
     var repeat: Int = 1,
-    val vanilla: GuiMessage? = null,
 ) {
     val backgroundColorInt = background?.integer
 }
@@ -122,9 +119,8 @@ fun acceptOutcomingMessage(
     }
 
     return AcceptedMessage(
-        text,
-        display,
-        undistortedDisplay,
+        MiniMessageText(display),
+        MiniMessageText(undistortedDisplay),
         channel,
         message.source,
         message.mentioned,
@@ -145,9 +141,8 @@ fun MessageSource.Companion.getSystemClient(world: World) = MessageSource(
 )
 
 fun LiteralSystemMessage(gameSession: GameSession, content: String) = AcceptedMessage(
-    content,
-    content,
-    content,
+    MiniMessageText(content),
+    MiniMessageText(content),
     SYSTEM_CHANNEL,
     MessageSource.getSystemClient(gameSession.world),
     id = MessageId.next()
@@ -155,9 +150,8 @@ fun LiteralSystemMessage(gameSession: GameSession, content: String) = AcceptedMe
 
 
 fun LiteralSystemMessage(world: World, content: String, isSpy: Boolean = false) = AcceptedMessage(
-    content,
-    content,
-    content,
+    MiniMessageText(content),
+    MiniMessageText(content),
     SYSTEM_CHANNEL,
     MessageSource.getSystemClient(world),
     id = MessageId.next(),

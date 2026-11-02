@@ -12,11 +12,13 @@ import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lwjgl.glfw.GLFW
 
-fun isControlDown() = InputConstants.isKeyDown(MinecraftClient.window.window, GLFW.GLFW_KEY_LEFT_CONTROL)
+fun isKeyDown(constant: Int) = InputConstants.isKeyDown(MinecraftClient.window.window, constant)
 
-fun isAltDown() = InputConstants.isKeyDown(MinecraftClient.window.window, GLFW.GLFW_KEY_LEFT_ALT)
+fun isControlDown() = isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL)
 
-fun isShiftDown() = InputConstants.isKeyDown(MinecraftClient.window.window, GLFW.GLFW_KEY_LEFT_SHIFT)
+fun isAltDown() = isKeyDown(GLFW.GLFW_KEY_LEFT_ALT)
+
+fun isShiftDown() = isKeyDown(GLFW.GLFW_KEY_LEFT_SHIFT)
 
 class KeybindManager(
     private val category: String = "key.categories.engine",

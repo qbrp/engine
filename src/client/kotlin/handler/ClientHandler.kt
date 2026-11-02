@@ -23,7 +23,6 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandOperationBehaviour
 import org.lain.engine.mc.server.AuthPacket
 import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
-import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.*
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
@@ -34,7 +33,6 @@ import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
 import org.lain.engine.server.protocolError
 import org.lain.engine.data.*
-import org.lain.engine.player.character.CharacterData
 import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.script.OperationActor
 import org.lain.engine.script.OperationId
@@ -284,6 +282,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
 
     fun applyServerSettingsUpdate(settings: ClientboundServerSettings) {
         gameSession?.updateServerSettings(settings)
+    }
+
+    fun applyChatTypingStart(player: PlayerId, channel: ChannelId) {
+        gameSession?.chatManager?.typingPlayers?.start(player, channel)
+    }
+
+    fun applyChatTypingStop(player: PlayerId) {
+        gameSession?.chatManager?.typingPlayers?.stop(player)
     }
 
     fun applyChatMessage(gameSession: GameSession, message: OutcomingMessage) {

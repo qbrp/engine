@@ -8,6 +8,7 @@ import org.lain.engine.util.DEV_MODE_COLOR
 import org.lain.engine.util.FREECAM_WARNING_COLOR
 import org.lain.engine.util.INSPECTION_MODE_COLOR
 import org.lain.engine.util.SPECTATOR_MODE_COLOR
+import org.lain.engine.util.SPY_COLOR
 import org.lain.engine.util.WARNING_COLOR
 
 data class LittleNotification(
@@ -182,5 +183,67 @@ fun EngineClient.showAcousticDebugNotification(enabled: Boolean) {
             VOICE_WARNING
         ),
         "acoustic_debug"
+    )
+}
+
+fun EngineClient.showSpyNotification(enabled: Boolean) {
+    var status: String
+    var description: String? = null
+    if (enabled) {
+        status = "включена"
+        description = "Доступны сообщения, не дошедшие до вас. Повторное нажатие отключит слежку."
+    } else {
+        status = "выключена"
+    }
+
+    showNotification(
+        LittleNotification(
+            "Прослушка $status",
+            description,
+            color = SPY_COLOR,
+            sprite = EXCLAMATION
+        ),
+        "spy"
+    )
+}
+
+fun EngineClient.showAllhearNotification(enabled: Boolean) {
+    var status: String
+    var description: String? = null
+    if (enabled) {
+        status = "включен"
+        description = "На сообщения не распространяются эффекты"
+    } else {
+        status = "выключен"
+    }
+
+    showNotification(
+        LittleNotification(
+            "Обход слышимости $status",
+            description,
+            color = SPY_COLOR,
+            sprite = VOICE_WARNING
+        ),
+        "allhear"
+    )
+}
+
+fun EngineClient.showTrackMessageTypingNotification(enabled: Boolean) {
+    var status: String
+    var description: String? = null
+    if (enabled) {
+        status = "включен"
+        description = "Окружающие вас игроки будут знать, пишите ли вы сообщение"
+    } else {
+        status = "выключен"
+    }
+    showNotification(
+        LittleNotification(
+            "Индикатор набора сообщения $status",
+            description,
+            color = SPY_COLOR,
+            sprite = EXCLAMATION
+        ),
+        "type_indicator"
     )
 }

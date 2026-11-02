@@ -64,12 +64,7 @@ class MinecraftEngineClientPlatform(
             ?.let { player.bindMinecraftEntity(it) }
     }
 
-    override fun onPlayerDestroy(
-        client: EngineClient,
-        playerId: PlayerId
-    ) {
-        MinecraftChat.typingPlayers.removeIf { it.id == playerId }
-    }
+    override fun onPlayerDestroy(client: EngineClient, playerId: PlayerId) {}
 
     override fun onMainPlayerInstantiated(
         client: EngineClient,

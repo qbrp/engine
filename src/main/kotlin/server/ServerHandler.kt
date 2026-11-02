@@ -292,12 +292,12 @@ class ServerHandler(
                     player.filterNearestPlayers(radius)
                 }
             }).filter { it.isChannelAvailableToRead(channel) }
-            val packet = ChatTypingPlayerPacket(player.id)
+            val packet = PlayerChatTypingStartPacket(player.id, channel.id)
             players.forEach { CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT.sendS2C(packet, it.id) }
         }
 
     internal fun onPlayerChatTypingEnd(player: PlayerId) {
-        CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.broadcast(ChatTypingPlayerPacket(player))
+        CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT.broadcast(PlayerChatTypingEndPacket(player))
     }
 
     internal fun onPlayerVolume(player: PlayerId, volume: Float) = updatePlayer(player) {

@@ -286,9 +286,9 @@ object ClientMixin {
         gameSession.chatManager.sendMessage(content)
     }
 
-    fun getChatWidth() = client.options.chatFieldWidth
+    fun getChatWidth() = client.options.chatWidth
 
-    fun getChatSize() = client.options.chatFieldSize
+    fun getChatSize() = client.options.chatSize
 
     fun getCamera() = client.camera
 
@@ -301,9 +301,6 @@ object ClientMixin {
     }
 
     fun getKeybindManager(): KeybindManager = injectValue()
-
-    fun deleteChatMessage(message: AcceptedMessage) =
-        client.gameSession?.chatManager?.deleteMessage(message.id)
 
     fun sendingMessageClosesChat() = client.options.chatInputSendClosesChat
 }

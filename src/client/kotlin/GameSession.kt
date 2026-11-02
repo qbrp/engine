@@ -1,19 +1,14 @@
 package org.lain.engine.client
 
-import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.EngineSimulation
 import org.lain.engine.client.account.CharacterChange
 import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.client.chat.ChatBubbleList
-import org.lain.engine.client.chat.ClientEngineChatManager
+import org.lain.engine.client.chat.ClientChatManager
 import org.lain.engine.client.chat.PlayerVocalRegulator
 import org.lain.engine.client.chat.PlayerVolume
-import org.lain.engine.client.control.Guide
-import org.lain.engine.client.control.InspectionMode
-import org.lain.engine.client.control.MovementManager
-import org.lain.engine.client.control.PhotoMode
-import org.lain.engine.client.control.updateInspectionMode
+import org.lain.engine.client.control.*
 import org.lain.engine.client.handler.*
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.render.*
@@ -47,7 +42,6 @@ import org.lain.engine.util.EngineLogger
 import org.lain.engine.util.Log
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.world.*
-import kotlin.let
 
 class GameSession(
     val isMultiPlayer: Boolean,
@@ -102,12 +96,7 @@ class GameSession(
     var acousticDebugVolumes = listOf<Pair<VoxelPos, Float>>()
     val movementManager = MovementManager(this)
     val chatBubbleList = ChatBubbleList(client.options)
-    val chatManager = ClientEngineChatManager(
-        chatEventBus,
-        client,
-        this,
-        setup.settings.chat,
-    )
+    val chatManager = ClientChatManager(this, setup.settings.chat)
 
     val skinSystem = SkinSystem(client.skinTextureManager)
 
@@ -260,20 +249,10 @@ class GameSession(
 
     fun removePlayer(player: EnginePlayer) {
         if (player.destroyed) return
-
-        val entityOwner = with(world) {
-            player.entity.getComponent<PlayerComponent>()?.player
-        }
-        if (entityOwner === player) {
-            with(world) { player.entity.clearPlayerRenderState(renderScene) }
-            simulation.preparePlayerDestroy(player)
-            simulation.destroyPlayer(player)
-        } else { // эта ветка особо не нужна
-            playerStorage.remove(player)
-            world.players -= player
-            player.destroyed = true
-            LOGGER.warn("Player ${player.id} ECS entity was already destroyed before PlayerDestroyPacket")
-        }
+        chatManager.typingPlayers.stop(player.id)
+        with(world) { player.entity.clearPlayerRenderState(renderScene) }
+        simulation.preparePlayerDestroy(player)
+        simulation.destroyPlayer(player)
         client.platform.onPlayerDestroy(client, player.id)
         skinSystem.removePlayerFromCache(player.id)
     }
@@ -298,7 +277,7 @@ class GameSession(
     }
 
     fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {
-        val player = lowDetailedClientPlayerInstance(data.playerId, world, data)
+        val player = lowDetailedClientPlayerInstance(data.id, world, data)
         instantiatePlayer(player)
         return player
     }

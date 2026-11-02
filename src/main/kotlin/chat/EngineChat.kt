@@ -50,6 +50,17 @@ class EngineChat(
 
     fun onSettingsUpdated(settings: EngineChatSettings) {
         settingsAtomicRef.set(settings)
+        val playerSynchronizationRadius = server.globals.playerSynchronizationRadius
+        settings.channels.map {
+            if (it.typeIndicatorRange != null && it.typeIndicatorRange > playerSynchronizationRadius) {
+                CHAT_LOGGER.warn(
+                    "Радиус распространения набора сообщения канала ${it.id} превышает допустимое значение и был сброшен: ${it.typeIndicatorRange} -> $playerSynchronizationRadius"
+                )
+                it.copy(typeIndicatorRange = playerSynchronizationRadius)
+            } else {
+                null
+            }
+        }
         channelsMap = settings.channels.associateBy { it.id }
     }
 

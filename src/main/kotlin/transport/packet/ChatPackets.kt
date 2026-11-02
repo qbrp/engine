@@ -53,7 +53,8 @@ data class ClientChatChannel(
     val isAvailable: Boolean = true,
     val format: String,
     val selectors: Selectors = Selectors(),
-    val spy: Boolean = true
+    val speech: Boolean = false,
+    val spy: Boolean = true,
 ) {
     @Serializable
     data class Selectors(
@@ -73,7 +74,8 @@ data class ClientChatChannel(
                         it.filterIsInstance<Selector.Prefix>(),
                         it.filterIsInstance<Selector.Regex>()
                     )
-                }
+                },
+                channel.speech
             )
         }
     }
@@ -91,8 +93,11 @@ object ChatTypingEndPacket : Packet
 val SERVERBOUND_CHAT_TYPING_END_ENDPOINT = Endpoint<ChatTypingEndPacket>()
 
 @Serializable
-data class ChatTypingPlayerPacket(val player: PlayerId) : Packet
+data class PlayerChatTypingStartPacket(val player: PlayerId, val channel: ChannelId) : Packet
 
-val CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT = Endpoint<ChatTypingPlayerPacket>("chat-typing-player-start")
+val CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT = Endpoint<PlayerChatTypingStartPacket>("chat-typing-player-start")
 
-val CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT = Endpoint<ChatTypingPlayerPacket>("chat-typing-player-end")
+@Serializable
+data class PlayerChatTypingEndPacket(val player: PlayerId) : Packet
+
+val CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT = Endpoint<PlayerChatTypingEndPacket>("chat-typing-player-end")
