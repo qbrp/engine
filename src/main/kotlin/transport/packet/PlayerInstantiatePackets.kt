@@ -5,7 +5,6 @@ import kotlinx.serialization.Serializable
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.persistentId
 import org.lain.engine.player.*
-import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.character.*
 import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.server.EngineServer
@@ -73,7 +72,8 @@ data class InitialReplicationState(
 
 @Serializable
 data class ServerPlayerData(
-    val general: GeneralPlayerData,
+    val id: PlayerId,
+    val displayName: DisplayName,
     val attributes: PlayerAttributes,
     val speedIntention: Float,
     val stamina: Float,
@@ -84,16 +84,14 @@ data class ServerPlayerData(
     val replicationSnapshot: InitialReplicationState,
     val character: ServerCharacterData?
 ) {
-    val id
-        get() = general.playerId
-
     companion object {
         fun of(player: EnginePlayer): ServerPlayerData = with(player.world)  {
             val movementStatus = player.require<MovementStatus>().copy()
             val voiceApparatus = player.require<VoiceApparatus>().copy()
             val defaults = player.require<DefaultPlayerAttributes>().copy()
             return ServerPlayerData(
-                GeneralPlayerData.of(player),
+                player.id,
+                player.require(),
                 player.require<PlayerAttributes>().copy(),
                 movementStatus.intention,
                 movementStatus.stamina,
@@ -140,15 +138,12 @@ val SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT = Endpoint<ConfirmationPacket>()
 
 @Serializable
 data class GeneralPlayerData(
-    val playerId: PlayerId,
-    val displayName: DisplayName,
+    val id: PlayerId,
+    val username: Username
 ) {
     companion object {
         fun of(player: EnginePlayer): GeneralPlayerData = with(player.world) {
-            return GeneralPlayerData(
-                player.id,
-                player.require<DisplayName>().copy()
-            )
+            return GeneralPlayerData(player.id, player.require<DisplayName>().username)
         }
     }
 }

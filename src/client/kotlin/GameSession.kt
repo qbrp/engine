@@ -121,6 +121,7 @@ class GameSession(
         player,
         DeveloperModeStatus(client.developerMode, client.acousticDebug),
     )
+    val onlinePlayers = OnlinePlayers(setup.playerList.players, mainPlayer)
 
     val ticks
         get() = simulation.ticks

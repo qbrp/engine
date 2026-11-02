@@ -44,7 +44,7 @@ fun lowDetailedClientPlayerInstance(
             PlayerInstantiateSettings(
                 world,
                 LOD_POS,
-                data.displayName,
+                DisplayName(data.username),
                 developerModeStatus = DeveloperModeStatus(),
             ),
             id,
@@ -65,7 +65,7 @@ fun mainClientPlayerInstance(
             PlayerInstantiateSettings(
                 world,
                 LOD_POS,
-                data.general.displayName,
+                data.displayName,
                 PlayerModeComponent(),
                 MovementStatus(
                     intention = data.speedIntention,

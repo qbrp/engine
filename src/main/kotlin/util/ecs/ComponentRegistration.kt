@@ -94,6 +94,7 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
 
     registerComponent<MovementStatus>(id = "core/player/state/movement_status", isNetworking = true)
     registerComponent<ArmStatus>(id = "core/player/arm_status", isNetworking = true)
+    registerComponent<DisplayName>(id = "core/player/display_name", isNetworking = true)
 
     registerComponent<NarrationEvent>(id = "core/player/event/narration", isNetworking = true)
 
@@ -145,7 +146,6 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<DecrementItem>(id = "core/item/decrement")
     registerComponent<DefaultPlayerAttributes>(id = "core/player/default_attributes")
     registerComponent<DeveloperMode>(id = "core/player/developer_mode")
-    registerComponent<DisplayName>(id = "core/player/display_name")
     registerComponent<EnginePlayerModel>(id = "core/player/model")
     registerComponent<GiveItemEvent>(id = "core/player/event/give_item")
     registerComponent<Hearing>(id = "core/player/hearing")

@@ -10,15 +10,15 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.jspecify.annotations.NonNull;
+import org.lain.engine.client.chat.AcceptedMessage;
 import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mc.MinecraftKeybindKt;
 import org.lain.engine.client.mc.chat.EngineChatHudAccess;
-import org.lain.engine.client.mc.chat.EngineChatHudMessage;
 import org.lain.engine.client.mc.chat.MinecraftChat;
 import org.lain.engine.client.mixin.render.ScreenAccessor;
-import org.lain.engine.client.render.ui.hud.ChatChannelsBar;
-import org.lain.engine.client.render.ui.hud.HandStatusButtonWidget;
-import org.lain.engine.client.render.ui.hud.ShakingTextFieldWidget;
+import org.lain.engine.client.render.ui.chat.ChatBarUi;
+import org.lain.engine.client.render.ui.chat.HandStatusButtonWidget;
+import org.lain.engine.client.render.ui.chat.ShakingTextFieldWidget;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -120,7 +120,7 @@ public abstract class ChatScreenMixin {
         }
 
         Screen screen = (Screen)(Object)this;
-        ChatChannelsBar channelsBar = MinecraftChat.INSTANCE.getChannelsBar();
+        ChatBarUi channelsBar = MinecraftChat.INSTANCE.getChannelsBar();
         float offsetX = 2.0F;
         float offsetY = screen.height - 16.0F - channelsBar.getHeight();
         float localX = (float)mouseX - offsetX;
@@ -140,13 +140,15 @@ public abstract class ChatScreenMixin {
     private void engine$renderChannels(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         MinecraftChat.INSTANCE.updateChatShaking(delta);
         Screen screen = (Screen)(Object)this;
-        ChatChannelsBar channelsBar = MinecraftChat.INSTANCE.getChannelsBar();
-        float offsetX = 2.0F;
-        float offsetY = screen.height - 16.0F - channelsBar.getHeight();
-        guiGraphics.pose().pushPose();
-        guiGraphics.pose().translate(offsetX, offsetY, 0.0F);
-        channelsBar.renderChatChannelsBar(guiGraphics, mouseX - offsetX, mouseY - offsetY);
-        guiGraphics.pose().popPose();
+        ChatBarUi channelsBar = MinecraftChat.INSTANCE.getChannelsBar();
+        if (channelsBar != null) {
+            float offsetX = 2.0F;
+            float offsetY = screen.height - 16.0F - channelsBar.getHeight();
+            guiGraphics.pose().pushPose();
+            guiGraphics.pose().translate(offsetX, offsetY, 0.0F);
+            channelsBar.renderChatChannelsBar(guiGraphics, mouseX - offsetX, mouseY - offsetY);
+            guiGraphics.pose().popPose();
+        }
     }
 
     @Redirect(
@@ -169,18 +171,14 @@ public abstract class ChatScreenMixin {
     private void engine$keyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         MinecraftChat chat = MinecraftChat.INSTANCE;
         chat.updateChatInput(this.input.getValue());
-        EngineChatHudMessage selectedMessage = chat.getSelectedMessage();
+        AcceptedMessage selectedMessage = chat.selectedChatMessage();
         if (selectedMessage != null) {
             if (keyCode == GLFW.GLFW_KEY_DELETE) {
-                ClientMixin.INSTANCE.deleteChatMessage(selectedMessage.getEngineMessage());
+                chat.deleteSelectedChatMessage();
             } else if (keyCode == GLFW.GLFW_KEY_C && MinecraftKeybindKt.isControlDown()) {
-                Minecraft.getInstance().keyboardHandler.setClipboard(selectedMessage.getClipboardText());
+                Minecraft.getInstance().keyboardHandler.setClipboard(selectedMessage.getDisplayText().contentString());
                 ClientMixin.INSTANCE.setChatClipboardCopyTicksElapsed(0);
             }
-        }
-
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
-            chat.setSelectedMessage(null);
         }
     }
 
@@ -207,6 +205,7 @@ public abstract class ChatScreenMixin {
         this.input.setValue("");
         this.historyPos = minecraft.gui.getChat().getRecentChat().size();
         MinecraftChat.INSTANCE.onCloseChatInput();
+        MinecraftChat.INSTANCE.onChatScreenClose();
     }
 
     @Inject(method = "moveInHistory", at = @At("HEAD"))
@@ -217,6 +216,6 @@ public abstract class ChatScreenMixin {
     @Inject(method = "removed", at = @At("TAIL"))
     private void engine$close(CallbackInfo ci) {
         MinecraftChat.INSTANCE.onCloseChatInput();
-        MinecraftChat.INSTANCE.setSelectedMessage(null);
+        MinecraftChat.INSTANCE.onChatScreenClose();
     }
 }

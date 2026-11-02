@@ -264,12 +264,14 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     }
 
     fun applyPlayerJoined(data: GeneralPlayerData, gameSession: GameSession) {
-        val persistentId = CustomPersistentId(data.playerId.toString())
+        val persistentId = CustomPersistentId(data.id.toString())
+        gameSession.onlinePlayers.add(data)
         gameSession.replicationController.removeEntity(persistentId)
         gameSession.instantiateLowDetailedPlayer(data)
     }
 
     fun applyPlayerDestroyed(gameSession: GameSession, player: EnginePlayer) {
+        gameSession.onlinePlayers.remove(player.id)
         gameSession.removePlayer(player)
     }
 
