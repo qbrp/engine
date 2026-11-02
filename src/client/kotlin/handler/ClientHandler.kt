@@ -9,7 +9,7 @@ import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.ClientPlatform
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.chat.AcceptedMessage
+import org.lain.engine.client.chat.ClientMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.chat.acceptOutcomingMessage
 import org.lain.engine.client.mc.MinecraftClient
@@ -221,7 +221,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         )
     }
 
-    fun onChatMessageDelete(message: AcceptedMessage) {
+    fun onChatMessageDelete(message: ClientMessage) {
         SERVERBOUND_DELETE_CHAT_MESSAGE_ENDPOINT.sendC2SPacket(DeleteChatMessagePacket(message.id))
     }
 
@@ -301,7 +301,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
                 SYSTEM_CHANNEL,
                 chatManager.settings.placeholders,
                 client.resources.formatConfiguration,
-                gameSession.playerStorage.all.map { it.username }
+                gameSession.playerStorage.all.map { it.username },
             )
         )
     }

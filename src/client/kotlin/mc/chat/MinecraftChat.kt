@@ -1,7 +1,6 @@
 package org.lain.engine.client.mc.chat
 
 import org.lain.engine.client.chat.*
-import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.util.HIGH_VOLUME_COLOR
 import org.lain.engine.util.LOW_VOLUME_COLOR
@@ -44,7 +43,7 @@ object MinecraftChat : ChatEventBus {
         chatManager?.hud?.selectedMessage = null
     }
 
-    fun selectedChatMessage(): AcceptedMessage? {
+    fun selectedChatMessage(): ClientMessage? {
         return chatManager?.hud?.selectedMessage
     }
 

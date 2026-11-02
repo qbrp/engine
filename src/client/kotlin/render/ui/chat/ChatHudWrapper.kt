@@ -9,8 +9,9 @@ import net.minecraft.network.chat.Style
 import net.minecraft.world.entity.player.ChatVisiblity
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.MessageSource
-import org.lain.engine.client.chat.AcceptedMessage
+import org.lain.engine.client.chat.ClientMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
+import org.lain.engine.client.chat.ServiceContent
 import org.lain.engine.client.chat.VanillaText
 import org.lain.engine.client.chat.getSystemClient
 import org.lain.engine.client.mc.ClientMixin
@@ -56,10 +57,9 @@ class ChatHudWrapper(chatHud: ChatComponent) {
 
     fun storeVanillaMessage(component: Component, signature: MessageSignature?, tag: GuiMessageTag?) {
         val chatManager = chatManager ?: return
-        val contentText = VanillaText(component)
-        val engineMessage = AcceptedMessage(
-            contentText,
-            contentText,
+        val content = ServiceContent(VanillaText(component))
+        val engineMessage = ClientMessage(
+            content,
             SYSTEM_CHANNEL,
             MessageSource.getSystemClient(chatManager.gameSession.world),
             id = MessageId.next(),

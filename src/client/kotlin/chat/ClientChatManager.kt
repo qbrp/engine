@@ -75,7 +75,7 @@ class ClientChatManager(
         trackMessageTyping = !trackMessageTyping
     }
 
-    private val messagesMap: MutableMap<MessageId, AcceptedMessage> = mutableMapOf()
+    private val messagesMap: MutableMap<MessageId, ClientMessage> = mutableMapOf()
     val messages
         get() = messagesMap.values
 
@@ -135,7 +135,7 @@ class ClientChatManager(
         } ?: defaultChannel
     }
 
-    fun addMessage(message: AcceptedMessage) {
+    fun addMessage(message: ClientMessage) {
         val chatBar = chatBar ?: return
         val channel = message.channel
         val author = message.source.author
@@ -145,7 +145,7 @@ class ClientChatManager(
         // Если есть точно такое же сообщение
         val similar = messages.toList()
             .takeLast(8)
-            .find { it.channel != SYSTEM_CHANNEL && it.channel == channel && it.displayText == message.displayText }
+            .find { it.channel != SYSTEM_CHANNEL && it.channel == channel && it.content == message.content }
         if (similar != null) {
             similar.repeat += 1
             return
@@ -167,7 +167,7 @@ class ClientChatManager(
             if (authorId != null && message.isSpeech && showSelf && client.options.chatBubbles) {
                 val authorPlayer = gameSession.playerStorage.get(authorId)
                 if (authorPlayer != null) {
-                    gameSession.chatBubbleList.setChatBubble(authorPlayer, message.displayText)
+                    gameSession.chatBubbleList.setChatBubble(authorPlayer, message.content.resolve(this))
                 }
             }
             if (isMentioned || isNotify) {
@@ -193,7 +193,7 @@ class ClientChatManager(
         hud.clearMessages()
     }
 
-    private fun deleteSelfMessage(message: AcceptedMessage) {
+    private fun deleteSelfMessage(message: ClientMessage) {
         client.handler.onChatMessageDelete(message)
     }
 

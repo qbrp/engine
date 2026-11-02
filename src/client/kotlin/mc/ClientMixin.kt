@@ -13,7 +13,6 @@ import net.minecraft.world.item.ItemStack
 import org.joml.Matrix4f
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.client.chat.AcceptedMessage
 import org.lain.engine.client.render.item.TransformationRenderInstance
 import org.lain.engine.client.render.item.resolveTooltip
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen

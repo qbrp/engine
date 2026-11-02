@@ -2,15 +2,16 @@ package org.lain.engine.client.chat
 
 import org.lain.engine.chat.*
 import org.lain.engine.client.GameSession
+import org.lain.engine.player.PlayerStorage
+import org.lain.engine.player.username
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.Color
 import org.lain.engine.util.Timestamp
 import org.lain.engine.world.World
 
-data class AcceptedMessage(
-    val displayText: MessageText,
-    val undistortedDisplayText: MessageText,
+data class ClientMessage(
+    val content: MessageContent,
     val channel: ClientChatChannel,
     val source: MessageSource,
     val isMentioned: Boolean = false,
@@ -35,7 +36,7 @@ val SYSTEM_CHANNEL = ClientChatChannel(
 
 // Сначала решаем, можем ли мы вообще увидеть сообщение. Только в случае, если канал доступен и мы его отследили (или оно обычное)
 fun isMessageAvailable(
-    message: AcceptedMessage,
+    message: ClientMessage,
     spy: Boolean
 ): Boolean {
     return message.channel.isAvailable && !message.isSpy || spy
@@ -43,14 +44,14 @@ fun isMessageAvailable(
 
 // Решаем, видно ли в данный момент сообщение пользователю. Руководствуемся данными из чат-бара: сообщение должно быть доступно, а канал не скрыт
 fun isMessageVisible(
-    message: AcceptedMessage,
+    message: ClientMessage,
     chatBar: ChatBar,
     available: Boolean
 ): Boolean {
     return available && !chatBar.isHidden(message.channel.id)
 }
 
-fun isMessageVisible(message: AcceptedMessage, spy: Boolean, chatBar: ChatBar): Boolean {
+fun isMessageVisible(message: ClientMessage, spy: Boolean, chatBar: ChatBar): Boolean {
     return isMessageVisible(message, chatBar, isMessageAvailable(message, spy))
 }
 
@@ -82,7 +83,7 @@ private fun formatPlaceholders(text: String, placeholders: Map<String, String>):
             .replace("{$old}", new)
     }
 
-    text = Regex("\\{([^|{}]+)\\|([^{}]*)\\}").replace(text) { match ->
+    text = Regex("\\{([^|{}]+)\\|([^{}]*)}").replace(text) { match ->
         val name = match.groupValues[1]
         val defaultValue = match.groupValues.getOrNull(2)
         val placeholder = placeholders[name]
@@ -99,7 +100,7 @@ fun acceptOutcomingMessage(
     placeholders: Map<String, String>,
     format: ChatFormatSettings,
     playerNames: List<String>
-): AcceptedMessage {
+): ClientMessage {
     val channelId = message.channel
     val channel = channels[channelId] ?: defaultChannel
     var text = formatRegex(message.text, format.regex, playerNames)
@@ -118,9 +119,18 @@ fun acceptOutcomingMessage(
         undistortedDisplay = format.spy.replace("{original}", undistortedDisplay)
     }
 
-    return AcceptedMessage(
-        MiniMessageText(display),
-        MiniMessageText(undistortedDisplay),
+    val content = if (message.speech) {
+        SpeechContent(
+            MiniMessageText(display),
+            MiniMessageText(undistortedDisplay),
+            message.source,
+        )
+    } else {
+        ServiceContent(MiniMessageText(display))
+    }
+
+    return ClientMessage(
+        content,
         channel,
         message.source,
         message.mentioned,
@@ -140,18 +150,16 @@ fun MessageSource.Companion.getSystemClient(world: World) = MessageSource(
     Timestamp()
 )
 
-fun LiteralSystemMessage(gameSession: GameSession, content: String) = AcceptedMessage(
-    MiniMessageText(content),
-    MiniMessageText(content),
+fun LiteralSystemMessage(gameSession: GameSession, content: String) = ClientMessage(
+    ServiceContent(MiniMessageText(content)),
     SYSTEM_CHANNEL,
     MessageSource.getSystemClient(gameSession.world),
     id = MessageId.next()
 )
 
 
-fun LiteralSystemMessage(world: World, content: String, isSpy: Boolean = false) = AcceptedMessage(
-    MiniMessageText(content),
-    MiniMessageText(content),
+fun LiteralSystemMessage(world: World, content: String, isSpy: Boolean = false) = ClientMessage(
+    ServiceContent(MiniMessageText(content)),
     SYSTEM_CHANNEL,
     MessageSource.getSystemClient(world),
     id = MessageId.next(),

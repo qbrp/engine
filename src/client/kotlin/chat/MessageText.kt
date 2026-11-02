@@ -6,7 +6,6 @@ import net.minecraft.network.chat.Component
 import net.minecraft.util.FormattedCharSequence
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.parseMiniMessageClient
-import org.lain.engine.client.render.ui.chat.ChatState
 
 interface MessageText {
     fun lines(width: Int): List<FormattedCharSequence>
@@ -34,9 +33,4 @@ class VanillaText(val component: Component) : MessageText {
         ComponentRenderUtils.wrapComponents(component, width, MessageText.FONT)
 
     override fun contentString(): String = component.string
-}
-
-fun ChatState.resolveText(message: AcceptedMessage) = when(allhear) {
-    true -> message.undistortedDisplayText
-    false -> message.displayText
 }

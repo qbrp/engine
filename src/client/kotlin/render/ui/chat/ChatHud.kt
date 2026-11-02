@@ -1,6 +1,5 @@
 package org.lain.engine.client.render.ui.chat
 
-import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.Font
@@ -16,12 +15,17 @@ import net.minecraft.util.FormattedCharSequence
 import net.minecraft.util.Mth
 import org.lain.engine.chat.MessageId
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.chat.AcceptedMessage
+import org.lain.engine.client.chat.ClientMessage
+import org.lain.engine.client.chat.CHAR_SHAKE_STOP_DELAY
 import org.lain.engine.client.chat.ChatBar
 import org.lain.engine.client.chat.MessageText
+import org.lain.engine.client.chat.ServiceContent
+import org.lain.engine.client.chat.SpeechContent
+import org.lain.engine.client.chat.TypewriterEffect
 import org.lain.engine.client.chat.TypingPlayer
 import org.lain.engine.client.chat.isMessageVisible
-import org.lain.engine.client.chat.resolveText
+import org.lain.engine.client.chat.toChars
+import org.lain.engine.client.chat.toSyllables
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.isControlDown
 import org.lain.engine.client.mc.isKeyDown
@@ -33,6 +37,7 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
+import kotlin.random.Random
 
 interface ChatOptions {
     val chatBackgroundOpacity: Float
@@ -58,37 +63,89 @@ data class ChatContext(
     val hud: ChatHud,
 ) {
     val packetListener: ClientPacketListener
-        get() = MinecraftClient.player?.connection ?: error("Paclet listener not started")
+        get() = MinecraftClient.player?.connection ?: error("Packet listener not started")
 }
 
 data class Hit(val style: Style, val message: ChatHudMessage)
 
 class ChatHudMessage(
-    val message: AcceptedMessage,
+    val message: ClientMessage,
     private val addedTick: Long,
     private val context: ChatContext,
+    typewriterEffect: TypewriterEffect? = null
 ) {
     private val chatBar = context.state.chatBar
     private val font = context.font
+    private val content = message.content
     private val lineHeight = font.lineHeight.toFloat()
+
     private val textLeft = CHAT_HEAD_SIZE.toFloat() + 2f + AFTER_HEAD_INDENT
     private val textTop = 1f
-    private val maximumRepeatsTextWidth = font.width(MAXIMUM_REPEATS_TEXT).toFloat()
-    private val availableTextWidth = (context.options.chatWidth.toFloat() - textLeft - maximumRepeatsTextWidth)
-        .coerceAtLeast(1f)
-        .toInt()
 
-    private val lines = context.state.resolveText(message).lines(availableTextWidth)
     private val indent = context.options.chatMessageIndent
+    private val maximumRepeatsTextWidth = font.width(MAXIMUM_REPEATS_TEXT).toFloat()
+    private val availableTextWidth = computeWidth()
+
+    private fun computeWidth(): Int {
+        val width = context.options.chatWidth.toFloat() - textLeft - maximumRepeatsTextWidth
+        return width.coerceAtLeast(1f).toInt()
+    }
+
+    private val lines = content.resolve(context.state).lines(availableTextWidth)
     val height get() = lines.size * lineHeight + indent
     val visible
         get() = chatBar == null || isMessageVisible(message, context.state.spy, chatBar)
 
-    fun render(guiGraphics: GuiGraphics, isHovered: Boolean) {
+    val typewriterEffect: TypewriterEffect? = typewriterEffect ?: if (content is SpeechContent) {
+        val options = content.typewriterOptions
+        TypewriterEffect(
+            lines.mapIndexed { i, line ->
+                val processedChars = if (i == 0) content.indent else 0
+                val processedSyllables = if (processedChars > 0) 1 else 0
+                val syllables = line.toSyllables(options.syllableDur, processedChars)
+                TypewriterEffect.Line(
+                    syllables,
+                    syllables.toChars(processedSyllables),
+                    processedSyllables,
+                )
+            },
+            options
+        )
+    } else {
+        null
+    }
+
+    fun copy() = ChatHudMessage(message, addedTick, context, typewriterEffect)
+
+    fun render(guiGraphics: GuiGraphics, isHovered: Boolean, dt: Float) {
         val alpha = calculateAlpha()
         val textAlpha = context.options.chatTextOpacity * alpha
         val textColor = ColorMc.color(textAlpha, CommonColors.WHITE)
         var currentY = textTop
+
+        if (typewriterEffect != null) {
+            val activeLineIndex = typewriterEffect.lines.indexOfFirst { it.processed < it.syllables.size }
+            if (activeLineIndex >= 0) {
+                val line = typewriterEffect.lines[activeLineIndex]
+                val syllable = line.syllables[line.processed]
+                syllable.delay -= dt
+                if (syllable.delay <= 0) {
+                    line.processed++
+                }
+            }
+
+            val lastStartedLine = if (activeLineIndex >= 0) activeLineIndex else typewriterEffect.lines.lastIndex
+            for (lineIndex in 0..lastStartedLine) {
+                typewriterEffect.lines[lineIndex].chars.forEach { char ->
+                    if (char.delay > CHAR_SHAKE_STOP_DELAY) {
+                        char.delay -= dt
+                    }
+                }
+            }
+        }
+
+        val activeTypewriterLine = typewriterEffect?.lines?.indexOfFirst { it.processed < it.syllables.size } ?: -1
+
         lines.forEachIndexed { index, line ->
             if (index == 0 && message.showHead) {
                 val shadowColor = ColorMc.color(textAlpha, 0xFF505050.toInt())
@@ -99,7 +156,40 @@ class ChatHudMessage(
                 }
             }
 
-            guiGraphics.drawChatString(font, line, textLeft, currentY, textColor)
+            fun drawString(line: FormattedCharSequence, x: Int = 0) =
+                guiGraphics.drawChatString(font, line, textLeft + x, currentY, textColor)
+
+            when (content) {
+                is ServiceContent -> drawString(line)
+                is SpeechContent -> {
+                    val typewriterEffect = typewriterEffect!!
+                    val typewriterLine = typewriterEffect.lines[index]
+                    val visibleSymbols = when {
+                        activeTypewriterLine == -1 -> typewriterLine.chars.size
+                        index < activeTypewriterLine -> typewriterLine.chars.size
+                        index == activeTypewriterLine -> {
+                            val syllable = typewriterLine.syllables[typewriterLine.processed]
+                            val symbolCount = syllable.charsCount
+                            val remaining = ceil(syllable.delay / syllable.charDur).toInt()
+                            val visibleInSyllable = (symbolCount - remaining + 1).coerceIn(1, symbolCount)
+
+                            syllable.startCharIndex + visibleInSyllable
+                        }
+
+                        else ->
+                            0
+                    }
+                    guiGraphics.drawTypewriterString(
+                        font,
+                        line,
+                        typewriterLine,
+                        visibleSymbols,
+                        textLeft,
+                        currentY,
+                        textColor,
+                    )
+                }
+            }
 
             if (message.repeat > 1 && index == lines.size - 1) {
                 val repeatsString = if (message.repeat > 999) MAXIMUM_REPEATS_TEXT else "x${message.repeat}"
@@ -120,7 +210,7 @@ class ChatHudMessage(
     }
 
     fun calculateAlpha(): Float {
-        if (!context.hud.fadeMessages) return 1f
+        if (!context.hud.fadeMessages || typewriterEffect?.ended != true) return 1f
         val j = context.state.tick - addedTick
         var d = j / 200.0
         d = 1.0 - d
@@ -141,7 +231,7 @@ class ChatHudMessage(
     }
 }
 
-class ChatHud(private val gameSession: GameSession) {
+class ChatHud(val gameSession: GameSession) {
     private val client get() = gameSession.client
     private val options get() = client.options
     private val width get() = options.chatWidth.toFloat()
@@ -153,6 +243,7 @@ class ChatHud(private val gameSession: GameSession) {
     private val messages = mutableListOf<ChatHudMessage>()
     private val addedTicks = mutableMapOf<MessageId, Long>()
     private val visibleMessages = mutableListOf<VisibleMessage>()
+
     private class VisibleMessage(
         val message: ChatHudMessage,
         val topY: Float,
@@ -165,7 +256,7 @@ class ChatHud(private val gameSession: GameSession) {
     private var focused = false
     private var viewportTop = 0f
     private var viewportBottom = 0f
-    var selectedMessage: AcceptedMessage? = null
+    var selectedMessage: ClientMessage? = null
 
     val fadeMessages get() = !focused
 
@@ -179,7 +270,7 @@ class ChatHud(private val gameSession: GameSession) {
             .coerceIn(0f, maxScrollY)
     }
 
-    fun addMessage(message: AcceptedMessage) {
+    fun addMessage(message: ClientMessage) {
         addMessage(ChatHudMessage(message, gameSession.ticks, context))
     }
 
@@ -219,7 +310,7 @@ class ChatHud(private val gameSession: GameSession) {
     fun invalidateMessages() {
         val hudMessages = this.messages.reversed()
         clearMessages()
-        hudMessages.forEach { addMessage(it) }
+        hudMessages.forEach { it.copy() }
     }
 
     fun resetScroll() {
@@ -304,14 +395,17 @@ class ChatHud(private val gameSession: GameSession) {
 
                 guiGraphics.fill(
                     0f, 0f, width, height,
-                    ColorMc.color(alpha * options.chatBackgroundOpacity, message.message.backgroundColorInt ?: CommonColors.BLACK)
+                    ColorMc.color(
+                        alpha * options.chatBackgroundOpacity,
+                        message.message.backgroundColorInt ?: CommonColors.BLACK
+                    )
                 )
-                message.render(guiGraphics, isHovered)
+                message.render(guiGraphics, isHovered, dt)
                 visibleMessages += VisibleMessage(message, topY, topY + height)
 
                 if (focused && isHovered) guiGraphics.fill(0f, 0f, width, height, ColorMc.color(50, CommonColors.WHITE))
                 if (isSelected) guiGraphics.fill(0f, 0f, width, height, ColorMc.color(50, CommonColors.WHITE))
-                if (isControlDown() && isKeyDown(GLFW.GLFW_KEY_C)) {
+                if (isSelected && isControlDown() && isKeyDown(GLFW.GLFW_KEY_C)) {
                     guiGraphics.fill(0f, 0f, width, height, ColorMc.color(50, CommonColors.WHITE))
                 }
 
@@ -339,7 +433,13 @@ class ChatHud(private val gameSession: GameSession) {
             guiGraphics.drawChatString(context.font, player.name.visualOrderText, x, y, CommonColors.WHITE)
             x += context.font.width(player.name).toFloat()
             if (index < players.size - 1) {
-                guiGraphics.drawChatString(context.font, Component.literal(",").visualOrderText, x, y, CommonColors.LIGHT_GRAY)
+                guiGraphics.drawChatString(
+                    context.font,
+                    Component.literal(",").visualOrderText,
+                    x,
+                    y,
+                    CommonColors.LIGHT_GRAY
+                )
                 x += 4f
             }
             x += 4f
@@ -357,7 +457,13 @@ class ChatHud(private val gameSession: GameSession) {
         if (!focused || maxScrollY <= 0f || areaHeight <= 0f) return
         val height = (areaHeight * areaHeight / totalHeight).coerceIn(1f, areaHeight)
         val top = viewportBottom - height - scrollY / maxScrollY * (areaHeight - height)
-        guiGraphics.fill(width, viewportTop, width + 4f, viewportBottom, ColorMc.color(options.chatBackgroundOpacity, CommonColors.BLACK))
+        guiGraphics.fill(
+            width,
+            viewportTop,
+            width + 4f,
+            viewportBottom,
+            ColorMc.color(options.chatBackgroundOpacity, CommonColors.BLACK)
+        )
         guiGraphics.fill(width + 2f, top, width + 4f, top + height, 0xAA808080.toInt())
     }
 
@@ -370,14 +476,52 @@ private fun GuiGraphics.drawChatString(
     x: Float,
     y: Float,
     color: Int,
-) {
+): Int {
     pose().pushPose()
     try {
         pose().translate(x, y, 0f)
-        drawString(font, text, 0, 0, color)
+        return drawString(font, text, 0, 0, color)
     } finally {
         pose().popPose()
     }
+}
+
+private fun GuiGraphics.drawTypewriterString(
+    font: Font,
+    text: FormattedCharSequence,
+    line: TypewriterEffect.Line,
+    visibleSymbols: Int,
+    x: Float,
+    y: Float,
+    color: Int,
+) {
+    if (visibleSymbols <= 0) return
+
+    var symbolIndex = 0
+    var currentX = x
+    text.accept { _, style, codePoint ->
+        if (symbolIndex >= visibleSymbols) {
+            false
+        } else {
+            val symbol = FormattedCharSequence.codepoint(codePoint, style)
+            val shake = line.chars.getOrNull(symbolIndex)?.shake ?: 0f
+            drawChatString(
+                font,
+                symbol,
+                currentX + randomShakeOffset(shake),
+                y + randomShakeOffset(shake),
+                color,
+            )
+            currentX += font.width(symbol).toFloat()
+            symbolIndex++
+            symbolIndex < visibleSymbols
+        }
+    }
+}
+
+private fun randomShakeOffset(amplitude: Float): Float {
+    if (amplitude <= 0f) return 0f
+    return (Random.nextFloat() * 2f - 1f) * amplitude
 }
 
 private fun drawChatFace(guiGraphics: GuiGraphics, skin: PlayerSkin, x: Float, y: Float, color: Int) {

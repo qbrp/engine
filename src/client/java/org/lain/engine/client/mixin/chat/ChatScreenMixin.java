@@ -10,7 +10,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import org.jspecify.annotations.NonNull;
-import org.lain.engine.client.chat.AcceptedMessage;
+import org.lain.engine.client.chat.ClientChatManager;
+import org.lain.engine.client.chat.ClientMessage;
 import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mc.MinecraftKeybindKt;
 import org.lain.engine.client.mc.chat.EngineChatHudAccess;
@@ -170,13 +171,16 @@ public abstract class ChatScreenMixin {
     @Inject(method = "keyPressed", at = @At("RETURN"))
     private void engine$keyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         MinecraftChat chat = MinecraftChat.INSTANCE;
+        ClientChatManager chatManager = chat.getChatManager();
         chat.updateChatInput(this.input.getValue());
-        AcceptedMessage selectedMessage = chat.selectedChatMessage();
-        if (selectedMessage != null) {
+        ClientMessage selectedMessage = chat.selectedChatMessage();
+        if (selectedMessage != null && chatManager != null) {
             if (keyCode == GLFW.GLFW_KEY_DELETE) {
                 chat.deleteSelectedChatMessage();
             } else if (keyCode == GLFW.GLFW_KEY_C && MinecraftKeybindKt.isControlDown()) {
-                Minecraft.getInstance().keyboardHandler.setClipboard(selectedMessage.getDisplayText().contentString());
+                Minecraft.getInstance().keyboardHandler.setClipboard(
+                        selectedMessage.getContent().resolve(chatManager).contentString()
+                );
                 ClientMixin.INSTANCE.setChatClipboardCopyTicksElapsed(0);
             }
         }

@@ -47,7 +47,7 @@ class EngineYamlConfig(
     private val chatBubbleScaleProperty = builder.defineFloat("scale", 1f, 0.01f, 3f)
     private val chatBubbleHeightProperty = builder.defineFloat("height", 1.9f, 1f, 10f)
     private val chatBubbleLineWidthProperty = builder.defineInteger("line-width", 200, 50, 1000)
-    private val chatBubbleLifeTimeProperty = builder.defineInteger("life-time", 200, 2, 2400)
+    private val chatBubbleLifeTimeProperty = builder.defineInteger("life-delay", 200, 2, 2400)
     private val chatBubbleBackgroundOpacityProperty = builder.defineInteger("background-opacity", 50, 0, 100)
     private val chatBubbleIgnoreLightLevelProperty = builder.defineBoolean("ignore-light-level", true)
 
