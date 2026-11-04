@@ -2,6 +2,7 @@ package org.lain.engine.client.mc.chat
 
 import org.lain.engine.client.chat.*
 import org.lain.engine.client.mc.injectClient
+import org.lain.engine.client.render.ui.chat.computeBaseShake
 import org.lain.engine.util.HIGH_VOLUME_COLOR
 import org.lain.engine.util.LOW_VOLUME_COLOR
 import org.lain.engine.util.math.lerp
@@ -15,21 +16,11 @@ object MinecraftChat : ChatEventBus {
     val channelsBar get() = chatManager?.barUi
 
     private var textShakingBoost = 0f
+    var isWritingCommand = false
     val chatInputTextShaking: Float get() {
         val volume = client.gameSession?.vocalRegulator?.volume ?: return  0f
-        val currentVolume = volume.value
-        val baseVolume = volume.base
-        val maxVolume = volume.max
-        return if (isWritingCommand) {
-            0f
-        } else {
-            val minVolume = baseVolume + (maxVolume - baseVolume) * client.options.chatInputShakingThreshold
-            val shakePower = currentVolume - minVolume
-
-            shakePower.coerceAtLeast(0f) / minVolume + textShakingBoost
-        }
+        return if (isWritingCommand) 0f else volume.computeBaseShake(client.options) + textShakingBoost
     }
-    var isWritingCommand = false
 
     fun clearMessages() {
         chatManager?.clearMessages()

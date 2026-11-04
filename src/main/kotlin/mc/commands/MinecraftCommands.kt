@@ -39,6 +39,7 @@ import org.lain.engine.util.math.snapshot
 import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
+import kotlin.reflect.KMutableProperty1
 
 fun World.tickCommandInvokeSystem(table: ServerWorldTable) {
     val mcWorld = table.getMcWorld(id) as? ServerLevel ?: error("World $id not found")
@@ -220,81 +221,154 @@ class StringListSuggestionProvider(val variants: List<String>) :
     }
 }
 
+private class CustomPlayerAttributeCommand<T : Any>(
+    val name: String,
+    val displayName: String,
+    val argumentType: ArgumentType<T>,
+    val read: (ServerCommandContext, String) -> T,
+    val property: KMutableProperty1<CustomPlayerAttributes, T?>,
+    val suggestions: List<String> = emptyList(),
+)
+
+private fun floatCustomPlayerAttribute(
+    name: String,
+    displayName: String,
+    property: KMutableProperty1<CustomPlayerAttributes, Float?>,
+) = CustomPlayerAttributeCommand(
+    name,
+    displayName,
+    FloatArgumentType.floatArg(),
+    ServerCommandContext::getFloat,
+    property,
+)
+
+private fun stringCustomPlayerAttribute(
+    name: String,
+    displayName: String,
+    property: KMutableProperty1<CustomPlayerAttributes, String?>,
+    suggestions: List<String> = emptyList(),
+) = CustomPlayerAttributeCommand(
+    name,
+    displayName,
+    StringArgumentType.string(),
+    ServerCommandContext::getString,
+    property,
+    suggestions,
+)
+
+private fun <T : Any> CustomPlayerAttributeCommand<T>.setNode() =
+    literal("set")
+        .then(
+            argument("value", argumentType)
+                .apply {
+                    if (suggestions.isNotEmpty()) {
+                        suggests(StringListSuggestionProvider(suggestions))
+                    }
+                }
+                .executeCatching { ctx ->
+                    val players = ctx.command.getPlayers("players")
+                    val value = read(ctx.command, "value")
+                    players.forEach { player ->
+                        player.editCustomAttributes { property.set(this, value) }
+                    }
+                    ctx.sendFeedback(
+                        "Атрибут «$displayName» установлен в $value для игроков ${players.formatPlayerList()}",
+                        true
+                    )
+                }
+        )
+
+private fun <T : Any> CustomPlayerAttributeCommand<T>.resetNode() =
+    literal("reset")
+        .executeCatching { ctx ->
+            val players = ctx.command.getPlayers("players")
+            players.forEach { player ->
+                player.editCustomAttributes { property.set(this, null) }
+            }
+            ctx.sendFeedback(
+                "Атрибут «$displayName» сброшен для игроков ${players.formatPlayerList()}",
+                true
+            )
+        }
+
+private fun <T : Any> CustomPlayerAttributeCommand<T>.node() =
+    literal(name)
+        .then(setNode())
+        .then(resetNode())
+
+private fun <T : Any> ServerCommandDispatcher.registerCustomPlayerAttributeCommand(
+    permission: String,
+    attribute: CustomPlayerAttributeCommand<T>,
+) {
+    register(
+        literal(attribute.name)
+            .requires { it.hasPermission(permission) }
+            .then(
+                argument("players", EntityArgument.players())
+                    .then(attribute.setNode())
+                    .then(attribute.resetNode())
+            )
+    )
+}
+
 fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     val server by lazy { requireEngineMinecraftServer() }
 
     registerEngineReloadCommands(isDedicated)
     registerEngineDeveloperCommands()
 
-    register(
-        literal("speed")
-            .requires { it.hasPermission("attributecommand.speed") }
-            .then(
-                Commands.argument("players", EntityArgument.players())
-                    .then(
-                        Commands.literal("reset")
-                            .executeCatching { ctx ->
-                                val players = ctx.command.getPlayers("players")
-                                val playerNameList = players.formatPlayerList()
-                                players.forEach { player -> player.resetCustomSpeed() }
-                                ctx.sendFeedback(
-                                    "Сброшена скорость для игроков $playerNameList",
-                                    true
-                                )
-                            }
-                    )
-                    .then(
-                        literal("set")
-                            .then(
-                                Commands.argument("value", FloatArgumentType.floatArg())
-                                    .executeCatching { ctx ->
-                                        val players = ctx.command.getPlayers("players")
-                                        val speed = ctx.command.getFloat("value")
-                                        val playerNameList = players.formatPlayerList()
-                                        players.forEach { player -> player.setCustomSpeed(speed) }
-                                        ctx.sendFeedback(
-                                            "Установлена скорость $speed для игроков $playerNameList",
-                                            true
-                                        )
-                                    }
-                            )
-                    )
-            )
+    val speedAttribute = floatCustomPlayerAttribute(
+        "speed",
+        "скорость",
+        CustomPlayerAttributes::speed,
+    )
+    val jumpStrengthAttribute = floatCustomPlayerAttribute(
+        "jumpstrength",
+        "сила прыжка",
+        CustomPlayerAttributes::jumpStrength,
+    )
+    registerCustomPlayerAttributeCommand("attributecommand.speed", speedAttribute)
+    registerCustomPlayerAttributeCommand(
+        "attributecommand.jumpstrength",
+        jumpStrengthAttribute
     )
 
+    val voiceSetAttribute = stringCustomPlayerAttribute(
+        "preset",
+        "набор голоса",
+        CustomPlayerAttributes::voiceSet,
+        BUILTIN_VOICE_PRESETS,
+    )
+    val voiceRandomizationAttribute = floatCustomPlayerAttribute(
+        "randomization",
+        "случайное изменение голоса",
+        CustomPlayerAttributes::voiceRandomization,
+    )
+    val voicePitchAttribute = floatCustomPlayerAttribute(
+        "pitch",
+        "высота голоса",
+        CustomPlayerAttributes::voicePitch,
+    )
+    val voiceSpeedAttribute = floatCustomPlayerAttribute(
+        "speed",
+        "скорость голоса",
+        CustomPlayerAttributes::voiceSpeed,
+    )
+    val voiceSoundFrequencyAttribute = floatCustomPlayerAttribute(
+        "frequency",
+        "частота звука голоса",
+        CustomPlayerAttributes::voiceSoundFrequency,
+    )
     register(
-        literal("jumpstrength")
-            .requires { it.hasPermission("attributecommand.jumpstrength") }
+        literal("voice")
+            .requires { it.hasPermission("attributecommand.voice") }
             .then(
-                Commands.argument("players", EntityArgument.players())
-                    .then(
-                        literal("set")
-                            .then(
-                                argument("value", FloatArgumentType.floatArg())
-                                    .executeCatching { ctx ->
-                                        val players = ctx.command.getPlayers("players")
-                                        val speed = ctx.command.getFloat("value")
-                                        val playerNameList = players.formatPlayerList()
-                                        players.forEach { player -> player.setCustomJumpStrength(speed) }
-                                        ctx.sendFeedback(
-                                            "Установлена сила прыжка $speed для игроков $playerNameList",
-                                            true
-                                        )
-                                    }
-                            )
-                    )
-                    .then(
-                        literal("reset")
-                            .executeCatching { ctx ->
-                                val players = ctx.command.getPlayers("players")
-                                val playerNameList = players.formatPlayerList()
-                                players.forEach { player -> player.resetCustomJumpStrength() }
-                                ctx.sendFeedback(
-                                    "Сброшена сила прыжка для игроков $playerNameList",
-                                    true
-                                )
-                            }
-                    )
+                argument("players", EntityArgument.players())
+                    .then(voiceSetAttribute.node())
+                    .then(voiceRandomizationAttribute.node())
+                    .then(voicePitchAttribute.node())
+                    .then(voiceSpeedAttribute.node())
+                    .then(voiceSoundFrequencyAttribute.node())
             )
     )
 

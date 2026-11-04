@@ -12,7 +12,8 @@ class SpeechContent(
     distorted: MiniMessageText,
     undistorted: MiniMessageText,
     source: MessageSource,
-    val typewriterOptions: TypewriterEffect.Options = TypewriterEffect.Options(),
+    val volume: Float,
+    val voiceProperties: VoiceProperties = VoiceProperties(volume = volume),
 ) : MessageContent {
     val senderName = source.player?.displayNameMiniMessage ?: source.author.name
     val indent = senderName.parseMiniMessageClient().string.count() + 3

@@ -3,6 +3,7 @@ package org.lain.engine.client.chat
 import org.lain.engine.chat.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.player.PlayerStorage
+import org.lain.engine.player.effectiveAttributes
 import org.lain.engine.player.username
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
@@ -99,7 +100,8 @@ fun acceptOutcomingMessage(
     defaultChannel: ClientChatChannel,
     placeholders: Map<String, String>,
     format: ChatFormatSettings,
-    playerNames: List<String>
+    playerNames: List<String>,
+    players: PlayerStorage
 ): ClientMessage {
     val channelId = message.channel
     val channel = channels[channelId] ?: defaultChannel
@@ -120,11 +122,18 @@ fun acceptOutcomingMessage(
     }
 
     val content = if (message.speech) {
-        SpeechContent(
-            MiniMessageText(display),
-            MiniMessageText(undistortedDisplay),
-            message.source,
-        )
+        val attributes = players.get(message.source.player!!.id)?.effectiveAttributes
+        if (attributes != null) {
+            SpeechContent(
+                MiniMessageText(display),
+                MiniMessageText(undistortedDisplay),
+                message.source,
+                message.volumes?.result ?: error("Speech message must be delivered with realistic acoustic"),
+                VoiceProperties.fromAttributes(message.volumes?.result ?: 0.7f, attributes),
+            )
+        } else {
+            ServiceContent(MiniMessageText(display))
+        }
     } else {
         ServiceContent(MiniMessageText(display))
     }

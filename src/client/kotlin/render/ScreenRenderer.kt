@@ -9,11 +9,9 @@ import org.lain.cyberia.ecs.iterate
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.control.PhotoModeGuide
-import org.lain.engine.client.control.togglePhotoMode
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.ui.ColorMc
 import org.lain.engine.client.render.ui.InteractionProgressionRenderState
-import org.lain.engine.client.render.ui.chat.ChatHud
 import org.lain.engine.client.render.ui.hud.MovementStatusRenderState
 import org.lain.engine.client.render.ui.hud.NarrationMessageRenderState
 import org.lain.engine.client.render.ui.hud.LittleNotificationsRenderManager

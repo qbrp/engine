@@ -9,6 +9,7 @@ import org.lain.engine.client.chat.ChatBarConfiguration
 import org.lain.engine.client.chat.ChatFormatSettings
 import org.lain.engine.client.render.WARNING
 import org.lain.engine.client.render.LittleNotification
+import org.lain.engine.client.util.withClientContext
 import org.lain.engine.server.ServerId
 import org.lain.engine.util.WARNING_COLOR
 import org.lain.engine.util.file.FileSystem
@@ -101,7 +102,7 @@ class ResourceManager(
         try {
             _context.set(bakeResourceContext(serverId))
         } catch (e: Throwable) {
-            client.execute {
+            withClientContext {
                 client.showNotification(
                     LittleNotification(
                         "Ошибка загрузки ресурсов",

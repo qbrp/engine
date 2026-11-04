@@ -87,4 +87,16 @@ public abstract class MinecraftMixin {
     public void engine$disconnect(Screen screen, boolean transferring, CallbackInfo ci) {
         ClientMixin.INSTANCE.onDisconnect();
     }
+
+    @Inject(
+            method = "runTick",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/blaze3d/platform/Window;updateDisplay()V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void engine$playPendingVoiceBlipSounds(boolean renderLevel, CallbackInfo ci) {
+        ClientMixin.INSTANCE.playPendingVoiceBlipSounds();
+    }
 }

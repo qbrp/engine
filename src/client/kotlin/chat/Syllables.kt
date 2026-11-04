@@ -1,11 +1,20 @@
 package org.lain.engine.client.chat
 
 import net.minecraft.util.FormattedCharSequence
-import org.lain.engine.client.handler.ServerPlayState
-import kotlin.math.pow
 
-const val VOWELS = "аеёиоуыэюяaeiou"
+const val VOWELS = "аеёиоуыэюяaeiouy"
+
 fun Char.isVowel() = lowercaseChar() in VOWELS
+
+data class Syllable(
+    val chars: String,
+    val startCharIndex: Int,
+    var delay: Float,
+    val charsCount: Int = chars.codePointCount(0, chars.length),
+    val charDur: Float = delay / charsCount,
+    val shake: Boolean,
+    val playSound: Boolean,
+)
 
 sealed interface TextSegment {
     val text: String
@@ -82,10 +91,10 @@ fun FormattedCharSequence.toSegments(
 
         if (
             buffer.isNotEmpty() && (
-                    buffer.count() > 4 ||
                     separator != isSeparator ||
                             (separator && codePoint != separatorCodePoint) ||
-                            (!separator && hasVowel && !vowel)
+                            (!separator && hasVowel && !vowel) ||
+                            (!separator && buffer.count() > 4 )
                     )
         ) {
             flush()
@@ -115,7 +124,15 @@ fun FormattedCharSequence.toSyllables(
             i++
             i < excludeStart
         }
-        add(Syllable(startChars.joinToString(separator = ""), 0, TYPEWRITER_MIN_DELAY))
+        add(
+            Syllable(
+                startChars.joinToString(separator = ""),
+                0,
+                VOICE_BLIP_MIN_DELAY,
+                shake = false,
+                playSound = false,
+            )
+        )
     }
 
     for (segment in toSegments(excludeStart)) {
@@ -129,6 +146,7 @@ fun FormattedCharSequence.toSyllables(
                     '.' in text -> delay * 3f * text.count()
                     text.any { it in "!?" } -> delay * 3f
                     text.any { it in ",;:" } -> delay * 2f
+                    text.all { it.isWhitespace() } -> delay / 2.5f
                     else -> delay
                 }
             }
@@ -140,70 +158,10 @@ fun FormattedCharSequence.toSyllables(
             Syllable(
                 segment.text,
                 segment.index,
-                segmentDelay
+                segmentDelay,
+                shake = true,
+                playSound = segment !is TextSegment.Separator,
             )
         )
     }
 }
-
-fun List<Syllable>.toChars(processed: Int = 0): List<SyllableChar> {
-    require(processed in 0..size)
-
-    var delay = 0f
-    return flatMapIndexed { index, syllable ->
-        if (index < processed) {
-            syllable.chars.map { SyllableChar(syllable, CHAR_SHAKE_STOP_DELAY) }
-        } else {
-            syllable.chars.map {
-                delay += syllable.charDur
-                SyllableChar(syllable, delay)
-            }
-        }
-    }
-}
-
-data class Syllable(
-    val chars: String,
-    val startCharIndex: Int,
-    var delay: Float,
-    val charsCount: Int = chars.codePointCount(0, chars.length),
-    val charDur: Float = delay / charsCount,
-)
-
-data class SyllableChar(
-    val parent: Syllable,
-    var delay: Float
-) {
-    val shake: Float
-        get() {
-            if (delay <= CHAR_SHAKE_STOP_DELAY) return 0f
-
-            val duration = parent.charDur - CHAR_SHAKE_STOP_DELAY
-            val progress = ((delay - CHAR_SHAKE_STOP_DELAY) / duration).coerceIn(0f, 1f)
-            return MAX_CHAR_SHAKE * progress
-        }
-}
-
-data class TypewriterEffect(
-    val lines: List<Line>,
-    val options: Options
-) {
-    val ended get() = lines.all { it.processed == it.syllables.size }
-
-    data class Options(
-        val speed: Float = 0.6f
-    ) {
-        val syllableDur get() = TYPEWRITER_MAX_DELAY - (speed * (TYPEWRITER_MAX_DELAY - TYPEWRITER_MIN_DELAY))
-    }
-
-    data class Line(
-        val syllables: List<Syllable>,
-        val chars: List<SyllableChar>,
-        var processed: Int,
-    )
-}
-
-const val TYPEWRITER_MAX_DELAY = 3f // in delta ticks
-const val TYPEWRITER_MIN_DELAY = 0.2f
-const val CHAR_SHAKE_STOP_DELAY = -1.5f
-const val MAX_CHAR_SHAKE = 0.8f

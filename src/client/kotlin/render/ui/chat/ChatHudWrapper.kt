@@ -24,14 +24,20 @@ class ChatHudWrapper(chatHud: ChatComponent) {
     private val hud get() = chatManager?.hud
 
     fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, focused: Boolean) {
-        if (isChatHidden()) return
-        hud?.render(
-            guiGraphics,
-            mouseX.toFloat(),
-            mouseY.toFloat(),
-            minecraft.timer.realtimeDeltaTicks,
-            focused || ClientMixin.shouldFocusChatIfNot(),
-        )
+        val manager = chatManager
+        val voiceBlipManager = manager?.voiceBlipManager
+        val dt = minecraft.timer.realtimeDeltaTicks
+        voiceBlipManager?.tick(dt)
+
+        if (!isChatHidden()) {
+            manager?.hud?.render(
+                guiGraphics,
+                mouseX.toFloat(),
+                mouseY.toFloat(),
+                dt,
+                focused || ClientMixin.shouldFocusChatIfNot(),
+            )
+        }
     }
 
     fun getClickedComponentStyleAt(mouseX: Double, mouseY: Double): Style? {

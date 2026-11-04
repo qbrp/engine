@@ -3,24 +3,32 @@ package org.lain.engine.client.mc.sound
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.client.resources.sounds.Sound
+import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.client.sounds.WeighedSoundEvents
 import net.minecraft.core.Holder
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.sounds.SoundEvents
+import net.minecraft.sounds.SoundSource
+import net.minecraft.util.RandomSource
 import net.minecraft.util.valueproviders.ConstantFloat
+import org.lain.engine.chat.ChannelId
 import org.lain.engine.client.GameSession
+import org.lain.engine.client.chat.VoiceProperties
 import org.lain.engine.client.mc.injectClient
 import org.lain.engine.client.mixin.sound.SoundManagerAccessor
 import org.lain.engine.client.util.AudioSource
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.SoundParameters
 import org.lain.engine.mc.engineId
+import org.lain.engine.player.BUILTIN_VOICE_PRESETS
 import org.lain.engine.util.math.ImmutableEVec3
+import org.lain.engine.util.math.Pos
 import org.lain.engine.world.SoundEvent
 import org.lain.engine.world.SoundEventId
 import org.lain.engine.world.SoundEmission
 import org.lain.engine.world.SoundEmissionParameters
+import net.minecraft.sounds.SoundEvent as SoundEventMc
 import org.lain.engine.world.location
 import kotlin.random.Random
 
@@ -32,6 +40,7 @@ class MinecraftAudioManager(
     private val soundSetCache = SoundSetCache()
     private val audioSources: MutableMap<String, AudioSourcePlayback> = HashMap()
     private val soundCache: MutableMap<SoundKey, Sound> = HashMap()
+    private val random = RandomSource.create()
 
     data class SoundKey(val parameters: SoundParameters, val radius: Int)
 
@@ -84,6 +93,32 @@ class MinecraftAudioManager(
 
     override fun containsAudioSource(slot: String): Boolean {
         return audioSources.containsKey(slot)
+    }
+
+    override fun playVoiceBlipSound(voiceProperties: VoiceProperties, pos: Pos, randomizationMultiplier: Float) {
+        val volumeRandomization = (voiceProperties.volume - 0.7f).coerceAtLeast(0f) * 2f
+        val randomization = voiceProperties.randomization * randomizationMultiplier + volumeRandomization
+        val pitchLevelDiff = 0.02f
+        val maxPitchAddition = 0.6f
+        val basePitchLevels = (maxPitchAddition / pitchLevelDiff).toInt() * 2
+        val pitchLevels = (basePitchLevels * randomization).toInt()
+        val pitchAddition = if (pitchLevels > 0) {
+            random.nextInt(0, pitchLevels) * pitchLevelDiff - (maxPitchAddition * randomization)
+        } else {
+            0f
+        }
+        soundManager.play(
+            SimpleSoundInstance(
+                voiceSets[voiceProperties.soundSet] ?: return,
+                SoundSource.PLAYERS,
+                voiceProperties.volume,
+                voiceProperties.pitch + pitchAddition,
+                random,
+                pos.x.toDouble(),
+                pos.y.toDouble(),
+                pos.z.toDouble(),
+            )
+        )
     }
 
     override fun addAudioSource(audioSource: AudioSource, slot: String) {
@@ -190,15 +225,24 @@ class MinecraftAudioManager(
     }
 
     companion object {
+        val voiceSets = mutableMapOf<String, SoundEventMc>()
         val PIG_SCREAM = registerSoundEvent("pig-scream")
         val KICK = registerSoundEvent("kick")
-    }
-}
 
-fun registerSoundEvent(id: String): net.minecraft.sounds.SoundEvent {
-    return Registry.register(
-        BuiltInRegistries.SOUND_EVENT,
-        engineId(id),
-        net.minecraft.sounds.SoundEvent.createVariableRangeEvent(engineId(id))
-    )
+        init {
+            BUILTIN_VOICE_PRESETS.forEach(::registerVoiceSet)
+        }
+
+        fun registerSoundEvent(id: String): SoundEventMc {
+            return Registry.register(
+                BuiltInRegistries.SOUND_EVENT,
+                engineId(id),
+                SoundEventMc.createVariableRangeEvent(engineId(id))
+            )
+        }
+
+        fun registerVoiceSet(id: String) {
+            voiceSets[id] = registerSoundEvent("speech/$id")
+        }
+    }
 }

@@ -1,7 +1,6 @@
 package org.lain.engine.client.render.ui.chat
 
 import com.mojang.blaze3d.systems.RenderSystem
-import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.PlayerFaceRenderer
@@ -12,20 +11,12 @@ import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import net.minecraft.util.CommonColors
 import net.minecraft.util.FormattedCharSequence
-import net.minecraft.util.Mth
 import org.lain.engine.chat.MessageId
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.ClientMessage
-import org.lain.engine.client.chat.CHAR_SHAKE_STOP_DELAY
 import org.lain.engine.client.chat.ChatBar
 import org.lain.engine.client.chat.MessageText
-import org.lain.engine.client.chat.ServiceContent
-import org.lain.engine.client.chat.SpeechContent
-import org.lain.engine.client.chat.TypewriterEffect
 import org.lain.engine.client.chat.TypingPlayer
-import org.lain.engine.client.chat.isMessageVisible
-import org.lain.engine.client.chat.toChars
-import org.lain.engine.client.chat.toSyllables
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.isControlDown
 import org.lain.engine.client.mc.isKeyDown
@@ -37,7 +28,6 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
-import kotlin.random.Random
 
 interface ChatOptions {
     val chatBackgroundOpacity: Float
@@ -60,15 +50,15 @@ data class ChatContext(
     val state: ChatState,
     val options: ChatOptions,
     val font: Font,
-    val hud: ChatHud,
+    val hud: ChatField,
 ) {
     val packetListener: ClientPacketListener
         get() = MinecraftClient.player?.connection ?: error("Packet listener not started")
 }
 
-data class Hit(val style: Style, val message: ChatHudMessage)
+data class Hit(val style: Style, val message: ChatFieldMessage)
 
-class ChatHud(val gameSession: GameSession) {
+class ChatField(val gameSession: GameSession) {
     private val client get() = gameSession.client
     private val options get() = client.options
     private val width get() = options.chatWidth.toFloat()
@@ -77,12 +67,12 @@ class ChatHud(val gameSession: GameSession) {
 
     private val context = ChatContext(chatManager, options, MessageText.FONT, this)
 
-    private val messages = mutableListOf<ChatHudMessage>()
+    private val messages = mutableListOf<ChatFieldMessage>()
     private val addedTicks = mutableMapOf<MessageId, Long>()
     private val visibleMessages = mutableListOf<VisibleMessage>()
 
     private class VisibleMessage(
-        val message: ChatHudMessage,
+        val message: ChatFieldMessage,
         val topY: Float,
         val bottomY: Float
     )
@@ -108,10 +98,10 @@ class ChatHud(val gameSession: GameSession) {
     }
 
     fun addMessage(message: ClientMessage) {
-        addMessage(ChatHudMessage(message, gameSession.ticks, context))
+        addMessage(ChatFieldMessage(message, gameSession.ticks, context))
     }
 
-    fun addMessage(message: ChatHudMessage) {
+    fun addMessage(message: ChatFieldMessage) {
         messages.addFirst(message)
         totalHeight += message.height
 
@@ -147,7 +137,7 @@ class ChatHud(val gameSession: GameSession) {
     fun invalidateMessages() {
         val hudMessages = this.messages.reversed()
         clearMessages()
-        hudMessages.forEach { it.copy() }
+        hudMessages.forEach { addMessage(it.copy()) }
     }
 
     fun resetScroll() {
@@ -156,7 +146,7 @@ class ChatHud(val gameSession: GameSession) {
         visibleMessages.clear()
     }
 
-    fun messageAt(mouseX: Float, mouseY: Float): ChatHudMessage? {
+    fun messageAt(mouseX: Float, mouseY: Float): ChatFieldMessage? {
         if (!focused || mouseX < 0f || mouseX >= width || mouseY < viewportTop || mouseY >= viewportBottom) return null
         return visibleMessages.firstOrNull { mouseY >= it.topY && mouseY < it.bottomY }?.message
     }

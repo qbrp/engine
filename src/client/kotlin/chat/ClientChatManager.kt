@@ -9,7 +9,7 @@ import org.lain.engine.client.render.showAllhearNotification
 import org.lain.engine.client.render.showSpyNotification
 import org.lain.engine.client.render.showTrackMessageTypingNotification
 import org.lain.engine.client.render.ui.chat.ChatBarUi
-import org.lain.engine.client.render.ui.chat.ChatHud
+import org.lain.engine.client.render.ui.chat.ChatField
 import org.lain.engine.client.render.ui.chat.ChatState
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
 class ClientChatManager(
     val gameSession: GameSession,
     settings: ClientChatSettings,
-): ChatState {
+) : ChatState {
     val client: EngineClient
         get() = gameSession.client
 
@@ -59,9 +59,10 @@ class ClientChatManager(
     override val tick: Long
         get() = gameSession.ticks
 
-    val hud by lazy { ChatHud(gameSession) }
+    val hud by lazy { ChatField(gameSession) }
     val barUi = ChatBarUi(this)
     val typingPlayers = TypingPlayers(gameSession)
+    val voiceBlipManager = VoiceBlipManager(gameSession)
 
     fun toggleSpy() {
         spy = !spy
@@ -82,7 +83,7 @@ class ClientChatManager(
     fun endTyping() {
         charTypeTimer = 0
         typingInChannel = null
-        client.handler.onChatEndTyping()
+        gameSession.handler.onChatEndTyping()
     }
 
     fun onTextInput(input: String): ClientChatChannel? {
@@ -101,7 +102,7 @@ class ClientChatManager(
             if (charTypeTimer > 20 && input.count() > 4) {
                 if (typingInChannel != channel.id) {
                     typingInChannel = channel.id
-                    client.handler.onChatStartTyping(channel.id)
+                    gameSession.handler.onChatStartTyping(channel.id)
                 }
             }
         }
@@ -112,7 +113,7 @@ class ClientChatManager(
         charTypeTimer = (charTypeTimer - 1).coerceAtLeast(0)
         if (typingInChannel != null && charTypeTimer <= 0) {
             typingInChannel = null
-            client.handler.onChatEndTyping()
+            gameSession.handler.onChatEndTyping()
         }
     }
 
@@ -159,16 +160,19 @@ class ClientChatManager(
 
         val authorId = message.source.player?.id
         val mainPlayerId = gameSession.mainPlayer.id
+        val content = message.content
 
-        hud.addMessage(message)
         val visible = isMessageVisible(message, spy, chatBar)
         if (visible) {
             val showSelf = authorId != mainPlayerId || client.developerMode
-            if (authorId != null && message.isSpeech && showSelf && client.options.chatBubbles) {
-                val authorPlayer = gameSession.playerStorage.get(authorId)
-                if (authorPlayer != null) {
-                    gameSession.chatBubbleList.setChatBubble(authorPlayer, message.content.resolve(this))
+            if (message.isSpeech) {
+                if (authorId != null && showSelf && client.options.chatBubbles) {
+                    val authorPlayer = gameSession.playerStorage.get(authorId)
+                    if (authorPlayer != null) {
+                        gameSession.chatBubbleList.setChatBubble(authorPlayer, content.resolve(this))
+                    }
                 }
+
             }
             if (isMentioned || isNotify) {
                 client.audioManager.playUiNotificationSound()
@@ -177,6 +181,8 @@ class ClientChatManager(
         } else if ((!message.isSpy || spy) && authorId != mainPlayerId) {
             chatBar.markUnread(channel.id)
         }
+
+        hud.addMessage(message)
     }
 
     fun deleteMessage(id: MessageId) {
@@ -185,16 +191,18 @@ class ClientChatManager(
             deleteSelfMessage(toDelete)
         }
         messagesMap.remove(id)
+        voiceBlipManager.remove(id)
         hud.removeMessage(id)
     }
 
     fun clearMessages() {
         messagesMap.clear()
+        voiceBlipManager.clear()
         hud.clearMessages()
     }
 
     private fun deleteSelfMessage(message: ClientMessage) {
-        client.handler.onChatMessageDelete(message)
+        gameSession.handler.onChatMessageDelete(message)
     }
 
     fun updateSettings(new: ClientChatSettings) {

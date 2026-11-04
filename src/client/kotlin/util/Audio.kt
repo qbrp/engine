@@ -1,7 +1,9 @@
 package org.lain.engine.client.util
 
 import org.lain.cyberia.ecs.iterate
+import org.lain.engine.client.chat.VoiceProperties
 import org.lain.engine.script.NamespacedStorageAccess
+import org.lain.engine.util.math.Pos
 import org.lain.engine.world.*
 
 data class SoundParameters(val id: SoundId, val stream: Boolean)
@@ -29,6 +31,7 @@ interface EngineAudioManager {
     fun containsAudioSource(slot: String): Boolean
     fun addAudioSource(audioSource: AudioSource, slot: String)
     fun stopAudioSource(audioSource: AudioSource)
+    fun playVoiceBlipSound(voiceProperties: VoiceProperties, pos: Pos, randomizationMultiplier: Float)
     fun invalidateCache()
 }
 
