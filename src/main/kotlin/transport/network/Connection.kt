@@ -8,13 +8,13 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.Username
 import org.lain.engine.server.NetworkProtocolException
-import org.lain.engine.transport.packet.VerificationResponsePacket
+import org.lain.engine.transport.packet.LoginRequestPacket
 
 internal class ConnectionAuthorization(
-    private val response: CompletableDeferred<VerificationResponsePacket>,
+    private val response: CompletableDeferred<LoginRequestPacket>,
     private val job: Job,
 ) {
-    fun complete(packet: VerificationResponsePacket): Boolean = response.complete(packet)
+    fun complete(packet: LoginRequestPacket): Boolean = response.complete(packet)
 
     fun cancel() {
         job.cancel()

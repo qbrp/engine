@@ -3,68 +3,56 @@ package org.lain.engine.client.mc
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.transport.ClientContext
 import org.lain.engine.client.transport.ClientPacketHandler
-import org.lain.engine.client.transport.ClientTransportContext
+import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
 import org.lain.engine.server.EngineServer
 import org.lain.engine.transport.*
-import org.lain.engine.transport.packet.EngineChunkPacket
-import org.lain.engine.transport.packet.JoinGamePacket
-import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.nextIdFast
 
-private enum class Side { CLIENT, SERVER }
+private data class Listener<P : Packet>(
+    val endpoint: Endpoint<P>,
+    val handler: (P, Long) -> Unit
+)
+
+private typealias ListenerMap = MutableMap<String, Listener<*>>
+
+private fun <P : Packet> ListenerMap.invoke(endpoint: Endpoint<P>, packet: P, id: Long) {
+    val identifier = endpoint.identifier
+    val listener = this[identifier]?.handler as? (P, Long) -> Unit
+    listener?.invoke(packet, id) ?: error("Unknown listener $identifier")
+}
+
+private fun <P : Packet> ListenerMap.register(endpoint: Endpoint<P>, listener: (P, Long) -> Unit) {
+    this[endpoint.identifier] = Listener(endpoint, listener)
+}
 
 private object CommonSingleplayerEndpointRegistry {
-    private data class Listener<P : Packet>(
-        val endpoint: Endpoint<P>,
-        val handler: (P, Long) -> Unit
-    )
-
-    private val listeners = mapOf(
-        Side.SERVER to mutableMapOf<String, Listener<*>>(),
-        Side.CLIENT to mutableMapOf<String, Listener<*>>()
-    )
-
-    fun <P : Packet> register(endpoint: Endpoint<P>, side: Side, listener: (P, Long) -> Unit) {
-        listeners[side]!![endpoint.identifier] = Listener(endpoint, listener)
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun <P : Packet> invoke(endpoint: Endpoint<P>, side: Side, packet: P, id: Long) {
-        (listeners[side]!![endpoint.identifier]?.handler as? (P, Long) -> Unit)?.invoke(packet, id)
-    }
-
-    fun unregisterAll(side: Side) {
-        listeners[side]!!.clear()
-    }
+    val serverListeners = mutableMapOf<String, Listener<*>>()
+    val clientListeners = mutableMapOf<String, Listener<*>>()
 }
 
 class ClientSingleplayerTransport(
     private val client: EngineClient
-) : ClientTransportContext {
+) : ClientTransport {
     private val context = ClientContext(client)
-    override val packetHistory: FixedSizeList<Long> = FixedSizeList(4000)
 
     override fun unregisterAll() {
-        CommonSingleplayerEndpointRegistry.unregisterAll(Side.CLIENT)
+        CommonSingleplayerEndpointRegistry.clientListeners.clear()
     }
 
     override fun <P : Packet> registerEndpoint(
         endpoint: Endpoint<P>,
         handler: ClientPacketHandler<P>
     ) {
-        CommonSingleplayerEndpointRegistry.register(endpoint, Side.CLIENT) { packet, id ->
-            client.execute { packetHistory.add(id) }
-            handler.invoke(packet, context)
-        }
+        CommonSingleplayerEndpointRegistry.clientListeners.register(endpoint) { packet, id -> handler.invoke(packet, context) }
     }
 
     override fun <P : Packet> sendServerboundPacket(
         endpoint: Endpoint<P>,
         packet: P
     ) {
-        CommonSingleplayerEndpointRegistry.invoke(endpoint, Side.SERVER, packet, nextIdFast())
+        CommonSingleplayerEndpointRegistry.serverListeners.invoke(endpoint, packet, nextIdFast())
     }
 }
 
@@ -79,7 +67,7 @@ class ServerSingleplayerTransport(
         endpoint: Endpoint<P>,
         handler: ServerPacketHandler<P>
     ) {
-        CommonSingleplayerEndpointRegistry.register(endpoint, Side.SERVER) { packet, id ->
+        CommonSingleplayerEndpointRegistry.serverListeners.register(endpoint) { packet, id ->
             if (server.stopped) return@register
             executeOnThread {
                 val plr = mainPlayer ?: return@executeOnThread
@@ -90,7 +78,7 @@ class ServerSingleplayerTransport(
     }
 
     override fun unregisterAll() {
-        CommonSingleplayerEndpointRegistry.unregisterAll(Side.SERVER)
+        CommonSingleplayerEndpointRegistry.serverListeners.clear()
     }
 
     override fun <P : Packet> sendClientboundPacket(
@@ -100,7 +88,7 @@ class ServerSingleplayerTransport(
         id: Long
     ) {
         if (player == mainPlayer?.id || !packet.requireAuthorized) {
-            CommonSingleplayerEndpointRegistry.invoke(endpoint, Side.CLIENT, packet, id)
+            CommonSingleplayerEndpointRegistry.clientListeners.invoke(endpoint, packet, id)
         }
     }
 

@@ -1,17 +1,13 @@
 package org.lain.engine.client
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
 import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
-import org.lain.engine.client.handler.ClientHandler
 import org.lain.engine.client.handler.GameSessionJoinFlow
+import org.lain.engine.client.handler.TaskExecutor
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.isAltDown
 import org.lain.engine.client.mc.isControlDown
@@ -19,6 +15,7 @@ import org.lain.engine.client.render.*
 import org.lain.engine.client.render.ui.ImGuiManager
 import org.lain.engine.client.resources.AssetCompilation
 import org.lain.engine.client.resources.ResourceManager
+import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.client.util.EngineAudioManager
 import org.lain.engine.client.util.EngineOptions
 import org.lain.engine.player.developerMode
@@ -37,7 +34,6 @@ class EngineClient(
 ) {
     lateinit var options: EngineOptions
     lateinit var thread: Thread
-    val handler = ClientHandler(this, platform)
     val renderer = ScreenRenderer(this)
     val moduleManager = ModuleManager()
     val resourceManager = ResourceManager(this)
@@ -53,15 +49,16 @@ class EngineClient(
         set(value) {
             gameSession?.let {
                 it.mainPlayer.developerMode = value
-                handler.onDeveloperModeUpdate(value, acousticDebug)
+                it.handler.onDeveloperModeUpdate(value, acousticDebug)
             }
             field = value
         }
     var acousticDebug: Boolean = false
         set(value) {
-            if (gameSession == null) return
-            showAcousticDebugNotification(value)
-            handler.onDeveloperModeUpdate(developerMode, value)
+            gameSession?.let {
+                showAcousticDebugNotification(value)
+                it.handler.onDeveloperModeUpdate(developerMode, value)
+            }
             field = value
         }
 
@@ -103,8 +100,9 @@ class EngineClient(
     var joinFlow: GameSessionJoinFlow? = null
         private set
 
-    fun startJoinFlow(joinType: GameSessionJoinFlow.JoinType) {
-        joinFlow = GameSessionJoinFlow(joinType, this, handler)
+    fun startJoinFlow(joinType: GameSessionJoinFlow.JoinType, transport: ClientTransport) {
+        if (gameSessionActive) error("Игровая сессия уже запущена!")
+        joinFlow = GameSessionJoinFlow(joinType, this, transport)
     }
 
     fun stopJoinFlow() {
@@ -117,13 +115,7 @@ class EngineClient(
 
     fun tick() {
         ticks += 1
-        handler.tick()
         gameSession?.tick()
-        handler.postTick()
-    }
-
-    fun execute(r: () -> Unit) {
-        handler.taskExecutor.add("Unnamed task", r)
     }
 
     fun setHudHiding(value: Boolean) {

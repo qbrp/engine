@@ -167,7 +167,7 @@ val CLIENTBOUND_PLAYER_DESTROY_ENDPOINT = Endpoint<PlayerDestroyPacket>()
 // Namespaces
 
 @Serializable
-data class VerificationResponsePacket(
+data class LoginRequestPacket(
     val developerModeStatus: DeveloperModeStatus,
     val namespaces: NamespaceHashMap,
     val character: ServerboundSelectedCharacter?,
@@ -175,7 +175,7 @@ data class VerificationResponsePacket(
     override val requireAuthorized: Boolean = false
 }
 
-val SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT = Endpoint<VerificationResponsePacket>()
+val SERVERBOUND_LOGIN_REQUEST_PACKET = Endpoint<LoginRequestPacket>()
 
 @Serializable
 data class GeneralServerData(
@@ -186,8 +186,8 @@ data class GeneralServerData(
 )
 
 @Serializable
-data class VerificationDataPacket(val server: GeneralServerData) : Packet {
+data class ServerHelloPacket(val server: GeneralServerData) : Packet {
     override val requireAuthorized: Boolean = false
 }
 
-val CLIENTBOUND_VERIFICATION_ENDPOINT = Endpoint<VerificationDataPacket>()
+val CLIENTBOUND_SERVER_HELLO_ENDPOINT = Endpoint<ServerHelloPacket>()

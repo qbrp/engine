@@ -51,23 +51,17 @@ data class Task(
 
 fun <P : Packet> ClientHandler.registerGameSessionReceiver(
     endpoint: Endpoint<P>,
-    taskExecutor: (GameSession) -> TaskExecutor = { this.taskExecutor },
     executor: P.(GameSession) -> Unit
 ) {
     endpoint.registerClientReceiver {
-        val session = client.gameSession ?: run {
-            LOGGER.warn("Получен пакет данных в раннем состоянии авторизации на сервере [${endpoint.identifier}]")
-            return@registerClientReceiver
-        }
-        taskExecutor(session).add(endpoint.identifier) task@{
-            if (client.gameSession !== session) return@task
-            this.executor(session)
+        gameSession.dataPrepareTaskExecutor.add(endpoint.identifier) {
+            this.executor(gameSession)
         }
     }
 }
 
 fun ClientHandler.updatePlayer(id: PlayerId, update: (EnginePlayer) -> Unit) {
-    val player = client.gameSession?.getPlayer(id) ?: run {
+    val player = gameSession.getPlayer(id) ?: run {
         LOGGER.warn("Получен пакет данных несуществующего игрока: $id")
         return
     }

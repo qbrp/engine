@@ -1,21 +1,20 @@
 package org.lain.engine.client.mc
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
+import org.lain.engine.client.EngineClient
 import org.lain.engine.client.transport.ClientContext
 import org.lain.engine.client.transport.ClientPacketHandler
-import org.lain.engine.client.transport.ClientTransportContext
-import org.lain.engine.mc.DisconnectText
+import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.mc.EnginePayload
 import org.lain.engine.mc.PayloadRegistry
 import org.lain.engine.mc.minecraftIdentifier
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import org.lain.engine.util.FixedSizeList
 import org.lain.engine.util.nextIdFast
 
-class ClientMinecraftNetwork : ClientTransportContext {
-    override val packetHistory: FixedSizeList<Long> = FixedSizeList(3000)
-    private val engine by injectClient()
+class ClientNetworkTransport(
+    private val engine: EngineClient
+) : ClientTransport {
     private val channels: MutableList<Endpoint<*>> = mutableListOf()
     private val ctx = ClientContext(engine)
 
@@ -29,21 +28,7 @@ class ClientMinecraftNetwork : ClientTransportContext {
     ) {
         channels += endpoint
         ClientPlayNetworking.registerGlobalReceiver(PayloadRegistry.payloadOf(endpoint)) { payload, context ->
-            val client = context.client()
-            val packet = payload.packet
-
-            client.execute {
-                packetHistory.add(payload.packetId)
-                if (client.level == null) return@execute
-                try {
-                    with(ctx) {
-                        packet.handler(ctx)
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    client.connection?.connection?.disconnect(DisconnectText(e.message ?: "Unknown error"))
-                }
-            }
+            payload.packet.handler(ctx)
         }
     }
 
@@ -51,7 +36,6 @@ class ClientMinecraftNetwork : ClientTransportContext {
         endpoint: Endpoint<P>,
         packet: P
     ) {
-        if (MinecraftClient.connection == null) return
         val payload = PayloadRegistry.payloadOf(endpoint)
         ClientPlayNetworking.send(
             EnginePayload(

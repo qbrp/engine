@@ -10,7 +10,6 @@ import org.lain.engine.transport.packet.EngineChunkPacket
 import org.lain.engine.transport.packet.EntityDebugDataPacket
 import org.lain.engine.transport.packet.ReplicationPacket
 import org.lain.engine.util.FixedSizeList
-import org.lain.engine.util.inject
 import org.lain.engine.util.injectValue
 
 typealias ClientPacketHandler<P> = PacketHandler<ClientContext, P>
@@ -19,15 +18,14 @@ data class ClientContext(
     val client: EngineClient,
 ) : PacketContext
 
-interface ClientTransportContext {
-    val packetHistory: FixedSizeList<Long>
+interface ClientTransport {
     fun unregisterAll()
     fun <P : Packet> registerEndpoint(endpoint: Endpoint<P>, handler: ClientPacketHandler<P>)
     fun <P : Packet> sendServerboundPacket(endpoint: Endpoint<P>, packet: P)
 }
 
 fun <P : Packet> Endpoint<P>.registerClientReceiver(handler: ClientPacketHandler<P>) {
-    injectValue<ClientTransportContext>().registerEndpoint(this) {
+    injectValue<ClientTransport>().registerEndpoint(this) {
         handler(this, it)
         if (this !is EntityDebugDataPacket && (this !is ReplicationPacket || !this.frame.isEmpty()) && (this !is EngineChunkPacket || !this.chunk.isEmpty())) {
             debugPacket("[Клиент] Принят пакет $this")
@@ -36,7 +34,5 @@ fun <P : Packet> Endpoint<P>.registerClientReceiver(handler: ClientPacketHandler
 }
 
 fun <P : Packet> Endpoint<P>.sendC2SPacket(packet: P) {
-    injectValue<ClientTransportContext>().sendServerboundPacket(this, packet)
+    injectValue<ClientTransport>().sendServerboundPacket(this, packet)
 }
-
-fun injectClientTransportContext() = inject<ClientTransportContext>()

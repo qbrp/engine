@@ -51,11 +51,7 @@ object PayloadRegistry {
     fun <P : Packet> payloadOf(endpoint: Endpoint<P>): PayloadId<EnginePayload<P>> {
         map[endpoint.identifier]?.let { return it as PayloadId<EnginePayload<P>> }
         val s2c = PayloadTypeRegistry.playS2C().registerPayload(endpoint)
-        try {
-            PayloadTypeRegistry.playC2S().registerPayload(endpoint)
-        } catch (e: Throwable) {
-            e.printStackTrace()
-        }
+        PayloadTypeRegistry.playC2S().registerPayload(endpoint)
         map[endpoint.identifier] = s2c
         return s2c
     }

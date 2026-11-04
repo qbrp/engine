@@ -1,8 +1,10 @@
 package org.lain.engine.client.mc
 
+import net.minecraft.world.level.Level
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.util.getClientItem
+import org.lain.engine.mc.bindMinecraftEntity
 import org.lain.engine.mc.ecs.ENGINE_ITEM_REFERENCE_COMPONENT
 import org.lain.engine.mc.ecs.EngineItemStack
 import org.lain.engine.mc.ecs.MinecraftPlayer
@@ -23,5 +25,12 @@ fun World.tickClientInventorySyncSystem(gameSession: GameSession) {
                         ?: return@mapNotNull null
                     EngineItemStack(item, itemStack)
                 }
+    }
+}
+
+fun World.tickClientMinecraftPlayerBinding(level: Level) {
+    for (player in players) {
+        val minecraftPlayer = level.getPlayerByUUID(player.id.value) ?: continue
+        player.bindMinecraftEntity(minecraftPlayer)
     }
 }

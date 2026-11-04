@@ -26,7 +26,6 @@ import org.lain.engine.client.render.world.DecalSystem
 import org.lain.engine.client.render.world.LabelTextRenderTypes
 import org.lain.engine.client.render.world.registerWorldRenderEvents
 import org.lain.engine.client.resources.registerEngineModelLoading
-import org.lain.engine.client.transport.ClientTransportContext
 import org.lain.engine.client.util.postErrorReport
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.mc.*
@@ -69,8 +68,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     private val renderer
         get() = engine.renderer
 
-    private var inAuthorization = false
-    var readyToAuthorize = false
     var server: IntegratedEngineMinecraftServer? = null
     val currentLevel
         get() = client.level
@@ -99,17 +96,11 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
             }
 
             if (!client.isSingleplayer) {
-                Injector.register<ClientTransportContext>(ClientMinecraftNetwork())
                 Injector.register<RaycastProvider>(MinecraftRaycastProvider())
             }
 
             val serverStartFail = IntegratedEngineMinecraftServer.serverStartFail
-            if (serverStartFail == null) {
-                engine.handler.run()
-
-                inAuthorization = false
-                readyToAuthorize = true
-            } else {
+            if (serverStartFail != null) {
                 platform.disconnect(
                     if (serverStartFail is CompilationFailedException) {
                         serverStartFail.log()
@@ -118,6 +109,23 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
                         postErrorReport(serverStartFail, "serverStart")
                         serverStartFail.message ?: "Не удалось запустить сервер"
                     }
+                )
+                return@register
+            }
+
+            if (client.isSingleplayer) {
+                val server = server?.engine ?: throw RuntimeException("Server not started")
+                engine.startJoinFlow(
+                    GameSessionJoinFlow.JoinType.Singleplayer(
+                        server,
+                        client.player!!.isReplayViewer
+                    ),
+                    ClientSingleplayerTransport(engine)
+                )
+            } else {
+                engine.startJoinFlow(
+                    GameSessionJoinFlow.JoinType.Multiplayer,
+                    ClientNetworkTransport(engine)
                 )
             }
         }
@@ -161,21 +169,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         window.handleResize(engine)
 
         try {
-            if (readyToAuthorize && mainPlayerEntity != null && !inAuthorization) {
-                if (client.isSingleplayer) {
-                    val server = server?.engine ?: throw RuntimeException("Server not started")
-                    engine.startJoinFlow(
-                        GameSessionJoinFlow.JoinType.Singleplayer(
-                            server,
-                            mainPlayerEntity.isReplayViewer
-                        )
-                    )
-                } else {
-                    engine.startJoinFlow(GameSessionJoinFlow.JoinType.Multiplayer)
-                }
-                inAuthorization = true
-            }
-
             if (engine.ticks % 20L == 0L) {
                 itemGroup.updateIcon()
             }
@@ -242,8 +235,6 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         }
         itemGroup.invalidate()
 
-        readyToAuthorize = false
-        inAuthorization = false
         LOGGER.info("Игрок отключен от сервера Engine")
     }
 
@@ -256,6 +247,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
     override fun GameSession.tickDataPrepareSystem() {
         val level = currentLevel ?: return
         world.tickVoxelAdapterSystem(level)
+        world.tickClientMinecraftPlayerBinding(level)
         MinecraftSystem.tickDataPrepareCommon(
             world,
             tickInventorySyncSystem = { tickClientInventorySyncSystem(this@tickDataPrepareSystem) }

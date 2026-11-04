@@ -5,11 +5,11 @@ import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
 
 @Serializable
-data class AuthPacket(
+data class ClientHelloPacket(
     val mods: List<String>,
     val version: String
 ) : Packet {
     override val requireAuthorized: Boolean = false
 }
 
-val SERVERBOUND_AUTH_ENDPOINT = Endpoint<AuthPacket>()
+val SERVERBOUND_CLIENT_HELLO_ENDPOINT = Endpoint<ClientHelloPacket>()

@@ -67,6 +67,10 @@ object ClientMixin {
 
     fun getEngineClient() = client
 
+    fun playPendingVoiceBlipSounds() {
+        client.gameSession?.chatManager?.voiceBlipManager?.playPendingSounds()
+    }
+
     fun onDisconnect() {
         minecraftClient.onDisconnect()
     }
@@ -182,7 +186,7 @@ object ClientMixin {
         val gameSession = client.gameSession ?: return
         writable.contents = pages
         with(gameSession.world) {
-            client.handler.onWriteableContentsUpdate(
+            gameSession.handler.onWriteableContentsUpdate(
                 item.requireComponent<PersistentIdComponent>().id,
                 pages
             )
@@ -252,7 +256,7 @@ object ClientMixin {
         } else {
             itemStack?.engine()?.getClientItem(it)
         }
-        client.handler.onCursorItem(engineItem)
+        it.handler.onCursorItem(engineItem)
     }
 
     fun isEngineLoaded(): Boolean {
@@ -284,10 +288,6 @@ object ClientMixin {
         val gameSession = client.gameSession ?: return
         gameSession.chatManager.sendMessage(content)
     }
-
-    fun getChatWidth() = client.options.chatWidth
-
-    fun getChatSize() = client.options.chatSize
 
     fun getCamera() = client.camera
 

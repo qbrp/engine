@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import org.lain.engine.mc.server.EngineMinecraftServer
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.EngineMinecraftClient
-import org.lain.engine.client.transport.ClientTransportContext
+import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.player.character.CharacterData
 import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.character.EngineBackend
@@ -81,7 +81,7 @@ class IntegratedEngineMinecraftServer(
                         throw e
                     }
                 }
-                Injector.register<ClientTransportContext>(ClientSingleplayerTransport(client.engine))
+                Injector.register<ClientTransport>(ClientSingleplayerTransport(client.engine))
 
                 registerMinecraftServer(
                     IntegratedEngineMinecraftServer(

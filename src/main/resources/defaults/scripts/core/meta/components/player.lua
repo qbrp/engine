@@ -59,11 +59,21 @@ function player:sync_action(type, action) end
 ---@field fly_speed number
 ---@field jump_strength number
 ---@field gravity number
+---@field voice_set string
+---@field voice_randomization number
+---@field voice_pitch number
+---@field voice_speed number
+---@field voice_sound_frequency number
 
 ---@class PlayerCustomAttributesComponent : Component
 ---@field speed number?
 ---@field jump_strength number?
 ---@field gravity number?
+---@field voice_set string?
+---@field voice_randomization number?
+---@field voice_pitch number?
+---@field voice_speed number?
+---@field voice_sound_frequency number?
 ---@field [string] any
 
 ---@class MovementStatusComponent : Component

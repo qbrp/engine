@@ -27,13 +27,13 @@ import org.lain.engine.server.account.DedicatedEngineAccountService
 import org.lain.engine.transport.network.ConnectionAuthorization
 import org.lain.engine.transport.network.ConnectionSession
 import org.lain.engine.transport.network.ServerConnectionManager
-import org.lain.engine.transport.packet.CLIENTBOUND_VERIFICATION_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_HELLO_ENDPOINT
 import org.lain.engine.transport.packet.GeneralServerData
-import org.lain.engine.transport.packet.SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT
-import org.lain.engine.transport.packet.VerificationDataPacket
-import org.lain.engine.transport.packet.VerificationResponsePacket
+import org.lain.engine.transport.packet.SERVERBOUND_LOGIN_REQUEST_PACKET
+import org.lain.engine.transport.packet.ServerHelloPacket
+import org.lain.engine.transport.packet.LoginRequestPacket
 
-class AuthorizationListener(
+class ServerAuthorizationHandler(
     private val connectionManager: ServerConnectionManager,
     private val server: DedicatedEngineMinecraftServer,
     private val accountService: DedicatedEngineAccountService
@@ -42,14 +42,14 @@ class AuthorizationListener(
     private val coroutineScope = CoroutineScope(server.engine.dataPrepareDispatcher + supervisorJob)
 
     fun run() {
-        SERVERBOUND_AUTH_ENDPOINT.registerReceiver { ctx ->
+        SERVERBOUND_CLIENT_HELLO_ENDPOINT.registerReceiver { ctx ->
             val packet = this
             val playerId = ctx.sender
             val entity = server.minecraftServer.getPlayer(playerId)
                 ?: error("Игрок ${ctx.sender} не находится на сервере или не найден")
             onAuth(packet, entity, playerId)
         }
-        SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.registerReceiver { ctx ->
+        SERVERBOUND_LOGIN_REQUEST_PACKET.registerReceiver { ctx ->
             onVerificationResponse(this, ctx.sender)
         }
     }
@@ -63,7 +63,7 @@ class AuthorizationListener(
         supervisorJob.cancel()
     }
 
-    private fun onAuth(packet: AuthPacket, entity: ServerPlayer, id: PlayerId) {
+    private fun onAuth(packet: ClientHelloPacket, entity: ServerPlayer, id: PlayerId) {
         val connection = connectionManager.getSession(id)
         if (connection.authorization != null) {
             friendlyError("Авторизация игрока уже выполняется")
@@ -100,7 +100,7 @@ class AuthorizationListener(
             entity.hasPermission(CHARACTER_PROVIDING_PERMISSION),
             engine.namespacedStorage.get().namespaceHashMap,
         )
-        val verificationResponse = CompletableDeferred<VerificationResponsePacket>()
+        val verificationResponse = CompletableDeferred<LoginRequestPacket>()
         val job = coroutineScope.launch(start = CoroutineStart.LAZY) {
             runAuthorization(connection, verificationData, mods.toSet(), verificationResponse)
         }
@@ -114,7 +114,7 @@ class AuthorizationListener(
         job.start()
     }
 
-    private fun onVerificationResponse(packet: VerificationResponsePacket, playerId: PlayerId) {
+    private fun onVerificationResponse(packet: LoginRequestPacket, playerId: PlayerId) {
         val connection = connectionManager.getSession(playerId)
         if (connection.authorization?.complete(packet) != true) {
             friendlyError("Ответ верификации получен до начала авторизации или повторно")
@@ -125,11 +125,11 @@ class AuthorizationListener(
         connection: ConnectionSession,
         verificationData: GeneralServerData,
         mods: Set<String>,
-        verificationResponse: Deferred<VerificationResponsePacket>,
+        verificationResponse: Deferred<LoginRequestPacket>,
     ) {
         try {
-            CLIENTBOUND_VERIFICATION_ENDPOINT.sendS2C(
-                VerificationDataPacket(verificationData),
+            CLIENTBOUND_SERVER_HELLO_ENDPOINT.sendS2C(
+                ServerHelloPacket(verificationData),
                 connection.playerId,
             )
             finishAuthorization(connection, verificationData, mods, verificationResponse.await())
@@ -150,7 +150,7 @@ class AuthorizationListener(
         connection: ConnectionSession,
         verificationData: GeneralServerData,
         mods: Set<String>,
-        response: VerificationResponsePacket,
+        response: LoginRequestPacket,
     ) {
         val engine = server.engine
         requireCurrentSession(connection)

@@ -21,6 +21,7 @@ import org.lain.engine.client.render.ui.TransformationEdit
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.EntityInspection
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
+import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.client.util.ClientHintState
 import org.lain.engine.client.util.handleHintEvents
 import org.lain.engine.client.util.processWorldSounds
@@ -50,7 +51,7 @@ class GameSession(
     world: ClientboundWorldData,
     player: ServerPlayerData,
     var character: LocalCharacter?,
-    val handler: ClientHandler,
+    transport: ClientTransport,
     val client: EngineClient,
     val compilation: ClientCompilation,
     build: Build,
@@ -62,6 +63,8 @@ class GameSession(
     val luaContext = compilation.luaContext
     val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
     val playerStorage = PlayerStorage()
+    val handler = ClientHandler(this, transport)
+        .also { it.run() }
     var inventoryTab: InventoryTab = build.inventoryTab
 
     val simulation = EngineSimulation(
@@ -116,6 +119,7 @@ class GameSession(
         get() = simulation.ticks
 
     val endTickTaskExecutor = TaskExecutor()
+    val dataPrepareTaskExecutor = TaskExecutor()
 
     var inspectionMode: Boolean = false
         set(value) {
@@ -155,12 +159,8 @@ class GameSession(
 
     fun logInMainThread(loggerGetter: context(World) GameSession.(tick: Long) -> Log) {
         val tick = ticks
-        client.execute {
-            with(world) {
-                with(this@GameSession) {
-                    EngineLogger.log(loggerGetter(tick))
-                }
-            }
+        endTickTaskExecutor.execute {
+            with(world) { EngineLogger.log(loggerGetter(tick)) }
         }
     }
 
@@ -216,6 +216,8 @@ class GameSession(
     override fun World.tickDaraPreparation() = with(systems) {
         tickDataPrepareSystem()
         tickPlayerLowDetailedSystem(mainPlayer, synchronizationRadius)
+        dataPrepareTaskExecutor.flush()
+        handler.tickInput()
     }
 
     override fun World.beforeInteractions() {
@@ -266,6 +268,7 @@ class GameSession(
         }
 
         simulation.tick()
+        handler.postTick()
         endTickTaskExecutor.flush()
 
         world.extractPlayerRenderState(renderScene)
@@ -312,7 +315,7 @@ class GameSession(
         val change = CharacterChange(this, currentPlayerCharacter)
         characterChange = change
         change.start().invokeOnCompletion {
-            client.execute { characterChange = null }
+            dataPrepareTaskExecutor.execute { characterChange = null }
         }
     }
 

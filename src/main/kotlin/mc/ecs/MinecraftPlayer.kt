@@ -4,6 +4,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
+import net.minecraft.world.level.Level
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
@@ -12,8 +13,10 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.BlockStateVoxelMeta
 import org.lain.engine.mc.McGameModes
+import org.lain.engine.mc.bindMinecraftEntity
 import org.lain.engine.mc.bodyHeight
 import org.lain.engine.mc.enginePlayerAccess
+import org.lain.engine.mc.getPlayer
 import org.lain.engine.mc.getText
 import org.lain.engine.mc.isOp
 import org.lain.engine.mc.pitch
@@ -21,11 +24,9 @@ import org.lain.engine.mc.previousGameMode
 import org.lain.engine.mc.set
 import org.lain.engine.mc.toMinecraft
 import org.lain.engine.mc.yaw
-import org.lain.engine.player.CustomPlayerAttributes
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.EnginePlayerModel
 import org.lain.engine.player.Orientation
-import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerMode
 import org.lain.engine.player.PlayerModeComponent
@@ -34,6 +35,7 @@ import org.lain.engine.player.SpawnMark
 import org.lain.engine.player.StartSpectatingMark
 import org.lain.engine.player.Velocity
 import org.lain.engine.player.displayName
+import org.lain.engine.player.effectiveAttributes
 import org.lain.engine.player.get
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.player.require
@@ -44,6 +46,10 @@ import org.lain.engine.world.World
 
 data class EngineItemStack(val engineItem: EngineItem, val itemStack: ItemStack)
 
+/**
+ * Привязка Minecraft-сущности к движковой. Выполняется каждый тик в фазе DataPrepare на клиенте и сервере.
+ * Отдельно перепривязка происходит при спавне сущности игрока и её входе в радиус синхронизации.
+ */
 data class MinecraftPlayer(
     var entity: Player,
     var itemStacks: Sequence<EngineItemStack> = emptySequence(),
@@ -178,17 +184,16 @@ private fun World.tickMinecraftPlayerPhysics() {
 }
 
 private fun World.tickMinecraftPlayerAccess() {
-    iterate<MinecraftPlayer, PlayerComponent>() { entity, minecraft, _ ->
+    iterate<MinecraftPlayer, PlayerComponent>() { entity, minecraft, (player) ->
         val playerAccess = minecraft.entity.enginePlayerAccess
         val data = playerAccess.data
-        val attributes = entity.requireComponent<PlayerAttributes>()
-        val customAttributes = entity.requireComponent<CustomPlayerAttributes>()
+        val attributes = player.effectiveAttributes
         val model = entity.requireComponent<EnginePlayerModel>()
         val physics = entity.requireComponent<PlayerPhysics>()
         data.updateThreadSafe(entity.displayName().getText())
         data.scale = model.scale
-        data.speed = customAttributes.speed ?: attributes.speed
-        data.jumpStrength = customAttributes.jumpStrength ?: attributes.jumpStrength
+        data.speed = attributes.speed
+        data.jumpStrength = attributes.jumpStrength
         data.noPhysics = physics.noClip
         data.flyingSpeed = attributes.flySpeed
         data.canJump = attributes.jumpStrength > 0f

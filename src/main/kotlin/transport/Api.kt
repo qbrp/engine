@@ -18,7 +18,8 @@ import kotlin.reflect.KClass
 
 class Endpoint<P : Packet>(
     val identifier: String,
-    val codec: PacketCodec<P>
+    val codec: PacketCodec<P>,
+    val kclass: KClass<P>
 ) {
     private val transport by injectServerTransportContext()
 
@@ -68,14 +69,19 @@ class Endpoint<P : Packet>(
 inline fun <reified P : Packet> Endpoint(
     codec: PacketCodec<P> = PacketCodec.Kotlinx(P::class.serializer())
 ): Endpoint<P> {
-    return Endpoint(P::class.channelName, codec)
+    return Endpoint(P::class.channelName, codec, P::class)
+}
+
+inline fun <reified P : Packet> Endpoint(name: String): Endpoint<P> {
+    return Endpoint(P::class, name)
 }
 
 @OptIn(InternalSerializationApi::class)
-inline fun <reified P : Packet> Endpoint(
-    name: String
+fun <P : Packet> Endpoint(
+    kclass: KClass<P>,
+    name: String = kclass.channelName,
 ): Endpoint<P> {
-    return Endpoint(name, PacketCodec.Kotlinx(P::class.serializer()))
+    return Endpoint(name, PacketCodec.Kotlinx(kclass.serializer()), kclass)
 }
 
 val KClass<out Packet>.channelName

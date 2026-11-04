@@ -1,6 +1,7 @@
 package org.lain.engine.client.handler
 
 import kotlinx.coroutines.*
+import org.lain.engine.Constants
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.account.CharacterSelection
@@ -8,14 +9,16 @@ import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
 import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.ClientLuaScriptEngine
+import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.commands.friendlyError
+import org.lain.engine.mc.server.ClientHelloPacket
+import org.lain.engine.mc.server.SERVERBOUND_CLIENT_HELLO_ENDPOINT
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.character.BackendCharacterData
 import org.lain.engine.player.character.BackendCharacterId
 import org.lain.engine.player.character.CharacterData
-import org.lain.engine.player.character.ServerCharacterData
 import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.script.*
 import org.lain.engine.script.compilation.Build
@@ -26,25 +29,36 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerId
 import org.lain.engine.server.account.HttpStatusException
 import org.lain.engine.server.account.SessionTicket
+import org.lain.engine.transport.packet.CLIENTBOUND_JOIN_GAME_ENDPOINT
+import org.lain.engine.transport.packet.CLIENTBOUND_SERVER_HELLO_ENDPOINT
 import org.lain.engine.transport.packet.ConfirmationPacket
-import org.lain.engine.transport.packet.GeneralServerData
+import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.transport.packet.JoinGamePacket
+import org.lain.engine.transport.packet.LoginRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT
+import org.lain.engine.transport.packet.SERVERBOUND_LOGIN_REQUEST_PACKET
+import org.lain.engine.transport.packet.ServerHelloPacket
 import org.lain.engine.util.file.FileSystem
+import kotlin.time.Duration.Companion.seconds
 
 class GameSessionJoinFlow(
     val joinType: JoinType,
-    private val client: EngineClient,
-    private val handler: ClientHandler
+    val client: EngineClient,
+    transport: ClientTransport
 ) {
     private val accountManager = client.accountManager
     private val platform = client.platform
-    private var characterSelection: CharacterSelection? = null
-    private val joinGamePacketConfirmation = CompletableDeferred<JoinGamePacket>()
+    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val requests = ClientRequestHandler(transport, coroutineScope)
+        .apply {
+            register(SERVERBOUND_CLIENT_HELLO_ENDPOINT)
+            register(CLIENTBOUND_SERVER_HELLO_ENDPOINT)
+            register(SERVERBOUND_LOGIN_REQUEST_PACKET)
+            register(CLIENTBOUND_JOIN_GAME_ENDPOINT)
+            run()
+        }
 
-    @Volatile
-    var verificationStateStartCompletableDeferred: CompletableDeferred<GeneralServerData>? = null
-        private set
+    private var characterSelection: CharacterSelection? = null
 
     @Volatile
     var state: State = State.AUTHORIZATION
@@ -55,14 +69,15 @@ class GameSessionJoinFlow(
 
     private suspend fun handshake(): ServerData = when (joinType) {
         is JoinType.Multiplayer -> {
-            val deferred = deferVerificationState()
-            handler.sendAuthPacket(client.platform.modIds)
-            deferred.await()
-                .let { packet ->
+            requests.await<ServerHelloPacket>(
+                ClientHelloPacket(client.platform.modIds, Constants.ENGINE_MOD_VERSION)
+            )
+                .let {
+                    val server = it.server
                     ServerData(
-                        packet.serverId,
-                        packet.canProvideCharacters,
-                        packet.namespaceHashMap.takeIf { packet.requireIdenticalNamespaces }
+                        server.serverId,
+                        server.canProvideCharacters,
+                        server.namespaceHashMap.takeIf { server.requireIdenticalNamespaces }
                     )
                 }
         }
@@ -110,8 +125,13 @@ class GameSessionJoinFlow(
     ): JoinGamePacket {
         return when (joinType) {
             is JoinType.Multiplayer -> {
-                handler.sendVerificationPacket(namespaceHashMap, selectedCharacter)
-                joinGamePacketConfirmation.await()
+                requests.await<JoinGamePacket>(
+                    LoginRequestPacket(
+                        developerModeStatus = DeveloperModeStatus(client.developerMode, client.acousticDebug),
+                        namespaces = namespaceHashMap,
+                        character = selectedCharacter,
+                    )
+                )
             }
 
             is JoinType.Singleplayer -> {
@@ -122,11 +142,14 @@ class GameSessionJoinFlow(
                         integratedServer,
                     )
                 }
-                integratedServer.playerLoader.loadPreparing(
-                    settings = settings,
-                    account = PlayerLoadSettings.Account(selectedCharacter),
-                )
-                joinGamePacketConfirmation.await()
+                withTimeout(5.seconds) {
+                    val deferred = requests.request<JoinGamePacket>(null)
+                    integratedServer.playerLoader.loadPreparing(
+                        settings = settings,
+                        account = PlayerLoadSettings.Account(selectedCharacter),
+                    )
+                    deferred.await()
+                }
             }
         }
     }
@@ -189,7 +212,7 @@ class GameSessionJoinFlow(
             ResourceCompilationResult(namespaceHashMap, compilationResult, compilation)
         }
 
-    private val job = CoroutineScope(Dispatchers.IO).launch {
+    private val job = coroutineScope.launch {
         var sessionTicket: SessionTicket? = null
         try {
             accountManager.requireAccountResponse()
@@ -219,6 +242,7 @@ class GameSessionJoinFlow(
                 namespaceHashMap,
                 selectedCharacter?.request
             )
+            characterSelection?.confirm()
             withClientContext {
                 val gameSession = GameSession(
                     joinType == JoinType.Multiplayer,
@@ -230,7 +254,7 @@ class GameSessionJoinFlow(
                         selectedCharacter ?: return@let null
                         LocalCharacter(selectedCharacter.source)
                     },
-                    handler,
+                    transport,
                     client,
                     compilation,
                     compilationResult,
@@ -242,23 +266,24 @@ class GameSessionJoinFlow(
                 client.joinGameSession(gameSession)
 
                 notifications.forEach {
-                    handler.applyNotification(it, false)
+                    gameSession.handler.applyNotification(it, false)
                 }
 
                 SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT.sendC2SPacket(ConfirmationPacket)
                 state = State.DONE
             }
-        } catch (e: CancellationException) {
-            LOGGER.info("Отменен вход на сервер")
+        } catch (exception: Exception) {
+            requests.close()
             characterSelection?.cancel()
-            joinGamePacketConfirmation.cancel()
             sessionTicket?.let {
                 accountManager.getAuthorized()?.revokeSessionTicket(it.hash)
             }
-            throw e
-        } catch (exception: Exception) {
-            characterSelection?.cancel()
-            joinGamePacketConfirmation.cancel()
+
+            if (exception is CancellationException) {
+                LOGGER.info("Отменен вход на сервер")
+                throw exception
+            }
+
             withClientContext {
                 client.platform.disconnect(
                     if (exception is HttpStatusException) {
@@ -290,21 +315,10 @@ class GameSessionJoinFlow(
         ).also { it.setup() }
     }
 
-    fun deferVerificationState(): Deferred<GeneralServerData> {
-        val deferred = CompletableDeferred<GeneralServerData>()
-        verificationStateStartCompletableDeferred = deferred
-        return deferred
-    }
-
-    fun confirmJoinGamePacket(packet: JoinGamePacket): Boolean {
-        characterSelection?.confirm()
-        return joinGamePacketConfirmation.complete(packet)
-    }
-
     fun cancel() {
         characterSelection?.cancel()
-        joinGamePacketConfirmation.cancel()
         job.cancel()
+        requests.close()
     }
 
     enum class State {

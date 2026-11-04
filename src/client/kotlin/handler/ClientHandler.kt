@@ -1,33 +1,24 @@
 package org.lain.engine.client.handler
 
-import kotlinx.coroutines.*
 import org.lain.cyberia.ecs.*
-import org.lain.engine.Constants.ENGINE_MOD_VERSION
 import org.lain.engine.chat.ChannelId
 import org.lain.engine.chat.MessageId
 import org.lain.engine.chat.OutcomingMessage
 import org.lain.engine.client.ClientPlatform
-import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.client.chat.ClientMessage
 import org.lain.engine.client.chat.SYSTEM_CHANNEL
 import org.lain.engine.client.chat.acceptOutcomingMessage
-import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.transport.ClientTransportContext
-import org.lain.engine.client.transport.registerClientReceiver
+import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.render.showServerNotification
 import org.lain.engine.client.util.MinecraftClientDispatcher
-import org.lain.engine.client.util.withClientContext
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandOperationBehaviour
-import org.lain.engine.mc.server.AuthPacket
-import org.lain.engine.mc.server.SERVERBOUND_AUTH_ENDPOINT
 import org.lain.engine.player.*
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.dev.EntityInspectionSnapshot
-import org.lain.engine.script.NamespaceHashMap
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
@@ -40,75 +31,45 @@ import org.lain.engine.script.OperationTarget
 import org.lain.engine.script.dev.EditOperation
 import org.lain.engine.script.execute
 import org.lain.engine.transport.packet.*
-import org.lain.engine.util.*
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
-    private val gameSession get() = client.gameSession
-
-    val taskExecutor = TaskExecutor()
+class ClientHandler(
+    val gameSession: GameSession,
+    val transport: ClientTransport
+) {
+    private val client get() = gameSession.client
+    private val platform: ClientPlatform get() = client.platform
 
     private val showedNotifications = mutableSetOf<Notification>()
 
-    internal val coroutineDispatcher = taskExecutor.asCoroutineDispatcher()
-    private var coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
-
-    fun applyCharacterApplyConfirmation(requestId: Long, errorMessage: String?) {
-        gameSession?.characterChange?.confirm(requestId, errorMessage)
+    fun applyCharacterApplyConfirmation(gameSession: GameSession, requestId: Long, errorMessage: String?) {
+        gameSession.characterChange?.confirm(requestId, errorMessage)
     }
 
     fun run() {
-        coroutineScope = CoroutineScope(coroutineDispatcher + SupervisorJob())
         runEndpoints()
-        CLIENTBOUND_VERIFICATION_ENDPOINT.registerClientReceiver { ctx ->
-            client.joinFlow?.verificationStateStartCompletableDeferred?.complete(server)
-        }
-    }
-
-    suspend fun sendAuthPacket(modIds: List<String>) = withClientContext {
-        SERVERBOUND_AUTH_ENDPOINT
-            .sendC2SPacket(
-                AuthPacket(
-                    modIds,
-                    ENGINE_MOD_VERSION
-                )
-            )
-    }
-
-    suspend fun sendVerificationPacket(
-        namespaceHashMap: NamespaceHashMap,
-        selectedCharacter: ServerboundSelectedCharacter?,
-    ) = withClientContext {
-        SERVERBOUND_VERIFICATION_RESPONSE_ENDPOINT.sendC2SPacket(
-            VerificationResponsePacket(
-                developerModeStatus = DeveloperModeStatus(client.developerMode, client.acousticDebug),
-                namespaces = namespaceHashMap,
-                character = selectedCharacter,
-            )
-        )
     }
 
     fun close() {
-        injectValue<ClientTransportContext>().unregisterAll()
+        transport.unregisterAll()
         showedNotifications.clear()
-        coroutineScope.cancel()
     }
 
-    fun tick() {
-        if (MinecraftClient.connection != null) {
-            taskExecutor.flush()
-        } else if (taskExecutor.notEmpty()) {
-            taskExecutor.clear()
-        }
-
+    fun tickInput() {
         val gameSession = client.gameSession
         if (gameSession != null) {
             with(gameSession.world) {
                 val input = gameSession.mainPlayer.entity.requireComponent<PlayerInput>()
                 val actions = input.actions.toMutableSet()
-                handlePlayerInput(input, actions, gameSession)
+                input.tick = gameSession.ticks
+                SERVERBOUND_INPUT_PACKET.sendC2SPacket(
+                    InputPacket(
+                        input.tick,
+                        actions.toSet()
+                    )
+                )
             }
         }
 
@@ -116,30 +77,8 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
     }
 
     fun postTick() {
-        val gameSession = gameSession
-        if (gameSession != null) {
-            val input =
-                with(gameSession.world) { gameSession.mainPlayer.entity.requireComponent<PlayerInput>() }
-            input.actions.clear()
-        }
+        gameSession.mainPlayer.require<PlayerInput>().actions.clear()
     }
-
-    context(world: World)
-    private fun handlePlayerInput(
-        input: PlayerInput,
-        actions: Set<InputAction>,
-        gameSession: GameSession
-    ) {
-        input.tick = gameSession.ticks
-        SERVERBOUND_INPUT_PACKET.sendC2SPacket(
-            InputPacket(
-                input.tick,
-                actions.toSet()
-            )
-        )
-    }
-
-    private suspend fun waitNextTick() = MinecraftClientDispatcher.waitNextTick()
 
     fun sendServerboundChannelData(persistentId: PersistentId, values: List<ScriptValue>) {
         SERVERBOUND_ENTITY_COMPONENT_RPC_ENDPOINT.sendC2SPacket(
@@ -273,13 +212,6 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         gameSession.removePlayer(player)
     }
 
-    fun applyJoinGame(joinGamePacket: JoinGamePacket) {
-        if (client.joinFlow?.confirmJoinGamePacket(joinGamePacket) != true) return
-        if (client.gameSession != null) {
-            error("Игровая сессия уже запущена!")
-        }
-    }
-
     fun applyServerSettingsUpdate(settings: ClientboundServerSettings) {
         gameSession?.updateServerSettings(settings)
     }
@@ -302,6 +234,7 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
                 chatManager.settings.placeholders,
                 client.resources.formatConfiguration,
                 gameSession.playerStorage.all.map { it.username },
+                gameSession.playerStorage
             )
         )
     }
@@ -317,18 +250,11 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
 
     fun applyAcousticDebugVolumePacket(volumes: List<Pair<VoxelPos, Float>>) = with(gameSession!!) {
         acousticDebugVolumes = volumes
-        eventBus.onAcousticDebugVolumes(volumes, this)
+        platform.onAcousticDebugVolumes(volumes, this)
     }
 
-    fun applyChunkPacket(chunkDto: EngineChunkDto) = coroutineScope.launch {
-        try {
-            while (gameSession == null) {
-                waitNextTick()
-            }
-            gameSession!!.loadChunk(chunkDto)
-        } catch (e: CancellationException) {
-
-        }
+    fun applyChunkPacket(gameSession: GameSession, chunkDto: EngineChunkDto) {
+        gameSession.loadChunk(chunkDto)
     }
 
     private fun GameSession.loadChunk(chunkDto: EngineChunkDto) = with(gameSession!!.world) {
@@ -356,36 +282,48 @@ class ClientHandler(val client: EngineClient, val eventBus: ClientPlatform) {
         gameSession.entityInspections[persistentId]?.abort(reason)
     }
 
+    class ClientOperationExecutionException(
+        val operationId: OperationId,
+        val dto: OperationExecuteDto,
+        override val cause: Throwable
+    ) : RuntimeException(
+        "Не удалось выполнить операцию на $operationId ($dto) клиенте"
+    )
+
     fun applyOperation(dto: OperationExecuteDto, operationId: OperationId) = with(gameSession!!) {
-        val operation = namespacedStorage.operations[operationId]
-            ?: protocolError("Операция $operationId не существует")
-        val actor = dto.actor.let { actor ->
-            val enginePlayer =
-                getPlayer(actor.player) ?: error("Can't find operation actor ${actor.player}")
-            OperationActor(
-                actor.type,
-                enginePlayer,
-                enginePlayer.entity
+        try {
+            val operation = namespacedStorage.operations[operationId]
+                ?: protocolError("Операция $operationId не существует")
+            val actor = dto.actor.let { actor ->
+                val enginePlayer =
+                    getPlayer(actor.player) ?: error("Can't find operation actor ${actor.player}")
+                OperationActor(
+                    actor.type,
+                    enginePlayer,
+                    enginePlayer.entity
+                )
+            }
+            val target = dto.target?.let {
+                OperationTarget(
+                    it.player?.let { id -> getPlayer(id) },
+                    it.voxelPos,
+                    it.pos
+                )
+            }
+            val behaviour = when (val behaviour = dto.behaviour) {
+                is OperationBehaviourDto.Command -> ClientCommandOperationBehaviour(actor.player)
+            }
+            operation.execute(
+                ScriptContext.OperationExecution(
+                    actor,
+                    target,
+                    dto.inputValues,
+                    behaviour
+                )
             )
+        } catch (e: Exception) {
+            throw ClientOperationExecutionException(operationId, dto, e)
         }
-        val target = dto.target?.let {
-            OperationTarget(
-                it.player?.let { id -> getPlayer(id) },
-                it.voxelPos,
-                it.pos
-            )
-        }
-        val behaviour = when (val behaviour = dto.behaviour) {
-            is OperationBehaviourDto.Command -> ClientCommandOperationBehaviour(actor.player)
-        }
-        operation.execute(
-            ScriptContext.OperationExecution(
-                actor,
-                target,
-                dto.inputValues,
-                behaviour
-            )
-        )
     }
 
     companion object {

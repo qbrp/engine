@@ -14,7 +14,7 @@ class CharacterChange(
 ) {
     private val client = gameSession.client
     private val serverPlayState = gameSession.serverPlayState
-    private val handler = client.handler
+    private val handler = gameSession.handler
     private val requestId = nextIdFast()
     private val selection = CharacterSelection(
         client,

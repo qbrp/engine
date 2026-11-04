@@ -107,6 +107,11 @@ fun PlayerCustomAttributesMetaTable() = LuaUserdataType<CustomPlayerAttributes> 
             "speed" -> self.speed?.toDouble()?.luaNum() ?: NIL
             "jump_strength" -> self.jumpStrength?.toDouble()?.luaNum() ?: NIL
             "gravity" -> self.gravity?.toDouble()?.luaNum() ?: NIL
+            "voice_set" -> self.voiceSet?.luaStr() ?: NIL
+            "voice_randomization" -> self.voiceRandomization?.toDouble()?.luaNum() ?: NIL
+            "voice_pitch" -> self.voicePitch?.toDouble()?.luaNum() ?: NIL
+            "voice_speed" -> self.voiceSpeed?.toDouble()?.luaNum() ?: NIL
+            "voice_sound_frequency" -> self.voiceSoundFrequency?.toDouble()?.luaNum() ?: NIL
             else -> self.script[key.tojstring()]?.toLuaValue() ?: NIL
         }
     }

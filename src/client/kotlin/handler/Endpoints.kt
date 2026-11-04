@@ -5,10 +5,6 @@ import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.transport.packet.*
 
 fun ClientHandler.runEndpoints() {
-    CLIENTBOUND_JOIN_GAME_ENDPOINT.registerClientReceiver { _ ->
-        taskExecutor.add("join_game") { applyJoinGame(this) }
-    }
-
     // Join / Destroy
 
     registerGameSessionReceiver(CLIENTBOUND_PLAYER_JOIN_ENDPOINT) { gameSession ->
@@ -71,15 +67,13 @@ fun ClientHandler.runEndpoints() {
         applyVoxelEvent(event)
     }
 
-    CLIENTBOUND_CHUNK_ENDPOINT.registerClientReceiver { _ ->
-        taskExecutor.add("chunk-load") { applyChunkPacket(chunk) }
+    registerGameSessionReceiver(CLIENTBOUND_CHUNK_ENDPOINT) { gameSession ->
+        applyChunkPacket(gameSession, chunk)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_REPLICATION_ENDPOINT) { gameSession ->
         applyReplicationPacket(gameSession, this)
     }
-
-    registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { _ -> applyOperation(dto, operation) }
 
     registerGameSessionReceiver(CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT) { gameSession ->
          applyEntityDebugData(gameSession, persistentId, data)
@@ -89,7 +83,9 @@ fun ClientHandler.runEndpoints() {
         applyInspectionAbort(gameSession, persistentId, reason)
     }
 
-    CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT.registerClientReceiver {
-        taskExecutor.add("character_apply_confirmation") { applyCharacterApplyConfirmation(requestId, errorMessage) }
+    registerGameSessionReceiver(CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT) { gameSession ->
+        applyCharacterApplyConfirmation(gameSession, requestId, errorMessage)
     }
+
+    registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { _ -> applyOperation(dto, operation) }
 }

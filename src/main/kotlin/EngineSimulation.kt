@@ -141,9 +141,7 @@ class EngineSimulation(
     }
 
     fun tick() {
-        worldsList.forEach {
-            it.tick()
-        }
+        worldsList.forEach { it.tick() }
         extension.afterTick(this)
     }
 

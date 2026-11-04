@@ -10,9 +10,7 @@ import org.lain.engine.transport.Packet
 import org.lain.engine.world.*
 
 @Serializable
-data class EngineChunkPacket(val chunk: EngineChunkDto) : Packet {
-    override val requireAuthorized: Boolean = false
-}
+data class EngineChunkPacket(val chunk: EngineChunkDto) : Packet
 
 @Serializable
 data class EngineChunkDto(

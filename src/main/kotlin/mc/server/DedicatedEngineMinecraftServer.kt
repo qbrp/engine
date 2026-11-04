@@ -7,7 +7,6 @@ import org.lain.engine.player.Username
 import org.lain.engine.player.character.CharacterData
 import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.character.EngineBackend
-import org.lain.engine.player.character.ServerCharacterData
 import org.lain.engine.player.get
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.account.DedicatedEngineAccountService
@@ -26,7 +25,7 @@ class DedicatedEngineMinecraftServer(
     ),
 ) : EngineMinecraftServer(dependencies), EngineBackend {
     private val accountService = DedicatedEngineAccountService()
-    val authorizationListener = AuthorizationListener(
+    val serverAuthorizationHandler = ServerAuthorizationHandler(
         connectionManager,
         this,
         accountService
@@ -55,11 +54,11 @@ class DedicatedEngineMinecraftServer(
 
     override fun run() {
         super.run()
-        authorizationListener.run()
+        serverAuthorizationHandler.run()
     }
 
     override fun disable() {
-        authorizationListener.stop()
+        serverAuthorizationHandler.stop()
         super.disable()
     }
 
@@ -80,7 +79,7 @@ class DedicatedEngineMinecraftServer(
 
     override fun onLeavePlayer(entity: ServerPlayer) {
         val connection = connectionManager.removeConnectionSession(entity.connection) ?: return
-        authorizationListener.onDisconnect(connection)
+        serverAuthorizationHandler.onDisconnect(connection)
         super.onLeavePlayer(entity)
     }
 
