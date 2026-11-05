@@ -3,6 +3,7 @@ package org.lain.engine.data
 fun RawEngineId.migrate(): RawEngineId = when (id) {
     "detachedequipment" -> RawEngineId("core/client/player/detached_equipment")
     "eyelevel" -> RawEngineId("core/client/player/eye_level")
+    "playerrendernode" -> RawEngineId("core/client/player/render_node")
     "lightsample" -> RawEngineId("core/client/render/light_sample")
     "propmodel" -> RawEngineId("core/client/render/prop_model")
     "assignedslot" -> RawEngineId("core/item/assigned_slot")

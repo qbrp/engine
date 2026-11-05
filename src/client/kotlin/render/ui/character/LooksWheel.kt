@@ -10,12 +10,12 @@ import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.player.CharacterSceneSnapshot
 import org.lain.engine.client.render.player.setRenderNode
-import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.mc.Text
 import org.lain.engine.mc.compat.removeGenderCacheEntry
 import org.lain.engine.mc.literalText
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.Look
+import org.lain.engine.player.scale
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.util.math.lerp
 import java.util.*
@@ -43,7 +43,7 @@ class LooksWheel<T>(
     inner class Item(
         val entry: Entry<T>,
         val previewPlayer: CharacterPreviewPlayer,
-        val widget: CharacterPreviewWidget = CharacterPreviewWidget(previewPlayer, entry.profile),
+        val widget: CharacterPreviewWidget = CharacterPreviewWidget(previewPlayer),
         var y: Float? = null
     )
 
@@ -85,7 +85,9 @@ class LooksWheel<T>(
                 }
 
                 it.renderScene?.let { renderSceneSnapshot ->
-                    previewPlayer.setRenderNode(renderSceneSnapshot.revive(namespacedStorageAccess))
+                    val renderNode = renderSceneSnapshot.revive(namespacedStorageAccess)
+                    renderNode.resolve()?.scale = profile.height.scale
+                    previewPlayer.setRenderNode(renderNode)
                 }
 
                 Item(

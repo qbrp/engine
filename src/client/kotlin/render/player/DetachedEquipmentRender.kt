@@ -14,11 +14,11 @@ import net.minecraft.client.renderer.entity.layers.RenderLayer
 import net.minecraft.client.resources.PlayerSkin
 import org.joml.Quaternionf
 import org.joml.Vector3f
-import org.lain.cyberia.ecs.getComponent
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.mc.ClientMixin
 import org.lain.engine.client.render.scene.render
 import org.lain.engine.player.PlayerPart
+import org.lain.engine.player.character.CharacterModelType
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -52,7 +52,8 @@ class EquipmentFeatureRenderer(
     ): Unit {
         entity.getRenderNode()?.withSceneContext { renderNode ->
             if (entity.isSpectator) return@withSceneContext
-            val items = renderNode.getComponent<DetachedEquipment>()?.nodes ?: return@withSceneContext
+            val items = renderNode.detachedEquipment
+            val model = renderNode.model
             for (equipment in items) {
                 val playerPart = equipment.slot.part
                 val modelPart = modelPartOf(playerPart, parentModel)
@@ -95,7 +96,7 @@ class EquipmentFeatureRenderer(
                 }
 
                 val isLeg = playerPart == PlayerPart.LEFT_LEG || playerPart == PlayerPart.LEFT_FEET || playerPart == PlayerPart.RIGHT_LEG || playerPart == PlayerPart.RIGHT_FEET
-                if (ClientMixin.getPlayerSkinThreadSafe(entity.uuid)?.model == PlayerSkin.Model.SLIM && !isLeg && playerPart != PlayerPart.BODY) {
+                if (model == CharacterModelType.SLIM && !isLeg && playerPart != PlayerPart.BODY) {
                     // сдвигаем на один пиксель
                     val mirrorXMultiplier = if (equipment.mirrorX && playerPart.left) -1 else 1
                     poseStack.translate(0.0625f * mirrorXMultiplier, 0f, 0f)
@@ -129,8 +130,8 @@ class HeadEquipmentFeatureRenderer(
     ): Unit {
         entity.getRenderNode()?.withSceneContext { renderNode ->
             if (entity.isSpectator) return@withSceneContext
-            val eyeLevel = renderNode.getComponent<EyeLevel>()?.value ?: 2
-            val items = renderNode.getComponent<DetachedEquipment>()?.nodes ?: return@withSceneContext
+            val eyeLevel = renderNode.eyeLevel
+            val items = renderNode.detachedEquipment
             for (equipment in items) {
                 val playerModelPart = modelPartOf(equipment.slot.part, parentModel)
                 if (playerModelPart !== parentModel.head) continue

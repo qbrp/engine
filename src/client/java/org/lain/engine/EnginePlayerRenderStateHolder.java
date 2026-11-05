@@ -1,8 +1,8 @@
 package org.lain.engine;
 
-import org.lain.engine.client.render.player.PlayerRenderNode;
+import org.lain.engine.client.render.player.PlayerRenderNodeReference;
 
 public interface EnginePlayerRenderStateHolder {
-    PlayerRenderNode engine$getRenderNode();
-    void engine$setRenderNode(PlayerRenderNode node);
+    PlayerRenderNodeReference engine$getRenderNode();
+    void engine$setRenderNode(PlayerRenderNodeReference node);
 }

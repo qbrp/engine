@@ -1,55 +1,66 @@
 package org.lain.engine.client.render.player
 
 import kotlinx.serialization.Serializable
+import net.minecraft.client.resources.DefaultPlayerSkin
+import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.world.entity.player.Player
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.destroy
-import org.lain.cyberia.ecs.getComponent
-import org.lain.cyberia.ecs.iterate
-import org.lain.cyberia.ecs.removeComponent
-import org.lain.cyberia.ecs.setComponent
+import org.lain.cyberia.ecs.*
 import org.lain.engine.EnginePlayerRenderStateHolder
+import org.lain.engine.client.account.SkinTextureManager
 import org.lain.engine.client.handler.LowDetail
+import org.lain.engine.client.render.scene.RenderEntityReferences
 import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.FireMode
 import org.lain.engine.item.GunFireState
 import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.player.ArmPose
-import org.lain.engine.player.EnginePlayerModel
+import org.lain.engine.player.character.AppliedCharacter
+import org.lain.engine.player.character.CharacterModelType
+import org.lain.engine.player.character.SelectedLook
+import org.lain.engine.player.character.model
 import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 
-data class PlayerRenderState(
-    var mainArmPose: ArmPose = ArmPose.NEUTRAL,
-    var minorArmPose: ArmPose = ArmPose.NEUTRAL,
-    var detachedEquipment: List<DetachedEquipmentNode> = emptyList(),
-    var eyeLevel: Int = 2
-)
-
 data class PlayerExtraction(val node: EntityId) : Component
 
-data class PlayerRenderNode(val node: EntityId, val scene: RenderScene) {
-    fun withSceneContext(statement: RenderScene.(node: EntityId) -> Unit) {
-        with(scene) { statement(node) }
+@Serializable
+data class PlayerRenderNode(
+    var mainArmPose: ArmPose = ArmPose.NEUTRAL,
+    var offArmPose: ArmPose = ArmPose.NEUTRAL,
+    var detachedEquipment: List<DetachedEquipmentNode> = emptyList(),
+    var eyeLevel: Int = 2,
+    var model: CharacterModelType = CharacterModelType.DEFAULT,
+    var skinTexture: String = DefaultPlayerSkin.getDefaultTexture().toString(),
+    var scale: Float = 0.7f
+) : RenderEntityReferences {
+    override fun entityReferences(): List<EntityId> = detachedEquipment.map { it.node }
+
+    override fun remapEntityReferences(remap: (EntityId) -> EntityId): PlayerRenderNode =
+        copy(detachedEquipment = detachedEquipment.map { it.copy(node = remap(it.node)) })
+}
+
+data class PlayerRenderNodeReference(val node: EntityId, val scene: RenderScene) {
+    fun resolve(): PlayerRenderNode? = with(scene) { node.getComponent() }
+
+    fun <R> withSceneContext(statement: RenderScene.(renderNode: PlayerRenderNode) -> R) {
+        val renderNode = resolve() ?: return
+        with(scene) { statement(renderNode) }
     }
 }
 
-fun Player.getRenderNode(): PlayerRenderNode? =
+fun Player.getRenderNode(): PlayerRenderNodeReference? =
     (this as? EnginePlayerRenderStateHolder)?.`engine$getRenderNode`()
 
-fun Player.setRenderNode(node: PlayerRenderNode?) =
+fun Player.setRenderNode(node: PlayerRenderNodeReference?) =
     (this as? EnginePlayerRenderStateHolder)?.`engine$setRenderNode`(node)
-
-@Serializable
-data class EyeLevel(val value: Int) : Component
 
 context(world: World)
 fun EntityId.clearPlayerRenderState(scene: RenderScene) {
     val extraction = removeComponent<PlayerExtraction>() ?: return
     getComponent<MinecraftPlayer>()?.entity?.setRenderNode(null)
     with(scene) {
-        extraction.node.getComponent<DetachedEquipment>()?.nodes?.forEach { equipment ->
+        extraction.node.getComponent<PlayerRenderNode>()?.detachedEquipment?.forEach { equipment ->
             equipment.node.destroy()
         }
         extraction.node.destroy()
@@ -60,12 +71,12 @@ fun World.clearPlayerRenderState(scene: RenderScene) {
     iterate<PlayerExtraction> { player, _ -> player.clearPlayerRenderState(scene) }
 }
 
-fun World.extractPlayerRenderState(scene: RenderScene) {
+fun World.extractPlayerRenderState(scene: RenderScene, skinTextureManager: SkinTextureManager) {
     clearPlayerRenderState(scene)
 
     iterate<LowDetail, MinecraftPlayer> { player, (isLowDetailed), _ ->
         if (!isLowDetailed) {
-            val node = scene.addEntity()
+            val node = scene.addEntity { setComponent(PlayerRenderNode()) }
             val extraction = PlayerExtraction(node)
             player.setComponent(extraction)
         }
@@ -74,15 +85,20 @@ fun World.extractPlayerRenderState(scene: RenderScene) {
     extractDetachedEquipmentRenderStates(scene)
     extractPlayerArmPoses(scene)
 
-    iterate<PlayerExtraction, EnginePlayerModel>() { _, (node), model ->
-        val eyeLevel = model.eyeLevel
-        with(scene) {
-            node.setComponent(EyeLevel(eyeLevel))
-        }
+    iterate<PlayerExtraction>() { player, (node) ->
+        val character = player.getComponent<AppliedCharacter>()?.character?.data ?: return@iterate
+        val look = player.getComponent<SelectedLook>()?.look ?: return@iterate
+        val cachedPlayerSkin = player.getComponent<EnginePlayerSkin>()?.skin
+        val profile = character.profile
+        val node = with(scene) { node.requireComponent<PlayerRenderNode>() }
+        node.eyeLevel = profile.appearance.eyeLevel
+        node.model = profile.bodyType.model
+        val skinTexture = skinTextureManager.getOrDownloadTextureNullable(look) ?: cachedPlayerSkin?.texture
+        skinTexture?.path?.let { node.skinTexture = it }
     }
 
     iterate<PlayerExtraction, MinecraftPlayer> { _, (node), (entity) ->
-        entity.setRenderNode(PlayerRenderNode(node, scene))
+        entity.setRenderNode(PlayerRenderNodeReference(node, scene))
     }
 }
 

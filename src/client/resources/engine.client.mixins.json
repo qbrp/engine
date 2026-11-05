@@ -5,11 +5,12 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "AbstractClientPlayerMixin", "AbstractContainerMenuMixin", "ClickEventActionMixin", "ClientSuggestionProviderMixin",
-    "CreativeModeTabAccessor", "ItemStackMixin", "KeyboardMixin", "KeyMappingMixin", "LocalPlayerMixin",
+    "CreativeModeTabAccessor", "ItemStackMixin", "KeyboardMixin", "KeyMappingMixin",
     "MinecraftClientAccessor", "MinecraftMixin", "MouseHandlerMixin", "PlayerInfoAccessor", "PlayerInfoMixin",
-    "RemotePlayerMixin", "ToastManagerMixin", "chat.ChatHudAccessor", "chat.ChatHudMixin", "chat.ChatScreenAccessor",
+    "ToastManagerMixin", "chat.ChatHudAccessor", "chat.ChatHudMixin", "chat.ChatScreenAccessor",
     "chat.ChatScreenMixin", "chat.GuiMessageLineMixin", "chat.GuiMessageMixin", "hud.GuiAccessor", "hud.GuiMixin",
-    "hud.PlayerMenuItemMixin", "render.AvatarRendererMixin", "render.CameraMixin", "render.EntityRendererMixin",
+    "hud.PlayerMenuItemMixin", "hud.PlayerTabOverlayMixin", "render.AvatarRendererMixin", "render.CameraMixin",
+    "render.EntityRendererMixin",
     "render.GameRendererAccessor", "render.GameRendererMixin", "render.GlyphRenderTypesMixin",
     "render.ItemEntityRendererMixin", "render.ItemFrameRendererMixin",
     "render.ItemModelManagerMixin", "render.ItemRendererMixin", "render.LivingEntityRendererMixin",
@@ -26,5 +27,5 @@
   "overwrites": {
     "requireAnnotations": true
   },
-  "mixins": ["resource.ReloadableResourceManagerMixin", "wildfire.WildfireEventHandlerMixin"]
+  "mixins": ["LivingEntityMixin", "resource.ReloadableResourceManagerMixin", "wildfire.WildfireEventHandlerMixin"]
 }

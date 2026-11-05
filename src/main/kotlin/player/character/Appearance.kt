@@ -30,8 +30,7 @@ data class Look(
 data class SelectedLook(val look: Look) : Component
 
 enum class CharacterModelType {
-    WIDE,
-    SLIM,
+    DEFAULT, SLIM,
 }
 
 /**
@@ -70,27 +69,8 @@ fun CharacterData.getDisplay(): CharacterDisplay {
     )
 }
 
-fun computeCharacterModel(
-    bodyType: BodyType,
-    category: BiologicalCategory,
-    sex: BiologicalSex
-): CharacterModelType {
-    fun default() = when(bodyType) {
-        BodyType.BROAD -> CharacterModelType.WIDE
-        BodyType.NORMAL -> CharacterModelType.WIDE
-        BodyType.SLIM -> CharacterModelType.SLIM
-    }
-
-    return when (category) {
-        BiologicalCategory.HUMAN, BiologicalCategory.HUMANLIKE_HUMANOID -> {
-            when(sex) {
-                BiologicalSex.MALE, BiologicalSex.OTHER -> default()
-                BiologicalSex.FEMALE -> when(bodyType) {
-                    BodyType.NORMAL, BodyType.SLIM -> CharacterModelType.SLIM
-                    BodyType.BROAD -> CharacterModelType.WIDE
-                }
-            }
-        }
-        else -> default()
-    }
+val BodyType.model get() = when(this) {
+    BodyType.BROAD -> CharacterModelType.DEFAULT
+    BodyType.NORMAL -> CharacterModelType.DEFAULT
+    BodyType.SLIM -> CharacterModelType.SLIM
 }

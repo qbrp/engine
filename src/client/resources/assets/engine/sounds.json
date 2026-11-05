@@ -21,5 +21,140 @@
         "stream": true
       }
     ]
+  },
+  "speech/aa_blip": {
+    "sounds": [
+      { "name": "engine:builtin/speech/aa_blip", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/aa_blip_typewriter": {
+    "sounds": [
+      { "name": "engine:builtin/speech/aa_blip_typewriter", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/aa_dd_blip": {
+    "sounds": [
+      { "name": "engine:builtin/speech/aa_dd_blip", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/aa_tgaa_blip": {
+    "sounds": [
+      { "name": "engine:builtin/speech/aa_tgaa_blip", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/ber": {
+    "sounds": [
+      { "name": "engine:builtin/speech/ber", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/bullet": {
+    "sounds": [
+      { "name": "engine:builtin/speech/bullet", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/c2": {
+    "sounds": [
+      { "name": "engine:builtin/speech/c2", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/c3": {
+    "sounds": [
+      { "name": "engine:builtin/speech/c3", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/c4": {
+    "sounds": [
+      { "name": "engine:builtin/speech/c4", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/cn3": {
+    "sounds": [
+      { "name": "engine:builtin/speech/cn3", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/cn4": {
+    "sounds": [
+      { "name": "engine:builtin/speech/cn4", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/impact": {
+    "sounds": [
+      { "name": "engine:builtin/speech/impact", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/noe": {
+    "sounds": [
+      { "name": "engine:builtin/speech/noe", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/note": {
+    "sounds": [
+      { "name": "engine:builtin/speech/note", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/q": {
+    "sounds": [
+      { "name": "engine:builtin/speech/q", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/rud": {
+    "sounds": [
+      { "name": "engine:builtin/speech/rud", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/susie": {
+    "sounds": [
+      { "name": "engine:builtin/speech/susie", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/toriel": {
+    "sounds": [
+      { "name": "engine:builtin/speech/toriel", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/temmie": {
+    "sounds": [
+      { "name": "engine:builtin/speech/temmie", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/sans": {
+    "sounds": [
+      { "name": "engine:builtin/speech/sans", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/ralsei": {
+    "sounds": [
+      { "name": "engine:builtin/speech/ralsei", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/papyrus": {
+    "sounds": [
+      { "name": "engine:builtin/speech/ralsei", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/undyne": {
+    "sounds": [
+      { "name": "engine:builtin/speech/undyne", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/wilson": {
+    "sounds": [
+      { "name": "engine:builtin/speech/wilson", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/woodie": {
+    "sounds": [
+      { "name": "engine:builtin/speech/woodie", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/wurt": {
+    "sounds": [
+      { "name": "engine:builtin/speech/wurt", "attenuation_distance": 16, "preload": true }
+    ]
+  },
+  "speech/wx78": {
+    "sounds": [
+      { "name": "engine:builtin/speech/wx78", "attenuation_distance": 16, "preload": true }
+    ]
   }
 }

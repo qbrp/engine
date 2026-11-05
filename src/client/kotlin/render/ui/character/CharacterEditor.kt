@@ -30,8 +30,7 @@ class CharacterEditorScreen(
             level,
             character.profile,
             UUID.nameUUIDFromBytes("edit-character".toByteArray()),
-        ) { gameSession.client.skinTextureManager.getOrDownloadTexture(look) },
-        character.profile
+        )
     )
 
     inner class PropertiesWindow : ImGuiWindow {

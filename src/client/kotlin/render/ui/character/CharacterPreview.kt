@@ -15,7 +15,7 @@ import org.lain.engine.Constants.GENDER_MOD_AVAILABLE
 import org.lain.engine.client.render.player.CharacterSkin
 import org.lain.engine.mc.compat.updateCharacterEntity
 import org.lain.engine.player.character.CharacterProfile
-import org.lain.engine.player.character.computeCharacterModel
+import org.lain.engine.player.character.model
 import org.lain.engine.player.scale
 import java.util.*
 import kotlin.math.roundToInt
@@ -23,9 +23,11 @@ import kotlin.math.roundToInt
 class CharacterPreviewPlayer(
     level: ClientLevel,
     profile: GameProfile,
-    private val skinGetter: () -> PlayerSkin
+    private val skinGetter: (() -> PlayerSkin)?
 ) : RemotePlayer(level, profile) {
-    override fun getSkin(): PlayerSkin = skinGetter()
+    override fun getSkin(): PlayerSkin {
+        return skinGetter?.invoke() ?: super.getSkin()
+    }
 
     override fun shouldShowName(): Boolean = false
 
@@ -40,7 +42,7 @@ internal fun createCharacterPreviewPlayer(
     level: ClientLevel,
     character: CharacterProfile,
     uuid: UUID,
-    skinGetter: () -> ResourceLocation
+    skinGetter: (() -> ResourceLocation)? = null
 ): CharacterPreviewPlayer {
     if (GENDER_MOD_AVAILABLE) {
         updateCharacterEntity(character, uuid)
@@ -49,15 +51,8 @@ internal fun createCharacterPreviewPlayer(
     return CharacterPreviewPlayer(
         level,
         GameProfile(uuid, "engine-preview-${uuid.toString().take(8)}"),
-        {
-            CharacterSkin(
-                skinGetter(),
-                computeCharacterModel(
-                    character.bodyType,
-                    character.biologicalCategory,
-                    character.biologicalSex
-                )
-            )
+        skinGetter = skinGetter?.let {
+            { CharacterSkin(it.invoke(), character.bodyType.model) }
         }
     ).apply {
         pose = Pose.STANDING
@@ -66,7 +61,6 @@ internal fun createCharacterPreviewPlayer(
 
 class CharacterPreviewWidget(
     val entity: CharacterPreviewPlayer,
-    val profile: CharacterProfile
 ) {
     var x: Float = 0f
     var y: Float = 0f
@@ -75,8 +69,7 @@ class CharacterPreviewWidget(
         get() = entity.bbHeight * scale
 
     fun computeScale(visualScale: Float) {
-        val heightScale = profile.height.scale
-        scale = BASE_ENTITY_SCALE * heightScale * visualScale
+        scale = BASE_ENTITY_SCALE * entity.scale * visualScale
     }
 
     fun computePosition(x: Float, legY: Float) {

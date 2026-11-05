@@ -12,7 +12,7 @@ import org.lain.engine.player.PlayerId
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterModelType
 import org.lain.engine.player.character.SelectedLook
-import org.lain.engine.player.character.computeCharacterModel
+import org.lain.engine.player.character.model
 import org.lain.engine.player.get
 import org.lain.engine.world.World
 import java.util.*
@@ -28,7 +28,7 @@ fun CharacterSkin(texture: ResourceLocation, model: CharacterModelType) = Player
     null,
     null,
     when (model) {
-        CharacterModelType.WIDE -> PlayerSkin.Model.WIDE
+        CharacterModelType.DEFAULT -> PlayerSkin.Model.WIDE
         CharacterModelType.SLIM -> PlayerSkin.Model.SLIM
     },
     true
@@ -51,15 +51,10 @@ class SkinSystem(
             val texture = skinTextureManager.getOrDownloadTextureNullable(look) ?: component.skin.texture
 
             val profile = character.data.profile
-            val model = computeCharacterModel(
-                profile.bodyType,
-                profile.biologicalCategory,
-                profile.biologicalSex,
-            )
-
+            val model = profile.bodyType.model
             val current = component.skin
             val minecraftModel = when (model) {
-                CharacterModelType.WIDE -> PlayerSkin.Model.WIDE
+                CharacterModelType.DEFAULT -> PlayerSkin.Model.WIDE
                 CharacterModelType.SLIM -> PlayerSkin.Model.SLIM
             }
             val changed = current.texture != texture || current.model != minecraftModel

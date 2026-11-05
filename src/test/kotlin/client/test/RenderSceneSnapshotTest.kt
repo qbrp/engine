@@ -17,15 +17,15 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.getComponent
 import org.lain.engine.client.render.item.EngineItemDisplayContext
 import org.lain.engine.client.render.player.CharacterSceneSnapshot
-import org.lain.engine.client.render.player.DetachedEquipment
 import org.lain.engine.client.render.player.DetachedEquipmentNode
-import org.lain.engine.client.render.player.EyeLevel
+import org.lain.engine.client.render.player.PlayerRenderNode
 import org.lain.engine.client.render.scene.LightSample
 import org.lain.engine.client.render.scene.RenderEntityReferences
 import org.lain.engine.client.render.scene.RenderSceneSnapshot
 import org.lain.engine.client.render.scene.RenderStateSnapshot
 import org.lain.engine.client.util.registerSceneComponents
 import org.lain.engine.data.polymorphicComponentSerializer
+import org.lain.engine.player.ArmPose
 import org.lain.engine.player.EquipmentSlot
 import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.player.PlayerPart
@@ -45,7 +45,9 @@ class RenderSceneSnapshotTest : EngineTest() {
             800,
             RenderSceneSnapshot(
                 linkedMapOf(
-                    800 to RenderStateSnapshot(listOf(SnapshotTestLinks(listOf(70, 70, 800)), EyeLevel(70))),
+                    800 to RenderStateSnapshot(
+                        listOf(SnapshotTestLinks(listOf(70, 70, 800)), PlayerRenderNode(eyeLevel = 70))
+                    ),
                     70 to RenderStateSnapshot(listOf(SnapshotTestLinks(listOf(800, 70)))),
                 )
             ),
@@ -57,7 +59,7 @@ class RenderSceneSnapshotTest : EngineTest() {
             val child = rootLinks[0]
             assertEquals(listOf(child, child, restored.node), rootLinks)
             assertEquals(listOf(restored.node, child), child.getComponent<SnapshotTestLinks>()!!.targets)
-            assertEquals(70, restored.node.getComponent<EyeLevel>()!!.value)
+            assertEquals(70, restored.node.getComponent<PlayerRenderNode>()!!.eyeLevel)
         }
         assertEquals(listOf(70, 70, 800), (snapshot.scene.entities.getValue(800).components[0] as SnapshotTestLinks).targets)
     }
@@ -68,13 +70,18 @@ class RenderSceneSnapshotTest : EngineTest() {
         val restored = snapshot.revive(storage)
 
         with(restored.scene) {
-            val equipment = restored.node.getComponent<DetachedEquipment>()!!
-            assertEquals(9, equipment.nodes.single().node.getComponent<LightSample>()!!.block)
-            assertEquals(0, equipment.nodes.single().node)
+            val renderNode = restored.node.getComponent<PlayerRenderNode>()!!
+            val equipment = renderNode.detachedEquipment
+            assertEquals(ArmPose.EXPOSE, renderNode.mainArmPose)
+            assertEquals(ArmPose.HOLD_WEAPON, renderNode.offArmPose)
+            assertEquals(5, renderNode.eyeLevel)
+            assertEquals(9, equipment.single().node.getComponent<LightSample>()!!.block)
+            assertEquals(0, equipment.single().node)
             assertEquals(1, restored.node)
         }
-        val originalEquipment = snapshot.scene.entities.getValue(800).components.single() as DetachedEquipment
-        assertEquals(70, originalEquipment.nodes.single().node)
+        val originalEquipment =
+            (snapshot.scene.entities.getValue(800).components.single() as PlayerRenderNode).detachedEquipment
+        assertEquals(70, originalEquipment.single().node)
     }
 
     @Test
@@ -86,13 +93,13 @@ class RenderSceneSnapshotTest : EngineTest() {
         assertEquals(800, encoded.jsonObject.getValue("character").jsonObject.getValue("id").jsonPrimitive.int)
         val encodedEquipment = encoded.jsonObject.getValue("scene").jsonObject.getValue("entities")
             .jsonObject.getValue("800").jsonObject.getValue("components").jsonArray.single().jsonObject
-        val encodedNode = encodedEquipment.getValue("nodes").jsonArray.single().jsonObject.getValue("node")
+        val encodedNode = encodedEquipment.getValue("detachedEquipment").jsonArray.single().jsonObject.getValue("node")
         assertEquals(70, encodedNode.jsonObject.getValue("id").jsonPrimitive.int)
 
         val decoded = json.decodeFromJsonElement(CharacterSceneSnapshot.serializer(), encoded)
         val restored = decoded.revive(storage)
         with(restored.scene) {
-            val child = restored.node.getComponent<DetachedEquipment>()!!.nodes.single().node
+            val child = restored.node.getComponent<PlayerRenderNode>()!!.detachedEquipment.single().node
             assertEquals(9, child.getComponent<LightSample>()!!.block)
         }
     }
@@ -104,12 +111,12 @@ class RenderSceneSnapshotTest : EngineTest() {
         val second = snapshot.revive(storage)
         assertNotSame(first.scene, second.scene)
 
-        val firstEquipment = with(first.scene) { first.node.getComponent<DetachedEquipment>()!! }
-        val secondEquipment = with(second.scene) { second.node.getComponent<DetachedEquipment>()!! }
+        val firstEquipment = with(first.scene) { first.node.getComponent<PlayerRenderNode>()!! }
+        val secondEquipment = with(second.scene) { second.node.getComponent<PlayerRenderNode>()!! }
         assertNotSame(firstEquipment, secondEquipment)
 
-        val firstLight = with(first.scene) { firstEquipment.nodes.single().node.getComponent<LightSample>()!! }
-        val secondLight = with(second.scene) { secondEquipment.nodes.single().node.getComponent<LightSample>()!! }
+        val firstLight = with(first.scene) { firstEquipment.detachedEquipment.single().node.getComponent<LightSample>()!! }
+        val secondLight = with(second.scene) { secondEquipment.detachedEquipment.single().node.getComponent<LightSample>()!! }
         firstLight.block = 15
         assertEquals(9, secondLight.block)
         assertEquals(9, (snapshot.scene.entities.getValue(70).components.single() as LightSample).block)
@@ -142,8 +149,13 @@ class RenderSceneSnapshotTest : EngineTest() {
                     70 to RenderStateSnapshot(listOf(LightSample(9))),
                     800 to RenderStateSnapshot(
                         listOf(
-                            DetachedEquipment(
-                                listOf(DetachedEquipmentNode(70, slot, false, false))
+                            PlayerRenderNode(
+                                mainArmPose = ArmPose.EXPOSE,
+                                offArmPose = ArmPose.HOLD_WEAPON,
+                                detachedEquipment = listOf(
+                                    DetachedEquipmentNode(70, slot, false, false)
+                                ),
+                                eyeLevel = 5,
                             )
                         )
                     ),
@@ -156,7 +168,7 @@ class RenderSceneSnapshotTest : EngineTest() {
         @JvmStatic
         @BeforeAll
         fun registerRenderComponents() {
-            if (!ComponentTypeRegistry.isRegistered(DetachedEquipment::class)) {
+            if (!ComponentTypeRegistry.isRegistered(PlayerRenderNode::class)) {
                 ComponentTypeRegistry.registerSceneComponents()
             }
             if (!ComponentTypeRegistry.isRegistered(SnapshotTestLinks::class)) {

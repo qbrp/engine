@@ -271,7 +271,7 @@ class GameSession(
         handler.postTick()
         endTickTaskExecutor.flush()
 
-        world.extractPlayerRenderState(renderScene)
+        world.extractPlayerRenderState(renderScene, client.skinTextureManager)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {

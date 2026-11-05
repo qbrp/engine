@@ -15,10 +15,10 @@ data class CharacterSceneSnapshot(
     val character: EntityId,
     val scene: RenderSceneSnapshot,
 ) {
-    fun revive(storage: NamespacedStorageAccess): PlayerRenderNode {
+    fun revive(storage: NamespacedStorageAccess): PlayerRenderNodeReference {
         require(character in scene.entities) { "Character render entity $character is missing from the snapshot" }
         val restored = scene.restore(storage)
-        return PlayerRenderNode(restored.entities.getValue(character), restored.scene)
+        return PlayerRenderNodeReference(restored.entities.getValue(character), restored.scene)
     }
 }
 

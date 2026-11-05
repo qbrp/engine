@@ -9,7 +9,6 @@ import org.lain.engine.client.render.item.TransformationRenderInstance
 import org.lain.engine.client.render.item.extractModelReference
 import org.lain.engine.client.render.scene.PropModel
 import org.lain.engine.client.render.scene.RenderEntityIdSerializer
-import org.lain.engine.client.render.scene.RenderEntityReferences
 import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.client.render.scene.TransformationEditorTarget
 import org.lain.engine.player.*
@@ -23,13 +22,6 @@ data class DetachedEquipmentNode(
     val rotateLeftSide: Boolean,
     val mirrorX: Boolean,
 )
-
-@Serializable
-data class DetachedEquipment(val nodes: List<DetachedEquipmentNode>) : RenderEntityReferences {
-    override fun entityReferences(): List<EntityId> = nodes.map { it.node }
-    override fun remapEntityReferences(remap: (EntityId) -> EntityId): DetachedEquipment =
-        copy(nodes = nodes.map { it.copy(node = remap(it.node)) })
-}
 
 fun World.extractDetachedEquipmentRenderStates(scene: RenderScene) {
     iterate<PlayerExtraction, Equipment, PlayerComponent> { _, (node), (slots), (player) ->
@@ -60,7 +52,7 @@ fun World.extractDetachedEquipmentRenderStates(scene: RenderScene) {
             }
 
         with(scene) {
-            node.setComponent(DetachedEquipment(nodes))
+            node.requireComponent<PlayerRenderNode>().detachedEquipment = nodes
         }
     }
 }

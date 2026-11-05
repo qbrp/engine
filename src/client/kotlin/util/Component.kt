@@ -4,11 +4,9 @@ import org.lain.engine.client.handler.LowDetail
 import org.lain.engine.client.mc.BulletHit
 import org.lain.engine.client.mc.compat.LamdLightSource
 import org.lain.engine.client.render.item.CompiledItemTooltip
-import org.lain.engine.client.render.player.ArmPoses
-import org.lain.engine.client.render.player.DetachedEquipment
 import org.lain.engine.client.render.player.EnginePlayerSkin
-import org.lain.engine.client.render.player.EyeLevel
 import org.lain.engine.client.render.player.PlayerExtraction
+import org.lain.engine.client.render.player.PlayerRenderNode
 import org.lain.engine.client.render.scene.LightSample
 import org.lain.engine.client.render.scene.PropModel
 import org.lain.engine.client.render.scene.TransformationEditorTarget
@@ -24,10 +22,8 @@ fun ComponentTypeRegistry.registerComponentsClient() {
 }
 
 fun ComponentTypeRegistry.registerSceneComponents() {
-    registerComponent<ArmPoses>(id = "core/client/player/arm_poses")
-    registerComponent<EyeLevel>(id = "core/client/player/eye_level", isSavable = true)
     registerComponent<PlayerExtraction>(id = "core/client/player/extraction")
-    registerComponent<DetachedEquipment>(id = "core/client/player/detached_equipment", isSavable = true)
+    registerComponent<PlayerRenderNode>(id = "core/client/player/render_node", isSavable = true)
 
     registerComponent<LightSample>(id = "core/client/render/light_sample", isSavable = true)
     registerComponent<PropModel>(id = "core/client/render/prop_model", isSavable = true)

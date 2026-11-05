@@ -16,7 +16,6 @@ data class EnginePlayerModel(
     var scale: Float = 1f,
     var standingEyeHeight: Float = 0.8f,
     var height: Float = 1f,
-    var eyeLevel: Int = 0,
 ) : Component
 
 /**
@@ -96,5 +95,4 @@ val CharacterHeight.scale
 
 fun World.tickPlayerModelSystem() = iterate<EnginePlayerModel, CharacterDisplay>() { _, model, display ->
     model.scale = display.height.scale
-    model.eyeLevel = display.appearance.eyeLevel
 }

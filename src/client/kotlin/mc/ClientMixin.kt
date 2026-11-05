@@ -15,6 +15,8 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.client.render.item.TransformationRenderInstance
 import org.lain.engine.client.render.item.resolveTooltip
+import org.lain.engine.client.render.player.CharacterSkin
+import org.lain.engine.client.render.player.getRenderNode
 import org.lain.engine.client.render.ui.DiscordAuthorizationScreen
 import org.lain.engine.client.render.ui.EngineTitleMenu
 import org.lain.engine.client.resources.MeshModel
@@ -31,6 +33,7 @@ import org.lain.engine.mc.engineId
 import org.lain.engine.mc.replacePlayerMinecraftState
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Hearing
+import org.lain.engine.player.PlayerId
 import org.lain.engine.player.interaction.processLeftClickInteraction
 import org.lain.engine.player.require
 import org.lain.engine.util.injectValue
@@ -210,6 +213,21 @@ object ClientMixin {
 
     fun getPlayerSkinThreadSafe(uuid: UUID): PlayerSkin? {
         return client.gameSession?.skinSystem?.get(uuid)
+    }
+
+    fun getPlayerRenderNodeSkin(entity: AbstractClientPlayer): PlayerSkin? {
+        return entity.getRenderNode()?.resolve()?.let {
+            CharacterSkin(engineId(it.skinTexture), it.model)
+        }
+    }
+
+    fun getPlayerRenderNodeScale(entity: AbstractClientPlayer): Float? {
+        return entity.getRenderNode()?.resolve()?.scale
+    }
+
+    fun isWaitingForOnlinePlayer(uuid: UUID): Boolean {
+        val onlinePlayers = client.gameSession?.onlinePlayers ?: return false
+        return onlinePlayers.get(PlayerId(uuid)) == null
     }
 
     fun getEngineItemModel(
