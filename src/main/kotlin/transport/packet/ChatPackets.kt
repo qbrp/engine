@@ -54,7 +54,6 @@ data class ClientChatChannel(
     val format: String,
     val selectors: Selectors = Selectors(),
     val speech: Boolean = false,
-    val spy: Boolean = true,
 ) {
     @Serializable
     data class Selectors(

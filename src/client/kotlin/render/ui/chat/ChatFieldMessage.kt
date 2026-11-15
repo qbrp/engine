@@ -10,7 +10,7 @@ import org.lain.engine.client.chat.ClientMessage
 import org.lain.engine.client.chat.ServiceContent
 import org.lain.engine.client.chat.SpeechContent
 import org.lain.engine.client.chat.VoiceBlip
-import org.lain.engine.client.chat.isMessageVisible
+import org.lain.engine.client.chat.shouldDisplayMessage
 import org.lain.engine.client.render.ui.ColorMc
 
 
@@ -42,7 +42,7 @@ class ChatFieldMessage(
     private val lines = content.resolve(context.state).lines(availableTextWidth)
     val height get() = lines.size * lineHeight + indent
     val visible
-        get() = chatBar == null || isMessageVisible(message, context.state.spy, chatBar)
+        get() = chatBar == null || shouldDisplayMessage(message, context.state.spy, chatBar)
 
     var voiceBlipLifetime = 0f
     val voiceBlip: VoiceBlip? = if (content is SpeechContent && visible) {
