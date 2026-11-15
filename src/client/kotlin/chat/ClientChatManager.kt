@@ -161,7 +161,9 @@ class ClientChatManager(
         val mainPlayerId = gameSession.mainPlayer.id
         val content = message.content
 
-        val visible = isMessageVisible(message, spy, chatBar)
+        val available = canDisplayMessage(message, spy)
+        val visible = shouldDisplayMessage(message, chatBar, available)
+
         if (visible) {
             val showSelf = authorId != mainPlayerId || client.developerMode
             if (message.isSpeech) {
@@ -177,7 +179,7 @@ class ClientChatManager(
                 client.audioManager.playUiNotificationSound()
             }
             chatBar.markRead(channel.id)
-        } else if ((!message.isSpy || spy) && authorId != mainPlayerId) {
+        } else if (available && authorId != mainPlayerId) {
             chatBar.markUnread(channel.id)
         }
 

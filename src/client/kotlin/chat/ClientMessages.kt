@@ -14,11 +14,10 @@ import org.lain.engine.world.World
 data class ClientMessage(
     val content: MessageContent,
     val channel: ClientChatChannel,
-    val source: MessageSource,
+    val source: MessageSource, // в данный момент используется только author.player.id
     val isMentioned: Boolean = false,
     val isSpeech: Boolean = false,
-    val volume: EngineChat.Volumes? = null,
-    val isSpy: Boolean = false,
+    val spy: Boolean = false,
     val showHead: Boolean = false,
     val notify: Boolean = false,
     val background: Color? = null,
@@ -32,19 +31,18 @@ val SYSTEM_CHANNEL = ClientChatChannel(
     ChannelId("system"),
     "Система",
     format = "{text}",
-    spy = false
 )
 
 // Сначала решаем, можем ли мы вообще увидеть сообщение. Только в случае, если канал доступен и мы его отследили (или оно обычное)
-fun isMessageAvailable(
+fun canDisplayMessage(
     message: ClientMessage,
     spy: Boolean
 ): Boolean {
-    return message.channel.isAvailable && !message.isSpy || spy
+    return message.channel.isAvailable && !message.spy || spy
 }
 
 // Решаем, видно ли в данный момент сообщение пользователю. Руководствуемся данными из чат-бара: сообщение должно быть доступно, а канал не скрыт
-fun isMessageVisible(
+fun shouldDisplayMessage(
     message: ClientMessage,
     chatBar: ChatBar,
     available: Boolean
@@ -52,8 +50,8 @@ fun isMessageVisible(
     return available && !chatBar.isHidden(message.channel.id)
 }
 
-fun isMessageVisible(message: ClientMessage, spy: Boolean, chatBar: ChatBar): Boolean {
-    return isMessageVisible(message, chatBar, isMessageAvailable(message, spy))
+fun shouldDisplayMessage(message: ClientMessage, spy: Boolean, chatBar: ChatBar): Boolean {
+    return shouldDisplayMessage(message, chatBar, canDisplayMessage(message, spy))
 }
 
 private fun formatRegex(text: String, regex: ChatRegexSettings, playerNames: List<String>): String {
@@ -144,7 +142,6 @@ fun acceptOutcomingMessage(
         message.source,
         message.mentioned,
         message.speech,
-        message.volumes,
         message.isSpy,
         message.head,
         message.notify,
@@ -172,7 +169,7 @@ fun LiteralSystemMessage(world: World, content: String, isSpy: Boolean = false) 
     SYSTEM_CHANNEL,
     MessageSource.getSystemClient(world),
     id = MessageId.next(),
-    isSpy = isSpy
+    spy = isSpy
 )
 
 data class ChatSettingsUpdateResult(
