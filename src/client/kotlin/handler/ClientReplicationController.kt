@@ -7,6 +7,7 @@ import org.lain.engine.data.EntityResolver
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.player.PlayerComponent
+import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.protocolError
 import org.lain.engine.server.replication.*
 import org.lain.engine.transport.packet.*
@@ -123,15 +124,7 @@ class ClientReplicationController(
             ?.takeIf(componentManager::exists)
 
         removeEntity(persistentId)
-
-        entity?.getComponent<PlayerComponent>()?.player?.let {
-            gameSession.removeRemotePlayer(it)
-        }
-        entity?.getComponent<DynamicVoxel>()?.let {
-            replicationWorld.chunkStorage.removeVoxel(it.pos)
-        }
-
-        entity?.destroy()
+        entity?.let { unloadReplicatedEntity(it, gameSession::removeRemotePlayer) }
     }
 
     private fun applyPacket(packet: ReplicationPacket) {
@@ -398,4 +391,14 @@ class ClientReplicationController(
     private companion object {
         val LOGGER = LoggerFactory.getLogger("Engine Client Replication")
     }
+}
+
+fun World.unloadReplicatedEntity(entity: EntityId, removePlayer: (EnginePlayer) -> Unit) {
+    val player = entity.getComponent<PlayerComponent>()?.player
+    if (player != null) {
+        removePlayer(player)
+        return
+    }
+    entity.getComponent<DynamicVoxel>()?.let { chunkStorage.removeVoxel(it.pos) }
+    entity.destroy()
 }

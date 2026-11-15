@@ -1,6 +1,7 @@
 package org.lain.engine
 
 import org.lain.cyberia.ecs.destroy
+import org.lain.cyberia.ecs.exists
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.engine.container.tickContainerOperationsSystem
 import org.lain.engine.item.*
@@ -15,6 +16,7 @@ import org.lain.engine.script.ScriptSystemDispatcher
 import org.lain.engine.script.compilation.loadBuild
 import org.lain.engine.script.scriptContext
 import org.lain.engine.server.replication.confirmProcessedPlayerInputsSystem
+import org.lain.engine.util.ecs.destroyIfExists
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import org.lain.engine.world.tickRecoilSystem
@@ -130,12 +132,14 @@ class EngineSimulation(
     fun destroyPlayer(player: EnginePlayer) = with(player.world) {
         val inventory = player.require<PlayerInventory>()
         val ownedItems = player.equipment.values + inventory.items
-        ownedItems.forEach { item -> item.removeComponent<HeldBy>() }
+        ownedItems.forEach { item ->
+            if (item.exists()) item.removeComponent<HeldBy>()
+        }
 
-        player.mainContainer.destroy()
-        inventory.mainHandInteractor.destroy()
-        inventory.offHandInteractor.destroy()
-        player.entity.destroy()
+        player.mainContainer.destroyIfExists()
+        inventory.mainHandInteractor.destroyIfExists()
+        inventory.offHandInteractor.destroyIfExists()
+        player.entity.destroyIfExists()
     }
 
     fun tick() {

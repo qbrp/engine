@@ -1,8 +1,12 @@
 package org.lain.engine.client.test
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
+import net.minecraft.resources.ResourceLocation
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -95,6 +99,23 @@ class RenderSceneSnapshotTest : EngineTest() {
         with(restored.scene) {
             val child = restored.node.getComponent<PlayerRenderNode>()!!.detachedEquipment.single().node
             assertEquals(9, child.getComponent<LightSample>()!!.block)
+        }
+    }
+
+    @Test
+    fun playerSkinTextureUsesResourceLocationStringInJson() {
+        val skin = ResourceLocation.parse("example:textures/entity/skin.png")
+        val node = PlayerRenderNode(skinTexture = skin)
+        val encoded = Json.encodeToJsonElement(PlayerRenderNode.serializer(), node)
+
+        assertEquals("example:textures/entity/skin.png", encoded.jsonObject.getValue("skinTexture").jsonPrimitive.content)
+        assertEquals(node, Json.decodeFromJsonElement(PlayerRenderNode.serializer(), encoded))
+        assertEquals(
+            skin,
+            Json.decodeFromString(PlayerRenderNode.serializer(), """{"skinTexture":"example:textures/entity/skin.png"}""").skinTexture,
+        )
+        assertThrows<SerializationException> {
+            Json.decodeFromString(PlayerRenderNode.serializer(), """{"skinTexture":"Bad Namespace:skin"}""")
         }
     }
 
