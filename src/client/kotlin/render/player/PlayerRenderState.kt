@@ -2,6 +2,7 @@ package org.lain.engine.client.render.player
 
 import kotlinx.serialization.Serializable
 import net.minecraft.client.resources.DefaultPlayerSkin
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EnginePlayerRenderStateHolder
@@ -12,6 +13,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.item.FireMode
 import org.lain.engine.item.GunFireState
 import org.lain.engine.mc.ecs.MinecraftPlayer
+import org.lain.engine.mc.ResourceLocationSerializer
 import org.lain.engine.player.ArmPose
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterModelType
@@ -28,7 +30,8 @@ data class PlayerRenderNode(
     var detachedEquipment: List<DetachedEquipmentNode> = emptyList(),
     var eyeLevel: Int = 2,
     var model: CharacterModelType = CharacterModelType.DEFAULT,
-    var skinTexture: String = DefaultPlayerSkin.getDefaultTexture().toString(),
+    @Serializable(with = ResourceLocationSerializer::class)
+    var skinTexture: ResourceLocation = DefaultPlayerSkin.getDefaultTexture(),
     var scale: Float = 0.7f
 ) : RenderEntityReferences {
     override fun entityReferences(): List<EntityId> = detachedEquipment.map { it.node }
@@ -89,7 +92,7 @@ fun World.extractPlayerRenderState(scene: RenderScene, skinTextureManager: SkinT
         node.eyeLevel = profile.appearance.eyeLevel
         node.model = profile.bodyType.model
         val skinTexture = skinTextureManager?.getOrDownloadTextureNullable(look) ?: cachedPlayerSkin?.texture
-        skinTexture?.path?.let { node.skinTexture = it }
+        skinTexture?.let { node.skinTexture = it }
     }
 
     iterate<PlayerExtraction, MinecraftPlayer> { _, (node), (entity) ->

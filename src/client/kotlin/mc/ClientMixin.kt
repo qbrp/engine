@@ -216,7 +216,7 @@ object ClientMixin {
 
     fun getPlayerRenderNodeSkin(entity: AbstractClientPlayer): PlayerSkin? {
         return entity.getRenderNode()?.resolve()?.let {
-            CharacterSkin(engineId(it.skinTexture), it.model)
+            CharacterSkin(it.skinTexture, it.model)
         }
     }
 
