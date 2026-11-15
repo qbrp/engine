@@ -474,11 +474,11 @@ class ServerHandler(
         notifications: List<Notification> = listOf(),
     ) =
         with(player.world) {
-            val packet = PlayerJoinServerPacket(GeneralPlayerData.of(player))
+            val packet = OnlinePlayerAdd(GeneralPlayerData.of(player))
 
             playerStorage.all.forEach {
                 if (it == player) return@forEach
-                CLIENTBOUND_PLAYER_JOIN_ENDPOINT.sendS2C(
+                CLIENTBOUND_ONLINE_PLAYER_ADD_ENDPOINT.sendS2C(
                     packet,
                     it.id
                 )
@@ -501,8 +501,8 @@ class ServerHandler(
     }
 
     fun onPlayerDestroy(player: EnginePlayer) {
-        CLIENTBOUND_PLAYER_DESTROY_ENDPOINT.broadcast(
-            PlayerDestroyPacket(player.id)
+        CLIENTBOUND_ONLINE_PLAYER_REMOVE_ENDPOINT.broadcast(
+            OnlinePlayerRemove(player.id)
         )
     }
 

@@ -6,7 +6,7 @@ import org.lain.cyberia.ecs.MutableComponentAccess
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.util.ecs.ComponentTypeRegistry
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.ecs.IndexedComponentType
 import org.lain.engine.world.World
 import java.util.BitSet

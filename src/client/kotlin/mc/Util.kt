@@ -23,7 +23,7 @@ typealias JsonMc = GsonHelper
 
 typealias ImmediateVertexConsumers = MultiBufferSource.BufferSource
 
-val MinecraftClient = net.minecraft.client.Minecraft.getInstance()!!
+val MinecraftClient = Minecraft.getInstance()!!
 
 val Minecraft.entityHitResult
     get() = this.hitResult as? EntityHitResult

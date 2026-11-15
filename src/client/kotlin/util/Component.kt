@@ -1,6 +1,5 @@
 package org.lain.engine.client.util
 
-import org.lain.engine.client.handler.LowDetail
 import org.lain.engine.client.mc.BulletHit
 import org.lain.engine.client.mc.compat.LamdLightSource
 import org.lain.engine.client.render.item.CompiledItemTooltip
@@ -15,7 +14,6 @@ import org.lain.engine.util.ecs.ComponentTypeRegistry
 fun ComponentTypeRegistry.registerComponentsClient() {
     registerComponent<BulletHit>(id = "core/client/event/bullet_hit")
     registerSceneComponents()
-    registerComponent<LowDetail>(id = "core/client/player/low_detail")
     registerComponent<LamdLightSource>(id = "core/client/minecraft/dynamic_light")
     registerComponent<CompiledItemTooltip>(id = "core/client/item/compiled_tooltip")
     registerComponent<EnginePlayerSkin>(id = "core/client/player/skin")

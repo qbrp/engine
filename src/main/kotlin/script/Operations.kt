@@ -3,7 +3,7 @@ package org.lain.engine.script
 import kotlinx.serialization.Serializable
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.server.ServerHandler
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.VoxelPos
 

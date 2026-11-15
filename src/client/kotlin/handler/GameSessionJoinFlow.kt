@@ -37,28 +37,26 @@ import org.lain.engine.transport.packet.JoinGamePacket
 import org.lain.engine.transport.packet.LoginRequestPacket
 import org.lain.engine.transport.packet.SERVERBOUND_JOIN_CONFIRMATION_ENDPOINT
 import org.lain.engine.transport.packet.SERVERBOUND_LOGIN_REQUEST_PACKET
-import org.lain.engine.transport.packet.ServerHelloPacket
+import org.lain.engine.util.Injector
 import org.lain.engine.util.file.FileSystem
 import kotlin.time.Duration.Companion.seconds
 
 class GameSessionJoinFlow(
     val joinType: JoinType,
     val client: EngineClient,
-    transport: ClientTransport
+    private val transport: ClientTransport
 ) {
+    init {
+        Injector.register<ClientTransport>(transport)
+    }
+
     private val accountManager = client.accountManager
     private val platform = client.platform
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
-    private val requests = ClientRequestHandler(transport, coroutineScope)
-        .apply {
-            register(SERVERBOUND_CLIENT_HELLO_ENDPOINT)
-            register(CLIENTBOUND_SERVER_HELLO_ENDPOINT)
-            register(SERVERBOUND_LOGIN_REQUEST_PACKET)
-            register(CLIENTBOUND_JOIN_GAME_ENDPOINT)
-            run()
-        }
+    private val requests = ClientRequestHandler(transport)
 
     private var characterSelection: CharacterSelection? = null
+    private var transportClosed = false
 
     @Volatile
     var state: State = State.AUTHORIZATION
@@ -69,9 +67,12 @@ class GameSessionJoinFlow(
 
     private suspend fun handshake(): ServerData = when (joinType) {
         is JoinType.Multiplayer -> {
-            requests.await<ServerHelloPacket>(
-                ClientHelloPacket(client.platform.modIds, Constants.ENGINE_MOD_VERSION)
-            )
+            requests.await(CLIENTBOUND_SERVER_HELLO_ENDPOINT) {
+                transport.sendServerboundPacket(
+                    SERVERBOUND_CLIENT_HELLO_ENDPOINT,
+                    ClientHelloPacket(client.platform.modIds, Constants.ENGINE_MOD_VERSION)
+                )
+            }
                 .let {
                     val server = it.server
                     ServerData(
@@ -125,13 +126,16 @@ class GameSessionJoinFlow(
     ): JoinGamePacket {
         return when (joinType) {
             is JoinType.Multiplayer -> {
-                requests.await<JoinGamePacket>(
-                    LoginRequestPacket(
-                        developerModeStatus = DeveloperModeStatus(client.developerMode, client.acousticDebug),
-                        namespaces = namespaceHashMap,
-                        character = selectedCharacter,
+                requests.await(CLIENTBOUND_JOIN_GAME_ENDPOINT) {
+                    transport.sendServerboundPacket(
+                        SERVERBOUND_LOGIN_REQUEST_PACKET,
+                        LoginRequestPacket(
+                            developerModeStatus = DeveloperModeStatus(client.developerMode, client.acousticDebug),
+                            namespaces = namespaceHashMap,
+                            character = selectedCharacter,
+                        )
                     )
-                )
+                }
             }
 
             is JoinType.Singleplayer -> {
@@ -142,13 +146,11 @@ class GameSessionJoinFlow(
                         integratedServer,
                     )
                 }
-                withTimeout(5.seconds) {
-                    val deferred = requests.request<JoinGamePacket>(null)
+                requests.await(CLIENTBOUND_JOIN_GAME_ENDPOINT) {
                     integratedServer.playerLoader.loadPreparing(
                         settings = settings,
                         account = PlayerLoadSettings.Account(selectedCharacter),
                     )
-                    deferred.await()
                 }
             }
         }
@@ -215,6 +217,10 @@ class GameSessionJoinFlow(
     private val job = coroutineScope.launch {
         var sessionTicket: SessionTicket? = null
         try {
+            withClientContext {
+                requests.register(CLIENTBOUND_SERVER_HELLO_ENDPOINT)
+                requests.register(CLIENTBOUND_JOIN_GAME_ENDPOINT)
+            }
             accountManager.requireAccountResponse()
             val server = handshake()
 
@@ -273,28 +279,41 @@ class GameSessionJoinFlow(
                 state = State.DONE
             }
         } catch (exception: Exception) {
-            requests.close()
-            characterSelection?.cancel()
-            sessionTicket?.let {
-                accountManager.getAuthorized()?.revokeSessionTicket(it.hash)
-            }
-
             if (exception is CancellationException) {
                 LOGGER.info("Отменен вход на сервер")
                 throw exception
             }
 
-            withClientContext {
-                client.platform.disconnect(
-                    if (exception is HttpStatusException) {
-                        "${exception.statusCode}: ${exception.serializeApiError().message}"
-                    } else {
-                        if (exception is CompilationFailedException) exception.log()
-                        exception.message ?: "Неизвестная ошибка"
-                    }
-                )
+            LOGGER.error("Ошибка входа на сервер на этапе $state", exception)
+            if (exception is CompilationFailedException) exception.log()
+            val reason = if (exception is HttpStatusException) {
+                val message = runCatching { exception.serializeApiError().message }
+                    .getOrElse { exception.message ?: "Ошибка HTTP" }
+                "${exception.statusCode}: $message"
+            } else {
+                exception.message ?: "Неизвестная ошибка"
             }
-            exception.printStackTrace()
+            withClientContext {
+                if (client.joinFlow !== this@GameSessionJoinFlow) return@withClientContext
+                closeTransport()
+                client.platform.disconnect(reason)
+            }
+        } finally {
+            requests.close()
+            if (state != State.DONE) {
+                characterSelection?.cancel()
+                sessionTicket?.let { ticket ->
+                    withContext(NonCancellable) {
+                        try {
+                            withTimeout(5.seconds) {
+                                accountManager.getAuthorized()?.revokeSessionTicket(ticket.hash)
+                            }
+                        } catch (exception: Exception) {
+                            LOGGER.warn("Не удалось отозвать билет сессии после прерванного входа", exception)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -316,9 +335,20 @@ class GameSessionJoinFlow(
     }
 
     fun cancel() {
-        characterSelection?.cancel()
         job.cancel()
+        coroutineScope.cancel()
         requests.close()
+        characterSelection?.cancel()
+        closeTransport()
+    }
+
+    private fun closeTransport() {
+        if (transportClosed) return
+        transportClosed = true
+        transport.unregisterAll()
+        if (Injector.resolveOrNull(ClientTransport::class) === transport) {
+            Injector.unregister<ClientTransport>()
+        }
     }
 
     enum class State {

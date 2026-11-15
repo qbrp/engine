@@ -3,9 +3,9 @@ package org.lain.engine.client.chat
 import net.minecraft.util.FormattedCharSequence
 import org.lain.engine.chat.MessageId
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.handler.OnlinePlayer
 import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.VoiceImage
 import org.lain.engine.world.pos
 import kotlin.math.ceil
 import kotlin.random.Random
@@ -77,12 +77,12 @@ data class VoiceProperties(
         get() = VOICE_BLIP_MAX_DELAY - speed * (VOICE_BLIP_MAX_DELAY - VOICE_BLIP_MIN_DELAY)
 
     companion object {
-        fun fromAttributes(volume: Float, attributes: PlayerAttributes) = VoiceProperties(
-            speed = attributes.voiceSpeed,
-            pitch = attributes.voicePitch,
-            randomization = attributes.voiceRandomization,
-            soundSet = attributes.voiceSet,
-            soundFrequency = attributes.voiceSoundFrequency,
+        fun fromImage(volume: Float, image: VoiceImage) = VoiceProperties(
+            speed = image.speed,
+            pitch = image.pitch,
+            randomization = image.randomization,
+            soundSet = image.preset,
+            soundFrequency = image.frequency,
             volume = volume,
         )
     }

@@ -2,7 +2,7 @@ package org.lain.engine.script
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.data.InstantSerializer
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.deepCopy
 import java.time.Instant
 

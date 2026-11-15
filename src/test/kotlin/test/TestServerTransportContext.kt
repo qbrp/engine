@@ -48,6 +48,6 @@ class TestServerTransportContext(
     override fun isOnThread(): Boolean = true
 
     override fun executeOnThread(runnable: () -> Unit) {
-        TODO()
+        runnable()
     }
 }

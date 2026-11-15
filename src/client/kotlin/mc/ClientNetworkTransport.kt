@@ -15,21 +15,26 @@ import org.lain.engine.util.nextIdFast
 class ClientNetworkTransport(
     private val engine: EngineClient
 ) : ClientTransport {
-    private val channels: MutableList<Endpoint<*>> = mutableListOf()
+    private val channels = mutableSetOf<Endpoint<*>>()
     private val ctx = ClientContext(engine)
 
     override fun unregisterAll() {
         channels.forEach { ClientPlayNetworking.unregisterGlobalReceiver(it.minecraftIdentifier) }
+        channels.clear()
     }
 
     override fun <P : Packet> registerEndpoint(
         endpoint: Endpoint<P>,
         handler: ClientPacketHandler<P>
     ) {
-        channels += endpoint
-        ClientPlayNetworking.registerGlobalReceiver(PayloadRegistry.payloadOf(endpoint)) { payload, context ->
-            payload.packet.handler(ctx)
+        check(ClientPlayNetworking.registerGlobalReceiver(PayloadRegistry.payloadOf(endpoint)) { payload, _ ->
+            if (endpoint in channels) {
+                payload.packet.handler(ctx)
+            }
+        }) {
+            "Обработчик пакета ${endpoint.identifier} уже зарегистрирован"
         }
+        channels += endpoint
     }
 
     override fun <P : Packet> sendServerboundPacket(
@@ -37,6 +42,7 @@ class ClientNetworkTransport(
         packet: P
     ) {
         val payload = PayloadRegistry.payloadOf(endpoint)
+        if (MinecraftClient.connection == null) return
         ClientPlayNetworking.send(
             EnginePayload(
                 nextIdFast(),

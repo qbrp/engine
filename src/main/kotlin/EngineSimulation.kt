@@ -66,8 +66,7 @@ class EngineSimulation(
 
         // Фаза подготовки данных
         tickDaraPreparation()
-        resetItemOwnershipState()
-        tickItemOwnershipSystem(extension)
+        tickItemOwnershipSystem()
         tickInteractorLocations()
         tickPlayerHandSystem()
         tickPlayerModelSystem()
@@ -123,7 +122,6 @@ class EngineSimulation(
 
     fun preparePlayerDestroy(player: EnginePlayer) = with(player.world) {
         this@EngineSimulation.players.remove(player)
-        player.destroyed = true
         players -= player
 
         callbacks.of(CallbackType.PLAYER_DESTROY)?.execute(player.scriptContext)
@@ -153,7 +151,6 @@ class EngineSimulation(
         fun World.afterOperations() {}
         fun World.beforeEventCleanup() {}
         fun afterTick(simulation: EngineSimulation) {}
-        fun shouldSimulate(player: EnginePlayer): Boolean = true
 
         companion object {
             val DUMMY = object : SimulationTickExtension {}

@@ -1,18 +1,17 @@
 package org.lain.engine.client.handler
 
 import org.lain.engine.client.resources.LOGGER
-import org.lain.engine.client.transport.registerClientReceiver
 import org.lain.engine.transport.packet.*
 
 fun ClientHandler.runEndpoints() {
     // Join / Destroy
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_JOIN_ENDPOINT) { gameSession ->
-        applyPlayerJoined(player, gameSession)
+    registerGameSessionReceiver(CLIENTBOUND_ONLINE_PLAYER_ADD_ENDPOINT) { gameSession ->
+        applyOnlinePlayerAdd(player, gameSession)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_DESTROY_ENDPOINT) { gameSession ->
-        updatePlayer(playerId) { applyPlayerDestroyed(gameSession, it) }
+    registerGameSessionReceiver(CLIENTBOUND_ONLINE_PLAYER_REMOVE_ENDPOINT) { gameSession ->
+        updatePlayer(playerId) { applyOnlinePlayerRemove(gameSession, it) }
     }
 
     // Other

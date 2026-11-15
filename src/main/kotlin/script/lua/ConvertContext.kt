@@ -1,22 +1,20 @@
 package org.lain.engine.script.lua
 
 import org.lain.engine.data.EntityPersistenceData
-import org.lain.engine.item.toItemPrefabId
 import org.lain.engine.player.extendArm
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.SOCIAL_INTERACTION_DISTANCE
 import org.lain.engine.player.isSpectating
+import org.lain.engine.script.InputValue
+import org.lain.engine.script.OperationSelection
+import org.lain.engine.script.OperationTarget
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.script.lua.library.luaWorld
-import org.lain.engine.script.InputValue
-import org.lain.engine.script.OperationSelection
-import org.lain.engine.script.OperationTarget
 import org.lain.engine.util.math.asMutableVec3
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
-import kotlin.collections.forEach
 
 /**
  * Конвертировать ScriptContext в таблицу.
@@ -42,12 +40,13 @@ internal fun ScriptContext.toLuaValue(): LuaValue = when(this) {
     }
     is ScriptContext.OperationExecution -> {
         val (actor, target, inputs, behaviour) = this
+        val world = actor.player.world
         luaTableOf(
-            luaValue("world"), actor.player.world.luaWorld(),
+            luaValue("world"), world.luaWorld(),
             luaValue("actor"), luaTableOf(
                 luaValue("type"), actor.type.name.lowercase().luaStr(),
                 luaValue("player"), actor.player.coerceToLua(),
-                luaValue("entity"), actor.entity.luaNum(),
+                luaValue("entity"), with(world) { actor.entity.luaEntity() },
             ),
             luaValue("target"), target?.toLuaValue() ?: LuaValue.NIL,
             luaValue("inputs"), inputs.toLuaTable(),
@@ -61,12 +60,13 @@ internal fun ScriptContext.toLuaValue(): LuaValue = when(this) {
     }
     is ScriptContext.OperationInputResolution -> {
         val (actor, operationId, inputId, inputs) = this
+        val world = actor.player.world
         luaTableOf(
-            luaValue("world"), actor.player.world.luaWorld(),
+            luaValue("world"), world.luaWorld(),
             luaValue("actor"), luaTableOf(
                 luaValue("type"), actor.type.name.lowercase().luaStr(),
                 luaValue("player"), actor.player.coerceToLua(),
-                luaValue("entity"), actor.entity.luaNum(),
+                luaValue("entity"), with(world) { actor.entity.luaEntity() },
             ),
             luaValue("operation_id"), operationId.toString().luaStr(),
             luaValue("input_id"), inputId.luaStr(),

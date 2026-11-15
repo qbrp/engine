@@ -26,7 +26,7 @@ import org.lain.engine.server.replication.Networked
 import org.lain.engine.server.replication.Interests
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.replication.PlayerReplicationState
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -117,6 +117,7 @@ fun serverPlayerInstance(
     val voiceApparatus = persistent?.voiceApparatus ?: VoiceApparatus(inputVolume = defaults.playerBaseInputVolume)
     val player = commonPlayerInstance(settings, id, entity)
     player.entity.apply {
+        persistent?.customAttributes?.let { setComponent(it.copy()) }
         setComponent(MessageQueue())
         setComponent(voiceApparatus)
         persistent?.voiceLoose?.let { setComponent(it) }

@@ -3,6 +3,7 @@ package org.lain.engine.transport.packet
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import org.lain.engine.data.PersistentId
+import org.lain.engine.server.replication.GhostPrefab
 import org.lain.engine.server.replication.ReplicationFrame
 import org.lain.engine.server.replication.ReplicationTarget
 import org.lain.engine.transport.Endpoint

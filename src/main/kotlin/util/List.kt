@@ -3,6 +3,7 @@ package org.lain.engine.util
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
+import org.lain.cyberia.ecs.EntityId
 import java.util.Queue
 import kotlin.collections.ArrayDeque
 

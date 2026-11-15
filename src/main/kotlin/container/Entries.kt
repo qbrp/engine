@@ -1,6 +1,5 @@
 package org.lain.engine.container
 
-import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.ReadComponentAccess
@@ -8,7 +7,6 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.item.EngineItem
 
-@Serializable
 data class Entries(val items: MutableSet<EngineItem>) : Component
 
 object EntriesDirty : Component

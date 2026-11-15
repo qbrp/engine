@@ -8,7 +8,7 @@ import org.lain.cyberia.ecs.destroy
 import org.lain.engine.script.CallbackType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import kotlin.collections.plusAssign
 
 enum class TransactionState {

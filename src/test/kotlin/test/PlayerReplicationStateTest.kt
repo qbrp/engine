@@ -19,41 +19,27 @@ class PlayerReplicationStateTest : EngineTest() {
     }
 
     @Test
-    fun residentEntityIsNotRemovedWhenItBecomesDormant() {
+    fun outEntityGetsFullSnapshotWhenItBecomesActiveAgain() {
         val state = TrackingState()
         val player = persistentId("player")
 
-        state.update(setOf(player), setOf(player))
-        state.update(emptySet(), setOf(player))
-
-        assertTrue(state.synced.isEmpty())
-        assertTrue(state.fresh.isEmpty())
-        assertEquals(setOf(player), state.resident)
-        assertTrue((state.previousTickResident - state.resident).isEmpty())
-    }
-
-    @Test
-    fun dormantEntityGetsFullSnapshotWhenItBecomesActiveAgain() {
-        val state = TrackingState()
-        val player = persistentId("player")
-
-        state.update(setOf(player), setOf(player))
-        state.update(emptySet(), setOf(player))
-        state.update(setOf(player), setOf(player))
+        state.update(setOf(player))
+        state.update(emptySet())
+        state.update(setOf(player))
 
         assertEquals(setOf(player), state.fresh)
         assertEquals(setOf(player), state.synced)
     }
 
     @Test
-    fun entityIsRemovedOnlyWhenItStopsBeingResident() {
+    fun entityIsRemovedOnlyWhenItStopsBeingSynced() {
         val state = TrackingState()
         val player = persistentId("player")
 
-        state.update(setOf(player), setOf(player))
-        state.update(emptySet(), emptySet())
+        state.update(setOf(player))
+        state.update(emptySet())
 
-        assertEquals(setOf(player), state.previousTickResident - state.resident)
+        assertEquals(setOf(player), state.previousTickSynced - state.synced)
     }
 
     @Test

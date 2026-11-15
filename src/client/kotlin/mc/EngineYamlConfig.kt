@@ -37,7 +37,7 @@ class EngineYamlConfig(
     private val chatTextOpacityProperty = builder.defineInteger("text-opacity", 100, 0, 100)
     private val chatMessageIndentProperty = builder.defineFloat("message-indent", 0.5f, 0f, 4f)
     private val activeChatPxProperty = builder.defineInteger("active", 180, 0, 180)
-    private val unactiveChatPxProperty = builder.defineInteger("active", 90, 0, 180)
+    private val unactiveChatPxProperty = builder.defineInteger("unactive", 180, 0, 180)
 
     init { builder.pop() }
 

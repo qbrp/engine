@@ -139,7 +139,6 @@ class ClientChatManager(
     fun addMessage(message: ClientMessage) {
         val chatBar = chatBar ?: return
         val channel = message.channel
-        val author = message.source.author
         val isMentioned = message.isMentioned
         val isNotify = message.notify
 
@@ -169,7 +168,7 @@ class ClientChatManager(
                 if (authorId != null && showSelf && client.options.chatBubbles) {
                     val authorPlayer = gameSession.playerStorage.get(authorId)
                     if (authorPlayer != null) {
-                        gameSession.chatBubbleList.setChatBubble(authorPlayer, content.resolve(this))
+                        gameSession.chatBubbleList.setChatBubble(authorPlayer, content.chatBubbleText())
                     }
                 }
 

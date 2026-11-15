@@ -21,7 +21,7 @@ import org.lain.engine.script.lua.library.LuaEntityComponent
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.server.replication.Changes
 import org.lain.engine.server.replication.PlayerReplicationState
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.world.World
 import kotlin.collections.component1
 import kotlin.collections.component2

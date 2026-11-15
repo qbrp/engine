@@ -14,7 +14,7 @@ import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaUserdataTable
 import org.lain.engine.script.lua.toLuaTable
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaInteger
@@ -26,9 +26,9 @@ data class LuaEntity(
     val writeAccess: WriteComponentAccess,
     val readAccess: ReadComponentAccess?,
     val world: World? = null,
-    val id: Int,
+    val id: EntityId,
     val worldL: LuaValue,
-    val idL: LuaInteger
+    val idL: LuaUserdata
 ) {
     override fun toString(): String {
         return id.toString()
@@ -137,7 +137,7 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
 context(lua: LuaScriptEngine, world: World)
 fun EntityId.luaEntity(): LuaValue {
     return getComponent<LuaEntityComponent>()?.coercedTable ?: run {
-        val idL = luaNum()
+        val idL = luaEntityRef()
         val entity = LuaEntity(world, world, world, this, world.luaWorld(), idL)
         val entityTable = LuaUserdata(entity)
         entityTable.setmetatable(lua.entityMetaTable)
@@ -146,17 +146,6 @@ fun EntityId.luaEntity(): LuaValue {
     }
 }
 
-fun LuaValue.checkLuaEntity(): Int {
+fun LuaValue.checkLuaEntity(): EntityId {
     return asUserdataOrThrow<LuaEntity>().id
-}
-
-context(lua: LuaScriptEngine, access: WriteComponentAccess)
-fun EntityId.luaWritableEntity(): LuaUserdata {
-    val entityId = this@luaWritableEntity
-    val entity = LuaEntity(
-        access, null, null, entityId, NIL, entityId.luaNum()
-    )
-    val table = LuaUserdata(entity)
-    table.setmetatable(lua.entityMetaTable)
-    return table
 }

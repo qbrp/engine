@@ -1,10 +1,11 @@
 package org.lain.engine.world
 
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.ReadComponentAccess
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.util.ecs.EntityId
+import org.lain.engine.player.get
 import org.lain.engine.util.math.ImmutableEVec3
 import org.lain.engine.util.math.MutableEVec3
 import org.lain.engine.util.math.Pos
@@ -29,3 +30,6 @@ val EnginePlayer.location: Location
 
 val EnginePlayer.pos: Pos
     get() = location.position
+
+val EnginePlayer.posOrNull: Pos?
+    get() = get<Location>()?.position

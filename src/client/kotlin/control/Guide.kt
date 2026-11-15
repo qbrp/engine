@@ -41,9 +41,9 @@ class PhotoModeGuide(guide: Guide) : GuideMode {
         get() = zoomed && toggledChatBubbles
 
     override fun start() {
-        client.showNotification(BASE, "photomode_base")
-        if (!zoomed) client.showNotification(ZOOM, "photomode_zoom")
         if (!toggledChatBubbles) client.showNotification(CHAT_BUBBLES, "photomode_chat_bubbles")
+        if (!zoomed) client.showNotification(ZOOM, "photomode_zoom")
+        client.showNotification(BASE, "photomode_base")
     }
 
     override fun stop(completion: GuideCompletion) {

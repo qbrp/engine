@@ -25,7 +25,7 @@ public class AvatarRendererMixin {
     ) {
         Minecraft minecraft = Minecraft.getInstance();
         // Detached-camera mods can use a LocalPlayer as the camera. FirstPerson may try to
-        // render that synthetic player at the camera origin when its compatibility ыhook is absent.
+        // render that synthetic playerId at the camera origin when its compatibility ыhook is absent.
         if (player == minecraft.getCameraEntity() && player != minecraft.player) {
             ci.cancel();
             return;

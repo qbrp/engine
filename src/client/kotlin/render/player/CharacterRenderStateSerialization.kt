@@ -7,7 +7,7 @@ import org.lain.engine.client.render.scene.RenderSceneSnapshot
 import org.lain.engine.client.render.scene.snapshot
 import org.lain.engine.player.get
 import org.lain.engine.script.NamespacedStorageAccess
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 
 @Serializable
 data class CharacterSceneSnapshot(

@@ -16,7 +16,7 @@ import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.persistentId
 import org.lain.engine.util.ecs.ComponentWorld
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.server.replication.Networked
 import org.lain.engine.data.loadWorldComponents
 import org.lain.engine.util.ecs.getKotlinComponentTypeEntries

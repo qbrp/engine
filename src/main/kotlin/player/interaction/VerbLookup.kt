@@ -7,7 +7,7 @@ import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.PlayerMode
 import org.lain.engine.player.PlayerModeComponent
 import org.lain.engine.script.ScriptComponent
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.World
 

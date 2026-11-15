@@ -2,10 +2,6 @@ package org.lain.engine.client.test
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotSame
@@ -34,7 +30,7 @@ import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.test.EngineTest
 import org.lain.engine.util.ecs.ComponentTypeRegistry
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 
 class RenderSceneSnapshotTest : EngineTest() {
     private val storage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
@@ -42,13 +38,13 @@ class RenderSceneSnapshotTest : EngineTest() {
     @Test
     fun restoresForwardSharedSelfAndCyclicReferencesBeforeComponentsAreUsed() {
         val snapshot = CharacterSceneSnapshot(
-            800,
+            EntityId(800, 0),
             RenderSceneSnapshot(
                 linkedMapOf(
-                    800 to RenderStateSnapshot(
-                        listOf(SnapshotTestLinks(listOf(70, 70, 800)), PlayerRenderNode(eyeLevel = 70))
+                    EntityId(800, 0) to RenderStateSnapshot(
+                        listOf(SnapshotTestLinks(listOf(EntityId(70, 0), EntityId(70, 0), EntityId(800, 0))), PlayerRenderNode(eyeLevel = 70))
                     ),
-                    70 to RenderStateSnapshot(listOf(SnapshotTestLinks(listOf(800, 70)))),
+                    EntityId(70, 0) to RenderStateSnapshot(listOf(SnapshotTestLinks(listOf(EntityId(800, 0), EntityId(70, 0))))),
                 )
             ),
         )
@@ -61,7 +57,7 @@ class RenderSceneSnapshotTest : EngineTest() {
             assertEquals(listOf(restored.node, child), child.getComponent<SnapshotTestLinks>()!!.targets)
             assertEquals(70, restored.node.getComponent<PlayerRenderNode>()!!.eyeLevel)
         }
-        assertEquals(listOf(70, 70, 800), (snapshot.scene.entities.getValue(800).components[0] as SnapshotTestLinks).targets)
+        assertEquals(listOf(EntityId(70, 0), EntityId(70, 0), EntityId(800, 0)), (snapshot.scene.entities.getValue(EntityId(800, 0)).components[0] as SnapshotTestLinks).targets)
     }
 
     @Test
@@ -76,27 +72,25 @@ class RenderSceneSnapshotTest : EngineTest() {
             assertEquals(ArmPose.HOLD_WEAPON, renderNode.offArmPose)
             assertEquals(5, renderNode.eyeLevel)
             assertEquals(9, equipment.single().node.getComponent<LightSample>()!!.block)
-            assertEquals(0, equipment.single().node)
-            assertEquals(1, restored.node)
+            assertEquals(0, equipment.single().node.index)
+            assertEquals(1, restored.node.index)
         }
         val originalEquipment =
-            (snapshot.scene.entities.getValue(800).components.single() as PlayerRenderNode).detachedEquipment
-        assertEquals(70, originalEquipment.single().node)
+            (snapshot.scene.entities.getValue(EntityId(800, 0)).components.single() as PlayerRenderNode).detachedEquipment
+        assertEquals(EntityId(70, 0), originalEquipment.single().node)
     }
 
     @Test
-    fun jsonRoundTripKeepsExistingReferenceFormatAndRestoresEquipment() {
+    fun jsonRoundTripPreservesReferencesAndRestoresEquipment() {
         val snapshot = equipmentSnapshot()
-        val json = Json { serializersModule = SerializersModule { polymorphicComponentSerializer() } }
+        val json = Json {
+            allowStructuredMapKeys = true
+            serializersModule = SerializersModule { polymorphicComponentSerializer() }
+        }
         val encoded = json.encodeToJsonElement(CharacterSceneSnapshot.serializer(), snapshot)
 
-        assertEquals(800, encoded.jsonObject.getValue("character").jsonObject.getValue("id").jsonPrimitive.int)
-        val encodedEquipment = encoded.jsonObject.getValue("scene").jsonObject.getValue("entities")
-            .jsonObject.getValue("800").jsonObject.getValue("components").jsonArray.single().jsonObject
-        val encodedNode = encodedEquipment.getValue("detachedEquipment").jsonArray.single().jsonObject.getValue("node")
-        assertEquals(70, encodedNode.jsonObject.getValue("id").jsonPrimitive.int)
-
         val decoded = json.decodeFromJsonElement(CharacterSceneSnapshot.serializer(), encoded)
+        assertEquals(snapshot, decoded)
         val restored = decoded.revive(storage)
         with(restored.scene) {
             val child = restored.node.getComponent<PlayerRenderNode>()!!.detachedEquipment.single().node
@@ -119,41 +113,41 @@ class RenderSceneSnapshotTest : EngineTest() {
         val secondLight = with(second.scene) { secondEquipment.detachedEquipment.single().node.getComponent<LightSample>()!! }
         firstLight.block = 15
         assertEquals(9, secondLight.block)
-        assertEquals(9, (snapshot.scene.entities.getValue(70).components.single() as LightSample).block)
+        assertEquals(9, (snapshot.scene.entities.getValue(EntityId(70, 0)).components.single() as LightSample).block)
     }
 
     @Test
     fun missingTargetIsRejectedDuringRestoration() {
         val snapshot = CharacterSceneSnapshot(
-            800,
-            RenderSceneSnapshot(mapOf(800 to RenderStateSnapshot(listOf(SnapshotTestLinks(listOf(99)))))),
+            EntityId(800, 0),
+            RenderSceneSnapshot(mapOf(EntityId(800, 0) to RenderStateSnapshot(listOf(SnapshotTestLinks(listOf(EntityId(99, 0))))))),
         )
         val failure = assertThrows<IllegalArgumentException> { snapshot.revive(storage) }
-        assertTrue(failure.message!!.contains("800 references missing entity 99"))
+        assertTrue(failure.message!!.contains("references missing entity"))
     }
 
     @Test
     fun emptyScenesRestoreAndMissingCharacterRootsAreRejected() {
-        assertEquals(0, RenderSceneSnapshot.EMPTY.revive(storage).addEntity())
+        assertEquals(0, RenderSceneSnapshot.EMPTY.revive(storage).addEntity().index)
         assertThrows<IllegalArgumentException> {
-            CharacterSceneSnapshot(800, RenderSceneSnapshot.EMPTY).revive(storage)
+            CharacterSceneSnapshot(EntityId(800, 0), RenderSceneSnapshot.EMPTY).revive(storage)
         }
     }
 
     private fun equipmentSnapshot(): CharacterSceneSnapshot {
         val slot = EquipmentSlot(EquipmentSlotId(EngineId("test/head")), "Head", part = PlayerPart.HEAD)
         return CharacterSceneSnapshot(
-            800,
+            EntityId(800, 0),
             RenderSceneSnapshot(
                 linkedMapOf(
-                    70 to RenderStateSnapshot(listOf(LightSample(9))),
-                    800 to RenderStateSnapshot(
+                    EntityId(70, 0) to RenderStateSnapshot(listOf(LightSample(9))),
+                    EntityId(800, 0) to RenderStateSnapshot(
                         listOf(
                             PlayerRenderNode(
                                 mainArmPose = ArmPose.EXPOSE,
                                 offArmPose = ArmPose.HOLD_WEAPON,
                                 detachedEquipment = listOf(
-                                    DetachedEquipmentNode(70, slot, false, false)
+                                    DetachedEquipmentNode(EntityId(70, 0), slot, false, false)
                                 ),
                                 eyeLevel = 5,
                             )

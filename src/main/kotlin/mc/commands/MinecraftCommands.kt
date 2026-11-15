@@ -242,21 +242,9 @@ private fun floatCustomPlayerAttribute(
     property,
 )
 
-private fun stringCustomPlayerAttribute(
-    name: String,
-    displayName: String,
-    property: KMutableProperty1<CustomPlayerAttributes, String?>,
-    suggestions: List<String> = emptyList(),
-) = CustomPlayerAttributeCommand(
-    name,
-    displayName,
-    StringArgumentType.string(),
-    ServerCommandContext::getString,
-    property,
-    suggestions,
-)
-
-private fun <T : Any> CustomPlayerAttributeCommand<T>.setNode() =
+private fun <T : Any> CustomPlayerAttributeCommand<T>.setNode(
+    resolvePlayers: (Context) -> List<EnginePlayer> = { it.command.getPlayers("players") },
+) =
     literal("set")
         .then(
             argument("value", argumentType)
@@ -266,7 +254,7 @@ private fun <T : Any> CustomPlayerAttributeCommand<T>.setNode() =
                     }
                 }
                 .executeCatching { ctx ->
-                    val players = ctx.command.getPlayers("players")
+                    val players = resolvePlayers(ctx)
                     val value = read(ctx.command, "value")
                     players.forEach { player ->
                         player.editCustomAttributes { property.set(this, value) }
@@ -278,10 +266,12 @@ private fun <T : Any> CustomPlayerAttributeCommand<T>.setNode() =
                 }
         )
 
-private fun <T : Any> CustomPlayerAttributeCommand<T>.resetNode() =
+private fun <T : Any> CustomPlayerAttributeCommand<T>.resetNode(
+    resolvePlayers: (Context) -> List<EnginePlayer> = { it.command.getPlayers("players") },
+) =
     literal("reset")
         .executeCatching { ctx ->
-            val players = ctx.command.getPlayers("players")
+            val players = resolvePlayers(ctx)
             players.forEach { player ->
                 player.editCustomAttributes { property.set(this, null) }
             }
@@ -291,10 +281,6 @@ private fun <T : Any> CustomPlayerAttributeCommand<T>.resetNode() =
             )
         }
 
-private fun <T : Any> CustomPlayerAttributeCommand<T>.node() =
-    literal(name)
-        .then(setNode())
-        .then(resetNode())
 
 private fun <T : Any> ServerCommandDispatcher.registerCustomPlayerAttributeCommand(
     permission: String,
@@ -333,44 +319,7 @@ fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
         jumpStrengthAttribute
     )
 
-    val voiceSetAttribute = stringCustomPlayerAttribute(
-        "preset",
-        "набор голоса",
-        CustomPlayerAttributes::voiceSet,
-        BUILTIN_VOICE_PRESETS,
-    )
-    val voiceRandomizationAttribute = floatCustomPlayerAttribute(
-        "randomization",
-        "случайное изменение голоса",
-        CustomPlayerAttributes::voiceRandomization,
-    )
-    val voicePitchAttribute = floatCustomPlayerAttribute(
-        "pitch",
-        "высота голоса",
-        CustomPlayerAttributes::voicePitch,
-    )
-    val voiceSpeedAttribute = floatCustomPlayerAttribute(
-        "speed",
-        "скорость голоса",
-        CustomPlayerAttributes::voiceSpeed,
-    )
-    val voiceSoundFrequencyAttribute = floatCustomPlayerAttribute(
-        "frequency",
-        "частота звука голоса",
-        CustomPlayerAttributes::voiceSoundFrequency,
-    )
-    register(
-        literal("voice")
-            .requires { it.hasPermission("attributecommand.voice") }
-            .then(
-                argument("players", EntityArgument.players())
-                    .then(voiceSetAttribute.node())
-                    .then(voiceRandomizationAttribute.node())
-                    .then(voicePitchAttribute.node())
-                    .then(voiceSpeedAttribute.node())
-                    .then(voiceSoundFrequencyAttribute.node())
-            )
-    )
+    registerVoiceCommand()
 
     register(
         literal("setname")

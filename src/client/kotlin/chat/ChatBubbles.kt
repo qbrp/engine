@@ -1,17 +1,15 @@
 package org.lain.engine.client.chat
 
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.mc.parseMiniMessageClient
 import org.lain.engine.client.render.world.LabelRenderState
 import org.lain.engine.client.util.EngineOptions
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.PlayerId
-import org.lain.engine.player.eyePos
-import org.lain.engine.player.get
-import org.lain.engine.player.whoSee
+import org.lain.engine.player.*
 import org.lain.engine.util.math.MutableEVec3
 import org.lain.engine.world.Location
 import org.lain.engine.world.location
+import org.lain.engine.world.pos
+import org.lain.engine.world.posOrNull
 import kotlin.math.pow
 import kotlin.math.sin
 
@@ -32,21 +30,20 @@ data class ChatBubble(
 )
 
 class ChatBubbleList(private val options: EngineOptions) {
-    private val _bubbles = mutableListOf<ChatBubble>()
     val bubbles: List<ChatBubble>
-        get() = _bubbles
+        field = mutableListOf<ChatBubble>()
 
-    fun setChatBubble(player: EnginePlayer, text: MessageText) {
+    fun setChatBubble(player: EnginePlayer, text: String) {
         val font = MinecraftClient.font
-        val lines = text.lines(options.chatBubbleLineWidth)
+        val lines = MiniMessageText(text).lines(options.chatBubbleLineWidth)
         val height = lines.count() * font.lineHeight
 
         // Все прошлые чат-баблы сдвигаем вверх
-        _bubbles
+        bubbles
             .filter { it.player.id == player.id }
             .forEach { it.offsetY += (height + 2) * options.chatBubbleScale}
 
-        _bubbles.add(
+        bubbles.add(
             ChatBubble(
                 lines
                     .map { LabelRenderState.Line(it, font.width(it)) }
@@ -65,13 +62,13 @@ class ChatBubbleList(private val options: EngineOptions) {
     }
 
     fun tick(mainPlayer: EnginePlayer) {
-        _bubbles.removeIf { it.remove }
+        bubbles.removeIf { it.remove }
         val players = mutableMapOf<PlayerId, Boolean>()
         bubbles.forEach { bubble ->
             if (!bubble.canSee && (bubble.tick == 0 || bubble.tick++ % 20 == 0)) {
                 val author = bubble.player
-                bubble.canSee = players.computeIfAbsent(author.id) {
-                    mainPlayer.location.position.squaredDistanceTo(author.location.position) < 6*6 || mainPlayer.whoSee(8) == author
+                bubble.canSee = author.exists() && players.computeIfAbsent(author.id) {
+                    mainPlayer.location.position.squaredDistanceTo(author.pos) < 6*6 || mainPlayer.whoSee(8) == author
                 }
             }
         }
@@ -85,7 +82,7 @@ fun updateChatBubble(bubble: ChatBubble, dt: Float, height: Float) {
     val lifetime = bubble.lifetime
     val fadeout = lifetime > bubble.expiration
 
-    val playerPos = bubble.player.get<Location>()?.position ?: bubble.pos
+    val playerPos = bubble.player.posOrNull ?: bubble.pos
     val t = (lifetime / bubble.expiration).coerceIn(0f, 1f)
     val t2 = ((lifetime - bubble.expiration) / FADE_OUT_TIME)
         .coerceIn(0f, 1f)

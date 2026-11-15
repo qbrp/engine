@@ -13,7 +13,7 @@ import org.lain.cyberia.ecs.destroy
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.LogDiagnosticContext
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.world.*
 import org.slf4j.LoggerFactory
 import java.io.File

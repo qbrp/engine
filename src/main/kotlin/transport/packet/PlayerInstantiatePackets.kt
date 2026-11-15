@@ -148,21 +148,21 @@ data class GeneralPlayerData(
     }
 }
 
-val CLIENTBOUND_PLAYER_JOIN_ENDPOINT = Endpoint<PlayerJoinServerPacket>()
+val CLIENTBOUND_ONLINE_PLAYER_ADD_ENDPOINT = Endpoint<OnlinePlayerAdd>()
 
 // Join / Leave
 
 @Serializable
-data class PlayerJoinServerPacket(
+data class OnlinePlayerAdd(
     val player: GeneralPlayerData
 ) : Packet
 
 @Serializable
-data class PlayerDestroyPacket(
+data class OnlinePlayerRemove(
     val playerId: PlayerId
 ) : Packet
 
-val CLIENTBOUND_PLAYER_DESTROY_ENDPOINT = Endpoint<PlayerDestroyPacket>()
+val CLIENTBOUND_ONLINE_PLAYER_REMOVE_ENDPOINT = Endpoint<OnlinePlayerRemove>()
 
 // Namespaces
 

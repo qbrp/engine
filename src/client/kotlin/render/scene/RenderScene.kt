@@ -21,7 +21,7 @@ import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ThreadSafeNamespaceStorageAccessImpl
 import org.lain.engine.util.ecs.ComponentWorld
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import java.util.concurrent.ConcurrentHashMap
 
 class RenderScene(

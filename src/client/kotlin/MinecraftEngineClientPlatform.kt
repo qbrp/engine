@@ -58,7 +58,6 @@ class MinecraftEngineClientPlatform(
 
     override fun onPlayerBecameDetailed(player: EnginePlayer) {
         player.getOrSet { EnginePlayerSkin() }
-
         minecraft.level?.players()
             ?.firstOrNull { it.uuid == player.id.value }
             ?.let { player.bindMinecraftEntity(it) }

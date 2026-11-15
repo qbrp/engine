@@ -4,6 +4,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import org.lain.cyberia.ecs.EntityId;
 import org.lain.engine.mc.ecs.EngineItemReferenceComponent;
 import org.lain.engine.mc.InventoryActionsKt;
 import org.lain.engine.mc.ServerMixin;
@@ -30,8 +31,8 @@ public abstract class ItemStackMixin {
         EnginePlayer enginePlayer = ServerMixin.INSTANCE.getEnginePlayer(player);
         if (enginePlayer != null) {
             World world = enginePlayer.getWorld();
-            Integer slotItem = getEngineItem(world, slotStack);
-            Integer item = getEngineItem(world, (ItemStack) (Object) this);
+            EntityId slotItem = getEngineItem(world, slotStack);
+            EntityId item = getEngineItem(world, (ItemStack) (Object) this);
             if (slotItem != null && item != null && !player.level().isClientSide()) {
                 cir.setReturnValue(
                         InventoryActionsKt.onSlotEngineItemClicked(
@@ -43,7 +44,7 @@ public abstract class ItemStackMixin {
     }
 
     @Unique
-    private static Integer getEngineItem(World world, ItemStack itemStack) {
+    private static EntityId getEngineItem(World world, ItemStack itemStack) {
         EngineItemReferenceComponent component = itemStack.get(ItemStacksKt.getENGINE_ITEM_REFERENCE_COMPONENT());
         if (component == null) {
             return null;

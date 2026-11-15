@@ -14,8 +14,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
-typealias EntityId = Int
-
 class ComponentWorld(
     val thread: Thread,
     val persistentIdToEntity: ConcurrentHashMap<PersistentId, EntityId>,
@@ -26,15 +24,19 @@ class ComponentWorld(
     @Volatile
     var threadRestrictionMode = true
     var entityDestroyedListener: ((EntityId, PersistentId?) -> Unit)? = null
+
     private val arrays = ArrayList<ComponentArray<*>>()
     private val savableArrays = ArrayList<ComponentArray<*>>()
     private val networkingArrays = ArrayList<ComponentArray<*>>()
 
-    // Создание сущностей потокобезопасно. Добавление компонентов - нет
-    private var destroyed = Collections.synchronizedList<Boolean>(mutableListOf())
-    private var freeIndexes = ConcurrentLinkedQueue<EntityId>()
+    // Создание сущностей потокобезопасно
+
+    // null - сущность уничтожена, в ином случае хранится generation
+    private val entities = IntArray(MAX_ENTITIES) { MISSING_ENTITY }
     private var lastIndex = AtomicInteger()
-    private val entityInstantiationLock = Any()
+
+    // можно неатомарно создавать свободные индексы
+    private var freeIndexes = ConcurrentLinkedQueue<EntityId>()
 
     init {
         if (registerEngineKotlinComponents) {
@@ -59,6 +61,10 @@ class ComponentWorld(
     fun listArrays(): List<ComponentArray<*>> {
         checkOnThread()
         return arrays
+    }
+
+    fun entityId(id: Int) = synchronized(entities) {
+        EntityId(id, entities[id])
     }
 
     fun registerComponentArrays(entries: List<Pair<IndexedComponentType<out Component>, ComponentMeta>>) {
@@ -99,28 +105,32 @@ class ComponentWorld(
                 arr.onRemoved = null
 
                 arrays += arr
-                if (type == componentTypeOf(PersistentIdComponent::class)) {
-                    arr.onSet = { component, entity ->
-                        persistentIdToEntity[(component as PersistentIdComponent).id] = entity
-                    }
-                    arr.onRemoved =
-                        { component, entity -> persistentIdToEntity.remove((component as PersistentIdComponent).id) }
-                } else if (type == componentTypeOf(Item::class)) {
-                    arr.onSet = { component, entity ->
-                        val persistentId = (component as Item).uuid
-                        if (itemStorage.get(persistentId) != entity) {
-                            itemStorage.remove(persistentId)
-                            itemStorage.add(persistentId, entity)
-                        }
-                    }
-                    arr.onRemoved = { component, entity ->
-                        itemStorage.remove((component as Item).uuid)
-                    }
-                }
+                arr.setupCallbacks()
 
                 if (meta.savable) savableArrays.add(arr)
                 if (meta.networking) networkingArrays.add(arr)
             }
+    }
+
+    private fun ComponentArray<*>.setupCallbacks() {
+        if (type == PERSISTENT_ID_TYPE) {
+            onSet = { component, entity ->
+                persistentIdToEntity[(component as PersistentIdComponent).id] = entity
+            }
+            onRemoved =
+                { component, entity -> persistentIdToEntity.remove((component as PersistentIdComponent).id) }
+        } else if (type == componentTypeOf(Item::class)) {
+            onSet = { component, entity ->
+                val persistentId = (component as Item).uuid
+                if (itemStorage.get(persistentId) != entity) {
+                    itemStorage.remove(persistentId)
+                    itemStorage.add(persistentId, entity)
+                }
+            }
+            onRemoved = { component, entity ->
+                itemStorage.remove((component as Item).uuid)
+            }
+        }
     }
 
     suspend fun <R> withoutThreadRestriction(statement: suspend ComponentWorld.() -> R): R {
@@ -210,35 +220,39 @@ class ComponentWorld(
         }
 
     // потокобезопасно
-    override fun addEntity(): EntityId = synchronized(entityInstantiationLock) {
-        val idx = freeIndexes.poll() ?: run {
-            destroyed.add(false)
-            lastIndex.getAndIncrement()
+    override fun addEntity(): EntityId {
+        val entity = freeIndexes.poll()
+            ?: EntityId(lastIndex.getAndIncrement(), 0)
+        require(entity.index < MAX_ENTITIES) { "Entity limit has been exceeded" }
+        synchronized(entities) {
+            entities[entity.index] = entity.generation
         }
-        destroyed[idx] = false
-        return idx
+        return entity
     }
 
     // главный поток
     override fun destroy(entity: EntityId) {
         require(exists(entity)) { "Entity $entity does not exist" }
-        val array = getComponentArray(componentTypeOf(PersistentIdComponent::class).castIndexed())
+        val array = getComponentArray(PERSISTENT_ID_TYPE)
         val persistentId = array.componentOf(entity)?.id
         arrays.forEach { array -> removeComponent(entity, array.type) }
-        synchronized(entityInstantiationLock) {
-            destroyed[entity] = true
+
+        synchronized(entities) {
+            entities[entity.index] = MISSING_ENTITY
         }
+
         try {
             entityDestroyedListener?.invoke(entity, persistentId)
         } finally {
-            freeIndexes.add(entity)
+            freeIndexes.add(entity.copy(generation = entity.generation + 1))
         }
     }
 
     // главный поток
     override fun exists(entity: EntityId): Boolean {
-        //TODO: профайлер показывает здесь просадку из-за синхронизации листа destroyed
-        return entity < destroyed.size && !destroyed[entity]
+        //TODO: профайлер показывает здесь просадку из-за синхронизации листа entities
+        val generation = synchronized(entities) { entities.getOrNull(entity.index) }
+        return generation != null && generation != MISSING_ENTITY && generation == entity.generation
     }
 
     private inline fun forEachComponent(
@@ -531,7 +545,10 @@ class ComponentWorld(
     }
 
     companion object {
+        private const val MAX_ENTITIES = 1_000_000
+        private const val MISSING_ENTITY = -1
         private val LOGGER = LoggerFactory.getLogger(ComponentWorld::class.java)
+        private val PERSISTENT_ID_TYPE = componentType<PersistentIdComponent>().castIndexed()
     }
 }
 

@@ -16,7 +16,7 @@ import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.asUserdataOrThrow
 import org.lain.engine.script.lua.castedLuaValue
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaValue
 

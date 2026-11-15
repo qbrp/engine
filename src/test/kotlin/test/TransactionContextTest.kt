@@ -29,7 +29,7 @@ import org.lain.engine.script.SNil
 import org.lain.engine.script.Script
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.server.EngineServer
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.world.World
 import java.nio.file.Path
 

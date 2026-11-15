@@ -17,14 +17,12 @@ fun World.tickReplicationSystem(server: EngineServer) = runBlocking {
     val globals = server.globals
     val synchronizationRadius = globals.playerSynchronizationRadius
     val desynchronizationRadius = synchronizationRadius + globals.playerDesynchronizationThreshold
-    val (job, frame) = componentManager.withoutThreadRestriction {
+    val frame = componentManager.withoutThreadRestriction {
         withContext(Dispatchers.Default) {
-            val job = launch { tickPlayerInterestsSystem(synchronizationRadius) }
-            val frame = async { captureReplicationDelta() }
-            job to frame
+            launch { tickPlayerInterestsSystem(synchronizationRadius) }
+            async { captureReplicationDelta() }
         }
     }
-    job.join()
     tickPlayerTrackingSystem(server, desynchronizationRadius)
     sendReplicationPackets(frame.await(), server.handler)
 }

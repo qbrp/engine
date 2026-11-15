@@ -179,7 +179,7 @@ fun World.tickGunSystem() {
         item.emitPlaySoundEvent(ROUND_BARREL_SOUND)
         item.markDirty<GunMagazines>()
         item.markDirty<GunFireState>()
-        magazineItem.setComponent(DecrementItem(magazineItem))
+        magazineItem.setComponent(DecrementItem(1))
     }
 
     iterate<GunMagazines, GunMagazineTakeOff>() { gun, magazines, (player) ->

@@ -35,7 +35,7 @@ fun PlayerMetaTable() = luaUserdataTable<EnginePlayer> {
     indexSelf { player, key ->
         when (key.tojstring()) {
             "uuid" -> player.id.value.toString().luaStr()
-            "id" -> player.entity.luaNum()
+            "id" -> player.entity.luaEntityRef()
             "entity" -> with(player.world) { player.entity.luaEntity() }
             "world" -> player.world.luaWorld()
             "display_name" -> player.displayNameString.luaStr()

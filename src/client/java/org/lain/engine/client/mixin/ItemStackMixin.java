@@ -16,6 +16,7 @@ import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipProvider;
 import org.jetbrains.annotations.Nullable;
+import org.lain.cyberia.ecs.EntityId;
 import org.lain.engine.client.mc.ClientMixin;
 import org.lain.engine.client.mc.UtilKt;
 import org.lain.engine.mc.InventoryActionsKt;
@@ -56,7 +57,7 @@ public abstract class ItemStackMixin {
             cancellable = true
     )
     public void engine$getTooltip(Item.TooltipContext tooltipContext, @org.jspecify.annotations.Nullable Player player, TooltipFlag tooltipFlag, CallbackInfoReturnable<List<Component>> cir) {
-        Integer engineItem = getEngineItem((ItemStack) ((Object) this));
+        EntityId engineItem = getEngineItem((ItemStack) ((Object) this));
         boolean instantiateItem = components.has(ItemStacksKt.getENGINE_ITEM_INSTANTIATE_COMPONENT());
         if (engineItem == null && !instantiateItem) {
             return;
@@ -89,15 +90,15 @@ public abstract class ItemStackMixin {
     public void engine$onClicked(Slot slot, ClickAction clickAction, Player player, CallbackInfoReturnable<Boolean> cir) {
         if (!player.level().isClientSide()) return;
         ItemStack slotStack = slot.getItem();
-        Integer slotItem = getEngineItem(slotStack);
-        Integer item = getEngineItem((ItemStack) (Object) this);
+        EntityId slotItem = getEngineItem(slotStack);
+        EntityId item = getEngineItem((ItemStack) (Object) this);
         if (slotItem != null && item != null) {
             cir.setReturnValue(InventoryActionsKt.onSlotEngineItemClicked(item, slotItem, slotStack, (ItemStack) (Object) this, player, clickAction));
         }
     }
 
     @Unique
-    private static Integer getEngineItem(ItemStack itemStack) {
+    private static EntityId getEngineItem(ItemStack itemStack) {
         return ClientMixin.INSTANCE.getEngineItem(itemStack);
     }
 }

@@ -3,8 +3,8 @@ package org.lain.engine.client.chat
 import org.lain.engine.chat.*
 import org.lain.engine.client.GameSession
 import org.lain.engine.player.PlayerStorage
-import org.lain.engine.player.effectiveAttributes
-import org.lain.engine.player.username
+import org.lain.engine.player.VoiceImage
+import org.lain.engine.player.get
 import org.lain.engine.transport.packet.ClientChatChannel
 import org.lain.engine.transport.packet.ClientChatSettings
 import org.lain.engine.util.Color
@@ -122,14 +122,14 @@ fun acceptOutcomingMessage(
     }
 
     val content = if (message.speech) {
-        val attributes = players.get(message.source.player!!.id)?.effectiveAttributes
+        val attributes = players.get(message.source.player!!.id)?.get<VoiceImage>()
         if (attributes != null) {
             SpeechContent(
                 MiniMessageText(display),
                 MiniMessageText(undistortedDisplay),
                 message.source,
                 message.volumes?.result ?: error("Speech message must be delivered with realistic acoustic"),
-                VoiceProperties.fromAttributes(message.volumes?.result ?: 0.7f, attributes),
+                VoiceProperties.fromImage(message.volumes?.result ?: 0.7f, attributes),
             )
         } else {
             ServiceContent(MiniMessageText(display))

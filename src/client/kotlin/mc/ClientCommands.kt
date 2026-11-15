@@ -63,7 +63,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                                         literalText(
                                             function.execute(
                                                 this,
-                                                gameSession.mainPlayer.coerceToLua(), //player
+                                                gameSession.mainPlayer.coerceToLua(), //playerId
                                                 gameSession.world.luaWorld() //world
                                             )
                                                 .tojstring()
@@ -206,7 +206,8 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                             ClientCommandManager.argument("id", IntegerArgumentType.integer(0))
                                 .executes { ctx ->
                                     val gameSession = engineClient.gameSession ?: return@executes 0
-                                    val entity = IntegerArgumentType.getInteger(ctx, "id")
+                                    val componentManager = gameSession.world.componentManager
+                                    val entity = componentManager.entityId(IntegerArgumentType.getInteger(ctx, "id"))
 
                                     with(gameSession.world) {
                                         if (!entity.exists()) {

@@ -5,6 +5,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.data.*
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.VoiceImage
 import org.lain.engine.player.equipment
 import org.lain.engine.player.items
 import org.lain.engine.server.ServerPlatform
@@ -30,9 +31,7 @@ fun EnginePlayer.unloadCharacter(
             serializedInventory ?: platform.serializeInventory(this@unloadCharacter),
             items.map { it.persistentId() },
             equipment.mapValues { (_, entity) -> entity.persistentId() },
-            listOfNotNull(
-                entity.getComponent<CharacterPhysical>()
-            )
+            listOfNotNull(entity.getComponent<VoiceImage>()?.copy())
                 .map { SavingComponentSnapshot(it.snapshot(), componentTypeOf(it)) },
         )
         persistence.saveCharacter(applied.id, snapshot)

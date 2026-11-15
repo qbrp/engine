@@ -1,14 +1,12 @@
 package org.lain.engine.client.script
 
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.client.GameSession
-import org.lain.engine.client.chat.LiteralSystemMessage
 import org.lain.engine.client.render.ui.EntityInspectorWindow
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.persistentId
 import org.lain.engine.script.dev.EditOperation
 import org.lain.engine.script.dev.EntityInspectionSnapshot
-import org.lain.engine.script.dev.InspectionPrimitive
-import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.util.getEntityDebugNameId
 
 class EntityInspection(

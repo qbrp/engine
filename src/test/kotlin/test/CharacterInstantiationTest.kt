@@ -54,7 +54,6 @@ import org.lain.engine.player.character.CharacterDisplay
 import org.lain.engine.player.character.CharacterGradientName
 import org.lain.engine.player.character.CharacterHeight
 import org.lain.engine.player.character.CharacterOccupiedException
-import org.lain.engine.player.character.CharacterPhysical
 import org.lain.engine.player.character.CharacterProfile
 import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.player.character.EngineBackend
@@ -67,7 +66,6 @@ import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.character.Skin
 import org.lain.engine.player.character.UsedCharacters
 import org.lain.engine.player.character.getDisplay
-import org.lain.engine.player.character.getPhysical
 import org.lain.engine.player.interaction.HandType
 import org.lain.engine.player.interaction.setupHandInteractorEntity
 import org.lain.engine.player.get
@@ -79,6 +77,7 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ServerPlatform
 import org.lain.engine.server.replication.EntityStateUpdate
 import org.lain.engine.server.replication.Interests
+import org.lain.engine.server.replication.Networked
 import org.lain.engine.server.replication.PlayerReplicationState
 import org.lain.engine.server.replication.ReplicationSnapshot
 import org.lain.engine.server.replication.tickReplicationSystem
@@ -136,15 +135,16 @@ class CharacterInstantiationTest : EngineTest() {
     @Test
     fun applyingPersistentCharacterPreservesPlayerPersistentId() {
         val player = createPlayer()
-        val character = character()
+        val character = character(bodyType = BodyType.BROAD)
         val id = OwnedCharacterId.player(player.id, character.id)
-        val savedPhysical = CharacterPhysical(BodyType.BROAD, BiologicalSex.FEMALE)
-        val saved = savedCharacter(id, character.data.baseLook.id, resolved = listOf(savedPhysical))
+        val saved = savedCharacter(id, character.data.baseLook.id)
 
         apply(player, character, id, saved)
 
         assertEquals(player.id.asPersistentId(), player.require<PersistentIdComponent>().id)
-        assertEquals(savedPhysical, player.require<CharacterPhysical>())
+        assertEquals(AppliedCharacter(character, id), player.require<AppliedCharacter>())
+        assertEquals(BodyType.BROAD, player.require<AppliedCharacter>().character.data.profile.bodyType)
+        assertEquals(BiologicalSex.FEMALE, player.require<AppliedCharacter>().character.data.profile.biologicalSex)
         assertEquals(player.entity, world.persistentIdToEntity[player.id.asPersistentId()])
         assertNull(world.persistentIdToEntity[id.databasePersistentId()])
     }
@@ -168,7 +168,8 @@ class CharacterInstantiationTest : EngineTest() {
         transaction.commit()
 
         assertEquals(AppliedCharacter(character, id), player.require<AppliedCharacter>())
-        assertEquals(character.data.getPhysical(), player.require<CharacterPhysical>())
+        assertEquals(BodyType.NORMAL, player.require<AppliedCharacter>().character.data.profile.bodyType)
+        assertEquals(BiologicalSex.FEMALE, player.require<AppliedCharacter>().character.data.profile.biologicalSex)
         assertEquals(character.data.getDisplay(), player.require<CharacterDisplay>())
         assertEquals(character.data.baseLook, player.require<SelectedLook>().look)
         assertTrue(player.require<Equipment>().slots.isEmpty())
@@ -183,14 +184,11 @@ class CharacterInstantiationTest : EngineTest() {
         val player = createPlayer()
         player.set(PlayerComponent(player))
         player.set(Interests())
+        player.set(Networked)
         player.set(PlayerReplicationState())
         val transport = Injector.resolve<ServerTransportContext>() as TestServerTransportContext
-        val female = character("female")
-        val male = character("male").let { character ->
-            character.copy(data = character.data.copy(
-                profile = character.data.profile.copy(biologicalSex = BiologicalSex.MALE),
-            ))
-        }
+        val female = character("female", bodyType = BodyType.BROAD)
+        val male = character("male", sex = BiologicalSex.MALE, bodyType = BodyType.SLIM)
 
         for (character in listOf(female, male)) {
             apply(player, character)
@@ -199,6 +197,19 @@ class CharacterInstantiationTest : EngineTest() {
             world.tickReplicationSystem(server)
 
             val packet = transport.sentPackets.mapNotNull { it.packet as? ReplicationPacket }.single()
+            val replicatedPlayer = packet.frame.entities.getValue(player.id.asPersistentId())
+            val playerComponents = when (replicatedPlayer) {
+                is EntityStateUpdate.Full -> replicatedPlayer.components
+                is EntityStateUpdate.Delta -> replicatedPlayer.delta.updated
+            }
+            val replicatedCharacter = playerComponents
+                .filterIsInstance<ReplicationSnapshot.Component>()
+                .mapNotNull { (it.component as? ComponentSnapshot.Kotlin<*>)?.component as? AppliedCharacter }
+                .single()
+            assertEquals(AppliedCharacter(character, OwnedCharacterId.player(player.id, character.id)), replicatedCharacter)
+            assertEquals(character.data.profile.bodyType, replicatedCharacter.character.data.profile.bodyType)
+            assertEquals(character.data.profile.biologicalSex, replicatedCharacter.character.data.profile.biologicalSex)
+
             val replicatedEvents = packet.frame.entities.values
                 .filterIsInstance<EntityStateUpdate.Full>()
                 .flatMap { it.components }
@@ -287,11 +298,10 @@ class CharacterInstantiationTest : EngineTest() {
     fun rolledBackApplyDoesNotChangePlayerOrPublishEvent() {
         val player = createPlayerWithCharacter()
         val previous = player.require<AppliedCharacter>()
-        val previousPhysical = player.require<CharacterPhysical>()
         val previousLook = player.require<SelectedLook>()
         val previousEquipment = player.require<Equipment>()
         val previousInventory = player.require<TestPlayerInventory>()
-        val next = character("next")
+        val next = character("next", sex = BiologicalSex.MALE, bodyType = BodyType.SLIM)
         val id = OwnedCharacterId.player(player.id, next.id)
         val transaction = newTransaction()
 
@@ -300,7 +310,8 @@ class CharacterInstantiationTest : EngineTest() {
 
         assertEquals(TransactionState.ROLLED_BACK, transaction.state)
         assertSame(previous, player.require<AppliedCharacter>())
-        assertSame(previousPhysical, player.require<CharacterPhysical>())
+        assertEquals(BodyType.NORMAL, player.require<AppliedCharacter>().character.data.profile.bodyType)
+        assertEquals(BiologicalSex.FEMALE, player.require<AppliedCharacter>().character.data.profile.biologicalSex)
         assertSame(previousLook, player.require<SelectedLook>())
         assertSame(previousEquipment, player.require<Equipment>())
         assertEquals(setOf(previous.id), player.require<UsedCharacters>().characters)
@@ -571,7 +582,7 @@ class CharacterInstantiationTest : EngineTest() {
             playerId, emptyList(), MutableEVec3(), "CharacterTest",
             DeveloperModeStatus(), world, playerMode = PlayerMode.SPECTATOR, canProvideCharacters = true,
         )
-        val failure = IllegalStateException("player initialization failed")
+        val failure = IllegalStateException("playerId initialization failed")
         platform.preparationFailure = failure
 
         val failed = runOnServer {
@@ -649,17 +660,20 @@ class CharacterInstantiationTest : EngineTest() {
     private fun savedCharacter(
         id: OwnedCharacterId,
         look: String,
-        resolved: List<Component> = listOf(CharacterPhysical(BodyType.BROAD, BiologicalSex.FEMALE)),
     ) = PlayCharacterData(
         id,
         MaterializedComponents(
             id.databasePersistentId(), EntityPersistenceData.Character(look, "saved-inventory"),
-            resolved, emptyList(), emptyList(),
+            emptyList(), emptyList(), emptyList(),
         ),
         "saved-inventory", emptySet(), look,
     )
 
-    private fun character(id: String = "variant"): ServerCharacterData {
+    private fun character(
+        id: String = "variant",
+        sex: BiologicalSex = BiologicalSex.FEMALE,
+        bodyType: BodyType = BodyType.NORMAL,
+    ): ServerCharacterData {
         val base = Look("base", "Base", Skin("https://example.com/base.png"), "", true)
         val alternative = Look("other", "Other", Skin("https://example.com/other.png"), "", false)
         return ServerCharacterData(
@@ -667,8 +681,8 @@ class CharacterInstantiationTest : EngineTest() {
             CharacterData(
                 CharacterProfile(
                     CharacterGradientName("Character", Color.WHITE), BiologicalCategory.HUMAN,
-                    BiologicalSex.FEMALE, "Appearance", CharacterHeight(1.7f),
-                    BodyType.NORMAL, CharacterAppearance(0.5f, 2),
+                    sex, "Appearance", CharacterHeight(1.7f),
+                    bodyType, CharacterAppearance(0.5f, 2),
                 ),
                 listOf(base, alternative), base,
             ),

@@ -1,6 +1,7 @@
 package org.lain.engine.util.ecs
 
 import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.exists
 import org.lain.engine.world.World

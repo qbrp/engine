@@ -42,7 +42,6 @@ import java.util.*
 object ClientMixin {
     private val client by injectClient()
     private val minecraftClient by injectMinecraftClient()
-    private val mainPlayer get() = client.gameSession?.mainPlayer
     private val transformationRenderInstances = ArrayDeque<TransformationRenderInstance>()
     private var mainPlayerHearing: Hearing? = null
     var chatClipboardCopyTicksElapsed = 0

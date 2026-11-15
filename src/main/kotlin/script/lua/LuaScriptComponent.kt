@@ -4,7 +4,7 @@ import org.lain.cyberia.ecs.*
 import org.lain.engine.script.*
 import org.lain.engine.script.dev.ScriptInspectionValue
 import org.lain.engine.script.lua.library.LuaComponentAccess
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 

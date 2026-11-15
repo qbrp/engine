@@ -2,6 +2,7 @@ package org.lain.engine.util.ecs
 
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
+import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.MutableComponentAccess
 import org.lain.cyberia.ecs.WriteComponentAccess
 import org.lain.engine.server.EngineServer
@@ -21,13 +22,6 @@ class EntityCommandBuffer(
         createdEntities.addAll(other.createdEntities)
         other.commands.clear()
         other.createdEntities.clear()
-    }
-
-    fun schedule(server: EngineServer, statement: (WriteComponentAccess.() -> Unit)? = null) {
-        server.execute {
-            apply()
-            statement?.invoke(this)
-        }
     }
 
     override fun <T : Component> removeComponent(

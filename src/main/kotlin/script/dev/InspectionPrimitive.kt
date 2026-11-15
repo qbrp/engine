@@ -2,6 +2,7 @@ package org.lain.engine.script.dev
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.SBool
 import org.lain.engine.script.SEntityRef
@@ -99,7 +100,7 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("entity_ref")
-    data class EntityRef(val entityId: kotlin.Int) : InspectionPrimitive() {
+    data class EntityRef(val entityId: EntityId) : InspectionPrimitive() {
         override fun toScriptValue(): ScriptValue {
             return SEntityRef(entityId)
         }

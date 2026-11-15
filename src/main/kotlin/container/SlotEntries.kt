@@ -12,7 +12,7 @@ import org.lain.engine.world.World
 import kotlin.collections.component1
 import kotlin.collections.component2
 
-@Serializable data class OccupiedSlots(val slots: MutableMap<SlotId, EngineItem>) : Component
+data class OccupiedSlots(val slots: MutableMap<SlotId, EngineItem>) : Component
 
 // Назначать на сущность предмета
 @Serializable data class AssignedSlot(val slot: SlotId) : Component

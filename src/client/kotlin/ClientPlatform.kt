@@ -28,7 +28,8 @@ interface ClientPlatform {
 
 
     interface TickExtension {
-        fun GameSession.tickDataPrepareSystem()
+        fun GameSession.tickDataPrepareBeforeReplication()
+        fun GameSession.tickDataPrepareAfterReplication()
         fun GameSession.tickDataApplySystem()
         fun GameSession.tickBulletFireSystem()
     }

@@ -244,13 +244,15 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         }
     }
 
-    override fun GameSession.tickDataPrepareSystem() {
+    override fun GameSession.tickDataPrepareBeforeReplication() {}
+
+    override fun GameSession.tickDataPrepareAfterReplication() {
         val level = currentLevel ?: return
         world.tickVoxelAdapterSystem(level)
         world.tickClientMinecraftPlayerBinding(level)
         MinecraftSystem.tickDataPrepareCommon(
             world,
-            tickInventorySyncSystem = { tickClientInventorySyncSystem(this@tickDataPrepareSystem) }
+            tickInventorySyncSystem = { tickClientInventorySyncSystem(this@tickDataPrepareAfterReplication) }
         )
     }
 

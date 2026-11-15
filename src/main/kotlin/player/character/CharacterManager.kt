@@ -10,6 +10,7 @@ import org.lain.engine.data.createTransactionContext
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Equipment
 import org.lain.engine.player.PlayerId
+import org.lain.engine.player.VoiceImage
 import org.lain.engine.player.account.SessionTicketDto
 import org.lain.engine.player.get
 import org.lain.engine.player.require
@@ -172,14 +173,11 @@ class CharacterManager(
         val previousCharacterId = player.get<AppliedCharacter>()?.id
         val lastLook = data?.look?.let { lookId -> character.looks.firstOrNull { it.id == lookId } }
 
-        if (data == null) {
-            entity.setComponent(character.getPhysical())
-        }
-
         entity.setComponent(character.getDisplay())
         entity.setComponent(SelectedLook(lastLook ?: character.baseLook))
         entity.setComponent(AppliedCharacter(serverCharacter, id))
         entity.setComponent(Equipment(data?.equipment?.toMutableMap() ?: mutableMapOf()))
+        entity.setComponent(VoiceImage())
         data?.components?.applyResolved(player.entity)
 
         world.emitEvent(

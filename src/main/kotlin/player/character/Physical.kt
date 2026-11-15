@@ -1,7 +1,6 @@
 package org.lain.engine.player.character
 
 import kotlinx.serialization.Serializable
-import org.lain.cyberia.ecs.Component
 
 @Serializable
 enum class BiologicalCategory(val displayName: String) {
@@ -24,16 +23,3 @@ enum class BodyType(val displayName: String) {
     NORMAL("Обычное"),
     SLIM("Узкое"),
 }
-
-fun CharacterData.getPhysical(): CharacterPhysical {
-    return CharacterPhysical(
-        profile.bodyType,
-        profile.biologicalSex
-    )
-}
-
-@Serializable
-data class CharacterPhysical(
-    val bodyType: BodyType,
-    val sex: BiologicalSex
-) : Component

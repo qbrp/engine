@@ -67,12 +67,3 @@ fun ClientHandler.updatePlayer(id: PlayerId, update: (EnginePlayer) -> Unit) {
     }
     update(player)
 }
-
-fun ClientHandler.updatePlayerDetailed(id: PlayerId, update: (EnginePlayer) -> Unit) {
-    updatePlayer(id) {
-        if (it.isLowDetailed) {
-            LOGGER.warn("Получен пакет данных игрока вне зоны обновлений: $it")
-        }
-        update(it)
-    }
-}

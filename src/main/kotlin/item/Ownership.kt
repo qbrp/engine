@@ -9,6 +9,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.equipment
+import org.lain.engine.player.exists
 import org.lain.engine.util.addIfNotNull
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -19,10 +20,13 @@ data class HeldBy(var owner: EnginePlayer?) : Component
 context(world: World)
 fun EngineItem.getOwner() = this.getComponent<HeldBy>()?.owner
 
-fun World.tickItemOwnershipSystem(extension: EngineSimulation.SimulationTickExtension) {
-    iterate<PlayerComponent, PlayerInventory> { _, (player), inventory ->
-        if (!extension.shouldSimulate(player)) return@iterate
+fun World.tickItemOwnershipSystem() {
+    iterate<Item, HeldBy> { _, _, holdsBy ->
+        holdsBy.owner = null
+    }
 
+    // после череды багов теперь такой инвариант - игрок удаляется вместе с предметами в GameSession
+    iterate<PlayerComponent, PlayerInventory> { _, (player), inventory ->
         val ownershipItems = player.equipment.values.toMutableList()
         ownershipItems.addIfNotNull(inventory.cursorItem)
         ownershipItems.addAll(inventory.items)
@@ -37,10 +41,10 @@ fun World.tickItemOwnershipSystem(extension: EngineSimulation.SimulationTickExte
         }
     }
 
+
     iterate<Item, HeldBy> { item, _, holdsBy ->
         val owner = holdsBy.owner
-        if (owner != null) {
-            if (!extension.shouldSimulate(owner)) return@iterate
+        if (owner != null && owner.exists()) {
             val pos = owner.pos
             val location = item.getComponent<Location>() ?: run {
                 val component = Location(pos)
@@ -49,11 +53,5 @@ fun World.tickItemOwnershipSystem(extension: EngineSimulation.SimulationTickExte
             }
             location.position.set(pos.x, pos.y, pos.z)
         }
-    }
-}
-
-fun World.resetItemOwnershipState() {
-    iterate<Item, HeldBy> { _, _, holdsBy ->
-        holdsBy.owner = null
     }
 }

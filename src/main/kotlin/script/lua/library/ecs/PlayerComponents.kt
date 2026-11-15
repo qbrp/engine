@@ -2,34 +2,16 @@ package org.lain.engine.script.lua.library.ecs
 
 import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.EntityId
-import org.lain.engine.player.CustomPlayerAttributes
-import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.MovementStatus
-import org.lain.engine.player.PlayerAttributes
-import org.lain.engine.player.PlayerModeComponent
-import org.lain.engine.player.PlayerPhysics
-import org.lain.engine.player.Velocity
+import org.lain.engine.player.*
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.player.require
 import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.EngineId
-import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.LuaUserdataType
+import org.lain.engine.script.lua.*
 import org.lain.engine.script.lua.library.LuaComponentBinding
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.setLuaScriptComponent
-import org.lain.engine.script.lua.luaBool
-import org.lain.engine.script.lua.luaNum
-import org.lain.engine.script.lua.luaStr
-import org.lain.engine.script.lua.luaTable
-import org.lain.engine.script.lua.luaTableOf
-import org.lain.engine.script.lua.nullable
-import org.lain.engine.script.lua.toLuaList
-import org.lain.engine.script.lua.toLuaValue
-import org.lain.engine.script.lua.toScriptValue
 import org.lain.engine.util.ecs.componentType
 import org.lain.engine.world.World
-import org.lain.engine.world.location
 import org.luaj.vm2.LuaValue.NIL
 
 fun PlayerModeMetaTable() = LuaUserdataType<PlayerModeComponent> {
@@ -107,11 +89,6 @@ fun PlayerCustomAttributesMetaTable() = LuaUserdataType<CustomPlayerAttributes> 
             "speed" -> self.speed?.toDouble()?.luaNum() ?: NIL
             "jump_strength" -> self.jumpStrength?.toDouble()?.luaNum() ?: NIL
             "gravity" -> self.gravity?.toDouble()?.luaNum() ?: NIL
-            "voice_set" -> self.voiceSet?.luaStr() ?: NIL
-            "voice_randomization" -> self.voiceRandomization?.toDouble()?.luaNum() ?: NIL
-            "voice_pitch" -> self.voicePitch?.toDouble()?.luaNum() ?: NIL
-            "voice_speed" -> self.voiceSpeed?.toDouble()?.luaNum() ?: NIL
-            "voice_sound_frequency" -> self.voiceSoundFrequency?.toDouble()?.luaNum() ?: NIL
             else -> self.script[key.tojstring()]?.toLuaValue() ?: NIL
         }
     }

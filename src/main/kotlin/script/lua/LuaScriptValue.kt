@@ -1,5 +1,6 @@
 package org.lain.engine.script.lua
 
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.SBool
 import org.lain.engine.script.SEntityRef
@@ -13,10 +14,8 @@ import org.lain.engine.script.SNumber
 import org.lain.engine.script.SString
 import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.script.lua.library.LuaEntityRef
 import org.lain.engine.script.lua.library.coerceToLua
-import org.lain.engine.script.lua.library.resolveIdReference
-import org.lain.engine.script.lua.library.toEntityRef
+import org.lain.engine.script.lua.library.luaEntityRef
 import org.lain.engine.script.lua.library.toLuaInstant
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaUserdata
@@ -74,7 +73,7 @@ fun LuaValue.toScriptValue(): ScriptValue = when(type()) {
         }
     }
     LuaValue.TUSERDATA -> when (val userdata = checkuserdata()) {
-        is LuaEntityRef -> SEntityRef(userdata.id.toint())
+        is EntityId -> SEntityRef(userdata)
         is Instant -> SInstant(userdata)
         is EngineId -> SId(userdata)
         else -> SJvm(userdata)
@@ -96,7 +95,7 @@ fun ScriptValue.toLuaValue(): LuaValue = when (this) {
     )
     is SId -> id.coerceToLua()
     is SInt -> value.luaNum()
-    is SEntityRef -> id.toEntityRef()
+    is SEntityRef -> id.luaEntityRef()
     is SInstant -> instant.toLuaInstant()
     is SList -> values.toLuaList { it.toLuaValue() }
     is SJvm -> LuaUserdata(value)

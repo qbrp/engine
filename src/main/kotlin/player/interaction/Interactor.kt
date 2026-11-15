@@ -10,7 +10,7 @@ import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.server.replication.Networked
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World

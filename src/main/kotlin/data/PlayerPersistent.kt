@@ -18,7 +18,7 @@ import org.lain.engine.player.character.UsedCharacters
 import org.lain.engine.server.EngineServer
 import org.lain.engine.util.Color
 import org.lain.engine.util.LogDiagnosticContext
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.file.writeTextAtomically
 import org.lain.engine.world.World
@@ -66,7 +66,8 @@ data class PersistentPlayerData(
     @SerialName("chat_heads") val chatHeads: Boolean = true,
     val appliedCharacter: ServerCharacterId? = null,
     @SerialName("usedCharacters") val usedCharactersLegacy: Set<BackendCharacterId> = emptySet(),
-    @SerialName("used_characters") val usedCharacters: Set<OwnedCharacterId> = emptySet()
+    @SerialName("used_characters") val usedCharacters: Set<OwnedCharacterId> = emptySet(),
+    @SerialName("custom_attributes") val customAttributes: CustomPlayerAttributes = CustomPlayerAttributes(),
 )
 
 data class PersistentCharacterSnapshot(
@@ -121,7 +122,8 @@ fun EnginePlayer.snapshotPersistent(): PersistentPlayerSnapshot = with(world) {
             voiceLoose = get<VoiceLoose>()?.copy(),
             chatHeads = chatHeadsEnabled,
             appliedCharacter = get<AppliedCharacter>()?.id?.character,
-            usedCharacters = get<UsedCharacters>()?.characters.orEmpty()
+            usedCharacters = get<UsedCharacters>()?.characters.orEmpty(),
+            customAttributes = get<CustomPlayerAttributes>()?.copy() ?: CustomPlayerAttributes(),
         ),
         components = entity.savingSnapshot(),
     )

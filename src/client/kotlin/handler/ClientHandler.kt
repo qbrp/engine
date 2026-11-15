@@ -16,7 +16,6 @@ import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandOperationBehaviour
 import org.lain.engine.player.*
-import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.dev.EntityInspectionSnapshot
 import org.lain.engine.script.ScriptContext
@@ -200,28 +199,24 @@ class ClientHandler(
         SERVERBOUND_WRITEABLE_UPDATE_ENDPOINT.sendC2SPacket(WriteableUpdatePacket(item, contents))
     }
 
-    fun applyPlayerJoined(data: GeneralPlayerData, gameSession: GameSession) {
-        val persistentId = CustomPersistentId(data.id.toString())
+    fun applyOnlinePlayerAdd(data: GeneralPlayerData, gameSession: GameSession) {
         gameSession.onlinePlayers.add(data)
-        gameSession.replicationController.removeEntity(persistentId)
-        gameSession.instantiateLowDetailedPlayer(data)
     }
 
-    fun applyPlayerDestroyed(gameSession: GameSession, player: EnginePlayer) {
+    fun applyOnlinePlayerRemove(gameSession: GameSession, player: EnginePlayer) {
         gameSession.onlinePlayers.remove(player.id)
-        gameSession.removePlayer(player)
     }
 
     fun applyServerSettingsUpdate(settings: ClientboundServerSettings) {
-        gameSession?.updateServerSettings(settings)
+        gameSession.updateServerSettings(settings)
     }
 
     fun applyChatTypingStart(player: PlayerId, channel: ChannelId) {
-        gameSession?.chatManager?.typingPlayers?.start(player, channel)
+        gameSession.chatManager.typingPlayers.start(player, channel)
     }
 
     fun applyChatTypingStop(player: PlayerId) {
-        gameSession?.chatManager?.typingPlayers?.stop(player)
+        gameSession.chatManager.typingPlayers.stop(player)
     }
 
     fun applyChatMessage(gameSession: GameSession, message: OutcomingMessage) {

@@ -9,6 +9,7 @@ import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.interaction.InputAction
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.data.PersistentId
+import org.lain.engine.player.exists
 import org.lain.engine.server.EngineServer
 import org.lain.engine.server.ReplayViewer
 import org.lain.engine.util.replaceWith
@@ -20,27 +21,16 @@ import org.lain.engine.world.location
 import java.util.TreeMap
 
 data class TrackingState(
-    val previousTickResident: MutableSet<PersistentId> = mutableSetOf(),
-    val resident: MutableSet<PersistentId> = mutableSetOf(),
+    val previousTickSynced: MutableSet<PersistentId> = mutableSetOf(),
     val synced: MutableSet<PersistentId> = mutableSetOf(),
     val fresh: MutableSet<PersistentId> = mutableSetOf()
 ) {
     fun update(
         activeEntities: Set<PersistentId>, // активные сущности
-        residentEntities: Set<PersistentId> = activeEntities, // активные + удерживаемые
     ) {
-        require(residentEntities.containsAll(activeEntities)) {
-            "Active replication entities must also be resident"
-        }
-
-        previousTickResident.clear()
-        previousTickResident.addAll(resident)
-
+        previousTickSynced.replaceWith(synced)
         fresh.replaceWith(activeEntities - synced)
         synced.replaceWith(activeEntities)
-
-        resident.clear()
-        resident.addAll(residentEntities)
     }
 }
 
@@ -114,8 +104,7 @@ fun World.confirmProcessedPlayerInputsSystem() {
 fun World.tickPlayerTrackingSystem(server: EngineServer, desynchronizationRadius: Int) {
     val squaredDesynchronizationRadius = desynchronizationRadius * desynchronizationRadius
     val replicationEntitiesByPlayer =
-        players.asSequence().filterNot { it.destroyed }.associate { it.entity to it.replicationPersistentIds() }
-    val onlinePlayerReplicationEntities = replicationEntitiesByPlayer.values.flatten().toSet()
+        players.associate { it.entity to it.replicationPersistentIds() }
 
     iterate<Location, Interests, PlayerReplicationState>() { player, (position), interests, syncState ->
         // состояние на момент прошлого тика - кто считался отслеживаемым и свежим
@@ -136,7 +125,7 @@ fun World.tickPlayerTrackingSystem(server: EngineServer, desynchronizationRadius
 
         val trackedPlayersOutsideInterest = (trackedPlayers - frame.interestPlayers)
             .filterTo(mutableSetOf()) { player ->
-                player.destroyed || player.location.position.squaredDistanceTo(position) > squaredDesynchronizationRadius
+                !player.exists() || player.location.position.squaredDistanceTo(position) > squaredDesynchronizationRadius
             }
 
         trackedPlayers.addAll(freshPlayers)
@@ -153,9 +142,6 @@ fun World.tickPlayerTrackingSystem(server: EngineServer, desynchronizationRadius
 
         val activeEntities = frame.interestEntities + availableInterestsVoxels + activePlayerReplicationEntities
 
-        entities.update(
-            activeEntities = activeEntities,
-            residentEntities = activeEntities + onlinePlayerReplicationEntities,
-        )
+        entities.update(activeEntities)
     }
 }

@@ -42,12 +42,6 @@ fun World.tickPlayerInputSystem(callbacks: Callbacks, extension: EngineSimulatio
         tickQueuedPlayerInputsSystem()
     }
     iterate<PlayerInput, PlayerComponent> { _, input, (player) ->
-        if (!extension.shouldSimulate(player)) {
-            input.lastActions.clear()
-            input.actions.clear()
-            return@iterate
-        }
-
         val (actions, lastActions) = input
         callbacks.of(CallbackType.PLAYER_INPUT_TICK)?.execute(ScriptContext.PlayerInputTick(player, input))
 

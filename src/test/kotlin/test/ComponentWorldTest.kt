@@ -1,32 +1,20 @@
 package org.lain.engine.test
 
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.ComponentCollisionException
-import org.lain.engine.util.ecs.ComponentArray
-import org.lain.engine.util.ecs.ComponentMeta
-import org.lain.engine.util.ecs.ComponentState
-import org.lain.engine.util.ecs.ComponentWorld
-import org.lain.engine.util.ecs.EntityCommandBuffer
-import org.lain.engine.util.ecs.EntityId
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertInstanceOf
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.lain.cyberia.ecs.Component
+import org.lain.cyberia.ecs.ComponentCollisionException
+import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.componentTypeOf
-import org.lain.engine.server.replication.Changes
+import org.lain.engine.bootstrap
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.persistentId
 import org.lain.engine.listKotlinComponentTypeEntries
-import org.lain.engine.bootstrap
-import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.util.ecs.castIndexed
-import org.lain.engine.util.ecs.ComponentTypeRegistry
+import org.lain.engine.server.replication.Changes
+import org.lain.engine.util.ecs.*
 
 class ComponentWorldTest : EngineTest() {
     private lateinit var componentWorld: ComponentWorld
@@ -41,17 +29,38 @@ class ComponentWorldTest : EngineTest() {
     fun componentArrayKeepsDenseStorageConsistentWhenRemovingMiddleElement() {
         val array = ComponentArray(0, basicMeta, positionType)
 
-        array.setComponent(10, TestPosition(10))
-        array.setComponent(20, TestPosition(20))
-        array.setComponent(30, TestPosition(30))
+        array.setComponent(EntityId(10, 0), TestPosition(10))
+        array.setComponent(EntityId(20, 0), TestPosition(20))
+        array.setComponent(EntityId(30, 0), TestPosition(30))
 
-        assertEquals(TestPosition(20), array.removeComponent(20))
+        assertEquals(TestPosition(20), array.removeComponent(EntityId(20, 0)))
 
         assertEquals(listOf(TestPosition(10), TestPosition(30)), array.components)
-        assertEquals(10, array.entityOf(0))
-        assertEquals(30, array.entityOf(1))
-        assertNull(array.componentOf(20))
-        assertEquals(TestPosition(30), array.componentOf(30))
+        assertEquals(EntityId(10, 0), array.entityOf(0))
+        assertEquals(EntityId(30, 0), array.entityOf(1))
+        assertNull(array.componentOf(EntityId(20, 0)))
+        assertEquals(TestPosition(30), array.componentOf(EntityId(30, 0)))
+    }
+
+    @Test
+    fun componentArrayDistinguishesGenerationsAndKeepsMovedEntityAccessible() {
+        val array = ComponentArray(0, basicMeta, positionType)
+        val old = EntityId(1, 0)
+        val current = EntityId(1, 1)
+        val moved = EntityId(2, 3)
+        val removed = mutableListOf<Pair<TestPosition, EntityId>>()
+        array.onRemoved = { component, entity -> removed += component to entity }
+
+        array.setComponent(old, TestPosition(1))
+        array.setComponent(moved, TestPosition(2))
+        array.setComponent(current, TestPosition(3))
+
+        assertEquals(listOf(TestPosition(1) to old), removed)
+        assertNull(array.componentOf(old))
+        assertNull(array.removeComponent(old))
+        assertEquals(TestPosition(3), array.removeComponent(current))
+        assertEquals(moved, array.entityOf(0))
+        assertEquals(TestPosition(2), array.componentOf(moved))
     }
 
     @Test
@@ -113,8 +122,11 @@ class ComponentWorldTest : EngineTest() {
 
         componentWorld.destroy(first)
 
-        assertEquals(first, componentWorld.addEntity())
-        assertTrue(componentWorld.exists(first))
+        val reused = componentWorld.addEntity()
+        assertEquals(first.index, reused.index)
+        assertEquals(first.generation + 1, reused.generation)
+        assertFalse(componentWorld.exists(first))
+        assertTrue(componentWorld.exists(reused))
         assertTrue(componentWorld.exists(second))
     }
 
@@ -277,7 +289,7 @@ class ComponentWorldTest : EngineTest() {
 
                 assertEquals(
                     expected,
-                    collectIteration(componentCount).sortedBy { it.first },
+                    collectIteration(componentCount).sortedBy { it.first.index },
                     "componentCount=$componentCount, smallestArray=$smallestArray",
                 )
             }
@@ -340,11 +352,11 @@ class ComponentWorldTest : EngineTest() {
             val rotation = componentIndex % order.size
             for (entity in order.drop(rotation) + order.take(rotation)) {
                 when (componentIndex) {
-                    0 -> componentWorld.setComponentWithType(entity, TestPosition(entity), positionType)
-                    1 -> componentWorld.setComponentWithType(entity, TestVelocity(entity * 10), velocityType)
+                    0 -> componentWorld.setComponentWithType(entity, TestPosition(entity.index), positionType)
+                    1 -> componentWorld.setComponentWithType(entity, TestVelocity(entity.index * 10), velocityType)
                     2 -> componentWorld.setComponentWithType(entity, TestName("entity-$entity"), nameType)
-                    3 -> componentWorld.setComponentWithType(entity, TestFourth(entity * 100), fourthType)
-                    4 -> componentWorld.setComponentWithType(entity, TestFifth(entity * 1000), fifthType)
+                    3 -> componentWorld.setComponentWithType(entity, TestFourth(entity.index * 100), fourthType)
+                    4 -> componentWorld.setComponentWithType(entity, TestFifth(entity.index * 1000), fifthType)
                 }
             }
         }
@@ -352,11 +364,11 @@ class ComponentWorldTest : EngineTest() {
     }
 
     private fun iterationComponents(entity: EntityId): List<Component> = listOf(
-        TestPosition(entity),
-        TestVelocity(entity * 10),
+        TestPosition(entity.index),
+        TestVelocity(entity.index * 10),
         TestName("entity-$entity"),
-        TestFourth(entity * 100),
-        TestFifth(entity * 1000),
+        TestFourth(entity.index * 100),
+        TestFifth(entity.index * 1000),
     )
 
     private fun collectIteration(

@@ -58,13 +58,8 @@ fun Throwable.toLogError() =
     Log.Error(this::class.qualifiedName ?: this::class.jvmName, this.toString(), this.stackTrace.map { it.toString() })
 
 object LogMessages {
-    const val ITEM_LOAD = "Item loaded"
-    const val ITEM_LOAD_ERROR = "Couldn't load item"
     const val ITEM_STACK_INIT_ERROR = "Couldn't initialize item stack"
-    const val ENTITY_SYNC = "Entity synced"
     const val ENTITY_SYNC_ADD = "Synced entity added"
-    const val PLAYER_INTERACTION = "Player interaction"
-    const val INTERACTION_SKIP = "Skipped interaction sync"
 }
 
 enum class LogLevel {

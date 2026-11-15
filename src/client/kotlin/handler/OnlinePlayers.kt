@@ -10,18 +10,15 @@ data class OnlinePlayer(
     val username: Username
 )
 
-class OnlinePlayers(players: List<GeneralPlayerData>, mainPlayer: EnginePlayer) {
+class OnlinePlayers {
     val playersById = mutableMapOf<PlayerId, OnlinePlayer>()
-
-    init {
-        players.forEach { add(it) }
-        add(GeneralPlayerData.of(mainPlayer))
-    }
 
     fun get(id: PlayerId) = playersById[id]
 
-    fun add(player: GeneralPlayerData) {
-        playersById[player.id] = OnlinePlayer(player.id, player.username)
+    fun add(player: GeneralPlayerData): OnlinePlayer {
+        val onlinePlayer = OnlinePlayer(player.id, player.username)
+        playersById[player.id] = onlinePlayer
+        return onlinePlayer
     }
 
     fun remove(id: PlayerId) = playersById.remove(id)

@@ -2,6 +2,7 @@ package org.lain.engine.test
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.lain.cyberia.ecs.setComponent
@@ -37,7 +38,8 @@ class EntityCoordinatorTest : EngineTest() {
             setComponent(PersistentIdComponent(persistentId("replacement")))
         }
 
-        assertEquals(originalEntity, replacementEntity)
+        assertEquals(originalEntity.index, replacementEntity.index)
+        assertNotEquals(originalEntity, replacementEntity)
         assertInstanceOf(
             AcquireResult.Acquired::class.java,
             coordinator.acquire(world, originalPersistentId),

@@ -2,12 +2,10 @@ package org.lain.engine.client.render.player
 
 import kotlinx.serialization.Serializable
 import net.minecraft.client.resources.DefaultPlayerSkin
-import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.world.entity.player.Player
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EnginePlayerRenderStateHolder
 import org.lain.engine.client.account.SkinTextureManager
-import org.lain.engine.client.handler.LowDetail
 import org.lain.engine.client.render.scene.RenderEntityReferences
 import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.item.EngineItem
@@ -19,7 +17,6 @@ import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterModelType
 import org.lain.engine.player.character.SelectedLook
 import org.lain.engine.player.character.model
-import org.lain.engine.util.ecs.EntityId
 import org.lain.engine.world.World
 
 data class PlayerExtraction(val node: EntityId) : Component
@@ -71,15 +68,13 @@ fun World.clearPlayerRenderState(scene: RenderScene) {
     iterate<PlayerExtraction> { player, _ -> player.clearPlayerRenderState(scene) }
 }
 
-fun World.extractPlayerRenderState(scene: RenderScene, skinTextureManager: SkinTextureManager) {
+fun World.extractPlayerRenderState(scene: RenderScene, skinTextureManager: SkinTextureManager?) {
     clearPlayerRenderState(scene)
 
-    iterate<LowDetail, MinecraftPlayer> { player, (isLowDetailed), _ ->
-        if (!isLowDetailed) {
-            val node = scene.addEntity { setComponent(PlayerRenderNode()) }
-            val extraction = PlayerExtraction(node)
-            player.setComponent(extraction)
-        }
+    iterate<MinecraftPlayer> { player, _ ->
+        val node = scene.addEntity { setComponent(PlayerRenderNode()) }
+        val extraction = PlayerExtraction(node)
+        player.setComponent(extraction)
     }
 
     extractDetachedEquipmentRenderStates(scene)
@@ -93,7 +88,7 @@ fun World.extractPlayerRenderState(scene: RenderScene, skinTextureManager: SkinT
         val node = with(scene) { node.requireComponent<PlayerRenderNode>() }
         node.eyeLevel = profile.appearance.eyeLevel
         node.model = profile.bodyType.model
-        val skinTexture = skinTextureManager.getOrDownloadTextureNullable(look) ?: cachedPlayerSkin?.texture
+        val skinTexture = skinTextureManager?.getOrDownloadTextureNullable(look) ?: cachedPlayerSkin?.texture
         skinTexture?.path?.let { node.skinTexture = it }
     }
 

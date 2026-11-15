@@ -3,15 +3,26 @@ package org.lain.engine.server.replication
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.data.LOGGER
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.ScriptComponentFreezeException
-import org.lain.engine.server.replication.replicationSnapshot
-import org.lain.engine.util.getDebugName
+import org.lain.engine.player.PlayerComponent
+import org.lain.engine.player.PlayerId
 import org.lain.engine.util.getEntityDebugNameId
+import org.lain.engine.world.DynamicVoxel
+import org.lain.engine.world.ImmutableVoxelPos
 import org.lain.engine.world.World
+
+@Serializable
+sealed class GhostPrefab {
+    @Serializable
+    data class Player(val playerId: PlayerId) : GhostPrefab()
+    @Serializable
+    data class Voxel(val pos: ImmutableVoxelPos) : GhostPrefab()
+}
 
 @Serializable
 sealed class EntityStateUpdate {
@@ -21,6 +32,7 @@ sealed class EntityStateUpdate {
     @Serializable
     data class Full(
         val revision: Long,
+        val prefab: GhostPrefab?,
         val components: List<ReplicationSnapshot>
     ) : EntityStateUpdate()
 }
@@ -28,13 +40,22 @@ sealed class EntityStateUpdate {
 fun EntityDelta.toReplicationUpdate() = EntityStateUpdate.Delta(this)
 
 context(world: World)
-fun EntityId.fullReplicationUpdate() = EntityStateUpdate.Full(
-    networkState().revision,
-    captureSnapshotsCatching(
-        world.componentManager.getNetworkedComponents(this),
-        this
+fun EntityId.fullReplicationUpdate(): EntityStateUpdate.Full {
+    val dynamicVoxel = getComponent<DynamicVoxel>()
+    val player = getComponent<PlayerComponent>()?.player
+    return EntityStateUpdate.Full(
+        networkState().revision,
+        when {
+            player != null -> GhostPrefab.Player(player.id)
+            dynamicVoxel != null -> GhostPrefab.Voxel(dynamicVoxel.pos)
+            else -> null
+        },
+        captureSnapshotsCatching(
+            world.componentManager.getNetworkedComponents(this),
+            this
+        )
     )
-)
+}
 
 @Serializable
 data class EntityDelta(
@@ -55,7 +76,10 @@ private fun captureSnapshotsCatching(components: List<Component>, entityId: Enti
         try {
             it.replicationSnapshot()
         } catch (e: ScriptComponentFreezeException) {
-            LOGGER.error("Не удалось создать снимок скриптового компонента ${e.component} при репликации сущности ${entityId.getEntityDebugNameId()}", e)
+            LOGGER.error(
+                "Не удалось создать снимок скриптового компонента ${e.component} при репликации сущности ${entityId.getEntityDebugNameId()}",
+                e
+            )
             null
         }
     }

@@ -6,7 +6,7 @@ import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.script.NamespacedStorageAccess
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import kotlin.collections.component1
 import kotlin.collections.component2
 

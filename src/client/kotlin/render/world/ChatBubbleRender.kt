@@ -5,7 +5,6 @@ import net.minecraft.client.renderer.LightTexture
 import org.lain.engine.client.chat.ChatBubble
 import org.lain.engine.client.chat.updateChatBubble
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.mc.ecs.engine
 import org.lain.engine.mc.ecs.minecraftEntityNullable
 import org.lain.engine.mc.engine
 import org.lain.engine.util.then

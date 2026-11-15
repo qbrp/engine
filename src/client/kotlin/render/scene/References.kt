@@ -10,7 +10,7 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.resources.MeshModel
 import org.lain.engine.item.UNDEFINED_MODEL_ID
 import org.lain.engine.mc.engineId
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 
 typealias ResourcePath = String
 

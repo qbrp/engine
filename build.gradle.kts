@@ -103,7 +103,7 @@ dependencies {
     compileOnly(libs.gltf)
     modImplementation(libs.playerAnimator)
     compileOnly(libs.credential.secure.storage)
-    modImplementation("org.lain.cyberia:fabric:1.14")
+    modImplementation("org.lain.cyberia:fabric:1.19")
     testImplementation(libs.fabric.loader.junit)
 }
 

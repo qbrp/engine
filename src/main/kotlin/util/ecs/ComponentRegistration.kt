@@ -100,9 +100,9 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
 
     registerComponent<CustomPlayerAttributes>(id = "core/player/state/custom_attributes", isNetworking = true)
     registerComponent<PlayerAttributes>(id = "core/player/state/attributes", isNetworking = true)
+    registerComponent<VoiceImage>(id = "core/character/voice_image", isNetworking = true)
 
     registerComponent<CharacterDisplay>(id = "core/character/display", isNetworking = true)
-    registerComponent<CharacterPhysical>(id = "core/character/physical", isNetworking = true)
     registerComponent<AppliedCharacter>(id = "core/character/applied", isNetworking = true)
     registerComponent<SelectedLook>(id = "core/character/selected_look", isNetworking = true)
     registerComponent<CharacterApplyEvent>(id = "core/character/event/apply", isNetworking = true)

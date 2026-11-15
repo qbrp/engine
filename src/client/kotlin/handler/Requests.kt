@@ -1,82 +1,66 @@
 package org.lain.engine.client.handler
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.lain.engine.client.transport.ClientTransport
-import org.lain.engine.client.util.withClientContext
+import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.reflect.KClass
 import kotlin.time.Duration.Companion.seconds
 
 class ClientRequestHandler(
     private val transport: ClientTransport,
-    private val scope: CoroutineScope
+    private val dispatcher: CoroutineDispatcher = MinecraftClientDispatcher,
 ) {
-    data class Ack<P : Packet>(val channel: String, val packet: P)
+    private class PendingRequest(
+        val endpointId: String,
+        val response: CompletableDeferred<Packet> = CompletableDeferred(),
+    )
 
-    private val endpoints = ConcurrentHashMap<KClass<out Packet>, Endpoint<out Packet>>()
-    private val awaits = mutableMapOf<String, CompletableDeferred<out Packet>>()
-    private val packetChannel = Channel<Ack<out Packet>>()
-
-    @Suppress("UNCHECKED_CAST")
-    private fun <P : Packet> endpointOf(kclass: KClass<P>): Endpoint<P> {
-        return endpoints[kclass] as? Endpoint<P> ?: error("No endpoint found for $kclass")
-    }
+    private val lock = Any()
+    private var pending: PendingRequest? = null
+    private var closed = false
 
     fun <P : Packet> register(endpoint: Endpoint<P>) {
-        endpoints[endpoint.kclass] = endpoint
         transport.registerEndpoint(endpoint) {
-            val packet = this
-            runBlocking { packetChannel.send(Ack(endpoint.identifier, packet)) }
+            onResponse(endpoint, this)
         }
     }
 
-    fun run() {
-        scope.launch {
-            try {
-                while (true) {
-                    val ack = packetChannel.receive()
-                    val deferred = awaits[ack.channel] as? CompletableDeferred<Packet>
-                    deferred?.complete(ack.packet)
-                }
-            } catch (e: CancellationException) {
-
-            }
+    fun <P : Packet> onResponse(endpoint: Endpoint<P>, packet: P) {
+        val request = synchronized(lock) {
+            pending?.takeIf { it.endpointId == endpoint.identifier }
         }
+        request?.response?.complete(packet)
     }
 
     fun close() {
-        scope.cancel()
-        packetChannel.close()
-        awaits.values.forEach { it.cancel() }
-    }
-
-    suspend fun <I : Packet, O : Packet> request(packet: I?, packetKClass: KClass<O>): Deferred<O> = withClientContext {
-        val outputEndpoint = endpointOf(packetKClass)
-        val await = CompletableDeferred<O>()
-        awaits[outputEndpoint.identifier] = await
-        packet?.let {
-            val inputEndpoint = endpointOf(packet::class) as Endpoint<Packet>
-            transport.sendServerboundPacket(inputEndpoint, it)
+        val request = synchronized(lock) {
+            closed = true
+            pending.also { pending = null }
         }
-        await
+        request?.response?.cancel()
     }
 
-    @Suppress("UNCHECKED_CAST")
-    suspend inline fun <reified O : Packet> request(packet: Packet?): Deferred<O> {
-        return request(packet, O::class)
-    }
-
-    suspend inline fun <reified O : Packet> await(packet: Packet?): O {
-        return withTimeout(5.seconds) { request(packet, O::class).await() }
-    }
+    suspend fun <P : Packet> await(endpoint: Endpoint<P>, action: suspend () -> Unit = {}): P =
+        withTimeoutOrNull(5.seconds) {
+            val request = PendingRequest(endpoint.identifier)
+            synchronized(lock) {
+                check(!closed) { "Обработчик запросов входа закрыт" }
+                check(pending == null) { "Запрос уже выполняется" }
+                pending = request
+            }
+            try {
+                withContext(dispatcher) { action() }
+                endpoint.kclass.java.cast(request.response.await())
+            } finally {
+                synchronized(lock) {
+                    if (pending === request) pending = null
+                }
+                request.response.cancel()
+            }
+        }
+            ?: error("Превышено время ожидания")
 }

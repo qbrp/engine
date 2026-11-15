@@ -102,6 +102,7 @@ class EngineClient(
 
     fun startJoinFlow(joinType: GameSessionJoinFlow.JoinType, transport: ClientTransport) {
         if (gameSessionActive) error("Игровая сессия уже запущена!")
+        stopJoinFlow()
         joinFlow = GameSessionJoinFlow(joinType, this, transport)
     }
 

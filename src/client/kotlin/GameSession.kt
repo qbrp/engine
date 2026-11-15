@@ -31,6 +31,7 @@ import org.lain.engine.player.*
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.character.SelectedLook
+import org.lain.engine.player.exists
 import org.lain.engine.player.interaction.PlayerInput
 import org.lain.engine.script.InventoryTab
 import org.lain.engine.script.NamespacedStorage
@@ -113,7 +114,7 @@ class GameSession(
         player,
         DeveloperModeStatus(client.developerMode, client.acousticDebug),
     )
-    val onlinePlayers = OnlinePlayers(setup.playerList.players, mainPlayer)
+    val onlinePlayers = OnlinePlayers()
 
     val ticks
         get() = simulation.ticks
@@ -143,7 +144,12 @@ class GameSession(
         instantiatePlayer(mainPlayer)
 
         client.platform.onMainPlayerInstantiated(client, this, mainPlayer)
-        setup.playerList.players.forEach { instantiateLowDetailedPlayer(it) }
+        setup.playerList.players.forEach {
+            val onlinePlayer = onlinePlayers.add(it)
+            addRemotePlayer(onlinePlayer)
+        }
+        onlinePlayers.add(GeneralPlayerData.of(mainPlayer))
+
         chatManager.updateSettings(setup.settings.chat)
 
         if (setup.settings.spectateOnJoin) {
@@ -211,12 +217,10 @@ class GameSession(
         }
     }
 
-    override fun shouldSimulate(player: EnginePlayer): Boolean = !player.destroyed && !player.isLowDetailed
-
     override fun World.tickDaraPreparation() = with(systems) {
-        tickDataPrepareSystem()
-        tickPlayerLowDetailedSystem(mainPlayer, synchronizationRadius)
+        tickDataPrepareBeforeReplication()
         dataPrepareTaskExecutor.flush()
+        tickDataPrepareAfterReplication()
         handler.tickInput()
     }
 
@@ -249,16 +253,6 @@ class GameSession(
         tickDataApplySystem()
     }
 
-    fun removePlayer(player: EnginePlayer) {
-        if (player.destroyed) return
-        chatManager.typingPlayers.stop(player.id)
-        with(world) { player.entity.clearPlayerRenderState(renderScene) }
-        simulation.preparePlayerDestroy(player)
-        simulation.destroyPlayer(player)
-        client.platform.onPlayerDestroy(client, player.id)
-        skinSystem.removePlayerFromCache(player.id)
-    }
-
     fun tick() {
         chatManager.tick()
 
@@ -279,10 +273,20 @@ class GameSession(
         client.platform.onChunkLoad(pos, chunk)
     }
 
-    fun instantiateLowDetailedPlayer(data: GeneralPlayerData): EnginePlayer {
-        val player = lowDetailedClientPlayerInstance(data.id, world, data)
+    fun addRemotePlayer(player: OnlinePlayer): EnginePlayer {
+        val player = remoteClientPlayerInstance(world, player)
         instantiatePlayer(player)
         return player
+    }
+
+    fun removeRemotePlayer(player: EnginePlayer) {
+        if (!player.exists()) return
+        chatManager.typingPlayers.stop(player.id)
+        with(world) { player.entity.clearPlayerRenderState(renderScene) }
+        simulation.preparePlayerDestroy(player)
+        simulation.destroyPlayer(player)
+        client.platform.onPlayerDestroy(client, player.id)
+        skinSystem.removePlayerFromCache(player.id)
     }
 
     fun instantiatePlayer(player: EnginePlayer) = with(player.world) {
@@ -305,7 +309,7 @@ class GameSession(
         // сохраняем рендер состояние
         character?.let { character ->
             runCatching { snapshotCharacterRenderState() }
-                .onFailure { e -> LOGGER.error("Failed to serialize player render state", e) }
+                .onFailure { e -> LOGGER.error("Failed to serialize playerId render state", e) }
                 .onSuccess { renderState ->
                     character.renderState = renderState
                     serverPlayState = serverPlayState.update(character)

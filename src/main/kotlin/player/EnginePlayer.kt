@@ -15,7 +15,8 @@ import org.lain.cyberia.ecs.requireComponent
 import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.data.Uuid
 import org.lain.engine.server.replication.markUpdated
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.exists
 import org.lain.engine.world.World
 import java.util.*
 
@@ -23,7 +24,6 @@ class EnginePlayer(
     val id: PlayerId,
     val entity: EntityId,
     val world: World,
-    var destroyed: Boolean = false,
 ) {
     val simulation get() = world.simulation
     val simulationSettings get() = simulation.settings
@@ -79,6 +79,8 @@ fun EnginePlayer.getComponents(): List<Component> = with(world) {
 }
 
 inline fun <reified T : Component> EnginePlayer.markUpdated() = with(world) { entity.markUpdated<T>() }
+
+fun EnginePlayer.exists(): Boolean = with(world) { entity.exists() }
 
 @JvmInline
 @Serializable(with = PlayerIdSerializer::class)

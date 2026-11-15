@@ -40,7 +40,7 @@ fun World.sendReplicationPackets(
         val trackState = state.entities
 
         val updates = mutableMapOf<PersistentId, EntityStateUpdate>()
-        val out = trackState.previousTickResident - trackState.resident
+        val out = trackState.previousTickSynced - trackState.synced
 
         val requestedEntityResyncs = state.requestedResyncs
             .filterIsInstance<ReplicationTarget.Entity>()
@@ -93,7 +93,7 @@ fun World.sendReplicationPackets(
             state.requestedResyncs -= ReplicationTarget.Entity(persistentId)
         }
         requestedEntityResyncs
-            .filterNotTo(mutableSetOf()) { it in trackState.resident }
+            .filterNotTo(mutableSetOf()) { it in trackState.synced }
             .forEach { persistentId ->
                 state.requestedResyncs -= ReplicationTarget.Entity(persistentId)
             }

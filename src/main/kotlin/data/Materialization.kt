@@ -12,7 +12,7 @@ import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 
 data class MaterializedComponents(
     val persistentId: PersistentId,

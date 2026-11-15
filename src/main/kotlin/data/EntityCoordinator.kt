@@ -2,7 +2,7 @@ package org.lain.engine.data
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
-import org.lain.engine.util.ecs.EntityId
+import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.world.World
 import org.lain.engine.world.WorldId
 import java.util.concurrent.ConcurrentHashMap
