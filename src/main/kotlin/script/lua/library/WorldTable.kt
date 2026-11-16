@@ -76,7 +76,7 @@ fun WorldMetaTable() = luaUserdataTable<World> {
     }
 
     functionSelf4("emit") { world, accessL, event, networkedL ->
-        val access = accessL.fetchHolderLuaComponentAccess()
+        val access = accessL.fetchComponentAccess()
         val component = when(access) {
             is LuaComponentAccess.Native -> access.asGeneric().fromLua(world.state, event)
                 ?: error("could not create component ${access.componentType} for event as binding")
@@ -94,7 +94,7 @@ fun WorldMetaTable() = luaUserdataTable<World> {
 
     function3("iterate") { self, types, func ->
         val world = self.asEngineWorld()
-        val accesses = types.checktable().toList { it.fetchHolderLuaComponentAccess() }
+        val accesses = types.checktable().toList { it.fetchComponentAccess() }
         val types = accesses.map { it.componentType }
         val entityArray = world.componentManager.getComponentArray(LuaEntityComponent.TYPE)
         fun getOrCreateEntityComponent(entityId: EntityId): LuaEntityComponent {

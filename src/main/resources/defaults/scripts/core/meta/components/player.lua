@@ -3,8 +3,10 @@
 --- Этот файл нужен для поддержки LuaLS-аннотаций.
 --- Не импортируйте его, так как он может сломать поведение скриптов.
 
+---@alias PlayerId string
+
 ---@class Player : Entity
----@field uuid string уникальный идентификатор, изначальный java uuid
+---@field uuid PlayerId уникальный идентификатор, изначальный java uuid
 ---@field id integer идентификатор сущности, уникален для каждого мира
 ---@field entity Entity
 ---@field display_name string
@@ -59,21 +61,11 @@ function player:sync_action(type, action) end
 ---@field fly_speed number
 ---@field jump_strength number
 ---@field gravity number
----@field voice_set string
----@field voice_randomization number
----@field voice_pitch number
----@field voice_speed number
----@field voice_sound_frequency number
 
 ---@class PlayerCustomAttributesComponent : Component
 ---@field speed number?
 ---@field jump_strength number?
 ---@field gravity number?
----@field voice_set string?
----@field voice_randomization number?
----@field voice_pitch number?
----@field voice_speed number?
----@field voice_sound_frequency number?
 ---@field [string] any
 
 ---@class MovementStatusComponent : Component

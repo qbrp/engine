@@ -38,6 +38,7 @@ open class LuaScriptEngine(
     val worldsList = LuaTable()
     val idLibrary = IdLibrary()
     val vec3Library = Vec3Library()
+    val componentStateUserdataType = ComponentStateUserdataType()
     val componentLibrary = ComponentLibrary(namespacedStorage, false, this)
 
     val playerMetaTable: LuaTable = PlayerMetaTable()

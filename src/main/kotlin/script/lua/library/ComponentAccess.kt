@@ -8,7 +8,6 @@ import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.hasComponent
 import org.lain.cyberia.ecs.removeComponent
 import org.lain.cyberia.ecs.setComponent
-import org.lain.engine.script.CallbackType.Companion.type
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.ScriptSystemComponentAccess
@@ -121,7 +120,7 @@ fun EntityId.removeComponentLua(world: World?, componentAccess: LuaComponentAcce
     }
 }
 
-fun LuaValue.fetchHolderLuaComponentAccess(): LuaComponentAccess {
+fun LuaValue.fetchComponentAccess(): LuaComponentAccess {
     return get("access").asLuaComponentAccess()
 }
 

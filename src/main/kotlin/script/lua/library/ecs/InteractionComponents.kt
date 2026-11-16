@@ -1,8 +1,6 @@
 package org.lain.engine.script.lua.library.ecs
 
 import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
@@ -16,7 +14,6 @@ import org.lain.engine.player.interaction.Verb
 import org.lain.engine.player.interaction.VerbId
 import org.lain.engine.player.interaction.VerbLookup
 import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.EngineId
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
@@ -24,7 +21,6 @@ import org.lain.engine.script.lua.LuaUserdataType
 import org.lain.engine.script.lua.NIL
 import org.lain.engine.script.lua.asUserdataOrThrow
 import org.lain.engine.script.lua.castedLuaValue
-import org.lain.engine.script.lua.library.LuaComponentBinding
 import org.lain.engine.script.lua.library.asScript
 import org.lain.engine.script.lua.luaTable
 import org.lain.engine.script.lua.nullable
@@ -32,7 +28,7 @@ import org.lain.engine.script.lua.toList
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toLuaTable
 import org.lain.engine.script.lua.library.checkLuaEntity
-import org.lain.engine.script.lua.library.fetchHolderLuaComponentAccess
+import org.lain.engine.script.lua.library.fetchComponentAccess
 import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.script.lua.library.setLuaScriptComponent
 import org.lain.engine.world.World
@@ -66,7 +62,7 @@ private fun Verb.toLuaVerb(): LuaTable = luaTable {
 
 context(lua: LuaScriptEngine)
 private fun LuaTable.toVerb(): Verb {
-    val commandType = get("command_type").nullable()?.fetchHolderLuaComponentAccess()?.asScript()
+    val commandType = get("command_type").nullable()?.fetchComponentAccess()?.asScript()
     val createCommand = get("create_command").checkfunction()
     return Verb(
         id = VerbId(get("id").checkjstring()),

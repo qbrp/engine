@@ -11,13 +11,11 @@ import org.lain.engine.script.lua.LuaScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
 import org.lain.engine.script.lua.asUserdataOrThrow
 import org.lain.engine.script.lua.luaBool
-import org.lain.engine.script.lua.luaNum
 import org.lain.engine.script.lua.luaUserdataTable
 import org.lain.engine.script.lua.toLuaTable
 import org.lain.cyberia.ecs.EntityId
 import org.lain.engine.util.getEntityDebugNameId
 import org.lain.engine.world.World
-import org.luaj.vm2.LuaInteger
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
@@ -54,13 +52,13 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
         val entityId = entity.id
         val world = entity.readAccess ?: error("entity hasn't read component access")
         with(world) {
-            entityId.getComponentLua(entity.world, typeHolder.fetchHolderLuaComponentAccess()) ?: NIL
+            entityId.getComponentLua(entity.world, typeHolder.fetchComponentAccess()) ?: NIL
         }
     }
     functionSelf2("require_component") { entity, typeHolder ->
         val entityId = entity.id
         val world = entity.readAccess ?: error("entity hasn't read component access")
-        val access = typeHolder.fetchHolderLuaComponentAccess()
+        val access = typeHolder.fetchComponentAccess()
         with(world) {
             entityId.getComponentLua(entity.world, access)
                 ?: error("Entity ${entity.id.getEntityDebugNameId()} does not contains component ${access.componentType.id}")
@@ -70,23 +68,23 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
         val entityId = entity.id
         val world = entity.readAccess ?: error("entity hasn't read component access")
         with(world) {
-            entityId.hasComponentLua(type.fetchHolderLuaComponentAccess()).luaBool()
+            entityId.hasComponentLua(type.fetchComponentAccess()).luaBool()
         }
     }
     functionSelf3("set_component") { entity, accessL, component ->
         val entityId = entity.id
         val world = entity.writeAccess
-        val access = accessL.fetchHolderLuaComponentAccess()
+        val access = accessL.fetchComponentAccess()
         with(world) {
             entityId.setComponentLua(entity.world, component, access)
         }
-        debugScript("entity", "($entity) ${access.id} added")
+        debugScript("entity", "($entity) ${access.id} set")
         component
     }
     functionSelf2("remove_component") { entity, typeL ->
         val entityId = entity.id
         val world = entity.writeAccess
-        val type = typeL.fetchHolderLuaComponentAccess()
+        val type = typeL.fetchComponentAccess()
         debugScript("entity", "($entity) ${type.id} removed")
         with(world) {
             entityId.removeComponentLua(entity.world, type) ?: NIL
@@ -95,11 +93,11 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
     functionSelf2("mark_updated") { entity, typeL ->
         val entityId = entity.id
         val world = entity.world ?: error("entity hasn't write component access")
-        val type = typeL.fetchHolderLuaComponentAccess()
+        val type = typeL.fetchComponentAccess()
         debugScript("entity", "($entity) ${type.id} marked for sync")
         world.componentManager.markDirty(
             entityId,
-            when(val access = typeL.fetchHolderLuaComponentAccess()) {
+            when(val access = typeL.fetchComponentAccess()) {
                 is LuaComponentAccess.Native -> access.binding.componentType
                 is LuaComponentAccess.Script -> access.type
             }

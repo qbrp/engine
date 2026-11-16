@@ -11,6 +11,7 @@ import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.lua.*
 import org.lain.engine.script.toScriptComponentId
+import org.lain.engine.util.ecs.ComponentState
 import org.lain.engine.world.World
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
@@ -20,6 +21,7 @@ class ComponentLibrary(
     private var ready: Boolean = false,
     private val lua: LuaScriptEngine
 ) {
+    private val componentState = lua.componentStateUserdataType
     private val componentTypeHolder = with(lua) {
         LuaUserdataType<LuaComponentAccess> {
             indexSelf { self, key ->
@@ -32,6 +34,7 @@ class ComponentLibrary(
     }
 
     val library = luaTable {
+        "component_state"(componentState)
         functionV("get_type") { varargs ->
             if (!ready) {
                 LuaValue.varargsOf(NIL, false.luaBool())
@@ -56,6 +59,10 @@ class ComponentLibrary(
                     true.luaBool()
                 )
             }
+        }
+
+        function0("state") {
+            componentState.newInstance(ComponentState())
         }
     }
 

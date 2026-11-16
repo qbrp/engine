@@ -1,3 +1,8 @@
+---@meta
+
+--- Этот файл нужен для поддержки LuaLS-аннотаций.
+--- Не импортируйте его, так как он может сломать поведение скриптов.
+
 ---@class GunComponentDraft
 ---@field smoke number[]?
 ---@field rate integer
