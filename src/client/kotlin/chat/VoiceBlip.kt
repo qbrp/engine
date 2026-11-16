@@ -7,6 +7,7 @@ import org.lain.engine.player.PlayerAttributes
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.VoiceImage
 import org.lain.engine.world.pos
+import kotlin.compareTo
 import kotlin.math.ceil
 import kotlin.random.Random
 
@@ -101,30 +102,19 @@ data class VoiceBlipNode(
 )
 
 class VoiceBlip(
-    val nodes: List<VoiceBlipNode>,
+    val node: VoiceBlipNode,
     val properties: VoiceProperties,
     val player: PlayerId
 ) {
-    val activeNodeIndex: Int?
-        get() = nodes.indexOfFirst { it.processed < it.syllables.size }
-            .takeIf { it >= 0 }
-
-    val ended: Boolean
-        get() = activeNodeIndex == null
+    val active: Boolean
+        get() = node.processed < node.syllables.size
 
     val settled: Boolean
-        get() = ended && nodes.all { node ->
-            node.chars.all { char ->
-                char.delay <= CHAR_SHAKE_STOP_DELAY
-            }
-        }
+        get() = !active && node.chars.all { char -> char.delay <= CHAR_SHAKE_STOP_DELAY }
 
     fun step(dt: Float, onStarted: () -> Unit) {
-        startActiveSyllable(onStarted)
-        val activeIndex = activeNodeIndex
-
-        if (activeIndex != null) {
-            val node = nodes[activeIndex]
+        if (active) {
+            startActiveSyllable(onStarted)
             val syllable = node.syllables[node.processed]
 
             syllable.delay -= dt
@@ -134,20 +124,15 @@ class VoiceBlip(
             }
         }
 
-        val lastStartedNode = activeIndex ?: nodes.lastIndex
-        for (nodeIndex in 0..lastStartedNode) {
-            nodes[nodeIndex].chars.forEach { char ->
-                if (char.delay > CHAR_SHAKE_STOP_DELAY) {
-                    char.delay -= dt
-                }
+        node.chars.forEach { char ->
+            if (char.delay > CHAR_SHAKE_STOP_DELAY) {
+                char.delay -= dt
             }
         }
     }
 
     private fun startActiveSyllable(onStarted: () -> Unit) {
-        val activeIndex = activeNodeIndex ?: return
-        val node = nodes[activeIndex]
-        if (node.started != node.processed) return
+        if (!active || node.started != node.processed) return
 
         val syllable = node.syllables[node.processed]
         node.started++
@@ -156,13 +141,8 @@ class VoiceBlip(
         }
     }
 
-    fun visibleSymbols(nodeIndex: Int): Int {
-        val node = nodes.getOrNull(nodeIndex) ?: return 0
-        val activeIndex = activeNodeIndex ?: return node.chars.size
-
-        if (nodeIndex < activeIndex) return node.chars.size
-        if (nodeIndex > activeIndex) return 0
-
+    fun visibleSymbols(): Int {
+        if (!active) return node.chars.size
         val syllable = node.syllables[node.processed]
         val remaining = ceil(syllable.delay / syllable.charDur).toInt()
         val visibleInSyllable = (syllable.charsCount - remaining + 1)
@@ -178,18 +158,18 @@ class VoiceBlip(
             player: PlayerId
         ): VoiceBlip {
             val properties = content.voiceProperties
-            val nodes = lines.mapIndexed { index, line ->
-                val excludedChars = if (index == 0) content.indent else 0
-                val processedSyllables = if (excludedChars > 0) 1 else 0
-                val syllables = line.toSyllables(properties.syllableDur, excludedChars)
+            val syllables = lines.toSyllables(properties.syllableDur, content.indent)
+            val processedSyllables = if (lines.isNotEmpty() && content.indent > 0) 1 else 0
+            return VoiceBlip(
                 VoiceBlipNode(
                     syllables = syllables,
                     chars = syllables.toChars(processedSyllables),
                     processed = processedSyllables,
                     started = processedSyllables,
-                )
-            }
-            return VoiceBlip(nodes, properties, player)
+                ),
+                properties,
+                player
+            )
         }
     }
 }

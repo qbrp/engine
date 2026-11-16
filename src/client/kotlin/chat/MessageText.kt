@@ -9,6 +9,7 @@ import org.lain.engine.client.mc.parseMiniMessageClient
 
 interface MessageText {
     fun lines(width: Int): List<FormattedCharSequence>
+    fun sequence(): FormattedCharSequence
     fun contentString(): String
 
     companion object {
@@ -25,6 +26,10 @@ class MiniMessageText(val text: String) : MessageText {
         MessageText.FONT
     )
 
+    override fun sequence(): FormattedCharSequence {
+        return formatted.visualOrderText
+    }
+
     override fun contentString(): String = formatted.string
 }
 
@@ -33,4 +38,8 @@ class VanillaText(val component: Component) : MessageText {
         ComponentRenderUtils.wrapComponents(component, width, MessageText.FONT)
 
     override fun contentString(): String = component.string
+
+    override fun sequence(): FormattedCharSequence {
+        return component.visualOrderText
+    }
 }

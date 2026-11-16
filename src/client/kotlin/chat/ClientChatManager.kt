@@ -110,6 +110,7 @@ class ClientChatManager(
     }
 
     fun tick() {
+        hud.tick()
         charTypeTimer = (charTypeTimer - 1).coerceAtLeast(0)
         if (typingInChannel != null && charTypeTimer <= 0) {
             typingInChannel = null

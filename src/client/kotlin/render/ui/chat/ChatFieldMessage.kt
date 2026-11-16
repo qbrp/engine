@@ -4,10 +4,7 @@ import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.network.chat.Component
 import net.minecraft.util.CommonColors
-import net.minecraft.util.FormattedCharSequence
-import net.minecraft.util.Mth
 import org.lain.engine.client.chat.ClientMessage
-import org.lain.engine.client.chat.ServiceContent
 import org.lain.engine.client.chat.SpeechContent
 import org.lain.engine.client.chat.VoiceBlip
 import org.lain.engine.client.chat.shouldDisplayMessage
@@ -18,7 +15,9 @@ class ChatFieldMessage(
     val message: ClientMessage,
     private val addedTick: Long,
     private val context: ChatContext,
+    voiceBlip: VoiceBlip? = null
 ) {
+    private val gameSession = context.hud.gameSession
     private val chatBar = context.state.chatBar
     private val font = context.font
     private val content = message.content
@@ -33,81 +32,77 @@ class ChatFieldMessage(
 
     private val ticks
         get() = context.state.tick - addedTick
+    private var fade = MessageFade(addedTick)
 
     private fun computeWidth(): Int {
         val width = context.options.chatWidth.toFloat() - textLeft - maximumRepeatsTextWidth
         return width.coerceAtLeast(1f).toInt()
     }
 
-    private val lines = content.resolve(context.state).lines(availableTextWidth)
+    private val text = content.resolve(context.state)
+    private val lines = text.lines(availableTextWidth)
+
     val height get() = lines.size * lineHeight + indent
     val visible
         get() = chatBar == null || shouldDisplayMessage(message, context.state.spy, chatBar)
 
-    var voiceBlipLifetime = 0f
-    val voiceBlip: VoiceBlip? = if (content is SpeechContent && visible) {
-        context.hud.gameSession.chatManager.voiceBlipManager.getOrCreate(message.id) {
+    val voiceBlip: VoiceBlip? = voiceBlip ?: if (content is SpeechContent && visible) {
+        gameSession.chatManager.voiceBlipManager.getOrCreate(message.id) {
             VoiceBlip.create(lines, content, message.source.author.player?.id!!)
         }
     } else {
         null
     }
 
-    fun copy() = ChatFieldMessage(message, addedTick, context)
+    fun copy() = ChatFieldMessage(message, addedTick, context, voiceBlip).also {
+        it.fade = fade.copy()
+    }
 
-    fun render(guiGraphics: GuiGraphics, isHovered: Boolean, dt: Float) {
-        val alpha = calculateAlpha()
+    fun render(guiGraphics: GuiGraphics, alpha: Float) {
         val textAlpha = context.options.chatTextOpacity * alpha
         val textColor = ColorMc.color(textAlpha, CommonColors.WHITE)
-        var currentY = textTop
 
-        if (voiceBlip != null && !voiceBlip.ended) {
-            voiceBlipLifetime += dt
+        if (message.showHead) {
+            drawHead(guiGraphics, textColor, textAlpha)
         }
 
-        lines.forEachIndexed { index, line ->
-            if (index == 0 && message.showHead) {
-                val shadowColor = ColorMc.color(textAlpha, 0xFF505050.toInt())
-                val skin = resolvePlayerSkin()
-                skin?.let {
-                    drawChatFace(guiGraphics, skin, 1f, 0f, shadowColor)
-                    drawChatFace(guiGraphics, skin, 2f, 1f, textColor)
-                }
-            }
+        val speechShake = if (voiceBlip != null) {
+            (content as? SpeechContent)?.let {
+                it.randomScreamTextTranslation(context.hud.gameSession) *
+                        (1f - (ticks - LIFETIME).coerceAtLeast(0f) / 40f)
+            } ?: 1f
+        } else {
+            0f
+        }
 
-            fun drawString(line: FormattedCharSequence, x: Int = 0) =
-                guiGraphics.drawChatString(font, line, textLeft + x, currentY, textColor)
-
-            when (content) {
-                is ServiceContent -> drawString(line)
-                is SpeechContent -> {
-                    val blip = voiceBlip
-                    val node = blip?.nodes?.getOrNull(index)
-                    if (blip == null || node == null) {
-                        drawString(line)
-                    } else {
-                        guiGraphics.drawTypewriterString(
-                            font,
-                            line,
-                            node.chars,
-                            blip.visibleSymbols(index),
-                            textLeft,
-                            currentY,
-                            textColor,
-                            content.randomScreamTextTranslation(context.hud.gameSession) *
-                                    (1f - (ticks - LIFETIME).coerceAtLeast(0f) / 40f),
-                        )
-                    }
-                }
+        if (voiceBlip != null && (voiceBlip.active || speechShake > 1f)) {
+            guiGraphics.drawTypewriterString(
+                font,
+                lines,
+                voiceBlip.node.chars,
+                voiceBlip.visibleSymbols(),
+                textLeft,
+                textTop,
+                textColor,
+                speechShake,
+            )
+        } else {
+            lines.forEachIndexed { index, line ->
+                guiGraphics.drawChatString(font, line, textLeft, textTop + (lineHeight * index), textColor)
             }
+        }
 
-            if (message.repeat > 1 && index == lines.size - 1) {
-                val repeatsString = if (message.repeat > 999) MAXIMUM_REPEATS_TEXT else "x${message.repeat}"
-                val repeatsText = Component.literal(repeatsString).withStyle(ChatFormatting.GOLD)
-                val repeatsX = context.options.chatWidth.toFloat() - font.width(repeatsText).toFloat()
-                guiGraphics.drawChatString(font, repeatsText.visualOrderText, repeatsX, currentY, textColor)
-            }
-            currentY += lineHeight
+        if (message.repeat > 1) {
+            val repeatsString = if (message.repeat > 999) MAXIMUM_REPEATS_TEXT else "x${message.repeat}"
+            val repeatsText = Component.literal(repeatsString).withStyle(ChatFormatting.GOLD)
+            val repeatsX = context.options.chatWidth.toFloat() - font.width(repeatsText).toFloat()
+            guiGraphics.drawChatString(
+                font,
+                repeatsText.visualOrderText,
+                repeatsX,
+                textTop + (lineHeight * lines.size),
+                textColor
+            )
         }
     }
 
@@ -119,21 +114,24 @@ class ChatFieldMessage(
         return font.splitter.componentStyleAtWidth(line, textX.toInt())?.let { Hit(it, this) }
     }
 
-    fun calculateAlpha(): Float {
-        if (voiceBlip != null && !voiceBlip.ended) return 1f
-        if (!context.hud.fadeMessages) return 1f
-        var d = ((ticks - voiceBlipLifetime).coerceAtLeast(0f) / LIFETIME).toDouble()
-        d = 1.0 - d
-        d *= 10.0
-        d = Mth.clamp(d, 0.0, 1.0)
-        d *= d
-        return d.toFloat()
+    fun updateFade(canFade: Boolean) = fade.update(canFade, context.state.tick)
+
+    fun calculateAlpha(): Float = fade.alpha(context.state.tick, LIFETIME, context.hud.fadeMessages)
+
+    fun blocksFade() = voiceBlip != null && voiceBlip.active
+
+    private fun drawHead(guiGraphics: GuiGraphics, textColor: Int, textAlpha: Float) {
+        val shadowColor = ColorMc.color(textAlpha, 0xFF505050.toInt())
+        val skin = resolvePlayerSkin()
+        skin?.let {
+            drawChatFace(guiGraphics, skin, 1f, 0f, shadowColor)
+            drawChatFace(guiGraphics, skin, 2f, 1f, textColor)
+        }
     }
 
     private fun resolvePlayerSkin() =
-        message.source.author.player
-            ?.let { context.packetListener.getPlayerInfo(it.id.value) }
-            ?.skin
+        message.source.player
+            ?.let { gameSession.skinSystem.get(it.id.value) }
 
     companion object {
         const val LIFETIME = 200f

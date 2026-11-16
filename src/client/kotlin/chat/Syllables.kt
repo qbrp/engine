@@ -112,56 +112,67 @@ fun FormattedCharSequence.toSegments(
     flush()
 }
 
-fun FormattedCharSequence.toSyllables(
+fun List<FormattedCharSequence>.toSyllables(
     delay: Float,
-    excludeStart: Int = 0
+    indent: Int,
 ): List<Syllable> = buildList {
-    if (excludeStart > 0) {
-        var i = 0
-        val startChars = mutableListOf<Char>()
-        accept { _, style, codePoint ->
-            Character.toChars(codePoint).forEach { startChars.add(it) }
-            i++
-            i < excludeStart
-        }
-        add(
-            Syllable(
-                startChars.joinToString(separator = ""),
-                0,
-                VOICE_BLIP_MIN_DELAY,
-                shake = false,
-                playSound = false,
+    var lastChars = 0
+    this@toSyllables.forEachIndexed { lineIndex, line ->
+        var chars = 0
+
+        val exclude = if (lineIndex == 0) indent else 0
+
+        if (exclude > 0) {
+            var i = 0
+            val startChars = mutableListOf<Char>()
+            line.accept { _, style, codePoint ->
+                Character.toChars(codePoint).forEach { startChars.add(it) }
+                i++
+                i < exclude
+            }
+            add(
+                Syllable(
+                    startChars.joinToString(separator = ""),
+                    lastChars,
+                    VOICE_BLIP_MIN_DELAY,
+                    shake = false,
+                    playSound = false,
+                )
+                    .also { chars += it.charsCount }
             )
-        )
-    }
+        }
 
-    for (segment in toSegments(excludeStart)) {
-        val segmentDelay = when (segment) {
-            is TextSegment.Syllable -> delay
+        for (segment in line.toSegments(exclude)) {
+            val segmentDelay = when (segment) {
+                is TextSegment.Syllable -> delay
 
-            is TextSegment.Separator -> {
-                val text = segment.text
+                is TextSegment.Separator -> {
+                    val text = segment.text
 
-                when {
-                    '.' in text -> delay * 3f * text.count()
-                    text.any { it in "!?" } -> delay * 3f
-                    text.any { it in ",;:" } -> delay * 2f
-                    text.all { it.isWhitespace() } -> delay / 2.5f
-                    else -> delay
+                    when {
+                        '.' in text -> delay * 3f * text.count()
+                        text.any { it in "!?" } -> delay * 3f
+                        text.any { it in ",;:" } -> delay * 2f
+                        text.all { it.isWhitespace() } -> delay / 2.5f
+                        else -> delay
+                    }
                 }
+
+                is TextSegment.Number -> delay * 3f
             }
 
-            is TextSegment.Number -> delay * 3f
+            add(
+                Syllable(
+                    segment.text,
+                    segment.index + lastChars,
+                    segmentDelay,
+                    shake = true,
+                    playSound = segment !is TextSegment.Separator,
+                )
+                    .also { chars += it.charsCount }
+            )
         }
 
-        add(
-            Syllable(
-                segment.text,
-                segment.index,
-                segmentDelay,
-                shake = true,
-                playSound = segment !is TextSegment.Separator,
-            )
-        )
+        lastChars += chars
     }
 }

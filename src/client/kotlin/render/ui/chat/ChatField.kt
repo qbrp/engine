@@ -102,6 +102,11 @@ class ChatField(val gameSession: GameSession) {
     }
 
     fun addMessage(message: ChatFieldMessage) {
+        appendMessage(message)
+        updateFades()
+    }
+
+    private fun appendMessage(message: ChatFieldMessage) {
         messages.addFirst(message)
         totalHeight += message.height
 
@@ -119,6 +124,7 @@ class ChatField(val gameSession: GameSession) {
         val index = messages.indexOfFirst { it.message.id == id }
         if (index >= 0) {
             totalHeight -= messages.removeAt(index).height
+            updateFades()
         }
         addedTicks.remove(id)
         visibleMessages.clear()
@@ -137,7 +143,20 @@ class ChatField(val gameSession: GameSession) {
     fun invalidateMessages() {
         val hudMessages = this.messages.reversed()
         clearMessages()
-        hudMessages.forEach { addMessage(it.copy()) }
+        hudMessages.forEach { appendMessage(it.copy()) }
+        updateFades()
+    }
+
+    fun tick() = updateFades()
+
+    private fun updateFades() {
+        var canFade = true
+        for (i in messages.indices.reversed()) {
+            val message = messages[i]
+            val visible = message.visible
+            if (visible && message.blocksFade()) canFade = false
+            message.updateFade(!visible || canFade)
+        }
     }
 
     fun resetScroll() {
@@ -196,14 +215,17 @@ class ChatField(val gameSession: GameSession) {
         guiGraphics.pose().pushPose()
 
         var currentY = viewportBottom + scrollY
+        updateFades()
 
         visibleMessages.clear()
+
         for (i in messages.indices) {
             val message = messages[i]
             if (!message.visible) continue
 
             val height = message.height
             val topY = currentY - height
+
             val alpha = message.calculateAlpha()
 
             if (currentY < viewportTop) {
@@ -227,13 +249,16 @@ class ChatField(val gameSession: GameSession) {
                         message.message.backgroundColorInt ?: CommonColors.BLACK
                     )
                 )
-                message.render(guiGraphics, isHovered, dt)
+                message.render(guiGraphics, alpha)
                 visibleMessages += VisibleMessage(message, topY, topY + height)
 
-                if (focused && isHovered) guiGraphics.fill(0f, 0f, width, height, ColorMc.color(50, CommonColors.WHITE))
-                if (isSelected) guiGraphics.fill(0f, 0f, width, height, ColorMc.color(50, CommonColors.WHITE))
-                if (isSelected && isControlDown() && isKeyDown(GLFW.GLFW_KEY_C)) {
-                    guiGraphics.fill(0f, 0f, width, height, ColorMc.color(50, CommonColors.WHITE))
+                var selectionAlpha = 0
+                if (focused && isHovered) selectionAlpha += 30
+                if (isSelected) selectionAlpha += 50
+                if (isSelected && isControlDown() && isKeyDown(GLFW.GLFW_KEY_C)) selectionAlpha += 50
+
+                if (selectionAlpha > 0) {
+                    guiGraphics.fill(0f, 0f, width, height, ColorMc.color(selectionAlpha, CommonColors.WHITE))
                 }
 
                 guiGraphics.pose().popPose()

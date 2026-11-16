@@ -10,36 +10,42 @@ import kotlin.random.Random
 
 fun GuiGraphics.drawTypewriterString(
     font: Font,
-    text: FormattedCharSequence,
-    line: List<SyllableChar>,
-    visibleSymbols: Int,
+    lines: List<FormattedCharSequence>,
+    chars: List<SyllableChar>,
+    visible: Int,
     x: Float,
     y: Float,
     color: Int,
-    shakeBonus: Float
+    shakeBonus: Float,
 ) {
-    if (visibleSymbols <= 0) return
+    if (visible <= 0) return
 
     var symbolIndex = 0
     var currentX = x
-    text.accept { _, style, codePoint ->
-        if (symbolIndex >= visibleSymbols) {
-            false
-        } else {
-            val symbol = FormattedCharSequence.codepoint(codePoint, style)
-            val char = line.getOrNull(symbolIndex)
-            val shake = char?.let { shakeBonus + it.shake }?.takeIf { char.parent.shake } ?: 0f
-            drawChatString(
-                font,
-                symbol,
-                currentX + randomShakeOffset(shake),
-                y + randomShakeOffset(shake),
-                color,
-            )
-            currentX += font.width(symbol).toFloat()
-            symbolIndex++
-            symbolIndex < visibleSymbols
+    var currentY = y
+
+    lines.forEach { line ->
+        line.accept { _, style, codePoint ->
+            if (symbolIndex >= visible) {
+                false
+            } else {
+                val symbol = FormattedCharSequence.codepoint(codePoint, style)
+                val char = chars.getOrNull(symbolIndex)
+                val shake = char?.let { shakeBonus + it.shake }?.takeIf { char.parent.shake } ?: 0f
+                drawChatString(
+                    font,
+                    symbol,
+                    currentX + randomShakeOffset(shake),
+                    currentY + randomShakeOffset(shake),
+                    color,
+                )
+                currentX += font.width(symbol).toFloat()
+                symbolIndex++
+                symbolIndex < visible
+            }
         }
+        currentY += font.lineHeight
+        currentX = x
     }
 }
 

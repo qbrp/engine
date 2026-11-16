@@ -37,7 +37,6 @@ interface RenderEntityReferences : Component {
     fun remapEntityReferences(remap: (EntityId) -> EntityId): Component
 }
 
-// Retain the JSON shape of the former RenderReference while runtime fields use EntityId directly.
 object RenderEntityIdSerializer : KSerializer<EntityId> {
     private val serializer = SerializedRenderEntityId.serializer()
     override val descriptor = serializer.descriptor
