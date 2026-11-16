@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.require
 import org.lain.engine.chat.acoustic.AcousticSimulator
+import org.lain.engine.chat.acoustic.AcousticSimulationResult
 import org.lain.engine.chat.acoustic.NEIGHBOURS_26
 import org.lain.engine.chat.messageSource
 import org.lain.engine.mc.InvalidMessageSourcePositionException
@@ -124,22 +125,15 @@ class EngineChat(
                     // Посылаем перед симуляцией сообщение автору, чтобы показать иллюзию быстрой обработки
                     dontSendMessageToAuthor = true
                     if (writtenByPlayer) sendMessage(content, source, this, author, volumes = Volumes.fixed(volume), id = id)
-                    try {
-                        runAcousticSpreadSimulation(
-                            author,
-                            sourceWorld,
-                            sourcePos,
-                            volume,
-                            debugAcoustic
-                        ).also {
-                            it.forEach { (player, volume) -> volumes[player] = volume }
-                        }.keys
-                    } catch (e: InvalidMessageSourcePositionException) {
-                        if (writtenByPlayer) {
-                            server.handler.onServerNotification(author.id, Notification.INVALID_SOURCE_POS, once = true)
-                        }
-                        filterNearestPlayers(sourceWorld, sourcePos, 16)
-                    }
+                    runAcousticSpreadSimulation(
+                        author,
+                        sourceWorld,
+                        sourcePos,
+                        volume,
+                        debugAcoustic
+                    ).also {
+                        it.forEach { (player, volume) -> volumes[player] = volume }
+                    }.keys
                 }
                 else -> { emptyList() }
             }
@@ -366,39 +360,51 @@ class EngineChat(
         val acousticLevel = settings.realisticAcousticFormatting.getLevel(volume)
         val multiplier = acousticLevel.multiplier * settings.acousticAttenuation
 
-        val results = acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, multiplier) { exception ->
+        val results = try {
+            acousticSimulation.simulateSingleSource(world.id, pos, volume, settings.acousticMaxVolume, multiplier)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val notification = if (e is InvalidMessageSourcePositionException) {
+                Notification.INVALID_SOURCE_POS
+            } else {
+                Notification.ACOUSTIC_ERROR
+            }
             if (author != null) {
-                server.execute { server.handler.onServerNotification(author.id, Notification.ACOUSTIC_ERROR, false) }
+                server.execute { server.handler.onServerNotification(author.id, notification, true) }
             }
-            exception.printStackTrace()
+            AcousticSimulationResult.DUMMY
         }
 
-        val recipients = players.values
-            .mapNotNull {
-                val pos = it.eyePos
-                val volume =
-                    NEIGHBOURS_26
-                        .mapNotNull { offset -> results.getVolume(pos.add(offset)) }
-                        .maxOrNull()
-                        ?: return@mapNotNull null
+        return try {
+            val recipients = players.values
+                .mapNotNull {
+                    val pos = it.eyePos
+                    val volume =
+                        NEIGHBOURS_26
+                            .mapNotNull { offset -> results.getVolume(pos.add(offset)) }
+                            .maxOrNull()
+                            ?: return@mapNotNull null
 
-                return@mapNotNull if (volume > settings.acousticHearingThreshold) {
-                    it to volume
-                } else {
-                    null
+                    return@mapNotNull if (volume > settings.acousticHearingThreshold) {
+                        it to volume
+                    } else {
+                        null
+                    }
+                } // получаем уровни шума
+                .map { (player, resultVolume) -> player to Volumes(volume, resultVolume) }
+
+            if (debug && author?.id != null) {
+                val authorPlayer = server.playerStorage.get(author.id)
+                if (authorPlayer != null) {
+                    results.debug(authorPlayer, server.handler, 16f)
                 }
-            } // получаем уровни шума
-            .map { (player, resultVolume) -> player to Volumes(volume, resultVolume) }
-
-        if (debug && author?.id != null) {
-            val authorPlayer = server.playerStorage.get(author.id)
-            if (authorPlayer != null) {
-                results.debug(authorPlayer, server.handler, 16f)
             }
-        }
 
-        results.finish()
-        return recipients.toMap()
+            recipients.toMap()
+        } finally {
+            results.finish()
+        }
     }
 
     private fun IncomingMessage.log(time: Long? = null) {

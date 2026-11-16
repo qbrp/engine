@@ -12,7 +12,6 @@ interface AcousticSimulator {
         volume: Float,
         maxVolume: Float,
         attenuation: Float,
-        exceptionHandler: (Throwable) -> Unit
     ): AcousticSimulationResult
 
     companion object {
@@ -23,7 +22,6 @@ interface AcousticSimulator {
                 volume: Float,
                 maxVolume: Float,
                 attenuation: Float,
-                exceptionHandler: (Throwable) -> Unit
             ): AcousticSimulationResult = AcousticSimulationResult.DUMMY
         }
     }

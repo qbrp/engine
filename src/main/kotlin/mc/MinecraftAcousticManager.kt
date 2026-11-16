@@ -519,7 +519,6 @@ class MinecraftAcousticManager(
         volume: Float,
         maxVolume: Float,
         attenuation: Float,
-        exceptionHandler: (Throwable) -> Unit
     ): AcousticSimulationResult {
         val timestamp = Timestamp()
         val mcWorld = entityTable.getMcWorld(world) ?: throw IllegalArgumentException("World $world")
@@ -540,10 +539,9 @@ class MinecraftAcousticManager(
         val z1 = z + range
         val scene = try {
             acousticSceneBank.getChunkedView(mcWorld, acousticBlockData, x0, z0, x1, z1, y)
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
             logger.error("Во время получения акустической сцены возникла ошибка", e)
-            server.minecraftServer.execute { exceptionHandler(e) }
-            return AcousticSimulationResult.DUMMY
+            throw e
         }
         val size = scene.totalSize
         val generation = AcousticGeneration(
@@ -592,7 +590,6 @@ class MinecraftAcousticManager(
             )
         } catch (e: Throwable) {
             logger.error("Во время обработки акустического распространения возникла ошибка", e)
-            server.minecraftServer.execute { exceptionHandler(e) }
             lifetime.finish()
             throw e
         }

@@ -339,7 +339,7 @@ If tests cannot run because credentials, dependency repositories, native/runtime
 - Do not edit generated/runtime directories unless the task explicitly asks for it.
 - Do not rely on client runtime availability from common code.
 - Prefer existing abstractions and queues over new global mutable state.
-- Comments should explain invariants, ordering, ownership, compatibility, or a non-obvious decision; do not merely restate code.
+- Write code comments in Russian. Comments should explain invariants, ordering, ownership, compatibility, or a non-obvious decision; do not merely restate code.
 
 ## Review Checklist
 
