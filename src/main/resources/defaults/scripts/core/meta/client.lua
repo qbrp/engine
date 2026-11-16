@@ -7,4 +7,5 @@
 ---@class GameSession
 ---@field audio AudioLibrary
 ---@field main_player Player
+---@field chat Chat
 game_session = {}

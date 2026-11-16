@@ -60,14 +60,19 @@ class AudioLibrary(
 
                 "looping" -> self.looping.luaBool()
 
-                "sound" -> CoerceJavaToLua.coerce(self.sound)
-                "category" -> CoerceJavaToLua.coerce(self.category)
+                "sound" -> self.sound.id.toString().luaStr()
+                "category" -> self.category.name.luaStr()
                 else -> NIL
             }
         }
     }
 
     val library = luaTable {
+        function1("ui_signal") { _ ->
+            audioManager.playUiNotificationSound()
+            NIL
+        }
+
         function1("create") { parametersL ->
             fun LuaValue.toSoundId() = SoundId(this.tojstring())
 
@@ -89,7 +94,7 @@ class AudioLibrary(
             audioSource.newInstance(
                 AudioSource(
                     soundParameters,
-                    parametersL["category"].nullable()?.tojstring()?.lowercase()
+                    parametersL["category"].nullable()?.tojstring()?.uppercase()
                         ?.let { EngineSoundCategory.valueOf(it) } ?: EngineSoundCategory.AMBIENT,
                     parametersL["x"].nullable()?.tofloat() ?: 0f,
                     parametersL["y"].nullable()?.tofloat() ?: 0f,

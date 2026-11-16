@@ -42,3 +42,10 @@ function world:emit(type, event, networked) end
 ---@param types ComponentTypeHolder[]
 ---@param fun fun(world: World, entity: Entity, ...)
 function world:iterate(types, fun) end
+
+---@param pos Vec3
+---@param volume number
+---@param max_volume number
+---@param attenuation number
+---@return AcousticResult
+function world:simulate_acoustic(pos, volume, max_volume, attenuation) end

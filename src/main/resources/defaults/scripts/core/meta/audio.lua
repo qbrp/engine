@@ -9,6 +9,9 @@ local audio_library = {}
 ---@param params AudioSourceParameters
 function audio_library.create_source(params) end
 
+--- Проигрывает звуковой сигнал для UI
+function audio_library.ui_signal() end
+
 ---@class Sound
 ---@field id SoundId
 ---@field stream boolean false
