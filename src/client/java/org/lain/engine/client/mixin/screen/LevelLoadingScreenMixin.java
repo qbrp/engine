@@ -44,35 +44,23 @@ public abstract class LevelLoadingScreenMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     private void engine$waitForSession(CallbackInfo ci) {
-        boolean minecraftReady = this.levelReceived.getAsBoolean()
-                || System.currentTimeMillis() > this.createdAt + 30_000L;
+        boolean minecraftReady = this.levelReceived.getAsBoolean() || System.currentTimeMillis() > this.createdAt + 30_000L;
         if (minecraftReady && ClientMixin.INSTANCE.canCloseLevelLoadingScreen()) {
             this.onClose();
         }
         ci.cancel();
     }
 
-    @Redirect(
-            method = "render",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;drawCenteredString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;III)V"
-            )
-    )
-    private void engine$drawStateString(
-            GuiGraphics guiGraphics,
-            Font font,
-            Component vanillaText,
-            int x,
-            int y,
-            int color
-    ) {
+    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;drawCenteredString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;III)V"))
+    private void engine$drawStateString(GuiGraphics guiGraphics, Font font, Component vanillaText, int x, int y, int color) {
         GameSessionJoinFlow.State state = ClientMixin.INSTANCE.multiplayerConnectionState();
         if (!this.levelReceived.getAsBoolean() || state == null) {
             guiGraphics.drawCenteredString(font, vanillaText, x, y, color);
             return;
         }
 
+        String progress = state.getProgress() + "/" + GameSessionJoinFlow.State.Companion.getMAX_PROGRESS();
+        guiGraphics.drawCenteredString(font, Component.literal(progress), x, y - font.lineHeight, color);
         Component stateText = switch (state) {
             case AUTHORIZATION -> ENGINE_AUTHORIZATION_TEXT;
             case CHARACTER_LOAD -> ENGINE_CHARACTER_LOAD_TEXT;
