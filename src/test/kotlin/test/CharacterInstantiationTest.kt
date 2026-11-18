@@ -36,13 +36,17 @@ import org.lain.engine.data.createTransactionContext
 import org.lain.engine.data.databasePersistentId
 import org.lain.engine.data.disconnectDatabase
 import org.lain.engine.data.persistentId
+import org.lain.engine.player.CustomName
+import org.lain.engine.player.DisplayName
 import org.lain.engine.player.EnginePlayer
+import org.lain.engine.player.EnginePlayerModel
 import org.lain.engine.player.Equipment
 import org.lain.engine.player.PlayerId
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.PlayerLoadSettings
 import org.lain.engine.player.PlayerMode
+import org.lain.engine.player.Username
 import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.BiologicalCategory
 import org.lain.engine.player.character.BiologicalSex
@@ -50,7 +54,6 @@ import org.lain.engine.player.character.BodyType
 import org.lain.engine.player.character.CharacterAppearance
 import org.lain.engine.player.character.CharacterApplyEvent
 import org.lain.engine.player.character.CharacterData
-import org.lain.engine.player.character.CharacterDisplay
 import org.lain.engine.player.character.CharacterGradientName
 import org.lain.engine.player.character.CharacterHeight
 import org.lain.engine.player.character.CharacterOccupiedException
@@ -65,12 +68,15 @@ import org.lain.engine.player.character.ServerCharacterId
 import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.character.Skin
 import org.lain.engine.player.character.UsedCharacters
-import org.lain.engine.player.character.getDisplay
 import org.lain.engine.player.interaction.HandType
 import org.lain.engine.player.interaction.setupHandInteractorEntity
 import org.lain.engine.player.get
+import org.lain.engine.player.displayName
+import org.lain.engine.player.displayNameString
 import org.lain.engine.player.require
+import org.lain.engine.player.scale
 import org.lain.engine.player.set
+import org.lain.engine.player.tickPlayerModelSystem
 import org.lain.engine.player.toEquipmentSlotId
 import org.lain.engine.script.EngineId
 import org.lain.engine.server.EngineServer
@@ -170,13 +176,44 @@ class CharacterInstantiationTest : EngineTest() {
         assertEquals(AppliedCharacter(character, id), player.require<AppliedCharacter>())
         assertEquals(BodyType.NORMAL, player.require<AppliedCharacter>().character.data.profile.bodyType)
         assertEquals(BiologicalSex.FEMALE, player.require<AppliedCharacter>().character.data.profile.biologicalSex)
-        assertEquals(character.data.getDisplay(), player.require<CharacterDisplay>())
         assertEquals(character.data.baseLook, player.require<SelectedLook>().look)
         assertTrue(player.require<Equipment>().slots.isEmpty())
         assertEquals(setOf(id), player.require<UsedCharacters>().characters)
         assertEquals(TestPlayerInventory(), player.require<TestPlayerInventory>())
         assertEquals(listOf(player.id to character), platform.appliedCharacters)
         assertEquals(listOf(CharacterApplyEvent(character, player.id)), events())
+    }
+
+    @Test
+    fun displayNameAndModelScaleFollowAppliedCharacter() {
+        val player = createPlayer()
+        player.set(DisplayName(Username("Player")))
+        val model = player.set(EnginePlayerModel(scale = 0.75f))
+        val first = character("first")
+        val secondBase = character("second")
+        val second = secondBase.copy(data = secondBase.data.copy(profile = secondBase.data.profile.copy(
+            name = CharacterGradientName("Other", Color.WHITE),
+            height = CharacterHeight(1.9f),
+        )))
+
+        assertEquals("Player", player.displayNameString)
+        world.tickPlayerModelSystem()
+        assertEquals(0.75f, model.scale)
+
+        apply(player, first)
+        assertEquals(first.data.profile.name.gradientChars, player.displayName)
+        world.tickPlayerModelSystem()
+        assertEquals(first.data.profile.height.scale, model.scale)
+
+        val customName = CustomName("Custom", Color.WHITE)
+        player.require<DisplayName>().custom = customName
+        assertEquals(customName.gradientText, player.displayName)
+
+        player.require<DisplayName>().custom = null
+        apply(player, second)
+        assertEquals(second.data.profile.name.gradientChars, player.displayName)
+        world.tickPlayerModelSystem()
+        assertEquals(second.data.profile.height.scale, model.scale)
     }
 
     @Test

@@ -173,7 +173,6 @@ class CharacterManager(
         val previousCharacterId = player.get<AppliedCharacter>()?.id
         val lastLook = data?.look?.let { lookId -> character.looks.firstOrNull { it.id == lookId } }
 
-        entity.setComponent(character.getDisplay())
         entity.setComponent(SelectedLook(lastLook ?: character.baseLook))
         entity.setComponent(AppliedCharacter(serverCharacter, id))
         entity.setComponent(Equipment(data?.equipment?.toMutableMap() ?: mutableMapOf()))

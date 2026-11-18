@@ -33,18 +33,6 @@ enum class CharacterModelType {
     DEFAULT, SLIM,
 }
 
-/**
- * Информация о персонаже, что может обновляться с сервера
- */
-@Serializable
-data class CharacterDisplay(
-    val name: CharacterGradientName,
-    val biologicalCategory: BiologicalCategory,
-    val appearanceDescription: String,
-    val height: CharacterHeight,
-    val appearance: CharacterAppearance,
-) : Component
-
 @Serializable
 @JvmInline
 value class CharacterHeight(val meters: Float)
@@ -57,16 +45,6 @@ data class CharacterGradientName(
 ) {
     val gradientChars: List<ColoredChar>
         get() = gradientText(name, firstColor, secondColor ?: firstColor)
-}
-
-fun CharacterData.getDisplay(): CharacterDisplay {
-    return CharacterDisplay(
-        profile.name,
-        profile.biologicalCategory,
-        profile.appearanceDescription,
-        profile.height,
-        profile.appearance
-    )
 }
 
 val BodyType.model get() = when(this) {
