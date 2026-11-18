@@ -1,9 +1,12 @@
-package org.lain.engine.script.dev
+package org.lain.engine.util
 
 import kotlin.reflect.KClass
+import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
+import kotlin.reflect.full.instanceParameter
 import kotlin.reflect.full.isSubclassOf
+import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
@@ -39,4 +42,36 @@ fun KClass<*>.valueClassProperty(): KProperty1<Any, *> {
     require(isValue) { "$this is not a value class" }
     return constructorProperties().singleOrNull()
         ?: error("Value class $this must have exactly one constructor property")
+}
+
+fun Any.copyWith(property: String, value: Any?): Any {
+    require(this::class.isData) {
+        "${this::class.qualifiedName} is not a data class"
+    }
+
+    val constructorParameters = this::class.primaryConstructor
+        ?.parameters
+        ?: error("Primary constructor not found on ${this::class.qualifiedName}")
+    val copyFunction = this::class.memberFunctions
+        .singleOrNull { function ->
+            function.name == "copy" &&
+                    function.parameters
+                        .filter { it.kind == KParameter.Kind.VALUE }
+                        .map { it.name to it.type } ==
+                    constructorParameters.map { it.name to it.type }
+        }
+        ?: error("Generated copy function not found on ${this::class.qualifiedName}")
+
+    val propertyParameter = copyFunction.parameters
+        .singleOrNull {
+            it.kind == KParameter.Kind.VALUE && it.name == property
+        }
+        ?: error("Copy parameter $property not found")
+
+    return copyFunction.callBy(
+        mapOf(
+            copyFunction.instanceParameter!! to this,
+            propertyParameter to value
+        )
+    ) ?: error("copy returned null")
 }

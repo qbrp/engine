@@ -14,12 +14,9 @@ import org.lain.engine.script.*
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.PersistentIdComponent
 import org.lain.engine.data.backupBookContent
-import org.lain.engine.script.dev.EntityInspection
-import org.lain.engine.script.dev.EntityInspectionSnapshot
-import org.lain.engine.script.dev.EntityInspectionComponent
-import org.lain.engine.script.dev.EditOperation
-import org.lain.engine.script.dev.performEditOperation
-import org.lain.engine.script.dev.snapshotInspection
+import org.lain.engine.script.EntityInspection
+import org.lain.engine.script.EntityInspectionSnapshotDto
+import org.lain.engine.script.EntityInspectionComponent
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.replication.PlayerReplicationState
 import org.lain.engine.server.replication.ReplicationFrame
@@ -31,6 +28,8 @@ import org.lain.engine.transport.packet.*
 import org.lain.engine.util.*
 import org.lain.engine.util.ecs.assertExists
 import org.lain.engine.util.math.filterNearestPlayers
+import org.lain.engine.util.property.PropertyEdit
+import org.lain.engine.util.property.PropertyPathDto
 import org.lain.engine.world.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.let
@@ -153,11 +152,13 @@ class ServerHandler(
             if (!engineServer.platform.hasPermission(this, "entity_debug")) return@updatePlayer
             val entity = world.persistentIdToEntity[persistentId]
                 ?: protocolError("Сущность $persistentId не существует")
-            require<EntityInspectionComponent>().entities[persistentId] = EntityInspection(
-                entity,
-                rate,
-                with(world) { entity.snapshotInspection() }
-            )
+            val inspections = require<EntityInspectionComponent>().entities
+            val inspection = inspections[persistentId]
+            if (inspection != null && inspection.entity == entity) {
+                inspection.rate = rate
+            } else {
+                inspections[persistentId] = EntityInspection(entity, rate)
+            }
         }
 
     internal fun onEntityDebugViewStop(player: PlayerId, persistentId: PersistentId) = updatePlayer(player) {
@@ -173,12 +174,19 @@ class ServerHandler(
     internal fun onEntityInspectionValueEdit(
         playerId: PlayerId,
         persistentId: PersistentId,
-        editTargetId: Int,
-        editOperation: EditOperation,
+        snapshotId: String,
+        componentType: String,
+        path: PropertyPathDto,
+        editOperation: PropertyEdit,
     ) = updatePlayer(playerId) {
+        if (!engineServer.platform.hasPermission(this, "entity_debug")) return@updatePlayer
+        val inspection = require<EntityInspectionComponent>().entities[persistentId] ?: return@updatePlayer
+        if (world.persistentIdToEntity[persistentId] != inspection.entity) return@updatePlayer
         with(world) {
-            require<EntityInspectionComponent>().entities[persistentId]?.performEditOperation(
-                editTargetId,
+            inspection.edit(
+                snapshotId,
+                componentType,
+                path,
                 editOperation,
             )
         }
@@ -418,7 +426,7 @@ class ServerHandler(
             )
     }
 
-    fun onEntityDebugSnapshot(player: EnginePlayer, persistentId: PersistentId, data: EntityInspectionSnapshot.Dto) {
+    fun onEntityDebugSnapshot(player: EnginePlayer, persistentId: PersistentId, data: EntityInspectionSnapshotDto) {
         CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT.sendS2C(
             EntityDebugDataPacket(persistentId, data),
             player.id

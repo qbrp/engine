@@ -27,9 +27,9 @@ value class EntityDebugId(val name: String) {
     override fun toString(): String { return name }
 }
 
-fun EntityDebugNameId(name: String, id: EntityId) = EntityDebugId("$name+$id")
+fun EntityDebugNameId(name: String, id: EntityId) = EntityDebugId("$name+${id.index}-${id.generation}")
 
-context(world: World)
+context(access: ReadComponentAccess)
 fun EntityId.getDebugName() = getComponent<DebugName>()?.name
 
 context(access: ReadComponentAccess)
@@ -37,7 +37,7 @@ fun EntityId.getEntityDebugNameId() = getComponent<DebugName>()?.name
     ?.let { EntityDebugNameId(it, this) }
     ?: getDebugId()
 
-fun EntityId.getDebugId() = EntityDebugId("$this")
+fun EntityId.getDebugId() = EntityDebugId("$index-$generation")
 
 @Serializable
 data class Log(

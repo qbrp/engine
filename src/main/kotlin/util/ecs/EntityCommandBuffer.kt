@@ -5,7 +5,6 @@ import org.lain.cyberia.ecs.ComponentType
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.MutableComponentAccess
 import org.lain.cyberia.ecs.WriteComponentAccess
-import org.lain.engine.server.EngineServer
 
 class EntityCommandBuffer(
     private val world: MutableComponentAccess,

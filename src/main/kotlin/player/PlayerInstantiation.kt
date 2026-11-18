@@ -16,17 +16,17 @@ import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Mass
 import org.lain.engine.player.character.OwnedCharacterId
-import org.lain.engine.player.character.ServerCharacterId
 import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.player.interaction.HandType
 import org.lain.engine.player.interaction.setupHandInteractorEntity
-import org.lain.engine.script.dev.EntityInspectionComponent
+import org.lain.engine.script.EntityInspectionComponent
 import org.lain.engine.transport.packet.DeveloperModeStatus
 import org.lain.engine.server.replication.Networked
 import org.lain.engine.server.replication.Interests
 import org.lain.engine.server.replication.PlayerInstantiationConfirmation
 import org.lain.engine.server.replication.PlayerReplicationState
 import org.lain.cyberia.ecs.EntityId
+import org.lain.engine.util.DebugName
 import org.lain.engine.util.math.Pos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
@@ -97,6 +97,7 @@ fun commonPlayerInstance(
             setComponent(settings.mode)
             setComponent(settings.attributes)
             setComponent(CustomPlayerAttributes())
+            setComponent(DebugName("player-${settings.displayName.username}"))
             if (settings.replayViewer) {
                 setComponent(ReplayViewer)
             }

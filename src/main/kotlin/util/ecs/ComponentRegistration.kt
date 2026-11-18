@@ -15,7 +15,7 @@ import org.lain.engine.player.character.*
 import org.lain.engine.player.interaction.*
 import org.lain.engine.script.EntityRpcQueue
 import org.lain.engine.script.EntityRpcReceiver
-import org.lain.engine.script.dev.EntityInspectionComponent
+import org.lain.engine.script.EntityInspectionComponent
 import org.lain.engine.script.lua.library.LuaEntityComponent
 import org.lain.engine.server.ReplayViewer
 import org.lain.engine.server.replication.Changes
@@ -102,7 +102,6 @@ fun ComponentTypeRegistry.registerKotlinComponents() {
     registerComponent<PlayerAttributes>(id = "core/player/state/attributes", isNetworking = true)
     registerComponent<VoiceImage>(id = "core/character/voice_image", isNetworking = true)
 
-    registerComponent<CharacterDisplay>(id = "core/character/display", isNetworking = true)
     registerComponent<AppliedCharacter>(id = "core/character/applied", isNetworking = true)
     registerComponent<SelectedLook>(id = "core/character/selected_look", isNetworking = true)
     registerComponent<CharacterApplyEvent>(id = "core/character/event/apply", isNetworking = true)

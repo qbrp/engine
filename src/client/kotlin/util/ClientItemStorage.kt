@@ -6,8 +6,6 @@ import org.lain.engine.mc.ecs.EngineItemReferenceComponent
 import org.lain.engine.data.PersistentId
 import org.lain.engine.util.Storage
 
-class ClientItemStorage : Storage<PersistentId, EngineItem>()
-
 fun EngineItemReferenceComponent.getClientItem(gameSession: GameSession): EngineItem? {
     return gameSession.itemStorage.get(uuid)
 }

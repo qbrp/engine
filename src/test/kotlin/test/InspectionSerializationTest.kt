@@ -1,179 +1,181 @@
 package org.lain.engine.test
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.lain.engine.script.SString
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.script.ScriptValuePrimitive
-import org.lain.engine.script.dev.InspectionObject
-import org.lain.engine.script.dev.InspectionPrimitive
-import org.lain.engine.script.dev.InspectionSerializationContext
-import org.lain.engine.script.dev.InspectionTypeDescriptor
-import org.lain.engine.script.dev.InspectionValue
-import org.lain.engine.script.dev.InputValue
-import org.lain.engine.script.dev.ScalarKind
-import org.lain.engine.script.dev.ScriptInspectionValue
-import org.lain.engine.script.dev.inspectJvmValue
-import org.lain.engine.script.dev.inspectScriptValue
-import org.lain.engine.script.dev.toJvmValue
+import org.lain.engine.util.property.PropertyCompound
+import org.lain.engine.util.property.Property
+import org.lain.engine.util.property.PropertyLocation
+import org.lain.engine.util.property.PropertyScalar
+import org.lain.engine.util.property.PropertyTreeBuilder
+import org.lain.engine.util.property.PropertyTypeDescriptor
+import org.lain.engine.util.property.PropertyTypeDescriptorId
+import org.lain.engine.util.property.PropertyValue
+import org.lain.engine.util.property.PropertyInput
+import org.lain.engine.util.property.ScalarKind
+import org.lain.engine.util.property.ScriptValueBinding
+import org.lain.engine.util.property.jvmProperty
+import org.lain.engine.util.property.inspectScriptValue
 import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.typeOf
 
-class InspectionSerializationTest {
+class InspectionSerializationTest : EngineTest() {
     @Test
     fun jvmTypeTraversalDescribesEmptyAndNullFields() {
-        val context = InspectionSerializationContext()
+        val context = PropertyTreeBuilder(TestComponentWorld())
         val node = with(context) {
-            JvmContainer(emptyList(), null).inspectJvmValue(typeOf<JvmContainer>(), null)
+            JvmContainer(emptyList(), null).jvmProperty(typeOf<JvmContainer>(), PropertyLocation())
         }
 
-        val recordDescriptor = context.descriptor(node) as InspectionTypeDescriptor.Record
+        val recordDescriptor = context.descriptor(node) as PropertyTypeDescriptor.Record
         val fields = recordDescriptor.fields.associateBy { it.name }
-        val namesDescriptor = context.descriptor(fields.getValue("names").typeId)
-            as InspectionTypeDescriptor.Collection
-        val countDescriptor = context.descriptor(fields.getValue("count").typeId)
-            as InspectionTypeDescriptor.Nullable
+        val namesDescriptor = context.descriptor(fields.getValue("names").type)
+            as PropertyTypeDescriptor.Collection
+        val countDescriptor = context.descriptor(fields.getValue("count").type)
+            as PropertyTypeDescriptor.Nullable
 
         assertEquals(
-            InspectionTypeDescriptor.Scalar(ScalarKind.STRING),
-            context.descriptor(namesDescriptor.elementTypeId),
+            PropertyTypeDescriptor.Scalar(ScalarKind.STRING),
+            context.descriptor(namesDescriptor.elementType),
         )
         assertEquals(
-            InspectionTypeDescriptor.Scalar(ScalarKind.INT),
+            PropertyTypeDescriptor.Scalar(ScalarKind.INT),
             context.descriptor(countDescriptor.valueTypeId),
         )
 
-        val record = context.objectValue(node) as InspectionObject.Record
-        assertEquals(fields.getValue("names").typeId, record.fields.getValue("names").typeDescriptorId)
-        assertEquals(fields.getValue("count").typeId, record.fields.getValue("count").typeDescriptorId)
-        assertTrue((context.objectValue(record.fields.getValue("names")) as InspectionObject.Collection).isEmpty)
-        assertEquals(InspectionValue.Null, record.fields.getValue("count").value)
+        val record = context.objectValue(node) as PropertyCompound.Record
+        assertEquals(fields.getValue("names").type, record.fields.getValue("names").type)
+        assertEquals(fields.getValue("count").type, record.fields.getValue("count").type)
+        assertTrue((context.objectValue(record.fields.getValue("names")) as PropertyCompound.Collection).isEmpty)
+        assertNull(record.fields.getValue("count").value)
     }
 
     @Test
     fun nullableCollectionTypeIsDescribedWithoutRuntimeValue() {
-        val context = InspectionSerializationContext()
+        val context = PropertyTreeBuilder(TestComponentWorld())
         val node = with(context) {
-            (null as List<String>?).inspectJvmValue(typeOf<List<String>?>(), null)
+            (null as List<String>?).jvmProperty(typeOf<List<String>?>(), PropertyLocation())
         }
 
-        val nullableDescriptor = context.descriptor(node) as InspectionTypeDescriptor.Nullable
+        val nullableDescriptor = context.descriptor(node) as PropertyTypeDescriptor.Nullable
         val collectionDescriptor = context.descriptor(nullableDescriptor.valueTypeId)
-            as InspectionTypeDescriptor.Collection
+            as PropertyTypeDescriptor.Collection
 
-        assertEquals(InspectionValue.Null, node.value)
+        assertNull(node.value)
         assertEquals(
-            InspectionTypeDescriptor.Scalar(ScalarKind.STRING),
-            context.descriptor(collectionDescriptor.elementTypeId),
+            PropertyTypeDescriptor.Scalar(ScalarKind.STRING),
+            context.descriptor(collectionDescriptor.elementType),
         )
     }
 
     @Test
     fun recursiveNullableTypePointsBackToReservedDescriptor() {
-        val context = InspectionSerializationContext()
+        val context = PropertyTreeBuilder(TestComponentWorld())
         val node = with(context) {
-            RecursiveNode(null).inspectJvmValue(typeOf<RecursiveNode>(), null)
+            RecursiveNode(null).jvmProperty(typeOf<RecursiveNode>(), PropertyLocation())
         }
 
-        val recordDescriptor = context.descriptor(node) as InspectionTypeDescriptor.Record
-        val nextDescriptor = context.descriptor(recordDescriptor.fields.single().typeId)
-            as InspectionTypeDescriptor.Nullable
+        val recordDescriptor = context.descriptor(node) as PropertyTypeDescriptor.Record
+        val nextDescriptor = context.descriptor(recordDescriptor.fields.single().type)
+            as PropertyTypeDescriptor.Nullable
 
-        assertEquals(node.typeDescriptorId, nextDescriptor.valueTypeId)
+        assertEquals(node.type, nextDescriptor.valueTypeId)
     }
 
     @Test
     fun valueClassesStayTransparentAndEnumsUseNames() {
-        val valueContext = InspectionSerializationContext()
+        val valueContext = PropertyTreeBuilder(TestComponentWorld())
         val valueNode = with(valueContext) {
-            Label("label").inspectJvmValue(typeOf<Label>(), null)
+            Label("label").jvmProperty(typeOf<Label>(), PropertyLocation())
         }
 
         assertEquals(
-            InspectionTypeDescriptor.Scalar(ScalarKind.STRING),
+            PropertyTypeDescriptor.Scalar(ScalarKind.STRING),
             valueContext.descriptor(valueNode),
         )
         assertEquals(
-            InspectionValue.Primitive(InspectionPrimitive.Str("label")),
+            PropertyValue.Primitive(PropertyScalar.Str("label")),
             valueNode.value,
         )
 
-        val enumContext = InspectionSerializationContext()
+        val enumContext = PropertyTreeBuilder(TestComponentWorld())
         val enumNode = with(enumContext) {
-            TestMode.ENABLED.inspectJvmValue(typeOf<TestMode>(), null)
+            TestMode.ENABLED.jvmProperty(typeOf<TestMode>(), PropertyLocation())
         }
 
         assertEquals(
-            InspectionTypeDescriptor.Enum(TestMode.entries.map { it.name }),
+            PropertyTypeDescriptor.Enum(TestMode::class.qualifiedName!!, TestMode.entries.map { it.name }),
             enumContext.descriptor(enumNode),
         )
         assertEquals(
-            InspectionValue.Primitive(InspectionPrimitive.Enum("ENABLED")),
+            PropertyValue.Primitive(PropertyScalar.Enum("ENABLED")),
             enumNode.value,
         )
         assertEquals(
             TestMode.ENABLED,
-            InputValue.Primitive(InspectionPrimitive.Enum("ENABLED"))
+            PropertyInput.Scalar(PropertyScalar.Enum("ENABLED"))
                 .toJvmValue(typeOf<TestMode>()),
         )
     }
 
     @Test
     fun scriptTraversalDescribesContainersAndTheirValuesIndependently() {
-        val emptyContext = InspectionSerializationContext()
+        val emptyContext = PropertyTreeBuilder(TestComponentWorld())
         val emptyNode = with(emptyContext) {
-            TestScriptList(emptyList()).inspectScriptValue(null)
+            TestScriptListBinding(emptyList()).inspectScriptValue(PropertyLocation())
         }
         val emptyDescriptor = emptyContext.descriptor(emptyNode)
-            as InspectionTypeDescriptor.Collection
+            as PropertyTypeDescriptor.Collection
 
         assertEquals(
-            InspectionTypeDescriptor.Unknown,
-            emptyContext.descriptor(emptyDescriptor.elementTypeId),
+            PropertyTypeDescriptor.Unknown,
+            emptyContext.descriptor(emptyDescriptor.elementType),
         )
-        assertTrue((emptyContext.objectValue(emptyNode) as InspectionObject.Collection).isEmpty)
+        assertTrue((emptyContext.objectValue(emptyNode) as PropertyCompound.Collection).isEmpty)
 
-        val valueContext = InspectionSerializationContext()
+        val valueContext = PropertyTreeBuilder(TestComponentWorld())
         val valueNode = with(valueContext) {
-            TestScriptList(listOf(TestScriptPrimitive(SString("value"))))
-                .inspectScriptValue(null)
+            TestScriptListBinding(listOf(TestScriptPrimitiveBinding(SString("value"))))
+                .inspectScriptValue(PropertyLocation())
         }
-        val collection = valueContext.objectValue(valueNode) as InspectionObject.Collection
+        val collection = valueContext.objectValue(valueNode) as PropertyCompound.Collection
         val child = collection.values.single()
 
         assertEquals(
-            InspectionTypeDescriptor.Scalar(ScalarKind.STRING),
+            PropertyTypeDescriptor.Scalar(ScalarKind.STRING),
             valueContext.descriptor(child),
         )
         assertEquals(
-            InspectionValue.Primitive(InspectionPrimitive.Str("value")),
+            PropertyValue.Primitive(PropertyScalar.Str("value")),
             child.value,
         )
     }
 
     @Test
     fun sealedClassesSerializes() {
-        val context = InspectionSerializationContext()
+        val context = PropertyTreeBuilder(TestComponentWorld())
         val node = with(context) {
-            TestHierarchy.Second(10).inspectJvmValue(
+            TestHierarchy.Second(10).jvmProperty(
                 TestHierarchy::class.starProjectedType,
-                null
+                PropertyLocation()
             )
         }
     }
 
-    private fun InspectionSerializationContext.descriptor(node: org.lain.engine.script.dev.InspectionNode) =
-        descriptor(node.typeDescriptorId ?: error("Node does not have a type descriptor"))
+    private fun PropertyTreeBuilder.descriptor(node: Property) = descriptor(node.type)
 
-    private fun InspectionSerializationContext.descriptor(id: Int): InspectionTypeDescriptor =
+    private fun PropertyTreeBuilder.descriptor(id: PropertyTypeDescriptorId): PropertyTypeDescriptor =
         typeDescriptors[id] ?: error("Type descriptor $id not found")
 
-    private fun InspectionSerializationContext.objectValue(
-        node: org.lain.engine.script.dev.InspectionNode,
-    ): InspectionObject {
-        val reference = node.value as InspectionValue.Reference
-        return debugObjects[reference.objectId] ?: error("Inspection object ${reference.objectId} not found")
+    private fun PropertyTreeBuilder.objectValue(
+        node: Property,
+    ): PropertyCompound {
+        val reference = node.value as PropertyValue.Reference
+        return compounds[reference.objectId] ?: error("Inspection object ${reference.objectId} not found")
     }
 
     data class JvmContainer(
@@ -198,13 +200,13 @@ class InspectionSerializationTest {
         data class Second(val value: Int) : TestHierarchy()
     }
 
-    private data class TestScriptPrimitive(
+    private data class TestScriptPrimitiveBinding(
         override val value: ScriptValuePrimitive,
-    ) : ScriptInspectionValue.Primitive
+    ) : ScriptValueBinding.Primitive
 
-    private data class TestScriptList(
-        override val values: List<ScriptInspectionValue>,
-    ) : ScriptInspectionValue.List {
+    private data class TestScriptListBinding(
+        override val values: List<ScriptValueBinding>,
+    ) : ScriptValueBinding.List {
         override fun set(index: Int, value: ScriptValue) = unsupported()
         override fun add(value: ScriptValue) = unsupported()
 

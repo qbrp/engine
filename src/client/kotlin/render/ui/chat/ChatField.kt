@@ -22,22 +22,13 @@ import org.lain.engine.client.mc.isControlDown
 import org.lain.engine.client.mc.isKeyDown
 import org.lain.engine.client.render.ui.ColorMc
 import org.lain.engine.client.render.ui.fill
+import org.lain.engine.client.util.ChatOptions
 import org.lain.engine.util.math.lerp
 import org.lwjgl.glfw.GLFW
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
-
-interface ChatOptions {
-    val chatBackgroundOpacity: Float
-    val chatTextOpacity: Float
-    val activeChatPx: Int
-    val unactiveChatPx: Int
-    val chatWidth: Int
-    val chatSize: Int
-    val chatMessageIndent: Float
-}
 
 interface ChatState {
     val allhear: Boolean
@@ -51,10 +42,7 @@ data class ChatContext(
     val options: ChatOptions,
     val font: Font,
     val hud: ChatField,
-) {
-    val packetListener: ClientPacketListener
-        get() = MinecraftClient.player?.connection ?: error("Packet listener not started")
-}
+)
 
 data class Hit(val style: Style, val message: ChatFieldMessage)
 

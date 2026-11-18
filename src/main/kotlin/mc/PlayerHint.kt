@@ -6,7 +6,7 @@ import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.requireComponent
 import org.lain.engine.player.DisplayName
 import org.lain.engine.player.EnginePlayer
-import org.lain.engine.player.character.CharacterDisplay
+import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.displayName
 import org.lain.engine.player.get
 import org.lain.engine.player.require
@@ -15,7 +15,7 @@ import org.lain.engine.world.World
 
 context(world: World)
 fun showPlayerHint(player: ServerPlayer, of: EnginePlayer) {
-    val characterName = of.get<CharacterDisplay>()?.name?.gradientChars
+    val characterName = of.get<AppliedCharacter>()?.character?.data?.profile?.name?.gradientChars
     val name = of.get<DisplayName>() ?: return
     val username = name.username.value
     val customName = characterName ?: name.custom?.gradientText

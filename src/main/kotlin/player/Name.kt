@@ -5,7 +5,7 @@ import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.EntityId
 import org.lain.cyberia.ecs.getComponent
 import org.lain.cyberia.ecs.requireComponent
-import org.lain.engine.player.character.CharacterDisplay
+import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.util.Color
 import org.lain.engine.world.World
 
@@ -81,9 +81,9 @@ var EnginePlayer.customName
 context(world: World)
 fun EntityId.displayName(): List<ColoredChar> {
     val displayName = requireComponent<DisplayName>()
-    val characterDisplayName = getComponent<CharacterDisplay>()?.name?.gradientChars
+    val characterName = getComponent<AppliedCharacter>()?.character?.data?.profile?.name?.gradientChars
     return displayName.custom?.gradientText
-        ?: characterDisplayName
+        ?: characterName
         ?: displayName.username.value.map { ColoredChar(it, Color.WHITE) }
 }
 

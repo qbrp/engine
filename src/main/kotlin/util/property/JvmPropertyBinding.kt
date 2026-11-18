@@ -1,52 +1,48 @@
-package org.lain.engine.script.dev
+package org.lain.engine.util.property
 
+import org.lain.engine.util.copyWith
+import kotlin.collections.get
 import kotlin.collections.set
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
 import kotlin.reflect.full.memberProperties
 
-class JvmObjectEditNode(
+class JvmObjectPropertyBinding(
     override val value: Any
-) : InspectionEditNode {
-    override fun segment(property: InspectionPrimitive): InspectionPath.Segment {
-        val name = (property as? InspectionPrimitive.Str)?.string
-            ?: error("JVM object property must be a string")
-        return InspectionPath.Segment.Field(name)
-    }
-
-    override fun child(segment: InspectionPath.Segment): InspectionEditNode {
+) : PropertyBinding {
+    override fun child(segment: PropertyPath.Segment): PropertyBinding {
         val (propertyName, property) = liveProperty(segment)
-        return property.get(value)?.toInspectionEditNode(property.returnType)
+        return property.get(value)?.propertyEditNode(property.returnType)
             ?: error("Object field $propertyName is null")
     }
 
     override fun setChild(
-        segment: InspectionPath.Segment,
-        newValue: InputValue?
-    ): InspectionEditResult {
+        segment: PropertyPath.Segment,
+        newValue: PropertyInput?
+    ): PropertyEditResult {
         val property = liveProperty(segment).second
         return replaceChild(segment, newValue?.toJvmValue(property.returnType))
     }
 
     override fun replaceChild(
-        segment: InspectionPath.Segment,
+        segment: PropertyPath.Segment,
         newValue: Any?
-    ): InspectionEditResult {
+    ): PropertyEditResult {
         val (propertyName, property) = liveProperty(segment)
         val adaptedValue = newValue.wrapValueClasses(property.returnType)
         return if (property is KMutableProperty1<*, *>) {
             @Suppress("UNCHECKED_CAST")
             property as KMutableProperty1<Any, Any?>
             property.set(value, adaptedValue)
-            InspectionEditResult.MutatedInPlace
+            PropertyEditResult.MutatedInPlace
         } else {
-            InspectionEditResult.Replaced(value.copyWith(propertyName, adaptedValue))
+            PropertyEditResult.Replaced(value.copyWith(propertyName, adaptedValue))
         }
     }
 
-    private fun liveProperty(segment: InspectionPath.Segment): Pair<String, KProperty1<Any, *>> {
-        require(segment is InspectionPath.Segment.Field)
+    private fun liveProperty(segment: PropertyPath.Segment): Pair<String, KProperty1<Any, *>> {
+        require(segment is PropertyPath.Segment.Field) { "Cannot access $value property by path segment $segment" }
         val propertyName = segment.name
         val liveProperty = value::class.memberProperties
             .find { it.name == propertyName } as? KProperty1<Any, *>
@@ -55,47 +51,41 @@ class JvmObjectEditNode(
     }
 }
 
-class JvmListEditNode(
+class JvmListPropertyBinding(
     private val list: List<*>,
     private val elementType: KType?,
-) : InspectionEditNode, InspectionEditNode.CollectionLike {
+) : PropertyBinding, PropertyBinding.CollectionLike {
     override val value: Any
         get() = list
-    override val collectionLike: InspectionEditNode.CollectionLike?
+    override val collectionLike: PropertyBinding.CollectionLike?
         get() = this
 
-    override fun segment(property: InspectionPrimitive): InspectionPath.Segment {
-        val index = (property as? InspectionPrimitive.Int)?.int
-            ?: error("List index must be an integer")
-        return InspectionPath.Segment.Index(index)
-    }
-
-    override fun addEntry(value: InputValue): InspectionEditResult {
+    override fun addEntry(value: PropertyInput): PropertyEditResult {
         val elementType = elementType ?: error("Unsupported element type: $elementType")
         val element = value.toJvmValue(elementType)
         return editList { it.add(element) }
     }
 
-    override fun child(segment: InspectionPath.Segment): InspectionEditNode {
-        require(segment is InspectionPath.Segment.Index)
+    override fun child(segment: PropertyPath.Segment): PropertyBinding {
+        require(segment is PropertyPath.Segment.Index)
         require(segment.index in list.indices) { "Index ${segment.index} is outside list bounds" }
-        return list[segment.index]?.toInspectionEditNode(elementType)
+        return list[segment.index]?.propertyEditNode(elementType)
             ?: error("List element ${segment.index} is null")
     }
 
     override fun setChild(
-        segment: InspectionPath.Segment,
-        newValue: InputValue?
-    ): InspectionEditResult {
+        segment: PropertyPath.Segment,
+        newValue: PropertyInput?
+    ): PropertyEditResult {
         val elementType = elementType ?: error("Unsupported element type: $elementType")
         return replaceChild(segment, newValue?.toJvmValue(elementType))
     }
 
     override fun replaceChild(
-        segment: InspectionPath.Segment,
+        segment: PropertyPath.Segment,
         newValue: Any?
-    ): InspectionEditResult {
-        require(segment is InspectionPath.Segment.Index)
+    ): PropertyEditResult {
+        require(segment is PropertyPath.Segment.Index)
         val index = segment.index
         require(index in list.indices) { "Index $index is outside list bounds" }
         return editList {
@@ -103,50 +93,40 @@ class JvmListEditNode(
         }
     }
 
-    private fun editList(mutation: (MutableList<Any?>) -> Unit): InspectionEditResult {
+    private fun editList(mutation: (MutableList<Any?>) -> Unit): PropertyEditResult {
         return if (list is MutableList<*>) {
             @Suppress("UNCHECKED_CAST")
             list as MutableList<Any?>
             try {
                 mutation(list)
-                InspectionEditResult.MutatedInPlace
+                PropertyEditResult.MutatedInPlace
             } catch (_: UnsupportedOperationException) {
-                InspectionEditResult.Replaced(list.changed(mutation))
+                PropertyEditResult.Replaced(list.changed(mutation))
             }
         } else {
-            InspectionEditResult.Replaced(list.changed(mutation))
+            PropertyEditResult.Replaced(list.changed(mutation))
         }
     }
 }
 
-class JvmMapEditNode(
+class JvmMapPropertyBinding(
     private val map: Map<*, *>,
     private val keyType: KType?,
     private val valueType: KType?,
-) : InspectionEditNode, InspectionEditNode.MapLike {
+) : PropertyBinding, PropertyBinding.MapLike {
     override val value: Any
         get() = map
-    override val mapLike: InspectionEditNode.MapLike
+    override val mapLike: PropertyBinding.MapLike
         get() = this
 
-    override fun segment(property: InspectionPrimitive): InspectionPath.Segment {
-        val key = if (keyType != null) {
-            property.toJvmValue(keyType.unwrapValueClassType()).wrapValueClasses(keyType)
-        } else {
-            property.toJvmValue(null)
-        }
-        require(map.containsKey(key)) { "Map entry for key $key not found" }
-        return InspectionPath.Segment.TableEntry(map.keys.first { it == key })
-    }
-
-    override fun child(segment: InspectionPath.Segment): InspectionEditNode {
+    override fun child(segment: PropertyPath.Segment): PropertyBinding {
         val key = segment.tableKey()
         require(map.containsKey(key)) { "Map entry for key $key not found" }
-        return map[key]?.toInspectionEditNode(valueType)
+        return map[key]?.propertyEditNode(valueType)
             ?: error("Map value for key $key is null")
     }
 
-    override fun addEntry(key: InputValue, value: InputValue): InspectionEditResult {
+    override fun addEntry(key: PropertyInput, value: PropertyInput): PropertyEditResult {
         val keyType = keyType ?: error("Unsupported key type: $keyType")
         val valueType = valueType ?: error("Unsupported value type: $valueType")
         val keyValue = key.toJvmValue(keyType)
@@ -155,17 +135,17 @@ class JvmMapEditNode(
     }
 
     override fun setChild(
-        segment: InspectionPath.Segment,
-        newValue: InputValue?,
-    ): InspectionEditResult {
+        segment: PropertyPath.Segment,
+        newValue: PropertyInput?,
+    ): PropertyEditResult {
         val valueType = valueType ?: error("Unsupported value type: $valueType")
         return replaceChild(segment, newValue?.toJvmValue(valueType))
     }
 
     override fun replaceChild(
-        segment: InspectionPath.Segment,
+        segment: PropertyPath.Segment,
         newValue: Any?,
-    ): InspectionEditResult {
+    ): PropertyEditResult {
         val key = segment.tableKey()
         require(map.containsKey(key)) { "Map entry for key $key not found" }
         return edit {
@@ -173,18 +153,18 @@ class JvmMapEditNode(
         }
     }
 
-    private fun edit(mutation: (MutableMap<Any?, Any?>) -> Unit): InspectionEditResult {
+    private fun edit(mutation: (MutableMap<Any?, Any?>) -> Unit): PropertyEditResult {
         if (map is MutableMap<*, *>) {
             @Suppress("UNCHECKED_CAST")
             map as MutableMap<Any?, Any?>
             try {
                 mutation(map)
-                return InspectionEditResult.MutatedInPlace
+                return PropertyEditResult.MutatedInPlace
             } catch (_: UnsupportedOperationException) {
                 // Kotlin read-only maps can still satisfy MutableMap on the JVM.
             }
         }
-        return InspectionEditResult.Replaced(
+        return PropertyEditResult.Replaced(
             map.toMutableMap().apply { mutation(this) }.toMap()
         )
     }
@@ -194,7 +174,7 @@ private fun List<*>.changed(mutation: (MutableList<Any?>) -> Unit): List<Any?> {
     return toMutableList().apply { mutation(this) }.toList()
 }
 
-private fun InspectionPath.Segment.tableKey(): Any? {
-    require(this is InspectionPath.Segment.TableEntry)
+private fun PropertyPath.Segment.tableKey(): Any? {
+    require(this is PropertyPath.Segment.EntryValue) { "Editing map keys is not supported" }
     return key
 }

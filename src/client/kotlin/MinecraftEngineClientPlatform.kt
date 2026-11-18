@@ -1,5 +1,8 @@
 package org.lain.engine.client
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.core.BlockPos
 import net.minecraft.world.entity.player.Player
@@ -12,6 +15,7 @@ import org.lain.engine.client.mc.chat.MinecraftChat
 import org.lain.engine.client.render.player.EnginePlayerSkin
 import org.lain.engine.client.render.ui.MovingWallpapers
 import org.lain.engine.client.render.world.DecalSystem
+import org.lain.engine.client.util.withClientContext
 import org.lain.engine.mc.*
 import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.mc.server.EngineMinecraftServer
@@ -70,7 +74,15 @@ class MinecraftEngineClientPlatform(
         gameSession: GameSession,
         player: EnginePlayer
     ) {
-        MovingWallpapers.loadNew()
+        CoroutineScope(Dispatchers.Default).launch {
+            withClientContext {
+                while (minecraft.screen != null) {
+                    it.waitNextTick()
+                }
+                MovingWallpapers.loadNew()
+            }
+        }
+
         val level = minecraft.level!!
         player.setMinecraftPlayerComponent(minecraft.player!!)
         ClientMixin.onMainPlayerInstantiated(player)

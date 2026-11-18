@@ -1,12 +1,12 @@
 package org.lain.engine.transport.packet
 
 import kotlinx.serialization.Serializable
-import org.lain.engine.script.dev.EntityInspectionSnapshot
-import org.lain.engine.script.dev.InspectionPrimitive
+import org.lain.engine.script.EntityInspectionSnapshotDto
 import org.lain.engine.data.PersistentId
-import org.lain.engine.script.dev.EditOperation
+import org.lain.engine.util.property.PropertyPathDto
 import org.lain.engine.transport.Endpoint
 import org.lain.engine.transport.Packet
+import org.lain.engine.util.property.PropertyEdit
 import org.lain.engine.world.ImmutableVoxelPos
 
 @Serializable
@@ -27,7 +27,7 @@ val CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET = Endpoint<AcousticDebugVolumesPac
 // Entity Debug
 
 @Serializable
-data class EntityDebugDataPacket(val persistentId: PersistentId, val data: EntityInspectionSnapshot.Dto) : Packet
+data class EntityDebugDataPacket(val persistentId: PersistentId, val data: EntityInspectionSnapshotDto) : Packet
 
 val CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT = Endpoint<EntityDebugDataPacket>()
 
@@ -42,8 +42,10 @@ val SERVERBOUND_ENTITY_DEBUG_VIEW_ENDPOINT = Endpoint<EntityInspectionPacket>()
 @Serializable
 data class EntityInspectionValueEditPacket(
     val persistentId: PersistentId,
-    val editTargetId: Int,
-    val editOperation: EditOperation
+    val snapshotId: String,
+    val componentType: String,
+    val path: PropertyPathDto,
+    val editOperation: PropertyEdit
 ) : Packet
 
 val SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT = Endpoint<EntityInspectionValueEditPacket>()

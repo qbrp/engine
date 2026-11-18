@@ -14,8 +14,8 @@ import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.compilation.CompilationFailedException
 import org.lain.engine.script.compilation.loadBuild
-import org.lain.engine.script.dev.tickEntityDebugViewSnapshotSystem
 import org.lain.engine.script.lua.LuaScriptEngine
+import org.lain.engine.script.tickEntityInspection
 import org.lain.engine.server.replication.tickReplicationSystem
 import org.lain.engine.util.*
 import org.lain.engine.world.World
@@ -103,7 +103,7 @@ class EngineServer(
     override fun World.afterInteractions() {
         tickTestAction(chat)
         val vocalSettings = globals.vocalSettings
-        tickEntityDebugViewSnapshotSystem(handler) // Отсылаем слепок данных игроку
+        tickEntityInspection(handler) // Отсылаем слепок данных игроку
         tickPlayerSpeakSystem(chat, vocalSettings)
         tickPlayerVoiceSystem(vocalSettings)
         //updateHearing(player)

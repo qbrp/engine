@@ -122,7 +122,9 @@ fun ServerHandler.registerEndpoints() {
         onEntityInspectionValueEdit(
             ctx.sender,
             persistentId,
-            editTargetId,
+            snapshotId,
+            componentType,
+            path,
             editOperation,
         )
     }

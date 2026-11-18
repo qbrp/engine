@@ -5,9 +5,10 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.render.ui.EntityInspectorWindow
 import org.lain.engine.data.PersistentId
 import org.lain.engine.data.persistentId
-import org.lain.engine.script.dev.EditOperation
-import org.lain.engine.script.dev.EntityInspectionSnapshot
+import org.lain.engine.script.EntityInspectionSnapshotDto
 import org.lain.engine.util.getEntityDebugNameId
+import org.lain.engine.util.property.PropertyEdit
+import org.lain.engine.util.property.PropertyPathDto
 
 class EntityInspection(
     private val gameSession: GameSession,
@@ -15,7 +16,7 @@ class EntityInspection(
     val persistentId: PersistentId
 ) {
     private var aborted: Boolean = false
-    var data: EntityInspectionSnapshot.Dto? = null
+    var data: EntityInspectionSnapshotDto? = null
         private set
     var rate: Int = 20
         private set
@@ -27,7 +28,7 @@ class EntityInspection(
         gameSession.entityInspections.remove(persistentId)
     }
 
-    fun updateData(data: EntityInspectionSnapshot.Dto) {
+    fun updateData(data: EntityInspectionSnapshotDto) {
         if (aborted) return
         this.data = data
         window.onDataUpdated(data)
@@ -39,9 +40,10 @@ class EntityInspection(
         gameSession.handler.onEntityInspection(persistentId, rate)
     }
 
-    fun editValue(targetId: Int, editOperation: EditOperation) {
+    fun editValue(componentType: String, path: PropertyPathDto, editOperation: PropertyEdit) {
         if (aborted) return
-        gameSession.handler.onEntityInspectionEdit(persistentId, targetId, editOperation)
+        val snapshot = data ?: return
+        gameSession.handler.onEntityInspectionEdit(persistentId, snapshot.snapshotId, componentType, path, editOperation)
     }
 
     fun markDirty(componentType: String) {

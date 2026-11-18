@@ -39,7 +39,6 @@ import org.lain.engine.server.EngineServer
 import org.lain.engine.util.math.*
 import org.lain.engine.util.requireEngineMinecraftServer
 import org.lain.engine.world.*
-import java.util.function.Predicate
 import kotlin.math.abs
 
 fun MinecraftUsername(player: Player) = Username(player.name.string)

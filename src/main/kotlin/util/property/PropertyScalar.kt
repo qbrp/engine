@@ -1,8 +1,12 @@
-package org.lain.engine.script.dev
+package org.lain.engine.util.property
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.getComponent
+import org.lain.engine.data.PersistentId
+import org.lain.engine.data.PersistentIdComponent
+import org.lain.engine.data.persistentId
 import org.lain.engine.script.EngineId
 import org.lain.engine.script.SBool
 import org.lain.engine.script.SEntityRef
@@ -11,28 +15,32 @@ import org.lain.engine.script.SInstant
 import org.lain.engine.script.SNumber
 import org.lain.engine.script.SString
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.data.Uuid as EngineUuid
+import org.lain.engine.util.getDebugName
+import org.lain.engine.util.property.PropertyScalar.EntityRef
+import org.lain.engine.util.propertyClassifier
 import java.util.UUID
-import javax.naming.OperationNotSupportedException
 import kotlin.reflect.KType
 
-
 @Serializable
-@SerialName("primitive")
-sealed class InspectionPrimitive {
+@SerialName("scalar")
+sealed class PropertyScalar {
+    interface Decimal {
+        fun toDouble(): kotlin.Double
+    }
+
     abstract fun toScriptValue(): ScriptValue
     abstract fun toJvmValue(kType: KType?): Any
 
     @Serializable
     @SerialName("name")
-    data class Str(val string: String) : InspectionPrimitive() {
+    data class Str(val string: String) : PropertyScalar() {
         override fun toScriptValue(): ScriptValue = SString(string)
         override fun toJvmValue(kType: KType?): Any = string
     }
 
     @Serializable
     @SerialName("enum")
-    data class Enum(val name: String) : InspectionPrimitive() {
+    data class Enum(val name: String) : PropertyScalar() {
         override fun toScriptValue(): ScriptValue =
             SString(name)
 
@@ -49,14 +57,14 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("char")
-    data class Char(val char: kotlin.Char) : InspectionPrimitive() {
+    data class Char(val char: kotlin.Char) : PropertyScalar() {
         override fun toScriptValue(): ScriptValue = SString(char.toString())
         override fun toJvmValue(kType: KType?): Any = char
     }
 
     @Serializable
     @SerialName("bool")
-    data class Bool(val bool: Boolean) : InspectionPrimitive() {
+    data class Bool(val bool: Boolean) : PropertyScalar() {
         val string = bool.toString()
         override fun toScriptValue(): ScriptValue = SBool(bool)
         override fun toJvmValue(kType: KType?): Any = bool
@@ -64,7 +72,7 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("int")
-    data class Int(val int: kotlin.Int) : InspectionPrimitive() {
+    data class Int(val int: kotlin.Int) : PropertyScalar() {
         val string = int.toString()
         override fun toScriptValue(): ScriptValue = SNumber(int.toDouble())
         override fun toJvmValue(kType: KType?): Any = int
@@ -72,20 +80,30 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("double")
-    data class Double(val double: kotlin.Double) : InspectionPrimitive() {
+    data class Double(val double: kotlin.Double) : PropertyScalar(), Decimal {
         val string = double.toString()
         override fun toScriptValue(): ScriptValue = SNumber(double)
         override fun toJvmValue(kType: KType?): Any = double
+        override fun toDouble(): kotlin.Double = string.toDouble()
+    }
+
+    @Serializable
+    @SerialName("float")
+    data class Float(val float: kotlin.Float) : PropertyScalar(), Decimal {
+        val string = float.toString()
+        override fun toScriptValue(): ScriptValue = SNumber(float.toDouble())
+        override fun toJvmValue(kType: KType?): Any = float
+        override fun toDouble(): kotlin.Double = float.toDouble()
     }
 
     @Serializable
     @SerialName("uuid")
-    data class Uuid(val uuid: String) : InspectionPrimitive() {
+    data class Uuid(val uuid: String) : PropertyScalar() {
         val string = uuid
         override fun toScriptValue(): ScriptValue = SString(uuid)
         override fun toJvmValue(kType: KType?): Any {
             return when (kType?.classifier) {
-                EngineUuid::class -> EngineUuid.from(uuid)
+                org.lain.engine.data.Uuid::class -> org.lain.engine.data.Uuid.from(uuid)
                 else -> UUID.fromString(uuid)
             }
         }
@@ -93,23 +111,27 @@ sealed class InspectionPrimitive {
 
     @Serializable
     @SerialName("engine_id")
-    data class Id(val id: EngineId) : InspectionPrimitive() {
+    data class Id(val id: EngineId) : PropertyScalar() {
         override fun toScriptValue(): ScriptValue = SId(id)
         override fun toJvmValue(kType: KType?): Any = id
     }
 
     @Serializable
     @SerialName("entity_ref")
-    data class EntityRef(val entityId: EntityId) : InspectionPrimitive() {
+    data class EntityRef(
+        val entityId: EntityId,
+        val persistentId: PersistentId?,
+        val debugName: String?
+    ) : PropertyScalar() {
         override fun toScriptValue(): ScriptValue {
             return SEntityRef(entityId)
         }
-        override fun toJvmValue(kType: KType?): Any = EntityRef(entityId)
+        override fun toJvmValue(kType: KType?): Any = entityId
     }
 
     @Serializable
     @SerialName("instant")
-    data class Instant(val epochMillis: Long) : InspectionPrimitive() {
+    data class Instant(val epochMillis: Long) : PropertyScalar() {
         override fun toScriptValue(): ScriptValue {
             return SInstant(instant())
         }
@@ -119,19 +141,12 @@ sealed class InspectionPrimitive {
 
         private fun instant() = java.time.Instant.ofEpochMilli(epochMillis)
     }
+}
 
-
-    @Serializable
-    @SerialName("other")
-    data class Other(val str: String) : InspectionPrimitive() {
-        override fun toJvmValue(kType: KType?): Any {
-            throw OperationNotSupportedException()
-        }
-
-        override fun toScriptValue(): ScriptValue {
-            throw OperationNotSupportedException()
-        }
-
-        val string = str
-    } // non editable
+context(builder: PropertyTreeBuilder)
+fun EntityId.serializeEntityRef(): EntityRef {
+    val id = this
+    return with(builder.world) {
+        EntityRef(id, id.getComponent<PersistentIdComponent>()?.id, id.getDebugName())
+    }
 }

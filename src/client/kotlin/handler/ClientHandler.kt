@@ -17,7 +17,7 @@ import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.commands.ClientCommandOperationBehaviour
 import org.lain.engine.player.*
 import org.lain.engine.player.interaction.PlayerInput
-import org.lain.engine.script.dev.EntityInspectionSnapshot
+import org.lain.engine.script.EntityInspectionSnapshotDto
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.ScriptValue
 import org.lain.engine.server.Notification
@@ -27,9 +27,10 @@ import org.lain.engine.player.character.ServerboundSelectedCharacter
 import org.lain.engine.script.OperationActor
 import org.lain.engine.script.OperationId
 import org.lain.engine.script.OperationTarget
-import org.lain.engine.script.dev.EditOperation
 import org.lain.engine.script.execute
 import org.lain.engine.transport.packet.*
+import org.lain.engine.util.property.PropertyEdit
+import org.lain.engine.util.property.PropertyPathDto
 import org.lain.engine.world.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -124,11 +125,19 @@ class ClientHandler(
         SERVERBOUND_ENTITY_DEBUG_VIEW_STOP_ENDPOINT.sendC2SPacket(EntityDebugViewStopPacket(persistentId))
     }
 
-    fun onEntityInspectionEdit(persistentId: PersistentId, targetId: Int, editOperation: EditOperation) {
+    fun onEntityInspectionEdit(
+        persistentId: PersistentId,
+        snapshotId: String,
+        componentType: String,
+        path: PropertyPathDto,
+        editOperation: PropertyEdit,
+    ) {
         SERVERBOUND_ENTITY_INSPECTION_VALUE_EDIT.sendC2SPacket(
             EntityInspectionValueEditPacket(
                 persistentId,
-                targetId,
+                snapshotId,
+                componentType,
+                path,
                 editOperation
             )
         )
@@ -269,7 +278,7 @@ class ClientHandler(
     fun applyReplicationPacket(gameSession: GameSession, packet: ReplicationPacket) =
         gameSession.replicationController.apply(packet)
 
-    fun applyEntityDebugData(gameSession: GameSession, persistentId: PersistentId, data: EntityInspectionSnapshot.Dto) {
+    fun applyEntityDebugData(gameSession: GameSession, persistentId: PersistentId, data: EntityInspectionSnapshotDto) {
         gameSession.entityInspections[persistentId]?.updateData(data)
     }
 

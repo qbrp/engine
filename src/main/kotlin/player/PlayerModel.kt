@@ -3,7 +3,7 @@ package org.lain.engine.player
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.player.character.CharacterDisplay
+import org.lain.engine.player.character.AppliedCharacter
 import org.lain.engine.player.character.CharacterHeight
 import org.lain.engine.util.math.Vec3
 import org.lain.engine.util.math.EVec3
@@ -93,6 +93,6 @@ private val CHARACTER_HEIGHT_TO_SCALE_MULTIPLIER = 0.5319149f
 val CharacterHeight.scale
     get() = meters * CHARACTER_HEIGHT_TO_SCALE_MULTIPLIER
 
-fun World.tickPlayerModelSystem() = iterate<EnginePlayerModel, CharacterDisplay>() { _, model, display ->
-    model.scale = display.height.scale
+fun World.tickPlayerModelSystem() = iterate<EnginePlayerModel, AppliedCharacter>() { _, model, applied ->
+    model.scale = applied.character.data.profile.height.scale
 }

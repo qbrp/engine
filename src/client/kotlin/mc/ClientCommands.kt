@@ -15,6 +15,7 @@ import org.lain.engine.client.script.startInspection
 import org.lain.engine.mc.literalText
 import org.lain.engine.mc.voxelPos
 import org.lain.engine.player.handItem
+import org.lain.engine.player.username
 import org.lain.engine.script.lua.LuaFunctionChunk
 import org.lain.engine.script.lua.library.coerceToLua
 import org.lain.engine.script.lua.library.luaWorld
@@ -199,6 +200,31 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
                             gameSession.startInspection(gameSession.mainPlayer.entity)
                             1
                         }
+                )
+                .then(
+                    ClientCommandManager.literal("player")
+                        .then(
+                            ClientCommandManager.argument("nickname", StringArgumentType.word())
+                                .suggests { _, builder ->
+                                    engineClient.gameSession?.playerStorage?.all
+                                        ?.map { it.username }
+                                        ?.filter { it.startsWith(builder.remaining, ignoreCase = true) }
+                                        ?.forEach { builder.suggest(it) }
+                                    builder.buildFuture()
+                                }
+                                .executes { ctx ->
+                                    val gameSession = engineClient.gameSession ?: return@executes 0
+                                    val nickname = StringArgumentType.getString(ctx, "nickname")
+                                    val player = gameSession.playerStorage.all
+                                        .firstOrNull { it.username.equals(nickname, ignoreCase = true) }
+                                        ?: run {
+                                            ctx.source.sendError(literalText("Игрок $nickname не найден на клиенте!"))
+                                            return@executes 0
+                                        }
+                                    gameSession.startInspection(player.entity)
+                                    1
+                                }
+                        )
                 )
                 .then(
                     ClientCommandManager.literal("entity")

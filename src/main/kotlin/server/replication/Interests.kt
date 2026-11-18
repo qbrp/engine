@@ -14,7 +14,6 @@ import org.lain.engine.world.DynamicVoxelInterest
 import org.lain.engine.world.EngineChunkPos
 import org.lain.engine.world.Location
 import org.lain.engine.world.World
-import org.lain.engine.world.location
 
 data class LocationedVoxel(val id: PersistentId, val chunkPos: EngineChunkPos)
 

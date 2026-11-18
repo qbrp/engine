@@ -1,10 +1,8 @@
 package org.lain.engine.script.lua
 
-import org.lain.cyberia.ecs.*
 import org.lain.engine.script.*
-import org.lain.engine.script.dev.ScriptInspectionValue
-import org.lain.engine.script.lua.library.LuaComponentAccess
-import org.lain.cyberia.ecs.EntityId
+import org.lain.engine.script.lua.library.LuaEntity
+import org.lain.engine.util.property.ScriptValueBinding
 import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
@@ -15,7 +13,7 @@ class LuaScriptComponent(
 ) : ScriptComponent {
     override val value: ScriptValue
         get() = with(lua) { luaValue.toScriptValue() }
-    override val inspectionValueNode: ScriptInspectionValue
+    override val inspectionValueNode: ScriptValueBinding
         get() = with(lua) { resolveLuaInspectionValue(luaValue) }
 
     override fun toString(): String {
@@ -24,36 +22,39 @@ class LuaScriptComponent(
 }
 
 context(lua: LuaScriptEngine)
-private fun resolveLuaInspectionValue(luaValue: LuaValue): ScriptInspectionValue {
+private fun resolveLuaInspectionValue(luaValue: LuaValue): ScriptValueBinding {
     return when (val scriptValue = luaValue.toScriptValue()) {
-        is STable -> LuaInspectionTable(luaValue.checktable(), scriptValue, lua)
-        is SList -> LuaInspectionCollection(luaValue.checktable(), scriptValue, lua)
-        is ScriptValuePrimitive  -> LuaInspectionPrimitive(luaValue, scriptValue)
-        is SJvm -> LuaInspectionJvm(scriptValue.value)
+        is STable -> LuaTableBinding(luaValue.checktable(), scriptValue, lua)
+        is SList -> LuaCollectionBinding(luaValue.checktable(), scriptValue, lua)
+        is ScriptValuePrimitive  -> LuaPrimitiveBinding(luaValue, scriptValue)
+        is SJvm -> when (val value = scriptValue.value) {
+            is LuaEntity -> LuaPrimitiveBinding(luaValue, SEntityRef(value.id))
+            else -> LuaJvmBinding(value)
+        }
         SNil -> error("Nil does not have an inspectable value")
     }
 }
 
-open class LuaInspectionValue(
+open class LuaValueBinding(
     open val luaValue: LuaValue,
     open val value: ScriptValue
-) : ScriptInspectionValue {
+) : ScriptValueBinding {
     override val identity: Any
         get() = luaValue
 }
 
-class LuaInspectionTable(
+class LuaTableBinding(
     override val luaValue: LuaTable,
     override val value: STable,
     private val lua: LuaScriptEngine
-) : LuaInspectionValue(luaValue, value), ScriptInspectionValue.Table {
-    override val entries: List<ScriptInspectionValue.Table.Entry>
+) : LuaValueBinding(luaValue, value), ScriptValueBinding.Table {
+    override val entries: List<ScriptValueBinding.Table.Entry>
         get() = with(lua) {
             luaValue.keys().map { keyL ->
                 val valueL = luaValue[keyL]
                 val value = resolveLuaInspectionValue(valueL)
                 val key = resolveLuaInspectionValue(keyL)
-                ScriptInspectionValue.Table.Entry(key, value)
+                ScriptValueBinding.Table.Entry(key, value)
             }
         }
 
@@ -62,19 +63,19 @@ class LuaInspectionTable(
         luaValue.set(luaKey, value.toLuaValue())
     }
 
-    override fun replace(entry: ScriptInspectionValue.Table.Entry, value: ScriptValue) = with(lua) {
-        val liveKey = (entry.key as? LuaInspectionValue)?.luaValue
+    override fun replace(entry: ScriptValueBinding.Table.Entry, value: ScriptValue) = with(lua) {
+        val liveKey = (entry.key as? LuaValueBinding)?.luaValue
             ?: error("Entry does not contain a Lua key")
         luaValue.set(liveKey, value.toLuaValue())
     }
 }
 
-class LuaInspectionCollection(
+class LuaCollectionBinding(
     override val luaValue: LuaTable,
     override val value: SList,
     private val lua: LuaScriptEngine
-) : LuaInspectionValue(luaValue, value), ScriptInspectionValue.List {
-    override val values: List<ScriptInspectionValue>
+) : LuaValueBinding(luaValue, value), ScriptValueBinding.List {
+    override val values: List<ScriptValueBinding>
         get() = with(lua) {
             List(value.values.size) { index ->
                 resolveLuaInspectionValue(luaValue[index + 1])
@@ -90,12 +91,12 @@ class LuaInspectionCollection(
     }
 }
 
-class LuaInspectionPrimitive(
+class LuaPrimitiveBinding(
     override val luaValue: LuaValue,
     override val value: ScriptValuePrimitive
-) : LuaInspectionValue(luaValue, value), ScriptInspectionValue.Primitive
+) : LuaValueBinding(luaValue, value), ScriptValueBinding.Primitive
 
-class LuaInspectionJvm(override val value: Any) : ScriptInspectionValue.Jvm
+class LuaJvmBinding(override val value: Any) : ScriptValueBinding.Jvm
 
 fun ScriptComponent.castLua() = this as LuaScriptComponent
 

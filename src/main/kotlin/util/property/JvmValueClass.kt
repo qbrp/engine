@@ -1,5 +1,6 @@
-package org.lain.engine.script.dev
+package org.lain.engine.util.property
 
+import org.lain.engine.util.valueClassProperty
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
