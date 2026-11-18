@@ -39,7 +39,7 @@ Common PowerShell commands:
 .\gradlew.bat tasks --all
 ```
 
-Run focused tests or compilation first, then `test` and `build` when shared code, source-set boundaries, serialization, or packaging are affected.
+Choose checks according to the actual complexity and risk of the change. For a trivial, obvious edit, inspection may be sufficient; do not run tests or builds automatically. For nontrivial changes, run relevant focused checks and use `test` and `build` when the scope or risk justifies them.
 
 Dependency resolution may require network access and GitHub Packages credentials for `org.lain.cyberia`. If resolution fails because credentials or external repositories are unavailable, report the environment problem. Do not rewrite dependency or repository configuration as a workaround.
 
@@ -311,6 +311,8 @@ Long-lived collections keyed by player, character, entity, chunk, request, or ex
 
 ## Testing Guidance
 
+Do not add tests for simple, mechanical changes unless the user asks for them or a test is needed to verify nontrivial behavior. Avoid redundant checks and do not broaden a small task to fix unrelated tests merely to make a full suite pass.
+
 Prefer fast JVM tests for reusable logic:
 
 - component arrays, registration, dirty tracking, and entity-id reuse;
@@ -359,5 +361,5 @@ Before finishing a substantial change, check:
 - Are common/client boundaries and mixin environments correct?
 - Are scopes, executors, listeners, caches, globals, and registrations released by their lifecycle owner?
 - Are long-lived collections bounded or cleaned?
-- Were focused tests run, followed by broader tasks proportional to the risk?
+- Were appropriate checks chosen in proportion to the scope and risk?
 - If something could not be verified, is the exact limitation reported?
