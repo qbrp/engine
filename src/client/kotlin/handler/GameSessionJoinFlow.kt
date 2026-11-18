@@ -175,14 +175,14 @@ class GameSessionJoinFlow(
                 characters.file
             )
 
-            val characterSelection = CharacterSelection(client, namespacedStorageAccess, serverPlayState)
-                .also { characterSelection = it }
             val previousCharacter = serverPlayState
                 ?.let { variants[it.character] }
                 ?.let { CharacterSelection.Selection.Character(it) }
 
             val result = previousCharacter ?: withClientContext {
                 state = State.CHARACTER_SELECTION
+                val characterSelection = CharacterSelection(client, namespacedStorageAccess, serverPlayState)
+                    .also { characterSelection = it }
                 characterSelection.awaitCharacterSelection(null, variants.values.toList())
             }
             result?.let {
@@ -351,8 +351,17 @@ class GameSessionJoinFlow(
         }
     }
 
-    enum class State {
-        AUTHORIZATION, COMPILATION, CHARACTER_LOAD, CHARACTER_SELECTION, GAME_LOADING, DONE
+    enum class State(val progress: Int) {
+        AUTHORIZATION(1),
+        COMPILATION(2),
+        CHARACTER_LOAD(3),
+        CHARACTER_SELECTION(3),
+        GAME_LOADING(4),
+        DONE(4);
+
+        companion object {
+            val MAX_PROGRESS = entries.maxOf { it.progress }
+        }
     }
 
     sealed class JoinType(val isReplay: Boolean) {
