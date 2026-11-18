@@ -1,15 +1,19 @@
 package org.lain.engine.mc.commands
 
+import com.mojang.brigadier.builder.ArgumentBuilder
+import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
+import com.mojang.brigadier.tree.LiteralCommandNode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.minecraft.commands.CommandSourceStack
+import org.lain.engine.server.protocolError
 import org.lain.engine.util.file.FileSystem
 import org.lain.engine.util.file.applyConfig
 import org.lain.engine.util.file.loadOrCreateServerConfig
@@ -22,6 +26,20 @@ import java.util.concurrent.atomic.AtomicReference
 fun ServerCommandDispatcher.registerEngineReloadCommands(dedicated: Boolean) {
     val server by lazy { requireEngineMinecraftServer() }
     val engine by lazy { server.engine }
+
+    fun LiteralArgumentBuilder<CommandSourceStack>.thenScript(additional: (Context) -> Unit = {}) =
+        then(
+            stringArgument("path")
+                .suggests(ScriptPathSuggestionProvider())
+                .executeCatching { ctx ->
+                    val moduleName = ctx.command.getString("path")
+                    server.luaScriptEngine.reloadScript(moduleName)
+                    engine.handler.onScriptReloaded(moduleName)
+                    ctx.sendFeedback("Модуль $moduleName перезагружен", true)
+                    additional(ctx)
+                }
+        )
+
     register(
         literal("re")
             .then(
@@ -43,22 +61,13 @@ fun ServerCommandDispatcher.registerEngineReloadCommands(dedicated: Boolean) {
                         server.engine.recompileEngineContents(ctx.player)
                         ctx.sendFeedback("Контент скомпилирован", true)
                     }
+                    .thenScript { ctx ->
+                        ctx.sendFeedback("Контент скомпилирован", true)
+                    }
             )
-            .then(
-                literal("script")
-                    .requires { it.hasPermission("re.script") }
-                    .then(
-                        stringArgument("path")
-                            .suggests(ScriptPathSuggestionProvider())
-                            .executeCatching { ctx ->
-                                val moduleName = ctx.command.getString("path")
-                                server.luaScriptEngine.reloadScript(moduleName)
-                                engine.handler.onScriptReloaded(moduleName)
-                                ctx.sendFeedback("Модуль $moduleName перезагружен", true)
-                                ctx.sendFeedback("Используйте /re compile для применения изменений", false)
-                            }
-                    )
-            )
+            .thenScript { ctx ->
+                ctx.sendFeedback("Используйте /re compile для применения изменений", false)
+            }
     )
 }
 
