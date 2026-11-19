@@ -1,18 +1,12 @@
 package org.lain.engine.script.lua.library
 
-import org.lain.cyberia.ecs.Component
-import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.ReadComponentAccess
 import org.lain.engine.script.CoreScriptComponents
-import org.lain.engine.script.EngineId
 import org.lain.engine.script.NamespacedStorageAccess
 import org.lain.engine.script.ScriptComponentId
 import org.lain.engine.script.ScriptComponentType
 import org.lain.engine.script.lua.*
 import org.lain.engine.script.toScriptComponentId
 import org.lain.engine.util.ecs.ComponentState
-import org.lain.engine.world.World
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 
@@ -26,7 +20,7 @@ class ComponentLibrary(
         LuaUserdataType<LuaComponentAccess> {
             indexSelf { self, key ->
                 when (key.tojstring()) {
-                    "id" -> self.id.coerceToLua()
+                    "id" -> self.id.luaId()
                     else -> NIL
                 }
             }

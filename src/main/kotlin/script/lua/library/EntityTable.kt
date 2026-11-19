@@ -23,7 +23,7 @@ import org.luaj.vm2.LuaValue.NIL
 data class LuaEntity(
     val writeAccess: WriteComponentAccess,
     val readAccess: ReadComponentAccess?,
-    val world: World? = null,
+    val world: World,
     val id: EntityId,
     val worldL: LuaValue,
     val idL: LuaUserdata
@@ -134,14 +134,17 @@ fun EntityMetaTable() = luaUserdataTable<LuaEntity> {
 
 context(lua: LuaScriptEngine, world: World)
 fun EntityId.luaEntity(): LuaValue {
-    return getComponent<LuaEntityComponent>()?.coercedTable ?: run {
-        val idL = luaEntityRef()
-        val entity = LuaEntity(world, world, world, this, world.luaWorld(), idL)
-        val entityTable = LuaUserdata(entity)
-        entityTable.setmetatable(lua.entityMetaTable)
-        setComponent(LuaEntityComponent(entity, entityTable))
-        entityTable
-    }
+    return getComponent<LuaEntityComponent>()?.coercedTable ?: cacheLuaEntity().coercedTable
+}
+
+context(lua: LuaScriptEngine, world: World)
+fun EntityId.cacheLuaEntity(): LuaEntityComponent {
+    val idL = luaEntityRef()
+    val entity = LuaEntity(world, world, world, this, world.luaWorld(), idL)
+    val entityTable = LuaUserdata(entity)
+    entityTable.setmetatable(lua.entityMetaTable)
+    return LuaEntityComponent(entity, entityTable)
+        .also { setComponent(it) }
 }
 
 fun LuaValue.checkLuaEntity(): EntityId {

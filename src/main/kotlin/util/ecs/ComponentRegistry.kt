@@ -45,7 +45,7 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
     }
 
     val count: Int
-        get() = entriesByClassName.size
+        get() = entriesByTypeId.size
 
     fun get(id: String): Entry<out Component>? {
         return entriesByTypeId[id]
@@ -94,18 +94,26 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
         val className = kClass.qualifiedName ?: error("Component class cannot be anonymous")
 
         check(className !in entriesByClassName) { "Component class $className is already registered" }
-        check(type.id !in entriesByTypeId) { "Component id ${type.id} is already registered" }
-
-        val entry = Entry(
-            type as IndexedComponentType<Component>,
-            meta
-        )
-        SerializationRegistry.register(type.id, replicationClass)
+        val entry = registerComponentType(type, meta, replicationClass)
         entriesByClassName[className] = entry
+    }
+
+    // Динамические типы регистрируются по id, без привязки к Kotlin-классу.
+    fun <T : Component> registerComponentType(
+        type: IndexedComponentType<T>,
+        meta: ComponentMeta,
+        replicationClass: KClass<out Component>? = null,
+    ): Entry<T> {
+        require(EngineId(type.id).full == type.id) { "Component id must include a namespace: ${type.id}" }
+        check(type.id !in entriesByTypeId) { "Component id ${type.id} is already registered" }
+        val entry = Entry(type, meta)
+        SerializationRegistry.register(type.id, replicationClass)
         entriesByTypeId[type.id] = entry
+        return entry
     }
 
     fun listEntries() = entriesByClassName.entries.toList()
+    fun listTypeEntries() = entriesByTypeId.values.toList()
 
     override fun <T : Component> componentTypeOf(
         kClass: KClass<T>
@@ -120,7 +128,7 @@ object ComponentTypeRegistry : KClassComponentTypeProvider {
     )
 }
 
-fun getKotlinComponentTypeEntries() = ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta }
+fun getKotlinComponentTypeEntries() = ComponentTypeRegistry.listTypeEntries().map { it.type to it.meta }
 
 fun lookupComponentType(id: String, namespacedStorage: NamespacedStorage): ComponentType<*>? {
     return ComponentTypeRegistry.get(id)?.type

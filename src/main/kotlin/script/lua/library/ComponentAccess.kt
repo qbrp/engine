@@ -23,15 +23,21 @@ import org.luaj.vm2.LuaValue
 sealed interface LuaComponentAccess : ScriptSystemComponentAccess {
     override val id: EngineId
     override val componentType: ComponentType<Component>
+    val cachedComponentType: ComponentType<LuaCachedComponentBinding>?
+        get() = null
 
     data class Native(
         val binding: LuaComponentBinding<*>,
     ) : LuaComponentAccess {
+
         override val id: EngineId
             get() = binding.id
-        fun asGeneric() = binding as LuaComponentBinding<Component>
+        override val cachedComponentType: ComponentType<LuaCachedComponentBinding>?
+            get() = binding.cacheComponentType
         override val componentType: ComponentType<Component>
             get() = asGeneric().componentType
+
+        fun asGeneric() = binding as LuaComponentBinding<Component>
     }
 
     data class Script(
@@ -53,14 +59,18 @@ fun EntityId.setLuaScriptComponent(value: LuaValue, type: ScriptComponentType): 
 
 context(write: WriteComponentAccess, lua: LuaScriptEngine)
 fun EntityId.setComponentLua(world: World?, value: LuaValue, componentAccess: LuaComponentAccess): LuaValue {
-    return when(componentAccess) {
+    return when (componentAccess) {
         is LuaComponentAccess.Native -> {
             val binding = componentAccess.asGeneric()
             val component = binding.fromLua(this, value)
                 ?: error("$binding not supports setComponent operation")
+
+            binding.cacheComponentType?.let { type -> removeComponent(type) }
+
             setComponent(component, componentAccess.componentType)
             binding.toLua(world, this, component)
         }
+
         is LuaComponentAccess.Script -> {
             setLuaScriptComponent(value, componentAccess.type)
                 .castedLuaValue
@@ -71,7 +81,7 @@ fun EntityId.setComponentLua(world: World?, value: LuaValue, componentAccess: Lu
 context(read: ReadComponentAccess)
 fun EntityId.hasComponentLua(componentAccess: LuaComponentAccess): Boolean {
     return hasComponent(
-        when(componentAccess) {
+        when (componentAccess) {
             is LuaComponentAccess.Native -> componentAccess.asGeneric().componentType
             is LuaComponentAccess.Script -> componentAccess.type
         }
@@ -80,26 +90,40 @@ fun EntityId.hasComponentLua(componentAccess: LuaComponentAccess): Boolean {
 
 context(lua: LuaScriptEngine)
 private fun EntityId.getComponentBindingLua(
-    world: World?,
+    world: World,
     bindingAccess: LuaComponentAccess.Native,
     getter: (ComponentType<Component>) -> Component?
-): LuaValue? {
+): LuaValue? = with(world) {
     val binding = bindingAccess.asGeneric()
-    return binding.toLua(
-        world,
-        this,
-        getter(binding.componentType) ?: return null
-    )
+    val tick = world.simulation.ticks
+    val cachedComponentType = bindingAccess.cachedComponentType
+    return cachedComponentType
+        ?.let { getComponent(it) }
+        ?.takeIf { it.tick == tick }?.component
+        ?: binding.toLua(
+            world,
+            this@getComponentBindingLua,
+            getter(binding.componentType) ?: return null
+        )
+            .also { value ->
+                cachedComponentType?.let { type ->
+                    setComponent(
+                        LuaCachedComponentBinding(tick, value),
+                        type
+                    )
+                }
+            }
 }
 
 context(read: ReadComponentAccess, lua: LuaScriptEngine)
-fun EntityId.getComponentLua(world: World?, componentAccess: LuaComponentAccess): LuaValue? {
-    return when(componentAccess) {
+fun EntityId.getComponentLua(world: World, componentAccess: LuaComponentAccess): LuaValue? {
+    return when (componentAccess) {
         is LuaComponentAccess.Native -> {
-            getComponentBindingLua(world, componentAccess) {
-                type -> getComponent(type)
+            getComponentBindingLua(world, componentAccess) { type ->
+                getComponent(type)
             }
         }
+
         is LuaComponentAccess.Script -> {
             getComponent(componentAccess.type)?.castedLuaValue
         }
@@ -107,13 +131,18 @@ fun EntityId.getComponentLua(world: World?, componentAccess: LuaComponentAccess)
 }
 
 context(write: WriteComponentAccess, lua: LuaScriptEngine)
-fun EntityId.removeComponentLua(world: World?, componentAccess: LuaComponentAccess): LuaValue? {
-    return when(componentAccess) {
+fun EntityId.removeComponentLua(world: World, componentAccess: LuaComponentAccess): LuaValue? {
+    return when (componentAccess) {
         is LuaComponentAccess.Native -> {
-            getComponentBindingLua(world, componentAccess) {
-                type -> removeComponent(type)
+            val binding = componentAccess.asGeneric()
+            val component = removeComponent(binding.componentType)
+            val cached = binding.cacheComponentType?.let { removeComponent(it) }
+            component?.let {
+                cached?.takeIf { it.tick == world.simulation.ticks }?.component
+                    ?: binding.toLua(world, this, it)
             }
         }
+
         is LuaComponentAccess.Script -> {
             removeComponent(componentAccess.type)?.castedLuaValue
         }

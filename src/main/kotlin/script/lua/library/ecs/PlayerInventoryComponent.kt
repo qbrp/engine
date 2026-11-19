@@ -1,31 +1,21 @@
 package org.lain.engine.script.lua.library.ecs
 
-import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.EntityId
-import org.lain.cyberia.ecs.iterate
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.Equipment
-import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.player.PlayerInventory
 import org.lain.engine.player.require
 import org.lain.engine.player.toEquipmentSlotId
-import org.lain.engine.script.CoreScriptComponents
 import org.lain.engine.script.EngineId
-import org.lain.engine.script.ScriptComponent
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.asUserdataOrThrow
-import org.lain.engine.script.lua.library.LuaComponentBinding
+import org.lain.engine.script.lua.library.ComponentBinding
 import org.lain.engine.script.lua.library.checkLuaEntity
-import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.luaId
 import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.script.lua.library.resolveIdReference
 import org.lain.engine.script.lua.luaTable
-import org.lain.engine.script.lua.luaTableOf
 import org.lain.engine.script.lua.luaValue
 import org.lain.engine.script.lua.toLuaListUserdata
 import org.lain.engine.script.lua.toLuaMutableMapUserdata
-import org.lain.engine.script.lua.toLuaValue
-import org.lain.engine.world.World
 import org.luaj.vm2.LuaUserdata
 import org.luaj.vm2.LuaValue
 import org.luaj.vm2.LuaValue.NIL
@@ -61,18 +51,15 @@ fun LuaPlayerInventoryComponent(player: EnginePlayer): LuaUserdata =
         it.setmetatable(lua.playerInventoryMetaTable)
     }
 
-object EquipmentBinding : LuaComponentBinding<Equipment> {
-    override val componentType: ComponentType<Equipment>
-        get() = Equipment.TYPE
-    override val id: EngineId
-        get() = EngineId("core/player/equipment")
-
-    context(lua: LuaScriptEngine)
-    override fun toLua(world: World?, entity: EntityId, component: Equipment): LuaValue {
-        return luaTable {
+fun EquipmentBinding(cache: Boolean = false) = ComponentBinding(
+    id = EngineId("core/player/equipment"),
+    componentClass = Equipment::class,
+    cache = cache,
+    toLuaValue = { world, _, component ->
+        luaTable {
             "slots"(
                 component.slots.toLuaMutableMapUserdata(
-                    keyToLua = { it.engineId.coerceToLua() },
+                    keyToLua = { it.engineId.luaId() },
                     keyFromLua = { it.resolveIdReference().toEquipmentSlotId() },
                     valueToLua = { value ->
                         world?.let { with(world) { value.luaEntity() } }
@@ -82,5 +69,5 @@ object EquipmentBinding : LuaComponentBinding<Equipment> {
                 )
             )
         }
-    }
-}
+    },
+)

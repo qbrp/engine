@@ -5,7 +5,6 @@ import org.lain.engine.player.EquipmentSlotId
 import org.lain.engine.script.Contents
 import org.lain.engine.script.Identifiable
 import org.lain.engine.script.lua.LuaScriptEngine
-import org.lain.engine.script.lua.luaBool
 import org.lain.engine.script.lua.luaStr
 import org.lain.engine.script.lua.luaTable
 import org.luaj.vm2.LuaTable
@@ -17,7 +16,7 @@ fun <K : Identifiable, V : Any> Map<K, V>.toLuaIdTable(
 ): LuaTable {
     val table = LuaTable()
     entries.forEach { (key, value) ->
-        table[key.engineId.coerceToLua()] = valueTransform(key, value)
+        table[key.engineId.luaId()] = valueTransform(key, value)
     }
     return table
 }
@@ -31,7 +30,7 @@ fun ContentsTable(contents: Contents) = luaTable {
 
 context(lua: LuaScriptEngine)
 fun EquipmentSlot.toLuaTable(id: EquipmentSlotId): LuaTable = luaTable {
-    "id"(id.engineId.coerceToLua())
+    "id"(id.engineId.luaId())
     "name"(name.luaStr())
     "part"(part.name.lowercase().luaStr())
 }

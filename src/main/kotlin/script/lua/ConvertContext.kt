@@ -10,6 +10,7 @@ import org.lain.engine.script.OperationSelection
 import org.lain.engine.script.OperationTarget
 import org.lain.engine.script.ScriptContext
 import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.luaId
 import org.lain.engine.script.lua.library.luaEntity
 import org.lain.engine.script.lua.library.luaWorld
 import org.lain.engine.util.math.asMutableVec3
@@ -80,7 +81,7 @@ internal fun ScriptContext.toLuaValue(): LuaValue = when(this) {
         luaValue("persistent_id"), persistentId.toString().luaStr(),
         luaValue("item"), (persistentData as? EntityPersistenceData.Item)?.let {
             luaTableOf(
-                luaValue("prefab_id"), it.prefabId.parse().coerceToLua(),
+                luaValue("prefab_id"), it.prefabId.parse().luaId(),
                 luaValue("count"), it.count.luaNum(),
                 luaValue("max_count"), it.maxCount.luaNum()
             )

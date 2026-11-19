@@ -142,7 +142,7 @@ data class GeneralPlayerData(
     val username: Username
 ) {
     companion object {
-        fun of(player: EnginePlayer): GeneralPlayerData = with(player.world) {
+        fun of(player: EnginePlayer): GeneralPlayerData {
             return GeneralPlayerData(player.id, player.require<DisplayName>().username)
         }
     }

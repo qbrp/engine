@@ -14,6 +14,8 @@ import org.lain.engine.script.lua.toList
 import org.lain.engine.script.lua.toLuaList
 import org.lain.engine.script.lua.toVoxelPos
 import org.lain.cyberia.ecs.EntityId
+import org.lain.cyberia.ecs.getComponent
+import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.world.World
 import org.lain.engine.world.invokeCommand
 import org.lain.engine.world.setDynamicVoxel
@@ -94,103 +96,138 @@ fun WorldMetaTable() = luaUserdataTable<World> {
 
     function3("iterate") { self, types, func ->
         val world = self.asEngineWorld()
+        val tick = world.simulation.ticks
         val accesses = types.checktable().toList { it.fetchComponentAccess() }
-        val types = accesses.map { it.componentType }
         val entityArray = world.componentManager.getComponentArray(LuaEntityComponent.TYPE)
+
         fun getOrCreateEntityComponent(entityId: EntityId): LuaEntityComponent {
-            return entityArray.componentOf(entityId) ?: run {
-                with(world) { entityId.luaEntity() }
-                entityArray.componentOf(entityId)!!
-            }
+            return entityArray.componentOf(entityId) ?: with(world) { entityId.cacheLuaEntity() }
         }
 
-        fun Component.luaPresentation(entity: EntityId, idx: Int): LuaValue {
-            return when (val access = accesses[idx]) {
-                is LuaComponentAccess.Native -> access.asGeneric().toLua(world, entity, this)
-                is LuaComponentAccess.Script -> (this as ScriptComponent).castedLuaValue
+        fun Component.luaPresentation(entity: EntityId, access: LuaComponentAccess): LuaValue = with(world) {
+            return when (access) {
+                is LuaComponentAccess.Native -> {
+                    val cachedType = access.cachedComponentType
+                    cachedType
+                        ?.let { entity.getComponent(it) }
+                        ?.takeIf { it.tick == tick }
+                        ?.component
+                        ?: access.asGeneric().toLua(world, entity, this@luaPresentation)
+                            .also { value ->
+                                cachedType?.let { type ->
+                                    entity.setComponent(LuaCachedComponentBinding(tick, value), type)
+                                }
+                            }
+                }
+                is LuaComponentAccess.Script -> (this@luaPresentation as ScriptComponent).castedLuaValue
             }
         }
 
         when (accesses.size) {
-            1 -> world.iterate1(types[0]) { entity, component ->
-                val luaEntity = getOrCreateEntityComponent(entity)
-                func.invoke(
-                    self,
-                    luaEntity.coercedTable,
-                    component.luaPresentation(entity, 0)
-                )
-            }
-
-            2 -> world.iterate2(
-                types[0],
-                types[1]
-            ) { entity, component1, component2 ->
-                val luaEntity = getOrCreateEntityComponent(entity)
-                func.invoke(
-                    arrayOf(
+            1 -> {
+                val access1 = accesses[0]
+                world.iterate1(access1.componentType) { entity, component ->
+                    val luaEntity = getOrCreateEntityComponent(entity)
+                    func.invoke(
                         self,
                         luaEntity.coercedTable,
-                        component1.luaPresentation(entity, 0),
-                        component2.luaPresentation(entity, 1)
+                        component.luaPresentation(entity, access1)
                     )
-                )
+                }
             }
 
-            3 -> world.iterate3(
-                types[0],
-                types[1],
-                types[2]
-            ) { entity, component1, component2, component3 ->
-                val luaEntity = getOrCreateEntityComponent(entity)
-                func.invoke(
-                    arrayOf(
-                        self,
-                        luaEntity.coercedTable,
-                        component1.luaPresentation(entity, 0),
-                        component2.luaPresentation(entity, 1),
-                        component3.luaPresentation(entity, 2)
+            2 -> {
+                val access1 = accesses[0]
+                val access2 = accesses[1]
+                world.iterate2(
+                    access1.componentType,
+                    access2.componentType
+                ) { entity, component1, component2 ->
+                    val luaEntity = getOrCreateEntityComponent(entity)
+                    func.invoke(
+                        arrayOf(
+                            self,
+                            luaEntity.coercedTable,
+                            component1.luaPresentation(entity, access1),
+                            component2.luaPresentation(entity, access2)
+                        )
                     )
-                )
+                }
             }
 
-            4 -> world.iterate4(
-                types[0],
-                types[1],
-                types[2],
-                types[3]
-            ) { entity, component1, component2, component3, component4 ->
-                val luaEntity = getOrCreateEntityComponent(entity)
-                func.invoke(
-                    arrayOf(
-                        self,
-                        luaEntity.coercedTable,
-                        component1.luaPresentation(entity, 0),
-                        component2.luaPresentation(entity, 1),
-                        component3.luaPresentation(entity, 2),
-                        component4.luaPresentation(entity, 3)
+            3 -> {
+                val access1 = accesses[0]
+                val access2 = accesses[1]
+                val access3 = accesses[2]
+                world.iterate3(
+                    access1.componentType,
+                    access2.componentType,
+                    access3.componentType
+                ) { entity, component1, component2, component3 ->
+                    val luaEntity = getOrCreateEntityComponent(entity)
+                    func.invoke(
+                        arrayOf(
+                            self,
+                            luaEntity.coercedTable,
+                            component1.luaPresentation(entity, access1),
+                            component2.luaPresentation(entity, access2),
+                            component3.luaPresentation(entity, access3)
+                        )
                     )
-                )
+                }
             }
 
-            5 -> world.iterate5(
-                types[0],
-                types[1],
-                types[2],
-                types[3],
-                types[4]
-            ) { entity, component1, component2, component3, component4, component5 ->
-                val luaEntity = getOrCreateEntityComponent(entity)
-                func.invoke(
-                    arrayOf(
-                        self,
-                        luaEntity.coercedTable,
-                        component1.luaPresentation(entity, 0),
-                        component2.luaPresentation(entity, 1),
-                        component3.luaPresentation(entity, 2),
-                        component4.luaPresentation(entity, 3),
-                        component5.luaPresentation(entity, 4)
+            4 -> {
+                val access1 = accesses[0]
+                val access2 = accesses[1]
+                val access3 = accesses[2]
+                val access4 = accesses[3]
+                world.iterate4(
+                    access1.componentType,
+                    access2.componentType,
+                    access3.componentType,
+                    access4.componentType
+                ) { entity, component1, component2, component3, component4 ->
+                    val luaEntity = getOrCreateEntityComponent(entity)
+                    func.invoke(
+                        arrayOf(
+                            self,
+                            luaEntity.coercedTable,
+                            component1.luaPresentation(entity, access1),
+                            component2.luaPresentation(entity, access2),
+                            component3.luaPresentation(entity, access3),
+                            component4.luaPresentation(entity, access4)
+                        )
                     )
-                )
+                }
+            }
+
+            5 -> {
+                val access1 = accesses[0]
+                val access2 = accesses[1]
+                val access3 = accesses[2]
+                val access4 = accesses[3]
+                val access5 = accesses[4]
+                world.iterate5(
+                    access1.componentType,
+                    access2.componentType,
+                    access3.componentType,
+                    access4.componentType,
+                    access5.componentType
+                ) { entity, component1, component2, component3, component4, component5 ->
+                    val luaEntity = getOrCreateEntityComponent(entity)
+                    func.invoke(
+                        arrayOf(
+                            self,
+                            luaEntity.coercedTable,
+                            component1.luaPresentation(entity, access1),
+                            component2.luaPresentation(entity, access2),
+                            component3.luaPresentation(entity, access3),
+                            component4.luaPresentation(entity, access4),
+                            component5.luaPresentation(entity, access5)
+                        )
+                    )
+                }
             }
         }
         NIL

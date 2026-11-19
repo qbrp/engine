@@ -14,7 +14,7 @@ import org.lain.engine.script.SNumber
 import org.lain.engine.script.SString
 import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptValue
-import org.lain.engine.script.lua.library.coerceToLua
+import org.lain.engine.script.lua.library.luaId
 import org.lain.engine.script.lua.library.luaEntityRef
 import org.lain.engine.script.lua.library.toLuaInstant
 import org.luaj.vm2.LuaTable
@@ -93,7 +93,7 @@ fun ScriptValue.toLuaValue(): LuaValue = when (this) {
             .flatMap { (k, v) -> listOf(k.toLuaValue(), v.toLuaValue()) }
             .toTypedArray()
     )
-    is SId -> id.coerceToLua()
+    is SId -> id.luaId()
     is SInt -> value.luaNum()
     is SEntityRef -> id.luaEntityRef()
     is SInstant -> instant.toLuaInstant()

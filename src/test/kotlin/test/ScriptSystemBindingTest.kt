@@ -76,7 +76,7 @@ class ScriptSystemBindingTest : EngineTest() {
         ).call().checkfunction()
         val system = ScriptSystem(
             id = ScriptSystemId(EngineId("test/native_binding")),
-            query = listOf(LuaComponentAccess.Native(MovementStatusBinding)),
+            query = listOf(LuaComponentAccess.Native(MovementStatusBinding())),
             side = SystemSide.BOTH,
             entityHandleScript = LuaScript<ScriptContext.SystemEntityHandle, ScriptValue>(
                 lua,

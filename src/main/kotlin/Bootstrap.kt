@@ -2,8 +2,10 @@ package org.lain.engine
 
 import org.lain.cyberia.ecs.ComponentTypeProviderContext
 import org.lain.engine.script.CoreScriptComponents
+import org.lain.engine.script.lua.library.LuaComponentBindingRegistry
 import org.lain.engine.util.ecs.CommonComponentTypeProvider
 import org.lain.engine.util.ecs.ComponentTypeRegistry
+import org.lain.engine.util.ecs.getKotlinComponentTypeEntries
 import org.lain.engine.util.ecs.registerKotlinComponents
 import kotlin.to
 
@@ -22,9 +24,10 @@ fun bootstrap() {
         ComponentTypeProviderContext.PROVIDER = ComponentTypeRegistry
         ComponentTypeProviderContext.GENERAL = CommonComponentTypeProvider
         CoreScriptComponents.getAll() //lazy init
+        LuaComponentBindingRegistry.initializeCacheComponentTypes()
         bootstrapped = true
     }
 }
 
 fun listKotlinComponentTypeEntries() =
-    ComponentTypeRegistry.listEntries().map { it.value.type to it.value.meta } + CoreScriptComponents.getAll().map { it to it.meta }
+    getKotlinComponentTypeEntries() + CoreScriptComponents.getAll().map { it to it.meta }

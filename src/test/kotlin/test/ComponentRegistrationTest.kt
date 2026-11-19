@@ -22,7 +22,10 @@ import java.util.jar.JarFile
 class ComponentRegistrationTest : EngineTest() {
     @Test
     fun commonBootstrapRegistersEveryStaticComponent() {
-        val expected = nativeComponents().filter { !it.startsWith(CLIENT_PACKAGE) }.toSet()
+        // Типы кэша создаются для биндингов и регистрируются по id, а не по классу оболочки.
+        val expected = nativeComponents()
+            .filter { !it.startsWith(CLIENT_PACKAGE) && it != LUA_BINDING_CACHE }
+            .toSet()
         val registered = ComponentTypeRegistry.listEntries().mapTo(mutableSetOf()) { it.key.replace('.', '/') }
         assertEquals(emptySet<String>(), expected - registered, "Components missing from common bootstrap")
     }
@@ -87,6 +90,7 @@ class ComponentRegistrationTest : EngineTest() {
         private const val CLIENT_BOOTSTRAP = "org/lain/engine/client/util/ComponentKt"
         private const val COMPONENT = "org/lain/cyberia/ecs/Component"
         private const val SCRIPT_COMPONENT = "org/lain/engine/script/ScriptComponent"
+        private const val LUA_BINDING_CACHE = "org/lain/engine/script/lua/library/LuaCachedComponentBinding"
 
         // Inspect class headers without initializing optional Minecraft adapters.
         private val classes by lazy {

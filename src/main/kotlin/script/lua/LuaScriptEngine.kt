@@ -1,5 +1,6 @@
 package org.lain.engine.script.lua
 
+import org.lain.cyberia.ecs.ComponentType
 import org.lain.engine.EngineSimulation
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.script.*

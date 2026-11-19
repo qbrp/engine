@@ -27,7 +27,7 @@ fun LuaValue.resolveIdReference(): EngineId {
 }
 
 context(lua: LuaScriptEngine)
-fun EngineId.coerceToLua(): LuaValue = lua.idLibrary.newInstance(this)
+fun EngineId.luaId(): LuaValue = lua.idLibrary.newInstance(this)
 
 class IdLibrary {
     private val type = LuaUserdataType<EngineId> {
