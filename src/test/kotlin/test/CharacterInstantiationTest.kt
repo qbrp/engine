@@ -156,7 +156,7 @@ class CharacterInstantiationTest : EngineTest() {
     }
 
     @Test
-    fun newCharacterAppliesProfileBaseLookAndNotifiesPlatformAfterCommit() {
+    fun newCharacterAppliesProfileAndBaseLookAfterCommit() {
         val player = createPlayer()
         val character = character()
         val id = OwnedCharacterId.player(player.id, character.id)
@@ -167,7 +167,7 @@ class CharacterInstantiationTest : EngineTest() {
 
         assertNull(player.get<AppliedCharacter>())
         assertTrue(player.require<UsedCharacters>().characters.isEmpty())
-        assertTrue(platform.appliedCharacters.isEmpty())
+        assertTrue(platform.clearedPlayers.isEmpty())
         assertSame(previousInventory, player.require<TestPlayerInventory>())
         assertTrue(events().isEmpty(), "Apply events must wait for the transaction commit")
 
@@ -180,7 +180,7 @@ class CharacterInstantiationTest : EngineTest() {
         assertTrue(player.require<Equipment>().slots.isEmpty())
         assertEquals(setOf(id), player.require<UsedCharacters>().characters)
         assertEquals(TestPlayerInventory(), player.require<TestPlayerInventory>())
-        assertEquals(listOf(player.id to character), platform.appliedCharacters)
+        assertEquals(listOf(player.id), platform.clearedPlayers)
         assertEquals(listOf(CharacterApplyEvent(character, player.id)), events())
     }
 
@@ -353,7 +353,6 @@ class CharacterInstantiationTest : EngineTest() {
         assertSame(previousEquipment, player.require<Equipment>())
         assertEquals(setOf(previous.id), player.require<UsedCharacters>().characters)
         assertSame(previousInventory, player.require<TestPlayerInventory>())
-        assertTrue(platform.appliedCharacters.isEmpty())
         assertTrue(events().isEmpty(), "A rolled-back character must not publish an apply event")
     }
 
@@ -604,7 +603,6 @@ class CharacterInstantiationTest : EngineTest() {
         assertEquals(TestPlayerInventory("original-inventory"), contender.require<TestPlayerInventory>())
         assertEquals(listOf(contender.id to "original-inventory"), platform.openedInventories)
         assertTrue(platform.clearedPlayers.isEmpty())
-        assertTrue(platform.appliedCharacters.isEmpty())
         val confirmation = confirmations().single()
         assertEquals(17L, confirmation.requestId)
         assertNotNull(confirmation.errorMessage)
@@ -632,7 +630,7 @@ class CharacterInstantiationTest : EngineTest() {
         assertTrue(world.players.isEmpty())
         assertNull(world.persistentIdToEntity[playerId.asPersistentId()])
         assertFalse(world.componentManager.exists(platform.preparedPlayer!!.entity))
-        assertTrue(platform.appliedCharacters.isEmpty())
+        assertTrue(events().isEmpty())
         platform.preparationFailure = null
 
         val retried = runOnServer {
@@ -780,7 +778,6 @@ class CharacterInstantiationTest : EngineTest() {
         val serializedPlayers = mutableListOf<PlayerId>()
         val clearedPlayers = mutableListOf<PlayerId>()
         val openedInventories = mutableListOf<Pair<PlayerId, String>>()
-        val appliedCharacters = mutableListOf<Pair<PlayerId, ServerCharacterData>>()
         var serializationFailure: Throwable? = null
         var preparationFailure: Throwable? = null
         var preparedPlayer: EnginePlayer? = null
@@ -819,15 +816,10 @@ class CharacterInstantiationTest : EngineTest() {
             player.set(TestPlayerInventory(inventory))
         }
 
-        override fun onCharacterApplied(player: EnginePlayer, character: ServerCharacterData) {
-            appliedCharacters += player.id to character
-        }
-
         fun clearObservations() {
             serializedPlayers.clear()
             clearedPlayers.clear()
             openedInventories.clear()
-            appliedCharacters.clear()
         }
     }
 }

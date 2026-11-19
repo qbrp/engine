@@ -6,7 +6,7 @@ import net.minecraft.client.gui.components.AbstractWidget
 import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.client.gui.screens.Screen
 import org.lain.engine.Constants
-import org.lain.engine.client.account.SkinTextureManager
+import org.lain.engine.client.account.LookTextureManager
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.render.player.CharacterSceneSnapshot
 import org.lain.engine.client.render.player.setRenderNode
@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
 
 class LooksWheel<T>(
     private val namespacedStorageAccess: NamespacedStorageAccess,
-    private val skinTextureManager: SkinTextureManager,
+    private val lookTextureManager: LookTextureManager,
     looks: List<Entry<T>>,
     val onSelectLook: (Entry<T>?) -> Unit,
 ) : AbstractWidget(0, 0, 0, 0, literalText("Character wheel")) {
@@ -81,7 +81,7 @@ class LooksWheel<T>(
                     profile,
                     uuid = it.uuid,
                 ) {
-                    skinTextureManager.getOrDownloadTexture(it.look)
+                    lookTextureManager.getOrDownloadTexture(it.look)
                 }
 
                 it.renderScene?.let { renderSceneSnapshot ->

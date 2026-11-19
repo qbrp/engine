@@ -16,8 +16,6 @@ import org.lain.engine.server.account.HttpStatusException
 import org.lain.engine.server.account.RefreshToken
 import org.lain.engine.server.account.SessionTicket
 import org.lain.engine.player.account.AccountResponse
-import org.lain.engine.server.account.ErrorReport
-import org.lain.engine.server.account.ErrorReportPost
 import java.time.Duration
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
@@ -31,7 +29,7 @@ sealed interface ConnectionState {
 class NotAuthorizedException : FriendlyException("Вы не авторизованы")
 
 class AccountManager(
-    private val skinTextureManager: SkinTextureManager,
+    private val lookTextureManager: LookTextureManager,
     private val httpClient: ClientEngineAccountService,
 ) {
     private val mutex = Mutex()
@@ -109,7 +107,7 @@ class AccountManager(
             lastAccountResponse = response
             response.characters
                 .flatMap { it.looks }
-                .forEach { skinTextureManager.preload(it) }
+                .forEach { lookTextureManager.preload(it) }
             AccountResponseCache.save(response)
         }
     }

@@ -143,7 +143,7 @@ fun EngineClient.showServerNotification(type: Notification) {
     }
 }
 
-fun EngineClient.showInpectionModeToggleNotification(value: Boolean) {
+fun EngineClient.showInspectionModeToggleNotification(value: Boolean) {
     val description = if (value) {
         "Подсказки будут автоматически отображаться при взгляде на блок"
     } else {

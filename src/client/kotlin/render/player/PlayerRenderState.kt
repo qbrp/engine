@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import org.lain.cyberia.ecs.*
 import org.lain.engine.EnginePlayerRenderStateHolder
-import org.lain.engine.client.account.SkinTextureManager
+import org.lain.engine.client.account.LookTextureManager
 import org.lain.engine.client.render.scene.RenderEntityReferences
 import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.item.EngineItem
@@ -71,7 +71,7 @@ fun World.clearPlayerRenderState(scene: RenderScene) {
     iterate<PlayerExtraction> { player, _ -> player.clearPlayerRenderState(scene) }
 }
 
-fun World.extractPlayerRenderState(scene: RenderScene, skinTextureManager: SkinTextureManager?) {
+fun World.extractPlayerRenderState(scene: RenderScene, lookTextureManager: LookTextureManager?) {
     clearPlayerRenderState(scene)
 
     iterate<MinecraftPlayer> { player, _ ->
@@ -91,7 +91,7 @@ fun World.extractPlayerRenderState(scene: RenderScene, skinTextureManager: SkinT
         val node = with(scene) { node.requireComponent<PlayerRenderNode>() }
         node.eyeLevel = profile.appearance.eyeLevel
         node.model = profile.bodyType.model
-        val skinTexture = skinTextureManager?.getOrDownloadTextureNullable(look) ?: cachedPlayerSkin?.texture
+        val skinTexture = lookTextureManager?.getOrDownloadTextureNullable(look) ?: cachedPlayerSkin?.texture
         skinTexture?.let { node.skinTexture = it }
     }
 

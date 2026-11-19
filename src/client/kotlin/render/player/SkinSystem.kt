@@ -5,7 +5,7 @@ import net.minecraft.client.resources.PlayerSkin
 import net.minecraft.resources.ResourceLocation
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
-import org.lain.engine.client.account.SkinTextureManager
+import org.lain.engine.client.account.LookTextureManager
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.player.PlayerId
@@ -37,7 +37,7 @@ fun CharacterSkin(texture: ResourceLocation, model: CharacterModelType) = Player
 fun EnginePlayer.getSkin() = get<EnginePlayerSkin>()?.skin
 
 class SkinSystem(
-    private val skinTextureManager: SkinTextureManager
+    private val lookTextureManager: LookTextureManager
 ) {
     private val cache = ConcurrentHashMap<UUID, PlayerSkin>()
 
@@ -48,7 +48,7 @@ class SkinSystem(
     fun tick(world: World) {
         world.iterate<PlayerComponent, EnginePlayerSkin, SelectedLook, AppliedCharacter> {
                 _, (player), component, (look), (character) ->
-            val texture = skinTextureManager.getOrDownloadTextureNullable(look) ?: component.skin.texture
+            val texture = lookTextureManager.getOrDownloadTextureNullable(look) ?: component.skin.texture
 
             val profile = character.data.profile
             val model = profile.bodyType.model

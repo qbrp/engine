@@ -3,11 +3,10 @@ package org.lain.engine.client
 import kotlinx.coroutines.*
 import org.lain.engine.client.account.AccountManager
 import org.lain.engine.client.account.ClientEngineAccountService
-import org.lain.engine.client.account.SkinTextureManager
+import org.lain.engine.client.account.LookTextureManager
 import org.lain.engine.client.chat.ChatEventBus
 import org.lain.engine.client.control.onScrollInspection
 import org.lain.engine.client.handler.GameSessionJoinFlow
-import org.lain.engine.client.handler.TaskExecutor
 import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.mc.isAltDown
 import org.lain.engine.client.mc.isControlDown
@@ -37,9 +36,9 @@ class EngineClient(
     val renderer = ScreenRenderer(this)
     val moduleManager = ModuleManager()
     val resourceManager = ResourceManager(this)
-    val skinTextureManager = SkinTextureManager(httpClient.rest)
+    val lookTextureManager = LookTextureManager(httpClient.rest)
     val accountManager: AccountManager =
-        AccountManager(skinTextureManager, ClientEngineAccountService(httpClient))
+        AccountManager(lookTextureManager, ClientEngineAccountService(httpClient))
     val imGuiManager = ImGuiManager()
 
     val resources
@@ -93,7 +92,7 @@ class EngineClient(
     }
 
     fun onOptionsUpdate() {
-        skinTextureManager.onOptions(options)
+        lookTextureManager.onOptions(options)
         gameSession?.chatManager?.updateOptions()
     }
 
@@ -179,7 +178,7 @@ class EngineClient(
         imGuiManager.closeAll()
         runBlocking { gameSession.serverPlayState.save(serverId) }
         gameSession.destroy()
-        skinTextureManager.cancelDownloadTasks()
+        lookTextureManager.cancelDownloadTasks()
         this.gameSession = null
     }
 }

@@ -1,5 +1,6 @@
 package org.lain.engine.client.script
 
+import de.javagl.jgltf.impl.v1.Texture
 import org.lain.engine.client.EngineClient
 import org.lain.engine.client.GameSession
 import org.lain.engine.script.CallbackType
@@ -20,6 +21,7 @@ class ClientLuaScriptEngine(
     dependencies: Dependencies,
 ) : LuaScriptEngine(dependencies, entrypoint) {
     val audioLibrary = AudioLibrary(client.audioManager)
+    val textureLibrary = TextureLibrary()
     lateinit var gameSessionTable: LuaTable
 
     override fun tickPush(world: World) = with(world) {

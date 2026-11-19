@@ -3,17 +3,14 @@ package org.lain.engine.client.render.ui.character
 import com.mojang.blaze3d.platform.InputConstants
 import kotlinx.coroutines.withContext
 import org.lain.engine.client.account.CharacterSelection
-import org.lain.engine.client.account.SkinTextureManager
-import org.lain.engine.client.handler.ServerPlayState
+import org.lain.engine.client.account.LookTextureManager
 import org.lain.engine.client.mc.MinecraftClient
-import org.lain.engine.client.render.player.CharacterSceneSnapshot
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
 import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.CharacterData
 import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.player.character.Look
-import org.lain.engine.script.NamespacedStorageAccess
 
 class LookSelectionScreen(
     characterSelection: CharacterSelection,
@@ -23,7 +20,7 @@ class LookSelectionScreen(
     looks: List<Look> = character.looks,
 ) : AbstractSelectionScreen<LookSelectionScreen.Result>(characterSelection) {
     private val client = characterSelection.client
-    private val skinTextureManager: SkinTextureManager = client.skinTextureManager
+    private val lookTextureManager: LookTextureManager = client.lookTextureManager
 
     sealed interface Result {
         data class Selected(val look: Look) : Result
@@ -34,7 +31,7 @@ class LookSelectionScreen(
         val entries = entries(character, look, looks)
         LooksWheel(
             characterSelection.namespacedStorageAccess,
-            skinTextureManager,
+            lookTextureManager,
             entries,
             onSelectLook = ::selectEntry
         )

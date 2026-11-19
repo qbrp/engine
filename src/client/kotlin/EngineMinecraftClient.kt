@@ -30,6 +30,7 @@ import org.lain.engine.client.util.postErrorReport
 import org.lain.engine.client.util.registerComponentsClient
 import org.lain.engine.mc.*
 import org.lain.engine.mc.compat.isReplayViewer
+import org.lain.engine.mc.compat.tickGenderSystem
 import org.lain.engine.mc.ecs.MinecraftSystem
 import org.lain.engine.mc.ecs.tickGiveItemSystem
 import org.lain.engine.player.Orientation
@@ -264,7 +265,7 @@ class EngineMinecraftClient : ClientModInitializer, ClientPlatform.TickExtension
         tickWritableUiSystem()
         lightSystem.update(this)
         decalSystem.update(world)
-        tickGenderSystem()
+        world.tickGenderSystem()
         audioManager.tick(this)
     }
 

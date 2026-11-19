@@ -31,14 +31,14 @@ import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-class SkinTextureManager(
+class LookTextureManager(
     private val httpClient: HttpClient
 ) : AutoCloseable {
     private val skinRequestTimeout = java.time.Duration.ofSeconds(10)
     private val maxSkinBytes = 1024 * 1024
     private val logger = LoggerFactory.getLogger("Engine Skin Texture Manager")
     private var scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val loaded = ConcurrentHashMap<String, LoadedSkin>()
+    private val loaded = ConcurrentHashMap<String, LoadedLook>()
     private val loading = ConcurrentHashMap.newKeySet<String>()
     private val cacheKeys = ConcurrentHashMap<String, CachedSkinKey>()
 
@@ -59,7 +59,7 @@ class SkinTextureManager(
 
         val key = resolveCacheKey(look)
         if (loading.add(key)) {
-            scope.launch { loadSkin(look, key) }
+            scope.launch { loadLook(look, key) }
         }
 
         return null
@@ -81,7 +81,7 @@ class SkinTextureManager(
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     }
 
-    private suspend fun loadSkin(look: Look, key: String) {
+    private suspend fun loadLook(look: Look, key: String) {
         try {
             val file = cachePath(key)
             if (Files.exists(file)) {
@@ -151,7 +151,7 @@ class SkinTextureManager(
 
             val texture = DynamicTexture(image)
             MinecraftClient.textureManager.register(textureId, texture)
-            loaded.put(lookId, LoadedSkin(key, url, asset, texture))?.takeIf { it.key != key }?.close()
+            loaded.put(lookId, LoadedLook(key, url, asset, texture))?.takeIf { it.key != key }?.close()
         }
     }
 
@@ -212,7 +212,7 @@ class SkinTextureManager(
         val key: String
     )
 
-    private data class LoadedSkin(
+    private data class LoadedLook(
         val key: String,
         val url: String,
         val asset: ResourceLocation,

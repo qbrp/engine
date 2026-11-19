@@ -4,7 +4,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.ComponentType
-import org.lain.cyberia.ecs.componentTypeOf
 import org.lain.cyberia.ecs.exists
 import org.lain.cyberia.ecs.iterate
 import org.lain.engine.data.PersistentId
@@ -14,6 +13,7 @@ import org.lain.engine.mc.ecs.MinecraftItem
 import org.lain.engine.mc.ecs.MinecraftPlayer
 import org.lain.engine.player.PlayerComponent
 import org.lain.engine.script.lua.library.LuaEntityComponent
+import org.lain.engine.script.lua.library.LuaCachedComponentBinding
 import org.lain.engine.server.ServerHandler
 import org.lain.engine.server.replication.Changes
 import org.lain.engine.server.replication.PlayerReplicationState
@@ -122,7 +122,7 @@ fun EntityId.inspectionSnapshot(): EntityInspectionSnapshot {
     val debugData = mutableListOf<ComponentInspectionSnapshot>()
     val livePaths = mutableMapOf<String, Map<PropertyPathDto, PropertyPath>>()
     components.forEach { (type, component) ->
-        if (!component.shouldSkip(componentTypeOf(component))) {
+        if (!component.shouldSkip(type)) {
             val (data, tree) = component.inspectionSnapshot(world, type)
             debugData += data
             if (tree != null) livePaths[type.id] = tree.livePaths
@@ -137,6 +137,7 @@ fun EntityId.inspectionSnapshot(): EntityInspectionSnapshot {
 private fun Component.shouldSkip(type: ComponentType<*>): Boolean {
     return type == CoreScriptComponents.PLAYER
             || this is LuaEntityComponent
+            || this is LuaCachedComponentBinding
             || this is PlayerReplicationState
             || this is Changes
             || this is EntityInspectionComponent

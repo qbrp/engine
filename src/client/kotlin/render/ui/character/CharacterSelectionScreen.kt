@@ -7,8 +7,6 @@ import org.lain.engine.client.mc.MinecraftClient
 import org.lain.engine.client.util.MinecraftClientDispatcher
 import org.lain.engine.mc.getText
 import org.lain.engine.player.account.AccountResponse
-import org.lain.engine.player.character.CharacterData
-import org.lain.engine.script.NamespacedStorageAccess
 
 class CharacterSelectionScreen(
     val initialVariant: Variant?,
@@ -19,7 +17,7 @@ class CharacterSelectionScreen(
         val entries = entries(characters, initialVariant)
         LooksWheel(
             characterSelection.namespacedStorageAccess,
-            characterSelection.client.skinTextureManager,
+            characterSelection.client.lookTextureManager,
             entries,
             onSelectLook = ::selectEntry
         )

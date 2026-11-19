@@ -102,7 +102,7 @@ class GameSession(
     val chatBubbleList = ChatBubbleList(client.options)
     val chatManager = ClientChatManager(this, setup.settings.chat)
 
-    val skinSystem = SkinSystem(client.skinTextureManager)
+    val skinSystem = SkinSystem(client.lookTextureManager)
 
     val vocalRegulator = PlayerVocalRegulator(
         PlayerVolume(player.volume, player.maxVolume, player.baseVolume),
@@ -124,7 +124,7 @@ class GameSession(
 
     var inspectionMode: Boolean = false
         set(value) {
-            client.showInpectionModeToggleNotification(value)
+            client.showInspectionModeToggleNotification(value)
             field = value
         }
 
@@ -265,7 +265,7 @@ class GameSession(
         handler.postTick()
         endTickTaskExecutor.flush()
 
-        world.extractPlayerRenderState(renderScene, client.skinTextureManager)
+        world.extractPlayerRenderState(renderScene, client.lookTextureManager)
     }
 
     fun loadChunk(pos: EngineChunkPos, chunk: EngineChunk) {
@@ -331,7 +331,7 @@ class GameSession(
         replicationController.close()
         client.renderer.invalidate()
         handler.close()
-        client.skinTextureManager.close()
+        client.lookTextureManager.close()
         guide.save()
     }
 
