@@ -7,8 +7,8 @@ import org.lain.engine.client.GameSession
 import org.lain.engine.client.account.CharacterSelection
 import org.lain.engine.player.character.CharacterSource
 import org.lain.engine.client.handler.ClientHandler.Companion.LOGGER
-import org.lain.engine.client.script.ClientCompilation
 import org.lain.engine.client.script.ClientLuaScriptEngine
+import org.lain.engine.client.script.compileScriptsOrThrow
 import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.client.transport.sendC2SPacket
 import org.lain.engine.client.util.withClientContext
@@ -16,6 +16,7 @@ import org.lain.engine.mc.commands.friendlyError
 import org.lain.engine.mc.server.ClientHelloPacket
 import org.lain.engine.mc.server.SERVERBOUND_CLIENT_HELLO_ENDPOINT
 import org.lain.engine.player.PlayerLoadSettings
+import org.lain.engine.player.account.AccountResponse
 import org.lain.engine.player.character.BackendCharacterData
 import org.lain.engine.player.character.BackendCharacterId
 import org.lain.engine.player.character.CharacterData
@@ -52,18 +53,39 @@ class GameSessionJoinFlow(
 
     private val accountManager = client.accountManager
     private val platform = client.platform
-    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val requests = ClientRequestHandler(transport)
+    private val sessionPackets = SessionPacketReceiver(transport)
 
     private var characterSelection: CharacterSelection? = null
     private var transportClosed = false
 
     @Volatile
-    var state: State = State.AUTHORIZATION
+    var state: State = State.COMPILATION
         private set
+    val progress = JoinFlowProgress()
 
     val canCloseLevelLoadingScreen
         get() = state == State.CHARACTER_SELECTION || (state == State.DONE && client.gameSession?.ticks?.let { it > 2 } == true)
+
+    private fun <T> CoroutineScope.observableAsync(block: suspend CoroutineScope.() -> T) = async {
+        block()
+    }.also {
+        it.invokeOnCompletion { progress.commit() }
+    }
+
+    private suspend fun setupNetwork() = withClientContext {
+        requests.register(CLIENTBOUND_SERVER_HELLO_ENDPOINT)
+        requests.register(CLIENTBOUND_JOIN_GAME_ENDPOINT)
+        sessionPackets.runEndpoints()
+    }
+
+    private suspend fun authorize(): AccountResponse {
+        return when (joinType) {
+            is JoinType.Multiplayer -> accountManager.fetchAccountResponse() ?: accountManager.requireAccountResponse()
+            is JoinType.Singleplayer -> accountManager.getAvailableAccountResponse()
+        }
+    }
 
     private suspend fun handshake(): ServerData = when (joinType) {
         is JoinType.Multiplayer -> {
@@ -90,34 +112,26 @@ class GameSessionJoinFlow(
                 null
             )
         }
-    }
+    }.also { progress.commit() }
 
     data class AvailableCharacters(
-        val backend: Map<BackendCharacterId, BackendCharacterData>,
-        val file: Map<String, CharacterData>
+        val backend: Deferred<Map<BackendCharacterId, BackendCharacterData>>,
+        val file: Deferred<Map<String, CharacterData>>
     )
 
-    private suspend fun listCharacters(canProvideCharacters: Boolean): AvailableCharacters = coroutineScope {
-        val backendCharacters = async {
-            val response = when (joinType) {
-                is JoinType.Multiplayer -> {
-                    accountManager.fetchAccountResponse() ?: accountManager.requireAccountResponse()
-                }
-
-                is JoinType.Singleplayer -> {
-                    accountManager.getAvailableAccountResponse()
-                }
-            }
-            response.characters.associate { it.id to it.map() }
-        }
-        val clientCharacters = async {
+    private fun CoroutineScope.listCharacters(
+        account: Deferred<AccountResponse>,
+        canProvideCharacters: Boolean
+    ): AvailableCharacters {
+        val backendCharacters = async { account.await().characters.associate { it.id to it.map() } }
+        val clientCharacters = observableAsync {
             if (canProvideCharacters) {
                 FileSystem.readCharacters()
             } else {
                 emptyMap()
             }
         }
-        AvailableCharacters(backendCharacters.await(), clientCharacters.await())
+        return AvailableCharacters(backendCharacters, clientCharacters)
     }
 
     private suspend fun acknowledge(
@@ -153,7 +167,7 @@ class GameSessionJoinFlow(
                     )
                 }
             }
-        }
+        }.also { progress.commit() }
     }
 
     data class UsedCharacter(
@@ -161,46 +175,48 @@ class GameSessionJoinFlow(
         val request: ServerboundSelectedCharacter
     )
 
-    private suspend fun computePlayCharacter(
-        namespacedStorageAccess: NamespacedStorageAccess,
-        serverPlayState: ServerPlayState?,
+    private suspend fun CoroutineScope.computePlayCharacter(
+        account: Deferred<AccountResponse>,
+        resourceLoad: ResourceLoad,
         server: ServerData
     ): UsedCharacter? {
         if (joinType.isReplay) return null
-        return coroutineScope {
-            state = State.CHARACTER_LOAD
-            val characters = listCharacters(server.canProvideCharacters)
-            val variants = CharacterSelection.variants(
-                characters.backend,
-                characters.file
+
+        val characters = listCharacters(account, server.canProvideCharacters)
+        val variants = CharacterSelection.variants(
+            characters.backend.await(),
+            characters.file.await()
+        )
+
+        val serverPlayState = resourceLoad.playState.await()
+        val previousCharacter = serverPlayState
+            ?.let { variants[it.character] }
+            ?.let { CharacterSelection.Selection.Character(it) }
+
+        val result = previousCharacter ?: withClientContext {
+            val namespacedStorage = resourceLoad.scripts.await().luaContext.namespacedStorage
+
+            state = State.CHARACTER_SELECTION
+            val characterSelection = CharacterSelection(client, namespacedStorage, serverPlayState)
+                .also { characterSelection = it }
+
+            characterSelection.awaitCharacterSelection(null, variants.values.toList())
+        }
+
+        return result?.let {
+            UsedCharacter(
+                it.variant.source,
+                it.toServerboundDto(client, joinType == JoinType.Multiplayer)
             )
-
-            val previousCharacter = serverPlayState
-                ?.let { variants[it.character] }
-                ?.let { CharacterSelection.Selection.Character(it) }
-
-            val result = previousCharacter ?: withClientContext {
-                state = State.CHARACTER_SELECTION
-                val characterSelection = CharacterSelection(client, namespacedStorageAccess, serverPlayState)
-                    .also { characterSelection = it }
-                characterSelection.awaitCharacterSelection(null, variants.values.toList())
-            }
-            result?.let {
-                UsedCharacter(
-                    it.variant.source,
-                    it.toServerboundDto(client, joinType == JoinType.Multiplayer)
-                )
-            }
         }
     }
 
-    private suspend fun compileResources(verificationNamespaceHashMap: NamespaceHashMap?): ResourceCompilationResult =
+    private suspend fun compileScripts(verificationNamespaceHashMap: NamespaceHashMap?): ScriptCompilationResult =
         withContext(Dispatchers.Default) {
             val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
             val luaContext = createLuaContext(namespacedStorage)
-            val compilation = ClientCompilation(luaContext, client)
 
-            val compilationResult = compilation.compileScriptsOrThrow()
+            val compilationResult = luaContext.compileScriptsOrThrow()
             namespacedStorage.loadBuild(compilationResult)
 
             val namespaceHashMap = namespacedStorage.get().namespaceHashMap
@@ -211,44 +227,35 @@ class GameSessionJoinFlow(
                 }
             }
 
-            ResourceCompilationResult(namespaceHashMap, compilationResult, compilation)
+            ScriptCompilationResult(namespaceHashMap, compilationResult, luaContext)
         }
 
     private val job = coroutineScope.launch {
         var sessionTicket: SessionTicket? = null
         try {
-            withClientContext {
-                requests.register(CLIENTBOUND_SERVER_HELLO_ENDPOINT)
-                requests.register(CLIENTBOUND_JOIN_GAME_ENDPOINT)
-            }
-            accountManager.requireAccountResponse()
+            setupNetwork()
+            val account = observableAsync { authorize() }
             val server = handshake()
 
             state = State.COMPILATION
-            val (namespaceHashMap, compilationResult, compilation) = coroutineScope {
-                val resourceCompilationResult = async {
-                    compileResources(server.verificationNamespaceHashMap)
-                }
-                val resourceReloadJob = launch {
-                    client.resourceManager.reload(server.id)
-                }
 
-                resourceReloadJob.join()
-                resourceCompilationResult.await()
-            }
-
-            val playState = ServerPlayState.open(server.id)
-            val selectedCharacter = computePlayCharacter(
-                compilation.luaContext.namespacedStorage, playState, server
+            val resourceLoad = ResourceLoad(
+                scripts = observableAsync { compileScripts(server.verificationNamespaceHashMap) },
+                playState = observableAsync { ServerPlayState.open(server.id) },
+                parallelTask = observableAsync { client.resourceManager.reload(server.id) },
             )
+            val selectedCharacter = computePlayCharacter(account, resourceLoad, server)
             sessionTicket = selectedCharacter?.request?.sessionTicket?.map()
 
+            val scripts = resourceLoad.scripts.await()
             state = State.GAME_LOADING
             val (serverPlayerData, worldData, setupData, notifications) = acknowledge(
-                namespaceHashMap,
+                scripts.namespaceHashMap,
                 selectedCharacter?.request
             )
+
             characterSelection?.confirm()
+            resourceLoad.parallelTask.join()
             withClientContext {
                 val gameSession = GameSession(
                     joinType == JoinType.Multiplayer,
@@ -261,14 +268,16 @@ class GameSessionJoinFlow(
                         LocalCharacter(selectedCharacter.source)
                     },
                     transport,
+                    sessionPackets,
                     client,
-                    compilation,
-                    compilationResult,
+                    scripts.luaContext,
+                    scripts.build,
                     joinType,
-                    playState
+                    resourceLoad.playState.await()
                         ?: ServerPlayState(selectedCharacter?.source, emptyMap()),
                 )
 
+                sessionPackets.bind(gameSession)
                 client.joinGameSession(gameSession)
 
                 notifications.forEach {
@@ -293,14 +302,15 @@ class GameSessionJoinFlow(
             } else {
                 exception.message ?: "Неизвестная ошибка"
             }
+
             withClientContext {
-                if (client.joinFlow !== this@GameSessionJoinFlow) return@withClientContext
                 closeTransport()
                 client.platform.disconnect(reason)
             }
         } finally {
             requests.close()
             if (state != State.DONE) {
+                sessionPackets.close()
                 characterSelection?.cancel()
                 sessionTicket?.let { ticket ->
                     withContext(NonCancellable) {
@@ -345,23 +355,16 @@ class GameSessionJoinFlow(
     private fun closeTransport() {
         if (transportClosed) return
         transportClosed = true
+        sessionPackets.close()
         transport.unregisterAll()
-        if (Injector.resolveOrNull(ClientTransport::class) === transport) {
-            Injector.unregister<ClientTransport>()
-        }
+        Injector.unregister<ClientTransport>()
     }
 
-    enum class State(val progress: Int) {
-        AUTHORIZATION(1),
-        COMPILATION(2),
-        CHARACTER_LOAD(3),
-        CHARACTER_SELECTION(3),
-        GAME_LOADING(4),
-        DONE(4);
-
-        companion object {
-            val MAX_PROGRESS = entries.maxOf { it.progress }
-        }
+    enum class State {
+        COMPILATION,
+        CHARACTER_SELECTION,
+        GAME_LOADING,
+        DONE;
     }
 
     sealed class JoinType(val isReplay: Boolean) {
@@ -375,9 +378,15 @@ class GameSessionJoinFlow(
         val verificationNamespaceHashMap: NamespaceHashMap?
     )
 
-    data class ResourceCompilationResult(
+    data class ResourceLoad(
+        val scripts: Deferred<ScriptCompilationResult>,
+        val playState: Deferred<ServerPlayState?>,
+        val parallelTask: Job
+    )
+
+    data class ScriptCompilationResult(
         val namespaceHashMap: NamespaceHashMap,
         val build: Build,
-        val compilation: ClientCompilation
+        val luaContext: ClientLuaScriptEngine,
     )
 }

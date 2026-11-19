@@ -25,7 +25,11 @@ interface ClientTransport {
 }
 
 fun <P : Packet> Endpoint<P>.registerClientReceiver(handler: ClientPacketHandler<P>) {
-    injectValue<ClientTransport>().registerEndpoint(this) {
+    injectValue<ClientTransport>().registerClientReceiver(this, handler)
+}
+
+fun <P : Packet> ClientTransport.registerClientReceiver(endpoint: Endpoint<P>, handler: ClientPacketHandler<P>) {
+    registerEndpoint(endpoint) {
         handler(this, it)
         if (this !is EntityDebugDataPacket && (this !is ReplicationPacket || !this.frame.isEmpty()) && (this !is EngineChunkPacket || !this.chunk.isEmpty())) {
             debugPacket("[Клиент] Принят пакет $this")

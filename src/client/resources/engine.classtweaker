@@ -1,2 +1,1 @@
 classTweaker v1 named
-inject-interface net/minecraft/client/gui/components/ChatComponent org/lain/engine/client/mc/chat/EngineChatHudAccess

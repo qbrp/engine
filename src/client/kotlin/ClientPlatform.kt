@@ -26,7 +26,6 @@ interface ClientPlatform {
         server: EngineServer,
     ): PlayerLoadSettings
 
-
     interface TickExtension {
         fun GameSession.tickDataPrepareBeforeReplication()
         fun GameSession.tickDataPrepareAfterReplication()

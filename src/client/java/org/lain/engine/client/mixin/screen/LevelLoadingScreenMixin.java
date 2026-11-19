@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ReceivingLevelScreen;
 import net.minecraft.network.chat.Component;
 import org.lain.engine.client.handler.GameSessionJoinFlow;
+import org.lain.engine.client.handler.JoinFlowProgress;
 import org.lain.engine.client.mc.ClientMixin;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -53,17 +54,16 @@ public abstract class LevelLoadingScreenMixin {
 
     @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;drawCenteredString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;III)V"))
     private void engine$drawStateString(GuiGraphics guiGraphics, Font font, Component vanillaText, int x, int y, int color) {
-        GameSessionJoinFlow.State state = ClientMixin.INSTANCE.multiplayerConnectionState();
+        GameSessionJoinFlow.State state = ClientMixin.INSTANCE.joinState();
+        int progress = ClientMixin.INSTANCE.joinProgress();
         if (!this.levelReceived.getAsBoolean() || state == null) {
             guiGraphics.drawCenteredString(font, vanillaText, x, y, color);
             return;
         }
 
-        String progress = state.getProgress() + "/" + GameSessionJoinFlow.State.Companion.getMAX_PROGRESS();
-        guiGraphics.drawCenteredString(font, Component.literal(progress), x, y - font.lineHeight, color);
+        String progressString = progress + "/" + JoinFlowProgress.MAX;
+        guiGraphics.drawCenteredString(font, Component.literal(progressString), x, y - font.lineHeight, color);
         Component stateText = switch (state) {
-            case AUTHORIZATION -> ENGINE_AUTHORIZATION_TEXT;
-            case CHARACTER_LOAD -> ENGINE_CHARACTER_LOAD_TEXT;
             case COMPILATION -> ENGINE_COMPILATION_TEXT;
             case GAME_LOADING -> ENGINE_GAME_LOADING_TEXT;
             default -> Component.literal("Загрузка...");

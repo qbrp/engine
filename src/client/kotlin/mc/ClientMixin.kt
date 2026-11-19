@@ -51,7 +51,8 @@ object ClientMixin {
 
     fun canCloseLevelLoadingScreen() = client.joinFlow?.canCloseLevelLoadingScreen ?: false
 
-    fun multiplayerConnectionState() = client.joinFlow?.state
+    fun joinState() = client.joinFlow?.state
+    fun joinProgress() = client.joinFlow?.progress?.value?.get() ?: 0
 
     fun renderSpectatorPlayers() = client.gameSession?.photoMode?.showChatBubbles != false
 

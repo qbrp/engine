@@ -486,10 +486,7 @@ class ServerHandler(
 
             playerStorage.all.forEach {
                 if (it == player) return@forEach
-                CLIENTBOUND_ONLINE_PLAYER_ADD_ENDPOINT.sendS2C(
-                    packet,
-                    it.id
-                )
+                CLIENTBOUND_ONLINE_PLAYER_ADD_ENDPOINT.sendS2C(packet, it.id)
             }
 
             player.entity.assertExists()

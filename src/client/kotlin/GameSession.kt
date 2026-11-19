@@ -18,8 +18,9 @@ import org.lain.engine.client.render.player.extractPlayerRenderState
 import org.lain.engine.client.render.player.snapshotCharacterRenderState
 import org.lain.engine.client.render.scene.RenderScene
 import org.lain.engine.client.render.ui.TransformationEdit
-import org.lain.engine.client.script.ClientCompilation
+import org.lain.engine.client.script.ClientLuaScriptEngine
 import org.lain.engine.client.script.EntityInspection
+import org.lain.engine.client.script.compileScriptsOrThrow
 import org.lain.engine.client.script.tickEntityRpcQueueSystem
 import org.lain.engine.client.transport.ClientTransport
 import org.lain.engine.client.util.ClientHintState
@@ -53,19 +54,18 @@ class GameSession(
     player: ServerPlayerData,
     var character: LocalCharacter?,
     transport: ClientTransport,
+    private val sessionPackets: SessionPacketReceiver,
     val client: EngineClient,
-    val compilation: ClientCompilation,
+    val luaContext: ClientLuaScriptEngine,
     build: Build,
     val joinType: GameSessionJoinFlow.JoinType,
     var serverPlayState: ServerPlayState,
     val hintState: ClientHintState = ClientHintState(),
 ) : EngineSimulation.SimulationTickExtension, EngineSimulation.Settings {
     private val systems: ClientPlatform.TickExtension = client.platform.tickExtension
-    val luaContext = compilation.luaContext
     val namespacedStorage = ThreadSafeNamespaceStorageAccessImpl(NamespacedStorage())
     val playerStorage = PlayerStorage()
     val handler = ClientHandler(this, transport)
-        .also { it.run() }
     var inventoryTab: InventoryTab = build.inventoryTab
 
     val simulation = EngineSimulation(
@@ -197,7 +197,7 @@ class GameSession(
     fun recompile() {
         try {
             client.moduleManager.composeModules(luaContext)
-            applyCompilation(compilation.compileScriptsOrThrow())
+            applyCompilation(luaContext.compileScriptsOrThrow())
         } catch (e: CompilationFailedException) {
             val errors = e.report.errors
             if (errors.isNotEmpty()) {
@@ -324,6 +324,7 @@ class GameSession(
     }
 
     fun destroy() {
+        sessionPackets.close()
         characterChange?.cancel()
         characterChange = null
         world.clearPlayerRenderState(renderScene)

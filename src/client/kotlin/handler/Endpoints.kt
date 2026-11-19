@@ -3,25 +3,25 @@ package org.lain.engine.client.handler
 import org.lain.engine.client.resources.LOGGER
 import org.lain.engine.transport.packet.*
 
-fun ClientHandler.runEndpoints() {
+fun SessionPacketReceiver.runEndpoints() {
     // Join / Destroy
 
     registerGameSessionReceiver(CLIENTBOUND_ONLINE_PLAYER_ADD_ENDPOINT) { gameSession ->
-        applyOnlinePlayerAdd(player, gameSession)
+        gameSession.handler.applyOnlinePlayerAdd(player, gameSession)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_ONLINE_PLAYER_REMOVE_ENDPOINT) { gameSession ->
-        updatePlayer(playerId) { applyOnlinePlayerRemove(gameSession, it) }
+        gameSession.handler.applyOnlinePlayerRemove(gameSession, playerId)
     }
 
     // Other
 
-    registerGameSessionReceiver(CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT) {
-        applyServerSettingsUpdate(settings)
+    registerGameSessionReceiver(CLIENTBOUND_SERVER_SETTINGS_UPDATE_ENDPOINT) { gameSession ->
+        gameSession.handler.applyServerSettingsUpdate(settings)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT) {
-        applyNotification(type, once)
+    registerGameSessionReceiver(CLIENTBOUND_PLAYER_NOTIFICATION_ENDPOINT) { gameSession ->
+        gameSession.handler.applyNotification(type, once)
     }
 
     // Chat
@@ -33,19 +33,19 @@ fun ClientHandler.runEndpoints() {
             LOGGER.error("Пропущено сообщение из-за отсутствия мира источника сообщения $sourceWorld")
             return@registerGameSessionReceiver
         }
-        applyChatMessage(gameSession, message)
+        gameSession.handler.applyChatMessage(gameSession, message)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) {
-        applyDeleteChatMessage(message)
+    registerGameSessionReceiver(CLIENTBOUND_DELETE_CHAT_MESSAGE_ENDPOINT) { gameSession ->
+        gameSession.handler.applyDeleteChatMessage(message)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_START_ENDPOINT) { gameSession ->
-        applyChatTypingStart(player, channel)
+        gameSession.handler.applyChatTypingStart(player, channel)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT) {
-        applyChatTypingStop(player)
+    registerGameSessionReceiver(CLIENTBOUND_CHAT_TYPING_PLAYER_END_ENDPOINT) { gameSession ->
+        gameSession.handler.applyChatTypingStop(player)
     }
 
     // Other
@@ -58,33 +58,35 @@ fun ClientHandler.runEndpoints() {
         }
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { _ ->
-        applyAcousticDebugVolumePacket(volumes)
+    registerGameSessionReceiver(CLIENTBOUND_ACOUSTIC_DEBUG_VOLUMES_PACKET) { gameSession ->
+        gameSession.handler.applyAcousticDebugVolumePacket(volumes)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_VOXEL_EVENT_PACKET) { _ ->
-        applyVoxelEvent(event)
+    registerGameSessionReceiver(CLIENTBOUND_VOXEL_EVENT_PACKET) { gameSession ->
+        gameSession.handler.applyVoxelEvent(event)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_CHUNK_ENDPOINT) { gameSession ->
-        applyChunkPacket(gameSession, chunk)
+        gameSession.handler.applyChunkPacket(gameSession, chunk)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_REPLICATION_ENDPOINT) { gameSession ->
-        applyReplicationPacket(gameSession, this)
+        gameSession.handler.applyReplicationPacket(gameSession, this)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_ENTITY_DEBUG_DATA_ENDPOINT) { gameSession ->
-         applyEntityDebugData(gameSession, persistentId, data)
+        gameSession.handler.applyEntityDebugData(gameSession, persistentId, data)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_ENTITY_INSPECTION_ABORT_ENDPOINT) { gameSession ->
-        applyInspectionAbort(gameSession, persistentId, reason)
+        gameSession.handler.applyInspectionAbort(gameSession, persistentId, reason)
     }
 
     registerGameSessionReceiver(CLIENTBOUND_CHARACTER_APPLY_CONFIRMATION_ENDPOINT) { gameSession ->
-        applyCharacterApplyConfirmation(gameSession, requestId, errorMessage)
+        gameSession.handler.applyCharacterApplyConfirmation(gameSession, requestId, errorMessage)
     }
 
-    registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { _ -> applyOperation(dto, operation) }
+    registerGameSessionReceiver(CLIENTBOUND_OPERATION_ENDPOINT) { gameSession ->
+        gameSession.handler.applyOperation(dto, operation)
+    }
 }

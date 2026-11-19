@@ -48,10 +48,6 @@ class ClientHandler(
         gameSession.characterChange?.confirm(requestId, errorMessage)
     }
 
-    fun run() {
-        runEndpoints()
-    }
-
     fun close() {
         transport.unregisterAll()
         showedNotifications.clear()
@@ -212,8 +208,8 @@ class ClientHandler(
         gameSession.onlinePlayers.add(data)
     }
 
-    fun applyOnlinePlayerRemove(gameSession: GameSession, player: EnginePlayer) {
-        gameSession.onlinePlayers.remove(player.id)
+    fun applyOnlinePlayerRemove(gameSession: GameSession, playerId: PlayerId) {
+        gameSession.onlinePlayers.remove(playerId)
     }
 
     fun applyServerSettingsUpdate(settings: ClientboundServerSettings) {
@@ -271,8 +267,8 @@ class ClientHandler(
         loadChunk(pos, chunk)
     }
 
-    fun applyVoxelEvent(event: VoxelEvent) = with(gameSession!!) {
-        world.emitEvent(event)
+    fun applyVoxelEvent(event: VoxelEvent) {
+        gameSession.world.emitEvent(event)
     }
 
     fun applyReplicationPacket(gameSession: GameSession, packet: ReplicationPacket) =

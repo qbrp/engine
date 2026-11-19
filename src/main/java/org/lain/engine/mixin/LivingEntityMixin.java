@@ -46,6 +46,8 @@ public class LivingEntityMixin {
                 cir.setReturnValue((double)access.getSpeed());
             } else if (is(holder, Attributes.JUMP_STRENGTH)) {
                 cir.setReturnValue((double)access.getJumpStrength());
+            } else if (is(holder, Attributes.GRAVITY)) {
+                cir.setReturnValue((double)access.getGravity());
             }
         }
     }

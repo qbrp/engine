@@ -63,7 +63,7 @@ class CompilationManifestTest {
         assertEquals(listOf("alpha", "zeta"), manifest.namespaces.map { it.id })
         assertEquals("linking", manifest.diagnostics.single().phase)
 
-        val file = temporaryDirectory.resolve("compilation-manifest.json").toFile()
+        val file = temporaryDirectory.resolve("luaContext-manifest.json").toFile()
         manifest.writeTo(file)
 
         assertEquals(
