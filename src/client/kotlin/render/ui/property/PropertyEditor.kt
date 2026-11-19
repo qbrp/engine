@@ -1,6 +1,7 @@
 package org.lain.engine.client.render.ui.property
 
 import imgui.ImGui
+import imgui.flag.ImGuiTableColumnFlags
 import imgui.flag.ImGuiTreeNodeFlags
 import imgui.type.ImBoolean
 import imgui.type.ImDouble
@@ -24,8 +25,9 @@ import kotlin.collections.component1
 import kotlin.collections.component2
 
 data class PendingEdit(
-    val original: PropertyValue,
+    val original: PropertyValue?,
     val edited: PropertyValue,
+    val sendImmediately: Boolean = true
 )
 
 class PropertyEditor(
@@ -95,6 +97,11 @@ class PropertyEditor(
         ImGui.tableNextColumn()
 
         val descriptor = resolveType(property.type)
+        val notNullDescriptor = if (descriptor is PropertyTypeDescriptor.Nullable) {
+            resolveType(descriptor.valueTypeId)
+        } else {
+            descriptor
+        }
 
         if (showTypes.get()) {
             val typeName = descriptor.formatString()
@@ -108,16 +115,52 @@ class PropertyEditor(
             ImGui.tableNextColumn()
         }
 
-        when (val value = property.value) {
-            null -> ImGui.textDisabled("null")
-            is PropertyValue.Primitive -> value.primitive.render(property, descriptor, propertyEdits[property.path])
-            is PropertyValue.Reference -> when {
-                cyclic -> ImGui.textDisabled("Циклическая ссылка")
-                compound == null -> ImGui.textColored(Color.RED.integer, "Данные отсутствуют")
-                compound is PropertyCompound.Player -> ImGui.textUnformatted(compound.description)
-                compound.isEmpty -> ImGui.textDisabled("empty")
-                !opened -> ImGui.textUnformatted(compound.formatString(ancestors + value.objectId) ?: "")
+        val value = property.value
+        var focus = false
+        if (value == null && propertyEdits[property.path] == null) {
+            if (ImGui.selectable("null##$id-${property.path}") &&
+                notNullDescriptor is PropertyTypeDescriptor.Scalar
+            ) {
+                val emptyValue = notNullDescriptor.emptyValue()
+                if (emptyValue != null) {
+                    propertyEdits[property.path] = PendingEdit(null, emptyValue, false)
+                    focus = true
+                }
             }
+        }
+
+        val pendingEdit = propertyEdits[property.path]
+
+        if (ImGui.beginTable("##${property.path}-layout", 2)) {
+            ImGui.tableSetupColumn("Input", ImGuiTableColumnFlags.WidthStretch)
+            ImGui.tableSetupColumn("Button", ImGuiTableColumnFlags.WidthFixed)
+
+            ImGui.tableNextColumn()
+            ImGui.setNextItemWidth(-1f)
+            when (val value = value ?: pendingEdit?.edited) {
+                is PropertyValue.Primitive -> {
+                    if (focus) ImGui.setKeyboardFocusHere()
+                    value.primitive.render(property, descriptor, pendingEdit, focus)
+                }
+                is PropertyValue.Reference -> when {
+                    cyclic -> ImGui.textDisabled("Циклическая ссылка")
+                    compound == null -> ImGui.textColored(Color.RED.integer, "Данные отсутствуют")
+                    compound is PropertyCompound.Player -> ImGui.textUnformatted(compound.description)
+                    compound.isEmpty -> ImGui.textDisabled("empty")
+                    !opened -> ImGui.textUnformatted(compound.formatString(ancestors + value.objectId) ?: "")
+                }
+                else -> {}
+            }
+
+            ImGui.tableNextColumn()
+            if (descriptor is PropertyTypeDescriptor.Nullable && value != null) {
+                ImGui.sameLine()
+                if (ImGui.smallButton("null")) {
+                    editValue(property, PropertyEdit.Set(PropertyInput.Null))
+                }
+            }
+
+            ImGui.endTable()
         }
 
         if (expandable && opened) {
@@ -174,6 +217,7 @@ class PropertyEditor(
         node: Property,
         descriptor: PropertyTypeDescriptor,
         edit: PendingEdit?,
+        focused: Boolean,
     ) {
         val customValue = edit?.edited
         val customPrimitive = customValue as? PropertyValue.Primitive
@@ -186,31 +230,33 @@ class PropertyEditor(
             return descriptor as? T
         }
 
+        fun canEdit() = edit?.sendImmediately != false || ImGui.isItemDeactivatedAfterEdit()
+
         when (this) {
             is PropertyScalar.Bool -> {
                 val boolValue = ImBoolean(customValueAs<PropertyScalar.Bool>()?.bool ?: bool)
-                if (editableProperty(node, null) { ImGui.checkbox(it, boolValue) }) {
+                if (editableProperty(node, focused, null) { ImGui.checkbox(it, boolValue) } && canEdit()) {
                     tryEditPrimitiveValue(PropertyScalar.Bool(boolValue.get()), node, this)
                 }
             }
 
             is PropertyScalar.Double -> {
                 val doubleValue = ImDouble(customValueAs<PropertyScalar.Double>()?.double ?: double)
-                if (editableProperty(node) { ImGui.inputDouble(it, doubleValue) }) {
+                if (editableProperty(node, focused) { ImGui.inputDouble(it, doubleValue) } && canEdit()) {
                     tryEditPrimitiveValue(PropertyScalar.Double(doubleValue.get()), node, this)
                 }
             }
 
             is PropertyScalar.Float -> {
                 val floatValue = ImFloat(customValueAs<PropertyScalar.Float>()?.float ?: float)
-                if (editableProperty(node) { ImGui.inputFloat(it, floatValue) }) {
+                if (editableProperty(node, focused) { ImGui.inputFloat(it, floatValue) } && canEdit()) {
                     tryEditPrimitiveValue(PropertyScalar.Float(floatValue.get()), node, this)
                 }
             }
 
             is PropertyScalar.Int -> {
                 val intValue = ImInt(customValueAs<PropertyScalar.Int>()?.int ?: int)
-                if (editableProperty(node) { ImGui.inputInt(it, intValue) }) {
+                if (editableProperty(node, focused) { ImGui.inputInt(it, intValue) } && canEdit()) {
                     tryEditPrimitiveValue(PropertyScalar.Int(intValue.get()), node, this)
                 }
             }
@@ -221,7 +267,7 @@ class PropertyEditor(
                     currentText,
                     maxOf(256, currentText.toByteArray().size + 64)
                 )
-                if (editableProperty(node) { ImGui.inputText(it, textValue) }) {
+                if (editableProperty(node, focused) { ImGui.inputText(it, textValue) } && canEdit()) {
                     tryEditPrimitiveValue(PropertyScalar.Str(textValue.get()), node, this)
                 }
             }
@@ -233,7 +279,7 @@ class PropertyEditor(
                     currentId.full,
                     maxOf(256, currentId.full.toByteArray().size + 64)
                 )
-                if (editableProperty(node) { ImGui.inputText(it, textValue) }) {
+                if (editableProperty(node, focused) { ImGui.inputText(it, textValue) } && canEdit()) {
                     runCatching { EngineId(textValue.get()) }
                         .getOrNull()
                         ?.let {
@@ -258,7 +304,7 @@ class PropertyEditor(
                     }
                 } else {
                     val textValue = ImString(currentName, maxOf(256, currentName.toByteArray().size + 64))
-                    if (editableProperty(node) { ImGui.inputText(it, textValue) }) {
+                    if (editableProperty(node, focused) { ImGui.inputText(it, textValue) } && canEdit()) {
                         tryEditPrimitiveValue(PropertyScalar.Enum(textValue.get()), node, this)
                     }
                 }
@@ -285,19 +331,20 @@ class PropertyEditor(
         originalValue: PropertyScalar
     ) {
         val path = node.path
-        val firstOriginal = propertyEdits[path]?.original ?: PropertyValue.Primitive(originalValue)
-        propertyEdits[path] = PendingEdit(firstOriginal, PropertyValue.Primitive(value))
+        val lastEdit = propertyEdits[path] ?: PendingEdit(PropertyValue.Primitive(originalValue), PropertyValue.Primitive(value))
+        propertyEdits[path] = lastEdit.copy(edited = PropertyValue.Primitive(value))
         editValue(node, PropertyEdit.Set(PropertyInput.Scalar(value)))
     }
 
     private fun editableProperty(
         node: Property,
+        focused: Boolean,
         width: Float? = -1f,
         input: (labelId: String) -> Boolean
     ): Boolean {
         width?.let { ImGui.setNextItemWidth(it) }
         val changed = input(editableId(node))
-        if (!ImGui.isItemActive() && !changed) {
+        if (!ImGui.isItemActive() && !changed && !focused) {
             propertyEdits.remove(node.path)
         }
         return changed

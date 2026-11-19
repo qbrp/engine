@@ -19,26 +19,29 @@ import kotlin.collections.component2
 context(editor: PropertyEditor)
 fun PropertyCompound.formatString(
     ancestors: Set<PropertyReference> = emptySet(),
+    depth: Int = 0,
 ): String? {
+    fun threeDots() = "...".takeIf { depth > 1 }
+
     return when (this) {
-        is PropertyCompound.Collection -> "[ " + values.joinToString { it.value.formatString(ancestors) } + " ]"
+        is PropertyCompound.Collection -> "[ " + (threeDots() ?: values.joinToString { it.value.formatString(ancestors, depth) }) + " ]"
         is PropertyCompound.PlayerPhysics -> null
         is PropertyCompound.Player -> description
-        is PropertyCompound.Table -> entries.map { (k, v) -> k.value.formatString(ancestors) to v }
-            .formatString(ancestors)
-
-        is PropertyCompound.Record -> fields.map { (property, node) -> property to node }
-            .formatString(ancestors)
+        is PropertyCompound.Table -> {
+            "{ " + (threeDots() ?: entries.map { (k, v) -> k.value.formatString(ancestors) to v }.formatString(ancestors, depth)) + " }"
+        }
+        is PropertyCompound.Record ->
+            "{ " + (threeDots() ?: fields.map { (property, node) -> property to node }.formatString(ancestors, depth)) + " }"
     }
 }
 
 context(editor: PropertyEditor)
-fun List<Pair<String, Property>>.formatString(ancestors: Set<PropertyReference>): String {
-    return "{ " + joinToString { (key, value) -> "${key}: ${value.value.formatString(ancestors)}" } + " }"
+fun List<Pair<String, Property>>.formatString(ancestors: Set<PropertyReference>, depth: Int = 0): String {
+    return joinToString { (key, value) -> "${key}: ${value.value.formatString(ancestors, depth)}" }
 }
 
 context(editor: PropertyEditor)
-fun PropertyValue?.formatString(ancestors: Set<PropertyReference>): String {
+fun PropertyValue?.formatString(ancestors: Set<PropertyReference>, depth: Int = 0): String {
     return when (this) {
         null -> "null"
         is PropertyValue.Primitive -> primitive.formatString()
@@ -47,7 +50,7 @@ fun PropertyValue?.formatString(ancestors: Set<PropertyReference>): String {
                 "ERROR: cyclic reference ${objectId.value}"
             } else {
                 val inspectionObject = editor.tree.compounds[objectId]
-                inspectionObject?.formatString(ancestors + objectId) ?: "ERROR: data not found"
+                inspectionObject?.formatString(ancestors + objectId, depth + 1) ?: "ERROR: data not found"
             }
         }
     }
@@ -68,6 +71,7 @@ fun PropertyScalar.formatString(): String {
                 }
             }
         }
+
         is PropertyScalar.Int -> string
         is PropertyScalar.Str -> string
         is PropertyScalar.Uuid -> string
@@ -76,8 +80,9 @@ fun PropertyScalar.formatString(): String {
         is PropertyScalar.Enum -> name
         is PropertyScalar.EntityRef ->
             debugName?.let { "$it+${entityId.formatString()}" }
-            ?: persistentId?.let { "$it+${entityId.formatString()}" }
-            ?: entityId.formatString()
+                ?: persistentId?.let { "$it+${entityId.formatString()}" }
+                ?: entityId.formatString()
+
         is PropertyScalar.Instant -> LocalDateTime.ofInstant(
             Instant.ofEpochMilli(epochMillis), ZoneId.systemDefault()
         ).format(
@@ -89,25 +94,30 @@ fun PropertyScalar.formatString(): String {
 private fun EntityId.formatString() = "$index-$generation"
 
 context(editor: PropertyEditor)
-fun PropertyTypeDescriptor.formatString(fullName: Boolean = false): String = when(this) {
+fun PropertyTypeDescriptor.formatString(fullName: Boolean = false): String = when (this) {
     is PropertyTypeDescriptor.Collection ->
-        "collection<${editor.resolveType(elementType).formatString(fullName)}>"
+        "Collection<${editor.resolveType(elementType).formatString(fullName)}>"
+
     is PropertyTypeDescriptor.Enum -> if (fullName) name else name.substringAfterLast('.')
     is PropertyTypeDescriptor.Map ->
-        "map<${editor.resolveType(keyType).formatString(fullName)}, ${editor.resolveType(valueType).formatString(fullName)}>"
+        "Map<${editor.resolveType(keyType).formatString(fullName)}, ${
+            editor.resolveType(valueType).formatString(fullName)
+        }>"
+
     is PropertyTypeDescriptor.Nullable -> "${editor.resolveType(valueTypeId).formatString(fullName)}?"
     is PropertyTypeDescriptor.Record -> if (fullName) name else name.substringAfterLast('.')
-    is PropertyTypeDescriptor.Scalar -> when(kind) {
-        ScalarKind.STRING -> "string"
-        ScalarKind.CHAR -> "char"
-        ScalarKind.INT -> "int"
-        ScalarKind.DOUBLE -> "double"
-        ScalarKind.FLOAT -> "float"
-        ScalarKind.BOOL -> "boolean"
-        ScalarKind.UUID -> "uuid"
-        ScalarKind.ID -> "id"
-        ScalarKind.ENTITY_REF -> "entity"
-        ScalarKind.INSTANT -> "instant"
+    is PropertyTypeDescriptor.Scalar -> when (kind) {
+        ScalarKind.STRING -> "String"
+        ScalarKind.CHAR -> "Char"
+        ScalarKind.INT -> "Int"
+        ScalarKind.DOUBLE -> "Double"
+        ScalarKind.FLOAT -> "Float"
+        ScalarKind.BOOL -> "Boolean"
+        ScalarKind.UUID -> "UUID"
+        ScalarKind.ID -> "Id"
+        ScalarKind.ENTITY_REF -> "Entity"
+        ScalarKind.INSTANT -> "Timestamp"
     }
+
     PropertyTypeDescriptor.Unknown -> "unknown"
 }

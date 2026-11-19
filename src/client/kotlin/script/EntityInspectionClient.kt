@@ -18,7 +18,7 @@ class EntityInspection(
     private var aborted: Boolean = false
     var data: EntityInspectionSnapshotDto? = null
         private set
-    var rate: Int = 20
+    var rate: Int = 5
         private set
     lateinit var window: EntityInspectorWindow
 

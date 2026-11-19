@@ -105,13 +105,13 @@ class EntityInspectorWindow(
         ImGui.textWrapped("Изменение данных некоторых компонентов может повлечь за собой неккоректную работу Engine")
         ImGui.separator()
         ImGuiUtil.child("Компоненты") {
-            val flags = ImGuiTableFlags.Resizable or ImGuiTableFlags.RowBg or ImGuiTableFlags.BordersInnerV
+            val flags = ImGuiTableFlags.Resizable or ImGuiTableFlags.RowBg or ImGuiTableFlags.BordersInnerV or ImGuiTableFlags.SizingStretchProp
             val columnsCount = if (showTypes.get()) 3 else 2
 
             if (ImGui.beginTable("properties", columnsCount, flags)) {
-                ImGui.tableSetupColumn("Свойство", ImGuiTableColumnFlags.WidthStretch, 0.4f)
-                if (showTypes.get()) ImGui.tableSetupColumn("Тип", ImGuiTableColumnFlags.WidthStretch, 0.25f)
-                ImGui.tableSetupColumn("Значение", ImGuiTableColumnFlags.WidthStretch, 0.35f)
+                ImGui.tableSetupColumn("Свойство", ImGuiTableColumnFlags.WidthStretch, 0.25f)
+                if (showTypes.get()) ImGui.tableSetupColumn("Тип", ImGuiTableColumnFlags.WidthStretch, 0.15f)
+                ImGui.tableSetupColumn("Значение", ImGuiTableColumnFlags.WidthStretch, 0.55f)
                 ImGui.tableHeadersRow()
 
                 components.forEach { (type, item) ->

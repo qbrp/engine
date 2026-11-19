@@ -159,7 +159,7 @@ fun registerClientEngineCommands(engineClient: EngineClient) {
         )
 
         dispatcher.register(
-            ClientCommandManager.literal("enginedebug")
+            ClientCommandManager.literal("inspector")
                 .then(
                     ClientCommandManager.literal("block")
                         .executes { ctx ->

@@ -2,6 +2,7 @@ package org.lain.engine.util.property
 
 import kotlinx.serialization.Serializable
 import org.lain.engine.script.SList
+import org.lain.engine.script.SNil
 import org.lain.engine.script.SString
 import org.lain.engine.script.STable
 import org.lain.engine.script.ScriptValue
@@ -14,7 +15,13 @@ import kotlin.reflect.full.primaryConstructor
 @Serializable
 sealed interface PropertyInput {
     fun toScriptValue(): ScriptValue
-    fun toJvmValue(expectedType: KType): Any
+    fun toJvmValue(expectedType: KType): Any?
+
+    @Serializable
+    object Null : PropertyInput {
+        override fun toScriptValue(): ScriptValue = SNil
+        override fun toJvmValue(expectedType: KType): Any? = null
+    }
 
     @Serializable
     data class Scalar(val scalar: PropertyScalar) : PropertyInput {

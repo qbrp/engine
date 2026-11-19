@@ -365,9 +365,6 @@ class EngineTitleMenu(
         private val COPYRIGHT_TEXT: Component = Component.translatable("title.credits")
         private val ALVERA_FONT = engineId("alvera")
         private const val LOGO_TOP_SCALE = 0.85f
-        private const val LOGO_ENGINE_SCALE = 0.85f
-        private const val LOGO_ENGINE_X_OFFSET = 4.0f
-        private const val LOGO_ENGINE_Y = 42.0f
         private const val LOGO_HEIGHT = 50
         private const val LOGO_COLOR_SPEED = 0.015f
         private const val LOGO_LETTER_PHASE = 0.09f
@@ -377,8 +374,7 @@ class EngineTitleMenu(
         private const val AUTHORIZATION_STATUS_PADDING = 4
         private const val AUTHORIZATION_BUTTON_HEIGHT = 10
         private const val FADE_IN_DURATION_MS = 2_000.0f
-        private const val RED_HUE = 0.0f
-        private const val GREEN_HUE = 1.0f / 3.0f
+        private const val RED_HUE = 0.4f
         private const val LOGO_HUE_RANGE = 0.085f
 
         private data class AuthorizationStatus(val text: String, val color: Int)
