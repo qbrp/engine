@@ -73,7 +73,7 @@ fun PropertyScalar.formatString(): String {
         }
 
         is PropertyScalar.Int -> string
-        is PropertyScalar.Str -> string
+        is PropertyScalar.Str -> '"' + string + '"'
         is PropertyScalar.Uuid -> string
         is PropertyScalar.Id -> id.full
         is PropertyScalar.Char -> char.toString()

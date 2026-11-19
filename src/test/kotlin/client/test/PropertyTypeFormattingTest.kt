@@ -48,9 +48,9 @@ class PropertyTypeFormattingTest {
         val editor = PropertyEditor("test", root, PropertyTree(emptyMap(), emptyMap(), types)) { _, _ -> }
 
         with(editor) {
-            assertEquals("map<string, collection<Position>?>", types.getValue(mapId).formatString())
+            assertEquals("Map<string, Сollection<Position>?>", types.getValue(mapId).formatString())
             assertEquals(
-                "map<string, collection<org.lain.example.Position>?>",
+                "Map<string, Сollection<org.lain.example.Position>?>",
                 types.getValue(mapId).formatString(fullName = true),
             )
             assertEquals("State", types.getValue(enumId).formatString())

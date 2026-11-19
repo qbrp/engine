@@ -193,7 +193,8 @@ class PropertyEditorRenderingTest {
         editor.renderRoot("root")
         val min = ImGui.getItemRectMin()
         val max = ImGui.getItemRectMax()
-        val center = (min.x + max.x) / 2f to (min.y + max.y) / 2f
+        // EndTable оставляет прямоугольник вложенной таблицы; checkbox находится у её левого края.
+        val center = min.x + ImGui.getStyle().cellPaddingX + ImGui.getFrameHeight() / 2f to (min.y + max.y) / 2f
         ImGui.endTable()
         ImGui.end()
         ImGui.render()
