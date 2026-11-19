@@ -17,7 +17,6 @@ import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.phys.Vec3
-import org.lain.engine.Constants.GENDER_MOD_AVAILABLE
 import org.lain.engine.data.*
 import org.lain.engine.item.EngineItem
 import org.lain.engine.item.Item
@@ -29,10 +28,9 @@ import org.lain.engine.mc.commands.registerOperationCommands
 import org.lain.engine.mc.commands.tickCommandInvokeSystem
 import org.lain.engine.mc.compat.isReplayServer
 import org.lain.engine.mc.compat.isReplayViewer
-import org.lain.engine.mc.compat.syncPlayerGenderConfig
+import org.lain.engine.mc.compat.tickGenderSystem
 import org.lain.engine.mc.ecs.*
 import org.lain.engine.player.*
-import org.lain.engine.player.character.ServerCharacterData
 import org.lain.engine.script.ModuleManager
 import org.lain.engine.script.NamespacedStorage
 import org.lain.engine.script.NamespacedStorageAccess
@@ -132,6 +130,7 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         tickVoxelDoorSystem(level)
         tickBulletFireDecalSystem(level)
         minecraftSystem.tickOperations(this)
+        tickGenderSystem()
     }
 
     open fun tick() {
@@ -228,18 +227,6 @@ abstract class EngineMinecraftServer(val dependencies: Dependencies) : ServerPla
         )
         ScriptPathSuggestionProvider.onScriptsCompiled()
         minecraftServer.players.forEach { commandManager.sendCommands(it) }
-    }
-
-    override fun onCharacterApplied(player: EnginePlayer, character: ServerCharacterData) {
-        engine.execute {
-            if (GENDER_MOD_AVAILABLE) {
-                syncPlayerGenderConfig(
-                    player.minecraftEntity as ServerPlayer,
-                    character.data.profile.biologicalSex,
-                    character.data.profile.appearance
-                )
-            }
-        }
     }
 
     fun onBlockBreak(pos: BlockPos, world: Level) {

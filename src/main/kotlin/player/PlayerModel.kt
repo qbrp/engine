@@ -16,6 +16,8 @@ data class EnginePlayerModel(
     var scale: Float = 1f,
     var standingEyeHeight: Float = 0.8f,
     var height: Float = 1f,
+    var breastsSize: Float = 0f,
+    var lastBreastsSize: Float = 0f,
 ) : Component
 
 /**
@@ -94,5 +96,7 @@ val CharacterHeight.scale
     get() = meters * CHARACTER_HEIGHT_TO_SCALE_MULTIPLIER
 
 fun World.tickPlayerModelSystem() = iterate<EnginePlayerModel, AppliedCharacter>() { _, model, applied ->
-    model.scale = applied.character.data.profile.height.scale
+    val profile = applied.character.data.profile
+    model.scale = profile.height.scale
+    model.breastsSize = profile.appearance.breastSize
 }

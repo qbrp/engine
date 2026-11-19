@@ -195,7 +195,6 @@ class CharacterManager(
                 platform.openInventory(player, it)
             }
             player.require<UsedCharacters>().characters += id
-            platform.onCharacterApplied(player, serverCharacter)
         }
     }
 }

@@ -21,16 +21,10 @@ import java.util.function.BooleanSupplier;
 @Mixin(ReceivingLevelScreen.class)
 public abstract class LevelLoadingScreenMixin {
     @Unique
-    private static final Component ENGINE_AUTHORIZATION_TEXT = Component.literal("Авторизация...");
-
-    @Unique
     private static final Component ENGINE_COMPILATION_TEXT = Component.literal("Компиляция ресурсов...");
 
     @Unique
     private static final Component ENGINE_GAME_LOADING_TEXT = Component.literal("Создание игровой сессии...");
-
-    @Unique
-    private static final Component ENGINE_CHARACTER_LOAD_TEXT = Component.literal("Загрузка персонажей...");
 
     @Shadow
     @Final

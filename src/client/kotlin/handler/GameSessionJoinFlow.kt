@@ -53,7 +53,7 @@ class GameSessionJoinFlow(
 
     private val accountManager = client.accountManager
     private val platform = client.platform
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val coroutineScope = CoroutineScope(Dispatchers.IO)
     private val requests = ClientRequestHandler(transport)
     private val sessionPackets = SessionPacketReceiver(transport)
 
@@ -319,7 +319,7 @@ class GameSessionJoinFlow(
                                 accountManager.getAuthorized()?.revokeSessionTicket(ticket.hash)
                             }
                         } catch (exception: Exception) {
-                            LOGGER.warn("Не удалось отозвать билет сессии после прерванного входа", exception)
+                            LOGGER.warn("Не удалось отозвать тикет после прерванного входа", exception)
                         }
                     }
                 }
