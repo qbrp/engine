@@ -9,6 +9,7 @@ data class CustomPlayerAttributes(
     var speed: Float? = null,
     var jumpStrength: Float? = null,
     var gravity: Float? = null,
+    var flyingSpeed: Float? = null,
     val script: MutableMap<String, ScriptValue> = mutableMapOf(),
 ) : Component {
     fun copy() = copy(script = script.mapValuesTo(mutableMapOf()) { (_, value) -> value.copy() })
@@ -18,15 +19,16 @@ data class CustomPlayerAttributes(
 data class PlayerAttributes(
     var speed: Float = 0.055f,
     var jumpStrength: Float = 0.37f,
-    var gravity: Float = 0.98f,
-    var flySpeed: Float = 1f
+    var gravity: Float = 0.08f,
+    var flyingSpeed: Float = 1f
 ) : Component
 
 fun PlayerAttributes.withCustom(custom: CustomPlayerAttributes?): PlayerAttributes =
     copy(
         speed = custom?.speed ?: speed,
         jumpStrength = custom?.jumpStrength ?: jumpStrength,
-        gravity = custom?.gravity ?: gravity
+        gravity = custom?.gravity ?: gravity,
+        flyingSpeed = custom?.flyingSpeed ?: flyingSpeed
     )
 
 val EnginePlayer.attributes
@@ -34,8 +36,3 @@ val EnginePlayer.attributes
 
 val EnginePlayer.effectiveAttributes
     get() = attributes.withCustom(get<CustomPlayerAttributes>())
-
-fun EnginePlayer.editCustomAttributes(edit: CustomPlayerAttributes.() -> Unit) {
-    require<CustomPlayerAttributes>().edit()
-    markUpdated<CustomPlayerAttributes>()
-}

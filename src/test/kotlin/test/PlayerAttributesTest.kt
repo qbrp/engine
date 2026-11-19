@@ -13,7 +13,7 @@ class PlayerAttributesTest {
             speed = 0.1f,
             jumpStrength = 0.2f,
             gravity = 0.3f,
-            flySpeed = 0.4f,
+            flyingSpeed = 0.4f,
         )
         val custom = CustomPlayerAttributes(
             speed = 1.1f,
@@ -26,7 +26,7 @@ class PlayerAttributesTest {
                 speed = 1.1f,
                 jumpStrength = 1.2f,
                 gravity = 1.3f,
-                flySpeed = 0.4f,
+                flyingSpeed = 0.4f,
             ),
             base.withCustom(custom)
         )

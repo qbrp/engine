@@ -58,7 +58,7 @@ fun PlayerAttributesMetaTable() = LuaUserdataType<PlayerAttributes>() {
     indexSelf { self, key ->
         when(key.tojstring()) {
             "speed" -> self.speed.toDouble().luaNum()
-            "fly_speed" -> self.flySpeed.toDouble().luaNum()
+            "fly_speed" -> self.flyingSpeed.toDouble().luaNum()
             "jump_strength" -> self.jumpStrength.toDouble().luaNum()
             "gravity" -> self.gravity.toDouble().luaNum()
             else -> NIL
@@ -67,7 +67,7 @@ fun PlayerAttributesMetaTable() = LuaUserdataType<PlayerAttributes>() {
     newIndexSelf { self, key, value ->
         when(key.tojstring()) {
             "speed" -> self.speed = value.checknumber().tofloat()
-            "fly_speed" -> self.flySpeed = value.checknumber().tofloat()
+            "fly_speed" -> self.flyingSpeed = value.checknumber().tofloat()
             "jump_strength" -> self.jumpStrength = value.checknumber().tofloat()
             "gravity" -> self.gravity = value.checknumber().tofloat()
         }

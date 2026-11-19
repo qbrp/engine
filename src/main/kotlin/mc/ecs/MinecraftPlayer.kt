@@ -4,7 +4,6 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
-import net.minecraft.world.level.Level
 import org.lain.cyberia.ecs.Component
 import org.lain.cyberia.ecs.iterate
 import org.lain.cyberia.ecs.removeComponent
@@ -13,16 +12,13 @@ import org.lain.cyberia.ecs.setComponent
 import org.lain.engine.item.EngineItem
 import org.lain.engine.mc.BlockStateVoxelMeta
 import org.lain.engine.mc.McGameModes
-import org.lain.engine.mc.bindMinecraftEntity
 import org.lain.engine.mc.bodyHeight
 import org.lain.engine.mc.enginePlayerAccess
-import org.lain.engine.mc.getPlayer
 import org.lain.engine.mc.getText
 import org.lain.engine.mc.isOp
 import org.lain.engine.mc.pitch
 import org.lain.engine.mc.previousGameMode
 import org.lain.engine.mc.set
-import org.lain.engine.mc.toMinecraft
 import org.lain.engine.mc.yaw
 import org.lain.engine.player.EnginePlayer
 import org.lain.engine.player.EnginePlayerModel
@@ -195,7 +191,8 @@ private fun World.tickMinecraftPlayerAccess() {
         data.speed = attributes.speed
         data.jumpStrength = attributes.jumpStrength
         data.noPhysics = physics.noClip
-        data.flyingSpeed = attributes.flySpeed
+        data.flyingSpeed = attributes.flyingSpeed
+        data.gravity = attributes.gravity
         data.canJump = attributes.jumpStrength > 0f
         data.initialized = true
 

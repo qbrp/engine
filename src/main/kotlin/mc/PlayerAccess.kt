@@ -45,6 +45,7 @@ class PlayerEntityData(
     var scale: Float = 1f,
     var noPhysics: Boolean = false,
     var canJump: Boolean = true,
+    var gravity: Float = 0.08f
 ) {
     var initialized: Boolean = false
 
@@ -75,7 +76,10 @@ class PlayerEntityAccess {
 
     fun getNoPhysics(): Boolean? = if (data.initialized) data.noPhysics else null
 
+    fun getGravity() = data.gravity
+
     fun canJump() = data.canJump
+
 
     fun onJump() {
         jumped = true
