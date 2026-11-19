@@ -221,103 +221,11 @@ class StringListSuggestionProvider(val variants: List<String>) :
     }
 }
 
-private class CustomPlayerAttributeCommand<T : Any>(
-    val name: String,
-    val displayName: String,
-    val argumentType: ArgumentType<T>,
-    val read: (ServerCommandContext, String) -> T,
-    val property: KMutableProperty1<CustomPlayerAttributes, T?>,
-    val suggestions: List<String> = emptyList(),
-)
-
-private fun floatCustomPlayerAttribute(
-    name: String,
-    displayName: String,
-    property: KMutableProperty1<CustomPlayerAttributes, Float?>,
-) = CustomPlayerAttributeCommand(
-    name,
-    displayName,
-    FloatArgumentType.floatArg(),
-    ServerCommandContext::getFloat,
-    property,
-)
-
-private fun <T : Any> CustomPlayerAttributeCommand<T>.setNode(
-    resolvePlayers: (Context) -> List<EnginePlayer> = { it.command.getPlayers("players") },
-) =
-    literal("set")
-        .then(
-            argument("value", argumentType)
-                .apply {
-                    if (suggestions.isNotEmpty()) {
-                        suggests(StringListSuggestionProvider(suggestions))
-                    }
-                }
-                .executeCatching { ctx ->
-                    val players = resolvePlayers(ctx)
-                    val value = read(ctx.command, "value")
-                    players.forEach { player ->
-                        player.editCustomAttributes { property.set(this, value) }
-                    }
-                    ctx.sendFeedback(
-                        "Атрибут «$displayName» установлен в $value для игроков ${players.formatPlayerList()}",
-                        true
-                    )
-                }
-        )
-
-private fun <T : Any> CustomPlayerAttributeCommand<T>.resetNode(
-    resolvePlayers: (Context) -> List<EnginePlayer> = { it.command.getPlayers("players") },
-) =
-    literal("reset")
-        .executeCatching { ctx ->
-            val players = resolvePlayers(ctx)
-            players.forEach { player ->
-                player.editCustomAttributes { property.set(this, null) }
-            }
-            ctx.sendFeedback(
-                "Атрибут «$displayName» сброшен для игроков ${players.formatPlayerList()}",
-                true
-            )
-        }
-
-
-private fun <T : Any> ServerCommandDispatcher.registerCustomPlayerAttributeCommand(
-    permission: String,
-    attribute: CustomPlayerAttributeCommand<T>,
-) {
-    register(
-        literal(attribute.name)
-            .requires { it.hasPermission(permission) }
-            .then(
-                argument("players", EntityArgument.players())
-                    .then(attribute.setNode())
-                    .then(attribute.resetNode())
-            )
-    )
-}
-
 fun ServerCommandDispatcher.registerEngineCommands(isDedicated: Boolean) {
     val server by lazy { requireEngineMinecraftServer() }
 
     registerEngineReloadCommands(isDedicated)
     registerEngineDeveloperCommands()
-
-    val speedAttribute = floatCustomPlayerAttribute(
-        "speed",
-        "скорость",
-        CustomPlayerAttributes::speed,
-    )
-    val jumpStrengthAttribute = floatCustomPlayerAttribute(
-        "jumpstrength",
-        "сила прыжка",
-        CustomPlayerAttributes::jumpStrength,
-    )
-    registerCustomPlayerAttributeCommand("attributecommand.speed", speedAttribute)
-    registerCustomPlayerAttributeCommand(
-        "attributecommand.jumpstrength",
-        jumpStrengthAttribute
-    )
 
     registerVoiceCommand()
 
